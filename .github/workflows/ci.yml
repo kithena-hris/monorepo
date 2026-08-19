@@ -34,6 +34,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Build first, because `lint` and `boundaries` are the two checks that do
+      # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
+      # and so builds what it needs, but `pnpm lint` is a bare `oxlint && eslint`
+      # and `pnpm boundaries` a bare `depcruise`. `dist/` is not committed and
+      # `@hris/contracts` resolves through `./dist/index.d.ts`, so on a clean
+      # checkout both see an unbuilt workspace: typescript-eslint cannot resolve
+      # a single cross-package import and reports the whole codebase as
+      # `error typed value`. It passes locally only because a developer's tree
+      # already has `dist/` lying around from the last build.
+      - run: pnpm build
+
       # Cheap rules first, then the type-aware pass. ESLint resolves against
       # the pinned TypeScript 6 API until 7.1 ships a stable one.
       - run: pnpm lint
@@ -47,7 +58,6 @@ jobs:
       - run: pnpm typecheck:authoritative
 
       - run: pnpm test
-      - run: pnpm build
 
   contracts:
     runs-on: ubuntu-latest

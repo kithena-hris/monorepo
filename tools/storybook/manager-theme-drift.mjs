@@ -131,55 +131,92 @@ const sidebarBackground = () =>
     return nav ? getComputedStyle(nav).backgroundColor : null;
   });
 
-await page.goto(BASE + '/?path=/story/components-stepper--playground&globals=theme:light', {
-  waitUntil: 'networkidle',
-  timeout: 30000,
-});
-// Matched on `title`, which is the one part of the control that does not
-// change with the theme. Its label alternates between "Light" and "Dark", and
-// an accessible-name match on those also matches other buttons in the chrome.
-const themeControl = page.getByTitle(/^Theme: /).first();
-await themeControl.waitFor({ state: 'visible', timeout: 15000 });
+const MANAGER = BASE + '/?path=/story/components-stepper--playground&globals=theme:light';
 
-const beforeToggle = await sidebarBackground();
-// The tool mounts a moment after the manager renders, and a click that lands
-// before React has attached its handler does nothing at all: the run then
-// reports the chrome refusing to follow, which is a different bug entirely.
-// Waiting for the control's own state to flip separates the two.
-const titleBefore = await themeControl.getAttribute('title');
-await themeControl.click();
-await page
-  .waitForFunction(
-    (was) => {
-      const button = document.querySelector('button[title^="Theme: "]');
-      return button !== null && button.getAttribute('title') !== was;
-    },
-    titleBefore,
-    { timeout: 10000 },
-  )
-  .catch(() => undefined);
-// The control is a single-click toggle, so the click above already switched.
-// This stays as a fallback: if it ever becomes a menu again, the option is
-// picked here rather than the check reporting that the chrome refused to
-// follow.
-const darkOption = page.getByRole('button', { name: /^dark$/i }).first();
-await darkOption.waitFor({ state: 'visible', timeout: 1500 }).catch(() => undefined);
-if (await darkOption.isVisible().catch(() => false)) {
-  await darkOption.click();
+/**
+ * Loads the manager, clicks the theme control once, and reports what the
+ * sidebar did. Returns the pair so the caller can retry: see the warm-up note
+ * below for why a single attempt is not trustworthy.
+ */
+async function toggleAndWatchSidebar() {
+  await page.goto(MANAGER, { waitUntil: 'networkidle', timeout: 30000 });
+  // Matched on `title`, which is the one part of the control that does not
+  // change with the theme. Its label alternates between "Light" and "Dark", and
+  // an accessible-name match on those also matches other buttons in the chrome.
+  const themeControl = page.getByTitle(/^Theme: /).first();
+  await themeControl.waitFor({ state: 'visible', timeout: 15000 });
+
+  const before = await sidebarBackground();
+  // The tool mounts a moment after the manager renders, and a click that lands
+  // before React has attached its handler does nothing at all: the run then
+  // reports the chrome refusing to follow, which is a different bug entirely.
+  // Waiting for the control's own state to flip separates the two.
+  const titleBefore = await themeControl.getAttribute('title');
+  await themeControl.click();
+  await page
+    .waitForFunction(
+      (was) => {
+        const button = document.querySelector('button[title^="Theme: "]');
+        return button !== null && button.getAttribute('title') !== was;
+      },
+      titleBefore,
+      { timeout: 10000 },
+    )
+    .catch(() => undefined);
+  // The control is a single-click toggle, so the click above already switched.
+  // This stays as a fallback: if it ever becomes a menu again, the option is
+  // picked here rather than the check reporting that the chrome refused to
+  // follow.
+  const darkOption = page.getByRole('button', { name: /^dark$/i }).first();
+  await darkOption.waitFor({ state: 'visible', timeout: 1500 }).catch(() => undefined);
+  if (await darkOption.isVisible().catch(() => false)) {
+    await darkOption.click();
+  }
+  // The chrome re-themes on a channel message, so wait for the value to change
+  // rather than for a fixed delay.
+  await page
+    .waitForFunction(
+      (was) => {
+        const nav = document.querySelector('nav');
+        return nav !== null && getComputedStyle(nav).backgroundColor !== was;
+      },
+      before,
+      { timeout: 10000 },
+    )
+    .catch(() => undefined);
+  return { before, after: await sidebarBackground() };
 }
-// The chrome re-themes on a channel message, so wait for the value to change
-// rather than for a fixed delay.
+
+/*
+ * Warm the manager before believing anything it says.
+ *
+ * The loop above only ever loaded `iframe.html`, so this is the first thing in
+ * the run to load the manager document — and the manager is the only thing
+ * that imports `storybook/theming`. On a cold Vite cache the optimizer
+ * discovers that dependency here, rebundles it, and reloads the page to serve
+ * the new version. The reload throws away the document the click just landed
+ * in and restores `globals=theme:light` from the URL, so the sidebar reads back
+ * light and the check reports the chrome refusing to follow the control. That
+ * is a different bug from the one this is looking for, and it is the one CI
+ * kept hitting: a developer's machine has the dependency cached from the last
+ * session and never sees it.
+ *
+ * Loading once and discarding the result moves that reload in front of the
+ * measurement. The retry covers a runner slow enough for it to land later
+ * anyway — an unchanged sidebar is the symptom of both the race and a real
+ * break, and only the second attempt tells them apart.
+ */
+await page.goto(MANAGER, { waitUntil: 'networkidle', timeout: 30000 });
 await page
-  .waitForFunction(
-    (was) => {
-      const nav = document.querySelector('nav');
-      return nav !== null && getComputedStyle(nav).backgroundColor !== was;
-    },
-    beforeToggle,
-    { timeout: 10000 },
-  )
+  .getByTitle(/^Theme: /)
+  .first()
+  .waitFor({ state: 'visible', timeout: 15000 })
   .catch(() => undefined);
-const afterToggle = await sidebarBackground();
+
+let { before: beforeToggle, after: afterToggle } = await toggleAndWatchSidebar();
+if (afterToggle === beforeToggle) {
+  ({ before: beforeToggle, after: afterToggle } = await toggleAndWatchSidebar());
+}
 
 const wantLight = asRgb(snapshot.light['surface-sunken']);
 const wantDark = asRgb(snapshot.dark['surface-sunken']);
