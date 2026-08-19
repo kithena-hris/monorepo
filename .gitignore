@@ -22,3 +22,9 @@ storybook-static/
 # Personal Claude Code settings. `settings.json` is shared configuration and is
 # checked in; `settings.local.json` is per-developer and is not.
 .claude/settings.local*.json
+
+# Vercel CLI link state, and the OIDC token it downloads alongside it. The
+# per-app .gitignore that `vercel link` writes already covers these; this is
+# the same rule at the root so a new app cannot miss it.
+.vercel
+.env.local

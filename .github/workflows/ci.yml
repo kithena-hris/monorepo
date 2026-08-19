@@ -134,3 +134,69 @@ jobs:
           name: storybook
           path: apps/storybook/storybook-static
           retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Deployment.
+  #
+  # Only from `main`, and only once every gate above has passed. The two public
+  # surfaces are the design system's shop window, so shipping a build that
+  # failed axe or the contrast sweep would undo the point of having those gates
+  # at all.
+  #
+  # This uses the Vercel CLI rather than Vercel's Git integration. The
+  # integration is the better tool where it can be used, it gives a preview
+  # deployment per pull request and a one-click rollback, but it requires the
+  # Vercel GitHub App to be installed on the organisation, which is a browser
+  # authorisation nobody can perform from CI. Swap to it whenever that is done;
+  # this job then becomes redundant and should be deleted rather than left to
+  # deploy the same commit twice.
+  # ---------------------------------------------------------------------------
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: [verify, contracts, design-system]
+    runs-on: ubuntu-latest
+    # One deployment at a time, and never cancelled halfway: `cancel-in-progress`
+    # on a deploy leaves whichever half-uploaded build the CDN happened to have.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      # A missing secret should say so in one line, rather than surfacing as a
+      # CLI usage error forty lines into the output of the first deploy step.
+      - name: Check the Vercel token is present
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      # Built here rather than by Vercel. Both apps are workspace consumers of
+      # `@reach/ui`, which ships TypeScript source, so a build needs the whole
+      # monorepo and its lockfile. Uploading the finished directory keeps the
+      # deployment identical to what the gates above just checked.
+      - run: pnpm --filter @reach/docs build
+      - run: pnpm --filter @reach/storybook build
+
+      - name: Deploy the documentation
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: |
+          npx --yes vercel@latest deploy apps/docs/dist \
+            --prod --yes --archive=tgz \
+            --token "$VERCEL_TOKEN"
+      - name: Deploy Storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: |
+          npx --yes vercel@latest deploy apps/storybook/storybook-static \
+            --prod --yes --archive=tgz \
+            --token "$VERCEL_TOKEN"
