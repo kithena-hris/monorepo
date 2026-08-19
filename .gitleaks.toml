@@ -1,0 +1,38 @@
+# Secret scanning configuration.
+#
+# Starts from the maintained default rule set rather than a hand-written list,
+# because the value of a scanner is the rules somebody else keeps current.
+# Everything below only *narrows* it, and every exception says why.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths and values that look like credentials and are not"
+
+paths = [
+  # Design tokens. `packages/ui/src/tokens`, `reach-tokens.json` and the token
+  # stories are full of long opaque strings named "token", which is exactly the
+  # shape a naive rule flags. They are colours.
+  '''packages/ui/src/tokens/.*''',
+  '''packages/ui/src/styles/tokens\.css''',
+  '''apps/storybook/\.storybook/reach-tokens\.json''',
+  # The lockfile is integrity hashes end to end.
+  '''pnpm-lock\.yaml''',
+]
+
+regexes = [
+  # Local development values, committed deliberately so `just dev` works on a
+  # fresh clone. They are named for what they are and reach nothing outside a
+  # developer's own machine. A real credential must never be added here — if a
+  # value in `.env.example` ever needs to be secret, the file is wrong, not the
+  # scanner.
+  '''dev-only-key''',
+  '''minio123''',
+  '''postgres://hris:hris@localhost''',
+  # Vercel project and organisation identifiers in the deploy workflow. These
+  # name a project; they do not authorise anything. The token that does is a
+  # repository secret and never appears in the tree.
+  '''prj_[A-Za-z0-9]{24}''',
+  '''team_[A-Za-z0-9]{24}''',
+]

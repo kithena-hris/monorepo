@@ -6,6 +6,14 @@ on:
   push:
     branches: [main]
 
+# Read-only by default. Without this the workflow inherits the repository
+# default, which on older settings is write-all: every job would be able to push
+# to `main` and publish packages purely because nobody narrowed it. The deploy
+# job needs no more than this either — it authenticates to Vercel with a token,
+# not with the GitHub one.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

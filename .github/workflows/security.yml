@@ -1,0 +1,88 @@
+name: security
+
+# Separate from `ci` on purpose. These checks answer a different question —
+# "is anything here dangerous" rather than "is anything here broken" — and they
+# have to keep running on a repository nobody is currently changing, because a
+# dependency becomes vulnerable on someone else's schedule, not on ours.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Monday morning. A weekly run is what turns "we had no advisories when we
+    # merged" into "we have no advisories now".
+    - cron: '0 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      # Full history. Scanning only the tip finds nothing: a credential that was
+      # committed and then deleted is still in the pack file, still cloneable,
+      # and still valid until it is rotated.
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      # The binary rather than the marketplace action: that action requires a
+      # paid licence key for organisation-owned repositories, and a security
+      # gate that silently no-ops when a key is missing is worse than none.
+      - name: Install gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Scan the full history
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --verbose --exit-code 1
+
+  dependencies:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      # The gate is on what ships. A ReDoS in a linter cannot be reached by a
+      # request to this product, and failing the build on it trains everyone to
+      # ignore the job that is also meant to catch the one that matters.
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level low
+
+      # Development tooling is reported, never gates. Dependabot raises these as
+      # reviewable pull requests with a changelog attached, which is the right
+      # place to decide about a major version of a build tool.
+      - name: Report development advisories
+        if: always()
+        continue-on-error: true
+        run: pnpm audit --audit-level high || true
+
+  permissions-check:
+    name: workflow permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # A workflow with no `permissions:` block inherits whatever the repository
+      # default is, which is `write-all` on older settings. This fails when a
+      # workflow forgets to narrow it, so a future job cannot quietly gain the
+      # ability to push to the repository or publish a package.
+      - name: Every workflow declares its permissions
+        run: |
+          missing=0
+          for f in .github/workflows/*.yml; do
+            if ! grep -q '^permissions:' "$f"; then
+              echo "::error file=$f::workflow does not declare a top-level permissions block"
+              missing=1
+            fi
+          done
+          exit $missing

@@ -1,0 +1,68 @@
+version: 2
+
+# Dependency updates, grouped.
+#
+# Ungrouped, this repository would open roughly forty pull requests a week —
+# one per Radix package, one per Storybook package, one per TypeScript-adjacent
+# tool — and the security update that matters would be lost among them. Grouping
+# by ecosystem keeps the count reviewable, which is the only way the reviews
+# actually happen.
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    open-pull-requests-limit: 8
+    # A dependency change touches the lockfile for the whole workspace, so the
+    # commit should say so.
+    commit-message:
+      prefix: deps
+      prefix-development: deps(dev)
+
+    groups:
+      # Security fixes travel alone and are never batched with a feature bump,
+      # so the diff a reviewer reads is only the fix.
+      security:
+        applies-to: security-updates
+        patterns: ['*']
+
+      radix:
+        patterns: ['@radix-ui/*']
+      storybook:
+        patterns: ['storybook', '@storybook/*']
+      typescript:
+        patterns: ['typescript', '@typescript/*', 'typescript-eslint', '@typescript-eslint/*']
+      linting:
+        patterns: ['eslint*', 'oxlint', 'prettier*']
+      testing:
+        patterns: ['vitest', '@vitest/*', 'playwright', '@playwright/*', '@testing-library/*']
+      tiptap:
+        patterns: ['@tiptap/*']
+      dnd-kit:
+        patterns: ['@dnd-kit/*']
+
+    ignore:
+      # Held deliberately. `CLAUDE.md` pins two compilers on purpose: TypeScript
+      # 7 for the fast local check and TypeScript 6 as the merge gate, because
+      # 7.0 ships no programmatic API and typescript-eslint cannot run on it
+      # until 7.1. Collapsing to one compiler is a decision, not an upgrade, so
+      # Dependabot must not propose it.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: '@typescript/typescript6'
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
