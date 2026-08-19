@@ -1,0 +1,157 @@
+/* The design system's own stylesheet, unmodified. This site is built out of
+   Reach, not alongside it: if a token moves, this page moves with it. */
+@import '@reach/ui/styles.css';
+
+/* ---------------------------------------------------------------------------
+   Docs chrome.
+
+   Three things live here, and nothing else. A component style in this file
+   would mean the documentation had stopped proving anything about the system it
+   documents.
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  html {
+    /*
+     * Jumping to a heading moves the page rather than teleporting it, so the
+     * reader can see which way they travelled and roughly how far. Reach's base
+     * layer already forces this back to `auto` under `prefers-reduced-motion`,
+     * where a long scroll is precisely the vestibular trigger.
+     */
+    scroll-behavior: smooth;
+
+    /*
+     * The header is 3.5rem and sticky, so an anchor that scrolls a heading to
+     * the very top scrolls it *underneath* the bar. The extra 0.5rem stops the
+     * heading sitting flush against the chrome.
+     */
+    scroll-padding-top: 4rem;
+  }
+
+  /* Long prose is easier to scan when the last line is not one orphaned word.
+     A property of this page's reading width, not of any component. */
+  main {
+    text-wrap: pretty;
+  }
+
+  /*
+   * Pointer feedback on controls that are not links.
+   *
+   * A browser gives an `<a href>` a pointer for free and a `<button>` an arrow,
+   * so the sidebar reads as clickable and the tabs, the copy buttons and the
+   * pagination do not. Reach's `Button` does not set a cursor of its own, which
+   * is arguably where this belongs, but the design system is out of scope for
+   * this application, so the docs state it for their own surface.
+   *
+   * Scoped to enabled controls: a disabled button that still shows a pointer is
+   * promising something it will not do.
+   */
+  button:not(:disabled),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem'],
+  [role='option'],
+  summary,
+  label:has(input:not(:disabled)) {
+    cursor: pointer;
+  }
+
+  /*
+   * Press feedback, on pointer-down rather than on click.
+   *
+   * The moment lag appears the sense of directness falls off a cliff, and
+   * waiting for the click to acknowledge a press is exactly that lag. 160ms
+   * out, instant in: the control should feel like it is already responding
+   * before the reader has finished pressing.
+   */
+  button:not(:disabled),
+  [role='tab'] {
+    transition: transform 160ms var(--ease-standard);
+  }
+
+  button:not(:disabled):active,
+  [role='tab']:active {
+    transform: scale(0.97);
+  }
+
+  /* A transform is the vestibular trigger, so the press becomes instant rather
+     than merely faster. The colour changes underneath still carry the state. */
+  @media (prefers-reduced-motion: reduce) {
+    button:not(:disabled),
+    [role='tab'] {
+      transition: none;
+    }
+
+    button:not(:disabled):active,
+    [role='tab']:active {
+      transform: none;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Code colours.
+
+   VS Code's Dark+ and Light+, because that is the palette the reader already
+   has in the window next to this one, and a docs site inventing its own scheme
+   makes them translate between two vocabularies for no gain.
+
+   Held as custom properties rather than utility classes so the whole palette
+   re-points with the theme, exactly the way the design system's own semantic
+   tokens do.
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    --dc-code-bg: oklch(0.985 0.002 264);
+    --dc-code-comment: #008000;
+    --dc-code-string: #a31515;
+    --dc-code-keyword: #0000ff;
+    --dc-code-component: #267f99;
+    --dc-code-attribute: #e50000;
+    --dc-code-number: #098658;
+    --dc-code-punctuation: #383a42;
+    --dc-code-plain: #24292e;
+  }
+
+  .dark {
+    --dc-code-bg: oklch(0.175 0.017 264);
+    --dc-code-comment: #6a9955;
+    --dc-code-string: #ce9178;
+    --dc-code-keyword: #569cd6;
+    --dc-code-component: #4ec9b0;
+    --dc-code-attribute: #9cdcfe;
+    --dc-code-number: #b5cea8;
+    --dc-code-punctuation: #d4d4d4;
+    --dc-code-plain: #d4d4d4;
+  }
+}
+
+@layer components {
+  .dc-code {
+    background-color: var(--dc-code-bg);
+    color: var(--dc-code-plain);
+  }
+
+  .dc-tok-comment {
+    color: var(--dc-code-comment);
+    font-style: italic;
+  }
+  .dc-tok-string {
+    color: var(--dc-code-string);
+  }
+  .dc-tok-keyword {
+    color: var(--dc-code-keyword);
+  }
+  .dc-tok-component {
+    color: var(--dc-code-component);
+  }
+  .dc-tok-attribute {
+    color: var(--dc-code-attribute);
+  }
+  .dc-tok-number {
+    color: var(--dc-code-number);
+  }
+  .dc-tok-punctuation {
+    color: var(--dc-code-punctuation);
+  }
+}

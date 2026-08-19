@@ -1,0 +1,41 @@
+version: '1'
+
+listen_addr: '0.0.0.0:4000'
+graph:
+  sign_key: '${GRAPH_SIGN_KEY}'
+
+# Persisted queries only in production. The client sends a hash, not a
+# document, which kills query-depth abuse and gives per-operation cost
+# accounting for free.
+persisted_operations:
+  disabled: false
+  safelist:
+    enabled: true
+
+security:
+  complexity_calculation:
+    enabled: true
+    max_total_score: 10000
+    max_depth: 12
+    max_root_fields: 20
+
+traffic_shaping:
+  router:
+    max_request_body_size: 5MB
+  all:
+    request_timeout: 30s
+
+# Event-driven federation: a Redpanda topic backs a GraphQL subscription
+# declaratively, instead of per-module pub/sub plumbing.
+events:
+  providers:
+    kafka:
+      - id: hris
+        brokers:
+          - localhost:19092
+
+telemetry:
+  tracing:
+    enabled: true
+    exporters:
+      - endpoint: http://localhost:4318

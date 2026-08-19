@@ -1,0 +1,15 @@
+{
+  "name": "@hris/lint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Holds the type-aware lint pass and, with it, the TypeScript 6 API that typescript-eslint needs.",
+  "scripts": {
+    "lint": "eslint --config ./eslint.config.js"
+  },
+  "devDependencies": {
+    "eslint": "^9.30.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.66.0"
+  }
+}

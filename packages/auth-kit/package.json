@@ -1,0 +1,27 @@
+{
+  "name": "@hris/auth-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@hris/contracts": "workspace:*",
+    "@openfga/sdk": "^0.8.0",
+    "jose": "^6.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {}
+}

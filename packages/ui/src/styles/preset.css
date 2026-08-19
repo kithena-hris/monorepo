@@ -1,0 +1,608 @@
+/*
+ * Tailwind theme.
+ *
+ * Maps the semantic token layer onto Tailwind's utility namespaces, so a
+ * component writes `bg-surface text-fg-muted` and never a raw hex, a raw
+ * OKLCH triple, or a numbered palette step.
+ *
+ * `@theme inline` matters: it emits `background-color: var(--reach-color-surface)`
+ * rather than resolving the token at build time, which is what lets `.dark`
+ * re-point the same utility without generating a second class.
+ *
+ * Import this from an app's stylesheet, or import `@reach/ui/styles.css` which
+ * bundles it with the tokens and base layer.
+ */
+
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Class-based, not media-based: the theme has to be switchable per user
+   preference and per Storybook toolbar, not only per OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Input device, not screen size. `md:` tells you the viewport is 768px wide,
+ * which an iPad Pro and a small laptop window both satisfy while wanting
+ * completely different hit areas. These ask the question that actually
+ * determines the answer.
+ */
+@custom-variant touch (@media (pointer: coarse));
+@custom-variant stylus (@media (pointer: fine) and (hover: none));
+@custom-variant pointer-fine (@media (pointer: fine));
+
+/* Platform is declared by the app (see the density block in tokens.css), so
+   these are attribute variants rather than media queries. */
+@custom-variant tv (&:where([data-platform='tv'], [data-platform='tv'] *));
+@custom-variant standalone (@media (display-mode: standalone));
+
+/* iOS Safari only reports a non-zero `env(safe-area-inset-*)` on a notched
+   device in a viewport-fit=cover page; everywhere else these resolve to 0, so
+   the utilities below are inert rather than conditional. */
+@custom-variant tall (@media (min-height: 45rem));
+
+@theme inline {
+  /* ------------------------------------------------------------------ */
+  /* Colour                                                              */
+  /* ------------------------------------------------------------------ */
+  --color-canvas: var(--reach-color-canvas);
+  --color-surface: var(--reach-color-surface);
+  --color-surface-sunken: var(--reach-color-surface-sunken);
+  --color-surface-hover: var(--reach-color-surface-hover);
+  --color-surface-active: var(--reach-color-surface-active);
+  --color-overlay: var(--reach-color-overlay);
+
+  --color-fg: var(--reach-color-fg);
+  --color-fg-muted: var(--reach-color-fg-muted);
+  --color-fg-subtle: var(--reach-color-fg-subtle);
+  --color-fg-disabled: var(--reach-color-fg-disabled);
+  --color-fg-on-accent: var(--reach-color-fg-on-accent);
+  --color-fg-on-solid: var(--reach-color-fg-on-solid);
+  --color-icon-muted: var(--reach-color-icon-muted);
+
+  --color-border: var(--reach-color-border);
+  --color-border-strong: var(--reach-color-border-strong);
+  --color-border-focus: var(--reach-color-border-focus);
+
+  --color-accent: var(--reach-color-accent);
+  --color-accent-solid: var(--reach-color-accent-solid);
+  --color-accent-hover: var(--reach-color-accent-hover);
+  --color-accent-active: var(--reach-color-accent-active);
+  --color-accent-subtle: var(--reach-color-accent-subtle);
+  --color-accent-subtle-hover: var(--reach-color-accent-subtle-hover);
+  --color-accent-fg: var(--reach-color-accent-fg);
+
+  --color-success: var(--reach-color-success);
+  --color-success-solid: var(--reach-color-success-solid);
+  --color-success-subtle: var(--reach-color-success-subtle);
+  --color-success-border: var(--reach-color-success-border);
+  --color-success-fg: var(--reach-color-success-fg);
+
+  --color-warning: var(--reach-color-warning);
+  --color-warning-subtle: var(--reach-color-warning-subtle);
+  --color-warning-border: var(--reach-color-warning-border);
+  --color-warning-fg: var(--reach-color-warning-fg);
+
+  --color-danger: var(--reach-color-danger);
+  --color-danger-solid: var(--reach-color-danger-solid);
+  --color-danger-hover: var(--reach-color-danger-hover);
+  --color-danger-subtle: var(--reach-color-danger-subtle);
+  --color-danger-border: var(--reach-color-danger-border);
+  --color-danger-fg: var(--reach-color-danger-fg);
+
+  --color-info: var(--reach-color-info);
+  --color-info-subtle: var(--reach-color-info-subtle);
+  --color-info-border: var(--reach-color-info-border);
+  --color-info-fg: var(--reach-color-info-fg);
+
+  /* ------------------------------------------------------------------ */
+  /* Type                                                                */
+  /*                                                                     */
+  /* One family. Tabular figures are a hard requirement, not a taste      */
+  /* call: payroll and leave balances are read in columns, and            */
+  /* proportional digits make a column of money unscannable.              */
+  /* ------------------------------------------------------------------ */
+  --font-sans:
+    'InterVariable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /*
+   * Tracking is size-specific, and a single `letter-spacing` for the scale is
+   * wrong at both ends of it.
+   *
+   * A typeface is drawn to be optically correct at one size. Scaled up, the
+   * gaps between letters grow with the glyphs and a heading starts to look
+   * spaced out, so large text tightens. Scaled down, the counters close up and
+   * the glyphs crowd, so small text opens up. The ramp below crosses zero at
+   * `md` (16px), which is roughly where Inter is drawn to sit, and moves in
+   * both directions from there.
+   *
+   * The small end earns this more than the large end does in an HRIS. A
+   * 0.6875rem column header on a payroll register is the smallest thing anyone
+   * has to read accurately, and it is read in a grid where a misread digit is a
+   * wrong number rather than a typo.
+   */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-2xs--letter-spacing: 0.01em;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-xs--letter-spacing: 0.006em;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-sm--letter-spacing: 0.004em;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-base--letter-spacing: 0.002em;
+  /* The hinge of the ramp: 16px is where the face is already correct, so it
+     takes no correction in either direction. */
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-md--letter-spacing: 0em;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-lg--letter-spacing: -0.01em;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-xl--letter-spacing: -0.015em;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.25rem;
+  --text-2xl--letter-spacing: -0.02em;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.625rem;
+  --text-3xl--letter-spacing: -0.025em;
+
+  /* ------------------------------------------------------------------ */
+  /* Shape                                                               */
+  /* ------------------------------------------------------------------ */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  --shadow-xs: var(--reach-shadow-xs);
+  --shadow-sm: var(--reach-shadow-sm);
+  --shadow-md: var(--reach-shadow-md);
+  --shadow-lg: var(--reach-shadow-lg);
+  --shadow-xl: var(--reach-shadow-xl);
+
+  /* ------------------------------------------------------------------ */
+  /* Materials                                                           */
+  /*                                                                     */
+  /* Translucent chrome, for surfaces that float over content rather      */
+  /* than consuming a strip of the layout. Three named weights, because   */
+  /* the blur radius is what says how thick the surface is, and a         */
+  /* sticky section header and a modal scrim are not the same thickness.  */
+  /*                                                                     */
+  /* Two rules that are not negotiable. Never stack one of these on       */
+  /* another: two light translucent layers over each other lose all text  */
+  /* legibility, and the fix is always to make the lower one opaque.      */
+  /* And always pair a material with an opaque fallback, `backdrop-filter`*/
+  /* has no partial support, a browser without it renders the semi-       */
+  /* transparent background alone and the content shows straight through. */
+  /* ------------------------------------------------------------------ */
+  --blur-material-thin: 8px;
+  --blur-material: 16px;
+  --blur-material-thick: 28px;
+
+  /* Saturation compensates for what the blur takes out. Averaging a region of
+     colour pulls it toward grey, so a material over a saturated chart reads
+     washed out unless the saturation is pushed back up. */
+  --reach-material-saturate: 180%;
+
+  /* Control heights. Every interactive control snaps to one of these so a
+     button, an input and a select line up on the same row without nudging.
+     The values come from the density layer, which the pointer type and the
+     declared platform re-point: see tokens.css. */
+  --spacing-control-sm: var(--reach-control-sm);
+  --spacing-control-md: var(--reach-control-md);
+  --spacing-control-lg: var(--reach-control-lg);
+  --spacing-tap: var(--reach-tap-min);
+
+  /* Safe areas. `pb-safe-bottom` on a sticky action bar is the difference
+     between a working submit button and one under the iPhone home indicator.
+     Zero on every device that has no inset, so it is never conditional. */
+  --spacing-safe-top: env(safe-area-inset-top, 0px);
+  --spacing-safe-right: env(safe-area-inset-right, 0px);
+  --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --spacing-safe-left: env(safe-area-inset-left, 0px);
+
+  /* ------------------------------------------------------------------ */
+  /* Breakpoints                                                         */
+  /*                                                                     */
+  /* Named for the device class that forced them to exist, because a     */
+  /* number in a class name tells the next reader nothing:               */
+  /*                                                                     */
+  /*   xs   416px   larger phones: iPhone 15 Pro is 393, Max is 430     */
+  /*   sm   640px   phone landscape                                      */
+  /*   md   768px   iPad portrait; the first breakpoint with a sidebar   */
+  /*   lg  1024px   iPad landscape / small laptop                        */
+  /*   xl  1280px   desktop                                              */
+  /*   2xl 1536px   wide desktop                                         */
+  /*   3xl 1920px   1080p television, wall display                       */
+  /*   4xl 2560px   4K television at 1.5×: see [data-platform='tv']     */
+  /* ------------------------------------------------------------------ */
+  --breakpoint-xs: 26rem;
+  --breakpoint-3xl: 120rem;
+  --breakpoint-4xl: 160rem;
+
+  /* Container-query sizes, for components that must respond to the column
+     they were dropped into rather than to the window. A card in a 320px
+     sidebar and the same card in a 900px main column are the same viewport. */
+  --container-2xs: 16rem;
+  --container-xs: 20rem;
+  --container-sm: 24rem;
+  --container-md: 28rem;
+  --container-lg: 32rem;
+  --container-xl: 36rem;
+  --container-2xl: 42rem;
+
+  /* ------------------------------------------------------------------ */
+  /* Motion                                                              */
+  /*                                                                     */
+  /* Interface motion is confirmation, not decoration. Nothing here is    */
+  /* long enough to wait for.                                            */
+  /* ------------------------------------------------------------------ */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrance: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /*
+   * Springs, baked.
+   *
+   * A cubic bézier has two control points, so it cannot describe a curve that
+   * passes its target and comes back. `linear()` interpolates an arbitrary list
+   * of samples, which can, so these are real spring solutions usable as a plain
+   * CSS easing. That matters for more than the overshoot: a CSS transition runs
+   * on the compositor and keeps its frames while the main thread is parsing a
+   * payroll response, and it can be interrupted and retargeted mid-flight,
+   * which a keyframe animation restarts from zero instead.
+   *
+   * Generated by `springEasing` in `src/lib/spring.ts` from a damping ratio and
+   * a response. Do not hand-edit a value here, `spring.test.ts` re-derives all
+   * eight lines and fails if the stylesheet has drifted from the physics.
+   *
+   * Each curve is only correct at the duration it was baked for, so the pairs
+   * below travel together. `--ease-spring-drawer` on some other duration puts
+   * the overshoot in the wrong place.
+   *
+   * These are for motion that is predetermined. A gesture cannot use a baked
+   * curve, because a baked curve cannot accept the velocity the finger left
+   * with, see `use-drag-dismiss.ts` for that path.
+   */
+  --ease-spring-snap: linear(
+    0,
+    0.101,
+    0.291,
+    0.478,
+    0.632,
+    0.748,
+    0.831,
+    0.889,
+    0.927,
+    0.953,
+    0.97,
+    0.981,
+    0.988,
+    0.993,
+    0.995,
+    0.997,
+    0.998,
+    0.999,
+    0.999,
+    1,
+    1
+  );
+  --animate-duration-spring-snap: 256ms;
+
+  --ease-spring-move: linear(
+    0,
+    0.103,
+    0.296,
+    0.484,
+    0.638,
+    0.754,
+    0.836,
+    0.893,
+    0.931,
+    0.956,
+    0.972,
+    0.982,
+    0.989,
+    0.993,
+    0.996,
+    0.997,
+    0.998,
+    0.999,
+    0.999,
+    1,
+    1
+  );
+  --animate-duration-spring-move: 432ms;
+
+  --ease-spring-drawer: linear(
+    0,
+    0.105,
+    0.314,
+    0.531,
+    0.71,
+    0.84,
+    0.926,
+    0.976,
+    1.002,
+    1.013,
+    1.015,
+    1.013,
+    1.01,
+    1.007,
+    1.004,
+    1.002,
+    1.001,
+    1,
+    1,
+    1,
+    1
+  );
+  --animate-duration-spring-drawer: 504ms;
+
+  --ease-spring-flick: linear(
+    0,
+    0.105,
+    0.32,
+    0.544,
+    0.731,
+    0.866,
+    0.953,
+    1.001,
+    1.023,
+    1.028,
+    1.026,
+    1.02,
+    1.013,
+    1.008,
+    1.004,
+    1.001,
+    1,
+    0.999,
+    0.999,
+    0.999,
+    1
+  );
+  --animate-duration-spring-flick: 584ms;
+
+  --animate-duration-instant: 80ms;
+  --animate-duration-fast: 140ms;
+  --animate-duration-normal: 200ms;
+  --animate-duration-slow: 320ms;
+
+  /* Delay between neighbours in a staggered group. 30ms is the smallest step
+     that reads as a sequence rather than as one event; anything past ~50ms
+     starts to feel like the interface is thinking. */
+  --animate-stagger-step: 30ms;
+  /* The ceiling. Without one, selecting a column of forty cards would take
+     1.2s to finish highlighting, and the last card would look broken. */
+  --animate-stagger-max: 180ms;
+
+  --animate-fade-in: fade-in var(--animate-duration-fast) var(--ease-entrance);
+  --animate-fade-out: fade-out var(--animate-duration-fast) var(--ease-exit);
+  --animate-scale-in: scale-in var(--animate-duration-fast) var(--ease-entrance);
+  --animate-scale-out: scale-out var(--animate-duration-fast) var(--ease-exit);
+  --animate-slide-up: slide-up var(--animate-duration-normal) var(--ease-entrance);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  /* Panels that travel from an edge. The distance is 100% of the panel, so a
+     sheet leaves and re-enters along the edge it is anchored to, the user
+     keeps a mental model of where it went. */
+  --animate-slide-in-right: slide-in-right var(--animate-duration-normal) var(--ease-entrance);
+  --animate-slide-out-right: slide-out-right var(--animate-duration-fast) var(--ease-exit);
+  --animate-slide-in-left: slide-in-left var(--animate-duration-normal) var(--ease-entrance);
+  --animate-slide-out-left: slide-out-left var(--animate-duration-fast) var(--ease-exit);
+  --animate-slide-in-bottom: slide-in-bottom var(--animate-duration-normal) var(--ease-entrance);
+  --animate-slide-out-bottom: slide-out-bottom var(--animate-duration-fast) var(--ease-exit);
+  --animate-slide-in-top: slide-in-top var(--animate-duration-normal) var(--ease-entrance);
+  --animate-slide-out-top: slide-out-top var(--animate-duration-fast) var(--ease-exit);
+
+  /* Radix measures the panel and publishes the height as a custom property;
+     `auto` is not animatable, so this is the only way to get a real collapse. */
+  --animate-collapse-down: collapse-down var(--animate-duration-normal) var(--ease-standard);
+  --animate-collapse-up: collapse-up var(--animate-duration-fast) var(--ease-standard);
+
+  /* Work of unknown length. A bar that sweeps says "still running"; a bar
+     stuck at 90% says "hung", which is why determinate progress is only ever
+     used when the total is actually known. */
+  /* A card leaving the board plane: it scales up a hair and gains its shadow,
+     which is what reads as "picked up" rather than "moved". */
+  /* `forwards` is not optional here: without a fill mode the card snaps back
+     to its untilted state the instant the animation ends, which is a visible
+     flick at the start of every drag. */
+  --animate-lift: lift var(--animate-duration-fast) var(--ease-entrance) forwards;
+
+  /* Something arriving in, or leaving, a list. Scale plus opacity rather than
+     opacity alone: a chip that only fades reads as a rendering glitch, while
+     one that grows the last few percent reads as having been placed. */
+  /* `backwards` is not optional here. Without a fill mode an element paints at
+     full opacity for one frame, and for the whole of any `animation-delay`.
+     Before snapping to the keyframe's starting value. That one frame is the
+     flicker you see when a staggered list appears. */
+  --animate-pop-in: pop-in var(--animate-duration-normal) var(--ease-entrance) backwards;
+  --animate-pop-out: pop-out var(--animate-duration-fast) var(--ease-exit) forwards;
+
+  /* Charts. A bar grows from its baseline and a line draws itself, both of
+     which say "this is being plotted" rather than "this appeared". Scale
+     rather than height, so one keyframe works for a bar of any value. */
+  --animate-grow-y: grow-y var(--animate-duration-slow) var(--ease-entrance) backwards;
+  --animate-grow-x: grow-x var(--animate-duration-slow) var(--ease-entrance) backwards;
+  --animate-draw-line: draw-line 700ms var(--ease-standard) backwards;
+  /* A donut arc grows along the ring. Linear on purpose: the arcs are timed to
+     run back to back, so an eased one would stall at its own join and the ring
+     would draw in visible lurches. The dash *length* is what animates: moving
+     `stroke-dashoffset` instead slides the arc around the circle, which is a
+     different picture entirely. */
+  --animate-arc: arc-grow var(--animate-duration-slow) linear backwards;
+
+  --animate-indeterminate: indeterminate 1.4s var(--ease-standard) infinite;
+  --animate-pulse-ring: pulse-ring 2s var(--ease-standard) infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes scale-out {
+    to {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes slide-out-right {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes slide-out-left {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes slide-in-bottom {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes slide-out-bottom {
+    to {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes slide-in-top {
+    from {
+      transform: translateY(-100%);
+    }
+  }
+  @keyframes slide-out-top {
+    to {
+      transform: translateY(-100%);
+    }
+  }
+  @keyframes collapse-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, var(--radix-accordion-content-height, auto));
+      opacity: 1;
+    }
+  }
+  @keyframes collapse-up {
+    from {
+      height: var(--radix-collapsible-content-height, var(--radix-accordion-content-height, auto));
+      opacity: 1;
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes lift {
+    from {
+      transform: scale(1) rotate(0deg);
+    }
+    to {
+      transform: scale(1.02) rotate(2deg);
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+  }
+  @keyframes pop-out {
+    to {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+  }
+  @keyframes grow-y {
+    from {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  /* Paired with `pathLength="1"`, so the dash length is the whole path
+     regardless of how long the path actually is. */
+  @keyframes draw-line {
+    from {
+      stroke-dashoffset: 1;
+    }
+  }
+  /* Paired with `pathLength="1"`, so the whole ring is one unit and an arc is
+     the fraction it represents. Only a `from` step: the value it grows *to* is
+     whatever the element already computes, which is how one keyframe serves
+     every slice of every size. */
+  @keyframes arc-grow {
+    from {
+      stroke-dasharray: 0 1;
+    }
+  }
+  @keyframes indeterminate {
+    from {
+      transform: translateX(-100%) scaleX(0.35);
+    }
+    to {
+      transform: translateX(300%) scaleX(0.35);
+    }
+  }
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 var(--reach-color-accent-subtle);
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 0.5rem transparent;
+    }
+  }
+}

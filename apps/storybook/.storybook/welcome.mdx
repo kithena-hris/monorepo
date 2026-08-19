@@ -1,0 +1,118 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { ReachLogo } from '@reach/ui';
+
+<Meta title="Welcome" />
+
+<div className="max-w-3xl space-y-8 py-4">
+
+<div className="space-y-3 [&_p]:text-md [&_p]:text-fg-muted">
+  <ReachLogo showSubtitle className="text-accent-fg" />
+  <h1 className="text-3xl font-semibold text-fg">One vocabulary, twenty products</h1>
+
+Every module in this platform has to stand on its own. A tenant who buys nothing but Time Off
+should still get something that looks and behaves like the rest of the suite. That only holds if
+the interface vocabulary lives in one place, so this is that place.
+
+The name is the shortest version of the rule the system keeps coming back to. Whatever you build
+with it has to be reachable: by a mouse, by a thumb, by a keyboard, by a screen reader, and from
+the far side of a room on a television.
+
+</div>
+
+<div className="rounded-lg border border-border bg-surface p-5">
+  <h2 className="text-md font-semibold text-fg">What is here</h2>
+  <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+    <div>
+      <dt className="font-medium text-fg">Foundations</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        Colour, type, elevation, shape and motion, read live from the shipped CSS.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Components</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        The parts, each with a note on why it behaves the way it does.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Patterns</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        Whole screens, and all of them work. The filters filter, the infinite list fetches.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Layouts</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        Page skeletons as named slots, plus hierarchical navigation and modal pages.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Charts</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        Nine shapes, drawn by hand in SVG. Each one prints its numbers twice.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Responsive</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        The device matrix, from a 375px iPhone to a 4K television, with a live readout.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Motion</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        Every duration and easing, played on demand and side by side.
+      </dd>
+    </div>
+    <div>
+      <dt className="font-medium text-fg">Accessibility</dt>
+      <dd className="mt-0.5 text-fg-muted">
+        Axe runs over every story in CI and fails the build. It is a gate, not a checklist.
+      </dd>
+    </div>
+  </dl>
+</div>
+
+## Using it
+
+```tsx
+// app entry, once
+import '@reach/ui/styles.css';
+
+// anywhere
+import { Button, Field, FieldControl, FieldLabel, Input } from '@reach/ui';
+```
+
+The package still publishes under its original name while the rename works its way through the
+services, so the import path lags the brand for now.
+
+What ships is TypeScript source rather than build output. Next.js compiles it through
+`transpilePackages` and Vite compiles it directly, which means editing a component shows up in the
+canvas with no build step in between.
+
+## What it stays out of
+
+The system is presentation only. It imports no contract, no domain type and no data client, so one
+module's concepts cannot leak into another module's screens. You will not find a page shell,
+navigation or data fetching here. A module owns its screens. Reach owns the vocabulary those
+screens are written in.
+
+## Four toolbars, and why they matter
+
+Theme, viewport, platform and density all write to `<html>`, which is exactly what an application
+does. Switch **platform** to Television and the whole system scales by 1.5, controls grow to 52px
+and the focus ring gains a halo, because on a TV the focus ring _is_ the cursor. None of it is a
+Storybook-only mechanism.
+
+## Four rules that settle most arguments
+
+1. **Semantic tokens only.** Components consume `bg-surface`, never `bg-neutral-100`. Renaming a
+   primitive costs nothing. Renaming a semantic token is a breaking change.
+2. **Colour is never the only signal.** Roughly one man in twelve cannot separate the success and
+   danger washes, so the label has to carry the meaning on its own.
+3. **Money is never a float.** Minor units in, exact string formatting out. `Number()` loses cents
+   at the fifteenth digit, and payroll does not tolerate rounding.
+4. **Density follows the pointer, not the screen.** A `size="md"` control is 36px under a mouse and
+   44px under a thumb. The input device changed, not the window width.
+
+</div>

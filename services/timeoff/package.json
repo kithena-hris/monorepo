@@ -1,0 +1,37 @@
+{
+  "name": "@hris/timeoff",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.ts",
+    "test:contract": "vitest run --config vitest.contract.ts",
+    "test:standalone": "vitest run --config vitest.standalone.ts",
+    "db:migrate": "atlas migrate apply --env local",
+    "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
+  },
+  "dependencies": {
+    "@hris/auth-kit": "workspace:*",
+    "@hris/contracts": "workspace:*",
+    "@hris/db-kit": "workspace:*",
+    "@hris/domain-kit": "workspace:*",
+    "@hris/graphql-kit": "workspace:*",
+    "@hris/telemetry": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "graphql-yoga": "^5.15.0",
+    "kafkajs": "^2.2.4",
+    "postgres": "^3.4.5",
+    "zod": "^4.4.3",
+    "@temporalio/client": "^1.13.0",
+    "@temporalio/worker": "^1.13.0"
+  },
+  "devDependencies": {
+    "@hris/testing": "workspace:*",
+    "vitest": "^3.2.0"
+  }
+}

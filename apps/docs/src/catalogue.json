@@ -1,0 +1,105 @@
+[
+  {
+    "id": "foundations",
+    "title": "Foundations",
+    "blurb": "The decisions everything else inherits. Colour, type, elevation, shape and motion are read live from the shipped stylesheet, so what you see is what the components resolve. Typography is documented as utilities rather than a text component, because a system with a <Text> ends up with two ways to write a heading.",
+    "items": ["Tokens", "Typography", "Motion", "Responsive", "Patterns", "Brand"]
+  },
+  {
+    "id": "layouts",
+    "title": "Layouts",
+    "blurb": "Page skeletons as named slots. A module drops its screens into these rather than inventing a shell, which is what keeps twenty products looking like one.",
+    "items": ["Presets", "Hierarchical", "Modal page"]
+  },
+  {
+    "id": "forms",
+    "title": "Forms",
+    "blurb": "Every input an HR product needs, including the ones people usually hand-roll badly: a currency field that understands locale separators, a rich text editor whose output is stable across browsers, a date picker that speaks calendar dates rather than timestamps.",
+    "items": [
+      "Field",
+      "Input",
+      "NumberField",
+      "PasswordField",
+      "PinInput",
+      "TagsInput",
+      "Rating",
+      "Select",
+      "Combobox",
+      "Checkbox",
+      "RadioGroup",
+      "Switch",
+      "Toggle",
+      "Slider",
+      "Calendar",
+      "DatePicker",
+      "Typed fields",
+      "ImageUploader",
+      "Dropzone",
+      "RichTextEditor",
+      "FileUploader"
+    ]
+  },
+  {
+    "id": "charts",
+    "title": "Charts",
+    "blurb": "Ten shapes, drawn by hand in SVG. Each one prints its numbers as text as well as drawing them, so the chart is readable by a screen reader and by anyone who cannot separate two hues.",
+    "items": [
+      "Overview",
+      "Bar",
+      "Trend",
+      "Distribution",
+      "Heatmap",
+      "Funnel",
+      "Timeline",
+      "Org chart",
+      "Movement",
+      "Pay"
+    ]
+  },
+  {
+    "id": "components",
+    "title": "Components",
+    "blurb": "The parts. Behaviour comes from Radix where a primitive exists, TanStack Table drives the data table and TanStack Virtual keeps long lists to the rows on screen, and each story carries a note on why the component behaves the way it does rather than only what it looks like.",
+    "items": [
+      "Accordion",
+      "AlertDialog",
+      "Avatar",
+      "Badge",
+      "Breadcrumb",
+      "Button",
+      "Card",
+      "Clipboard",
+      "ContextMenu",
+      "Dialog",
+      "Dropdown menu",
+      "Feedback",
+      "Kanban",
+      "Kbd",
+      "Layout",
+      "Money",
+      "Pagination",
+      "Popover",
+      "Progress",
+      "Reveal",
+      "ScrollArea",
+      "Separator",
+      "Sheet",
+      "SortableList",
+      "Spinner",
+      "Stat",
+      "Stepper",
+      "Table",
+      "Tabs",
+      "Timeline",
+      "Toast",
+      "VirtualList",
+      "Tooltip"
+    ]
+  },
+  {
+    "id": "icons",
+    "title": "Icons",
+    "blurb": "One gallery, searchable, with the sizing and labelling rules written next to it.",
+    "items": ["Gallery"]
+  }
+]

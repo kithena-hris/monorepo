@@ -1,0 +1,229 @@
+/*
+ * Base layer. Element defaults only, anything component-shaped belongs in a
+ * component, not here.
+ */
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--reach-color-border);
+  }
+
+  /*
+   * The reduced-motion substitutes, declared here rather than reused from the
+   * theme's `fade-in`/`fade-out`.
+   *
+   * Tailwind only emits a `@keyframes` block from `@theme` when something in
+   * the build references the matching `--animate-*` variable. Pointing this
+   * layer at those names would make the accessibility path depend on some
+   * unrelated component still using a fade, which is a coupling that breaks
+   * silently and breaks for exactly the users who cannot afford it.
+   */
+  @keyframes reach-reduced-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes reach-reduced-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-feature-settings:
+      'cv11' on,
+      'ss01' on;
+    font-variation-settings: normal;
+    scrollbar-gutter: stable;
+
+    /* The whole type scale is in rem, so one multiplier moves every size,
+       every control height and every gap together. `100%` respects the
+       user's browser font-size setting instead of overriding it, never
+       write a px root size. On a television the multiplier is 1.5. */
+    font-size: calc(100% * var(--reach-font-scale, 1));
+  }
+
+  body {
+    background-color: var(--reach-color-canvas);
+    color: var(--reach-color-fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Numbers in an HRIS are read in columns. Lock the figures so they align. */
+  table,
+  [data-numeric],
+  time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus is never removed, only replaced. The ring uses `:focus-visible` so
+     pointer users do not see it, and it is drawn outside the control so it
+     survives `overflow: hidden` ancestors. */
+  :focus-visible {
+    outline: var(--reach-focus-width, 2px) solid var(--reach-color-border-focus);
+    outline-offset: 2px;
+  }
+
+  /*
+   * On a television the focus ring is the cursor: it is the only thing telling
+   * a person across the room which of forty controls the D-pad will activate.
+   * It gets a solid ring plus a halo so it survives a bright frame behind it,
+   * and it is not conditional on :focus-visible, a remote produces no
+   * pointer events, so every focus is a keyboard focus.
+   */
+  [data-platform='tv'] :focus {
+    outline: var(--reach-focus-width) solid var(--reach-color-border-focus);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 calc(var(--reach-focus-width) + 4px) var(--reach-color-accent-subtle);
+  }
+
+  /* 300ms of nothing after every tap on older mobile Safari, avoided by
+     telling the browser the layout does not depend on double-tap zoom. */
+  button,
+  [role='button'],
+  a,
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+
+  /* An iOS input under 16px makes Safari zoom the page on focus and never
+     zoom back out. The design scale is smaller than that, so the floor is
+     applied where it matters instead of inflating the whole scale. */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    select,
+    textarea {
+      font-size: max(1rem, var(--text-base));
+    }
+  }
+
+  /* Momentum scrolling inside a panel must not drag the page behind it,
+     the "rubber-band the whole app while scrolling a sheet" bug. */
+  [data-scroll-lock] {
+    overscroll-behavior: contain;
+  }
+
+  ::selection {
+    background-color: var(--reach-color-accent-subtle);
+    color: var(--reach-color-accent-fg);
+  }
+
+  /*
+   * Respect the OS setting.
+   *
+   * "Reduce motion" is a request about *movement*, not about change. The
+   * setting exists because vestibular disorders are triggered by things
+   * travelling, scaling and parallaxing across the visual field; a colour
+   * settling or a panel fading in triggers nothing, and it is carrying the
+   * information that something happened.
+   *
+   * So this is deliberately not the usual global `transition: none`. Flattening
+   * everything to zero throws away the fades and colour changes that tell a
+   * reduced-motion user what just changed, which leaves them with an interface
+   * that mutates silently, the accessibility fix making the interface less
+   * usable for the person who asked for it.
+   *
+   * The split: kill transforms and the animations built from them, keep opacity
+   * and colour, and shorten what remains so the interface still feels prompt.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      /* Cross-fade, do not travel. Transforms are the vestibular trigger, and
+         a component that positions itself with `transform` still needs its
+         final transform to apply, so this cannot be `transform: none`, it has
+         to be the *transition* of it that stops. */
+      transition-property: opacity, color, background-color, border-color, fill, stroke, box-shadow;
+      transition-duration: var(--animate-duration-fast, 140ms);
+      transition-timing-function: var(--ease-standard, ease);
+
+      /* Anything looping is decoration by definition: a shimmer, a pulse ring,
+         an orbit. None of it carries state, and all of it moves continuously,
+         which is the worst case for this setting. */
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+
+    /*
+     * Entrance and exit keyframes are replaced rather than removed. Removing
+     * them breaks two things: an element whose keyframe supplies its resting
+     * `transform` snaps to the wrong place, and Radix keeps a closing element
+     * mounted until its animation ends, so a component with no animation at all
+     * never unmounts. A short fade satisfies the setting and keeps both
+     * contracts.
+     */
+    [data-state='open'],
+    [data-state='closed'],
+    [data-state='delayed-open'],
+    [data-state='instant-open'],
+    [data-state='visible'],
+    [data-state='hidden'] {
+      animation-name: reach-reduced-in;
+      animation-duration: var(--animate-duration-fast, 140ms);
+      animation-timing-function: var(--ease-standard, ease);
+    }
+
+    [data-state='closed'],
+    [data-state='hidden'] {
+      animation-name: reach-reduced-out;
+    }
+
+    /* The one thing that must genuinely stop. A spinner is the only looping
+       animation whose meaning survives being static, because the meaning is
+       carried by the element being present at all. */
+    .animate-spin {
+      animation: none !important;
+    }
+  }
+
+  /*
+   * Translucency is a preference too, and a separate one from motion.
+   *
+   * Someone who turns this off is usually telling you that text over a blurred
+   * background is hard for them to read, so the answer is a solid surface, not
+   * a thinner blur. Dropping `backdrop-filter` without raising the background
+   * opacity is the common mistake and it makes legibility worse than either
+   * choice, the surface becomes plain semi-transparent with content showing
+   * straight through.
+   */
+  @media (prefers-reduced-transparency: reduce) {
+    [data-material] {
+      backdrop-filter: none !important;
+      background-color: var(--reach-color-surface) !important;
+    }
+
+    /* A scrim's whole job is to dim, so it stays, it just stops blurring and
+       goes more opaque to keep separating the layers. */
+    [data-material='scrim'] {
+      background-color: var(--reach-color-overlay) !important;
+    }
+  }
+
+  /*
+   * High contrast asks for defined edges. Translucent surfaces have none, they
+   * are distinguished from what is behind them by blur alone, so each one needs
+   * a real border and an opaque fill to become a discernible region.
+   */
+  @media (prefers-contrast: more) {
+    [data-material] {
+      backdrop-filter: none !important;
+      background-color: var(--reach-color-surface) !important;
+      border-color: var(--reach-color-fg) !important;
+    }
+
+    :focus-visible {
+      outline-width: max(var(--reach-focus-width, 2px), 0.1875rem);
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Local composition input. In CI the registry composes and rejects any
+# subgraph change that would break a field another module depends on.
+version: 1
+subgraphs:
+  - name: people
+    routing_url: http://localhost:4001/graphql
+    introspection:
+      url: http://localhost:4001/graphql
+  - name: timeoff
+    routing_url: http://localhost:4002/graphql
+    introspection:
+      url: http://localhost:4002/graphql

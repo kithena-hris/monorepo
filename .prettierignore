@@ -1,0 +1,12 @@
+# Build output and lockfiles are not hand-written.
+dist
+.next
+.turbo
+storybook-static
+next-env.d.ts
+pnpm-lock.yaml
+**/generated/**
+
+# Subgraph SDL is printed by `just codegen` from the Pothos schema. Formatting
+# it would make the file differ from what the router composes.
+services/*/schemas/*.graphql

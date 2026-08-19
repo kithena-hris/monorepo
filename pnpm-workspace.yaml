@@ -1,0 +1,17 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'services/*'
+  - 'tools/*'
+
+# pnpm 10 blocks install scripts by default. These are the native packages the
+# toolchain genuinely needs to compile on install; anything not listed here
+# stays blocked, which is the point.
+onlyBuiltDependencies:
+  - '@swc/core' # Next.js compiler
+  - core-js
+  - cpu-features # ssh2, via Testcontainers
+  - esbuild # Vite and Vitest
+  - protobufjs
+  - sharp # Next.js image optimisation
+  - ssh2 # Testcontainers

@@ -1,0 +1,28 @@
+{
+  "name": "@hris/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack -p 3000",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit"
+  },
+  "dependencies": {
+    "next": "^16.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@hris/contracts": "workspace:*",
+    "@reach/ui": "workspace:*",
+    "zod": "^4.4.3",
+    "react-hook-form": "^7.60.0",
+    "@hookform/resolvers": "^5.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.12"
+  }
+}

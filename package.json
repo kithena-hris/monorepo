@@ -1,0 +1,63 @@
+{
+  "name": "hris",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "dev": "just dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "typecheck:authoritative": "turbo run typecheck:authoritative",
+    "lint": "oxlint . && eslint --config tools/lint/eslint.config.js .",
+    "format": "prettier --write .",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:contract": "turbo run test:contract",
+    "test:stories": "turbo run test:stories",
+    "storybook": "turbo run dev --filter @reach/storybook",
+    "storybook:build": "turbo run build --filter @reach/storybook",
+    "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages services",
+    "codegen": "turbo run codegen",
+    "db:migrate": "turbo run db:migrate",
+    "db:seed": "tsx tools/scripts/seed.ts",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo run build && changeset publish",
+    "a11y:contrast": "node tools/a11y/contrast-sweep.mjs",
+    "a11y:contrast:build": "node tools/a11y/contrast-against-build.mjs",
+    "storybook:theme-drift": "node tools/storybook/manager-theme-drift.mjs",
+    "docs:catalogue-drift": "node tools/storybook/catalogue-drift.mjs"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.0",
+    "@types/node": "^22.15.0",
+    "@typescript/typescript6": "npm:@typescript/typescript6@^6.0.2",
+    "dependency-cruiser": "^16.10.0",
+    "eslint": "^9.30.0",
+    "oxlint": "^1.0.0",
+    "playwright": "^1.55.0",
+    "prettier": "^3.5.0",
+    "syncpack": "^13.0.0",
+    "tsx": "^4.20.0",
+    "turbo": "^2.5.0",
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "protobufjs@8": ">=8.0.2",
+      "uuid@9": ">=11.1.1",
+      "uuid@10": ">=11.1.1",
+      "@opentelemetry/core": ">=2.8.0",
+      "@opentelemetry/propagator-jaeger": ">=2.9.0"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "typescript": "6 || 7"
+      }
+    }
+  }
+}

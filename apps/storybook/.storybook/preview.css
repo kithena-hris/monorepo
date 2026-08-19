@@ -1,0 +1,160 @@
+/*
+ * The design system's own stylesheet, plus the small amount of chrome the docs
+ * canvas needs. Nothing here may define a component style, if a story needs a
+ * class that does not exist in `@reach/ui`, the system is missing something and
+ * the fix belongs there.
+ */
+
+@import '@reach/ui/styles.css';
+
+/* Tailwind scans for class names it can see. The stories live in the UI
+   package, outside this app's own tree. */
+@source '../../../packages/ui/src';
+
+/* And this directory, which automatic detection skips because its name starts
+   with a dot. Every Tailwind class written in `welcome.mdx` was silently absent
+   from the build: in the light theme that was invisible, because Storybook's
+   own docs colours are dark text on white and the missing classes would have
+   produced roughly that anyway. In the dark theme the same page kept the dark
+   text and put it on a dark canvas. */
+@source '../.storybook';
+
+/*
+ * On the root, not only on `.sb-show-main`.
+ *
+ * A story is painted before Storybook has added its own wrapper classes, and
+ * whatever is behind that wrapper is what shows in the gap. Setting it here
+ * means the first frame is already the right colour.
+ */
+html {
+  background-color: var(--reach-color-canvas);
+}
+
+.sb-show-main {
+  background-color: var(--reach-color-canvas);
+  color: var(--reach-color-fg);
+}
+
+/* The docs page renders on the canvas colour; keep code samples on a surface
+   so they stay legible in both themes. */
+.docs-story {
+  background-color: var(--reach-color-canvas);
+}
+
+/*
+ * Storybook's docs chrome is themed in `preview.tsx`, not here.
+ *
+ * There used to be about seventy rules at this point, matched against
+ * Storybook's own class names, trying to repaint the docs page from the tokens.
+ * It was a losing position by construction: Storybook styles those blocks with
+ * emotion classes injected after this stylesheet, so every rule had to outweigh
+ * one it could not see, and each new block that appeared was another miss. The
+ * props tables on Popover, Money and Kbd stayed white through three rounds of it.
+ *
+ * `DocsContainer` takes a `ThemeVars`, and `preview.tsx` hands it one built
+ * from the same token snapshot the manager uses. That themes every block at
+ * once, follows the toolbar, and costs nothing at render time.
+ *
+ * The two rules below stay because they are about the design system's own
+ * surfaces rather than Storybook's furniture.
+ */
+
+.sbdocs-preview,
+.docs-story {
+  background-color: var(--reach-color-canvas);
+}
+
+/*
+ * The one piece of Storybook chrome worth a rule of its own.
+ *
+ * Its props table paints the section headings ("Content", "Appearance",
+ * "Escape hatches") as the foreground colour at 40% alpha, which measures
+ * 3.7:1 on the dark canvas. That is Storybook's own styling rather than
+ * anything this system ships, and `DocsContainer` has no theme key for it.
+ *
+ * Matched on the row shape rather than on a class: a heading row holds two
+ * cells where a value row holds four, and Storybook's own class names are
+ * generated and change between builds. The `:has` is cheap here because it is
+ * scoped to the rows of one table on a docs page, not to the document.
+ */
+.docblock-argstable-body tr:has(> td:nth-child(2):last-child) span {
+  color: var(--reach-color-fg-muted);
+}
+
+/*
+ * The JSON tree Storybook uses for object controls.
+ *
+ * Its class names (`rejt-*`, from react-editable-json-tree) are real names
+ * rather than generated hashes, which makes them safe to match on. Two of its
+ * colours are hardcoded and fail on the dark canvas: the keys are painted in a
+ * solid accent that measures 3.7:1 as text, and the collapsed summary
+ * ("{...} 4 keys") in a fixed grey that measures 3.11:1.
+ *
+ * The keys move to the `-fg` end of the accent ramp, which is the same rule the
+ * charts and the rating follow: a solid tone is mixed to sit under something,
+ * not to be read as text.
+ */
+.rejt-tree .rejt-accordion-button {
+  color: var(--reach-color-accent-fg);
+}
+
+/* The collapsed summary ("{...} 4 keys") is not styled here on purpose. The
+   tree writes that colour as an inline style, so no stylesheet can reach it
+   without `!important` on every node, and it is Storybook's control rather than
+   anything this system ships. It is excluded from the contrast gate instead,
+   with the reasoning in `tools/a11y/contrast-sweep.mjs`. */
+
+/*
+ * Syntax highlighting, mapped onto tones this system already owns.
+ *
+ * `DocsContainer` themes Storybook's own blocks but not Prism, which ships its
+ * own palette and keeps it in both themes: the class names in a code sample
+ * measured 3.64:1 on white. These rules were lost when the docs chrome moved
+ * from CSS to the container theme, and the sweep found them again.
+ *
+ * Four classes deep because Prism's stylesheet is injected after this one and
+ * carries the same weight, so an equally specific rule loses on source order.
+ */
+.sbdocs .sbdocs-content .token.comment,
+.sbdocs .sbdocs-content .token.prolog,
+.sbdocs .sbdocs-content .token.cdata {
+  color: var(--reach-color-fg-muted);
+}
+
+.sbdocs .sbdocs-content .token.punctuation,
+.sbdocs .sbdocs-content .token.operator {
+  color: var(--reach-color-fg-muted);
+}
+
+.sbdocs .sbdocs-content .token.keyword,
+.sbdocs .sbdocs-content .token.builtin,
+.sbdocs .sbdocs-content .token.boolean,
+.sbdocs .sbdocs-content .token.important {
+  color: var(--reach-color-accent-fg);
+}
+
+.sbdocs .sbdocs-content .token.string,
+.sbdocs .sbdocs-content .token.attr-value,
+.sbdocs .sbdocs-content .token.regex,
+.sbdocs .sbdocs-content .token.char,
+.sbdocs .sbdocs-content .token.inserted {
+  color: var(--reach-color-success-fg);
+}
+
+.sbdocs .sbdocs-content .token.number,
+.sbdocs .sbdocs-content .token.constant,
+.sbdocs .sbdocs-content .token.symbol,
+.sbdocs .sbdocs-content .token.deleted {
+  color: var(--reach-color-warning-fg);
+}
+
+.sbdocs .sbdocs-content .token.function,
+.sbdocs .sbdocs-content .token.class-name,
+.sbdocs .sbdocs-content .token.maybe-class-name,
+.sbdocs .sbdocs-content .token.tag,
+.sbdocs .sbdocs-content .token.selector,
+.sbdocs .sbdocs-content .token.attr-name,
+.sbdocs .sbdocs-content .token.property,
+.sbdocs .sbdocs-content .token.variable {
+  color: var(--reach-color-info-fg);
+}

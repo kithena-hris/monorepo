@@ -1,0 +1,15 @@
+{
+  "name": "@hris/codegen",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hris/contracts": "workspace:*",
+    "graphql": "^16.11.0",
+    "zod": "^4.4.3"
+  }
+}

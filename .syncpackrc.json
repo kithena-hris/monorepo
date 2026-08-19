@@ -1,0 +1,11 @@
+{
+  "versionGroups": [
+    {
+      "label": "TypeScript is pinned deliberately: 7 for tsc, 6 for API consumers",
+      "dependencies": ["typescript", "@typescript/typescript6"],
+      "packages": ["**"],
+      "pinVersion": "^7.0.2"
+    }
+  ],
+  "semverGroups": [{ "range": "^", "dependencies": ["**"], "packages": ["**"] }]
+}

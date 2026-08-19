@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+generated/
+src/generated/
+pacts/
+.DS_Store
+
+# Generated subgraph SDL is checked in deliberately (the gateway composes from
+# it and `wgc subgraph check` diffs it); build output is not.
+storybook-static/
+
+# Local run output. These capture absolute paths from whichever machine
+# produced them, so they are noise in a diff and leak a directory layout.
+*.log
+
+# Personal Claude Code settings. `settings.json` is shared configuration and is
+# checked in; `settings.local.json` is per-developer and is not.
+.claude/settings.local*.json

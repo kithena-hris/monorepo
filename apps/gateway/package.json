@@ -1,0 +1,16 @@
+{
+  "name": "@hris/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wgc router compose -i graph.yaml -o supergraph.json && router",
+    "compose": "wgc router compose -i graph.yaml -o supergraph.json",
+    "check": "wgc subgraph check --schema ./schemas",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit"
+  },
+  "devDependencies": {
+    "wgc": "^0.80.0"
+  }
+}

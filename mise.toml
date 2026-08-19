@@ -1,0 +1,4 @@
+[tools]
+node = "22.22.2"
+pnpm = "10.15.0"
+just = "latest"

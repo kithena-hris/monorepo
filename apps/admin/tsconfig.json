@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "plugins": [{ "name": "next" }],
+
+    // Next owns the build. TypeScript only checks.
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["next-env.d.ts", "src/**/*", ".next/types/**/*"],
+  "exclude": ["node_modules", ".next"]
+}

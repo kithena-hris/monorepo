@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    { "path": "./packages/contracts" },
+    { "path": "./packages/domain-kit" },
+    { "path": "./packages/db-kit" },
+    { "path": "./packages/graphql-kit" },
+    { "path": "./packages/auth-kit" },
+    { "path": "./packages/telemetry" },
+    { "path": "./packages/testing" },
+    { "path": "./services/people" },
+    { "path": "./services/timeoff" }
+  ]
+}

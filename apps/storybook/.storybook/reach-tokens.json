@@ -1,0 +1,27 @@
+{
+  "$comment": "Resolved Reach colour tokens, for Storybook's manager. The manager is a separate document from the preview and does not load the design system's stylesheet, so its theme cannot reference a custom property and needs concrete values. Do not hand-edit: run `pnpm storybook:theme-drift`, which reads the real stylesheet in a browser and reports what these should be.",
+  "light": {
+    "surface": "#ffffff",
+    "surface-sunken": "#f3f4f7",
+    "fg": "#141820",
+    "fg-muted": "#4f545e",
+    "fg-on-solid": "#ffffff",
+    "border": "#e4e6eb",
+    "border-strong": "#d0d4dc",
+    "accent": "#5063ef",
+    "accent-fg": "#4251d2",
+    "accent-solid": "#5063ef"
+  },
+  "dark": {
+    "surface": "#141820",
+    "surface-sunken": "#0d1018",
+    "fg": "#f9fafb",
+    "fg-muted": "#9ca1ab",
+    "fg-on-solid": "#ffffff",
+    "border": "#2e333c",
+    "border-strong": "#484d57",
+    "accent": "#677ef9",
+    "accent-fg": "#b0c3ff",
+    "accent-solid": "#5063ef"
+  }
+}

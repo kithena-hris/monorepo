@@ -1,0 +1,145 @@
+/*
+ * Rendered rich text.
+ *
+ * The editor's output has no classes on it. ProseMirror emits semantic HTML,
+ * and that is the reason for it: the same string renders in the app, in an export, and in
+ * an email. So these are element rules scoped to one class, and they are the
+ * only element rules in the system that are not resets.
+ *
+ * Everything here is a token. A rich text field that ignores the theme is the
+ * one white rectangle in a dark interface.
+ */
+
+@layer components {
+  .reach-prose {
+    color: var(--reach-color-fg);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    /* Roughly 70 characters. Beyond that the eye loses the start of the next
+       line, which is why a full-width paragraph reads slower than a narrow one. */
+    max-width: 68ch;
+    padding: 0.75rem;
+  }
+
+  .reach-prose > * + * {
+    margin-top: 0.75em;
+  }
+
+  .reach-prose h2 {
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    font-weight: 600;
+    margin-top: 1.4em;
+  }
+
+  .reach-prose h3 {
+    font-size: var(--text-md);
+    line-height: var(--text-md--line-height);
+    font-weight: 600;
+    margin-top: 1.2em;
+  }
+
+  .reach-prose h2:first-child,
+  .reach-prose h3:first-child {
+    margin-top: 0;
+  }
+
+  .reach-prose a {
+    color: var(--reach-color-accent-fg);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  .reach-prose a:focus-visible {
+    outline: var(--reach-focus-width, 2px) solid var(--reach-color-border-focus);
+    outline-offset: 2px;
+  }
+
+  .reach-prose strong {
+    font-weight: 600;
+  }
+
+  .reach-prose ul,
+  .reach-prose ol {
+    padding-inline-start: 1.5rem;
+  }
+
+  .reach-prose ul {
+    list-style: disc;
+  }
+
+  .reach-prose ol {
+    list-style: decimal;
+  }
+
+  .reach-prose li::marker {
+    color: var(--reach-color-fg-subtle);
+  }
+
+  .reach-prose li > p {
+    margin: 0;
+  }
+
+  .reach-prose blockquote {
+    border-inline-start: 2px solid var(--reach-color-border-strong);
+    padding-inline-start: 1rem;
+    color: var(--reach-color-fg-muted);
+  }
+
+  .reach-prose code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background-color: var(--reach-color-surface-sunken);
+    border-radius: var(--radius-xs);
+    padding: 0.1em 0.3em;
+  }
+
+  .reach-prose pre {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    background-color: var(--reach-color-surface-sunken);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+  }
+
+  .reach-prose pre code {
+    background: none;
+    padding: 0;
+  }
+
+  .reach-prose hr {
+    border: 0;
+    border-top: 1px solid var(--reach-color-border);
+    margin-block: 1.5em;
+  }
+
+  /* ProseMirror renders the placeholder as a pseudo-element on the first empty
+     node. It is decoration, never an accessible name, the field is named by
+     its label. */
+  .reach-prose p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--reach-color-fg-subtle);
+    float: inline-start;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* The editable region owns its focus ring through the wrapper, so the inner
+     one is removed rather than left to double up. */
+  .reach-prose.ProseMirror:focus,
+  .reach-prose .ProseMirror:focus {
+    outline: none;
+  }
+
+  /* ProseMirror's own selection class, so a selection stays visible while the
+     editor is not focused: during a toolbar click, which is every click. */
+  .reach-prose .ProseMirror-selectednode {
+    outline: 2px solid var(--reach-color-border-focus);
+  }
+
+  .reach-prose ::selection {
+    background-color: var(--reach-color-accent-subtle);
+  }
+}

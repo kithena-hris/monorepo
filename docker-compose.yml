@@ -1,0 +1,94 @@
+name: hris
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: hris
+      POSTGRES_PASSWORD: hris
+      POSTGRES_DB: hris
+    ports: ['5432:5432']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./tools/scripts/init-db.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hris']
+      interval: 5s
+      retries: 10
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 1G
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+    ports: ['19092:19092', '18081:18081']
+    healthcheck:
+      test: ['CMD-SHELL', 'rpk cluster health | grep -q "Healthy:.*true"']
+      interval: 5s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports: ['6379:6379']
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      retries: 10
+
+  openfga:
+    image: openfga/openfga:latest
+    command: run
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://hris:hris@postgres:5432/openfga?sslmode=disable
+    ports: ['8080:8080', '8081:8081']
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: hris
+      POSTGRES_PWD: hris
+      POSTGRES_SEEDS: postgres
+    ports: ['7233:7233']
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports: ['8233:8080']
+    depends_on: [temporal]
+
+  typesense:
+    image: typesense/typesense:27.1
+    command: --data-dir /data --api-key=dev-only-key --enable-cors
+    ports: ['8108:8108']
+    volumes: [typesense:/data]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports: ['9000:9000', '9001:9001']
+    volumes: [minio:/data]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ['1025:1025', '8025:8025']
+
+volumes:
+  pgdata:
+  typesense:
+  minio:

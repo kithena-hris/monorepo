@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "types": ["vitest/globals"],
+
+    // This package ships TypeScript source, not build output. Consumers
+    // (Next.js via transpilePackages, Storybook via Vite) compile it. There
+    // is nothing to emit, so the project-reference machinery is off here.
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src/**/*", "vitest.config.ts", "vitest.setup.ts"]
+}

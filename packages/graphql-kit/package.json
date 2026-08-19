@@ -1,0 +1,36 @@
+{
+  "name": "@hris/graphql-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@apollo/subgraph": "^2.11.0",
+    "@escape.tech/graphql-armor": "^3.2.0",
+    "@hris/auth-kit": "workspace:*",
+    "@hris/contracts": "workspace:*",
+    "@hris/domain-kit": "workspace:*",
+    "@hris/telemetry": "workspace:*",
+    "@pothos/core": "^4.7.0",
+    "@pothos/plugin-directives": "^4.3.1",
+    "@pothos/plugin-federation": "^4.3.0",
+    "@pothos/plugin-zod": "^4.3.1",
+    "graphql": "^16.11.0",
+    "graphql-yoga": "^5.15.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {}
+}

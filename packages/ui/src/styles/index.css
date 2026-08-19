@@ -1,0 +1,23 @@
+/*
+ * The single stylesheet a consumer imports:
+ *
+ *   import '@reach/ui/styles.css';
+ *
+ * Tailwind v4 scans `@source` targets for utility classes. The package ships
+ * source rather than build output, so the consuming app's Tailwind pass has to
+ * be pointed at this package's components explicitly.
+ */
+
+@import './preset.css';
+@import './base.css';
+@import './prose.css';
+
+@source '../components';
+/* Stories live in the package too, and Foundations pages are written in
+   utilities that no component happens to use. Without this the token,
+   motion and responsive pages render unstyled in the docs and pass their
+   a11y run anyway, which is the worst kind of green. */
+@source '../foundations';
+@source '../layouts';
+@source '../icons';
+@source '../charts';

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["tsconfig.base.json", ".env"],
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "codegen"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "storybook-static/**"]
+    },
+    "codegen": {
+      // A module's codegen imports its own GraphQL schema, which imports the
+      // shared kits. Those have to be built first — `^codegen` alone leaves the
+      // dependency's `dist/` missing and the import fails at runtime.
+      "dependsOn": ["^build"],
+      "inputs": ["src/**/*.ts", "schema/**"],
+      "outputs": ["src/generated/**", "generated/**", "schemas/**"]
+    },
+    "typecheck": { "dependsOn": ["^build", "codegen"], "outputs": [] },
+    "typecheck:authoritative": { "dependsOn": ["^build", "codegen"], "outputs": [] },
+    // No `coverage/**`: nothing runs vitest with `--coverage`, so declaring it
+    // made turbo warn on every package after every run about an output that was
+    // never going to exist. Tests are cached on their inputs and produce no
+    // artifact worth restoring.
+    "test": { "dependsOn": ["^build"], "outputs": [] },
+    "test:stories": { "dependsOn": ["^build"], "outputs": [] },
+    "test:integration": { "dependsOn": ["^build"], "cache": false },
+    "test:contract": { "dependsOn": ["^build"], "outputs": ["pacts/**"] },
+    // Contracts' codegen writes its one artifact into *another* package,
+    // `packages/telemetry/src/generated/redaction.ts`, which turbo cannot
+    // express: `outputs` are relative to the task's own package. Declaring the
+    // shared `codegen` outputs here would warn about files it never produces,
+    // and declaring none would let a cache hit skip the run that keeps
+    // telemetry's redaction list in step with the registry. Uncached is the
+    // honest answer; the walk takes a few hundred milliseconds.
+    "@hris/contracts#codegen": { "dependsOn": ["^build"], "cache": false },
+
+    "db:migrate": { "cache": false, "persistent": false },
+    "dev": { "cache": false, "persistent": true }
+  }
+}

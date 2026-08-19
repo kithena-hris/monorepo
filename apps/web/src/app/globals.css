@@ -1,0 +1,11 @@
+/*
+ * The design system's stylesheet. Tokens, base layer and the Tailwind theme all
+ * arrive with it, so this app defines no colours, no type scale and no spacing
+ * of its own.
+ */
+
+@import '@reach/ui/styles.css';
+
+/* Tailwind scans for class names it can see. The components live in the
+   workspace package, outside this app's tree. */
+@source '../../../../packages/ui/src';
