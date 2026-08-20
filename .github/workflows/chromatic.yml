@@ -1,0 +1,62 @@
+name: chromatic
+
+on:
+  pull_request:
+    paths:
+      - 'apps/storybook/**'
+      - 'packages/ui/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+  merge_group:
+    paths:
+      - 'apps/storybook/**'
+      - 'packages/ui/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chromatic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  chromatic:
+    name: Chromatic visual regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build exactly the Storybook artifact that is already exercised by CI.
+      - run: pnpm storybook:build
+
+      - name: Publish to Chromatic
+        uses: chromaui/action@v13
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          storybookBuildDir: apps/storybook/storybook-static
+          onlyChanged: true
+          autoAcceptChanges: main
+          exitZeroOnChanges: false
+          exitOnceUploaded: false
