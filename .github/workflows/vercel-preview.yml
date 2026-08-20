@@ -27,10 +27,10 @@ env:
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
-  build:
-    name: Build preview artifacts
+  preview:
+    name: Deploy Vercel previews
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -39,62 +39,46 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reach/docs build
-      - run: pnpm storybook:build
-      - name: Package preview artifacts with stable paths
-        run: |
-          tar -C apps/docs -czf /tmp/docs-preview.tgz dist
-          tar -C apps/storybook -czf /tmp/storybook-preview.tgz storybook-static
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vercel-preview-artifacts
-          path: |
-            /tmp/docs-preview.tgz
-            /tmp/storybook-preview.tgz
-          retention-days: 1
 
-  preview:
-    name: Deploy Vercel previews
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: vercel-preview-artifacts
-          path: /tmp/vercel-preview-artifacts
-      - name: Validate Vercel credentials
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
-            exit 1
-          fi
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Restore preview artifacts
-        run: |
-          mkdir -p apps/docs apps/storybook
-          tar -xzf /tmp/vercel-preview-artifacts/docs-preview.tgz -C apps/docs
-          tar -xzf /tmp/vercel-preview-artifacts/storybook-preview.tgz -C apps/storybook
-          test -f apps/docs/dist/index.html
-          test -f apps/storybook/storybook-static/index.html
-      - name: Deploy docs preview
+      - name: Pull Docs preview environment
+        working-directory: apps/docs
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: npx --yes vercel@latest pull --yes --environment=preview --token "$VERCEL_TOKEN"
+      - name: Build Docs with Vercel
+        working-directory: apps/docs
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: npx --yes vercel@latest build --token "$VERCEL_TOKEN"
+      - name: Deploy Docs prebuilt
         id: docs
+        working-directory: apps/docs
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
-          url="$(npx --yes vercel@latest deploy apps/docs/dist --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy --prebuilt --yes --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Deploy Storybook preview
+
+      - name: Pull Storybook preview environment
+        working-directory: apps/storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: npx --yes vercel@latest pull --yes --environment=preview --token "$VERCEL_TOKEN"
+      - name: Build Storybook with Vercel
+        working-directory: apps/storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: npx --yes vercel@latest build --token "$VERCEL_TOKEN"
+      - name: Deploy Storybook prebuilt
         id: storybook
+        working-directory: apps/storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
-          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy --prebuilt --yes --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Publish preview URLs to PR
+
+      - name: Comment preview URLs on PR
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
