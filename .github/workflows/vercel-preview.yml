@@ -43,18 +43,18 @@ jobs:
       - name: Pull Docs preview environment
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: npx --yes vercel@latest pull --yes --environment=preview --token "$VERCEL_TOKEN"
       - name: Build Docs with Vercel
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: npx --yes vercel@latest build --token "$VERCEL_TOKEN"
       - name: Deploy Docs prebuilt
         id: docs
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: |
           url="$(npx --yes vercel@latest deploy --prebuilt --yes --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
