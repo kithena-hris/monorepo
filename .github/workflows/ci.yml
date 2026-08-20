@@ -135,7 +135,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     env:
-      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
+      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
