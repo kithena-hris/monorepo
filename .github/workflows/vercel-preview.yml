@@ -40,59 +40,62 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Verify Docs project is accessible
-        working-directory: apps/docs
+      - name: Verify Vercel token and Docs project access
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: |
-          npx --yes vercel@latest project ls --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" --json > /tmp/vercel-projects.json
-          node -e 'const fs=require("fs"); const d=JSON.parse(fs.readFileSync("/tmp/vercel-projects.json","utf8")); const projects=d.projects||d; if(!projects.some(p=>p.id==="prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4")){console.error("Docs project is not accessible in the configured Vercel team. Check VERCEL_TOKEN team access and VERCEL_ORG_ID."); process.exit(1)}'
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is missing."
+            exit 1
+          fi
+          npx --yes vercel@latest project inspect "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+
       - name: Link Docs project
         working-directory: apps/docs
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
-        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Pull Docs preview environment
         working-directory: apps/docs
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
-        run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Build Docs with Vercel
         working-directory: apps/docs
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
-        run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Deploy Docs prebuilt
         id: docs
         working-directory: apps/docs
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: |
-          url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Link Storybook project
         working-directory: apps/storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Pull Storybook preview environment
         working-directory: apps/storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Build Storybook with Vercel
         working-directory: apps/storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Deploy Storybook prebuilt
         id: storybook
         working-directory: apps/storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
-          url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --team "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URLs on PR
