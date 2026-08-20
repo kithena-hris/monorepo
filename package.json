@@ -58,6 +58,9 @@
       "allowedVersions": {
         "typescript": "6 || 7"
       }
+    },
+    "patchedDependencies": {
+      "@pothos/plugin-federation@4.5.0": "patches/@pothos__plugin-federation@4.5.0.patch"
     }
   }
 }

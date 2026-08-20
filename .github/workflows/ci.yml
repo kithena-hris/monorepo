@@ -100,7 +100,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @hris/${{ matrix.module }} test:standalone
+      # Through turbo, so the module's dependencies are built first. Run
+      # directly, `pnpm --filter` would start vitest against an unbuilt
+      # workspace and the module would fail to boot for the one reason this job
+      # is not trying to detect.
+      - run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
 
   design-system:
     # Every story renders in a real browser and axe runs over the result. An

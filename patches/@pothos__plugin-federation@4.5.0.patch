@@ -1,0 +1,11 @@
+diff --git a/esm/schema-builder.js b/esm/schema-builder.js
+index 8c39653f85b0515165766d8ff4d93528d7eef503..337e285244fbe0f4e0bd05d47caa9f4efe774232 100644
+--- a/esm/schema-builder.js
++++ b/esm/schema-builder.js
+@@ -1,5 +1,5 @@
+ import { printSubgraphSchema } from '@apollo/subgraph';
+-import { EntityType, entitiesField, serviceField } from '@apollo/subgraph/dist/types';
++import { EntityType, entitiesField, serviceField } from '@apollo/subgraph/dist/types.js';
+ import SchemaBuilder from '@pothos/core';
+ import { GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLUnionType, isObjectType, lexicographicSortSchema } from 'graphql';
+ import { ExternalEntityRef } from './external-ref.js';

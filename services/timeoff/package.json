@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.ts",
     "test:contract": "vitest run --config vitest.contract.ts",
     "test:standalone": "vitest run --config vitest.standalone.ts",
     "db:migrate": "atlas migrate apply --env local",
@@ -32,6 +31,7 @@
   },
   "devDependencies": {
     "@hris/testing": "workspace:*",
+    "graphql": "^16.11.0",
     "vitest": "^3.2.0"
   }
 }
