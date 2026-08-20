@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -142,7 +143,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     env:
-      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -159,10 +160,39 @@ jobs:
       - run: pnpm --filter @reach/docs build
       - run: pnpm --filter @reach/storybook build
       - name: Deploy the documentation
+        id: deploy-docs
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-        run: npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN"
+        run: |
+          url=$(npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Documentation production URL: $url"
       - name: Deploy Storybook
+        id: deploy-storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN"
+        run: |
+          url=$(npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Storybook production URL: $url"
+      - name: Publish deployment URLs to GitHub
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCS_URL: ${{ steps.deploy-docs.outputs.url }}
+          STORYBOOK_URL: ${{ steps.deploy-storybook.outputs.url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          body="<!-- vercel-deployments -->
+          ## 🚀 Vercel deployments
+
+          - **Docs:** ${DOCS_URL}
+          - **Storybook:** ${STORYBOOK_URL}
+          "
+          existing=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate --jq '.[] | select(.body | contains("<!-- vercel-deployments -->")) | .id' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
+          else
+            gh pr comment "$PR_NUMBER" --body "$body"
+          fi
