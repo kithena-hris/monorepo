@@ -31,37 +31,26 @@ jobs:
     name: Build preview artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    outputs:
-      docs-built: ${{ steps.targets.outputs.docs }}
-      storybook-built: ${{ steps.targets.outputs.storybook }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @reach/docs build
       - run: pnpm storybook:build
-
-      - id: targets
-        name: Mark preview artifacts
+      - name: Package preview artifacts with stable paths
         run: |
-          echo "docs=true" >> "$GITHUB_OUTPUT"
-          echo "storybook=true" >> "$GITHUB_OUTPUT"
-
+          tar -C apps/docs -czf /tmp/docs-preview.tgz dist
+          tar -C apps/storybook -czf /tmp/storybook-preview.tgz storybook-static
       - uses: actions/upload-artifact@v4
         with:
           name: vercel-preview-artifacts
           path: |
-            apps/docs/dist
-            apps/storybook/storybook-static
+            /tmp/docs-preview.tgz
+            /tmp/storybook-preview.tgz
           retention-days: 1
 
   preview:
@@ -73,6 +62,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: vercel-preview-artifacts
+          path: /tmp/vercel-preview-artifacts
 
       - name: Validate Vercel credentials
         run: |
@@ -80,6 +70,14 @@ jobs:
             echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
             exit 1
           fi
+
+      - name: Restore preview artifacts
+        run: |
+          mkdir -p apps/docs apps/storybook
+          tar -xzf /tmp/vercel-preview-artifacts/docs-preview.tgz -C apps/docs
+          tar -xzf /tmp/vercel-preview-artifacts/storybook-preview.tgz -C apps/storybook
+          test -f apps/docs/dist/index.html
+          test -f apps/storybook/storybook-static/index.html
 
       - name: Deploy docs preview
         id: docs
