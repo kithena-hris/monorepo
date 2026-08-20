@@ -1,0 +1,76 @@
+name: Vercel Production
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate Vercel credentials
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
+            exit 1
+          fi
+      - name: Build Docs
+        run: pnpm --filter @reach/docs build
+      - name: Build Storybook
+        run: pnpm storybook:build
+      - name: Deploy Docs production
+        id: docs
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: |
+          url="$(npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Docs production: $url"
+      - name: Deploy Storybook production
+        id: storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: |
+          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Storybook production: $url"
+      - name: Publish production URLs to GitHub
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCS_URL: ${{ steps.docs.outputs.url }}
+          STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+          REPO: ${{ github.repository }}
+        run: |
+          body="<!-- vercel-production -->
+          ## 🚀 Vercel Production
+
+          Deployment from **main** (`${GITHUB_SHA:0:7}`)
+
+          - **Docs:** ${DOCS_URL}
+          - **Storybook:** ${STORYBOOK_URL}
+          "
+          gh api "repos/${REPO}/issues" --method POST \
+            -f title="Vercel production deployment — ${GITHUB_SHA:0:7}" \
+            -f body="$body"
