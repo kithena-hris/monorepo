@@ -43,7 +43,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm codegen
       - run: pnpm test:contract
-      - run: pnpm --filter @hris/gateway check
+      - name: Check people subgraph
+        working-directory: apps/gateway
+        run: pnpm exec wgc subgraph check --name people --schema ./schemas
+      - name: Check timeoff subgraph
+        working-directory: apps/gateway
+        run: pnpm exec wgc subgraph check --name timeoff --schema ./schemas
 
   integration:
     runs-on: ubuntu-latest
@@ -66,6 +71,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Build standalone dependency graph
+        run: pnpm turbo run build --filter=@hris/${{ matrix.module }}...
       - run: pnpm --filter @hris/${{ matrix.module }} test:standalone
 
   design-system:
@@ -79,46 +86,42 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
-      - run: pnpm test:stories
-
       - name: Detect affected stories
         id: affected
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: node tools/a11y/affected-stories.mjs
-
+      - name: Run Storybook tests
+        if: steps.affected.outputs.skip != 'true'
+        run: pnpm test:stories
       - name: Start Storybook
         if: steps.affected.outputs.skip != 'true'
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
-
       - name: Design-system drift gates
         if: steps.affected.outputs.skip != 'true'
         run: |
           pnpm storybook:theme-drift
           pnpm docs:catalogue-drift
-
       - name: Contrast gate — full
         if: steps.affected.outputs.full == 'true'
         timeout-minutes: 45
         run: pnpm a11y:contrast
-
       - name: Contrast gate — affected stories
         if: steps.affected.outputs.full != 'true' && steps.affected.outputs.skip != 'true'
         env:
           STORY_FILTER: ${{ steps.affected.outputs.filters }}
         run: pnpm a11y:contrast
-
       - name: Stop Storybook
         if: always() && steps.affected.outputs.skip != 'true'
         run: pkill -f "storybook" || true
-
       - name: Build Storybook
+        if: steps.affected.outputs.skip != 'true'
         run: pnpm storybook:build
-
       - uses: actions/upload-artifact@v4
+        if: steps.affected.outputs.skip != 'true'
         with:
           name: storybook
           path: apps/storybook/storybook-static
@@ -132,7 +135,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     env:
-      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -151,10 +154,8 @@ jobs:
       - name: Deploy the documentation
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-        run: |
-          npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN"
       - name: Deploy Storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: |
-          npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN"
