@@ -107,7 +107,7 @@ jobs:
     name: Deploy production
     needs: [affected, design-system]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -117,35 +117,52 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Validate Vercel credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
             exit 1
           fi
+
+      - name: Pull Docs production environment
+        working-directory: apps/docs
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      - name: Build production applications
-        run: |
-          pnpm --filter @reach/docs build
-          pnpm storybook:build
-      - name: Deploy Docs
-        id: docs
-        env:
-          VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          url="$(npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Deploy Storybook
-        id: storybook
+        run: npx --yes vercel@latest pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Build Docs production with Vercel
+        working-directory: apps/docs
         env:
-          VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
-          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: npx --yes vercel@latest build --prod --token "$VERCEL_TOKEN"
+      - name: Deploy Docs production
+        id: docs
+        working-directory: apps/docs
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
-          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Pull Storybook production environment
+        working-directory: apps/storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: npx --yes vercel@latest pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Build Storybook production with Vercel
+        working-directory: apps/storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: npx --yes vercel@latest build --prod --token "$VERCEL_TOKEN"
+      - name: Deploy Storybook production
+        id: storybook
+        working-directory: apps/storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: |
+          url="$(npx --yes vercel@latest deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
       - name: Smoke test production deployments
         env:
           DOCS_URL: ${{ steps.docs.outputs.url }}
@@ -153,6 +170,7 @@ jobs:
         run: |
           curl --fail --silent --show-error --retry 5 --retry-delay 5 "$DOCS_URL" >/dev/null
           curl --fail --silent --show-error --retry 5 --retry-delay 5 "$STORYBOOK_URL" >/dev/null
+
       - name: Publish production URLs
         env:
           GH_TOKEN: ${{ github.token }}
