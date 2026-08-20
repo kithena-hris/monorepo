@@ -10,13 +10,6 @@ on:
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
   merge_group:
-    paths:
-      - 'apps/storybook/**'
-      - 'packages/ui/**'
-      - 'packages/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'turbo.json'
 
 permissions:
   contents: read
@@ -47,8 +40,6 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-
-      # Build exactly the Storybook artifact that is already exercised by CI.
       - run: pnpm storybook:build
 
       - name: Publish to Chromatic
