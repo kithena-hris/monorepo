@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy production to Vercel
+    name: Deploy main to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -55,22 +55,30 @@ jobs:
           url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook production: $url"
-      - name: Publish production URLs to GitHub
-        if: github.event_name == 'push'
+      - name: Publish production URLs to merged PR
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
           REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
+          pr_number=$(gh api "repos/${REPO}/commits/${SHA}/pulls" --jq '.[0].number')
           body="<!-- vercel-production -->
           ## 🚀 Vercel Production
 
-          Deployment from **main** (`${GITHUB_SHA:0:7}`)
+          Deployed from **main** (`${SHA:0:7}`).
 
           - **Docs:** ${DOCS_URL}
           - **Storybook:** ${STORYBOOK_URL}
           "
-          gh api "repos/${REPO}/issues" --method POST \
-            -f title="Vercel production deployment — ${GITHUB_SHA:0:7}" \
-            -f body="$body"
+          if [ -n "$pr_number" ] && [ "$pr_number" != "null" ]; then
+            existing=$(gh api "repos/${REPO}/issues/${pr_number}/comments" --paginate --jq '.[] | select(.body | contains("<!-- vercel-production -->")) | .id' | head -n 1)
+            if [ -n "$existing" ]; then
+              gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
+            else
+              gh pr comment "$pr_number" --body "$body"
+            fi
+          else
+            echo "::warning::No pull request found for commit ${SHA}; deployment succeeded but no PR comment was posted."
+          fi
