@@ -13,17 +13,17 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
-  merge_group:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
-  group: vercel-preview-${{ github.event.pull_request.number || github.ref }}
+  group: vercel-preview-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 env:
-  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
@@ -63,14 +63,16 @@ jobs:
         with:
           name: vercel-preview-artifacts
           path: /tmp/vercel-preview-artifacts
-
       - name: Validate Vercel credentials
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
             exit 1
           fi
-
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Restore preview artifacts
         run: |
           mkdir -p apps/docs apps/storybook
@@ -78,33 +80,37 @@ jobs:
           tar -xzf /tmp/vercel-preview-artifacts/storybook-preview.tgz -C apps/storybook
           test -f apps/docs/dist/index.html
           test -f apps/storybook/storybook-static/index.html
-
       - name: Deploy docs preview
         id: docs
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
-          url="$(npx --yes vercel@latest deploy apps/docs/dist --yes --archive=tgz --token "$VERCEL_TOKEN")"
+          url="$(npx --yes vercel@latest deploy apps/docs/dist --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Docs preview: $url"
-
       - name: Deploy Storybook preview
         id: storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
-          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --yes --archive=tgz --token "$VERCEL_TOKEN")"
+          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Storybook preview: $url"
-
-      - name: Publish preview URLs to job summary
+      - name: Publish preview URLs to PR
         env:
+          GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
-          {
-            echo '## Vercel previews'
-            echo
-            echo "- Docs: ${DOCS_URL}"
-            echo "- Storybook: ${STORYBOOK_URL}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          body="<!-- vercel-preview -->
+          ## 🚀 Vercel Preview
+
+          - **Docs:** ${DOCS_URL}
+          - **Storybook:** ${STORYBOOK_URL}
+          "
+          existing=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate --jq '.[] | select(.body | contains("<!-- vercel-preview -->")) | .id' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
+          else
+            gh pr comment "$PR_NUMBER" --body "$body"
+          fi
