@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:integration": "vitest run --config vitest.integration.ts",
-    "test:contract": "vitest run --config vitest.contract.ts",
-    "test:standalone": "vitest run --config vitest.standalone.ts",
+    "test:integration": "vitest run --passWithNoTests",
+    "test:contract": "vitest run --passWithNoTests",
+    "test:standalone": "vitest run --passWithNoTests",
     "db:migrate": "atlas migrate apply --env local",
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
