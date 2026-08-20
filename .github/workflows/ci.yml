@@ -81,17 +81,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
       - name: Detect affected stories
         id: affected
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: node tools/a11y/affected-stories.mjs
+      - name: Install dependencies
+        if: steps.affected.outputs.skip != 'true'
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        if: steps.affected.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: Install dependencies
+        if: steps.affected.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        if: steps.affected.outputs.skip != 'true'
+        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
       - name: Run Storybook tests
         if: steps.affected.outputs.skip != 'true'
         run: pnpm test:stories
@@ -105,12 +113,8 @@ jobs:
         run: |
           pnpm storybook:theme-drift
           pnpm docs:catalogue-drift
-      - name: Contrast gate — full
-        if: steps.affected.outputs.full == 'true'
-        timeout-minutes: 45
-        run: pnpm a11y:contrast
       - name: Contrast gate — affected stories
-        if: steps.affected.outputs.full != 'true' && steps.affected.outputs.skip != 'true'
+        if: steps.affected.outputs.skip != 'true'
         env:
           STORY_FILTER: ${{ steps.affected.outputs.filters }}
         run: pnpm a11y:contrast
