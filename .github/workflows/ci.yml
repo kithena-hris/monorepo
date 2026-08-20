@@ -117,7 +117,9 @@ jobs:
         if: steps.affected.outputs.skip != 'true'
         env:
           STORY_FILTER: ${{ steps.affected.outputs.filters }}
-        run: pnpm a11y:contrast
+          STORYBOOK_URL: http://localhost:6006
+          CONTRAST_WORKERS: 4
+        run: node tools/a11y/affected-contrast.mjs
       - name: Stop Storybook
         if: always() && steps.affected.outputs.skip != 'true'
         run: pkill -f "storybook" || true
@@ -139,7 +141,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     env:
-      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
