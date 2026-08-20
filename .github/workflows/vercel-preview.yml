@@ -1,0 +1,112 @@
+name: vercel-preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/docs/**'
+      - 'apps/storybook/**'
+      - 'packages/**'
+      - 'services/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  build:
+    name: Build preview artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      docs-built: ${{ steps.targets.outputs.docs }}
+      storybook-built: ${{ steps.targets.outputs.storybook }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reach/docs build
+      - run: pnpm storybook:build
+
+      - id: targets
+        name: Mark preview artifacts
+        run: |
+          echo "docs=true" >> "$GITHUB_OUTPUT"
+          echo "storybook=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vercel-preview-artifacts
+          path: |
+            apps/docs/dist
+            apps/storybook/storybook-static
+          retention-days: 1
+
+  preview:
+    name: Deploy Vercel previews
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vercel-preview-artifacts
+
+      - name: Validate Vercel credentials
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
+      - name: Deploy docs preview
+        id: docs
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: |
+          url="$(npx --yes vercel@latest deploy apps/docs/dist --yes --archive=tgz --token "$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Docs preview: $url"
+
+      - name: Deploy Storybook preview
+        id: storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: |
+          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --yes --archive=tgz --token "$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Storybook preview: $url"
+
+      - name: Publish preview URLs to job summary
+        env:
+          DOCS_URL: ${{ steps.docs.outputs.url }}
+          STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+        run: |
+          {
+            echo '## Vercel previews'
+            echo
+            echo "- Docs: ${DOCS_URL}"
+            echo "- Storybook: ${STORYBOOK_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
