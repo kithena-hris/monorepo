@@ -43,12 +43,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm codegen
       - run: pnpm test:contract
-      - name: Check people subgraph
+      - name: Check subgraphs
         working-directory: apps/gateway
-        run: pnpm exec wgc subgraph check --name people --schema ./schemas
-      - name: Check timeoff subgraph
-        working-directory: apps/gateway
-        run: pnpm exec wgc subgraph check --name timeoff --schema ./schemas
+        run: pnpm check
 
   integration:
     runs-on: ubuntu-latest
@@ -134,14 +131,18 @@ jobs:
           retention-days: 14
 
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      needs.verify.result == 'success' &&
+      needs.contracts.result == 'success' &&
+      (needs.design-system.result == 'success' || needs.design-system.result == 'skipped')
     needs: [verify, contracts, design-system]
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-production
       cancel-in-progress: false
     env:
-      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
+      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
