@@ -4,7 +4,7 @@ Headless, module-per-service HRIS. Every module is sellable on its own, which
 is the constraint that explains most of the structure below.
 
 The name is from `kith` — Old English for the people you belong among, and the
-surviving half of *kith and kin*. Kin is the people you were born to; kith is
+surviving half of _kith and kin_. Kin is the people you were born to; kith is
 the people you came to know. An employer is kith.
 
 The design system is a separate thing with a separate name, **Reach**, and
@@ -96,3 +96,17 @@ renders every story in Chromium and runs axe over the result, in CI.
 4. Subgraph in `src/graphql/`, extending federated types rather than owning
    what it does not own.
 5. Add it to the `standalone` matrix in `.github/workflows/ci.yml`.
+
+## Licence
+
+Proprietary. Copyright (c) 2026 Kithena, all rights reserved — see
+[LICENSE](./LICENSE).
+
+The source is public so that customers, auditors and security researchers can
+read it. That is not a grant of rights: you may read it and quote it, and any
+other use — running it, copying it, modifying it, or offering a service based on
+it — requires a commercial subscription agreement. This is the model Lattice,
+Personio and HiBob use, except that they do not publish the source at all.
+
+Not open source, and GitHub labels it "Other" for that reason. To purchase a
+licence or ask whether an intended use is permitted, contact info@kithena.com.

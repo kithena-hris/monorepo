@@ -1,0 +1,69 @@
+name: codeql
+
+# Static analysis. The third question, after "is it broken" (`ci`) and "is it
+# dangerous to have here" (`security`): is the code itself exploitable.
+#
+# It belongs on an HRIS more than on most things. The classes CodeQL is good at
+# — injection reaching a query, a path traversal, an unsafe deserialisation, a
+# regular expression that can be made to hang — are all ways to reach data that
+# is legal name, salary, sickness and bank details.
+#
+# Free for a public repository. It was unavailable while this one was private,
+# which is why it arrived late rather than with the rest of the pipeline.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Tuesday, deliberately not Monday: `security` already runs then, and two
+    # different failures arriving together get read as one flaky morning.
+    - cron: '0 7 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The only job in this repository that writes anything. `security-events`
+      # is what uploads results to the Security tab; without it the analysis
+      # runs and its findings go nowhere.
+      security-events: write
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # One language. Everything here is TypeScript, and CodeQL analyses
+        # JavaScript and TypeScript as a single language rather than two.
+        language: [javascript-typescript]
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
+        with:
+          languages: ${{ matrix.language }}
+          # `security-extended` over the default `security`. The default suite
+          # is tuned for a low false-positive rate on any codebase; this one
+          # holds personal data under GDPR Article 9, so the extra queries are
+          # worth the extra triage.
+          queries: security-extended
+
+      # No build step. CodeQL extracts TypeScript from source, and a build here
+      # would only add the chance of failing for a reason that has nothing to do
+      # with the analysis.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
+        with:
+          category: /language:${{ matrix.language }}

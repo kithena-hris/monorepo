@@ -1,0 +1,101 @@
+Kithena Proprietary Software Licence
+
+Copyright (c) 2026 Kithena. All rights reserved.
+
+This software is a commercial product. It is made publicly readable so that
+customers, prospective customers, auditors and security researchers can inspect
+it. Publication is not a grant of rights: no licence to use this software is
+given by this file, and access to the source confers none.
+
+1. DEFINITIONS
+
+   "Software" means the source code, object code, documentation, configuration,
+   design assets and any other material in this repository, including the
+   Kithena HRIS platform and the Reach design system.
+
+   "Kithena" means the owner of the copyright in the Software and its
+   affiliates.
+
+   "Subscription Agreement" means a written commercial agreement executed
+   between Kithena and a customer that expressly grants rights to use the
+   Software or a service based on it.
+
+2. RESERVATION OF RIGHTS
+
+   All rights in the Software are reserved to Kithena. Nothing in this file
+   grants any right to use, copy, modify, merge, publish, distribute,
+   sublicense, sell, host, or create derivative works of the Software.
+
+3. PERMITTED USE
+
+   You may view and read the Software, and quote short excerpts of it for the
+   purpose of commentary, security reporting, academic study or news reporting,
+   with attribution.
+
+   Any other use requires a Subscription Agreement. In particular, use of the
+   Software or of any service based on it, in production or otherwise, for the
+   benefit of any person or organisation, is permitted only under, and subject
+   to the terms of, a Subscription Agreement.
+
+4. RESTRICTIONS
+
+   Without a Subscription Agreement expressly permitting it, you may not:
+
+   (a) run the Software, in whole or in part, other than as strictly necessary
+       to read and evaluate it locally;
+   (b) copy or redistribute the Software, or incorporate any part of it into
+       another work;
+   (c) modify the Software or create derivative works of it;
+   (d) offer the Software, or any service derived from or substantially similar
+       to it, to any third party, whether or not for a fee;
+   (e) use the Software to build a competing product, or use it as training
+       data or reference material for that purpose;
+   (f) remove, obscure or alter this licence or any copyright, trademark or
+       attribution notice.
+
+5. CONTRIBUTIONS
+
+   Kithena does not accept unsolicited contributions. Any contribution
+   knowingly submitted for inclusion in the Software is provided under, and
+   assigned to Kithena subject to, a separate contributor agreement. Do not
+   submit code you are not entitled to assign.
+
+6. TRADEMARKS
+
+   "Kithena" and "Reach", and the associated marks and logos in
+   packages/ui/src/brand, are trademarks of Kithena. This licence grants no
+   right to use them. They may be used only to refer accurately to the Software
+   itself.
+
+7. THIRD-PARTY COMPONENTS
+
+   The Software incorporates third-party components distributed under their own
+   licences. Those licences govern those components and are unaffected by this
+   one. Nothing here restricts any right you hold under them.
+
+8. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT AND TITLE. Warranties, if
+   any, are given only in a Subscription Agreement.
+
+9. LIMITATION OF LIABILITY
+
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, KITHENA SHALL NOT BE
+   LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT
+   OR OTHERWISE, ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+   Nothing in this licence excludes liability that cannot lawfully be excluded.
+
+10. TERMINATION
+
+    The permission in section 3 terminates automatically on any breach of this
+    licence. Sections 2, 6, 8, 9 and 11 survive termination.
+
+11. GOVERNING LAW
+
+    This licence is governed by the laws of the jurisdiction in which Kithena
+    is established, without regard to its conflict-of-law rules.
+
+To purchase a licence, or to ask whether an intended use is permitted, contact
+info@kithena.com. Asking is free and is preferred to assuming.
