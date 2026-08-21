@@ -1,6 +1,6 @@
 import { pgSchema, jsonb, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type { PendingEvent } from '@hris/domain-kit';
+import type { PendingEvent } from '@kithena/domain-kit';
 
 /**
  * The shape drizzle infers for the outbox table. Written as a type alias

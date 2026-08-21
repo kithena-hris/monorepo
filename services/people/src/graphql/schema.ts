@@ -1,5 +1,5 @@
-import { createBuilder } from '@hris/graphql-kit';
-import { assertEntitled } from '@hris/auth-kit';
+import { createBuilder } from '@kithena/graphql-kit';
+import { assertEntitled } from '@kithena/auth-kit';
 
 const builder = createBuilder();
 

@@ -49,12 +49,12 @@ test-stories:
 
 # Regenerate JSON Schema, redaction paths and DSAR manifest from Zod contracts.
 codegen:
-    pnpm --filter @hris/codegen generate
+    pnpm --filter @kithena/codegen generate
 
 # Compose the federated supergraph locally.
 supergraph:
-    pnpm --filter @hris/gateway compose
+    pnpm --filter @kithena/gateway compose
 
 # Boot a single module with no siblings present, then run its acceptance suite.
 standalone module:
-    pnpm --filter @hris/{{module}} test:standalone
+    pnpm --filter @kithena/{{module}} test:standalone

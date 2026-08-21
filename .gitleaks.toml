@@ -29,7 +29,7 @@ regexes = [
   # scanner.
   '''dev-only-key''',
   '''minio123''',
-  '''postgres://hris:hris@localhost''',
+  '''postgres://kithena:kithena@localhost''',
   # Vercel project and organisation identifiers in the deploy workflow. These
   # name a project; they do not authorise anything. The token that does is a
   # repository secret and never appears in the tree.

@@ -1,4 +1,4 @@
-import type { EntitlementService } from '@hris/contracts';
+import type { EntitlementService } from '@kithena/contracts';
 import type { AuthorizationContext } from './principal.js';
 
 /**

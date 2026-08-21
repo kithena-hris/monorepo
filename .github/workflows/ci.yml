@@ -43,7 +43,7 @@ jobs:
       # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
       # and so builds what it needs, but `pnpm lint` is a bare `oxlint && eslint`
       # and `pnpm boundaries` a bare `depcruise`. `dist/` is not committed and
-      # `@hris/contracts` resolves through `./dist/index.d.ts`, so on a clean
+      # `@kithena/contracts` resolves through `./dist/index.d.ts`, so on a clean
       # checkout both see an unbuilt workspace and typescript-eslint reports the
       # whole codebase as `error typed value`.
       - name: build
@@ -125,7 +125,7 @@ jobs:
       # workspace and the module would fail to boot for the one reason this job
       # is not trying to detect.
       - name: boot the module alone
-        run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
+        run: pnpm turbo run test:standalone --filter @kithena/${{ matrix.module }}
 
   design-system:
     # Every story renders in a real browser and axe runs over the result. An

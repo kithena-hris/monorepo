@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@hris/contracts';
+import type { EventEnvelope } from '@kithena/contracts';
 import { Entity } from './entity.js';
 
 export type PendingEvent = Omit<EventEnvelope, 'recordedAt'> & { payload: unknown };

@@ -23,7 +23,7 @@ variable "dev_url" {
 }
 
 env "local" {
-  url     = var.url != "" ? var.url : "postgres://hris:hris@localhost:5432/hris?sslmode=disable"
+  url     = var.url != "" ? var.url : "postgres://kithena:kithena@localhost:5432/kithena?sslmode=disable"
   dev     = var.dev_url != "" ? var.dev_url : "docker://postgres/17/dev?search_path=public"
 
   migration {

@@ -14,5 +14,5 @@
 throw new Error(
   'A sibling module was imported during a standalone run. Every module must ' +
     'boot with no siblings present: reach the other module through an event ' +
-    'or through @hris/contracts, never by importing it.',
+    'or through @kithena/contracts, never by importing it.',
 );

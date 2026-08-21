@@ -1,4 +1,4 @@
-import { ModuleManifest } from '@hris/contracts';
+import { ModuleManifest } from '@kithena/contracts';
 
 /**
  * Time Off declares no hard dependency on People. That is deliberate and it

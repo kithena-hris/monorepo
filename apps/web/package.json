@@ -1,5 +1,5 @@
 {
-  "name": "@hris/web",
+  "name": "@kithena/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "next": "^16.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@hris/contracts": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "@reach/ui": "workspace:*",
     "zod": "^4.4.3",
     "react-hook-form": "^7.60.0",

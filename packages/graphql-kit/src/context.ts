@@ -1,5 +1,5 @@
-import type { AuthorizationContext, PermissionCheck } from '@hris/auth-kit';
-import type { Logger } from '@hris/telemetry';
+import type { AuthorizationContext, PermissionCheck } from '@kithena/auth-kit';
+import type { Logger } from '@kithena/telemetry';
 
 export interface GraphQLContext {
   readonly auth: AuthorizationContext;

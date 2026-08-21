@@ -1,5 +1,5 @@
 {
-  "name": "@hris/db-kit",
+  "name": "@kithena/db-kit",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,14 +19,14 @@
     "test:integration": "vitest run --config vitest.integration.ts"
   },
   "dependencies": {
-    "@hris/contracts": "workspace:*",
-    "@hris/domain-kit": "workspace:*",
+    "@kithena/contracts": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@hris/testing": "workspace:*",
+    "@kithena/testing": "workspace:*",
     "drizzle-kit": "^0.31.0",
     "vitest": "^3.2.0"
   }

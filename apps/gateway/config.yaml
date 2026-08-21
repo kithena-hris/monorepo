@@ -30,7 +30,7 @@ traffic_shaping:
 events:
   providers:
     kafka:
-      - id: hris
+      - id: kithena
         brokers:
           - localhost:19092
 

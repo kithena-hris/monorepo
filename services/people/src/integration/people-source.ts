@@ -1,4 +1,4 @@
-import type { CalendarDate } from '@hris/contracts';
+import type { CalendarDate } from '@kithena/contracts';
 
 /**
  * The anti-corruption layer. Every provider translates into the canonical

@@ -10,7 +10,7 @@ CREATE SCHEMA IF NOT EXISTS timeoff;
 CREATE SCHEMA IF NOT EXISTS platform;
 
 -- Separate database for OpenFGA's own storage.
-SELECT 'CREATE DATABASE openfga OWNER hris'
+SELECT 'CREATE DATABASE openfga OWNER kithena'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'openfga')\gexec
 
 -- Per-module roles. Each service connects as its own role and can see
@@ -18,10 +18,10 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'openfga')\gexec
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_people') THEN
-    CREATE ROLE svc_people LOGIN PASSWORD 'hris';
+    CREATE ROLE svc_people LOGIN PASSWORD 'kithena';
   END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_timeoff') THEN
-    CREATE ROLE svc_timeoff LOGIN PASSWORD 'hris';
+    CREATE ROLE svc_timeoff LOGIN PASSWORD 'kithena';
   END IF;
 END $$;
 

@@ -1,4 +1,4 @@
-import { ModuleManifest } from '@hris/contracts';
+import { ModuleManifest } from '@kithena/contracts';
 
 export default ModuleManifest.parse({
   key: 'people',

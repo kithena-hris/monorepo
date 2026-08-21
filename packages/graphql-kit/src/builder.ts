@@ -16,7 +16,7 @@ import type { GraphQLContext } from './context.js';
  * mapping are identical across 40 modules instead of 40 slightly different
  * interpretations of the same rule.
  *
- * Zod schemas from @hris/contracts validate inputs here, which is the same
+ * Zod schemas from @kithena/contracts validate inputs here, which is the same
  * schema the REST facade and the forms use.
  */
 export function createBuilder<

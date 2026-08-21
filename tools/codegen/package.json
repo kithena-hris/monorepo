@@ -1,5 +1,5 @@
 {
-  "name": "@hris/codegen",
+  "name": "@kithena/codegen",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hris/contracts": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "graphql": "^16.11.0",
     "zod": "^4.4.3"
   }

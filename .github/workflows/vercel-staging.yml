@@ -81,7 +81,7 @@ jobs:
       - name: build web
         env:
           TENANT_HOST_SUFFIX: staging.app.kithena.com
-        run: pnpm --filter @hris/web build
+        run: pnpm --filter @kithena/web build
 
       - name: deploy
         id: deploy

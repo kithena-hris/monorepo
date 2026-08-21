@@ -1,5 +1,5 @@
 {
-  "name": "@hris/testing",
+  "name": "@kithena/testing",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hris/contracts": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "testcontainers": "^11.0.0",
     "@testcontainers/postgresql": "^11.0.0",
     "zod": "^4.4.3"

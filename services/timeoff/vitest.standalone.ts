@@ -26,7 +26,7 @@ export default defineConfig({
      * message about realms that has nothing to do with this module.
      */
     dedupe: ['graphql'],
-    alias: [{ find: /^@hris\/people(\/.*)?$/, replacement: absentSibling }],
+    alias: [{ find: /^@kithena\/people(\/.*)?$/, replacement: absentSibling }],
   },
   test: {
     environment: 'node',

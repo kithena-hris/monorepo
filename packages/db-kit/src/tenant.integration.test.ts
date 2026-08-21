@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { startPostgres } from '@hris/testing';
+import { startPostgres } from '@kithena/testing';
 
 import { withTenant, withoutTenantScope } from './tenant.js';
 

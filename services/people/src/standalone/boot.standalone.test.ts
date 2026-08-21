@@ -5,7 +5,7 @@ import manifest from '../../module.manifest.js';
 /**
  * People with no siblings present.
  *
- * `vitest.standalone.ts` aliases `@hris/timeoff` to a module that throws on
+ * `vitest.standalone.ts` aliases `@kithena/timeoff` to a module that throws on
  * evaluation, so anything in this module's import graph that reaches sideways
  * fails the moment it is loaded.
  *
@@ -91,9 +91,9 @@ describe('the standalone harness itself works', () => {
   it('fails an import that reaches a sibling', async () => {
     // A negative control. Without it every assertion above would still pass if
     // the alias were misconfigured and the sibling silently resolvable.
-    // TypeScript cannot resolve `@hris/timeoff` from here either, which is the
+    // TypeScript cannot resolve `@kithena/timeoff` from here either, which is the
     // same guarantee one level up.
     // @ts-expect-error -- a sibling module is deliberately not resolvable
-    await expect(import('@hris/timeoff')).rejects.toThrow(/sibling module was imported/);
+    await expect(import('@kithena/timeoff')).rejects.toThrow(/sibling module was imported/);
   });
 });

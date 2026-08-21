@@ -5,7 +5,7 @@ import manifest from '../../module.manifest.js';
 /**
  * Time Off with no siblings present.
  *
- * `vitest.standalone.ts` aliases `@hris/people` to a module that throws on
+ * `vitest.standalone.ts` aliases `@kithena/people` to a module that throws on
  * evaluation, so anything in this module's import graph that reaches sideways
  * fails the moment it is loaded. That is the point: in a deployment that bought
  * Time Off alone, People is not on disk, and a monorepo will happily resolve an
@@ -53,7 +53,7 @@ describe('the module boots with no siblings present', () => {
   });
 
   it('builds its subgraph without importing a sibling', async () => {
-    // If any transitive import reached `@hris/people`, the alias would throw
+    // If any transitive import reached `@kithena/people`, the alias would throw
     // here, and this is where that failure belongs.
     await expect(loadSchema()).resolves.toBeDefined();
   });
@@ -106,10 +106,10 @@ describe('the standalone harness itself works', () => {
     // the alias were misconfigured and the sibling silently resolvable — the
     // check would be measuring nothing.
     //
-    // TypeScript cannot resolve `@hris/people` from here either, which is the
+    // TypeScript cannot resolve `@kithena/people` from here either, which is the
     // same guarantee one level up: the sibling is not a dependency of this
     // module, so there are no types for it. The suppression is the assertion.
     // @ts-expect-error -- a sibling module is deliberately not resolvable
-    await expect(import('@hris/people')).rejects.toThrow(/sibling module was imported/);
+    await expect(import('@kithena/people')).rejects.toThrow(/sibling module was imported/);
   });
 });

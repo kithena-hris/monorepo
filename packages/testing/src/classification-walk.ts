@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { policy, type DefinedEvent, type FieldPolicy } from '@hris/contracts';
+import { policy, type DefinedEvent, type FieldPolicy } from '@kithena/contracts';
 
 /**
  * Walks an event payload and yields every field that carries a classification.
