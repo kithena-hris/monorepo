@@ -92,21 +92,41 @@ rewriting history does not reach the clones and forks that already have it.
 2. Remove it from the working tree and land that on `main`.
 3. Only then consider history rewriting, and treat it as cosmetic.
 
-## Repository settings to enable
+## Repository settings
 
-These cannot be committed and have to be turned on in GitHub:
+These cannot be committed and have to be turned on in GitHub. Two of the three
+are not available on the plan this repository is on, which is worth stating
+plainly rather than leaving as a recommendation nobody can follow.
 
-- **Secret scanning with push protection.** The strongest control available: it
-  rejects the push rather than reporting the leak afterwards. Settings →
-  Code security.
-- **Branch protection on `main`**: require the `ci` and `security` checks, require
-  a pull request, disallow force pushes.
+**Available now, free — do these.**
+
 - **Require two-factor authentication** for the organisation.
+- **Dependabot alerts**, already enabled. It raises grouped upgrade pull
+  requests weekly per `.github/dependabot.yml`.
+
+**Not available: this is a private repository on the Free plan.** Branch
+protection, rulesets, and secret scanning with push protection all return
+`403 Upgrade to GitHub Pro or make this repository public`, or require GitHub
+Secret Protection, a paid add-on. Until the plan changes:
+
+- **`main` is directly pushable and the CI gates can be bypassed.** With one
+  committer that mostly means protection against your own slips; it stops being
+  acceptable the moment a second person commits.
+- **Secret scanning happens after the push, not before it.** The `security`
+  workflow scans the full history on every push and is verified to catch a
+  planted credential — but by the time it fails, the secret is already on the
+  remote and must be rotated. A `pre-commit` hook running
+  `gitleaks protect --staged` closes that window locally, for free, using the
+  same binary and the same `.gitleaks.toml`.
+
+Upgrading to GitHub Team buys branch protection and makes a `CODEOWNERS` file
+mean something; secret scanning is a further add-on on top.
 
 ## Known advisories
 
-At the time of writing `pnpm audit` reports 22 advisories, one critical. **None
-are reachable from anything this product serves.** Every one arrives through
+At the time of writing `pnpm audit` reports around twenty advisories, one of
+them critical. **None are reachable from anything this product serves.** Every
+one arrives through
 development tooling — `wgc` (the Cosmo Router CLI) and `syncpack` — which run on
 a developer's machine and in CI and are absent from every deployed artifact.
 
