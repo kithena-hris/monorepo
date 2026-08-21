@@ -1,0 +1,26 @@
+{
+  "name": "@kithena/identity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:migrate": "atlas migrate apply --env local"
+  },
+  "dependencies": {
+    "@kithena/contracts": "workspace:*",
+    "@kithena/db-kit": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
+    "@kithena/telemetry": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.0"
+  }
+}

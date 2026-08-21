@@ -522,6 +522,34 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
 
+  platform/identity:
+    dependencies:
+      '@kithena/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@kithena/db-kit':
+        specifier: workspace:*
+        version: link:../../packages/db-kit
+      '@kithena/domain-kit':
+        specifier: workspace:*
+        version: link:../../packages/domain-kit
+      '@kithena/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(postgres@3.4.9)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
+
   services/people:
     dependencies:
       '@kithena/auth-kit':

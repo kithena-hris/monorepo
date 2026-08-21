@@ -9,6 +9,7 @@
     { "path": "./packages/auth-kit" },
     { "path": "./packages/telemetry" },
     { "path": "./packages/testing" },
+    { "path": "./platform/identity" },
     { "path": "./services/people" },
     { "path": "./services/timeoff" }
   ]

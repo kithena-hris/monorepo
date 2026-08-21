@@ -2,7 +2,15 @@ name: kithena
 
 services:
   postgres:
-    image: postgres:17-alpine
+    # `pgvector/pgvector:pg17`, not `postgres:17-alpine`.
+    #
+    # `tools/scripts/init-db.sql` asks for `CREATE EXTENSION vector`, which the
+    # official image does not ship. The extension fails, and because it fails
+    # inside an init script the entrypoint aborts the whole file and exits 3 —
+    # so `just dev` brought up a database container that was not running, with
+    # the reason twenty lines up in a log nobody reads on a good day. This image
+    # is the same Postgres 17 with pgvector already built in.
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: kithena
       POSTGRES_PASSWORD: kithena

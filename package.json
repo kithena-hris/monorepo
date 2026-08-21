@@ -19,7 +19,7 @@
     "test:stories": "turbo run test:stories",
     "storybook": "turbo run dev --filter @reach/storybook",
     "storybook:build": "turbo run build --filter @reach/storybook",
-    "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages services",
+    "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages platform services",
     "codegen": "turbo run codegen",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "tsx tools/scripts/seed.ts",
