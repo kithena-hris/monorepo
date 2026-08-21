@@ -1,5 +1,11 @@
 name: vercel-preview
 
+# A preview of both public surfaces per pull request.
+#
+# `.github/workflows/ci.yml` decides whether a change is *correct*; this only
+# makes it possible to look at. It deliberately does not gate the pull request:
+# a deployment failing is not a reason to block a correct change, and the
+# production deploy is guarded by `ci` passing instead.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -16,11 +22,20 @@ on:
 
 permissions:
   contents: read
+  # To post the preview URLs back onto the pull request.
   pull-requests: write
 
 env:
+  # Names an account; it does not authorise anything. The token that does is a
+  # repository secret.
   VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+concurrency:
+  # One preview per pull request. Superseded runs are cancelled: an older
+  # commit's preview is worse than no preview.
+  group: vercel-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   preview:
@@ -36,63 +51,50 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Verify Vercel token and Docs project access
-        env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+      - name: Validate Vercel credentials
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN is missing."
+            echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
             exit 1
           fi
-          npx --yes vercel@latest project inspect "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
 
-      - name: Link Docs project
-        working-directory: apps/docs
-        env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
-      - name: Pull Docs preview environment
-        working-directory: apps/docs
-        env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-        run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
-      - name: Build Docs with Vercel
-        working-directory: apps/docs
-        env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-        run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
-      - name: Deploy Docs prebuilt
+      # Built here and uploaded, rather than through `vercel pull` + `vercel
+      # build` + `--prebuilt`.
+      #
+      # That flow asks Vercel to build the app from its own project settings,
+      # and those settings do not describe this repository: both apps are
+      # workspace consumers of `@reach/ui`, which ships TypeScript source, so a
+      # build needs the whole monorepo and its lockfile. It also fails outright
+      # for Storybook — `vercel build` looks for an output directory named
+      # `dist` and Storybook emits `storybook-static`, which is the error this
+      # job was failing on.
+      #
+      # Uploading the finished directory is what `vercel-production.yml` already
+      # does, and it keeps the preview identical to what CI just checked.
+      - name: Build Docs
+        run: pnpm --filter @reach/docs build
+      - name: Build Storybook
+        run: pnpm storybook:build
+
+      - name: Deploy Docs preview
         id: docs
-        working-directory: apps/docs
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
-          url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy apps/docs/dist \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Docs preview: $url"
 
-      - name: Link Storybook project
-        working-directory: apps/storybook
-        env:
-          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
-      - name: Pull Storybook preview environment
-        working-directory: apps/storybook
-        env:
-          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
-      - name: Build Storybook with Vercel
-        working-directory: apps/storybook
-        env:
-          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
-      - name: Deploy Storybook prebuilt
+      - name: Deploy Storybook preview
         id: storybook
-        working-directory: apps/storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
-          url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Storybook preview: $url"
 
       - name: Comment preview URLs on PR
         env:
@@ -107,8 +109,13 @@ jobs:
 
           - **Docs:** ${DOCS_URL}
           - **Storybook:** ${STORYBOOK_URL}
+
+          Built from the monorepo and uploaded, so this is the same output CI checked.
           "
-          existing=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate --jq '.[] | select(.body | contains("<!-- vercel-preview -->")) | .id' | head -n 1)
+          # Edited in place rather than appended, so a pull request with thirty
+          # pushes carries one comment rather than thirty.
+          existing=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- vercel-preview -->")) | .id' | head -n 1)
           if [ -n "$existing" ]; then
             gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
           else
