@@ -28,13 +28,13 @@ added.
 
 Each field declares five things:
 
-| Property | Meaning |
-| --- | --- |
+| Property         | Meaning                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- |
 | `classification` | `public`, `internal`, `confidential`, or `special-category` (GDPR Article 9) |
-| `piiKind` | What kind of person-data it is: identity, contact, financial, health, none |
-| `exportable` | Whether it belongs in a subject access request package |
-| `aiEligible` | Whether it may be sent to a model. **Never true for special-category data.** |
-| `retention` | How long it may be kept |
+| `piiKind`        | What kind of person-data it is: identity, contact, financial, health, none   |
+| `exportable`     | Whether it belongs in a subject access request package                       |
+| `aiEligible`     | Whether it may be sent to a model. **Never true for special-category data.** |
+| `retention`      | How long it may be kept                                                      |
 
 Helpers exist so the common cases are one call and are consistent:
 `asPublic()`, `asContact()`, `asIdentity()`, `asFinancial()`, and the

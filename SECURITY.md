@@ -24,17 +24,17 @@ shapes every decision below.
 
 These are the ones the build fails on. A control nobody checks is a paragraph.
 
-| Control | Where it is enforced |
-| --- | --- |
-| Every contract field carries a data classification | `pnpm codegen` exits non-zero on an unclassified field |
-| Special-category data never reaches a model | `services/*/src/contract/*.contract.test.ts` — codegen checks a policy *exists*, not that it is coherent |
-| Log redaction paths are generated, never hand-written | `tools/codegen` emits `packages/telemetry/src/generated/redaction.ts` |
-| Tenant isolation | Postgres row-level security, schema per module — asserted against a real database in `packages/db-kit/src/tenant.integration.test.ts` |
-| A write and its event commit together | Transactional outbox, `packages/db-kit/src/outbox.integration.test.ts` |
-| Authorization is a graph, not a role column | OpenFGA; enforced in the domain and application layers, never only in a resolver |
-| No cross-module imports | `.dependency-cruiser.cjs`, plus a standalone boot per module with its siblings made unresolvable |
-| Secrets never reach the repository | `gitleaks` over the **full history** on every push and pull request |
-| Nothing vulnerable ships | `pnpm audit --prod --audit-level low` in CI |
+| Control                                               | Where it is enforced                                                                                                                  |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Every contract field carries a data classification    | `pnpm codegen` exits non-zero on an unclassified field                                                                                |
+| Special-category data never reaches a model           | `services/*/src/contract/*.contract.test.ts` — codegen checks a policy _exists_, not that it is coherent                              |
+| Log redaction paths are generated, never hand-written | `tools/codegen` emits `packages/telemetry/src/generated/redaction.ts`                                                                 |
+| Tenant isolation                                      | Postgres row-level security, schema per module — asserted against a real database in `packages/db-kit/src/tenant.integration.test.ts` |
+| A write and its event commit together                 | Transactional outbox, `packages/db-kit/src/outbox.integration.test.ts`                                                                |
+| Authorization is a graph, not a role column           | OpenFGA; enforced in the domain and application layers, never only in a resolver                                                      |
+| No cross-module imports                               | `.dependency-cruiser.cjs`, plus a standalone boot per module with its siblings made unresolvable                                      |
+| Secrets never reach the repository                    | `gitleaks` over the **full history** on every push and pull request                                                                   |
+| Nothing vulnerable ships                              | `pnpm audit --prod --audit-level low` in CI                                                                                           |
 
 ### Writing a row-level security policy
 
