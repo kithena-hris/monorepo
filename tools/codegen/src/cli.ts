@@ -15,9 +15,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as z from 'zod';
-import { policy, peopleEvents, timeoffEvents } from '@kithena/contracts';
+import { identityEvents, policy, peopleEvents, timeoffEvents } from '@kithena/contracts';
 
-const allEvents = [...peopleEvents, ...timeoffEvents];
+const allEvents = [...identityEvents, ...peopleEvents, ...timeoffEvents];
 
 function jsonSchemas(): Record<string, unknown> {
   return Object.fromEntries(
