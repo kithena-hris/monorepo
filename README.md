@@ -4,7 +4,7 @@ Headless, module-per-service HRIS. Every module is sellable on its own, which
 is the constraint that explains most of the structure below.
 
 The name is from `kith` — Old English for the people you belong among, and the
-surviving half of *kith and kin*. Kin is the people you were born to; kith is
+surviving half of _kith and kin_. Kin is the people you were born to; kith is
 the people you came to know. An employer is kith.
 
 The design system is a separate thing with a separate name, **Reach**, and
@@ -96,3 +96,15 @@ renders every story in Chromium and runs axe over the result, in CI.
 4. Subgraph in `src/graphql/`, extending federated types rather than owning
    what it does not own.
 5. Add it to the `standalone` matrix in `.github/workflows/ci.yml`.
+
+## Licence
+
+Business Source License 1.1 — see [LICENSE](./LICENSE). Source-available, not
+open source: read it, modify it, run it, but do not offer it to third parties
+as a hosted service competing with Kithena. Each version converts to Apache 2.0
+on its Change Date, four years after publication.
+
+Chosen over MIT because this is a commercial product whose source happens to be
+public, and over "no licence at all" because an unlicensed public repository is
+all-rights-reserved by default — which forbids more than this does, silently,
+and leaves everyone guessing.
