@@ -192,9 +192,16 @@ export const Fields: Story = {
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium text-fg">Webhook secret</p>
+        {/* Deliberately not a real provider's prefix followed by real-looking
+            entropy. The previous fixture was `whsec_` and thirty-two hex
+            characters, which is precisely the shape of a Stripe webhook signing
+            secret — GitHub's secret scanner opened an alert on it the moment
+            this repository became public. It was invented, but nothing about
+            reading it says so, and a fixture that cannot be told apart from a
+            leak costs someone an afternoon proving it is not one. */}
         <CopyField
-          value="whsec_7d4f2a91c33b4e6f8a1d0c5b9e2f7a34"
-          display="whsec_7d4f…7a34"
+          value="example-webhook-secret-not-a-real-credential"
+          display="example-webho…ntial"
           label="Copy webhook secret"
         />
         <p className="text-xs text-fg-muted">
