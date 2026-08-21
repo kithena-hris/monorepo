@@ -54,6 +54,8 @@ const session = (id: string, slot: number, lastSeen: string): Session => ({
   slot,
   startedAt: '2026-03-01T00:00:00.000Z',
   lastSeenAt: `${lastSeen}T00:00:00.000Z`,
+  amr: ['swk'],
+  device: { ip: '203.0.113.7', userAgent: 'test', aaguid: null },
 });
 
 /* ------------------------------------------------------ effective dating -- */

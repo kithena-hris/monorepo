@@ -10,6 +10,13 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  * "at most four" by looking at one session, so one session cannot be the unit
  * of consistency.
  */
+export interface SessionDevice {
+  readonly ip: string;
+  readonly userAgent: string;
+  /** The authenticator model, from WebAuthn. Not a device identifier. */
+  readonly aaguid: string | null;
+}
+
 export interface Session {
   readonly id: string;
   /** 1..limit. Reused, never incremented. */
@@ -17,6 +24,17 @@ export interface Session {
   readonly startedAt: string;
   /** Drives eviction. The device used least recently loses its place. */
   readonly lastSeenAt: string;
+  /** RFC 8176 methods. What the tenant's policy floor is audited against. */
+  readonly amr: readonly string[];
+  /**
+   * Where it came from.
+   *
+   * Not needed by the four-device rule, and carried anyway: the session list is
+   * the screen that makes a device cap defensible rather than infuriating, and
+   * it cannot say "Chrome on a Mac in Madrid, last used Tuesday" about a
+   * session that only knows its slot number.
+   */
+  readonly device: SessionDevice;
 }
 
 export interface SlotAllocation {

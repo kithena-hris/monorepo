@@ -1,0 +1,125 @@
+import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { outboxTable, publish } from '@kithena/db-kit';
+
+import type { AccountRepository } from '../application/account-repository.js';
+import type { AccountSnapshot, AccountStatus } from '../domain/account.js';
+import type { Session } from '../domain/session.js';
+import { account, session } from './account-tables.js';
+
+const outbox = outboxTable('platform');
+
+/**
+ * How long a session may live at most. Not extended by activity.
+ *
+ * Here rather than in the domain because it is a deployment policy about
+ * storage, not a rule about what an account is. The domain decides who may
+ * hold a session; this decides how long a row survives without being looked at.
+ */
+const ABSOLUTE_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function drizzleAccountRepository(): AccountRepository {
+  return {
+    async load(tx, accountId) {
+      const rows = await tx.select().from(account).where(eq(account.id, accountId)).limit(1);
+      const row = rows[0];
+      if (!row) return null;
+
+      const sessions = await tx
+        .select()
+        .from(session)
+        .where(eq(session.accountId, accountId))
+        .orderBy(session.slot);
+
+      return {
+        id: row.id,
+        identityId: row.identityId,
+        tenantId: row.tenantId,
+        status: row.status as AccountStatus,
+        employmentStart: row.employmentStart,
+        timeZone: row.timeZone,
+        sessionLimit: row.sessionLimit,
+        sessions: sessions.map((s): Session => ({
+          id: s.id,
+          slot: s.slot,
+          startedAt: s.startedAt,
+          lastSeenAt: s.lastSeenAt,
+          amr: s.amr,
+          // Nullable in the column, never null in the domain: a row written
+          // before these columns existed is still a session, and the list
+          // screen would rather say "unknown device" than crash.
+          device: {
+            ip: s.ip ?? 'unknown',
+            userAgent: s.userAgent ?? 'unknown',
+            aaguid: s.aaguid,
+          },
+        })),
+      } satisfies AccountSnapshot;
+    },
+
+    async save(tx, aggregate) {
+      const live = aggregate.liveSessions;
+      const liveIds = live.map((s) => s.id);
+
+      // Gone first. A session that was evicted has to release its slot before
+      // the session taking that slot is inserted, or the two collide inside our
+      // own transaction rather than against a competing one.
+      await tx
+        .delete(session)
+        .where(
+          liveIds.length > 0
+            ? and(eq(session.accountId, aggregate.id), notInArray(session.id, liveIds))
+            : eq(session.accountId, aggregate.id),
+        );
+
+      const existing =
+        liveIds.length > 0
+          ? await tx
+              .select({ id: session.id })
+              .from(session)
+              .where(and(eq(session.accountId, aggregate.id), inArray(session.id, liveIds)))
+          : [];
+      const known = new Set(existing.map((r) => r.id));
+
+      const added = live.filter((s) => !known.has(s.id));
+      if (added.length > 0) {
+        // A plain insert. A unique violation here is the slot race, and the
+        // caller retries on it — `ON CONFLICT DO NOTHING` would turn a lost
+        // race into a login that silently created no session.
+        await tx.insert(session).values(
+          added.map((s) => ({
+            id: s.id,
+            tenantId: aggregate.tenantId,
+            accountId: aggregate.id,
+            slot: s.slot,
+            startedAt: s.startedAt,
+            lastSeenAt: s.lastSeenAt,
+            expiresAt: new Date(Date.parse(s.startedAt) + ABSOLUTE_LIFETIME_MS).toISOString(),
+            amr: [...s.amr],
+            ip: s.device.ip,
+            userAgent: s.device.userAgent,
+            aaguid: s.device.aaguid,
+          })),
+        );
+      }
+
+      await tx
+        .update(account)
+        .set({ status: aggregate.status, version: aggregate.version })
+        .where(eq(account.id, aggregate.id));
+
+      // Same transaction as the write. That is the whole mechanism: Debezium
+      // tails the WAL, so an event exists if and only if the write committed.
+      await publish(tx, outbox, aggregate.drainEvents());
+    },
+  };
+}
+
+/** Sessions whose absolute lifetime has passed, for the reaper. */
+export async function expiredSessionIds(tx: PostgresJsDatabase): Promise<string[]> {
+  const rows = await tx
+    .select({ id: session.id })
+    .from(session)
+    .where(sql`${session.expiresAt} < now()`);
+  return rows.map((r) => r.id);
+}

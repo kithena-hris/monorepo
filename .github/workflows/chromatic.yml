@@ -53,6 +53,12 @@ jobs:
 
       - name: install
         run: pnpm install --frozen-lockfile
+      # `--stats-json` is in the build script, and TurboSnap does not work
+      # without it. `onlyChanged: true` below asks Chromatic to snapshot only
+      # the stories a change can reach, and it works that out from
+      # `preview-stats.json` — which Storybook only writes when asked. Without
+      # the flag the step fails outright with "TurboSnap disabled due to missing
+      # stats file" rather than falling back to a full run.
       - name: build storybook
         run: pnpm storybook:build
 
@@ -61,6 +67,13 @@ jobs:
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           storybookBuildDir: apps/storybook/storybook-static
+          # Required in a monorepo, and the second half of making TurboSnap
+          # work at all. It traces a changed file to the stories that import it,
+          # and to do that it has to know where the repository root is relative
+          # to the Storybook project — otherwise every path it reads from the
+          # stats file resolves somewhere that does not exist, and it fails with
+          # "Could not retrieve dependent story files".
+          storybookBaseDir: apps/storybook
           onlyChanged: true
           autoAcceptChanges: main
           exitZeroOnChanges: false
