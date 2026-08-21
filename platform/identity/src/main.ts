@@ -6,6 +6,8 @@ import { logger, startTelemetry } from '@kithena/telemetry';
 import { resolveTenant } from './tenancy/application/resolve-tenant.js';
 import { drizzleTenantRepository } from './tenancy/infrastructure/drizzle-tenant-repository.js';
 import { tenantRoutes } from './tenancy/http/tenant-routes.js';
+import { developmentKey, joseSigner } from './token/infrastructure/jose-signer.js';
+import { jwksRoute } from './token/http/jwks-route.js';
 
 /**
  * The identity service.
@@ -36,10 +38,48 @@ if (!internalToken) throw new Error('INTERNAL_API_TOKEN is required');
 
 const db = drizzle(postgres(connectionString));
 
-const routes = tenantRoutes({
+/**
+ * The signing key.
+ *
+ * Read from the environment as a JWK, or generated on the spot outside
+ * production. The generated one is not a quiet fallback: it says so, loudly,
+ * because a deployment signing with a key that changes on every restart does
+ * not look like a missing configuration — it looks like users being logged out
+ * at random, which is a much longer afternoon.
+ */
+const signingKey = process.env['AUTH_SIGNING_KEY'];
+if (!signingKey && process.env['NODE_ENV'] === 'production') {
+  throw new Error('AUTH_SIGNING_KEY is required in production');
+}
+if (!signingKey) {
+  logger.warn(
+    { service: 'identity' },
+    'no AUTH_SIGNING_KEY: generating a throwaway key. Every restart invalidates every token.',
+  );
+}
+
+const signer = await joseSigner(
+  signingKey === undefined ? await developmentKey() : (JSON.parse(signingKey) as never),
+);
+
+const tenants = tenantRoutes({
   resolve: resolveTenant({ tenants: drizzleTenantRepository(db) }),
   internalToken,
 });
+const jwks = jwksRoute(signer);
+
+/**
+ * Routes, tried in order.
+ *
+ * A list rather than a framework. There are two of them, they are matched by
+ * prefix, and a router would be a dependency earning its place by saving four
+ * lines. It stops being the right answer the moment there are parameters worth
+ * parsing; it is not that moment yet.
+ */
+const routes = async (
+  request: Parameters<typeof jwks>[0],
+  response: Parameters<typeof jwks>[1],
+): Promise<boolean> => jwks(request, response) || (await tenants(request, response));
 
 const server = createServer((request, response) => {
   void routes(request, response)

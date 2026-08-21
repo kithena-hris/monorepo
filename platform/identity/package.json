@@ -18,6 +18,8 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "drizzle-orm": "^0.45.2",
+    "ioredis": "^6.0.0",
+    "jose": "^6.0.0",
     "postgres": "^3.4.5",
     "zod": "^4.4.3"
   },
