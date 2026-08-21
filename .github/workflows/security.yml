@@ -24,20 +24,42 @@ jobs:
   secrets:
     name: secret scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       # Full history. Scanning only the tip finds nothing: a credential that was
       # committed and then deleted is still in the pack file, still cloneable,
       # and still valid until it is rotated.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
 
       # The binary rather than the marketplace action: that action requires a
       # paid licence key for organisation-owned repositories, and a security
       # gate that silently no-ops when a key is missing is worse than none.
+      #
+      # Checksum-verified, the same as `tools/scripts/install-gitleaks.sh` does
+      # for the pre-commit hook. This previously piped an unverified download
+      # straight into /usr/local/bin — in the more privileged of the two
+      # environments, and for the one tool where trusting whatever the network
+      # returns is least defensible.
       - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.28.0
         run: |
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz" \
-            | tar -xz -C /usr/local/bin gitleaks
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "$base/$archive" -o "$archive"
+          curl -sSfL "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o checksums.txt
+          expected="$(grep " ${archive}\$" checksums.txt | awk '{print $1}')"
+          if [ -z "$expected" ]; then
+            echo "::error::No published checksum for $archive"
+            exit 1
+          fi
+          echo "${expected}  ${archive}" | sha256sum --check --status || {
+            echo "::error::Checksum mismatch for $archive"
+            exit 1
+          }
+          tar -xzf "$archive" -C /usr/local/bin gitleaks
+          rm -f "$archive" checksums.txt
           gitleaks version
 
       - name: Scan the full history
@@ -46,10 +68,11 @@ jobs:
   dependencies:
     name: dependency audit
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
@@ -70,8 +93,9 @@ jobs:
   permissions-check:
     name: workflow permissions
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # A workflow with no `permissions:` block inherits whatever the repository
       # default is, which is `write-all` on older settings. This fails when a
       # workflow forgets to narrow it, so a future job cannot quietly gain the

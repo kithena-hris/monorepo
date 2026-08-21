@@ -383,19 +383,92 @@ const pageUrl = process.env.PAGE_URL;
  * is also where Storybook's own unlayered CSS meets the design system's
  * layered utilities, which is exactly the collision worth checking.
  *
- * STORY_FILTER narrows the run to ids containing a substring. CI never sets it;
- * it exists so that triaging one component, or proving the gate still fails on
- * a known bug, does not cost a full pass over everything.
+ * Three ways to narrow the run, applied in this order:
+ *
+ * STORY_IDS  an explicit list of exact ids, comma or pipe separated. This is
+ *            what the affected-story path passes: it has already resolved the
+ *            changed files against the Storybook index and knows precisely
+ *            which stories to measure.
+ * STORY_FILTER  a substring, for triaging one component by hand or proving the
+ *            gate still fails on a known bug without paying for a full pass.
+ * SHARD      `i/n`, 1-based, so CI can split the sweep across runners. Applied
+ *            last, so it divides whatever the two above selected.
  */
-const stories = pageUrl
+const selectedIds = (process.env.STORY_IDS ?? '')
+  .split(/[,|]/)
+  .map((id) => id.trim())
+  .filter(Boolean);
+const wanted = new Set(selectedIds);
+
+const allEntries = pageUrl
+  ? []
+  : Object.values((await (await fetch(BASE + '/index.json')).json()).entries);
+
+let stories = pageUrl
   ? [{ id: pageUrl, url: pageUrl, standalone: true }]
-  : Object.values((await (await fetch(BASE + '/index.json')).json()).entries)
+  : allEntries
       .filter(
         (entry) =>
           (entry.type === 'story' || entry.type === 'docs') &&
+          (wanted.size === 0 || wanted.has(entry.id)) &&
           (!process.env.STORY_FILTER || entry.id.includes(process.env.STORY_FILTER)),
       )
       .map((entry) => ({ id: entry.id, viewMode: entry.type === 'docs' ? 'docs' : 'story' }));
+
+/*
+ * A selection that asked for specific stories and matched none of them is a
+ * broken caller, not an empty run. Saying so here is what stops a resolver
+ * emitting stale ids and being reported as a clean pass.
+ */
+if (!pageUrl && wanted.size > 0 && stories.length === 0) {
+  console.error(
+    'STORY_IDS named ' +
+      wanted.size +
+      ' stories and none exist in the Storybook index. The ids are stale.',
+  );
+  process.exit(1);
+}
+
+/*
+ * Round-robin rather than contiguous slices. Stories are indexed grouped by
+ * component, and components differ by an order of magnitude in how much they
+ * render — a contiguous shard can draw the whole of `table` and `kanban` while
+ * another draws twenty badges. Taking every nth story spreads the heavy ones.
+ */
+const shardSpec = process.env.SHARD;
+if (shardSpec && !pageUrl) {
+  const [rawIndex, rawTotal] = shardSpec.split('/');
+  const shardIndex = Number(rawIndex);
+  const shardTotal = Number(rawTotal);
+  if (!Number.isInteger(shardIndex) || !Number.isInteger(shardTotal) || shardTotal < 1) {
+    console.error(`SHARD must look like "2/4"; got "${shardSpec}".`);
+    process.exit(1);
+  }
+  if (shardIndex < 1 || shardIndex > shardTotal) {
+    console.error(`SHARD index ${shardIndex} is outside 1..${shardTotal}.`);
+    process.exit(1);
+  }
+  const total = stories.length;
+  stories = [...stories]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .filter((_, position) => position % shardTotal === shardIndex - 1);
+  // stderr, not stdout: under CONTRAST_LIST_ONLY stdout is the id list and
+  // nothing else, so anything else written there is read back as a story id.
+  console.error(
+    `shard ${shardIndex}/${shardTotal}: ${stories.length} of ${total} selected stories`,
+  );
+}
+
+/*
+ * Prints the selection and stops. The narrowing above decides what a green
+ * result actually covered, and without this the only way to see it is to wait
+ * out the sweep it selected. Used to prove the shards partition the index.
+ */
+if (process.env.CONTRAST_LIST_ONLY) {
+  for (const story of stories) console.log(story.id);
+  console.error(`selected ${stories.length} entries`);
+  process.exit(0);
+}
 
 const browser = await chromium.launch();
 

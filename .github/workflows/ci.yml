@@ -25,11 +25,12 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
 
       - run: pnpm install --frozen-lockfile
@@ -59,10 +60,11 @@ jobs:
 
   contracts:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm codegen
@@ -73,23 +75,25 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:integration
 
   standalone:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         module: [people, timeoff]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       # Through turbo, so the module's dependencies are built first. Run
@@ -102,20 +106,33 @@ jobs:
     # Every story renders in a real browser and axe runs over the result. An
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
+    #
+    # Sharded four ways. The sweep renders every entry in two themes and two
+    # pointer profiles — 468 x 4 renders in series took 34 minutes, which was
+    # the whole pipeline; everything else here finishes inside three. The shards
+    # are a round-robin over a sorted index, verified to partition it exactly,
+    # so four runners cover the same set in roughly a quarter of the time.
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
 
-      # Unconditional. This is the axe pass over every story, and narrowing it
-      # by what a diff appears to touch is how an accessibility gate quietly
-      # stops being one.
-      - run: pnpm test:stories
+      # Unconditional, and only on the first shard because it covers every story
+      # by itself. Narrowing an accessibility pass by what a diff appears to
+      # touch is how such a gate quietly stops being one.
+      - name: axe over every story
+        if: matrix.shard == 1
+        run: pnpm test:stories
 
       # Narrows the *contrast sweep* and nothing else, and only on a pull
       # request. Every check below still runs on every event; the detector
@@ -129,58 +146,69 @@ jobs:
         run: node tools/a11y/affected-stories.mjs
 
       - name: Contrast gate
-        # Every story in both themes and both pointer profiles, so this is the
-        # long step in the job. It also measures focus rings, which means it
-        # cannot be replaced by anything static: the ring colour only exists
-        # while an element is focused.
-        timeout-minutes: 45
+        # It measures focus rings, which means it cannot be replaced by anything
+        # static: the ring colour only exists while an element is focused.
+        timeout-minutes: 25
         env:
           STORY_FILTER: ${{ steps.scope.outputs.filters }}
           SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
           STORYBOOK_URL: http://localhost:6006
-          CONTRAST_WORKERS: 4
+          SHARD: ${{ matrix.shard }}/4
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
 
-          # The manager cannot reference a Reach custom property (it is a
-          # separate document from the preview and does not load the
-          # stylesheet), so its theme holds resolved copies. This fails if one
-          # of them no longer matches the token it is named after.
-          pnpm storybook:theme-drift
-          # The public docs site lists what ships. It cannot fetch that list at
-          # runtime (static build), so the list is a copy and this fails when it
-          # stops matching.
-          pnpm docs:catalogue-drift
-          # Reach is documented and sold on its own and must never name Kithena.
-          # Storybook enforces its half by excluding the mark's stories; this is
-          # the documentation half, added after a demo shipped a branded share
-          # link to production.
-          pnpm docs:brand-leak
+          # The drift gates describe the whole design system rather than any
+          # subset of it, so they run once rather than four times.
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            # The manager cannot reference a Reach custom property (it is a
+            # separate document from the preview and does not load the
+            # stylesheet), so its theme holds resolved copies. This fails if one
+            # of them no longer matches the token it is named after.
+            pnpm storybook:theme-drift
+            # The public docs site lists what ships. It cannot fetch that list at
+            # runtime (static build), so the list is a copy and this fails when
+            # it stops matching.
+            pnpm docs:catalogue-drift
+            # Reach is documented and sold on its own and must never name
+            # Kithena. Storybook enforces its half by excluding the mark's
+            # stories; this is the documentation half, added after a demo
+            # shipped a branded share link to production.
+            pnpm docs:brand-leak
+          fi
 
           # On a pull request that changed no design-system file, the story
           # sweep is skipped here — and runs in full on main, so a detector that
           # guessed wrong costs a red build after merge rather than a regression
-          # nobody ever measures. On main and in the merge queue `scope` never
-          # ran, both variables are empty, and the full sweep is what executes.
+          # nobody measures. On main and in the merge queue `scope` never ran,
+          # both variables are empty, and the full sharded sweep is what runs.
           if [ "$SKIP_STORY_SWEEP" = "true" ]; then
             echo "::notice::No design-system change on this pull request. The story contrast sweep runs in full on main."
           elif [ -n "$STORY_FILTER" ] && [ "$STORY_FILTER" != "__ALL__" ]; then
-            node tools/a11y/affected-contrast.mjs
+            # Already a narrow set; sharding it further would leave most shards
+            # with nothing and pay four installs to discover that.
+            if [ "${{ matrix.shard }}" = "1" ]; then
+              SHARD= node tools/a11y/affected-contrast.mjs
+            fi
           else
-            pnpm a11y:contrast
+            node tools/a11y/contrast-sweep.mjs
           fi
 
           # The docs site is built out of the design system and makes claims
-          # about these thresholds, so it is held to them too — on every event,
-          # because the docs are not what the story detector looks at.
-          pnpm --filter @reach/docs build
-          pnpm --filter @reach/docs preview --port 3100 &
-          npx --yes wait-on http://localhost:3100 --timeout 60000
-          PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
+          # about these thresholds, so it is held to them too. One shard, since
+          # it is a single page rather than part of the story index.
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            pnpm --filter @reach/docs build
+            pnpm --filter @reach/docs preview --port 3100 &
+            npx --yes wait-on http://localhost:3100 --timeout 60000
+            SHARD= PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
+          fi
 
-      - run: pnpm storybook:build
-      - uses: actions/upload-artifact@v4
+      - name: Build Storybook
+        if: matrix.shard == 1
+        run: pnpm storybook:build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: matrix.shard == 1
         with:
           name: storybook
           path: apps/storybook/storybook-static
