@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.ts",
     "db:migrate": "atlas migrate apply --env local"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@kithena/testing": "workspace:*",
     "vitest": "^3.2.0"
   }
 }

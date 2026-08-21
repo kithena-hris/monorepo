@@ -4,11 +4,12 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*", "vitest.config.ts"],
+  "include": ["src/**/*", "vitest.config.ts", "vitest.integration.ts"],
   "references": [
     { "path": "../../packages/contracts" },
     { "path": "../../packages/domain-kit" },
     { "path": "../../packages/db-kit" },
-    { "path": "../../packages/telemetry" }
+    { "path": "../../packages/telemetry" },
+    { "path": "../../packages/testing" }
   ]
 }

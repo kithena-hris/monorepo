@@ -19,6 +19,8 @@ const session = (id: string, slot: number, lastSeen: string): Session => ({
   slot,
   startedAt: at('2026-01-01'),
   lastSeenAt: at(lastSeen),
+  amr: ['swk'],
+  device: { ip: '203.0.113.7', userAgent: 'test', aaguid: null },
 });
 
 describe('allocateSlot', () => {

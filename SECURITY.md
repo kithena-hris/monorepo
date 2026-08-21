@@ -141,14 +141,29 @@ file said they were unavailable, and that was true while it was private.
   the workflow scans history that predates any of this.
 - **Dependabot alerts and security updates.** Grouped upgrade pull requests
   weekly, per `.github/dependabot.yml`.
+- **A ruleset on `main`.** A pull request is required; fourteen status checks
+  must pass; history stays linear and squash is the only merge method; force
+  pushes and branch deletion are blocked. One approving review from a code
+  owner is required, and `.github/CODEOWNERS` routes it.
+
+  This paragraph previously sat under "still to do", saying that `main` was
+  directly pushable and every gate in `ci.yml` could be walked past. That
+  stopped being true and the file did not notice, which is the failure mode
+  documentation about controls has: nobody re-reads it, and the gap is only
+  found by someone acting on what it says.
+
+  **One consequence worth stating rather than discovering.** There is one
+  committer, and GitHub does not let anyone approve their own pull request, so
+  every merge today needs `--admin` to bypass the review requirement. That is
+  a deliberate bypass of a control by the person who set it, which is
+  defensible — and it is also indistinguishable in the log from the habit it
+  could become. Either drop `required_approving_review_count` to zero while the
+  team is one person and keep the status checks, which are the half that
+  catches mistakes, or add a second reviewer. Leaving it as is means the first
+  thing a new committer learns is how to skip the review.
 
 **Still to do.**
 
-- **A ruleset on `main`**: require the `ci` and `security` checks, require a
-  pull request, require review from a code owner, disallow force pushes. Free
-  for a public repository. Until then `main` is directly pushable and every gate
-  in `ci.yml` can be walked past — `.github/CODEOWNERS` routes a review request
-  and nothing more.
 - **Require two-factor authentication** for the organisation.
 - **Non-provider patterns** and **validity checks** for secret scanning. Both
   are organisation-level settings rather than per-repository ones — the repo API

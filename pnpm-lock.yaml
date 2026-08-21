@@ -546,6 +546,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@kithena/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)

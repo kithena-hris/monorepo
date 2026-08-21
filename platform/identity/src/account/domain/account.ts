@@ -10,7 +10,7 @@ import {
 } from '@kithena/domain-kit';
 import { TenantId, type Actor } from '@kithena/contracts';
 
-import { allocateSlot, type Session, type SlotAllocation } from './session.js';
+import { allocateSlot, type Session, type SessionDevice, type SlotAllocation } from './session.js';
 
 /**
  * One human at one company, and the devices they are signed in on.
@@ -64,11 +64,7 @@ export interface EventContext {
 
 export interface StartSessionInput {
   readonly id: string;
-  readonly device: {
-    readonly ip: string;
-    readonly userAgent: string;
-    readonly aaguid: string | null;
-  };
+  readonly device: SessionDevice;
   readonly amr: readonly string[];
 }
 
@@ -155,7 +151,17 @@ export class Account extends AggregateRoot<string> {
     if (evicted) this.#revoke(evicted, 'evicted', ctx);
 
     const at = ctx.clock.instant();
-    this.#sessions = [...this.#sessions, { id: input.id, slot, startedAt: at, lastSeenAt: at }];
+    this.#sessions = [
+      ...this.#sessions,
+      {
+        id: input.id,
+        slot,
+        startedAt: at,
+        lastSeenAt: at,
+        amr: input.amr,
+        device: input.device,
+      },
+    ];
 
     this.#raise(
       'identity.session.started',
@@ -282,5 +288,10 @@ export class Account extends AggregateRoot<string> {
   /** The human this account belongs to. One human, several accounts. */
   get identityId(): string {
     return this.#identityId;
+  }
+
+  /** The company. Needed by anything writing a tenant-scoped row. */
+  get tenantId(): string {
+    return this.#tenantId;
   }
 }
