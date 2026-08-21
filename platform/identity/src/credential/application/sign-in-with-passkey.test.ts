@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Credential } from '../domain/credential.js';
-import type { OriginPolicy } from '../domain/origin.js';
+import type { OriginPolicy } from '../../shared/origin.js';
 import type { ChallengeStore } from './challenge-store.js';
 import type { RelyingParty } from './relying-party.js';
 import { signInWithPasskey, type SignInDeps } from './sign-in-with-passkey.js';

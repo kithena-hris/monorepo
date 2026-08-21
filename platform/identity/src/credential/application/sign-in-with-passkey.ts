@@ -1,7 +1,7 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { acceptAssertion, type Credential, type CredentialPolicy } from '../domain/credential.js';
-import { isAcceptableOrigin, type OriginPolicy } from '../domain/origin.js';
+import { isAcceptableOrigin, type OriginPolicy } from '../../shared/origin.js';
 import type { ChallengeStore } from './challenge-store.js';
 import type { RelyingParty } from './relying-party.js';
 
