@@ -1,5 +1,10 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
+import type { Device } from '../../shared/device.js';
+
+/** Kept as a name because a session's device is what most callers mean. */
+export type SessionDevice = Device;
+
 /**
  * One signed-in device.
  *
@@ -10,13 +15,6 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  * "at most four" by looking at one session, so one session cannot be the unit
  * of consistency.
  */
-export interface SessionDevice {
-  readonly ip: string;
-  readonly userAgent: string;
-  /** The authenticator model, from WebAuthn. Not a device identifier. */
-  readonly aaguid: string | null;
-}
-
 export interface Session {
   readonly id: string;
   /** 1..limit. Reused, never incremented. */
@@ -34,7 +32,7 @@ export interface Session {
    * it cannot say "Chrome on a Mac in Madrid, last used Tuesday" about a
    * session that only knows its slot number.
    */
-  readonly device: SessionDevice;
+  readonly device: Device;
 }
 
 export interface SlotAllocation {
