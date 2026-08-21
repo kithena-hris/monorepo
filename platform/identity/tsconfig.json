@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*", "vitest.config.ts"],
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/domain-kit" },
+    { "path": "../../packages/db-kit" },
+    { "path": "../../packages/telemetry" }
+  ]
+}

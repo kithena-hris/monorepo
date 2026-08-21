@@ -19,15 +19,64 @@ module.exports = {
       name: 'no-trpc-in-services',
       severity: 'error',
       comment: 'tRPC is permitted in apps/admin only. See section 5 of the stack doc.',
-      from: { path: '^(services|packages)/' },
+      from: { path: '^(services|packages|platform)/' },
       to: { path: 'node_modules/@trpc' },
     },
     {
       name: 'no-domain-importing-infrastructure',
       severity: 'error',
-      comment: 'The domain layer stays free of drivers, clients and frameworks.',
-      from: { path: '^services/[^/]+/src/domain/' },
-      to: { path: '^services/[^/]+/src/(infrastructure|graphql|http)/' },
+      comment:
+        'The domain layer stays free of drivers, clients and frameworks. The ' +
+        'optional path segment matters: with vertical slices the layer sits at ' +
+        'src/<slice>/domain/, and a pattern anchored at src/domain/ simply stops ' +
+        'matching. It would not fail — it would pass, on every file, silently, ' +
+        'which is the worst thing a build gate can do.\n\n' +
+        'Spelled as an alternation rather than an optional `(?:[^/]+/)?` group: ' +
+        'dependency-cruiser runs safe-regex over every pattern and rejects one ' +
+        'quantifier nested inside another, so the concise form is refused ' +
+        'outright.',
+      from: { path: '^(services|platform)/[^/]+/src/(?:domain|[^/]+/domain)/' },
+      to: {
+        path: '^(services|platform)/[^/]+/src/(?:application|infrastructure|graphql|http|[^/]+/(?:application|infrastructure|graphql|http))/',
+      },
+    },
+    {
+      name: 'no-cross-slice-imports',
+      severity: 'error',
+      comment:
+        'A vertical slice reaches another slice through its own module surface, ' +
+        'not by importing its internals. Same rule as no-cross-module-imports, ' +
+        'one level down. Only fires where both sides are actually sliced — a ' +
+        'module keeping its layers directly under src/ is unaffected, and ' +
+        'src/shared/ is reachable from everywhere by design.',
+      from: {
+        path: '^(services|platform)/([^/]+)/src/([^/]+)/(domain|application|infrastructure|graphql|http)/',
+      },
+      to: {
+        path: '^$1/$2/src/(?!$3/|shared/)([^/]+)/(domain|application|infrastructure|graphql|http)/',
+      },
+    },
+    {
+      name: 'no-platform-in-modules',
+      severity: 'error',
+      comment:
+        'A module reaches identity through a JWKS URL and a verified token, ' +
+        'never by importing it. The moment a subgraph calls the identity ' +
+        'service, `just standalone <module>` stops being true and Time Off can ' +
+        'no longer be sold to a customer pointing it at their own issuer.',
+      from: { path: '^services/' },
+      to: { path: '^platform/' },
+    },
+    {
+      name: 'no-modules-in-platform',
+      severity: 'error',
+      comment:
+        'Identity must not learn what a Person is. It consumes the People ' +
+        'contract from packages/contracts and the events on the topic; it does ' +
+        'not import the module, because a customer running Time Off against ' +
+        'Workday has no People module for it to import.',
+      from: { path: '^platform/' },
+      to: { path: '^services/' },
     },
     {
       name: 'design-system-stays-presentational',
@@ -37,7 +86,7 @@ module.exports = {
         "domain type or a data client, one module's concepts start leaking into " +
         "every other module's screens and the system stops being shared.",
       from: { path: '^packages/ui/' },
-      to: { path: '^(packages/(?!ui/)|services/)' },
+      to: { path: '^(packages/(?!ui/)|services/|platform/)' },
     },
     {
       name: 'no-design-system-in-services',
@@ -45,7 +94,7 @@ module.exports = {
       comment:
         'A subgraph, a worker or a domain layer has no user interface. React in ' +
         'services/* means presentation logic has moved to the wrong side of the wire.',
-      from: { path: '^(services|packages/(?!ui/))' },
+      from: { path: '^(services|platform|packages/(?!ui/))' },
       to: { path: '^packages/ui/' },
     },
     {
@@ -81,7 +130,7 @@ module.exports = {
            * exclusion goes inert on its own the moment an adapter imports one
            * of these, because the file stops being an orphan.
            */
-          '^services/[^/]+/src/integration/',
+          '^(services|platform)/[^/]+/src/integration/',
         ],
       },
       to: {},

@@ -1,3 +1,5 @@
+import { isRegistrableSlug } from '@kithena/contracts';
+
 /**
  * Turning a hostname into a tenant.
  *
@@ -13,50 +15,15 @@
  * can cache the lookup however it needs to.
  */
 
-/** Labels nobody may register. Mirrors `platform.reserved_slug`. */
-export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
-  'www',
-  'app',
-  'staging',
-  'api',
-  'admin',
-  'static',
-  'assets',
-  'cdn',
-  'mail',
-  'smtp',
-  'imap',
-  'design',
-  'storybook',
-  'status',
-  'docs',
-  'support',
-  'billing',
-  'auth',
-  'login',
-  'internal',
-]);
-
 /**
- * The same shape the `tenant_slug_shape` constraint enforces.
+ * The slug rules live in `@kithena/contracts`, not here.
  *
- * Duplicated on purpose. The database is the constraint that every write
- * passes through, and this is the one the request path can apply before
- * spending a query on a label that cannot exist.
+ * They were duplicated in this file and in the `tenant_slug_shape` constraint,
+ * and a third copy was about to appear in the identity service. Per CLAUDE.md
+ * one Zod definition is the source; this file consumes it and re-exports the
+ * reserved list so callers do not need to know where it moved to.
  */
-const SLUG = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])$/;
-
-/**
- * Consecutive hyphens, rejected separately because the reason is different.
- *
- * `xn--` is the punycode prefix: a label containing `--` in the third and
- * fourth position is an internationalised domain name, and `xn--pple-43d` is a
- * hostname that renders as `äpple`. Allowing them here would let someone
- * register a tenant that displays as another tenant's name. The database
- * constraint says the same thing with `slug !~ '--'`, and the two must agree —
- * this rule was in the constraint and not here, which is what the test found.
- */
-const DOUBLE_HYPHEN = /--/;
+export { RESERVED_SLUGS } from '@kithena/contracts';
 
 export interface Tenant {
   readonly id: string;
@@ -93,8 +60,10 @@ export function slugFromHost(host: string | null, suffix: string): string | null
   // hostname we did not issue, and treating it as a tenant would let a
   // wildcard certificate holder invent nesting.
   if (!label || label.includes('.')) return null;
-  if (!SLUG.test(label) || DOUBLE_HYPHEN.test(label)) return null;
-  if (RESERVED_SLUGS.has(label)) return null;
+
+  // Shape and availability in one call. Both questions are answered by the
+  // contract, so this file cannot drift from the database constraint.
+  if (!isRegistrableSlug(label)) return null;
 
   return label;
 }

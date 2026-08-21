@@ -1,5 +1,16 @@
 packages:
+  # `apps/*` for the Reach sites, which are single applications. `apps/*/*` for
+  # Kithena's frontends, which are grouped one folder per origin: an origin is a
+  # cookie boundary, a WebAuthn boundary and a deploy boundary at once, which is
+  # the only grouping that anything enforces. A directory without a
+  # `package.json` — `apps/auth` itself — is not a package and is ignored.
   - 'apps/*'
+  - 'apps/*/*'
+  # Platform services are not modules. Nobody buys identity, every tenant has
+  # it, and `ModuleKey` correctly does not list it. Keeping them out of
+  # `services/*` is what stops `just standalone` being asked a question it
+  # cannot answer.
+  - 'platform/*'
   - 'packages/*'
   - 'services/*'
   - 'tools/*'

@@ -31,3 +31,9 @@ storybook-static/
 
 # Composed locally and in CI from the subgraph SDL; never committed.
 apps/gateway/supergraph.json
+
+# Local compose tweaks. A developer with Postgres already installed needs to
+# republish the container on another port, because the host's own daemon binds
+# 127.0.0.1:5432 and wins the race for `localhost`. That is a property of one
+# machine, not of the project.
+docker-compose.override.yml
