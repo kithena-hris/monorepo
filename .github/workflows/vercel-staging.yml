@@ -1,0 +1,126 @@
+name: vercel-staging
+
+# Staging, deployed from a pull request once `ci` has gone green on it.
+#
+# The point of staging is to look at a change with test customers before it
+# reaches real ones, so it deploys *before* merge rather than after. Like
+# production, it triggers on `workflow_run` and refuses anything whose `ci`
+# conclusion is not `success` — a separate workflow cannot use `needs:`, and
+# without the guard this would deploy a branch whose tests failed.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  # One staging deploy at a time, keyed on the branch. Two pull requests
+  # deploying to one shared environment is a race whoever merges second loses;
+  # this at least makes it a queue rather than a collision.
+  group: vercel-staging-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_CLI_VERSION: 59.3.0
+
+jobs:
+  deploy:
+    name: staging deploy
+    # Pull requests only. A push to main is production's business, and `ci` runs
+    # on both.
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: staging
+      url: https://staging.app.kithena.com
+    steps:
+      # The commit `ci` tested, not the branch tip, which may have moved on.
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 22, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: check the secrets
+        run: |
+          missing=
+          [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
+          [ -z "${{ secrets.DATABASE_URL }}" ] && missing="$missing DATABASE_URL"
+          if [ -n "$missing" ]; then
+            echo "::error::missing staging secret(s):$missing"
+            exit 1
+          fi
+
+      # Migrations before the deploy, never after. Expand-contract means the new
+      # schema is readable by the old code, so migrating first is safe and
+      # migrating second is a window where the new code reads columns that do
+      # not exist yet.
+      - name: migrate staging
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ATLAS_DEV_URL: ${{ secrets.ATLAS_DEV_URL }}
+        run: |
+          curl -sSf https://release.ariga.io/atlas/atlas-linux-amd64-latest -o /usr/local/bin/atlas
+          chmod +x /usr/local/bin/atlas
+          atlas migrate apply --env staging
+
+      - name: build web
+        env:
+          TENANT_HOST_SUFFIX: staging.app.kithena.com
+        run: pnpm --filter @hris/web build
+
+      - name: deploy
+        id: deploy
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          npx --yes vercel@${VERCEL_CLI_VERSION} alias set "$url" \
+            staging.app.kithena.com --token "$VERCEL_TOKEN"
+
+      - name: smoke test
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            https://staging.app.kithena.com >/dev/null
+
+      - name: comment the url on the pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          pr=$(gh api "repos/${REPO}/commits/${SHA}/pulls" --jq '.[0].number // empty')
+          [ -z "$pr" ] && { echo "::notice::no pull request for ${SHA}"; exit 0; }
+          body="<!-- staging -->
+          ## 🧪 Staging
+
+          \`${SHA:0:7}\` is on staging: https://staging.app.kithena.com
+
+          Tenants resolve at \`<company>.staging.app.kithena.com\`.
+          Test customers only — staging holds no real customer data.
+          "
+          existing=$(gh api "repos/${REPO}/issues/${pr}/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- staging -->")) | .id' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
+          else
+            gh pr comment "$pr" --body "$body"
+          fi

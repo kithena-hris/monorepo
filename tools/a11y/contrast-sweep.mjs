@@ -448,8 +448,8 @@ if (shardSpec && !pageUrl) {
     process.exit(1);
   }
   const total = stories.length;
-  stories = [...stories]
-    .sort((a, b) => a.id.localeCompare(b.id))
+  stories = stories
+    .toSorted((a, b) => a.id.localeCompare(b.id))
     .filter((_, position) => position % shardTotal === shardIndex - 1);
   // stderr, not stdout: under CONTRAST_LIST_ONLY stdout is the id list and
   // nothing else, so anything else written there is read back as a story id.
