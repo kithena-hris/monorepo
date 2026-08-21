@@ -103,11 +103,31 @@ One project, two branches: `main` for production and `staging` for staging. The
 staging branch is a copy-on-write fork, which is what makes resetting it cheap
 enough to actually do.
 
-**The application role must not be a superuser.** A superuser bypasses row-level
-security unconditionally — `FORCE ROW LEVEL SECURITY` does not apply to it and
-neither does `NOBYPASSRLS` — so tenant isolation silently enforces nothing. This
-is not theoretical: it is the bug
-`packages/db-kit/src/tenant.integration.test.ts` was written after hitting.
+**The application must not connect as `neondb_owner`.** Neon's default role is
+not a superuser, but it carries `BYPASSRLS`, which has the same effect: it reads
+every tenant's rows regardless of any policy.
+
+Measured on this project rather than assumed, on the staging branch, against a
+table with `ENABLE` and `FORCE ROW LEVEL SECURITY` and a policy that matches
+nothing when no tenant is set:
+
+| Connected as   | `BYPASSRLS` | Rows visible with no tenant scope |
+| -------------- | ----------- | --------------------------------- |
+| `neondb_owner` | yes         | **2 — both tenants**              |
+| `app_runtime`  | no          | 0                                 |
+
+Scoped to one tenant, `app_runtime` sees that tenant's row and no other. So the
+application connects as a role created `NOBYPASSRLS`; migrations may run as the
+owner, because they are supposed to see everything.
+
+Checking the attribute is one query, and worth doing after any role change:
+
+```sql
+SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolcanlogin;
+```
+
+The earlier version of this file said "must not be a superuser". That was the
+right instinct and the wrong test — `neondb_owner` passes it and leaks anyway.
 
 See [SECURITY.md](../SECURITY.md#writing-a-row-level-security-policy) for the two
 details every policy needs.
