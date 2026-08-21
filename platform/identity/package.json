@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",
+    "@simplewebauthn/server": "^13.3.2",
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
