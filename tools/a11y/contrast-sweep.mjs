@@ -259,7 +259,6 @@ function measure(options) {
       // Judged against what is behind the control, which is where a ring with a
       // positive offset is drawn.
       indicators.push({ colour: styles.outlineColor, inset: false, width: outlineWidth });
-
     }
 
     // Computed box-shadow puts the colour first: "rgb(91, 91, 214) 0px 0px 0px 2px".

@@ -10,19 +10,38 @@ const head = process.env.HEAD_SHA ?? 'HEAD';
 const output = process.env.GITHUB_OUTPUT;
 
 const run = (command, args) => execFileSync(command, args, { cwd: root, encoding: 'utf8' }).trim();
-const setOutput = (values) => output && writeFileSync(output, Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n') + '\n');
-const stat = (path) => { try { return statSync(path); } catch { return null; } };
+const setOutput = (values) =>
+  output &&
+  writeFileSync(
+    output,
+    Object.entries(values)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n') + '\n',
+  );
+const stat = (path) => {
+  try {
+    return statSync(path);
+  } catch {
+    return null;
+  }
+};
 const normalize = (path) => path.replaceAll('\\', '/');
 
 let changed;
-try { changed = run('git', ['diff', '--name-only', `${base}...${head}`]).split('\n').filter(Boolean); }
-catch { changed = run('git', ['diff', '--name-only', base, head]).split('\n').filter(Boolean); }
+try {
+  changed = run('git', ['diff', '--name-only', `${base}...${head}`])
+    .split('\n')
+    .filter(Boolean);
+} catch {
+  changed = run('git', ['diff', '--name-only', base, head]).split('\n').filter(Boolean);
+}
 
-const relevant = changed.filter((file) =>
-  file.startsWith('packages/ui/') ||
-  file.startsWith('apps/storybook/') ||
-  file.startsWith('packages/design-system/') ||
-  file.startsWith('packages/tokens/'),
+const relevant = changed.filter(
+  (file) =>
+    file.startsWith('packages/ui/') ||
+    file.startsWith('apps/storybook/') ||
+    file.startsWith('packages/design-system/') ||
+    file.startsWith('packages/tokens/'),
 );
 
 if (relevant.length === 0) {
@@ -48,11 +67,12 @@ const walk = (dir) => {
 };
 walk(uiRoot);
 
-const globalChange = relevant.some((file) =>
-  file.startsWith('apps/storybook/') ||
-  /packages\/(design-system|tokens)\//.test(file) ||
-  /packages\/ui\/src\/(foundations|styles|theme|tokens)\//.test(file) ||
-  /packages\/ui\/src\/(index|globals|theme)\.(css|scss|ts|tsx|js|jsx)$/.test(file),
+const globalChange = relevant.some(
+  (file) =>
+    file.startsWith('apps/storybook/') ||
+    /packages\/(design-system|tokens)\//.test(file) ||
+    /packages\/ui\/src\/(foundations|styles|theme|tokens)\//.test(file) ||
+    /packages\/ui\/src\/(index|globals|theme)\.(css|scss|ts|tsx|js|jsx)$/.test(file),
 );
 
 if (globalChange) {
@@ -86,9 +106,9 @@ for (const file of sourceFiles) {
   importsOf.set(file, deps);
 }
 
-const changedAbsolute = new Set(relevant
-  .filter((file) => file.startsWith('packages/ui/'))
-  .map((file) => resolve(root, file)));
+const changedAbsolute = new Set(
+  relevant.filter((file) => file.startsWith('packages/ui/')).map((file) => resolve(root, file)),
+);
 
 const dependsOnChanged = (story) => {
   const seen = new Set();
@@ -106,7 +126,10 @@ const selected = storyFiles.filter((story) => {
   if (dependsOnChanged(story)) return true;
   const text = readFileSync(story, 'utf8');
   return [...changedAbsolute].some((file) => {
-    const basename = normalize(file).split('/').at(-1)?.replace(/\.(js|jsx|ts|tsx|mdx|css|scss)$/, '');
+    const basename = normalize(file)
+      .split('/')
+      .at(-1)
+      ?.replace(/\.(js|jsx|ts|tsx|mdx|css|scss)$/, '');
     return basename && text.includes(basename);
   });
 });
@@ -117,7 +140,7 @@ if (!selected.length) {
   process.exit(0);
 }
 
-const filters = [...new Set(selected.map((file) => normalize(file.slice(uiRoot.length + 1))) )];
+const filters = [...new Set(selected.map((file) => normalize(file.slice(uiRoot.length + 1))))];
 console.log(`Affected stories: ${filters.length}`);
 console.log(filters.join('\n'));
 setOutput({ skip: 'false', filters: filters.join('|') });
