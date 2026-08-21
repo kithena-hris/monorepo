@@ -1,0 +1,131 @@
+name: vercel-preview
+
+# A preview of both public surfaces per pull request.
+#
+# `.github/workflows/ci.yml` decides whether a change is *correct*; this only
+# makes it possible to look at. It deliberately does not gate the pull request:
+# a deployment failing is not a reason to block a correct change, and the
+# production deploy is guarded by `ci` passing instead.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/docs/**'
+      - 'apps/storybook/**'
+      - 'packages/**'
+      - 'services/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+
+permissions:
+  contents: read
+  # To post the preview URLs back onto the pull request.
+  pull-requests: write
+
+env:
+  # Names an account; it does not authorise anything. The token that does is a
+  # repository secret.
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  # Pinned. This runs with a production token; "@latest" hands whatever
+  # was published minutes ago the ability to deploy. Dependabot does not
+  # watch an npx invocation, so this is bumped deliberately.
+  VERCEL_CLI_VERSION: 59.3.0
+
+concurrency:
+  # One preview per pull request. Superseded runs are cancelled: an older
+  # commit's preview is worse than no preview.
+  group: vercel-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: preview deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: check the token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
+      # Built here and uploaded, rather than through `vercel pull` + `vercel
+      # build` + `--prebuilt`.
+      #
+      # That flow asks Vercel to build the app from its own project settings,
+      # and those settings do not describe this repository: both apps are
+      # workspace consumers of `@reach/ui`, which ships TypeScript source, so a
+      # build needs the whole monorepo and its lockfile. It also fails outright
+      # for Storybook — `vercel build` looks for an output directory named
+      # `dist` and Storybook emits `storybook-static`, which is the error this
+      # job was failing on.
+      #
+      # Uploading the finished directory is what `vercel-production.yml` already
+      # does, and it keeps the preview identical to what CI just checked.
+      - name: build docs
+        run: pnpm --filter @reach/docs build
+      - name: build storybook
+        run: pnpm storybook:build
+
+      - name: deploy docs
+        id: docs
+        env:
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/docs/dist \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Docs preview: $url"
+
+      - name: deploy storybook
+        id: storybook
+        env:
+          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/storybook/storybook-static \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Storybook preview: $url"
+
+      - name: comment the urls on the pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCS_URL: ${{ steps.docs.outputs.url }}
+          STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          body="<!-- vercel-preview -->
+          ## 🚀 Vercel Preview
+
+          - **Docs:** ${DOCS_URL}
+          - **Storybook:** ${STORYBOOK_URL}
+
+          Built from the monorepo and uploaded, so this is the same output CI checked.
+          "
+          # Edited in place rather than appended, so a pull request with thirty
+          # pushes carries one comment rather than thirty.
+          existing=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- vercel-preview -->")) | .id' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
+          else
+            gh pr comment "$PR_NUMBER" --body "$body"
+          fi

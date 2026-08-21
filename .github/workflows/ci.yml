@@ -6,11 +6,11 @@ on:
   push:
     branches: [main]
 
-# Read-only by default. Without this the workflow inherits the repository
-# default, which on older settings is write-all: every job would be able to push
-# to `main` and publish packages purely because nobody narrowed it. The deploy
-# job needs no more than this either — it authenticates to Vercel with a token,
-# not with the GitHub one.
+# Read-only. Without this the workflow inherits the repository default, which on
+# older settings is write-all: every job would be able to push to `main` and
+# publish packages purely because nobody narrowed it. This workflow comments on
+# nothing and deploys nothing — `vercel-preview` and `vercel-production` do
+# that, and they ask for `pull-requests: write` themselves.
 permissions:
   contents: read
 
@@ -25,205 +25,222 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
 
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
 
       # Build first, because `lint` and `boundaries` are the two checks that do
       # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
       # and so builds what it needs, but `pnpm lint` is a bare `oxlint && eslint`
       # and `pnpm boundaries` a bare `depcruise`. `dist/` is not committed and
       # `@hris/contracts` resolves through `./dist/index.d.ts`, so on a clean
-      # checkout both see an unbuilt workspace: typescript-eslint cannot resolve
-      # a single cross-package import and reports the whole codebase as
-      # `error typed value`. It passes locally only because a developer's tree
-      # already has `dist/` lying around from the last build.
-      - run: pnpm build
+      # checkout both see an unbuilt workspace and typescript-eslint reports the
+      # whole codebase as `error typed value`.
+      - name: build
+        run: pnpm build
 
       # Cheap rules first, then the type-aware pass. ESLint resolves against
       # the pinned TypeScript 6 API until 7.1 ships a stable one.
-      - run: pnpm lint
+      - name: lint
+        run: pnpm lint
 
       # Architectural boundaries. A cross-module import fails here, which is
       # the only thing stopping the anti-sticky property from eroding.
-      - run: pnpm boundaries
+      - name: module boundaries
+        run: pnpm boundaries
 
       # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
       # compilers can still disagree and the authoritative one should decide.
-      - run: pnpm typecheck:authoritative
+      - name: typecheck on TS 6
+        run: pnpm typecheck:authoritative
 
-      - run: pnpm test
+      - name: unit tests
+        run: pnpm test
 
   contracts:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-
-      # Fails when a contract field carries no classification policy.
-      - run: pnpm codegen
-
-      # Consumer-driven contract tests between event producers and consumers.
-      - run: pnpm test:contract
-
-      # Rejects a subgraph change that would break a composed field.
-      - run: pnpm --filter @hris/gateway check
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: regenerate from contracts
+        run: pnpm codegen
+      - name: contract tests
+        run: pnpm test:contract
+      - name: compose the supergraph
+        working-directory: apps/gateway
+        run: pnpm check
 
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test:integration
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: integration tests, real postgres
+        run: pnpm test:integration
 
   standalone:
-    # Each module boots with only its declared dependencies present. Without
-    # this job, coupling creeps back in within two months.
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         module: [people, timeoff]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
       # Through turbo, so the module's dependencies are built first. Run
       # directly, `pnpm --filter` would start vitest against an unbuilt
       # workspace and the module would fail to boot for the one reason this job
       # is not trying to detect.
-      - run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
+      - name: boot the module alone
+        run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
 
   design-system:
     # Every story renders in a real browser and axe runs over the result. An
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
+    #
+    # Sharded four ways. The sweep renders every entry in two themes and two
+    # pointer profiles — 468 x 4 renders in series took 34 minutes, which was
+    # the whole pipeline; everything else here finishes inside three. The shards
+    # are a round-robin over a sorted index, verified to partition it exactly,
+    # so four runners cover the same set in roughly a quarter of the time.
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
-      - run: pnpm test:stories
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: chromium
+        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
 
-      # axe reports contrast it cannot judge as `incomplete`, and incomplete
-      # never fails a build. Short text is always incomplete, so step numbers,
-      # badge counts and avatar initials went unchecked until this was added.
-      # See tools/a11y/README.md.
-      - name: Contrast gate
-        # Every story in both themes and both pointer profiles, so this is the
-        # long step in the job. It also measures focus rings, which means it
-        # cannot be replaced by anything static: the ring colour only exists
-        # while an element is focused.
-        timeout-minutes: 45
+      # Unconditional, and only on the first shard because it covers every story
+      # by itself. Narrowing an accessibility pass by what a diff appears to
+      # touch is how such a gate quietly stops being one.
+      - name: axe over every story
+        if: matrix.shard == 1
+        run: pnpm test:stories
+
+      # Narrows the *contrast sweep* and nothing else, and only on a pull
+      # request. Every check below still runs on every event; the detector
+      # chooses how much of one of them to run, never whether the job runs.
+      - name: pick affected stories
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node tools/a11y/affected-stories.mjs
+
+      - name: contrast
+        # It measures focus rings, which means it cannot be replaced by anything
+        # static: the ring colour only exists while an element is focused.
+        timeout-minutes: 25
+        env:
+          STORY_FILTER: ${{ steps.scope.outputs.filters }}
+          SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
+          STORYBOOK_URL: http://localhost:6006
+          SHARD: ${{ matrix.shard }}/4
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
-          # The manager cannot reference a Reach custom property (it is a
-          # separate document from the preview and does not load the
-          # stylesheet), so its theme holds resolved copies. This fails if one
-          # of them no longer matches the token it is named after.
-          pnpm storybook:theme-drift
-          # The public docs site lists what ships. It cannot fetch that list at
-          # runtime (static build, and Storybook is behind sign-in), so the list
-          # is a copy and this fails when it stops matching.
-          pnpm docs:catalogue-drift
-          # Reach is documented and sold on its own and must never name Kithena.
-          # Storybook enforces its half by excluding the mark's stories; this is
-          # the documentation half, added after a demo shipped a branded share
-          # link to production.
-          pnpm docs:brand-leak
-          pnpm a11y:contrast
-          # The docs site is built out of the design system and makes claims
-          # about these thresholds, so it is held to them too.
-          pnpm --filter @reach/docs build
-          pnpm --filter @reach/docs preview --port 3100 &
-          npx --yes wait-on http://localhost:3100 --timeout 60000
-          PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
 
-      - run: pnpm storybook:build
-      - uses: actions/upload-artifact@v4
+          # The drift gates describe the whole design system rather than any
+          # subset of it, so they run once rather than four times.
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            # The manager cannot reference a Reach custom property (it is a
+            # separate document from the preview and does not load the
+            # stylesheet), so its theme holds resolved copies. This fails if one
+            # of them no longer matches the token it is named after.
+            pnpm storybook:theme-drift
+            # The public docs site lists what ships. It cannot fetch that list at
+            # runtime (static build), so the list is a copy and this fails when
+            # it stops matching.
+            pnpm docs:catalogue-drift
+            # Reach is documented and sold on its own and must never name
+            # Kithena. Storybook enforces its half by excluding the mark's
+            # stories; this is the documentation half, added after a demo
+            # shipped a branded share link to production.
+            pnpm docs:brand-leak
+          fi
+
+          # On a pull request that changed no design-system file, the story
+          # sweep is skipped here — and runs in full on main, so a detector that
+          # guessed wrong costs a red build after merge rather than a regression
+          # nobody measures. On main and in the merge queue `scope` never ran,
+          # both variables are empty, and the full sharded sweep is what runs.
+          if [ "$SKIP_STORY_SWEEP" = "true" ]; then
+            echo "::notice::No design-system change on this pull request. The story contrast sweep runs in full on main."
+          elif [ -n "$STORY_FILTER" ] && [ "$STORY_FILTER" != "__ALL__" ]; then
+            # Already a narrow set; sharding it further would leave most shards
+            # with nothing and pay four installs to discover that.
+            if [ "${{ matrix.shard }}" = "1" ]; then
+              SHARD= node tools/a11y/affected-contrast.mjs
+            fi
+          else
+            node tools/a11y/contrast-sweep.mjs
+          fi
+
+          # The docs site is built out of the design system and makes claims
+          # about these thresholds, so it is held to them too. One shard, since
+          # it is a single page rather than part of the story index.
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            pnpm --filter @reach/docs build
+            pnpm --filter @reach/docs preview --port 3100 &
+            npx --yes wait-on http://localhost:3100 --timeout 60000
+            SHARD= PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
+          fi
+
+      - name: build storybook
+        if: matrix.shard == 1
+        run: pnpm storybook:build
+      - name: keep the storybook build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: matrix.shard == 1
         with:
           name: storybook
           path: apps/storybook/storybook-static
           retention-days: 14
-
-  # ---------------------------------------------------------------------------
-  # Deployment.
-  #
-  # Only from `main`, and only once every gate above has passed. The two public
-  # surfaces are the design system's shop window, so shipping a build that
-  # failed axe or the contrast sweep would undo the point of having those gates
-  # at all.
-  #
-  # This uses the Vercel CLI rather than Vercel's Git integration. The
-  # integration is the better tool where it can be used, it gives a preview
-  # deployment per pull request and a one-click rollback, but it requires the
-  # Vercel GitHub App to be installed on the organisation, which is a browser
-  # authorisation nobody can perform from CI. Swap to it whenever that is done;
-  # this job then becomes redundant and should be deleted rather than left to
-  # deploy the same commit twice.
-  # ---------------------------------------------------------------------------
-  deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: [verify, contracts, design-system]
-    runs-on: ubuntu-latest
-    # One deployment at a time, and never cancelled halfway: `cancel-in-progress`
-    # on a deploy leaves whichever half-uploaded build the CDN happened to have.
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    env:
-      VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-
-      # A missing secret should say so in one line, rather than surfacing as a
-      # CLI usage error forty lines into the output of the first deploy step.
-      - name: Check the Vercel token is present
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN is not set. Add it under Settings → Secrets and variables → Actions."
-            exit 1
-          fi
-
-      # Built here rather than by Vercel. Both apps are workspace consumers of
-      # `@reach/ui`, which ships TypeScript source, so a build needs the whole
-      # monorepo and its lockfile. Uploading the finished directory keeps the
-      # deployment identical to what the gates above just checked.
-      - run: pnpm --filter @reach/docs build
-      - run: pnpm --filter @reach/storybook build
-
-      - name: Deploy the documentation
-        env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-        run: |
-          npx --yes vercel@latest deploy apps/docs/dist \
-            --prod --yes --archive=tgz \
-            --token "$VERCEL_TOKEN"
-      - name: Deploy Storybook
-        env:
-          VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-        run: |
-          npx --yes vercel@latest deploy apps/storybook/storybook-static \
-            --prod --yes --archive=tgz \
-            --token "$VERCEL_TOKEN"

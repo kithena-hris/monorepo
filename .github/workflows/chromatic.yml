@@ -1,0 +1,67 @@
+name: chromatic
+
+# `push: main` is what establishes the baseline, and without it the rest does
+# not work: `onlyChanged` compares against the last accepted build on the base
+# branch, and `autoAcceptChanges: main` is the instruction to accept it there.
+# Triggering only on pull requests leaves every PR comparing against a baseline
+# that was never taken. `merge_group` alone would not have covered it either —
+# a merge queue needs branch protection, which is not available on this plan.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      # `packages/**` already covers `packages/ui/**`; listing both only makes
+      # the filter look narrower than it is.
+      - 'apps/storybook/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chromatic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  chromatic:
+    name: visual regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: build storybook
+        run: pnpm storybook:build
+
+      - name: publish to chromatic
+        uses: chromaui/action@07791f8243f4cb2698bf4d00426baf4b2d1cb7e0 # v13
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          storybookBuildDir: apps/storybook/storybook-static
+          onlyChanged: true
+          autoAcceptChanges: main
+          exitZeroOnChanges: false
+          exitOnceUploaded: false
