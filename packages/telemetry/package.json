@@ -1,5 +1,5 @@
 {
-  "name": "@hris/telemetry",
+  "name": "@kithena/telemetry",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,7 +18,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@hris/contracts": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/sdk-node": "^0.217.0",
     "@opentelemetry/auto-instrumentations-node": "^0.75.0",

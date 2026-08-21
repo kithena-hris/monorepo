@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as z from 'zod';
-import { peopleEvents, type DefinedEvent } from '@hris/contracts';
-import { classifiedFieldsOf } from '@hris/testing';
+import { EVENT_NAMESPACE, peopleEvents, type DefinedEvent } from '@kithena/contracts';
+import { classifiedFieldsOf } from '@kithena/testing';
 
 import manifest from '../../module.manifest.js';
 
@@ -47,7 +47,7 @@ describe('the module stays sellable alone', () => {
 
 describe('the envelope holds', () => {
   it.each(OWN.map((event) => [event.name, event] as const))('%s is registrable', (_name, event) => {
-    expect(event.topic).toBe(`hris.${manifest.key}.v${String(event.version)}`);
+    expect(event.topic).toBe(`${EVENT_NAMESPACE}.${manifest.key}.v${String(event.version)}`);
     expect(() => z.toJSONSchema(event.schema)).not.toThrow();
   });
 

@@ -1,5 +1,5 @@
 {
-  "name": "@hris/web",
+  "name": "@kithena/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,13 +7,14 @@
     "dev": "next dev --turbopack -p 3000",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "typecheck:authoritative": "tsc6 --noEmit"
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "next": "^16.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@hris/contracts": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "@reach/ui": "workspace:*",
     "zod": "^4.4.3",
     "react-hook-form": "^7.60.0",
@@ -23,6 +24,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "^4.1.12",
+    "vitest": "^3.2.0"
   }
 }

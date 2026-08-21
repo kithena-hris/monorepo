@@ -194,7 +194,7 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.1.0
         version: 5.7.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(effect@3.22.1)(react-hook-form@7.85.0(react@19.2.8))(zod@4.4.3)
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
       '@reach/ui':
@@ -228,10 +228,13 @@ importers:
       tailwindcss:
         specifier: ^4.1.12
         version: 4.3.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
 
   packages/auth-kit:
     dependencies:
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../contracts
       '@openfga/sdk':
@@ -252,10 +255,10 @@ importers:
 
   packages/db-kit:
     dependencies:
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@hris/domain-kit':
+      '@kithena/domain-kit':
         specifier: workspace:*
         version: link:../domain-kit
       drizzle-orm:
@@ -268,7 +271,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@hris/testing':
+      '@kithena/testing':
         specifier: workspace:*
         version: link:../testing
       drizzle-kit:
@@ -280,7 +283,7 @@ importers:
 
   packages/domain-kit:
     dependencies:
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../contracts
       zod:
@@ -295,16 +298,16 @@ importers:
       '@escape.tech/graphql-armor':
         specifier: ^3.2.0
         version: 3.2.0(@envelop/core@5.5.1)(@escape.tech/graphql-armor-types@0.7.0)
-      '@hris/auth-kit':
+      '@kithena/auth-kit':
         specifier: workspace:*
         version: link:../auth-kit
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@hris/domain-kit':
+      '@kithena/domain-kit':
         specifier: workspace:*
         version: link:../domain-kit
-      '@hris/telemetry':
+      '@kithena/telemetry':
         specifier: workspace:*
         version: link:../telemetry
       '@pothos/core':
@@ -331,7 +334,7 @@ importers:
 
   packages/telemetry:
     dependencies:
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../contracts
       '@opentelemetry/api':
@@ -349,7 +352,7 @@ importers:
 
   packages/testing:
     dependencies:
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../contracts
       '@testcontainers/postgresql':
@@ -521,22 +524,22 @@ importers:
 
   services/people:
     dependencies:
-      '@hris/auth-kit':
+      '@kithena/auth-kit':
         specifier: workspace:*
         version: link:../../packages/auth-kit
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@hris/db-kit':
+      '@kithena/db-kit':
         specifier: workspace:*
         version: link:../../packages/db-kit
-      '@hris/domain-kit':
+      '@kithena/domain-kit':
         specifier: workspace:*
         version: link:../../packages/domain-kit
-      '@hris/graphql-kit':
+      '@kithena/graphql-kit':
         specifier: workspace:*
         version: link:../../packages/graphql-kit
-      '@hris/telemetry':
+      '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
       drizzle-orm:
@@ -555,7 +558,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@hris/testing':
+      '@kithena/testing':
         specifier: workspace:*
         version: link:../../packages/testing
       graphql:
@@ -567,22 +570,22 @@ importers:
 
   services/timeoff:
     dependencies:
-      '@hris/auth-kit':
+      '@kithena/auth-kit':
         specifier: workspace:*
         version: link:../../packages/auth-kit
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@hris/db-kit':
+      '@kithena/db-kit':
         specifier: workspace:*
         version: link:../../packages/db-kit
-      '@hris/domain-kit':
+      '@kithena/domain-kit':
         specifier: workspace:*
         version: link:../../packages/domain-kit
-      '@hris/graphql-kit':
+      '@kithena/graphql-kit':
         specifier: workspace:*
         version: link:../../packages/graphql-kit
-      '@hris/telemetry':
+      '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
       '@temporalio/client':
@@ -607,7 +610,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@hris/testing':
+      '@kithena/testing':
         specifier: workspace:*
         version: link:../../packages/testing
       graphql:
@@ -619,7 +622,7 @@ importers:
 
   tools/codegen:
     dependencies:
-      '@hris/contracts':
+      '@kithena/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
       graphql:

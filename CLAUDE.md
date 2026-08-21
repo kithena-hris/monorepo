@@ -28,7 +28,7 @@ than quietly working around it.
 - **Temporal** for long-running human-in-the-loop workflows. BullMQ for
   fire-and-forget jobs.
 - **Two names, and they are not interchangeable.** The product is **Kithena**
-  (`@hris/*`, `apps/web`, `apps/admin`, `services/*`). The design system is
+  (`@kithena/*`, `apps/web`, `apps/admin`, `services/*`). The design system is
   **Reach** (`@reach/*`, `packages/ui`, `apps/storybook`, `apps/docs`). Reach
   must never learn that Kithena exists; the dependency-cruiser rules already
   forbid the import, `pnpm docs:brand-leak` forbids the name reaching the
@@ -119,7 +119,7 @@ screens out of the system; it never teaches the system what a Person is.
 transport, `decimal.js` in application code. Calendar dates (hire, leave,
 birthday) are `date`, not timestamps.
 
-**No `new Date()` in domain code.** Inject `Clock` from `@hris/domain-kit`.
+**No `new Date()` in domain code.** Inject `Clock` from `@kithena/domain-kit`.
 Effective-dated logic is untestable otherwise.
 
 ## Layer boundaries

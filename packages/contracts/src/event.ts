@@ -2,6 +2,32 @@ import * as z from 'zod';
 import { CalendarDate, Instant, TenantId } from './primitives.js';
 
 /**
+ * The first segment of every topic name: `kithena.<module>.v<n>`.
+ *
+ * ### Why this is a constant
+ *
+ * It was a literal in `defineEvent` and again in each module's contract test,
+ * and the tests restated it rather than importing it — so the two could
+ * disagree and the suite would still be green, because both sides had been
+ * edited by the same careless hand. Naming it once removes that.
+ *
+ * ### Renaming this is not a rename
+ *
+ * Kafka has no in-place topic rename. Changing this value does not move
+ * anything: it starts writing to a new set of topics and leaves the old ones
+ * holding every event ever published, with the schema-registry subjects,
+ * Debezium connectors and every deployed consumer still pointed at the names
+ * nobody writes to any more.
+ *
+ * Against a live cluster the change is expand-contract, the same shape as a
+ * column rename: publish to both namespaces, move consumers across, stop
+ * publishing to the old one, drop it once retention has passed. Editing this
+ * string is only safe while no topic under the previous namespace has anything
+ * in it worth keeping.
+ */
+export const EVENT_NAMESPACE = 'kithena';
+
+/**
  * The envelope every module emits. `occurredAt` and `effectiveFrom` are
  * deliberately separate: HR data is bitemporal. A promotion entered on the
  * 15th and effective on the 1st needs both dates to survive, or payroll
@@ -81,7 +107,7 @@ export function defineEvent<TName extends string, TSchema extends z.ZodType>(
     // The module is the first segment of the event name, which `defineEvent`
     // requires to be dotted; `?? name` keeps the type honest rather than
     // asserting the split cannot be empty.
-    topic: `hris.${name.split('.')[0] ?? name}.v${String(version)}`,
+    topic: `${EVENT_NAMESPACE}.${name.split('.')[0] ?? name}.v${String(version)}`,
     parse: (input: unknown) => schema.parse(input),
     safeParse: (input: unknown) => schema.safeParse(input),
   } as const;

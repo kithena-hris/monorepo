@@ -1,4 +1,4 @@
-import { CalendarDate, Instant } from '@hris/contracts';
+import { CalendarDate, Instant } from '@kithena/contracts';
 
 /**
  * Never call `new Date()` inside domain code. Effective-dated HR logic is

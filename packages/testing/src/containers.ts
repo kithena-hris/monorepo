@@ -8,9 +8,9 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
  */
 export async function startPostgres(): Promise<{ url: string; stop: () => Promise<void> }> {
   const container = await new PostgreSqlContainer('postgres:17-alpine')
-    .withDatabase('hris')
-    .withUsername('hris')
-    .withPassword('hris')
+    .withDatabase('kithena')
+    .withUsername('kithena')
+    .withPassword('kithena')
     .start();
 
   return {

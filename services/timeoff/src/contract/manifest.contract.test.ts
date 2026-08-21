@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as z from 'zod';
-import { peopleEvents, timeoffEvents, type DefinedEvent } from '@hris/contracts';
-import { classifiedFieldsOf } from '@hris/testing';
+import { EVENT_NAMESPACE, peopleEvents, timeoffEvents, type DefinedEvent } from '@kithena/contracts';
+import { classifiedFieldsOf } from '@kithena/testing';
 
 import manifest from '../../module.manifest.js';
 
@@ -9,7 +9,7 @@ import manifest from '../../module.manifest.js';
  * Time Off against the shared registry.
  *
  * Nothing here imports People. A module learns about another module's events
- * through `@hris/contracts` and nowhere else, so that is what these assertions
+ * through `@kithena/contracts` and nowhere else, so that is what these assertions
  * read — the registry is the contract, and a sibling's source is not on disk in
  * a deployment that bought one module.
  */
@@ -73,7 +73,7 @@ describe('the module stays sellable alone', () => {
 
 describe('the envelope holds', () => {
   it.each(OWN.map((event) => [event.name, event] as const))('%s is registrable', (_name, event) => {
-    expect(event.topic).toBe(`hris.${manifest.key}.v${String(event.version)}`);
+    expect(event.topic).toBe(`${EVENT_NAMESPACE}.${manifest.key}.v${String(event.version)}`);
     // A payload that cannot describe itself as JSON Schema cannot be registered
     // with Redpanda, and the producer would fail at startup rather than here.
     expect(() => z.toJSONSchema(event.schema)).not.toThrow();

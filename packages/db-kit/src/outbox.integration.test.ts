@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import type { PendingEvent } from '@hris/domain-kit';
-import { CalendarDate, Instant, TenantId } from '@hris/contracts';
-import { startPostgres } from '@hris/testing';
+import type { PendingEvent } from '@kithena/domain-kit';
+import { CalendarDate, Instant, TenantId } from '@kithena/contracts';
+import { startPostgres } from '@kithena/testing';
 
 import { outboxTable, publish } from './outbox.js';
 

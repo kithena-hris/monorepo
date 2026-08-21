@@ -1,10 +1,10 @@
 import { createYoga } from 'graphql-yoga';
 import { createServer } from 'node:http';
-import { startTelemetry, logger } from '@hris/telemetry';
+import { startTelemetry, logger } from '@kithena/telemetry';
 import { schema } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
 
-startTelemetry(`hris-${manifest.key}`);
+startTelemetry(`kithena-${manifest.key}`);
 
 const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 

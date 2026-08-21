@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as z from 'zod';
-import { policy, peopleEvents, timeoffEvents } from '@hris/contracts';
+import { policy, peopleEvents, timeoffEvents } from '@kithena/contracts';
 
 const allEvents = [...peopleEvents, ...timeoffEvents];
 
@@ -171,7 +171,7 @@ function writeRedactionPaths(paths: readonly string[]): void {
     REDACTION_FILE,
     [
       '// GENERATED FILE. Run `just codegen` to refresh.',
-      '// Source: Zod classification registry in @hris/contracts.',
+      '// Source: Zod classification registry in @kithena/contracts.',
       '//',
       '// A path is here because its field is classified `confidential` or',
       '// `special-category`. To change what is redacted, change the field policy',

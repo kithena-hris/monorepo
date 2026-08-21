@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { AggregateRoot, ok, err, type Result, failure, type Clock } from '@hris/domain-kit';
+import { AggregateRoot, ok, err, type Result, failure, type Clock } from '@kithena/domain-kit';
 import {
   LeaveApproved,
   LeaveRequested,
@@ -7,11 +7,11 @@ import {
   type CalendarDate,
   type PersonId,
   type TenantId,
-} from '@hris/contracts';
+} from '@kithena/contracts';
 
 /**
  * The aggregate's identity, derived from its schema the way every primitive in
- * `@hris/contracts` is.
+ * `@kithena/contracts` is.
  *
  * Previously this was a hand-written `string & { __brand }`. Two problems with
  * that: it had no constructor, so every caller asserted its way in and the

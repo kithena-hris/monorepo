@@ -28,13 +28,13 @@ const docsSource = join(repoRoot, 'apps/docs/src');
 
 /**
  * The product name, and the package scope that only Kithena services use.
- * `@hris/*` appearing in the design system's documentation would mean the docs
+ * `@kithena/*` appearing in the design system's documentation would mean the docs
  * had reached for a domain type, which is the same boundary stated a different
  * way.
  */
 const FORBIDDEN = [
   { pattern: /kithena/i, what: 'the product name' },
-  { pattern: /@hris\//, what: 'a Kithena package scope' },
+  { pattern: /@kithena\//, what: 'a Kithena package scope' },
 ];
 
 function* sourceFiles(dir) {

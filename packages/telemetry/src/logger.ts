@@ -1,5 +1,5 @@
 import pino from 'pino';
-// Generated at build time by @hris/codegen from the Zod classification
+// Generated at build time by @kithena/codegen from the Zod classification
 // registry. Every confidential and special-category field path lands here,
 // so a logged entity is masked even when someone forgets.
 import { redactionPaths } from './generated/redaction.js';

@@ -5,5 +5,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@hris/web", "@hris/admin", "@hris/gateway", "@hris/people", "@hris/timeoff"]
+  "ignore": ["@kithena/web", "@kithena/admin", "@kithena/gateway", "@kithena/people", "@kithena/timeoff"]
 }

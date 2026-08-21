@@ -1,5 +1,5 @@
 import { GraphQLError } from 'graphql';
-import type { DomainFailure } from '@hris/domain-kit';
+import type { DomainFailure } from '@kithena/domain-kit';
 
 /**
  * Domain failures become structured GraphQL errors. Clients get a stable

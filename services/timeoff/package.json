@@ -1,5 +1,5 @@
 {
-  "name": "@hris/timeoff",
+  "name": "@kithena/timeoff",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,12 +15,12 @@
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
-    "@hris/auth-kit": "workspace:*",
-    "@hris/contracts": "workspace:*",
-    "@hris/db-kit": "workspace:*",
-    "@hris/domain-kit": "workspace:*",
-    "@hris/graphql-kit": "workspace:*",
-    "@hris/telemetry": "workspace:*",
+    "@kithena/auth-kit": "workspace:*",
+    "@kithena/contracts": "workspace:*",
+    "@kithena/db-kit": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
+    "@kithena/graphql-kit": "workspace:*",
+    "@kithena/telemetry": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "graphql-yoga": "^5.15.0",
     "kafkajs": "^2.2.4",
@@ -30,7 +30,7 @@
     "@temporalio/worker": "^1.13.0"
   },
   "devDependencies": {
-    "@hris/testing": "workspace:*",
+    "@kithena/testing": "workspace:*",
     "graphql": "^16.11.0",
     "vitest": "^3.2.0"
   }

@@ -816,6 +816,14 @@ export const VirtualizationOff: Story = {
           'Browser find, print, and "select all text" only see mounted rows. Where that matters more than the render cost, set `virtualize={false}` and accept the DOM size.',
       },
     },
+    // Not snapshotted. This story exists to show the cost of turning
+    // virtualization off — 603 rows, 8,551 nodes, six seconds to render — and
+    // that cost is exactly what makes it a bad visual-regression subject: it is
+    // the slowest story in the suite to capture, and a diff across six hundred
+    // near-identical rows carries no signal a diff of the first six would not.
+    // The virtualized stories cover how the table looks; this one covers what
+    // it costs. axe and the contrast sweep still measure it.
+    chromatic: { disableSnapshot: true },
   },
   render: function UnvirtualizedTable() {
     const manyRows: Row[] = Array.from({ length: 600 }, (_, index) => ({

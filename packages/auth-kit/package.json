@@ -1,5 +1,5 @@
 {
-  "name": "@hris/auth-kit",
+  "name": "@kithena/auth-kit",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,7 +18,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@hris/contracts": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "@openfga/sdk": "^0.8.0",
     "jose": "^6.0.0",
     "zod": "^4.4.3"

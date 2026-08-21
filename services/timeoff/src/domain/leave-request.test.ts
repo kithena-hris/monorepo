@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { fixedClock, isOk } from '@hris/domain-kit';
-import { CalendarDate, PersonId, TenantId } from '@hris/contracts';
+import { fixedClock, isOk } from '@kithena/domain-kit';
+import { CalendarDate, PersonId, TenantId } from '@kithena/contracts';
 import { LeaveRequest, leaveRequestId } from './leave-request.js';
 
 /*

@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 /**
  * Contract tests. No infrastructure and no siblings: these compare this
- * module's manifest against `@hris/contracts`, which is the only vocabulary a
+ * module's manifest against `@kithena/contracts`, which is the only vocabulary a
  * module shares with the rest of the system.
  *
  * The point is the seam. A module that renames an event it publishes breaks

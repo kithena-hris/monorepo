@@ -36,7 +36,7 @@
     // and declaring none would let a cache hit skip the run that keeps
     // telemetry's redaction list in step with the registry. Uncached is the
     // honest answer; the walk takes a few hundred milliseconds.
-    "@hris/contracts#codegen": { "dependsOn": ["^build"], "cache": false },
+    "@kithena/contracts#codegen": { "dependsOn": ["^build"], "cache": false },
 
     "db:migrate": { "cache": false, "persistent": false },
     "dev": { "cache": false, "persistent": true }
