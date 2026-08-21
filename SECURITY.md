@@ -27,12 +27,42 @@ These are the ones the build fails on. A control nobody checks is a paragraph.
 | Control | Where it is enforced |
 | --- | --- |
 | Every contract field carries a data classification | `pnpm codegen` exits non-zero on an unclassified field |
+| Special-category data never reaches a model | `services/*/src/contract/*.contract.test.ts` — codegen checks a policy *exists*, not that it is coherent |
 | Log redaction paths are generated, never hand-written | `tools/codegen` emits `packages/telemetry/src/generated/redaction.ts` |
-| Tenant isolation | Postgres row-level security, schema per module |
+| Tenant isolation | Postgres row-level security, schema per module — asserted against a real database in `packages/db-kit/src/tenant.integration.test.ts` |
+| A write and its event commit together | Transactional outbox, `packages/db-kit/src/outbox.integration.test.ts` |
 | Authorization is a graph, not a role column | OpenFGA; enforced in the domain and application layers, never only in a resolver |
-| No cross-module imports | `.dependency-cruiser.cjs`, in CI |
+| No cross-module imports | `.dependency-cruiser.cjs`, plus a standalone boot per module with its siblings made unresolvable |
 | Secrets never reach the repository | `gitleaks` over the **full history** on every push and pull request |
 | Nothing vulnerable ships | `pnpm audit --prod --audit-level low` in CI |
+
+### Writing a row-level security policy
+
+Two details decide whether such a policy enforces anything, and both are easy
+to get wrong in a way that still looks correct:
+
+**`FORCE ROW LEVEL SECURITY`, not just `ENABLE`.** A table's owner bypasses its
+own policies by default, and a service connects as the role owning its schema.
+And no policy of any kind constrains a **superuser** — neither `FORCE` nor
+`NOBYPASSRLS` applies — which is why `tools/scripts/init-db.sql` creates
+`svc_people` and `svc_timeoff` as ordinary login roles. A connection that must
+be constrained cannot be a superuser's.
+
+**`NULLIF`, because the setting comes back as an empty string.** `set_config`
+is transaction-local, and at the end of the transaction the value returns to
+`''` rather than to unset. The obvious form raises `22P02` on any query that
+forgot `withTenant`:
+
+```sql
+-- Wrong: an unscoped query fails as a 500 from a cast, not as "no rows".
+USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+
+-- Right: fails closed, quietly.
+USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+```
+
+Include `WITH CHECK` as well as `USING`. Reading is half of isolation; without
+it a tenant can insert a row it will then be unable to see.
 
 The authorization point is worth restating: GraphQL is one transport of four
 (REST, SCIM, webhooks, workers). A rule that lives in a resolver is a rule that
