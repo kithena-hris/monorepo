@@ -40,7 +40,19 @@ export default tseslint.config(
         projectService: {
           // Next reads its config before any TypeScript project exists, so the
           // file belongs to none of them. It is still worth linting.
-          allowDefaultProject: ['apps/*/next.config.mjs'],
+          //
+          // The vitest configs are the same case: a package's tsconfig covers
+          // `src`, and these sit beside it describing how to run what is in
+          // `src`. They are small, but they decide which suite runs against
+          // which harness, so leaving them unlinted is how one quietly stops
+          // matching any test file at all.
+          allowDefaultProject: [
+            'apps/*/next.config.mjs',
+            // Only db-kit. Every other package either has no vitest config or
+            // lists it in its own tsconfig, which is the better home; db-kit
+            // cannot, because its `rootDir` is `src` and these sit beside it.
+            'packages/db-kit/vitest.*.ts',
+          ],
         },
         tsconfigRootDir: repoRoot,
       },

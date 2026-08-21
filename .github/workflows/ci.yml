@@ -6,9 +6,13 @@ on:
   push:
     branches: [main]
 
+# Read-only. Without this the workflow inherits the repository default, which on
+# older settings is write-all: every job would be able to push to `main` and
+# publish packages purely because nobody narrowed it. This workflow comments on
+# nothing and deploys nothing — `vercel-preview` and `vercel-production` do
+# that, and they ask for `pull-requests: write` themselves.
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,11 +31,30 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
+
       - run: pnpm install --frozen-lockfile
+
+      # Build first, because `lint` and `boundaries` are the two checks that do
+      # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
+      # and so builds what it needs, but `pnpm lint` is a bare `oxlint && eslint`
+      # and `pnpm boundaries` a bare `depcruise`. `dist/` is not committed and
+      # `@hris/contracts` resolves through `./dist/index.d.ts`, so on a clean
+      # checkout both see an unbuilt workspace and typescript-eslint reports the
+      # whole codebase as `error typed value`.
       - run: pnpm build
+
+      # Cheap rules first, then the type-aware pass. ESLint resolves against
+      # the pinned TypeScript 6 API until 7.1 ships a stable one.
       - run: pnpm lint
+
+      # Architectural boundaries. A cross-module import fails here, which is
+      # the only thing stopping the anti-sticky property from eroding.
       - run: pnpm boundaries
+
+      # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
+      # compilers can still disagree and the authoritative one should decide.
       - run: pnpm typecheck:authoritative
+
       - run: pnpm test
 
   contracts:
@@ -69,63 +92,95 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - name: Build standalone dependency graph
-        run: pnpm turbo run build --filter=@hris/${{ matrix.module }}...
-      - run: pnpm --filter @hris/${{ matrix.module }} test:standalone
+      # Through turbo, so the module's dependencies are built first. Run
+      # directly, `pnpm --filter` would start vitest against an unbuilt
+      # workspace and the module would fail to boot for the one reason this job
+      # is not trying to detect.
+      - run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
 
   design-system:
+    # Every story renders in a real browser and axe runs over the result. An
+    # accessibility rule that is only written down is an accessibility rule that
+    # is already broken somewhere.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Detect affected stories
-        id: affected
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
+
+      # Unconditional. This is the axe pass over every story, and narrowing it
+      # by what a diff appears to touch is how an accessibility gate quietly
+      # stops being one.
+      - run: pnpm test:stories
+
+      # Narrows the *contrast sweep* and nothing else, and only on a pull
+      # request. Every check below still runs on every event; the detector
+      # chooses how much of one of them to run, never whether the job runs.
+      - name: Select contrast scope
+        id: scope
+        if: github.event_name == 'pull_request'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: node tools/a11y/affected-stories.mjs
-      - name: Install dependencies
-        if: steps.affected.outputs.skip != 'true'
-        uses: pnpm/action-setup@v4
-      - name: Setup Node
-        if: steps.affected.outputs.skip != 'true'
-        uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - name: Install dependencies
-        if: steps.affected.outputs.skip != 'true'
-        run: pnpm install --frozen-lockfile
-      - name: Install Chromium
-        if: steps.affected.outputs.skip != 'true'
-        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
-      - name: Run Storybook tests
-        if: steps.affected.outputs.skip != 'true'
-        run: pnpm test:stories
-      - name: Start Storybook
-        if: steps.affected.outputs.skip != 'true'
+
+      - name: Contrast gate
+        # Every story in both themes and both pointer profiles, so this is the
+        # long step in the job. It also measures focus rings, which means it
+        # cannot be replaced by anything static: the ring colour only exists
+        # while an element is focused.
+        timeout-minutes: 45
+        env:
+          STORY_FILTER: ${{ steps.scope.outputs.filters }}
+          SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
+          STORYBOOK_URL: http://localhost:6006
+          CONTRAST_WORKERS: 4
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
-      - name: Design-system drift gates
-        if: steps.affected.outputs.skip != 'true'
-        run: |
+
+          # The manager cannot reference a Reach custom property (it is a
+          # separate document from the preview and does not load the
+          # stylesheet), so its theme holds resolved copies. This fails if one
+          # of them no longer matches the token it is named after.
           pnpm storybook:theme-drift
+          # The public docs site lists what ships. It cannot fetch that list at
+          # runtime (static build), so the list is a copy and this fails when it
+          # stops matching.
           pnpm docs:catalogue-drift
-      - name: Contrast gate — affected stories
-        if: steps.affected.outputs.skip != 'true'
-        env:
-          STORY_FILTER: ${{ steps.affected.outputs.filters }}
-          STORYBOOK_URL: http://localhost:6006
-          CONTRAST_WORKERS: 4
-        run: node tools/a11y/affected-contrast.mjs
-      - name: Stop Storybook
-        if: always() && steps.affected.outputs.skip != 'true'
-        run: pkill -f "storybook" || true
-      - name: Build Storybook
-        if: steps.affected.outputs.skip != 'true'
-        run: pnpm storybook:build
+          # Reach is documented and sold on its own and must never name Kithena.
+          # Storybook enforces its half by excluding the mark's stories; this is
+          # the documentation half, added after a demo shipped a branded share
+          # link to production.
+          pnpm docs:brand-leak
+
+          # On a pull request that changed no design-system file, the story
+          # sweep is skipped here — and runs in full on main, so a detector that
+          # guessed wrong costs a red build after merge rather than a regression
+          # nobody ever measures. On main and in the merge queue `scope` never
+          # ran, both variables are empty, and the full sweep is what executes.
+          if [ "$SKIP_STORY_SWEEP" = "true" ]; then
+            echo "::notice::No design-system change on this pull request. The story contrast sweep runs in full on main."
+          elif [ -n "$STORY_FILTER" ] && [ "$STORY_FILTER" != "__ALL__" ]; then
+            node tools/a11y/affected-contrast.mjs
+          else
+            pnpm a11y:contrast
+          fi
+
+          # The docs site is built out of the design system and makes claims
+          # about these thresholds, so it is held to them too — on every event,
+          # because the docs are not what the story detector looks at.
+          pnpm --filter @reach/docs build
+          pnpm --filter @reach/docs preview --port 3100 &
+          npx --yes wait-on http://localhost:3100 --timeout 60000
+          PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
+
+      - run: pnpm storybook:build
       - uses: actions/upload-artifact@v4
-        if: steps.affected.outputs.skip != 'true'
         with:
           name: storybook
           path: apps/storybook/storybook-static

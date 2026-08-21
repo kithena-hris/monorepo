@@ -4,7 +4,13 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*", "module.manifest.ts"],
+  "include": [
+    "src/**/*",
+    "module.manifest.ts",
+    "vitest.config.ts",
+    "vitest.contract.ts",
+    "vitest.standalone.ts"
+  ],
   "references": [
     {
       "path": "../../packages/contracts"

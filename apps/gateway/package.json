@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wgc router compose -i graph.yaml -o supergraph.json && router",
     "compose": "wgc router compose -i graph.yaml -o supergraph.json",
-    "check": "wgc subgraph check --schema ./schemas",
+    "check": "wgc router compose -i graph.check.yaml -o supergraph.json",
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit"
   },

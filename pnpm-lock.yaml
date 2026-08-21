@@ -11,6 +11,11 @@ overrides:
   '@opentelemetry/core': '>=2.8.0'
   '@opentelemetry/propagator-jaeger': '>=2.9.0'
 
+patchedDependencies:
+  '@pothos/plugin-federation@4.5.0':
+    hash: 99b47e4baefe298d1daeb53eaa325d2578986bb2d47de007d58df21741207dab
+    path: patches/@pothos__plugin-federation@4.5.0.patch
+
 importers:
 
   .:
@@ -263,9 +268,15 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@hris/testing':
+        specifier: workspace:*
+        version: link:../testing
       drizzle-kit:
         specifier: ^0.31.0
         version: 0.31.10
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
 
   packages/domain-kit:
     dependencies:
@@ -304,7 +315,7 @@ importers:
         version: 4.3.1(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)
       '@pothos/plugin-federation':
         specifier: ^4.3.0
-        version: 4.5.0(@apollo/subgraph@2.14.3(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)
+        version: 4.5.0(patch_hash=99b47e4baefe298d1daeb53eaa325d2578986bb2d47de007d58df21741207dab)(@apollo/subgraph@2.14.3(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)
       '@pothos/plugin-zod':
         specifier: ^4.3.1
         version: 4.3.1(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)(zod@4.4.3)
@@ -547,6 +558,9 @@ importers:
       '@hris/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
@@ -596,6 +610,9 @@ importers:
       '@hris/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(@vitest/browser@3.2.7)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
@@ -10312,7 +10329,7 @@ snapshots:
       '@pothos/core': 4.13.1(graphql@16.14.2)
       graphql: 16.14.2
 
-  '@pothos/plugin-federation@4.5.0(@apollo/subgraph@2.14.3(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)':
+  '@pothos/plugin-federation@4.5.0(patch_hash=99b47e4baefe298d1daeb53eaa325d2578986bb2d47de007d58df21741207dab)(@apollo/subgraph@2.14.3(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)':
     dependencies:
       '@apollo/subgraph': 2.14.3(graphql@16.14.2)
       '@pothos/core': 4.13.1(graphql@16.14.2)

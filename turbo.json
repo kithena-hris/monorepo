@@ -26,6 +26,9 @@
     "test:stories": { "dependsOn": ["^build"], "outputs": [] },
     "test:integration": { "dependsOn": ["^build"], "cache": false },
     "test:contract": { "dependsOn": ["^build"], "outputs": ["pacts/**"] },
+    // Uncached: the whole point is that it boots the module fresh, and a cache
+    // hit would report a module still boots alone without ever trying.
+    "test:standalone": { "dependsOn": ["^build"], "cache": false },
     // Contracts' codegen writes its one artifact into *another* package,
     // `packages/telemetry/src/generated/redaction.ts`, which turbo cannot
     // express: `outputs` are relative to the task's own package. Declaring the

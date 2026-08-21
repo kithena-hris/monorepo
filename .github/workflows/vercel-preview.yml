@@ -19,7 +19,7 @@ permissions:
   pull-requests: write
 
 env:
-  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Verify Vercel token and Docs project access
         env:
-          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::VERCEL_TOKEN is missing."
@@ -49,23 +49,23 @@ jobs:
       - name: Link Docs project
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Pull Docs preview environment
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: npx --yes vercel@latest pull --yes --environment=preview --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Build Docs with Vercel
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: npx --yes vercel@latest build --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Deploy Docs prebuilt
         id: docs
         working-directory: apps/docs
         env:
-          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
           url="$(npx --yes vercel@latest deploy --prebuilt --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -114,6 +114,3 @@ jobs:
           else
             gh pr comment "$PR_NUMBER" --body "$body"
           fi
-
-      - name: CI trigger marker
-        run: echo "Vercel preview workflow updated; use this commit to trigger a fresh run."

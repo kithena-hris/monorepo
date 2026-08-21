@@ -1,7 +1,16 @@
-name: Vercel Production
+name: vercel-production
 
+# Production deploys, and only after `ci` has gone green on the same commit.
+#
+# A separate workflow cannot use `needs:`, so the dependency is expressed with
+# `workflow_run` plus an explicit conclusion check. On `push` this would deploy
+# whatever landed on main regardless of whether the axe pass, the contrast gate
+# or the tests failed — publishing the build the gates just rejected, which is
+# the one outcome they exist to prevent.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -9,36 +18,53 @@ permissions:
   pull-requests: write
 
 env:
-  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXKkTj
+  # The team the two projects live under. Not a secret — it names an account,
+  # it does not authorise anything. The token that does is a repository secret.
+  VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 concurrency:
   group: vercel-production
+  # Never cancelled halfway: cancelling a deploy leaves whichever half-uploaded
+  # build the CDN happened to have.
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy main to Vercel
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # The commit `ci` actually tested, not whatever main points at now. A
+      # second push while this queued would otherwise deploy an untested tip.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # A missing secret should say so in one line, rather than surfacing as a
+      # CLI usage error forty lines into the output of the first deploy step.
       - name: Validate Vercel credentials
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
             exit 1
           fi
+
+      # Built here rather than by Vercel. Both apps are workspace consumers of
+      # `@reach/ui`, which ships TypeScript source, so a build needs the whole
+      # monorepo and its lockfile.
       - name: Build Docs
         run: pnpm --filter @reach/docs build
       - name: Build Storybook
         run: pnpm storybook:build
+
       - name: Deploy Docs production
         id: docs
         env:
@@ -47,6 +73,7 @@ jobs:
           url="$(npx --yes vercel@latest deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Docs production: $url"
+
       - name: Deploy Storybook production
         id: storybook
         env:
@@ -55,24 +82,41 @@ jobs:
           url="$(npx --yes vercel@latest deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook production: $url"
+
+      # A deploy that returns 404 is a failed deploy, and the CLI exiting 0 does
+      # not prove the CDN is serving anything. Both custom domains are checked
+      # too: they are what people actually open, and a domain can be detached or
+      # its certificate can lapse without the deployment noticing.
+      - name: Smoke test the deployment
+        env:
+          DOCS_URL: ${{ steps.docs.outputs.url }}
+          STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+        run: |
+          for url in "$DOCS_URL" "$STORYBOOK_URL" \
+                     https://design.kithena.com https://storybook.kithena.com; do
+            echo "checking $url"
+            curl --fail --silent --show-error --location \
+                 --retry 5 --retry-delay 5 --max-time 30 "$url" >/dev/null
+          done
+
       - name: Publish production URLs to merged PR
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          pr_number=$(gh api "repos/${REPO}/commits/${SHA}/pulls" --jq '.[0].number')
+          pr_number=$(gh api "repos/${REPO}/commits/${SHA}/pulls" --jq '.[0].number // empty')
           body="<!-- vercel-production -->
           ## 🚀 Vercel Production
 
-          Deployed from **main** (`${SHA:0:7}`).
+          Deployed from **main** (\`${SHA:0:7}\`).
 
-          - **Docs:** ${DOCS_URL}
-          - **Storybook:** ${STORYBOOK_URL}
+          - **Docs:** ${DOCS_URL} — also at https://design.kithena.com
+          - **Storybook:** ${STORYBOOK_URL} — also at https://storybook.kithena.com
           "
-          if [ -n "$pr_number" ] && [ "$pr_number" != "null" ]; then
+          if [ -n "$pr_number" ]; then
             existing=$(gh api "repos/${REPO}/issues/${pr_number}/comments" --paginate --jq '.[] | select(.body | contains("<!-- vercel-production -->")) | .id' | head -n 1)
             if [ -n "$existing" ]; then
               gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
@@ -80,5 +124,5 @@ jobs:
               gh pr comment "$pr_number" --body "$body"
             fi
           else
-            echo "::warning::No pull request found for commit ${SHA}; deployment succeeded but no PR comment was posted."
+            echo "::notice::No pull request found for commit ${SHA}; deployment succeeded, nothing to comment on."
           fi

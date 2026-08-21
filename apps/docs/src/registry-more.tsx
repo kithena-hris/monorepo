@@ -809,7 +809,10 @@ const clipboard: DocPage = {
           <CopyButton value="EMP-10482" label="Copy employee number">
             Copy employee number
           </CopyButton>
-          <CopyField value="https://kithena.example/people/EMP-10482" label="Share link" />
+          {/* Deliberately an unbranded host. Reach is documented and sold on
+              its own, and this page is public, so nothing here may name the
+              product that happens to be the design system's first consumer. */}
+          <CopyField value="https://app.example.com/people/EMP-10482" label="Share link" />
         </div>
       ),
       code: `<CopyButton value="EMP-10482">Copy employee number</CopyButton>

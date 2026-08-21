@@ -1,10 +1,19 @@
 name: chromatic
 
+# `push: main` is what establishes the baseline, and without it the rest does
+# not work: `onlyChanged` compares against the last accepted build on the base
+# branch, and `autoAcceptChanges: main` is the instruction to accept it there.
+# Triggering only on pull requests leaves every PR comparing against a baseline
+# that was never taken. `merge_group` alone would not have covered it either —
+# a merge queue needs branch protection, which is not available on this plan.
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
+      # `packages/**` already covers `packages/ui/**`; listing both only makes
+      # the filter look narrower than it is.
       - 'apps/storybook/**'
-      - 'packages/ui/**'
       - 'packages/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'

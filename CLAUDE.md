@@ -30,10 +30,29 @@ than quietly working around it.
 - **Two names, and they are not interchangeable.** The product is **Kithena**
   (`@hris/*`, `apps/web`, `apps/admin`, `services/*`). The design system is
   **Reach** (`@reach/*`, `packages/ui`, `apps/storybook`, `apps/docs`). Reach
-  is sold and documented on its own and must never learn that Kithena exists;
-  the dependency-cruiser rules already forbid the import, and the naming should
-  not blur what they enforce. Both marks live in `packages/ui/src/brand`,
-  because a mark is presentation and nothing else.
+  must never learn that Kithena exists; the dependency-cruiser rules already
+  forbid the import, `pnpm docs:brand-leak` forbids the name reaching the
+  documentation, and the naming should not blur what they enforce. Both marks
+  live in `packages/ui/src/brand`, because a mark is presentation and nothing
+  else.
+
+  **Reach is used internally for now**, but its two sites are public:
+  `design.kithena.com` and `storybook.kithena.com`. That is not the preference —
+  Vercel's Hobby plan cannot protect a production deployment or a custom domain
+  at all, and the API refuses `ssoProtection` on production outright. Assume
+  anything in `apps/docs` or a non-excluded story is world-readable, because it
+  is.
+
+  This is exactly why `pnpm docs:brand-leak` is a merge gate rather than a
+  convention, and why `.storybook/main.ts` excludes the mark's stories: the two
+  checks are the only thing standing between an unreviewed example and the
+  Kithena brand on a public URL. Selling Reach separately stays a live option,
+  which is also why the naming rule holds — the dependency boundary is expensive
+  to reverse and stays regardless, and the naming rule costs nothing while it is
+  cheap. The day the docs start saying "Kithena", separation stops being a
+  decision and becomes a project. Revisit deliberately, not by letting a
+  reference slip in.
+
 - **One design system, `packages/ui`.** Tailwind v4 (CSS-first, tokens as
   `@theme` variables), Radix primitives for behaviour, CVA for variants. It
   ships TypeScript source rather than build output — Next compiles it via

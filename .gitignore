@@ -28,3 +28,6 @@ storybook-static/
 # the same rule at the root so a new app cannot miss it.
 .vercel
 .env.local
+
+# Composed locally and in CI from the subgraph SDL; never committed.
+apps/gateway/supergraph.json

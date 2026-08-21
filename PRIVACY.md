@@ -28,13 +28,13 @@ added.
 
 Each field declares five things:
 
-| Property | Meaning |
-| --- | --- |
+| Property         | Meaning                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- |
 | `classification` | `public`, `internal`, `confidential`, or `special-category` (GDPR Article 9) |
-| `piiKind` | What kind of person-data it is: identity, contact, financial, health, none |
-| `exportable` | Whether it belongs in a subject access request package |
-| `aiEligible` | Whether it may be sent to a model. **Never true for special-category data.** |
-| `retention` | How long it may be kept |
+| `piiKind`        | What kind of person-data it is: identity, contact, financial, health, none   |
+| `exportable`     | Whether it belongs in a subject access request package                       |
+| `aiEligible`     | Whether it may be sent to a model. **Never true for special-category data.** |
+| `retention`      | How long it may be kept                                                      |
 
 Helpers exist so the common cases are one call and are consistent:
 `asPublic()`, `asContact()`, `asIdentity()`, `asFinancial()`, and the
@@ -61,7 +61,13 @@ achievable if the list is derived rather than remembered.
 
 - **Tenant isolation is row-level security in Postgres**, plus a schema per
   module. It is enforced by the database, not by a `WHERE` clause that a future
-  query might omit.
+  query might omit. `packages/db-kit/src/tenant.integration.test.ts` holds that
+  claim to a real Postgres: a tenant sees only its own rows, an unscoped query
+  sees nothing rather than everything, a write aimed at another tenant is
+  refused, and the tenant does not survive on a pooled connection into the next
+  request. That last one is the leak no single-request test can find. See
+  [SECURITY.md](./SECURITY.md#writing-a-row-level-security-policy) for the two
+  details that decide whether such a policy enforces anything at all.
 - **Authorization is a graph** (OpenFGA), not a role column, because an org
   chart is a graph and "my manager's manager can see this" is a traversal.
 - **Authorization is enforced in the domain and application layers**, never only
