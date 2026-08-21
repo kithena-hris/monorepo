@@ -2,7 +2,9 @@
 
 ## Reporting a vulnerability
 
-Report privately, never in a public issue: **info@kithena.com**.
+**This repository is public.** Report privately, never in an issue or a pull
+request: **info@kithena.com**. An issue describing a vulnerability publishes it
+to everyone, including the people it would be useful to.
 
 If a dedicated `security@kithena.com` alias is ever created, change it here and
 nowhere else — this file is the one place the address is published, so a second
@@ -28,17 +30,17 @@ shapes every decision below.
 
 These are the ones the build fails on. A control nobody checks is a paragraph.
 
-| Control                                               | Where it is enforced                                                                                                                  |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Every contract field carries a data classification    | `pnpm codegen` exits non-zero on an unclassified field                                                                                |
-| Special-category data never reaches a model           | `services/*/src/contract/*.contract.test.ts` — codegen checks a policy _exists_, not that it is coherent                              |
-| Log redaction paths are generated, never hand-written | `tools/codegen` emits `packages/telemetry/src/generated/redaction.ts`                                                                 |
-| Tenant isolation                                      | Postgres row-level security, schema per module — asserted against a real database in `packages/db-kit/src/tenant.integration.test.ts` |
-| A write and its event commit together                 | Transactional outbox, `packages/db-kit/src/outbox.integration.test.ts`                                                                |
-| Authorization is a graph, not a role column           | OpenFGA; enforced in the domain and application layers, never only in a resolver                                                      |
-| No cross-module imports                               | `.dependency-cruiser.cjs`, plus a standalone boot per module with its siblings made unresolvable                                      |
-| Secrets never reach the repository                    | `gitleaks` in a pre-commit hook, and again over the **full history** on every push and pull request                                   |
-| Nothing vulnerable ships                              | `pnpm audit --prod --audit-level low` in CI                                                                                           |
+| Control                                               | Where it is enforced                                                                                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Every contract field carries a data classification    | `pnpm codegen` exits non-zero on an unclassified field                                                                                 |
+| Special-category data never reaches a model           | `services/*/src/contract/*.contract.test.ts` — codegen checks a policy _exists_, not that it is coherent                               |
+| Log redaction paths are generated, never hand-written | `tools/codegen` emits `packages/telemetry/src/generated/redaction.ts`                                                                  |
+| Tenant isolation                                      | Postgres row-level security, schema per module — asserted against a real database in `packages/db-kit/src/tenant.integration.test.ts`  |
+| A write and its event commit together                 | Transactional outbox, `packages/db-kit/src/outbox.integration.test.ts`                                                                 |
+| Authorization is a graph, not a role column           | OpenFGA; enforced in the domain and application layers, never only in a resolver                                                       |
+| No cross-module imports                               | `.dependency-cruiser.cjs`, plus a standalone boot per module with its siblings made unresolvable                                       |
+| Secrets never reach the repository                    | GitHub push protection rejects the push; `gitleaks` catches it earlier in a pre-commit hook, and again over the **full history** in CI |
+| Nothing vulnerable ships                              | `pnpm audit --prod --audit-level low` in CI                                                                                            |
 
 ### Writing a row-level security policy
 
@@ -125,32 +127,40 @@ rewriting history does not reach the clones and forks that already have it.
 
 ## Repository settings
 
-These cannot be committed and have to be turned on in GitHub. Two of the three
-are not available on the plan this repository is on, which is worth stating
-plainly rather than leaving as a recommendation nobody can follow.
+These cannot be committed and have to be turned on in GitHub. **This repository
+is public**, which is what makes most of them free — an earlier version of this
+file said they were unavailable, and that was true while it was private.
 
-**Available now, free — do these.**
+**Enabled.**
 
+- **Secret scanning**, and **push protection**. Push protection is the strongest
+  secret control there is: it rejects the push rather than reporting the leak
+  after it has landed. The [pre-commit hook](#the-pre-commit-hook) and the
+  `security` workflow are now backstops behind it rather than substitutes for
+  it — worth keeping, because a hook catches things before a commit exists and
+  the workflow scans history that predates any of this.
+- **Dependabot alerts and security updates.** Grouped upgrade pull requests
+  weekly, per `.github/dependabot.yml`.
+
+**Still to do.**
+
+- **A ruleset on `main`**: require the `ci` and `security` checks, require a
+  pull request, require review from a code owner, disallow force pushes. Free
+  for a public repository. Until then `main` is directly pushable and every gate
+  in `ci.yml` can be walked past — `.github/CODEOWNERS` routes a review request
+  and nothing more.
 - **Require two-factor authentication** for the organisation.
-- **Dependabot alerts**, already enabled. It raises grouped upgrade pull
-  requests weekly per `.github/dependabot.yml`.
+- **Non-provider patterns** and **validity checks** for secret scanning. Both
+  are organisation-level settings rather than per-repository ones — the repo API
+  accepts the change and silently keeps them disabled. They live under the
+  organisation's Code security settings. Validity checks are the useful half:
+  they answer whether a leaked credential is still live, which is the first
+  thing you want to know.
 
-**Not available: this is a private repository on the Free plan.** Branch
-protection, rulesets, and secret scanning with push protection all return
-`403 Upgrade to GitHub Pro or make this repository public`, or require GitHub
-Secret Protection, a paid add-on. Until the plan changes:
-
-- **`main` is directly pushable and the CI gates can be bypassed.** With one
-  committer that mostly means protection against your own slips; it stops being
-  acceptable the moment a second person commits.
-- **GitHub will not stop a secret at the push.** The `security` workflow scans
-  the full history on every push and is verified to catch a planted credential,
-  but by then it is on the remote and must be rotated. [The pre-commit
-  hook](#the-pre-commit-hook) is what closes that window here, and it is the
-  substitute for push protection rather than an addition to it.
-
-Upgrading to GitHub Team buys branch protection and makes a `CODEOWNERS` file
-mean something; secret scanning is a further add-on on top.
+Everything in this repository is world-readable, including the reasoning in
+`CLAUDE.md`. That is a product decision rather than a security defect, but it
+belongs in the same list, because it changes what "internal" means everywhere
+else in these documents.
 
 ## Known advisories
 
