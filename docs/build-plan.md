@@ -361,6 +361,13 @@ proxy as middleware. One page that says which tenant you are on.
 _Done when:_ `acme.app.localhost:3000` renders "acme" and `nope.app.localhost:3000`
 404s, with the existing tests green.
 
+> `apps/auth/shell` cleared the equivalent bar first, because auth is its own
+> origin and does not wait for the tenant app. Three things the framework had
+> to prove before anything was built on it: it builds, it server-renders — the
+> copy is in the raw HTML rather than injected after hydration — and it
+> compiles `@reach/ui` from TypeScript source through `source.include`, the way
+> Next does it through `transpilePackages`.
+
 ### 3. Federation on "hello"
 
 One remote, `apps/web/people`, exporting one component. Wire up Module Federation.

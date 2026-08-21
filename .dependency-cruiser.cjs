@@ -116,6 +116,17 @@ module.exports = {
           '\\.d\\.ts$',
           '(^|/)\\.[^/]+\\.(js|cjs|ts)$',
           /*
+           * Framework configuration, loaded by a tool rather than imported by
+           * a module. `modern.config.ts` is an entry point for the build, so
+           * having nothing depend on it is the expected state and not the
+           * "replaced and never deleted" this rule is looking for.
+           *
+           * `vitest.config.ts` needs no entry here: it imports from
+           * `vitest/config`, which gives it an outgoing dependency and takes it
+           * out of the rule's reach on its own.
+           */
+          '(^|/)modern\\.config\\.ts$',
+          /*
            * A module's ports: the interfaces an external provider is adapted
            * *to*, with no implementation in the tree yet.
            *
