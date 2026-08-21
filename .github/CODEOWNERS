@@ -1,0 +1,15 @@
+# Code owners.
+#
+# One owner for everything, deliberately. There is one committer today, and a
+# file that lists people who do not exist yet is a file nobody updates when they
+# do.
+#
+# This is a routing rule, not a permission. On its own it asks GitHub to request
+# a review from the owner on any pull request touching a matching path; nothing
+# stops a merge without that review until a ruleset requires it. This repository
+# is public, so rulesets are available — see SECURITY.md for what to turn on.
+#
+# Order matters: the last matching pattern wins, so anything more specific
+# belongs below the catch-all, not above it.
+
+* @akashvgnair
