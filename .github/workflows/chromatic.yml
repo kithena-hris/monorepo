@@ -67,6 +67,13 @@ jobs:
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           storybookBuildDir: apps/storybook/storybook-static
+          # Required in a monorepo, and the second half of making TurboSnap
+          # work at all. It traces a changed file to the stories that import it,
+          # and to do that it has to know where the repository root is relative
+          # to the Storybook project — otherwise every path it reads from the
+          # stats file resolves somewhere that does not exist, and it fails with
+          # "Could not retrieve dependent story files".
+          storybookBaseDir: apps/storybook
           onlyChanged: true
           autoAcceptChanges: main
           exitZeroOnChanges: false
