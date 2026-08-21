@@ -53,6 +53,12 @@ jobs:
 
       - name: install
         run: pnpm install --frozen-lockfile
+      # `--stats-json` is in the build script, and TurboSnap does not work
+      # without it. `onlyChanged: true` below asks Chromatic to snapshot only
+      # the stories a change can reach, and it works that out from
+      # `preview-stats.json` — which Storybook only writes when asked. Without
+      # the flag the step fails outright with "TurboSnap disabled due to missing
+      # stats file" rather than falling back to a full run.
       - name: build storybook
         run: pnpm storybook:build
 
