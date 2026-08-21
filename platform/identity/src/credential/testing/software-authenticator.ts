@@ -19,12 +19,34 @@ const FLAG_USER_PRESENT = 0x01;
 const FLAG_USER_VERIFIED = 0x04;
 const FLAG_BACKUP_ELIGIBLE = 0x08;
 const FLAG_BACKED_UP = 0x10;
+const FLAG_ATTESTED_CREDENTIAL_DATA = 0x40;
 
 export interface Authenticator {
   readonly credentialId: string;
   /** The public key in COSE_Key form, which is how WebAuthn stores it. */
   readonly cosePublicKey: Uint8Array<ArrayBuffer>;
   assert(options: AssertionOptions): AssertionResponse;
+  register(options: RegistrationOptions): RegistrationResponse;
+}
+
+export interface RegistrationOptions {
+  readonly challenge: string;
+  readonly origin: string;
+  readonly rpId: string;
+  readonly userVerified?: boolean;
+  readonly backedUp?: boolean;
+}
+
+export interface RegistrationResponse {
+  readonly id: string;
+  readonly rawId: string;
+  readonly type: 'public-key';
+  readonly clientExtensionResults: Record<string, never>;
+  readonly response: {
+    readonly clientDataJSON: string;
+    readonly attestationObject: string;
+    readonly transports: readonly string[];
+  };
 }
 
 export interface AssertionOptions {
@@ -53,9 +75,53 @@ export interface AssertionResponse {
 export function softwareAuthenticator(credentialId = 'test-credential'): Authenticator {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
 
+  const cose = coseKeyOf(publicKey);
+
   return {
     credentialId: Buffer.from(credentialId).toString('base64url'),
-    cosePublicKey: coseKeyOf(publicKey),
+    cosePublicKey: cose,
+
+    /**
+     * A registration, with `fmt: "none"`.
+     *
+     * No attestation statement, which is what the ceremony asks for unless a
+     * tenant has demanded hardware-bound authenticators. That makes the
+     * attestation object three CBOR entries and the interesting part the
+     * authenticator data, which carries the new credential inline.
+     */
+    register(options) {
+      const clientData = Buffer.from(
+        JSON.stringify({
+          type: 'webauthn.create',
+          challenge: options.challenge,
+          origin: options.origin,
+          crossOrigin: false,
+        }),
+      );
+
+      const authData = Buffer.concat([
+        createHash('sha256').update(options.rpId).digest(),
+        Buffer.from([registrationFlags(options)]),
+        Buffer.alloc(4), // signCount, zero as a synced passkey reports it
+        // Attested credential data: AAGUID, then the credential id with a
+        // two-byte length, then the public key.
+        Buffer.alloc(16),
+        lengthPrefixed(Buffer.from(credentialId)),
+        Buffer.from(cose),
+      ]);
+
+      return {
+        id: Buffer.from(credentialId).toString('base64url'),
+        rawId: Buffer.from(credentialId).toString('base64url'),
+        type: 'public-key',
+        clientExtensionResults: {},
+        response: {
+          clientDataJSON: clientData.toString('base64url'),
+          attestationObject: attestationObject(authData).toString('base64url'),
+          transports: ['internal', 'hybrid'],
+        },
+      };
+    },
 
     assert(options) {
       const clientData = Buffer.from(
@@ -139,4 +205,52 @@ function coseKeyOf(publicKey: KeyObject): Uint8Array<ArrayBuffer> {
       y,
     ]),
   );
+}
+
+function registrationFlags(options: RegistrationOptions): number {
+  // AT is what says "attested credential data follows". Without it the verifier
+  // reads the AAGUID as the end of the buffer and reports a malformed response,
+  // which is a confusing way to find out a flag was missing.
+  let flags = FLAG_USER_PRESENT | FLAG_ATTESTED_CREDENTIAL_DATA;
+  if (options.userVerified !== false) flags |= FLAG_USER_VERIFIED;
+  if (options.backedUp !== false) flags |= FLAG_BACKUP_ELIGIBLE | FLAG_BACKED_UP;
+  return flags;
+}
+
+/** A two-byte big-endian length, then the bytes. */
+function lengthPrefixed(value: Buffer): Buffer {
+  const length = Buffer.alloc(2);
+  length.writeUInt16BE(value.length);
+  return Buffer.concat([length, value]);
+}
+
+/**
+ * `{ fmt: "none", attStmt: {}, authData: … }` as CBOR, hand-encoded.
+ *
+ *   a3                  map of three
+ *   63 666d74           "fmt"
+ *   64 6e6f6e65         "none"
+ *   67 61747453746d74   "attStmt"
+ *   a0                  empty map
+ *   68 6175746844617461 "authData"
+ *   59 llll …           byte string with a two-byte length
+ *
+ * The same reasoning as the COSE key above: a fixed shape is not worth a CBOR
+ * dependency in the test path.
+ */
+function attestationObject(authData: Buffer): Buffer {
+  const length = Buffer.alloc(2);
+  length.writeUInt16BE(authData.length);
+
+  return Buffer.concat([
+    Buffer.from([0xa3]),
+    Buffer.from([0x63, 0x66, 0x6d, 0x74]),
+    Buffer.from([0x64, 0x6e, 0x6f, 0x6e, 0x65]),
+    Buffer.from([0x67, 0x61, 0x74, 0x74, 0x53, 0x74, 0x6d, 0x74]),
+    Buffer.from([0xa0]),
+    Buffer.from([0x68, 0x61, 0x75, 0x74, 0x68, 0x44, 0x61, 0x74, 0x61]),
+    Buffer.from([0x59]),
+    length,
+    authData,
+  ]);
 }

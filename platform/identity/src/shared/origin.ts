@@ -1,7 +1,12 @@
 import { isRegistrableSlug } from '@kithena/contracts';
 
 /**
- * Which origins may run a WebAuthn ceremony.
+ * Which origins this deployment issued.
+ *
+ * In `shared/` rather than owned by the credential slice, because enrolment
+ * asks the same question of a registration ceremony that sign-in asks of an
+ * assertion, and a CSRF check will ask it of an ordinary form post. The concept
+ * is "is this one of our hostnames", which is a property of the deployment.
  *
  * The RP ID is `app.kithena.com`, and the browser will let *any* origin under
  * it ask for an assertion. That is the point — a passkey has to work at
