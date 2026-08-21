@@ -2,9 +2,13 @@
 
 ## Reporting a vulnerability
 
-Report privately, never in a public issue: **security@kithena.example** — replace
-this with the real address before anyone outside the team can read this
-repository.
+Report privately, never in a public issue: **info@kithena.com**.
+
+If a dedicated `security@kithena.com` alias is ever created, change it here and
+nowhere else — this file is the one place the address is published, so a second
+copy is a second thing to forget. A dedicated alias is worth having: a report
+arriving in a general inbox competes with sales mail for attention, and the one
+message you must not miss is the one telling you a credential is exposed.
 
 Include what you did, what happened, and what you expected. A proof of concept
 helps; a working exploit against production data is not required and please do

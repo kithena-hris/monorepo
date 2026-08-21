@@ -142,6 +142,11 @@ jobs:
           # runtime (static build, and Storybook is behind sign-in), so the list
           # is a copy and this fails when it stops matching.
           pnpm docs:catalogue-drift
+          # Reach is documented and sold on its own and must never name Kithena.
+          # Storybook enforces its half by excluding the mark's stories; this is
+          # the documentation half, added after a demo shipped a branded share
+          # link to production.
+          pnpm docs:brand-leak
           pnpm a11y:contrast
           # The docs site is built out of the design system and makes claims
           # about these thresholds, so it is held to them too.
