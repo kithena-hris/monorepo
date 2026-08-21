@@ -1,92 +1,101 @@
-Business Source License 1.1
+Kithena Proprietary Software Licence
 
-License text copyright © 2017 MariaDB Corporation Ab, All Rights Reserved.
-"Business Source License" is a trademark of MariaDB Corporation Ab.
+Copyright (c) 2026 Kithena. All rights reserved.
 
------------------------------------------------------------------------------
+This software is a commercial product. It is made publicly readable so that
+customers, prospective customers, auditors and security researchers can inspect
+it. Publication is not a grant of rights: no licence to use this software is
+given by this file, and access to the source confers none.
 
-Parameters
+1. DEFINITIONS
 
-Licensor:             Kithena
+   "Software" means the source code, object code, documentation, configuration,
+   design assets and any other material in this repository, including the
+   Kithena HRIS platform and the Reach design system.
 
-Licensed Work:        The Kithena HRIS platform and the Reach design system,
-                      as contained in this repository.
-                      The Licensed Work is (c) 2026 Kithena.
+   "Kithena" means the owner of the copyright in the Software and its
+   affiliates.
 
-Additional Use Grant: You may make production use of the Licensed Work,
-                      provided you do not offer it to third parties as a
-                      hosted or managed service giving them access to a
-                      substantial set of its features or functionality.
+   "Subscription Agreement" means a written commercial agreement executed
+   between Kithena and a customer that expressly grants rights to use the
+   Software or a service based on it.
 
-Change Date:          2030-08-21
+2. RESERVATION OF RIGHTS
 
-Change License:       Apache License, Version 2.0
+   All rights in the Software are reserved to Kithena. Nothing in this file
+   grants any right to use, copy, modify, merge, publish, distribute,
+   sublicense, sell, host, or create derivative works of the Software.
 
------------------------------------------------------------------------------
+3. PERMITTED USE
 
-Terms
+   You may view and read the Software, and quote short excerpts of it for the
+   purpose of commentary, security reporting, academic study or news reporting,
+   with attribution.
 
-The Licensor hereby grants you the right to copy, modify, create derivative
-works, redistribute, and make non-production use of the Licensed Work. The
-Licensor may make an Additional Use Grant, above, permitting limited
-production use.
+   Any other use requires a Subscription Agreement. In particular, use of the
+   Software or of any service based on it, in production or otherwise, for the
+   benefit of any person or organisation, is permitted only under, and subject
+   to the terms of, a Subscription Agreement.
 
-Effective on the Change Date, or the fourth anniversary of the first publicly
-available distribution of a specific version of the Licensed Work under this
-License, whichever comes first, the Licensor hereby grants you rights under
-the terms of the Change License, and the rights granted in the paragraph
-above terminate.
+4. RESTRICTIONS
 
-If your use of the Licensed Work does not comply with the requirements
-currently in effect as described in this License, you must purchase a
-commercial license from the Licensor, its affiliated entities, or authorized
-resellers, or you must refrain from using the Licensed Work.
+   Without a Subscription Agreement expressly permitting it, you may not:
 
-All copies of the original and modified Licensed Work, and derivative works
-of the Licensed Work, are subject to this License. This License applies
-separately for each version of the Licensed Work and the Change Date may vary
-for each version of the Licensed Work released by Licensor.
+   (a) run the Software, in whole or in part, other than as strictly necessary
+       to read and evaluate it locally;
+   (b) copy or redistribute the Software, or incorporate any part of it into
+       another work;
+   (c) modify the Software or create derivative works of it;
+   (d) offer the Software, or any service derived from or substantially similar
+       to it, to any third party, whether or not for a fee;
+   (e) use the Software to build a competing product, or use it as training
+       data or reference material for that purpose;
+   (f) remove, obscure or alter this licence or any copyright, trademark or
+       attribution notice.
 
-You must conspicuously display this License on each original or modified copy
-of the Licensed Work. If you receive the Licensed Work in original or
-modified form from a third party, the terms and conditions set forth in this
-License apply to your use of that work.
+5. CONTRIBUTIONS
 
-Any use of the Licensed Work in violation of this License will automatically
-terminate your rights under this License for the current and all other
-versions of the Licensed Work.
+   Kithena does not accept unsolicited contributions. Any contribution
+   knowingly submitted for inclusion in the Software is provided under, and
+   assigned to Kithena subject to, a separate contributor agreement. Do not
+   submit code you are not entitled to assign.
 
-This License does not grant you any right in any trademark or logo of
-Licensor or its affiliates (provided that you may use a trademark or logo of
-Licensor as expressly required by this License).
+6. TRADEMARKS
 
-TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED ON
-AN “AS IS” BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
-EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
-TITLE.
+   "Kithena" and "Reach", and the associated marks and logos in
+   packages/ui/src/brand, are trademarks of Kithena. This licence grants no
+   right to use them. They may be used only to refer accurately to the Software
+   itself.
 
-MariaDB hereby grants you permission to use this License’s text to license
-your works, and to refer to it using the trademark “Business Source License”,
-as long as you comply with the Covenants of Licensor below.
+7. THIRD-PARTY COMPONENTS
 
-Covenants of Licensor
+   The Software incorporates third-party components distributed under their own
+   licences. Those licences govern those components and are unaffected by this
+   one. Nothing here restricts any right you hold under them.
 
-In consideration of the right to use this License’s text and the “Business
-Source License” name and trademark, Licensor covenants to MariaDB, and to all
-other recipients of the licensed work to be provided by Licensor:
+8. NO WARRANTY
 
-1. To specify as the Change License the GPL Version 2.0 or any later version,
-   or a license that is compatible with GPL Version 2.0 or a later version,
-   where “compatible” means that software provided under the Change License can
-   be included in a program with software provided under GPL Version 2.0 or a
-   later version. Licensor may specify additional Change Licenses without
-   limitation.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT AND TITLE. Warranties, if
+   any, are given only in a Subscription Agreement.
 
-2. To either: (a) specify an additional grant of rights to use that does not
-   impose any additional restriction on the right granted in this License, as
-   the Additional Use Grant; or (b) insert the text “None”.
+9. LIMITATION OF LIABILITY
 
-3. To specify a Change Date.
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, KITHENA SHALL NOT BE
+   LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT
+   OR OTHERWISE, ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+   Nothing in this licence excludes liability that cannot lawfully be excluded.
 
-4. Not to modify this License in any other way.
+10. TERMINATION
+
+    The permission in section 3 terminates automatically on any breach of this
+    licence. Sections 2, 6, 8, 9 and 11 survive termination.
+
+11. GOVERNING LAW
+
+    This licence is governed by the laws of the jurisdiction in which Kithena
+    is established, without regard to its conflict-of-law rules.
+
+To purchase a licence, or to ask whether an intended use is permitted, contact
+info@kithena.com. Asking is free and is preferred to assuming.

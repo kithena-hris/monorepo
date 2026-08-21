@@ -99,12 +99,14 @@ renders every story in Chromium and runs axe over the result, in CI.
 
 ## Licence
 
-Business Source License 1.1 — see [LICENSE](./LICENSE). Source-available, not
-open source: read it, modify it, run it, but do not offer it to third parties
-as a hosted service competing with Kithena. Each version converts to Apache 2.0
-on its Change Date, four years after publication.
+Proprietary. Copyright (c) 2026 Kithena, all rights reserved — see
+[LICENSE](./LICENSE).
 
-Chosen over MIT because this is a commercial product whose source happens to be
-public, and over "no licence at all" because an unlicensed public repository is
-all-rights-reserved by default — which forbids more than this does, silently,
-and leaves everyone guessing.
+The source is public so that customers, auditors and security researchers can
+read it. That is not a grant of rights: you may read it and quote it, and any
+other use — running it, copying it, modifying it, or offering a service based on
+it — requires a commercial subscription agreement. This is the model Lattice,
+Personio and HiBob use, except that they do not publish the source at all.
+
+Not open source, and GitHub labels it "Other" for that reason. To purchase a
+licence or ask whether an intended use is permitted, contact info@kithena.com.
