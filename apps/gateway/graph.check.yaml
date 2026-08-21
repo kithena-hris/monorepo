@@ -1,0 +1,21 @@
+# Composition input for CI, built from files rather than from running services.
+#
+# `graph.yaml` introspects each subgraph over HTTP, which is right for `just
+# dev` where they are already up, and impossible in a job that starts from a
+# clean checkout with nothing listening. The SDL those services would have
+# served is written by `pnpm codegen` to `services/*/schemas/`, so composition
+# can read it straight from disk and answer the same question: would this
+# subgraph change break a field another module depends on.
+#
+# The routing URLs are still required by the schema and still meaningless here.
+# Nothing is dialled during composition.
+version: 1
+subgraphs:
+  - name: people
+    routing_url: http://localhost:4001/graphql
+    schema:
+      file: ../../services/people/schemas/people.graphql
+  - name: timeoff
+    routing_url: http://localhost:4002/graphql
+    schema:
+      file: ../../services/timeoff/schemas/timeoff.graphql
