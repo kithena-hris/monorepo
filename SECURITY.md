@@ -96,11 +96,11 @@ without anyone remembering to enable it. It runs `gitleaks protect --staged`
 against the same `.gitleaks.toml` CI uses, and refuses a commit that stages
 something shaped like a credential.
 
-This is the only place a secret can still be stopped **before** it exists. CI
-scans the full history on every push and would catch the same string, but by
-then it is on the remote, cloneable, and the credential has to be rotated
-whatever happens next — and GitHub's own push protection is unavailable on this
-plan.
+It is the earliest of the three layers, not a substitute for any of them. GitHub
+push protection rejects the push, which is stronger; but a hook refuses the
+_commit_, so the secret never enters local history either and there is nothing
+to rewrite afterwards. CI is last and catches what predates both, at the cost of
+the credential already being on the remote by then.
 
 The binary is pinned to the version CI runs and installed with
 `pnpm hooks:install`, into `.git/hooks-bin/` — outside the working tree, so it
