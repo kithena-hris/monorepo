@@ -28,7 +28,7 @@ jobs:
       # Full history. Scanning only the tip finds nothing: a credential that was
       # committed and then deleted is still in the pack file, still cloneable,
       # and still valid until it is rotated.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
 
       # The binary rather than the marketplace action: that action requires a
@@ -47,9 +47,9 @@ jobs:
     name: dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
@@ -71,7 +71,7 @@ jobs:
     name: workflow permissions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # A workflow with no `permissions:` block inherits whatever the repository
       # default is, which is `write-all` on older settings. This fails when a
       # workflow forgets to narrow it, so a future job cannot quietly gain the
