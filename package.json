@@ -29,7 +29,9 @@
     "a11y:contrast": "node tools/a11y/contrast-sweep.mjs",
     "a11y:contrast:build": "node tools/a11y/contrast-against-build.mjs",
     "storybook:theme-drift": "node tools/storybook/manager-theme-drift.mjs",
-    "docs:catalogue-drift": "node tools/storybook/catalogue-drift.mjs"
+    "docs:catalogue-drift": "node tools/storybook/catalogue-drift.mjs",
+    "hooks:install": "sh tools/scripts/install-gitleaks.sh",
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.0",

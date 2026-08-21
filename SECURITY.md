@@ -33,7 +33,7 @@ These are the ones the build fails on. A control nobody checks is a paragraph.
 | A write and its event commit together                 | Transactional outbox, `packages/db-kit/src/outbox.integration.test.ts`                                                                |
 | Authorization is a graph, not a role column           | OpenFGA; enforced in the domain and application layers, never only in a resolver                                                      |
 | No cross-module imports                               | `.dependency-cruiser.cjs`, plus a standalone boot per module with its siblings made unresolvable                                      |
-| Secrets never reach the repository                    | `gitleaks` over the **full history** on every push and pull request                                                                   |
+| Secrets never reach the repository                    | `gitleaks` in a pre-commit hook, and again over the **full history** on every push and pull request                                   |
 | Nothing vulnerable ships                              | `pnpm audit --prod --audit-level low` in CI                                                                                           |
 
 ### Writing a row-level security policy
@@ -83,6 +83,33 @@ rotated.
 - CI reads exactly one secret, `VERCEL_TOKEN`. Project and organisation
   identifiers are not secrets and are in the workflow in plain sight.
 
+### The pre-commit hook
+
+`pnpm install` points `core.hooksPath` at `.githooks`, so the hook is active
+without anyone remembering to enable it. It runs `gitleaks protect --staged`
+against the same `.gitleaks.toml` CI uses, and refuses a commit that stages
+something shaped like a credential.
+
+This is the only place a secret can still be stopped **before** it exists. CI
+scans the full history on every push and would catch the same string, but by
+then it is on the remote, cloneable, and the credential has to be rotated
+whatever happens next — and GitHub's own push protection is unavailable on this
+plan.
+
+The binary is pinned to the version CI runs and installed with
+`pnpm hooks:install`, into `.git/hooks-bin/` — outside the working tree, so it
+can never be committed. The download is checksum-verified against the published
+manifest; fetching a secret scanner and trusting whatever comes back would be
+its own supply-chain hole.
+
+**The hook fails when gitleaks is missing rather than passing quietly.** A
+check that skips itself when its tool is absent reports success on every
+commit, which is the one outcome worse than not having it.
+
+`--no-verify` still bypasses it, as it bypasses any hook. That is not worth
+defending against: the person typing it knows what they are doing, and CI runs
+the same scan over the full history regardless.
+
 ### If a secret is ever committed
 
 Rotate first. Deleting the commit does not invalidate the credential, and
@@ -112,12 +139,11 @@ Secret Protection, a paid add-on. Until the plan changes:
 - **`main` is directly pushable and the CI gates can be bypassed.** With one
   committer that mostly means protection against your own slips; it stops being
   acceptable the moment a second person commits.
-- **Secret scanning happens after the push, not before it.** The `security`
-  workflow scans the full history on every push and is verified to catch a
-  planted credential — but by the time it fails, the secret is already on the
-  remote and must be rotated. A `pre-commit` hook running
-  `gitleaks protect --staged` closes that window locally, for free, using the
-  same binary and the same `.gitleaks.toml`.
+- **GitHub will not stop a secret at the push.** The `security` workflow scans
+  the full history on every push and is verified to catch a planted credential,
+  but by then it is on the remote and must be rotated. [The pre-commit
+  hook](#the-pre-commit-hook) is what closes that window here, and it is the
+  substitute for push protection rather than an addition to it.
 
 Upgrading to GitHub Team buys branch protection and makes a `CODEOWNERS` file
 mean something; secret scanning is a further add-on on top.

@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# Refuses a commit that stages a credential.
+#
+# CI scans the full history on every push and will catch this too — but only
+# after the secret has reached the remote, at which point the commit is
+# cloneable and the credential has to be rotated whatever happens next. This
+# repository is private on the Free plan, so GitHub's own push protection is
+# not available; closing the window locally is what is available.
+#
+# Same binary, same `.gitleaks.toml` as CI. A hook that disagreed with the
+# server would be worse than none, because a local pass would stop meaning
+# anything.
+set -eu
+
+CONFIG="$(git rev-parse --show-toplevel)/.gitleaks.toml"
+LOCAL_BIN="$(git rev-parse --git-dir)/hooks-bin/gitleaks"
+
+if [ -x "$LOCAL_BIN" ]; then
+  GITLEAKS="$LOCAL_BIN"
+elif command -v gitleaks >/dev/null 2>&1; then
+  GITLEAKS=gitleaks
+else
+  cat >&2 <<'MESSAGE'
+
+  gitleaks is not installed, so staged changes cannot be scanned.
+
+  Install it with either:
+
+      pnpm hooks:install     # pinned to the version CI uses, checksum-verified
+      brew install gitleaks
+
+  This hook fails rather than passing quietly. A secret check that skips
+  itself when the tool is missing reports success on every commit, which is
+  the one outcome worse than not having it.
+
+MESSAGE
+  exit 1
+fi
+
+# `--staged` scans what is about to be committed, not the working tree, so an
+# unstaged scratch file with a token in it does not block unrelated work.
+if ! "$GITLEAKS" protect --staged --redact --config "$CONFIG"; then
+  cat >&2 <<'MESSAGE'
+
+  A staged change looks like a credential, so the commit was stopped.
+
+  If it is real: do not commit it, and rotate it if it has ever been pushed.
+  Deleting the commit later does not invalidate a credential, and rewriting
+  history does not reach clones that already have it.
+
+  If it is a false positive: add a narrow rule to .gitleaks.toml explaining
+  why the value is not a secret. Do not widen the allowlist to make the
+  message go away, and do not reach for --no-verify: CI runs the same scan
+  over the full history and will fail there instead.
+
+MESSAGE
+  exit 1
+fi
