@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze
+    name: static analysis
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -48,9 +48,10 @@ jobs:
         language: [javascript-typescript]
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Initialize CodeQL
+      - name: init codeql
         uses: github/codeql-action/init@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
         with:
           languages: ${{ matrix.language }}
@@ -63,7 +64,7 @@ jobs:
       # No build step. CodeQL extracts TypeScript from source, and a build here
       # would only add the chance of failing for a reason that has nothing to do
       # with the analysis.
-      - name: Perform CodeQL analysis
+      - name: analyse
         uses: github/codeql-action/analyze@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
         with:
           category: /language:${{ matrix.language }}

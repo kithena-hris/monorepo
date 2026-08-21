@@ -27,13 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
 
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
 
       # Build first, because `lint` and `boundaries` are the two checks that do
       # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
@@ -42,34 +46,45 @@ jobs:
       # `@hris/contracts` resolves through `./dist/index.d.ts`, so on a clean
       # checkout both see an unbuilt workspace and typescript-eslint reports the
       # whole codebase as `error typed value`.
-      - run: pnpm build
+      - name: build
+        run: pnpm build
 
       # Cheap rules first, then the type-aware pass. ESLint resolves against
       # the pinned TypeScript 6 API until 7.1 ships a stable one.
-      - run: pnpm lint
+      - name: lint
+        run: pnpm lint
 
       # Architectural boundaries. A cross-module import fails here, which is
       # the only thing stopping the anti-sticky property from eroding.
-      - run: pnpm boundaries
+      - name: module boundaries
+        run: pnpm boundaries
 
       # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
       # compilers can still disagree and the authoritative one should decide.
-      - run: pnpm typecheck:authoritative
+      - name: typecheck on TS 6
+        run: pnpm typecheck:authoritative
 
-      - run: pnpm test
+      - name: unit tests
+        run: pnpm test
 
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm codegen
-      - run: pnpm test:contract
-      - name: Check subgraphs
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: regenerate from contracts
+        run: pnpm codegen
+      - name: contract tests
+        run: pnpm test:contract
+      - name: compose the supergraph
         working-directory: apps/gateway
         run: pnpm check
 
@@ -77,12 +92,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test:integration
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: integration tests, real postgres
+        run: pnpm test:integration
 
   standalone:
     runs-on: ubuntu-latest
@@ -91,16 +111,21 @@ jobs:
       matrix:
         module: [people, timeoff]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
       # Through turbo, so the module's dependencies are built first. Run
       # directly, `pnpm --filter` would start vitest against an unbuilt
       # workspace and the module would fail to boot for the one reason this job
       # is not trying to detect.
-      - run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
+      - name: boot the module alone
+        run: pnpm turbo run test:standalone --filter @hris/${{ matrix.module }}
 
   design-system:
     # Every story renders in a real browser and axe runs over the result. An
@@ -119,13 +144,18 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: chromium
+        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
 
       # Unconditional, and only on the first shard because it covers every story
       # by itself. Narrowing an accessibility pass by what a diff appears to
@@ -137,7 +167,7 @@ jobs:
       # Narrows the *contrast sweep* and nothing else, and only on a pull
       # request. Every check below still runs on every event; the detector
       # chooses how much of one of them to run, never whether the job runs.
-      - name: Select contrast scope
+      - name: pick affected stories
         id: scope
         if: github.event_name == 'pull_request'
         env:
@@ -145,7 +175,7 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: node tools/a11y/affected-stories.mjs
 
-      - name: Contrast gate
+      - name: contrast
         # It measures focus rings, which means it cannot be replaced by anything
         # static: the ring colour only exists while an element is focused.
         timeout-minutes: 25
@@ -204,10 +234,11 @@ jobs:
             SHARD= PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
           fi
 
-      - name: Build Storybook
+      - name: build storybook
         if: matrix.shard == 1
         run: pnpm storybook:build
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: keep the storybook build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: matrix.shard == 1
         with:
           name: storybook

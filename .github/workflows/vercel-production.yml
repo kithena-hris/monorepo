@@ -35,26 +35,30 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy main to Vercel
+    name: production deploy
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       # The commit `ci` actually tested, not whatever main points at now. A
       # second push while this queued would otherwise deploy an untested tip.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
 
       # A missing secret should say so in one line, rather than surfacing as a
       # CLI usage error forty lines into the output of the first deploy step.
-      - name: Validate Vercel credentials
+      - name: check the token
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
@@ -64,12 +68,12 @@ jobs:
       # Built here rather than by Vercel. Both apps are workspace consumers of
       # `@reach/ui`, which ships TypeScript source, so a build needs the whole
       # monorepo and its lockfile.
-      - name: Build Docs
+      - name: build docs
         run: pnpm --filter @reach/docs build
-      - name: Build Storybook
+      - name: build storybook
         run: pnpm storybook:build
 
-      - name: Deploy Docs production
+      - name: deploy docs
         id: docs
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
@@ -78,7 +82,7 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Docs production: $url"
 
-      - name: Deploy Storybook production
+      - name: deploy storybook
         id: storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
@@ -91,7 +95,7 @@ jobs:
       # not prove the CDN is serving anything. Both custom domains are checked
       # too: they are what people actually open, and a domain can be detached or
       # its certificate can lapse without the deployment noticing.
-      - name: Smoke test the deployment
+      - name: smoke test
         env:
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
@@ -103,7 +107,7 @@ jobs:
                  --retry 5 --retry-delay 5 --max-time 30 "$url" >/dev/null
           done
 
-      - name: Publish production URLs to merged PR
+      - name: comment the urls on the pr
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}

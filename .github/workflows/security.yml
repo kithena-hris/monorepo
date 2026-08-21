@@ -29,7 +29,8 @@ jobs:
       # Full history. Scanning only the tip finds nothing: a credential that was
       # committed and then deleted is still in the pack file, still cloneable,
       # and still valid until it is rotated.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
 
       # The binary rather than the marketplace action: that action requires a
@@ -41,7 +42,7 @@ jobs:
       # straight into /usr/local/bin — in the more privileged of the two
       # environments, and for the one tool where trusting whatever the network
       # returns is least defensible.
-      - name: Install gitleaks
+      - name: install gitleaks
         env:
           GITLEAKS_VERSION: 8.28.0
         run: |
@@ -62,7 +63,7 @@ jobs:
           rm -f "$archive" checksums.txt
           gitleaks version
 
-      - name: Scan the full history
+      - name: scan full history
         run: gitleaks detect --source . --config .gitleaks.toml --redact --verbose --exit-code 1
 
   dependencies:
@@ -70,22 +71,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
 
       # The gate is on what ships. A ReDoS in a linter cannot be reached by a
       # request to this product, and failing the build on it trains everyone to
       # ignore the job that is also meant to catch the one that matters.
-      - name: Audit production dependencies
+      - name: audit production deps
         run: pnpm audit --prod --audit-level low
 
       # Development tooling is reported, never gates. Dependabot raises these as
       # reviewable pull requests with a changelog attached, which is the right
       # place to decide about a major version of a build tool.
-      - name: Report development advisories
+      - name: report dev advisories
         if: always()
         continue-on-error: true
         run: pnpm audit --audit-level high || true
@@ -95,12 +100,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # A workflow with no `permissions:` block inherits whatever the repository
       # default is, which is `write-all` on older settings. This fails when a
       # workflow forgets to narrow it, so a future job cannot quietly gain the
       # ability to push to the repository or publish a package.
-      - name: Every workflow declares its permissions
+      - name: workflows declare permissions
         run: |
           missing=0
           for f in .github/workflows/*.yml; do

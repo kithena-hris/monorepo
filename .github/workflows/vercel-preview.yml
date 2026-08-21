@@ -43,19 +43,23 @@ concurrency:
 
 jobs:
   preview:
-    name: Deploy Vercel previews
+    name: preview deploy
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: install
+        run: pnpm install --frozen-lockfile
 
-      - name: Validate Vercel credentials
+      - name: check the token
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
@@ -75,12 +79,12 @@ jobs:
       #
       # Uploading the finished directory is what `vercel-production.yml` already
       # does, and it keeps the preview identical to what CI just checked.
-      - name: Build Docs
+      - name: build docs
         run: pnpm --filter @reach/docs build
-      - name: Build Storybook
+      - name: build storybook
         run: pnpm storybook:build
 
-      - name: Deploy Docs preview
+      - name: deploy docs
         id: docs
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
@@ -90,7 +94,7 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Docs preview: $url"
 
-      - name: Deploy Storybook preview
+      - name: deploy storybook
         id: storybook
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
@@ -100,7 +104,7 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook preview: $url"
 
-      - name: Comment preview URLs on PR
+      - name: comment the urls on the pr
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
