@@ -61,12 +61,14 @@ await sql`
 
 const enrol = new URL('http://localhost:3100/enrol');
 enrol.searchParams.set('identity', IDENTITY);
-enrol.searchParams.set('tenant', tenant.id);
+enrol.searchParams.set('tenant', 'acme');
 enrol.searchParams.set('token', token);
 enrol.searchParams.set('name', EMAIL);
 
 const login = new URL('http://localhost:3100/login');
-login.searchParams.set('tenant', tenant.id);
+// The slug, which is what the hostname will carry in production. A uuid in a
+// link is a uuid somebody has to copy correctly.
+login.searchParams.set('tenant', 'acme');
 
 process.stdout.write(`\nEnrol:  ${enrol.toString()}\n\nSign in: ${login.toString()}\n\n`);
 

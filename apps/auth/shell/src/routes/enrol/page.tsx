@@ -1,6 +1,8 @@
 import { startRegistration } from '@simplewebauthn/browser';
 import { Alert, Button } from '@reach/ui';
 import { useNavigate } from '@modern-js/runtime/router';
+
+import { resolveTenant } from '../../lib/tenant';
 import { useCallback, useState, type JSX } from 'react';
 
 /**
@@ -73,11 +75,17 @@ export default function Enrol(): JSX.Element {
    */
   const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const account = params.get('name');
+  const company = params.get('tenant');
 
   const enrol = useCallback(async () => {
     setState({ kind: 'working' });
     const params = new URLSearchParams(window.location.search);
-    const tenant = params.get('tenant') ?? '';
+
+    const tenant = await resolveTenant(params.get('tenant') ?? '');
+    if (tenant === null) {
+      setState({ kind: 'refused', reason: 'link_invalid' });
+      return;
+    }
 
     const begun = (await post('/api/identity/webauthn/register/begin', {
       identityId: params.get('identity'),
@@ -101,7 +109,7 @@ export default function Enrol(): JSX.Element {
     }
 
     const finished = (await post('/api/identity/webauthn/register/finish', {
-      tenantId: tenant,
+      tenantId: tenant.id,
       token: params.get('token'),
       origin: window.location.origin,
       response: attestation,
@@ -112,7 +120,10 @@ export default function Enrol(): JSX.Element {
       // Straight on to signing in. Leaving someone on a success screen with a
       // spent link is how they press the button again and are told, correctly
       // and uselessly, that their link has been used.
-      window.setTimeout(() => void navigate(`/login?tenant=${encodeURIComponent(tenant)}`), 900);
+      window.setTimeout(
+        () => void navigate(`/login?tenant=${encodeURIComponent(tenant.slug)}`),
+        900,
+      );
       return;
     }
 
@@ -126,6 +137,12 @@ export default function Enrol(): JSX.Element {
         {account === null ? null : (
           <p className="mt-1 text-sm">
             for <strong className="font-medium">{account}</strong>
+            {company === null ? null : (
+              <>
+                {' '}
+                at <strong className="font-medium">{company}</strong>
+              </>
+            )}
           </p>
         )}
         <p className="text-fg-muted mt-2 text-sm">

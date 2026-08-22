@@ -2,6 +2,8 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { useCallback, useState, type JSX } from 'react';
 import { Alert, Button } from '@reach/ui';
 
+import { resolveTenant } from '../../lib/tenant';
+
 /**
  * Signing in with a passkey.
  *
@@ -25,7 +27,16 @@ export default function Login(): JSX.Element {
   const signIn = useCallback(async () => {
     setState({ kind: 'working' });
 
-    const tenantId = new URLSearchParams(window.location.search).get('tenant') ?? '';
+    // The company's name, not its id. Resolved through the registry, so a
+    // reserved label or a suspended customer is refused here rather than
+    // producing a lookup that quietly finds nothing later.
+    const tenant = await resolveTenant(
+      new URLSearchParams(window.location.search).get('tenant') ?? '',
+    );
+    if (tenant === null) {
+      setState({ kind: 'refused' });
+      return;
+    }
 
     try {
       const begun = (await post('/api/identity/webauthn/authenticate/begin', {})) as {
@@ -41,7 +52,7 @@ export default function Login(): JSX.Element {
       const assertion = await startAuthentication({ optionsJSON: begun.options as never });
 
       const finished = (await post('/api/identity/webauthn/authenticate/finish', {
-        tenantId,
+        tenantId: tenant.id,
         origin: window.location.origin,
         response: assertion,
         // No address. A browser cannot see its own, and inventing a
