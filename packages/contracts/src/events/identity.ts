@@ -61,8 +61,9 @@ export type Amr = z.infer<typeof Amr>;
  * a log, an export and a model prompt on the same afternoon.
  */
 const DeviceContext = z.object({
-  ip: z.string().register(policy, asContact()),
-  userAgent: z.string().register(policy, asContact()),
+  /** Null when unknown. A placeholder string here reaches an `inet` column. */
+  ip: z.string().nullable().register(policy, asContact()),
+  userAgent: z.string().nullable().register(policy, asContact()),
   /** The authenticator model, from WebAuthn. Not a device identifier. */
   aaguid: z.string().nullable().register(policy, asInternal()),
 });

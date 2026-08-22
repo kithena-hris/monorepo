@@ -112,6 +112,9 @@ function context(seed: string): EventContext {
 
 const device = { ip: '203.0.113.7', userAgent: 'integration', aaguid: null };
 
+/** What the route produces when the caller supplies nothing. */
+const unknownDevice = { ip: null, userAgent: null, aaguid: null };
+
 /** The real thing: a tenant-scoped transaction, exactly as the service runs it. */
 function inTenantTransaction<T>(tenantId: string, fn: (tx: PostgresJsDatabase) => Promise<T>) {
   return db.transaction(async (tx) => {
@@ -225,6 +228,59 @@ describe('the fifth device cannot exist', () => {
     ).rejects.toThrow();
 
     expect(await sessionCount(ACCOUNT)).toBe(4);
+  });
+});
+
+describe('a session whose origin is not known', () => {
+  it('is written without an address rather than with a placeholder', async () => {
+    /*
+     * The `ip` column is `inet`, and `inet` refuses anything that is not an
+     * address. `Device.ip` used to be a plain `string` with `'unknown'`
+     * standing in for absence, which is harmless against the `text` column
+     * beside it and fatal here: Postgres raised `22P02` and a sign-in that
+     * should have refused politely became a 500 with a stack trace.
+     *
+     * The type now says `string | null`, so the placeholder cannot be
+     * constructed. This asserts the database agrees.
+     */
+    await clearSessions();
+
+    const result = await run(
+      TENANT,
+      ACCOUNT,
+      { id: '00000000-0000-4000-8000-0000000000ff', device: unknownDevice, amr: ['swk'] },
+      context('8000'),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(await sessionCount(ACCOUNT)).toBe(1);
+
+    const rows = await inTenantTransaction(TENANT, (tx) =>
+      tx.execute(
+        sql`SELECT ip, user_agent FROM platform.session WHERE account_id = ${ACCOUNT}::uuid`,
+      ),
+    );
+    const row = [...rows][0];
+    expect(row?.['ip']).toBeNull();
+    expect(row?.['user_agent']).toBeNull();
+  });
+
+  it('still stores a real address when there is one', async () => {
+    await clearSessions();
+
+    await run(
+      TENANT,
+      ACCOUNT,
+      { id: '00000000-0000-4000-8000-0000000000fe', device, amr: ['swk'] },
+      context('8100'),
+    );
+
+    const rows = await inTenantTransaction(TENANT, (tx) =>
+      tx.execute(
+        sql`SELECT host(ip) AS ip FROM platform.session WHERE account_id = ${ACCOUNT}::uuid`,
+      ),
+    );
+    expect([...rows][0]?.['ip']).toBe('203.0.113.7');
   });
 });
 

@@ -59,6 +59,21 @@ export default function Enrol(): JSX.Element {
   const [state, setState] = useState<State>({ kind: 'idle' });
   const navigate = useNavigate();
 
+  /*
+   * Which account this passkey is for.
+   *
+   * One device holds passkeys for many accounts — a contractor at three
+   * customers, or one person testing two environments — and the system prompt
+   * only shows what it was told at registration. Saying it on the page as well
+   * means the choice is made before the prompt appears rather than guessed at
+   * inside it, and it is the difference between "create a passkey" and "create
+   * a passkey for this person at this company".
+   *
+   * Read once, on render, because the query string does not change under us.
+   */
+  const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const account = params.get('name');
+
   const enrol = useCallback(async () => {
     setState({ kind: 'working' });
     const params = new URLSearchParams(window.location.search);
@@ -108,8 +123,14 @@ export default function Enrol(): JSX.Element {
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-6">
       <div>
         <h1 className="text-xl font-semibold">Set up your passkey</h1>
-        <p className="text-fg-muted mt-1 text-sm">
-          Your device will ask for your fingerprint, face or PIN. Nothing leaves it.
+        {account === null ? null : (
+          <p className="mt-1 text-sm">
+            for <strong className="font-medium">{account}</strong>
+          </p>
+        )}
+        <p className="text-fg-muted mt-2 text-sm">
+          Your device will ask for your fingerprint, face or PIN. Nothing leaves it. The passkey
+          will be saved under this address, so you can tell it apart from any others on this device.
         </p>
       </div>
 
