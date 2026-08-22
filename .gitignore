@@ -39,3 +39,11 @@ apps/gateway/supergraph.json
 # 127.0.0.1:5432 and wins the race for `localhost`. That is a property of one
 # machine, not of the project.
 docker-compose.override.yml
+
+# Conflict copies from whatever is syncing this directory — `modern.config 2.ts`
+# beside `modern.config.ts`, and so on. Three of them reached `main` before this
+# rule existed, because `git add -A` does not ask what it is adding.
+#
+# Ignored rather than merely deleted: they reappear, and a stray `tsconfig 2.json`
+# next to the real one is a file somebody will eventually edit and wonder about.
+* [0-9].*
