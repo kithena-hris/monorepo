@@ -68,8 +68,12 @@ jobs:
       # CLI usage error forty lines into the output of the first deploy step.
       - name: check the token
         run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN is not configured in GitHub Actions secrets."
+          missing=
+          [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
+          [ -z "${{ secrets.DATABASE_URL }}" ] && missing="$missing DATABASE_URL"
+          [ -z "${{ secrets.FLY_API_TOKEN }}" ] && missing="$missing FLY_API_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::missing production secret(s):$missing"
             exit 1
           fi
 
@@ -87,7 +91,7 @@ jobs:
       - name: migrate production
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ATLAS_DEV_URL: ${{ secrets.ATLAS_DEV_URL }}
+          ATLAS_DEV_URL: ${{ vars.ATLAS_DEV_URL }}
         run: |
           curl -sSf https://release.ariga.io/atlas/atlas-linux-amd64-latest -o /usr/local/bin/atlas
           chmod +x /usr/local/bin/atlas
@@ -95,6 +99,27 @@ jobs:
           # environment, so a DROP reaches CI's output rather than the database.
           atlas migrate lint --env production --latest 1
           atlas migrate apply --env production
+
+      # The identity service. Deployed after the migration and before the UI,
+      # for the same reason the migration comes first: expand-contract means
+      # new code reads the old schema and old code reads the new one, so the
+      # only ordering that is never wrong is schema, then service, then client.
+      - name: setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: deploy identity
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy . \
+            --config platform/identity/fly.production.toml \
+            --dockerfile platform/identity/Dockerfile \
+            --remote-only --yes
+
+      - name: smoke test identity
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            https://kithena-identity-production.fly.dev/.well-known/jwks.json >/dev/null
 
       - name: build back-office
         run: pnpm --filter @kithena/admin build

@@ -8,8 +8,12 @@
 # `fly launch --no-deploy` writes the app and the region; this file is what it
 # should say afterwards.
 
-app = "kithena-identity"
-primary_region = "mad"          # Madrid, nearest the Neon region this uses
+app = "kithena-identity-production"
+primary_region = "iad"          # Ashburn, the Fly region co-located with
+                                # this project's Neon region (aws-us-east-1).
+                                # It was "mad" until 2026-08-22: Madrid is
+                                # deprecated for new resources, and was never
+                                # near us-east-1 in the first place.
 
 [build]
   dockerfile = "Dockerfile"
@@ -20,8 +24,24 @@ primary_region = "mad"          # Madrid, nearest the Neon region this uses
   # repository.
   WEBAUTHN_RP_ID = "app.kithena.com"
   AUTH_ORIGIN    = "https://auth.app.kithena.com"
+  # This app is the *production* deployment. Staging is a separate Fly app
+  # (`fly.staging.toml`) with its own database, because these values cannot be
+  # shared: a
+  # WebAuthn RP ID is matched against the origin's own domain or a parent of
+  # it, and `admin.kithena.com` is a sibling of `admin.staging.kithena.com`,
+  # not a parent. One service cannot serve both hosts.
+  #
+  # Not `kithena.com`, which would cover both. docs/authentication.md rejects
+  # that for the tenant RP ID and the reason carries here: a credential scoped
+  # to the apex is assertable from design.kithena.com and storybook.kithena.com,
+  # both of which are world-readable.
   ADMIN_RP_ID    = "admin.kithena.com"
   ADMIN_ORIGIN   = "https://admin.kithena.com"
+
+  # Reachable only on the organisation's private network, so it carries no
+  # credential and belongs here rather than in secrets. Challenges are
+  # short-lived and regenerable, so this Valkey persists nothing.
+  VALKEY_URL     = "redis://kithena-valkey-production.internal:6379"
 
 [http_service]
   internal_port = 4100

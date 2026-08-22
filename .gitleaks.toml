@@ -19,6 +19,11 @@ paths = [
   '''apps/storybook/\.storybook/reach-tokens\.json''',
   # The lockfile is integrity hashes end to end.
   '''pnpm-lock\.yaml''',
+  # Atlas's migration integrity file, for the same reason as the lockfile: every
+  # line is a base64 SHA-256 of a migration's contents, and Atlas refuses to run
+  # without it. The hashes are derived from files already in this repository, so
+  # there is nothing in here that is not public by construction.
+  '''migrations/atlas\.sum''',
 ]
 
 regexes = [
