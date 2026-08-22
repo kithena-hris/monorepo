@@ -144,6 +144,29 @@ right instinct and the wrong test — `neondb_owner` passes it and leaks anyway.
 See [SECURITY.md](../SECURITY.md#writing-a-row-level-security-policy) for the two
 details every policy needs.
 
+### Why the back-office does not rebuild on every push
+
+`apps/admin/vercel.json` sets an ignore command:
+
+    npx --yes turbo-ignore @kithena/admin
+
+`vercel.json` takes no comments, so the reason is here. Vercel's Git
+integration builds a project on every push to every branch, and on 2026-08-22
+that hit the Hobby plan's daily build limit — thirteen of the last twenty
+deployments were Dependabot branches touching packages the back-office does not
+depend on. The check on the open pull request then failed with
+`upgradeToPro=build-rate-limit`, which looks exactly like a broken build and is
+not one.
+
+`turbo-ignore` asks turbo whether anything in `@kithena/admin`'s dependency
+graph actually changed since the last deployment, and exits 0 to skip when
+nothing did. A Dependabot bump to Storybook no longer spends a build; a change
+to `packages/contracts` still does, because the back-office imports it.
+
+This is a quota workaround. It is also just correct — a build that cannot
+produce a different artifact is a build worth skipping — so it stays whatever
+plan this ends up on.
+
 ### Identity, on Fly
 
 `platform/identity/Dockerfile` builds it and `fly.toml` describes where it runs.
