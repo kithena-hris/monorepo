@@ -1,6 +1,6 @@
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useCallback, useState, type JSX } from 'react';
-import { Button } from '@reach/ui';
+import { Alert, Button } from '@reach/ui';
 
 /**
  * Signing in with a passkey.
@@ -77,19 +77,24 @@ export default function Login(): JSX.Element {
       </Button>
 
       {state.kind === 'signed-in' ? (
-        <p className="text-sm" role="status">
-          Signed in. Account <code>{state.accountId}</code>.
-        </p>
+        <Alert tone="success" title="Signed in">
+          Account <code>{state.accountId}</code>.
+        </Alert>
       ) : null}
 
       {state.kind === 'refused' ? (
-        // One message for every failure. A prober learns whether they succeeded
-        // and nothing else — not whether the passkey was wrong, the account
-        // absent, or the credential revoked.
-        <p className="text-sm" role="alert">
-          That did not work. Check you are signing in to the right company, or ask your HR team for
-          a new enrolment link.
-        </p>
+        /*
+         * One message for every failure, unlike enrolment.
+         *
+         * Anyone can present a passkey here, so distinguishing "wrong passkey"
+         * from "no account at this company" would answer a question that is not
+         * the asker's to ask. The precise reason is in the identity service's
+         * log, where the person who can act on it will look.
+         */
+        <Alert tone="danger" title="That did not work">
+          Check you are signing in to the right company, or ask your HR team for a new enrolment
+          link.
+        </Alert>
       ) : null}
     </main>
   );

@@ -89,7 +89,9 @@ export function enrolmentRoutes({ rp, challenges, complete, internalToken }: Enr
 
     const challenge = challengeFrom(input['response']);
     if (challenge === null) {
-      response.writeHead(401).end();
+      response
+        .writeHead(401, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ reason: 'passkey_rejected' }));
       return true;
     }
 
@@ -97,7 +99,9 @@ export function enrolmentRoutes({ rp, challenges, complete, internalToken }: Enr
     // outlive its one use any more than an authentication one.
     const issued = await challenges.consume(challenge);
     if (!issued || issued.purpose !== 'registration') {
-      response.writeHead(401).end();
+      response
+        .writeHead(401, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ reason: 'link_used_or_expired' }));
       return true;
     }
 
@@ -110,7 +114,11 @@ export function enrolmentRoutes({ rp, challenges, complete, internalToken }: Enr
     });
 
     if (!result.ok) {
-      response.writeHead(401, { 'cache-control': 'no-store' }).end();
+      // The reason travels, unlike on sign-in. `complete` decides what is safe
+      // to say; this only carries it.
+      response
+        .writeHead(401, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+        .end(JSON.stringify({ reason: result.error.path?.[0] ?? 'link_invalid' }));
       return true;
     }
 

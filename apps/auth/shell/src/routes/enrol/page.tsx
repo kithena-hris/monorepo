@@ -1,6 +1,7 @@
 import { startRegistration } from '@simplewebauthn/browser';
+import { Alert, Button } from '@reach/ui';
+import { useNavigate } from '@modern-js/runtime/router';
 import { useCallback, useState, type JSX } from 'react';
-import { Button } from '@reach/ui';
 
 /**
  * Creating a first passkey.
@@ -9,48 +10,99 @@ import { Button } from '@reach/ui';
  * they satisfied in person — see `docs/authentication.md`, which explains why
  * the link alone is not enough and why SP 800-63B-4 makes that more than a
  * preference. This screen is the last step of that, not the whole of it.
- *
- * The identity id is in the URL here because there is no enrolment landing
- * flow yet. In the finished product the link is exchanged server-side and the
- * browser never sees it.
  */
 type State =
   | { readonly kind: 'idle' }
   | { readonly kind: 'working' }
   | { readonly kind: 'done' }
-  | { readonly kind: 'refused' };
+  | { readonly kind: 'refused'; readonly reason: Reason };
+
+/**
+ * What went wrong, in words a person can act on.
+ *
+ * Enrolment is allowed to say this where sign-in is not: reaching here requires
+ * a 256-bit token handed over out of band, so whoever is reading already holds
+ * the secret. Withholding the reason from them would turn a solvable problem
+ * into a support call and protect nobody.
+ */
+type Reason =
+  | 'link_invalid'
+  | 'link_used_or_expired'
+  | 'employment_not_started'
+  | 'passkey_rejected'
+  | 'cancelled';
+
+const MESSAGES: Record<Reason, { title: string; body: string }> = {
+  link_used_or_expired: {
+    title: 'This link has already been used',
+    body: 'Enrolment links work once. Ask your HR team for a new one.',
+  },
+  link_invalid: {
+    title: 'This link is not valid',
+    body: 'Check you opened the most recent link, or ask your HR team to send another.',
+  },
+  employment_not_started: {
+    title: 'Your start date has not arrived yet',
+    body: 'You can set up your passkey on your first day.',
+  },
+  passkey_rejected: {
+    title: 'That passkey could not be accepted',
+    body: 'Try again, or use a different device.',
+  },
+  cancelled: {
+    title: 'Setup was cancelled',
+    body: 'Your device did not finish creating the passkey. You can try again.',
+  },
+};
 
 export default function Enrol(): JSX.Element {
   const [state, setState] = useState<State>({ kind: 'idle' });
+  const navigate = useNavigate();
 
   const enrol = useCallback(async () => {
     setState({ kind: 'working' });
     const params = new URLSearchParams(window.location.search);
+    const tenant = params.get('tenant') ?? '';
 
-    try {
-      const begun = (await post('/api/identity/webauthn/register/begin', {
-        identityId: params.get('identity'),
-        displayName: params.get('name') ?? 'Kithena',
-      })) as { options?: unknown } | null;
-      if (!begun?.options) {
-        setState({ kind: 'refused' });
-        return;
-      }
+    const begun = (await post('/api/identity/webauthn/register/begin', {
+      identityId: params.get('identity'),
+      displayName: params.get('name') ?? 'Kithena',
+    })) as { body: { options?: unknown } | null };
 
-      const attestation = await startRegistration({ optionsJSON: begun.options as never });
-
-      const finished = (await post('/api/identity/webauthn/register/finish', {
-        tenantId: params.get('tenant'),
-        token: params.get('token'),
-        origin: window.location.origin,
-        response: attestation,
-      })) as { accountId?: string } | null;
-
-      setState(finished?.accountId === undefined ? { kind: 'refused' } : { kind: 'done' });
-    } catch {
-      setState({ kind: 'refused' });
+    if (!begun.body?.options) {
+      setState({ kind: 'refused', reason: 'link_invalid' });
+      return;
     }
-  }, []);
+
+    let attestation;
+    try {
+      attestation = await startRegistration({ optionsJSON: begun.body.options as never });
+    } catch {
+      // The device said no, or the person did. Distinct from anything the
+      // server decided, and the only message that should suggest trying again
+      // with the same link — because the link has not been spent yet.
+      setState({ kind: 'refused', reason: 'cancelled' });
+      return;
+    }
+
+    const finished = (await post('/api/identity/webauthn/register/finish', {
+      tenantId: tenant,
+      token: params.get('token'),
+      origin: window.location.origin,
+      response: attestation,
+    })) as { ok: boolean; body: { accountId?: string; reason?: Reason } | null };
+
+    if (finished.ok && finished.body?.accountId !== undefined) {
+      setState({ kind: 'done' });
+      // Straight on to signing in. Leaving someone on a success screen with a
+      // spent link is how they press the button again and are told, correctly
+      // and uselessly, that their link has been used.
+      window.setTimeout(() => void navigate(`/login?tenant=${encodeURIComponent(tenant)}`), 900);
+      return;
+    }
+
+    setState({ kind: 'refused', reason: finished.body?.reason ?? 'link_invalid' });
+  }, [navigate]);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-6">
@@ -61,36 +113,40 @@ export default function Enrol(): JSX.Element {
         </p>
       </div>
 
-      {/* The design system's button, not a hand-rolled one. Inventing
-          `bg-accent text-accent-fg` here produced dark text on an indigo fill —
-          `accent-fg` is not a token, so the utility resolved to nothing and the
-          contrast gate would have caught it later and less kindly. */}
-      <Button onClick={() => void enrol()} disabled={state.kind === 'working'}>
-        {state.kind === 'working' ? 'Waiting for your device…' : 'Create a passkey'}
-      </Button>
+      {state.kind === 'refused' ? (
+        <Alert tone="danger" title={MESSAGES[state.reason].title}>
+          {MESSAGES[state.reason].body}
+        </Alert>
+      ) : null}
 
       {state.kind === 'done' ? (
-        <p className="text-sm" role="status">
-          Done. You can sign in with it now.
-        </p>
+        <Alert tone="success" title="Passkey created">
+          Taking you to sign in…
+        </Alert>
       ) : null}
 
-      {state.kind === 'refused' ? (
-        <p className="text-sm" role="alert">
-          That did not work. The link may have been used already, or expired.
-        </p>
-      ) : null}
+      {state.kind === 'done' ? null : (
+        <Button onClick={() => void enrol()} disabled={state.kind === 'working'}>
+          {state.kind === 'working' ? 'Waiting for your device…' : 'Create a passkey'}
+        </Button>
+      )}
     </main>
   );
 }
 
-async function post(path: string, body: unknown): Promise<unknown> {
+/**
+ * Through this origin's proxy, which adds the credential identity requires.
+ *
+ * The status is returned alongside the body rather than thrown on, because a
+ * 401 here carries a reason worth reading — unlike on sign-in, where it
+ * deliberately carries nothing.
+ */
+async function post(path: string, body: unknown): Promise<{ ok: boolean; body: unknown }> {
   const response = await fetch(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) return null;
   const text = await response.text();
-  return text === '' ? null : JSON.parse(text);
+  return { ok: response.ok, body: text === '' ? null : JSON.parse(text) };
 }

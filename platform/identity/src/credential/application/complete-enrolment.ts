@@ -53,26 +53,45 @@ export interface CompleteEnrolmentRequest {
   readonly challenge: string;
 }
 
-const Refused = failure('ENROLMENT_FAILED', 'Could not complete enrolment');
+/**
+ * Enrolment says why. Sign-in does not, and the difference is deliberate.
+ *
+ * A sign-in refusal must be uniform: anyone can present a passkey, so telling
+ * them whether the account exists here answers a question that is not theirs to
+ * ask.
+ *
+ * Enrolment is different. Reaching this at all requires a 256-bit token that
+ * was handed over out of band, so the person on the other end already holds the
+ * secret — "you have already used this link" tells them nothing they could not
+ * work out, and not telling them turns a solvable problem into a support call.
+ * The reasons are a closed set, so no detail leaks by accident.
+ */
+export type EnrolmentRefusal =
+  'link_invalid' | 'link_used_or_expired' | 'employment_not_started' | 'passkey_rejected';
+
+const refusalOf = (reason: EnrolmentRefusal): ReturnType<typeof failure> =>
+  failure('ENROLMENT_FAILED', 'Could not complete enrolment', [reason]);
 
 export type CompleteEnrolment = (
   request: CompleteEnrolmentRequest,
 ) => Promise<Result<{ accountId: string; credentialId: string }>>;
 
 export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolment {
-  const refuse = (reason: string): Result<never> => {
+  const refuse = (reason: string, shown: EnrolmentRefusal): Result<never> => {
+    // Two vocabularies on purpose: the log gets the precise cause, the caller
+    // gets the closed set above.
     deps.onRefusal?.(reason);
-    return err(Refused);
+    return err(refusalOf(shown));
   };
 
   return async (request) => {
-    if (!isAcceptableOrigin(request.origin, deps.origins)) return refuse('origin');
+    if (!isAcceptableOrigin(request.origin, deps.origins)) return refuse('origin', 'link_invalid');
 
     // Spent here, before the ceremony is checked. A link that has been
     // presented has been out in the world, and a registration that then fails
     // is not a reason to leave it usable.
     const spent = await deps.tokens.consume(request.token);
-    if (!spent) return refuse('token');
+    if (!spent) return refuse('token', 'link_used_or_expired');
 
     // `tokenStillValid`, not `acceptToken`. The row that comes back has just
     // had `consumed_at` set by the statement above, so the full rule would
@@ -84,10 +103,10 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
     // adapter's SQL, and a second adapter must not be able to skip it by
     // writing a looser query.
     const accepted = tokenStillValid(spent, request.tenantId, deps.clock);
-    if (!accepted.ok) return refuse('token');
+    if (!accepted.ok) return refuse('token-stale', 'link_used_or_expired');
 
     const identityId = await deps.identityOf(spent.accountId);
-    if (identityId === null) return refuse('no-identity');
+    if (identityId === null) return refuse('no-identity', 'link_invalid');
 
     let registered: RegisteredCredential;
     try {
@@ -96,7 +115,7 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
         origin: request.origin,
       });
     } catch {
-      return refuse('attestation');
+      return refuse('attestation', 'passkey_rejected');
     }
 
     const credentialId = await deps.storeCredential(identityId, registered);
@@ -105,7 +124,14 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
     // invited account and a valid passkey, and those three weeks are not
     // employment.
     const enrolled = await deps.enrolAccount(spent.accountId, credentialId);
-    if (!enrolled.ok) return refuse(enrolled.error.code);
+    if (!enrolled.ok) {
+      return refuse(
+        enrolled.error.code,
+        enrolled.error.code === 'EMPLOYMENT_NOT_STARTED'
+          ? 'employment_not_started'
+          : 'link_invalid',
+      );
+    }
 
     return ok({ accountId: spent.accountId, credentialId });
   };

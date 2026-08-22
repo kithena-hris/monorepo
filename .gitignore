@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Rspack writes the client bundle here alongside `dist`.
+static/
 .next/
 .turbo/
 coverage/
