@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { deflateSync } from 'node:zlib';
 import postgres from 'postgres';
 
 /**
@@ -21,6 +22,67 @@ import postgres from 'postgres';
  * before any tenant scope exists, which is precisely what row-level security is
  * there to prevent.
  */
+/**
+ * A stand-in mark, drawn rather than fetched, and a PNG rather than an SVG.
+ *
+ * Fetched would make seeding depend on somebody else's uptime and hotlink
+ * policy — the first attempt used a Wikipedia URL and rendered a broken image.
+ * SVG would be worse than inconvenient: it carries script, and this value ends
+ * up in an `<img src>` on the least authenticated page in the product. Real
+ * uploads are rasterised for exactly that reason, and the seed should not model
+ * something the product refuses to do.
+ */
+function placeholderLogo(): string {
+  const width = 120;
+  const height = 40;
+
+  const rows: number[] = [];
+  for (let y = 0; y < height; y += 1) {
+    rows.push(0); // PNG filter byte: none
+    for (let x = 0; x < width; x += 1) {
+      const inside = y >= 8 && y < 32 && x >= 8 && x < 112;
+      const on = inside && (Math.floor((x - 8) / 12) + Math.floor((y - 8) / 12)) % 2 === 0;
+      rows.push(...(on ? [0x4f, 0x46, 0xe5] : [0xef, 0xf0, 0xfb]));
+    }
+  }
+
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bit depth
+  header[9] = 2; // colour type: truecolour
+
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(Buffer.from(rows))),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+
+  return `data:image/png;base64,${png.toString('base64')}`;
+}
+
+/** PNG chunks are CRC-32 checked, and `node:zlib` does not expose one. */
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
 const port = process.argv[2] ?? '5432';
 const sql = postgres(`postgres://kithena:kithena@localhost:${port}/kithena`);
 
@@ -28,21 +90,13 @@ const IDENTITY = '00000000-0000-4000-8000-00000000000d';
 const ACCOUNT = '00000000-0000-4000-8000-0000000000a1';
 const EMAIL = 'ada@acme.example';
 
-/*
- * A logo drawn here rather than fetched, and a PNG rather than an SVG.
- *
- * Fetched would make seeding depend on somebody else's uptime and hotlink
- * policy; the first attempt at this used a Wikipedia URL and rendered a broken
- * image. SVG would be worse than inconvenient — it carries script, and this
- * value ends up in an `<img src>` on the least authenticated page in the
- * product. Real uploads are rasterised for the same reason.
- */
-const LOGO = 'data:image/png;base64,iVBORw0KGgo=' as string;
-
 await sql`
-  INSERT INTO platform.tenant (slug, display_name, status, accent_color)
-  VALUES ('acme', 'Acme Corp', 'active', 'oklch(0.55 0.18 264)')
-  ON CONFLICT (slug) DO UPDATE SET display_name = excluded.display_name
+  INSERT INTO platform.tenant (slug, display_name, status, accent_color, logo_url)
+  VALUES ('acme', 'Acme Corp', 'active', 'oklch(0.55 0.18 264)', ${placeholderLogo()})
+  ON CONFLICT (slug) DO UPDATE
+    SET display_name = excluded.display_name,
+        accent_color = excluded.accent_color,
+        logo_url     = excluded.logo_url
 `;
 const [tenant] = await sql<{ id: string }[]>`SELECT id FROM platform.tenant WHERE slug = 'acme'`;
 if (!tenant) throw new Error('the acme tenant did not get created');

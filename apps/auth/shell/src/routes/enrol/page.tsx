@@ -79,8 +79,6 @@ export default function Enrol(): JSX.Element {
 
   const enrol = useCallback(async () => {
     setState({ kind: 'working' });
-    const params = new URLSearchParams(window.location.search);
-
     const tenant = await resolveTenant(params.get('tenant') ?? '');
     if (tenant === null) {
       setState({ kind: 'refused', reason: 'link_invalid' });
