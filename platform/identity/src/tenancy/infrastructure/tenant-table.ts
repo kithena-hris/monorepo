@@ -1,4 +1,4 @@
-import { pgSchema, text, uuid } from 'drizzle-orm/pg-core';
+import { boolean, pgSchema, text, uuid } from 'drizzle-orm/pg-core';
 import { instant } from '@kithena/db-kit';
 
 /**
@@ -16,6 +16,9 @@ export const tenant = platform.table('tenant', {
   slug: text('slug').notNull(),
   displayName: text('display_name').notNull(),
   status: text('status').notNull(),
+  logoUrl: text('logo_url'),
+  accentColor: text('accent_color'),
+  brandingPublic: boolean('branding_public').notNull(),
   createdAt: instant('created_at').notNull(),
   updatedAt: instant('updated_at').notNull(),
 });

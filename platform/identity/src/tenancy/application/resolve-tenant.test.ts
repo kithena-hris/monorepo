@@ -4,7 +4,12 @@ import type { Tenant } from '../domain/tenant.js';
 import { resolveTenant } from './resolve-tenant.js';
 import type { TenantRepository } from './tenant-repository.js';
 
-const acme: Tenant = { id: '00000000-0000-4000-8000-000000000001', slug: 'acme', status: 'active' };
+const acme: Tenant = {
+  id: '00000000-0000-4000-8000-000000000001',
+  slug: 'acme',
+  status: 'active',
+  branding: { displayName: null, logoUrl: null, accentColor: null },
+};
 
 /** A repository that knows two tenants and nothing else. */
 function fakeRepository(tenants: readonly Tenant[]): TenantRepository & { calls: string[] } {

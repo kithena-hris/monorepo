@@ -48,6 +48,12 @@ export default tseslint.config(
           // matching any test file at all.
           allowDefaultProject: [
             'apps/*/next.config.mjs',
+            // The same case one level down, where Kithena's frontends are
+            // grouped by origin. `postcss.config.mjs` tells Rspack to run
+            // Tailwind, and without it the auth app renders as unstyled text
+            // with nothing erroring — small, and worth linting for that reason
+            // rather than in spite of it.
+            'apps/*/*/postcss.config.mjs',
             // Only db-kit. Every other package either has no vitest config or
             // lists it in its own tsconfig, which is the better home; db-kit
             // cannot, because its `rootDir` is `src` and these sit beside it.

@@ -1,7 +1,7 @@
 import { Outlet } from '@modern-js/runtime/router';
 import type { JSX } from 'react';
 
-import '@reach/ui/styles.css';
+import '../styles/globals.css';
 
 /**
  * The shell around every auth screen.

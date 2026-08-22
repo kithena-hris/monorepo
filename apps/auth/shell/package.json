@@ -14,14 +14,16 @@
     "@modern-js/runtime": "3.8.2",
     "@reach/ui": "workspace:*",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@simplewebauthn/browser": "^13.2.2"
   },
   "devDependencies": {
     "@modern-js/app-tools": "3.8.2",
     "@modern-js/tsconfig": "3.8.2",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "typescript": "^7.0.2",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "tailwindcss": "^4.1.12",
+    "@tailwindcss/postcss": "^4.1.12"
   }
 }

@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
+import { asAddress, type Device } from '../../shared/device.js';
 import { challengeFrom } from '../domain/client-data.js';
 import type { ChallengeStore } from '../application/challenge-store.js';
 import type { RelyingParty } from '../application/relying-party.js';
@@ -124,12 +125,32 @@ export function webauthnRoutes({
  * required so a caller that omits them gets a session with an unknown device
  * rather than a 400 they cannot act on.
  */
-function deviceFrom(value: unknown): { ip: string; userAgent: string; aaguid: string | null } {
+export function deviceFrom(value: unknown): Device {
   const device =
     value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+  /*
+   * Absent stays absent, and so does anything that is not an address.
+   *
+   * This returned `'unknown'` for a missing address, which is harmless beside
+   * the `text` column for the user agent and fatal beside `inet`: Postgres
+   * raised `22P02` in `network_in` and a sign-in that should have refused
+   * politely became a 500.
+   *
+   * Widening `Device.ip` to `string | null` did not fix it on its own, and the
+   * reason is worth keeping: this function declared its own return type as
+   * `{ ip: string }`, which is assignable to `string | null`, so the compiler
+   * had nothing to say. The type moved and the value did not.
+   *
+   * A browser cannot know its own address and is not asked. Whatever terminates
+   * the connection supplies one or nothing does.
+   */
   return {
-    ip: typeof device['ip'] === 'string' ? device['ip'] : 'unknown',
-    userAgent: typeof device['userAgent'] === 'string' ? device['userAgent'] : 'unknown',
+    ip: asAddress(device['ip']),
+    userAgent:
+      typeof device['userAgent'] === 'string' && device['userAgent'] !== ''
+        ? device['userAgent']
+        : null,
     aaguid: typeof device['aaguid'] === 'string' ? device['aaguid'] : null,
   };
 }
