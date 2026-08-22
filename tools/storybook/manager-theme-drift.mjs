@@ -239,7 +239,12 @@ compared += 2;
 await browser.close();
 
 console.log('token values compared: ' + compared);
-console.log('sidebar followed the theme control: ' + beforeToggle + ' -> ' + afterToggle);
+// Only when it did. This line printed unconditionally, above the mismatch
+// check, so a failing run reported the sidebar following the control and then
+// reported it not following — in the same output, with the same two values.
+if (!mismatches.some((line) => line.startsWith('sidebar'))) {
+  console.log('sidebar followed the theme control: ' + beforeToggle + ' -> ' + afterToggle);
+}
 
 // A snapshot that matched nothing is not a passing check. If the token names
 // were renamed wholesale, every lookup returns undefined and the loop above
