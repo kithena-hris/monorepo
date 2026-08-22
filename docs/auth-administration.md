@@ -259,7 +259,20 @@ a silent, complete takeover of a new customer — and it looks exactly like norm
 onboarding in the logs. Splitting it means the takeover requires compromising the
 customer too.
 
-### Several first admins, not one
+### Several first admins, but only one is required
+
+> **Changed 2026-08-22.** This section argued for *requiring* two administrators
+> and the code enforced it. The requirement is now one, at the product owner's
+> explicit instruction. The reasoning below is unchanged and is why the wizard
+> still says so on the screen where somebody adds a single admin — the risk did
+> not go away, it was accepted. `NeedsAnAdmin` in
+> `platform/identity/src/tenancy/domain/provision.ts` is what now enforces the
+> floor of one.
+>
+> What that costs, concretely: a company whose single administrator leaves
+> before their start date has nobody who can sign in, and HR-mediated recovery
+> has no second admin to form a quorum. Recovering such a tenant means an
+> operator writing to the database — the path this design exists to avoid.
 
 "The root user" is a tempting shape and the wrong one. CX names _people_, each
 gets their own account and their own link, and whoever enrols first is simply

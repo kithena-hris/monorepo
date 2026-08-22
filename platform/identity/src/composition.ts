@@ -72,6 +72,27 @@ export type RequestHandler = (
   response: ServerResponse,
 ) => Promise<boolean>;
 
+/**
+ * A column, as text.
+ *
+ * `String(row['x'])` on a value the driver types as `unknown` renders an object
+ * as `[object Object]` — which reaches a screen looking like something somebody
+ * typed. These narrow first and are the only way this file reads a row.
+ */
+function text(value: unknown): string {
+  if (typeof value === 'string') return value;
+  // Narrowed rather than stringified. Falling through to `String(value)` is
+  // what renders an object as `[object Object]`, and a column read that way
+  // reaches a screen looking like something a person typed.
+  if (typeof value === 'number' || typeof value === 'bigint') return String(value);
+  if (value instanceof Date) return value.toISOString();
+  return '';
+}
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
 export async function compose(config: Config): Promise<RequestHandler> {
   const db = drizzle(postgres(config.databaseUrl));
   const valkey = new Redis(config.valkeyUrl);
@@ -320,34 +341,117 @@ export async function compose(config: Config): Promise<RequestHandler> {
         pendingInvites: Number(row['pending']),
       }));
     },
+    tenantDetail: async (id) => {
+      const rows = await db.execute(sql`
+        SELECT id, slug, display_name, status, created_at, theme_id,
+               logo_url, cover_image_url, address_country, address_line1,
+               address_line2, address_city, address_subdivision, address_postcode
+          FROM platform.tenant
+         WHERE id = ${id}::uuid
+      `);
+      const row = [...rows][0];
+      if (!row) return null;
+
+      // The people, separately. A join would repeat every tenant column once
+      // per administrator, and the caller would have to undo that to render a
+      // page that shows the company once.
+      //
+      // Inside a tenant transaction, because `platform.account` carries RLS
+      // with FORCE and `svc_identity` does not bypass it. Read on a bare
+      // connection this returns zero rows for every company — not an error, an
+      // empty list, which renders as "nobody can sign in" on a company that has
+      // three administrators.
+      const people = await inTenantTransaction(id, (tx) =>
+        tx.execute(sql`
+          SELECT id, work_email, status, created_at
+            FROM platform.account
+           WHERE tenant_id = ${id}::uuid
+           ORDER BY created_at
+        `),
+      );
+
+      const address =
+        row['address_country'] === null
+          ? null
+          : {
+              country: text(row['address_country']),
+              line1: text(row['address_line1']),
+              line2: textOrNull(row['address_line2']),
+              city: text(row['address_city']),
+              subdivision: textOrNull(row['address_subdivision']),
+              postcode: textOrNull(row['address_postcode']),
+            };
+
+      return {
+        id: String(row['id']),
+        slug: String(row['slug']),
+        displayName: String(row['display_name']),
+        status: String(row['status']),
+        createdAt: String(row['created_at']),
+        themeId: textOrNull(row['theme_id']),
+        logoUrl: textOrNull(row['logo_url']),
+        coverImageUrl: textOrNull(row['cover_image_url']),
+        address,
+        people: [...people].map((person) => ({
+          id: String(person['id']),
+          email: String(person['work_email']),
+          status: String(person['status']),
+          createdAt: String(person['created_at']),
+        })),
+      };
+    },
     provision: provisionTenant({
-      inTransaction: (fn) => db.transaction(() => fn()),
-      createTenant: async (input) => {
-        const rows = await db.execute(sql`
-          INSERT INTO platform.tenant (slug, display_name, accent_color)
-          VALUES (${input.slug}, ${input.displayName}, ${input.accentColor})
-          RETURNING id
-        `);
-        return String([...rows][0]?.['id']);
-      },
-      inviteAdmin: async (tenantId, email) => {
-        const identityId = uuidv7();
-        await db.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
-        const rows = await db.execute(sql`
-          INSERT INTO platform.account
-            (tenant_id, identity_id, status, work_email, time_zone, employment_start)
-          VALUES (${tenantId}::uuid, ${identityId}::uuid, 'invited', ${email},
-                  'Etc/UTC', current_date)
-          RETURNING id
-        `);
-        return String([...rows][0]?.['id']);
-      },
-      issueEnrolment: (tenantId, accountId) =>
-        drizzleEnrolmentTokenStore(db, tenantId).issue({
-          accountId,
-          secondChannel: 'in_person',
-          issuedBy: null,
-        }),
+      // The scope is built *inside* the transaction and every statement uses
+      // `tx`. Building it outside would hand back closures over the pool, which
+      // is what made this four transactions and lost the `app.tenant_id` that
+      // row-level security needs.
+      inTransaction: (fn) =>
+        db.transaction(async (tx) =>
+          fn({
+            createTenant: async (input) => {
+              const rows = await tx.execute(sql`
+                INSERT INTO platform.tenant (
+                  slug, display_name, theme_id, logo_url, cover_image_url,
+                  address_country, address_line1, address_line2,
+                  address_city, address_subdivision, address_postcode
+                )
+                VALUES (
+                  ${input.slug}, ${input.displayName}, ${input.themeId},
+                  ${input.logoUrl}, ${input.coverImageUrl},
+                  ${input.address.country.toUpperCase()}, ${input.address.line1},
+                  ${input.address.line2}, ${input.address.city},
+                  ${input.address.subdivision}, ${input.address.postcode}
+                )
+                RETURNING id
+              `);
+              return text([...rows][0]?.['id']);
+            },
+            enterTenant: async (tenantId) => {
+              // `true` makes it LOCAL: it lasts to the end of this transaction
+              // and no further. Session-level would leak this tenant's id onto
+              // whatever the pooled connection served next.
+              await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+            },
+            inviteAdmin: async (tenantId, email) => {
+              const identityId = uuidv7();
+              await tx.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
+              const rows = await tx.execute(sql`
+                INSERT INTO platform.account
+                  (tenant_id, identity_id, status, work_email, time_zone, employment_start)
+                VALUES (${tenantId}::uuid, ${identityId}::uuid, 'invited', ${email},
+                        'Etc/UTC', current_date)
+                RETURNING id
+              `);
+              return text([...rows][0]?.['id']);
+            },
+            issueEnrolment: (tenantId, accountId) =>
+              drizzleEnrolmentTokenStore(tx, tenantId).issue({
+                accountId,
+                secondChannel: 'in_person',
+                issuedBy: null,
+              }),
+          }),
+        ),
     }),
   });
 

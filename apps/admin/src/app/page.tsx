@@ -57,22 +57,40 @@ export default async function Companies(): Promise<JSX.Element> {
       ) : (
         <ul className="divide-border divide-y">
           {tenants.map((tenant) => (
-            <li key={tenant.id} className="flex items-center justify-between gap-4 py-4">
-              <div>
-                <p className="font-medium">{tenant.displayName}</p>
-                <p className="text-fg-muted text-sm">
-                  <code>{tenant.slug}</code>.app.kithena.com
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <span className="text-fg-muted">
-                  {tenant.admins} active
-                  {tenant.pendingInvites > 0 ? `, ${String(tenant.pendingInvites)} invited` : ''}
-                </span>
-                <Badge tone={tenant.status === 'active' ? 'success' : 'warning'}>
-                  {tenant.status}
-                </Badge>
-              </div>
+            <li key={tenant.id}>
+              {/*
+                The whole row is the link, rather than the name inside it. A
+                4px target beside a 700px row is the difference between
+                clicking a company and clicking nothing, and it matters more
+                for a pointer that is not a mouse.
+
+                `focus-visible` rather than `focus`: the ring is for somebody
+                arriving by keyboard, and showing it on every mouse click reads
+                as a rendering fault.
+              */}
+              <Link
+                href={`/companies/${tenant.id}`}
+                className="hover:bg-surface focus-visible:outline-border-focus -mx-3 flex items-center justify-between gap-4 rounded-md px-3 py-4 transition focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{tenant.displayName}</p>
+                  <p className="text-fg-muted truncate text-sm">
+                    <code>{tenant.slug}</code>.app.kithena.com
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-sm">
+                  <span className="text-fg-muted">
+                    {tenant.admins} active
+                    {tenant.pendingInvites > 0 ? `, ${String(tenant.pendingInvites)} invited` : ''}
+                  </span>
+                  <Badge tone={tenant.status === 'active' ? 'success' : 'warning'}>
+                    {tenant.status}
+                  </Badge>
+                  <span aria-hidden className="text-fg-subtle">
+                    →
+                  </span>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

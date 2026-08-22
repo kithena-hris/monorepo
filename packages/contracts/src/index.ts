@@ -8,3 +8,5 @@ export * from './events/identity.js';
 export * from './events/people.js';
 export * from './events/timeoff.js';
 export * from './payroll.js';
+export * from './address.js';
+export * from './branding.js';
