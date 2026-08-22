@@ -167,6 +167,25 @@ This is a quota workaround. It is also just correct — a build that cannot
 produce a different artifact is a build worth skipping — so it stays whatever
 plan this ends up on.
 
+### The auth origin's server
+
+`apps/auth/shell/server/modern.server.ts` is a Modern.js custom Web Server. It
+injects the internal token identity requires, and turns the session id identity
+returns into an `HttpOnly`, `Secure`, `SameSite=Strict`, `__Host-` cookie —
+removing it from the response body on the way.
+
+It replaces a `tools.devServer.proxy` entry with two faults. The proxy passed
+the body through untouched, so the session id arrived as JSON any script on the
+origin could read; and `tools.devServer` only runs under `modern dev`, so a
+built auth origin had no credential injection at all.
+
+An earlier attempt at this concluded the feature was broken on 3.8.2 — that
+middlewares never ran and that a type-only import panicked Rspack. Both
+findings were wrong. Three stale `modern dev` processes were holding port 3100,
+so every measurement was taken against a server running different code. The
+symptom to recognise is `Port 3100 is in use. using port 3101.` in the startup
+output: after that line, nothing you curl on 3100 is the server you started.
+
 ### A note on where this repository lives
 
 `~/Desktop/workspace/claude/kithena`, with iCloud "Desktop & Documents" sync

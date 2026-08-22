@@ -107,6 +107,9 @@ importers:
       '@modern-js/runtime':
         specifier: 3.8.2
         version: 3.8.2(core-js@3.50.0)(react-dom@19.2.8(react@19.2.8))(react-server-dom-rspack@0.0.2(@rspack/core@2.1.10(@swc/helpers@0.5.23))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      '@modern-js/server-runtime':
+        specifier: 3.8.2
+        version: 3.8.2(core-js@3.50.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@reach/ui':
         specifier: workspace:*
         version: link:../../../packages/ui
@@ -2440,6 +2443,9 @@ packages:
   '@modern-js/server-core@3.8.2':
     resolution: {integrity: sha512-VKJq20q571VtnSKCiao7obtB97Bllo0u2LCdyEBQcpSi29bh2DXJywNvIJB1Bqzkk+ezd+GhzIp4vR4mcWkrIw==}
     engines: {node: '>=20'}
+
+  '@modern-js/server-runtime@3.8.2':
+    resolution: {integrity: sha512-3bN4oQQM4kZ7+XcQuTCgjiRM8JD0U4O7gMOB9/yL7ELzXJLqv2dzDbRyqslVA8IdT7JAvAAeh1vHe0qkBdiwnQ==}
 
   '@modern-js/server-utils@3.8.2':
     resolution: {integrity: sha512-4XtOuQu0KPb8QNjQs4PbduUJNTGfIVntzpWEu+devpeow9SCsRwKROVz+8ruveY7bTA+6peaOcKr0Zun/aJbjQ==}
@@ -12280,6 +12286,18 @@ snapshots:
       flatted: 3.4.4
       hono: 4.13.1
       ts-deepmerge: 7.0.3
+    transitivePeerDependencies:
+      - '@module-federation/runtime-tools'
+      - core-js
+      - react
+      - react-dom
+
+  '@modern-js/server-runtime@3.8.2(core-js@3.50.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@modern-js/runtime-utils': 3.8.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@modern-js/server-core': 3.8.2(core-js@3.50.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@modern-js/types': 3.8.2
+      '@swc/helpers': 0.5.23
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
       - core-js

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@modern-js/runtime": "3.8.2",
+    "@modern-js/server-runtime": "3.8.2",
     "@reach/ui": "workspace:*",
     "@simplewebauthn/browser": "^13.2.2",
     "react": "^19.1.0",
