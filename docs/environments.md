@@ -19,14 +19,15 @@ make the wrong thing hard rather than merely forbidden.
 
 ## What they are
 
-|           | Staging                              | Production                   |
-| --------- | ------------------------------------ | ---------------------------- |
-| Deployed  | from a pull request, once `ci` green | from `main`, once `ci` green |
-| Approval  | none                                 | required, on the environment |
-| Tenants   | `<company>.staging.app.kithena.com`  | `<company>.app.kithena.com`  |
-| Database  | Neon `staging` branch                | Neon `main` branch           |
-| Data      | synthetic only                       | real customers               |
-| Customers | test                                 | real                         |
+|             | Staging                              | Production                   |
+| ----------- | ------------------------------------ | ---------------------------- |
+| Deployed    | from a pull request, once `ci` green | from `main`, once `ci` green |
+| Approval    | none                                 | required, on the environment |
+| Tenants     | `<company>.staging.app.kithena.com`  | `<company>.app.kithena.com`  |
+| Back-office | `admin.staging.kithena.com`          | `admin.kithena.com`          |
+| Database    | Neon `staging` branch                | Neon `main` branch           |
+| Data        | synthetic only                       | real customers               |
+| Customers   | test                                 | real                         |
 
 ## Promotion
 
@@ -90,6 +91,17 @@ come across:
 | A    | `design`    | `76.76.21.21` |
 | A    | `storybook` | `76.76.21.21` |
 
+The back-office needs two more. It is deliberately **not** under
+`*.app.kithena.com`: a browser will not offer an employee's passkey to a
+relying party it does not match, so putting the back-office on its own
+registrable domain means an operator's credential and an employee's cannot be
+confused for one another. That isolation costs two DNS records and nothing else.
+
+| Type  | Name            | Value                             |
+| ----- | --------------- | --------------------------------- |
+| CNAME | `admin`         | the Vercel project's alias target |
+| CNAME | `admin.staging` | the Vercel project's alias target |
+
 Then add the wildcards:
 
 | Type  | Name            | Value                             |
@@ -131,6 +143,33 @@ right instinct and the wrong test — `neondb_owner` passes it and leaks anyway.
 
 See [SECURITY.md](../SECURITY.md#writing-a-row-level-security-policy) for the two
 details every policy needs.
+
+### The back-office cannot work until identity has a home
+
+The workflows deploy `apps/admin` and it will serve its sign-in page, because
+that page is static and because every other page fails closed to a redirect. It
+will not sign anybody in.
+
+`apps/admin` talks to `platform/identity` over `INTERNAL_API_URL`, and identity
+is a plain Node server with nowhere to run. Vercel is the wrong shape for it —
+it holds a Postgres pool and a Valkey connection across requests, which is
+precisely what a function-per-request runtime takes away — so it wants a
+container host, which is the direction `docs/authentication.md` argued for
+anyway.
+
+Until then the deployed back-office is a locked door with no building behind
+it. That is a safe state and not a useful one, and it is worth knowing which
+before pointing DNS at it.
+
+**And on this plan there is nothing in front of that door.** Vercel's Hobby plan
+offers no deployment protection: not password protection, not Vercel
+Authentication, and the API refuses `ssoProtection` on production outright. The
+same sentence already appears in `CLAUDE.md` about the Reach sites. It matters
+more here, because this is the only surface that crosses tenants — so the
+application's own `currentOperator()` check is the entirety of what stands
+between the internet and every customer's account list. It is written to fail
+closed, including when identity is unreachable, which is the state it will be in
+on the day it first deploys.
 
 ### Secrets
 

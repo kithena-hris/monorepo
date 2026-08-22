@@ -96,10 +96,26 @@ jobs:
           atlas migrate lint --env production --latest 1
           atlas migrate apply --env production
 
+      - name: build back-office
+        run: pnpm --filter @kithena/admin build
+
       - name: build docs
         run: pnpm --filter @reach/docs build
       - name: build storybook
         run: pnpm storybook:build
+
+      # The back-office, on its own registrable domain rather than a path.
+      # `admin.kithena.com` is not under `app.kithena.com`, so a browser will
+      # not offer an employee's passkey here and will not offer an operator's
+      # there. The isolation is free and it is why this is a separate host.
+      - name: deploy back-office
+        id: admin
+        env:
+          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/admin --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Back-office production: $url"
 
       - name: deploy docs
         id: docs
@@ -128,8 +144,13 @@ jobs:
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
         run: |
+          # `/sign-in` for the back-office and not `/`: the root redirects when
+          # nobody is signed in, which is correct and is a 307. Following it
+          # would be following a redirect into a page that must never render
+          # for a stranger.
           for url in "$DOCS_URL" "$STORYBOOK_URL" \
-                     https://design.kithena.com https://storybook.kithena.com; do
+                     https://design.kithena.com https://storybook.kithena.com \
+                     https://admin.kithena.com/sign-in; do
             echo "checking $url"
             curl --fail --silent --show-error --location \
                  --retry 5 --retry-delay 5 --max-time 30 "$url" >/dev/null
