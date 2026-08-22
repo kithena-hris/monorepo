@@ -26,47 +26,13 @@ export default defineConfig({
     port: 3100,
   },
   /*
-   * A proxy, not a BFF, and not by choice.
+   * No `tools.devServer.proxy`.
    *
-   * The browser must not hold the credential identity requires, so something on
-   * this origin has to add it. The framework's own answers both fail on 3.8.2,
-   * and both were measured rather than assumed:
-   *
-   *   * `api/` handlers (BFF). Every server-framework plugin is still published
-   *     on the 2.x line at 2.70.4 while `plugin-bff` is 3.8.2, and the older
-   *     plugin reads an `appContext.apiMode` the newer one no longer sets. It
-   *     fails at boot with "mode must be function or framework".
-   *   * `server/modern.server.ts` (custom Web Server). Tried on 2026-08-22.
-   *     `defineServerConfig` is accepted and the file loads without error, but
-   *     a middleware registered exactly as the bundled docs show never runs — a
-   *     probe that only sets a response header produced no header on any route.
-   *     Separately, `import { type MiddlewareHandler }` with the inline type
-   *     modifier panics Rspack outright: "should have connection". A minimal
-   *     `defineServerConfig({})` builds and boots fine, so the feature is
-   *     wired up and inert rather than absent.
-   *
-   * So the token is injected here. This is a development arrangement with two
-   * known gaps, and neither is fixed:
-   *
-   *   * `tools.devServer` only runs under `modern dev`, so a built auth origin
-   *     has no way to reach identity at all.
-   *   * A proxy passes the response through, so the session id reaches the
-   *     browser rather than becoming an `HttpOnly` cookie on the way.
-   *
-   * Closing them needs a server this framework version does not currently
-   * provide. docs/build-plan.md carries the decision that is now owed.
+   * Credential injection lives in `server/modern.server.ts`, which is the same
+   * server under `modern dev` and in a build. The proxy it replaces existed
+   * only in development, so a built auth origin had no way to reach identity —
+   * and it passed the session id through to the browser on the way back, which
+   * is the property an `HttpOnly` cookie exists to prevent.
    */
-  tools: {
-    devServer: {
-      proxy: {
-        '/api/identity': {
-          target: process.env['INTERNAL_API_URL'] ?? 'http://localhost:4100',
-          changeOrigin: false,
-          headers: { 'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '' },
-          pathRewrite: { '^/api/identity': '/api/internal' },
-        },
-      },
-    },
-  },
   plugins: [appTools()],
 });
