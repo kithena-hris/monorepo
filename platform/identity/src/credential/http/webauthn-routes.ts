@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
+import { asAddress } from '../../shared/device.js';
 import { challengeFrom } from '../domain/client-data.js';
 import type { ChallengeStore } from '../application/challenge-store.js';
 import type { RelyingParty } from '../application/relying-party.js';

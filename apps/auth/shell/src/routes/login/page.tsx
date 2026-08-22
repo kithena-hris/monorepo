@@ -44,7 +44,10 @@ export default function Login(): JSX.Element {
         tenantId,
         origin: window.location.origin,
         response: assertion,
-        device: { ip: 'unknown', userAgent: navigator.userAgent, aaguid: null },
+        // No address. A browser cannot see its own, and inventing a
+        // placeholder is what put the literal 'unknown' into an `inet` column.
+        // Whatever terminates the connection supplies it, or nothing does.
+        device: { userAgent: navigator.userAgent },
       })) as { accountId?: string } | null;
 
       setState(
