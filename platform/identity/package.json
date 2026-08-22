@@ -11,7 +11,8 @@
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.ts",
     "db:migrate": "atlas migrate apply --env local",
-    "seed": "tsx scripts/seed-auth.ts"
+    "seed": "tsx scripts/seed-auth.ts",
+    "start": "node dist/src/main.js"
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",

@@ -1,0 +1,50 @@
+# What the build does not need, and pays for copying.
+#
+# Without this, `COPY . .` sends the whole working tree to the daemon:
+# `node_modules` alone is hundreds of megabytes, and it is about to be
+# reinstalled from the lockfile anyway. The first build of the identity image
+# ran for eleven minutes before this file existed.
+#
+# It is also a correctness matter rather than only a speed one. A local
+# `node_modules` copied into the image is one built for this machine's
+# architecture and this developer's install state, quietly shadowing the one
+# `pnpm install` is about to produce.
+
+node_modules
+**/node_modules
+
+# Build output. Regenerated inside the image from source.
+dist
+**/dist
+
+# And the file that says it has already been regenerated.
+#
+# `tsc -b` is incremental and trusts `tsconfig.tsbuildinfo` over the filesystem.
+# Copying one in while excluding the `dist` it describes tells the compiler
+# there is nothing to do, so it does nothing, and the build fails several
+# packages later on an import of output that was never written. Excluding
+# `dist` without this is worse than excluding neither.
+*.tsbuildinfo
+**/*.tsbuildinfo
+.next
+**/.next
+storybook-static
+**/storybook-static
+static
+**/static
+.turbo
+**/.turbo
+
+# History, and the tooling that reads it.
+.git
+.github
+
+# Nothing in the image should read a developer's environment.
+.env
+.env.*
+!.env.example
+.vercel
+docker-compose.override.yml
+
+# Conflict copies from whatever syncs this directory.
+* [0-9].*

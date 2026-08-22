@@ -144,22 +144,50 @@ right instinct and the wrong test — `neondb_owner` passes it and leaks anyway.
 See [SECURITY.md](../SECURITY.md#writing-a-row-level-security-policy) for the two
 details every policy needs.
 
-### The back-office cannot work until identity has a home
+### Identity, on Fly
 
-The workflows deploy `apps/admin` and it will serve its sign-in page, because
-that page is static and because every other page fails closed to a redirect. It
-will not sign anybody in.
+`platform/identity/Dockerfile` builds it and `fly.toml` describes where it runs.
+Fly rather than Vercel for one reason that is not preference: the service holds
+a Postgres pool and a Valkey connection across requests, and a
+function-per-request runtime takes both away. Every request would open a new
+connection and Postgres would run out long before the traffic justified it.
 
-`apps/admin` talks to `platform/identity` over `INTERNAL_API_URL`, and identity
-is a plain Node server with nowhere to run. Vercel is the wrong shape for it —
-it holds a Postgres pool and a Valkey connection across requests, which is
-precisely what a function-per-request runtime takes away — so it wants a
-container host, which is the direction `docs/authentication.md` argued for
-anyway.
+    fly launch --no-deploy --copy-config --dockerfile platform/identity/Dockerfile
+    fly secrets set \
+      IDENTITY_DATABASE_URL='postgres://…'   # the app role, not the owner
+      VALKEY_URL='rediss://…'                 \
+      INTERNAL_API_TOKEN='…'                  \
+      AUTH_SIGNING_KEY='{"kty":"EC",…}'       # a private JWK, ES256
+    fly deploy
 
-Until then the deployed back-office is a locked door with no building behind
-it. That is a safe state and not a useful one, and it is worth knowing which
-before pointing DNS at it.
+`AUTH_SIGNING_KEY` is required rather than defaulted, and the service refuses to
+start without it when `NODE_ENV=production`. A key generated at boot would look
+like intermittent logouts rather than like a missing setting, which is a much
+longer afternoon. Generate one with `jose`:
+
+    node -e "import('jose').then(async j => {
+      const { privateKey } = await j.generateKeyPair('ES256', { extractable: true });
+      console.log(JSON.stringify(await j.exportJWK(privateKey)));
+    })"
+
+`min_machines_running = 1` and `auto_stop_machines = "off"`, deliberately. A cold
+start here is a cold start on the login page, and the session read path runs
+through it — scaling to nothing saves a few pounds and spends them on the first
+person to sign in each morning.
+
+Valkey needs a host too. Losing it logs nobody out, because every session is
+also a row in Postgres, so a managed Redis on a free tier is an acceptable
+starting point.
+
+### Until then, the back-office is a locked door
+
+The workflows deploy `apps/admin`, and it will serve its sign-in page and
+refuse everything else — every page but that one fails closed to a redirect.
+It cannot sign anybody in until `INTERNAL_API_URL` points at a running identity
+service, which is what the section above is for.
+
+Deploying the back-office before identity is therefore safe and useless in equal
+measure, and it is worth knowing which before pointing DNS at it.
 
 **And on this plan there is nothing in front of that door.** Vercel's Hobby plan
 offers no deployment protection: not password protection, not Vercel
