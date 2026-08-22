@@ -53,6 +53,7 @@ export default tseslint.config(
             // Tailwind, and without it the auth app renders as unstyled text
             // with nothing erroring — small, and worth linting for that reason
             // rather than in spite of it.
+            'apps/*/postcss.config.mjs',
             'apps/*/*/postcss.config.mjs',
             // Only db-kit. Every other package either has no vitest config or
             // lists it in its own tsconfig, which is the better home; db-kit

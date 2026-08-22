@@ -52,6 +52,8 @@ const routes = await compose({
   valkeyUrl: process.env['VALKEY_URL'] ?? 'redis://localhost:6379',
   internalToken: required('INTERNAL_API_TOKEN'),
   rpId: process.env['WEBAUTHN_RP_ID'] ?? 'app.localhost',
+  adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',
+  adminOrigin: process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001',
   authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
   signingKey,
   allowInsecureOrigins: process.env['NODE_ENV'] !== 'production',
