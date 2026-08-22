@@ -17,11 +17,16 @@ permissions:
   pull-requests: write
 
 concurrency:
-  # One staging deploy at a time, keyed on the branch. Two pull requests
-  # deploying to one shared environment is a race whoever merges second loses;
-  # this at least makes it a queue rather than a collision.
-  group: vercel-staging-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
+  # One staging deploy at a time for the whole environment, not one per branch.
+  # Keyed per branch, two pull requests ran `atlas migrate apply` against the
+  # same database concurrently. A deploy is replaceable; a half-applied
+  # migration is not, so this is a queue and nothing is cancelled mid-flight.
+  #
+  # This makes the race rarer, not impossible: an abandoned pull request still
+  # leaves its schema on staging. The real fix is a Neon branch per pull
+  # request, which needs a NEON_API_KEY and is tracked separately.
+  group: vercel-staging
+  cancel-in-progress: false
 
 env:
   VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
@@ -60,6 +65,8 @@ jobs:
           missing=
           [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
           [ -z "${{ secrets.DATABASE_URL }}" ] && missing="$missing DATABASE_URL"
+          [ -z "${{ secrets.FLY_API_TOKEN }}" ] && missing="$missing FLY_API_TOKEN"
+          [ -z "${{ vars.VERCEL_WEB_PROJECT_ID }}" ] && missing="$missing VERCEL_WEB_PROJECT_ID"
           if [ -n "$missing" ]; then
             echo "::error::missing staging secret(s):$missing"
             exit 1
@@ -72,7 +79,7 @@ jobs:
       - name: migrate staging
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ATLAS_DEV_URL: ${{ secrets.ATLAS_DEV_URL }}
+          ATLAS_DEV_URL: ${{ vars.ATLAS_DEV_URL }}
         run: |
           curl -sSf https://release.ariga.io/atlas/atlas-linux-amd64-latest -o /usr/local/bin/atlas
           chmod +x /usr/local/bin/atlas
@@ -81,7 +88,14 @@ jobs:
       - name: build web
         env:
           TENANT_HOST_SUFFIX: staging.app.kithena.com
-        run: pnpm --filter @kithena/web build
+      # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
+      # trailing `...` means "and everything X depends on": turbo.json makes
+      # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
+      # `next build` against workspace packages that were never built. That is
+      # how this failed — `Module not found: Can't resolve '@kithena/contracts'`
+      # — and it passes locally only because a developer's tree already has the
+      # dist directories. The Dockerfile has always done it this way.
+        run: pnpm turbo run build --filter=@kithena/web...
 
       - name: deploy
         id: deploy
@@ -100,8 +114,29 @@ jobs:
             --retry 5 --retry-delay 5 --max-time 30 \
             https://staging.app.kithena.com >/dev/null
 
+      # The identity service, which no workflow deployed until now. A pipeline
+      # that migrates the database and ships the UI while leaving the service
+      # on old code is the worst of the three states: the schema has moved, the
+      # front end expects it, and the thing holding sessions has not been told.
+      - name: setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: deploy identity
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy . \
+            --config platform/identity/fly.staging.toml \
+            --dockerfile platform/identity/Dockerfile \
+            --remote-only --yes
+
+      - name: smoke test identity
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            https://kithena-identity.fly.dev/.well-known/jwks.json >/dev/null
+
       - name: build back-office
-        run: pnpm --filter @kithena/admin build
+        run: pnpm turbo run build --filter=@kithena/admin...
 
       # The back-office, on its own registrable domain rather than a path.
       #

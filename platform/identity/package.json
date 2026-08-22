@@ -12,7 +12,8 @@
     "test:integration": "vitest run --config vitest.integration.ts",
     "db:migrate": "atlas migrate apply --env local",
     "seed": "tsx scripts/seed-auth.ts",
-    "start": "node dist/src/main.js"
+    "start": "node dist/src/main.js",
+    "seed:operator": "tsx scripts/seed-operator.ts"
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",

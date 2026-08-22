@@ -90,3 +90,29 @@ auth-dev postgres_port="5432" valkey_port="6379":
 # and print the link. The link is single-use, so this is how you get another.
 auth-seed postgres_port="5432":
     pnpm --filter @kithena/identity seed {{postgres_port}}
+
+# The whole authenticated surface: identity, the auth origin and the
+# back-office. Ports as arguments for the same reason `auth-dev` takes them —
+# a developer with Postgres installed loses the race for `localhost:5432`.
+admin-dev postgres_port="5432" valkey_port="6379":
+    docker compose up -d postgres valkey --wait
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Rspack keeps a lock in its cache and panics if a second dev server finds
+    # one left by a process that was killed rather than stopped.
+    rm -rf apps/auth/shell/node_modules/.cache
+    export INTERNAL_API_TOKEN=dev-only-key
+    export INTERNAL_API_URL=http://localhost:4100
+    IDENTITY_DATABASE_URL="postgres://svc_identity:kithena@localhost:{{postgres_port}}/kithena" \
+    VALKEY_URL="redis://localhost:{{valkey_port}}" \
+    WEBAUTHN_RP_ID=localhost AUTH_ORIGIN=http://localhost:3100 \
+    ADMIN_RP_ID=localhost ADMIN_ORIGIN=http://localhost:3001 \
+      npx tsx platform/identity/src/main.ts &
+    trap 'kill 0' EXIT
+    (cd apps/auth/shell && npx modern dev) &
+    cd apps/admin && npx next dev -p 3001
+
+# Put an operator back in the state they start in: named, with no credential.
+# Prints the link that enrols one.
+admin-seed postgres_port="5432" email="ops@kithena.com":
+    npx tsx platform/identity/scripts/seed-operator.ts {{postgres_port}} {{email}}
