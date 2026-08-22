@@ -126,6 +126,7 @@ module.exports = {
            * out of the rule's reach on its own.
            */
           '(^|/)modern\\.config\\.ts$',
+          '(^|/)postcss\\.config\\.mjs$',
           /*
            * A module's ports: the interfaces an external provider is adapted
            * *to*, with no implementation in the tree yet.
