@@ -10,7 +10,8 @@
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.ts",
-    "db:migrate": "atlas migrate apply --env local"
+    "db:migrate": "atlas migrate apply --env local",
+    "seed": "tsx scripts/seed-auth.ts"
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",

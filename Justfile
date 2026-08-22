@@ -58,3 +58,35 @@ supergraph:
 # Boot a single module with no siblings present, then run its acceptance suite.
 standalone module:
     pnpm --filter @kithena/{{module}} test:standalone
+
+# The auth origin and the identity service, locally.
+#
+# Two processes and the containers they need. Separate from `dev` because that
+# one starts everything and this is the pair you want while working on sign-in.
+#
+# POSTGRES_PORT and VALKEY_PORT exist because a developer with Postgres already
+# installed loses the race for `localhost:5432` — the host daemon binds it and
+# Docker publishes to the wildcard, so `localhost` reaches the wrong server and
+# every role appears not to exist. Override them and the compose file with
+# `docker-compose.override.yml`, which is gitignored.
+auth-dev postgres_port="5432" valkey_port="6379":
+    docker compose up -d postgres valkey --wait
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Rspack keeps a lock in its cache directory and panics if a second dev
+    # server finds one left behind by a process that was killed rather than
+    # stopped. Cheap to clear, and it is always the answer.
+    rm -rf apps/auth/shell/node_modules/.cache
+    IDENTITY_DATABASE_URL="postgres://svc_identity:kithena@localhost:{{postgres_port}}/kithena" \
+    VALKEY_URL="redis://localhost:{{valkey_port}}" \
+    INTERNAL_API_TOKEN=dev-only-key \
+    WEBAUTHN_RP_ID=localhost AUTH_ORIGIN=http://localhost:3100 \
+      npx tsx platform/identity/src/main.ts &
+    trap 'kill 0' EXIT
+    cd apps/auth/shell
+    INTERNAL_API_URL=http://localhost:4100 INTERNAL_API_TOKEN=dev-only-key npx modern dev
+
+# Put a tenant, an invited account and a fresh enrolment link in the database,
+# and print the link. The link is single-use, so this is how you get another.
+auth-seed postgres_port="5432":
+    pnpm --filter @kithena/identity seed {{postgres_port}}
