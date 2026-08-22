@@ -26,7 +26,7 @@
     "@types/react-dom": "^19.1.0",
     "tailwindcss": "^4.1.12",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^3.2.0"
+    "vitest": "^4.1.11"
   },
   "//typescript": "TypeScript 6, not the repo's 7. Modern.js compiles server/ with the TypeScript programmatic API via TypescriptLoader({ appDirectory }), which resolves from here \u2014 and 7.0 ships no programmatic API, so ts.sys is undefined and the build dies in getFormatHost. This package therefore typechecks on 6 as well, which is the merge gate anyway."
 }
