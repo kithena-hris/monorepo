@@ -10,3 +10,7 @@ pnpm-lock.yaml
 # Subgraph SDL is printed by `just codegen` from the Pothos schema. Formatting
 # it would make the file differ from what the router composes.
 services/*/schemas/*.graphql
+
+# Conflict copies from whatever syncs this directory. Ignored by git already;
+# formatting them would only make the duplicates harder to tell apart.
+* [0-9].*

@@ -1,0 +1,49 @@
+# Fly.io, because identity needs a process rather than a function.
+#
+# Chosen over the alternatives for one reason that matters here: a machine can
+# hold a connection pool, and Fly will run it in the same region as the
+# database. Render and Railway would both serve; what none of them can do is
+# make a serverless runtime keep a Postgres pool alive between requests.
+#
+# `fly launch --no-deploy` writes the app and the region; this file is what it
+# should say afterwards.
+
+app = "kithena-identity"
+primary_region = "mad"          # Madrid, nearest the Neon region this uses
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Every other value is a secret and set with `fly secrets set` — see
+  # docs/environments.md. What is here is what is safe to read in a public
+  # repository.
+  WEBAUTHN_RP_ID = "app.kithena.com"
+  AUTH_ORIGIN    = "https://auth.app.kithena.com"
+  ADMIN_RP_ID    = "admin.kithena.com"
+  ADMIN_ORIGIN   = "https://admin.kithena.com"
+
+[http_service]
+  internal_port = 4100
+  force_https = true
+
+  # Not zero.
+  #
+  # A cold start on the identity service is a cold start on the login page, and
+  # the whole session read path runs through it. Scaling to nothing saves a few
+  # pounds and spends them on the first person to sign in each morning.
+  auto_stop_machines = "off"
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    # The JWKS endpoint, because it is the one route that needs no database and
+    # no credential — so a failing check means the process is down rather than
+    # that Postgres is, which is a different alarm.
+    path = "/.well-known/jwks.json"
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
