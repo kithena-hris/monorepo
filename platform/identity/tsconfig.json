@@ -4,7 +4,7 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*", "scripts/**/*", "vitest.config.ts", "vitest.integration.ts"],
+  "include": ["src/**/*", "api/**/*", "scripts/**/*", "vitest.config.ts", "vitest.integration.ts"],
   "references": [
     { "path": "../../packages/contracts" },
     { "path": "../../packages/domain-kit" },

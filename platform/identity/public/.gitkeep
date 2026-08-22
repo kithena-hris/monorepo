@@ -1,0 +1,8 @@
+This directory is empty on purpose and must stay in the tree.
+
+`vercel.json` sets a `buildCommand`, which makes Vercel expect a static output
+directory next to the functions. There is no static output — this service is
+one function and nothing else — so an empty directory is what satisfies the
+check. Without it the deploy fails with:
+
+    No Output Directory named "public" found after the Build completed.

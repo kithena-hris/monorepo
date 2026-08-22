@@ -100,7 +100,24 @@ function textOrNull(value: unknown): string | null {
 }
 
 export async function compose(config: Config): Promise<RequestHandler> {
-  const db = drizzle(postgres(config.databaseUrl));
+  /*
+   * One connection per instance, and no prepared statements.
+   *
+   * Both follow from the host being a pooler rather than Postgres itself.
+   * Neon's pooled endpoint is PgBouncer in transaction mode, which hands a
+   * different server connection to each transaction — so a prepared statement
+   * created on one is missing on the next, and postgres.js prepares everything
+   * by default. That surfaces as `prepared statement "s1" does not exist` under
+   * concurrency and nowhere else, which is the worst way to find it.
+   *
+   * `max: 1` because the pooler is the pool. A serverless instance handling one
+   * request at a time needs one connection, and ten instances each holding ten
+   * is how a connection limit is reached without any traffic to justify it.
+   *
+   * Both are correct against a direct endpoint too — marginally slower, never
+   * wrong — so this is not conditional on how it happens to be deployed.
+   */
+  const db = drizzle(postgres(config.databaseUrl, { max: 1, prepare: false }));
 
   const signer = await joseSigner(
     config.signingKey === undefined
