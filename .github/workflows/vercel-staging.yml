@@ -88,7 +88,14 @@ jobs:
       - name: build web
         env:
           TENANT_HOST_SUFFIX: staging.app.kithena.com
-        run: pnpm --filter @kithena/web build
+      # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
+      # trailing `...` means "and everything X depends on": turbo.json makes
+      # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
+      # `next build` against workspace packages that were never built. That is
+      # how this failed — `Module not found: Can't resolve '@kithena/contracts'`
+      # — and it passes locally only because a developer's tree already has the
+      # dist directories. The Dockerfile has always done it this way.
+        run: pnpm turbo run build --filter=@kithena/web...
 
       - name: deploy
         id: deploy
@@ -129,7 +136,7 @@ jobs:
             https://kithena-identity.fly.dev/.well-known/jwks.json >/dev/null
 
       - name: build back-office
-        run: pnpm --filter @kithena/admin build
+        run: pnpm turbo run build --filter=@kithena/admin...
 
       # The back-office, on its own registrable domain rather than a path.
       #
