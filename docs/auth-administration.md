@@ -259,8 +259,28 @@ a silent, complete takeover of a new customer — and it looks exactly like norm
 onboarding in the logs. Splitting it means the takeover requires compromising the
 customer too.
 
-The second HR admin should be named before the tenant leaves onboarding, or the
-last-two-admins rule has nothing to protect and recovery has no quorum.
+### Several first admins, not one
+
+"The root user" is a tempting shape and the wrong one. CX names _people_, each
+gets their own account and their own link, and whoever enrols first is simply
+the first to arrive.
+
+That is worth doing for its own sake — a company where one person holds the only
+link is a company locked out when that person leaves before their start date —
+and it also settles something else for free. The second HR admin has to exist
+before the tenant leaves onboarding, or the last-two-admins rule has nothing to
+protect and HR-mediated recovery has no quorum. Inviting two or three at the
+outset makes that the default rather than a checklist item.
+
+It needs nothing new. `enrolment_token_live_key` is unique per _account_, so
+three invited admins are three accounts with one live link each, and re-issuing
+any of them still invalidates only that one. What the schema forbids is one
+account holding several usable links, which is exactly what it should forbid.
+
+There is no platform-level root user at all, and there should not be. An account
+that could act inside every tenant is an account worth stealing more than any
+customer's data, and the back-office already reaches what it needs to through
+its own audited surface.
 
 ---
 
