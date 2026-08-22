@@ -31,6 +31,10 @@ export default tseslint.config(
       // construction and the type-aware rules have nothing true to say.
       'tools/a11y/*.mjs',
       'tools/storybook/*.mjs',
+      // Conflict copies from whatever syncs this directory — `foo 2.ts` beside
+      // `foo.ts`. Git ignores them; ESLint does not read `.gitignore`, so it
+      // was reporting a parse error for a file nothing is meant to see.
+      '**/* [0-9].*',
     ],
   },
   ...tseslint.configs.strictTypeChecked,

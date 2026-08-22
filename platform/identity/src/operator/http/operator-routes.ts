@@ -89,13 +89,33 @@ export function operatorRoutes(deps: OperatorRoutesDeps) {
     }
 
     if (path === ENROL_BEGIN) {
-      // Enrolment is reachable only with the internal token, and the caller is
-      // the back-office itself. Whether this identity is allowed to become an
-      // operator was decided when the row was written, not here.
       if (typeof input['identityId'] !== 'string') return json(400, {});
+
+      /*
+       * The identity must already be an operator awaiting a credential.
+       *
+       * The back-office exposes this route without a session — it has to, since
+       * an operator has none until this succeeds — so "only the back-office can
+       * reach it" is the whole of the protection, and that is not enough on its
+       * own. Without this check, anything holding the internal token could
+       * register a passkey against any identity it could name, and the first
+       * thing it would name is an identity that is not an operator at all.
+       *
+       * Rows are written by hand and only ever move `invited` to `active`, so
+       * this narrows the window to exactly the person who is meant to be
+       * enrolling, and closes it the moment they have.
+       */
+      const awaiting = await deps.operators.byIdentity(input['identityId']);
+      if (!awaiting || awaiting.status !== 'invited') {
+        deps.onRefusal?.('not-awaiting-enrolment');
+        return json(401, {});
+      }
       const { options, challenge } = await deps.beginRegistration({
         identityId: input['identityId'],
-        displayName: typeof input['email'] === 'string' ? input['email'] : 'Kithena operator',
+        // The address on the row, not one the caller supplied. This becomes
+        // the label in the keychain, and a caller that could choose it could
+        // make an operator's passkey look like somebody else's.
+        displayName: awaiting.email,
       });
       await deps.rememberChallenge(challenge, 'registration', input['identityId']);
       return json(200, { options });
