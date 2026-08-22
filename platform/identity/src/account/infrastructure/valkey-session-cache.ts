@@ -3,6 +3,16 @@ import type { CachedSession, SessionCache } from '../application/session-cache.j
 /**
  * The session cache, in Valkey.
  *
+ * **Not mounted.** `composition.ts` does not reference this, and has not since
+ * it was written — every authenticated request reads its session from Postgres.
+ * That is the right call at present: the back-office has one operator, and a
+ * cache in front of a query nobody is waiting on buys nothing while adding a
+ * process that can be down while the service is up. This is kept rather than
+ * deleted because the shape is correct and the day a dashboard says session
+ * reads are hot, mounting it is one line — see `SessionCache` in
+ * `../application/session-cache.ts`, and `docs/environments.md` for what
+ * changes at scale.
+ *
  * The client is `ioredis` and the server is Valkey, which is not a
  * contradiction: Valkey is the Linux Foundation's fork of Redis and speaks the
  * same protocol, and `ioredis` is the mature MIT-licensed client. `iovalkey`

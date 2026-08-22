@@ -167,6 +167,52 @@ This is a quota workaround. It is also just correct — a build that cannot
 produce a different artifact is a build worth skipping — so it stays whatever
 plan this ends up on.
 
+### The auth origin's server
+
+`apps/auth/shell` pins `typescript` to 6 while the rest of the repository uses
+7. Modern.js compiles `server/` with the TypeScript programmatic API —
+`TypescriptLoader({ appDirectory }).load()`, resolving from the app directory —
+and `CLAUDE.md` already records that 7.0 ships no programmatic API. Concretely,
+`require('typescript').sys` is `undefined` on 7.0.2 and the build dies in
+`getFormatHost`. The pin is on that one package, so nothing else slows down.
+
+Two things that do *not* fix it, both tried: a `pnpm.overrides` entry keyed
+`@modern-js/server-utils>typescript`, which cannot work because typescript is
+only a devDependency there and no edge exists to override; and a
+`packageExtensions` entry, which does place TS6 inside server-utils but is
+resolved from the wrong place — the loader looks in the app directory, not its
+own.
+
+`apps/auth/shell/server/modern.server.ts` is a Modern.js custom Web Server. It
+injects the internal token identity requires, and turns the session id identity
+returns into an `HttpOnly`, `Secure`, `SameSite=Strict`, `__Host-` cookie —
+removing it from the response body on the way.
+
+It replaces a `tools.devServer.proxy` entry with two faults. The proxy passed
+the body through untouched, so the session id arrived as JSON any script on the
+origin could read; and `tools.devServer` only runs under `modern dev`, so a
+built auth origin had no credential injection at all.
+
+An earlier attempt at this concluded the feature was broken on 3.8.2 — that
+middlewares never ran and that a type-only import panicked Rspack. Both
+findings were wrong. Three stale `modern dev` processes were holding port 3100,
+so every measurement was taken against a server running different code. The
+symptom to recognise is `Port 3100 is in use. using port 3101.` in the startup
+output: after that line, nothing you curl on 3100 is the server you started.
+
+### A note on where this repository lives
+
+`~/Desktop/workspace/claude/kithena`, with iCloud "Desktop & Documents" sync
+turned on. That combination produces conflict copies — `composition 2.ts`,
+`src/routes 2`, `oxlint 12` — because iCloud makes one whenever it sees
+concurrent writes, and a build tool writes thousands of files in seconds.
+
+1,531 were cleared from a single checkout on 2026-08-22, and thirteen copies of
+real source files reached `main` on an earlier occasion. `.gitignore` now
+matches directories and two-digit copies as well as the obvious
+`name 2.ext` case, but that is a net rather than a cure: the repository wants
+moving somewhere iCloud does not watch.
+
 ### Identity, on Vercel
 
 `platform/identity/api/[...path].ts` is the whole of the deployment surface: a

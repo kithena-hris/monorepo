@@ -26,33 +26,13 @@ export default defineConfig({
     port: 3100,
   },
   /*
-   * A proxy, not a BFF, and not by choice.
+   * No `tools.devServer.proxy`.
    *
-   * The browser must not hold the credential identity requires, so something on
-   * this origin has to add it. The framework's own answer is `api/` handlers —
-   * which do not work on 3.8: every server-framework plugin
-   * (`plugin-express`, `plugin-koa`, `plugin-server`) is still published on the
-   * 2.x line at 2.70.4, `plugin-bff` is on 3.8.2, and the older plugin reads an
-   * `appContext.apiMode` the newer one no longer sets. The BFF fails at boot
-   * with "mode must be function or framework".
-   *
-   * So the token is injected here instead. This is a development arrangement
-   * and it has a real gap: a proxy passes the response through, so the session
-   * id reaches the browser rather than becoming an `HttpOnly` cookie on the way.
-   * Closing that needs a server route, which needs either a working BFF or a
-   * custom server — see the note in docs/build-plan.md.
+   * Credential injection lives in `server/modern.server.ts`, which is the same
+   * server under `modern dev` and in a build. The proxy it replaces existed
+   * only in development, so a built auth origin had no way to reach identity —
+   * and it passed the session id through to the browser on the way back, which
+   * is the property an `HttpOnly` cookie exists to prevent.
    */
-  tools: {
-    devServer: {
-      proxy: {
-        '/api/identity': {
-          target: process.env['INTERNAL_API_URL'] ?? 'http://localhost:4100',
-          changeOrigin: false,
-          headers: { 'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '' },
-          pathRewrite: { '^/api/identity': '/api/internal' },
-        },
-      },
-    },
-  },
   plugins: [appTools()],
 });
