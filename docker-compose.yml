@@ -40,14 +40,6 @@ services:
       interval: 5s
       retries: 20
 
-  valkey:
-    image: valkey/valkey:8-alpine
-    ports: ['6379:6379']
-    healthcheck:
-      test: ['CMD', 'valkey-cli', 'ping']
-      interval: 5s
-      retries: 10
-
   openfga:
     image: openfga/openfga:latest
     command: run
