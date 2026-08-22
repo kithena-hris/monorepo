@@ -37,10 +37,6 @@ primary_region = "iad"          # Ashburn, the Fly region co-located with
   ADMIN_RP_ID    = "admin.staging.kithena.com"
   ADMIN_ORIGIN   = "https://admin.staging.kithena.com"
 
-  # Reachable only on the organisation's private network, so it carries no
-  # credential and belongs here rather than in secrets. Challenges are
-  # short-lived and regenerable, so this Valkey persists nothing.
-  VALKEY_URL     = "redis://kithena-valkey.internal:6379"
 
 [http_service]
   internal_port = 4100

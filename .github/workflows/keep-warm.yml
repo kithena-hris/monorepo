@@ -1,0 +1,76 @@
+name: keep-warm
+
+# Keeps the identity service awake.
+#
+# Fly stops idle machines. `auto_stop_machines = "off"` is set and does hold for
+# the setting's own purpose, but a trial organisation's machines are reaped
+# regardless — `fly machine status` shows `autostop: false` on a machine that is
+# stopped. Fly's proxy autostarts it again on the next request, so nothing is
+# lost except the eight seconds it takes to boot.
+#
+# Eight seconds is the whole problem. It lands on whoever signs in first, and
+# `fly.staging.toml` says why that is unacceptable: a cold start on the identity
+# service is a cold start on the login page, and the entire session read path
+# runs through it.
+#
+# So: a request every ten minutes. The machine is never idle long enough to be
+# reaped, the cold start never reaches a person, and it costs nothing — this
+# repository is public, and public repositories do not consume Actions minutes.
+#
+# This is a workaround for a billing state, not a design. A paid organisation
+# does not reap machines and this file can be deleted; `docs/environments.md`
+# says so next to the deploy instructions.
+
+on:
+  schedule:
+    # Ten minutes. Fly's idle timeout was five in the two cases observed on
+    # 2026-08-22, so this has to be under it with room for a late runner —
+    # GitHub does not promise punctuality on cron and routinely runs minutes
+    # behind under load.
+    - cron: '*/10 * * * *'
+  # So the effect can be confirmed without waiting for the next tick.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A backlog of pings helps nobody. If one is still running the next is
+  # pointless, and cancelling the old one loses nothing.
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: ping identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: staging
+            url: https://kithena-identity.fly.dev/.well-known/jwks.json
+          - name: production
+            url: https://kithena-identity-production.fly.dev/.well-known/jwks.json
+    steps:
+      - name: ping ${{ matrix.name }}
+        run: |
+          # JWKS because it is the one route that needs no database and no
+          # credential, so a failure here means the process is down rather than
+          # that Postgres is. The same reasoning as the Fly health check.
+          #
+          # `--retry` covers the cold start this exists to prevent: if the
+          # machine was already stopped, the first request is what wakes it and
+          # it may time out while Fly boots the VM.
+          if curl --fail --silent --show-error --location \
+               --retry 5 --retry-delay 5 --retry-all-errors \
+               --max-time 30 "${{ matrix.url }}" >/dev/null; then
+            echo "::notice::${{ matrix.name }} identity is awake"
+          else
+            # Not a failure of the run. Production has no machines yet — Fly
+            # refuses to create them on a trial organisation — and a red cron
+            # every ten minutes for a known, already-recorded reason is a red
+            # cron nobody reads.
+            echo "::warning::${{ matrix.name }} identity did not answer. If it has machines, check `fly status`."
+          fi

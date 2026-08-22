@@ -3,7 +3,6 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { Redis } from 'ioredis';
 import { ok, systemClock } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
@@ -18,7 +17,7 @@ import { signInWithPasskey } from './credential/application/sign-in-with-passkey
 import { signIn } from './credential/application/sign-in.js';
 import { drizzleCredentialRepository } from './credential/infrastructure/drizzle-credential-repository.js';
 import { simpleWebAuthnRelyingParty } from './credential/infrastructure/simplewebauthn-relying-party.js';
-import { valkeyChallengeStore } from './credential/infrastructure/valkey-challenge-store.js';
+import { postgresChallengeStore } from './credential/infrastructure/postgres-challenge-store.js';
 import { webauthnRoutes } from './credential/http/webauthn-routes.js';
 import { completeEnrolment } from './credential/application/complete-enrolment.js';
 import { drizzleEnrolmentTokenStore } from './credential/infrastructure/drizzle-enrolment-token-store.js';
@@ -59,7 +58,14 @@ export interface Config {
    */
   readonly adminRpId: string;
   readonly adminOrigin: string;
-  readonly valkeyUrl: string;
+  /**
+   * Kept, and unused by default.
+   *
+   * Challenges live in Postgres now — see
+   * `postgres-challenge-store.ts` for why. A deployment with a real always-on
+   * Redis can still wire `valkeyChallengeStore` here; the port did not change.
+   */
+  readonly valkeyUrl?: string | undefined;
   readonly internalToken: string;
   readonly rpId: string;
   readonly authOrigin: string;
@@ -95,7 +101,6 @@ function textOrNull(value: unknown): string | null {
 
 export async function compose(config: Config): Promise<RequestHandler> {
   const db = drizzle(postgres(config.databaseUrl));
-  const valkey = new Redis(config.valkeyUrl);
 
   const signer = await joseSigner(
     config.signingKey === undefined
@@ -104,7 +109,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
   );
 
   const relyingParty = simpleWebAuthnRelyingParty({ rpId: config.rpId, rpName: 'Kithena' });
-  const challenges = valkeyChallengeStore(valkey);
+  // Postgres rather than Valkey. The Valkey machine had no services declared,
+  // so Fly's proxy could not autostart it: once stopped it stayed stopped, and
+  // it took a passkey enrolment with it. This database is the thing identity
+  // already cannot run without, so a challenge stored here cannot be down while
+  // the service is up.
+  const challenges = postgresChallengeStore(db);
   const origins = {
     rpId: config.rpId,
     authOrigin: config.authOrigin,
