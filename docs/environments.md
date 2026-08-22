@@ -169,6 +169,20 @@ plan this ends up on.
 
 ### The auth origin's server
 
+`apps/auth/shell` pins `typescript` to 6 while the rest of the repository uses
+7. Modern.js compiles `server/` with the TypeScript programmatic API —
+`TypescriptLoader({ appDirectory }).load()`, resolving from the app directory —
+and `CLAUDE.md` already records that 7.0 ships no programmatic API. Concretely,
+`require('typescript').sys` is `undefined` on 7.0.2 and the build dies in
+`getFormatHost`. The pin is on that one package, so nothing else slows down.
+
+Two things that do *not* fix it, both tried: a `pnpm.overrides` entry keyed
+`@modern-js/server-utils>typescript`, which cannot work because typescript is
+only a devDependency there and no edge exists to override; and a
+`packageExtensions` entry, which does place TS6 inside server-utils but is
+resolved from the wrong place — the loader looks in the app directory, not its
+own.
+
 `apps/auth/shell/server/modern.server.ts` is a Modern.js custom Web Server. It
 injects the internal token identity requires, and turns the session id identity
 returns into an `HttpOnly`, `Secure`, `SameSite=Strict`, `__Host-` cookie —
