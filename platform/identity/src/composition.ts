@@ -348,25 +348,65 @@ export async function compose(config: Config): Promise<RequestHandler> {
 
   const admin = adminRoutes({
     internalToken: config.internalToken,
-    listTenants: async () => {
+    listTenants: async (page) => {
+      // Keyset, not OFFSET. `OFFSET 10000` makes Postgres produce and discard
+      // ten thousand rows to return ten, so the last page of a large list is
+      // the slowest — and this list only grows, because a tenant is never
+      // deleted while it holds employment records.
+      const cursor = page.cursor;
       const rows = await db.execute(sql`
-        SELECT t.id, t.slug, t.display_name, t.status, t.created_at,
-               count(a.id) FILTER (WHERE a.status = 'active')  AS admins,
-               count(a.id) FILTER (WHERE a.status = 'invited') AS pending
+        SELECT t.id, t.slug, t.display_name, t.status, t.created_at
           FROM platform.tenant t
-          LEFT JOIN platform.account a ON a.tenant_id = t.id
-         GROUP BY t.id
-         ORDER BY t.created_at DESC
+         WHERE ${
+           cursor === null
+             ? sql`true`
+             : sql`(t.created_at, t.id) < (${cursor.createdAt}::timestamptz, ${cursor.id}::uuid)`
+         }
+         ORDER BY t.created_at DESC, t.id DESC
+         LIMIT ${page.limit + 1}
       `);
-      return [...rows].map((row) => ({
-        id: String(row['id']),
-        slug: String(row['slug']),
-        displayName: String(row['display_name']),
-        status: String(row['status']),
-        createdAt: String(row['created_at']),
-        admins: Number(row['admins']),
-        pendingInvites: Number(row['pending']),
-      }));
+
+      const all = [...rows];
+      // One more than asked for, so "is there another page" needs no count(*)
+      // over the whole table.
+      const hasMore = all.length > page.limit;
+      const visible = hasMore ? all.slice(0, page.limit) : all;
+
+      // Counts come from a SECURITY DEFINER function, because `platform.account`
+      // carries RLS and this listing deliberately spans tenants. Read directly
+      // it returns zero for every company — a wrong number rather than an
+      // error, which is how it went unnoticed. See the migration for why the
+      // function is shaped the way it is.
+      const counted = await db.execute(sql`
+        SELECT tenant_id, active, invited FROM platform.tenant_account_counts()
+      `);
+      const counts = new Map(
+        [...counted].map((row) => [
+          text(row['tenant_id']),
+          { active: Number(row['active']), invited: Number(row['invited']) },
+        ]),
+      );
+
+      const last = visible.at(-1);
+      return {
+        tenants: visible.map((row) => {
+          const id = text(row['id']);
+          const count = counts.get(id) ?? { active: 0, invited: 0 };
+          return {
+            id,
+            slug: text(row['slug']),
+            displayName: text(row['display_name']),
+            status: text(row['status']),
+            createdAt: text(row['created_at']),
+            admins: count.active,
+            pendingInvites: count.invited,
+          };
+        }),
+        nextCursor:
+          hasMore && last
+            ? { createdAt: text(last['created_at']), id: text(last['id']) }
+            : null,
+      };
     },
     tenantDetail: async (id) => {
       const rows = await db.execute(sql`

@@ -52,9 +52,17 @@ export interface TenantDetail {
   readonly people: readonly TenantPerson[];
 }
 
+export interface TenantCursor {
+  readonly createdAt: string;
+  readonly id: string;
+}
+
 export interface AdminRoutesDeps {
-  readonly listTenants: () => Promise<
-    readonly {
+  readonly listTenants: (page: {
+    limit: number;
+    cursor: TenantCursor | null;
+  }) => Promise<{
+    tenants: readonly {
       id: string;
       slug: string;
       displayName: string;
@@ -62,8 +70,9 @@ export interface AdminRoutesDeps {
       createdAt: string;
       admins: number;
       pendingInvites: number;
-    }[]
-  >;
+    }[];
+    nextCursor: TenantCursor | null;
+  }>;
   readonly tenantDetail: (id: string) => Promise<TenantDetail | null>;
   readonly provision: ProvisionTenant;
   readonly internalToken: string;
@@ -101,7 +110,45 @@ export function adminRoutes({
       return found ? json(200, found) : json(404, {});
     }
 
-    if (request.method === 'GET') return json(200, { tenants: await listTenants() });
+    if (request.method === 'GET') {
+      const url = new URL(request.url ?? '/', 'http://placeholder');
+
+      // Clamped, not trusted. `?limit=1000000` on an unbounded query is a
+      // denial of service written by the caller, and the page it would return
+      // is not one anybody reads.
+      const asked = Number(url.searchParams.get('limit') ?? '50');
+      const limit = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 1), 100) : 50;
+
+      // The cursor is opaque to the caller: base64 of the pair it must not
+      // have to know the shape of. Unparseable means the first page rather
+      // than an error — a stale bookmark should show a list, not a 400.
+      const raw = url.searchParams.get('cursor');
+      let cursor: TenantCursor | null = null;
+      if (raw !== null) {
+        try {
+          const decoded: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+          if (
+            typeof decoded === 'object' &&
+            decoded !== null &&
+            typeof (decoded as TenantCursor).createdAt === 'string' &&
+            typeof (decoded as TenantCursor).id === 'string'
+          ) {
+            cursor = decoded as TenantCursor;
+          }
+        } catch {
+          cursor = null;
+        }
+      }
+
+      const page = await listTenants({ limit, cursor });
+      return json(200, {
+        tenants: page.tenants,
+        nextCursor:
+          page.nextCursor === null
+            ? null
+            : Buffer.from(JSON.stringify(page.nextCursor)).toString('base64url'),
+      });
+    }
     if (request.method !== 'POST') {
       response.writeHead(405, { allow: 'GET, POST' }).end();
       return true;

@@ -24,15 +24,24 @@ interface Row {
   pendingInvites: number;
 }
 
-export default async function Companies(): Promise<JSX.Element> {
+export default async function Companies({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}): Promise<JSX.Element> {
   const operator = await currentOperator();
   // Fail closed. This is the only surface that crosses tenants and it is served
   // from a plan with no deployment protection, so this check is the whole of
   // what stands between the internet and every customer's account list.
   if (!operator) redirect('/sign-in');
 
-  const { body } = await callIdentity('/api/internal/admin/tenants');
-  const tenants = (body as { tenants?: Row[] } | null)?.tenants ?? [];
+  const { cursor } = await searchParams;
+  const { body } = await callIdentity(
+    `/api/internal/admin/tenants?limit=50${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+  );
+  const page = body as { tenants?: Row[]; nextCursor?: string | null } | null;
+  const tenants = page?.tenants ?? [];
+  const nextCursor = page?.nextCursor ?? null;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
@@ -94,6 +103,20 @@ export default async function Companies(): Promise<JSX.Element> {
             </li>
           ))}
         </ul>
+      )}
+
+      {nextCursor === null ? null : (
+        <nav className="mt-8 flex justify-center" aria-label="More companies">
+          {/*
+            A cursor, not a page number. The list is ordered by creation and
+            only grows, so `?page=7` names a different set of companies each
+            time somebody is added — and the last page of an OFFSET query is
+            the slowest, which is the one a long list is read from.
+          */}
+          <Button asChild variant="secondary">
+            <Link href={`/?cursor=${encodeURIComponent(nextCursor)}`}>Show more</Link>
+          </Button>
+        </nav>
       )}
     </main>
   );
