@@ -3,7 +3,6 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { Redis } from 'ioredis';
 import { ok, systemClock } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
@@ -18,7 +17,7 @@ import { signInWithPasskey } from './credential/application/sign-in-with-passkey
 import { signIn } from './credential/application/sign-in.js';
 import { drizzleCredentialRepository } from './credential/infrastructure/drizzle-credential-repository.js';
 import { simpleWebAuthnRelyingParty } from './credential/infrastructure/simplewebauthn-relying-party.js';
-import { valkeyChallengeStore } from './credential/infrastructure/valkey-challenge-store.js';
+import { postgresChallengeStore } from './credential/infrastructure/postgres-challenge-store.js';
 import { webauthnRoutes } from './credential/http/webauthn-routes.js';
 import { completeEnrolment } from './credential/application/complete-enrolment.js';
 import { drizzleEnrolmentTokenStore } from './credential/infrastructure/drizzle-enrolment-token-store.js';
@@ -59,7 +58,14 @@ export interface Config {
    */
   readonly adminRpId: string;
   readonly adminOrigin: string;
-  readonly valkeyUrl: string;
+  /**
+   * Kept, and unused by default.
+   *
+   * Challenges live in Postgres now — see
+   * `postgres-challenge-store.ts` for why. A deployment with a real always-on
+   * Redis can still wire `valkeyChallengeStore` here; the port did not change.
+   */
+  readonly valkeyUrl?: string | undefined;
   readonly internalToken: string;
   readonly rpId: string;
   readonly authOrigin: string;
@@ -72,9 +78,46 @@ export type RequestHandler = (
   response: ServerResponse,
 ) => Promise<boolean>;
 
+/**
+ * A column, as text.
+ *
+ * `String(row['x'])` on a value the driver types as `unknown` renders an object
+ * as `[object Object]` — which reaches a screen looking like something somebody
+ * typed. These narrow first and are the only way this file reads a row.
+ */
+function text(value: unknown): string {
+  if (typeof value === 'string') return value;
+  // Narrowed rather than stringified. Falling through to `String(value)` is
+  // what renders an object as `[object Object]`, and a column read that way
+  // reaches a screen looking like something a person typed.
+  if (typeof value === 'number' || typeof value === 'bigint') return String(value);
+  if (value instanceof Date) return value.toISOString();
+  return '';
+}
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
 export async function compose(config: Config): Promise<RequestHandler> {
-  const db = drizzle(postgres(config.databaseUrl));
-  const valkey = new Redis(config.valkeyUrl);
+  /*
+   * One connection per instance, and no prepared statements.
+   *
+   * Both follow from the host being a pooler rather than Postgres itself.
+   * Neon's pooled endpoint is PgBouncer in transaction mode, which hands a
+   * different server connection to each transaction — so a prepared statement
+   * created on one is missing on the next, and postgres.js prepares everything
+   * by default. That surfaces as `prepared statement "s1" does not exist` under
+   * concurrency and nowhere else, which is the worst way to find it.
+   *
+   * `max: 1` because the pooler is the pool. A serverless instance handling one
+   * request at a time needs one connection, and ten instances each holding ten
+   * is how a connection limit is reached without any traffic to justify it.
+   *
+   * Both are correct against a direct endpoint too — marginally slower, never
+   * wrong — so this is not conditional on how it happens to be deployed.
+   */
+  const db = drizzle(postgres(config.databaseUrl, { max: 1, prepare: false }));
 
   const signer = await joseSigner(
     config.signingKey === undefined
@@ -83,7 +126,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
   );
 
   const relyingParty = simpleWebAuthnRelyingParty({ rpId: config.rpId, rpName: 'Kithena' });
-  const challenges = valkeyChallengeStore(valkey);
+  // Postgres rather than Valkey. The Valkey machine had no services declared,
+  // so Fly's proxy could not autostart it: once stopped it stayed stopped, and
+  // it took a passkey enrolment with it. This database is the thing identity
+  // already cannot run without, so a challenge stored here cannot be down while
+  // the service is up.
+  const challenges = postgresChallengeStore(db);
   const origins = {
     rpId: config.rpId,
     authOrigin: config.authOrigin,
@@ -300,54 +348,177 @@ export async function compose(config: Config): Promise<RequestHandler> {
 
   const admin = adminRoutes({
     internalToken: config.internalToken,
-    listTenants: async () => {
+    listTenants: async (page) => {
+      // Keyset, not OFFSET. `OFFSET 10000` makes Postgres produce and discard
+      // ten thousand rows to return ten, so the last page of a large list is
+      // the slowest — and this list only grows, because a tenant is never
+      // deleted while it holds employment records.
+      const cursor = page.cursor;
       const rows = await db.execute(sql`
-        SELECT t.id, t.slug, t.display_name, t.status, t.created_at,
-               count(a.id) FILTER (WHERE a.status = 'active')  AS admins,
-               count(a.id) FILTER (WHERE a.status = 'invited') AS pending
+        SELECT t.id, t.slug, t.display_name, t.status, t.created_at
           FROM platform.tenant t
-          LEFT JOIN platform.account a ON a.tenant_id = t.id
-         GROUP BY t.id
-         ORDER BY t.created_at DESC
+         WHERE ${
+           cursor === null
+             ? sql`true`
+             : sql`(t.created_at, t.id) < (${cursor.createdAt}::timestamptz, ${cursor.id}::uuid)`
+         }
+         ORDER BY t.created_at DESC, t.id DESC
+         LIMIT ${page.limit + 1}
       `);
-      return [...rows].map((row) => ({
+
+      const all = [...rows];
+      // One more than asked for, so "is there another page" needs no count(*)
+      // over the whole table.
+      const hasMore = all.length > page.limit;
+      const visible = hasMore ? all.slice(0, page.limit) : all;
+
+      // Counts come from a SECURITY DEFINER function, because `platform.account`
+      // carries RLS and this listing deliberately spans tenants. Read directly
+      // it returns zero for every company — a wrong number rather than an
+      // error, which is how it went unnoticed. See the migration for why the
+      // function is shaped the way it is.
+      const counted = await db.execute(sql`
+        SELECT tenant_id, active, invited FROM platform.tenant_account_counts()
+      `);
+      const counts = new Map(
+        [...counted].map((row) => [
+          text(row['tenant_id']),
+          { active: Number(row['active']), invited: Number(row['invited']) },
+        ]),
+      );
+
+      const last = visible.at(-1);
+      return {
+        tenants: visible.map((row) => {
+          const id = text(row['id']);
+          const count = counts.get(id) ?? { active: 0, invited: 0 };
+          return {
+            id,
+            slug: text(row['slug']),
+            displayName: text(row['display_name']),
+            status: text(row['status']),
+            createdAt: text(row['created_at']),
+            admins: count.active,
+            pendingInvites: count.invited,
+          };
+        }),
+        nextCursor:
+          hasMore && last
+            ? { createdAt: text(last['created_at']), id: text(last['id']) }
+            : null,
+      };
+    },
+    tenantDetail: async (id) => {
+      const rows = await db.execute(sql`
+        SELECT id, slug, display_name, status, created_at, theme_id,
+               logo_url, cover_image_url, address_country, address_line1,
+               address_line2, address_city, address_subdivision, address_postcode
+          FROM platform.tenant
+         WHERE id = ${id}::uuid
+      `);
+      const row = [...rows][0];
+      if (!row) return null;
+
+      // The people, separately. A join would repeat every tenant column once
+      // per administrator, and the caller would have to undo that to render a
+      // page that shows the company once.
+      //
+      // Inside a tenant transaction, because `platform.account` carries RLS
+      // with FORCE and `svc_identity` does not bypass it. Read on a bare
+      // connection this returns zero rows for every company — not an error, an
+      // empty list, which renders as "nobody can sign in" on a company that has
+      // three administrators.
+      const people = await inTenantTransaction(id, (tx) =>
+        tx.execute(sql`
+          SELECT id, work_email, status, created_at
+            FROM platform.account
+           WHERE tenant_id = ${id}::uuid
+           ORDER BY created_at
+        `),
+      );
+
+      const address =
+        row['address_country'] === null
+          ? null
+          : {
+              country: text(row['address_country']),
+              line1: text(row['address_line1']),
+              line2: textOrNull(row['address_line2']),
+              city: text(row['address_city']),
+              subdivision: textOrNull(row['address_subdivision']),
+              postcode: textOrNull(row['address_postcode']),
+            };
+
+      return {
         id: String(row['id']),
         slug: String(row['slug']),
         displayName: String(row['display_name']),
         status: String(row['status']),
         createdAt: String(row['created_at']),
-        admins: Number(row['admins']),
-        pendingInvites: Number(row['pending']),
-      }));
+        themeId: textOrNull(row['theme_id']),
+        logoUrl: textOrNull(row['logo_url']),
+        coverImageUrl: textOrNull(row['cover_image_url']),
+        address,
+        people: [...people].map((person) => ({
+          id: String(person['id']),
+          email: String(person['work_email']),
+          status: String(person['status']),
+          createdAt: String(person['created_at']),
+        })),
+      };
     },
     provision: provisionTenant({
-      inTransaction: (fn) => db.transaction(() => fn()),
-      createTenant: async (input) => {
-        const rows = await db.execute(sql`
-          INSERT INTO platform.tenant (slug, display_name, accent_color)
-          VALUES (${input.slug}, ${input.displayName}, ${input.accentColor})
-          RETURNING id
-        `);
-        return String([...rows][0]?.['id']);
-      },
-      inviteAdmin: async (tenantId, email) => {
-        const identityId = uuidv7();
-        await db.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
-        const rows = await db.execute(sql`
-          INSERT INTO platform.account
-            (tenant_id, identity_id, status, work_email, time_zone, employment_start)
-          VALUES (${tenantId}::uuid, ${identityId}::uuid, 'invited', ${email},
-                  'Etc/UTC', current_date)
-          RETURNING id
-        `);
-        return String([...rows][0]?.['id']);
-      },
-      issueEnrolment: (tenantId, accountId) =>
-        drizzleEnrolmentTokenStore(db, tenantId).issue({
-          accountId,
-          secondChannel: 'in_person',
-          issuedBy: null,
-        }),
+      // The scope is built *inside* the transaction and every statement uses
+      // `tx`. Building it outside would hand back closures over the pool, which
+      // is what made this four transactions and lost the `app.tenant_id` that
+      // row-level security needs.
+      inTransaction: (fn) =>
+        db.transaction(async (tx) =>
+          fn({
+            createTenant: async (input) => {
+              const rows = await tx.execute(sql`
+                INSERT INTO platform.tenant (
+                  slug, display_name, theme_id, logo_url, cover_image_url,
+                  address_country, address_line1, address_line2,
+                  address_city, address_subdivision, address_postcode
+                )
+                VALUES (
+                  ${input.slug}, ${input.displayName}, ${input.themeId},
+                  ${input.logoUrl}, ${input.coverImageUrl},
+                  ${input.address.country.toUpperCase()}, ${input.address.line1},
+                  ${input.address.line2}, ${input.address.city},
+                  ${input.address.subdivision}, ${input.address.postcode}
+                )
+                RETURNING id
+              `);
+              return text([...rows][0]?.['id']);
+            },
+            enterTenant: async (tenantId) => {
+              // `true` makes it LOCAL: it lasts to the end of this transaction
+              // and no further. Session-level would leak this tenant's id onto
+              // whatever the pooled connection served next.
+              await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+            },
+            inviteAdmin: async (tenantId, email) => {
+              const identityId = uuidv7();
+              await tx.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
+              const rows = await tx.execute(sql`
+                INSERT INTO platform.account
+                  (tenant_id, identity_id, status, work_email, time_zone, employment_start)
+                VALUES (${tenantId}::uuid, ${identityId}::uuid, 'invited', ${email},
+                        'Etc/UTC', current_date)
+                RETURNING id
+              `);
+              return text([...rows][0]?.['id']);
+            },
+            issueEnrolment: (tenantId, accountId) =>
+              drizzleEnrolmentTokenStore(tx, tenantId).issue({
+                accountId,
+                secondChannel: 'in_person',
+                issuedBy: null,
+              }),
+          }),
+        ),
     }),
   });
 

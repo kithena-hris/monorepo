@@ -24,15 +24,24 @@ interface Row {
   pendingInvites: number;
 }
 
-export default async function Companies(): Promise<JSX.Element> {
+export default async function Companies({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}): Promise<JSX.Element> {
   const operator = await currentOperator();
   // Fail closed. This is the only surface that crosses tenants and it is served
   // from a plan with no deployment protection, so this check is the whole of
   // what stands between the internet and every customer's account list.
   if (!operator) redirect('/sign-in');
 
-  const { body } = await callIdentity('/api/internal/admin/tenants');
-  const tenants = (body as { tenants?: Row[] } | null)?.tenants ?? [];
+  const { cursor } = await searchParams;
+  const { body } = await callIdentity(
+    `/api/internal/admin/tenants?limit=50${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+  );
+  const page = body as { tenants?: Row[]; nextCursor?: string | null } | null;
+  const tenants = page?.tenants ?? [];
+  const nextCursor = page?.nextCursor ?? null;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
@@ -57,25 +66,57 @@ export default async function Companies(): Promise<JSX.Element> {
       ) : (
         <ul className="divide-border divide-y">
           {tenants.map((tenant) => (
-            <li key={tenant.id} className="flex items-center justify-between gap-4 py-4">
-              <div>
-                <p className="font-medium">{tenant.displayName}</p>
-                <p className="text-fg-muted text-sm">
-                  <code>{tenant.slug}</code>.app.kithena.com
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <span className="text-fg-muted">
-                  {tenant.admins} active
-                  {tenant.pendingInvites > 0 ? `, ${String(tenant.pendingInvites)} invited` : ''}
-                </span>
-                <Badge tone={tenant.status === 'active' ? 'success' : 'warning'}>
-                  {tenant.status}
-                </Badge>
-              </div>
+            <li key={tenant.id}>
+              {/*
+                The whole row is the link, rather than the name inside it. A
+                4px target beside a 700px row is the difference between
+                clicking a company and clicking nothing, and it matters more
+                for a pointer that is not a mouse.
+
+                `focus-visible` rather than `focus`: the ring is for somebody
+                arriving by keyboard, and showing it on every mouse click reads
+                as a rendering fault.
+              */}
+              <Link
+                href={`/companies/${tenant.id}`}
+                className="hover:bg-surface focus-visible:outline-border-focus -mx-3 flex items-center justify-between gap-4 rounded-md px-3 py-4 transition focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{tenant.displayName}</p>
+                  <p className="text-fg-muted truncate text-sm">
+                    <code>{tenant.slug}</code>.app.kithena.com
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-sm">
+                  <span className="text-fg-muted">
+                    {tenant.admins} active
+                    {tenant.pendingInvites > 0 ? `, ${String(tenant.pendingInvites)} invited` : ''}
+                  </span>
+                  <Badge tone={tenant.status === 'active' ? 'success' : 'warning'}>
+                    {tenant.status}
+                  </Badge>
+                  <span aria-hidden className="text-fg-subtle">
+                    →
+                  </span>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
+      )}
+
+      {nextCursor === null ? null : (
+        <nav className="mt-8 flex justify-center" aria-label="More companies">
+          {/*
+            A cursor, not a page number. The list is ordered by creation and
+            only grows, so `?page=7` names a different set of companies each
+            time somebody is added — and the last page of an OFFSET query is
+            the slowest, which is the one a long list is read from.
+          */}
+          <Button asChild variant="secondary">
+            <Link href={`/?cursor=${encodeURIComponent(nextCursor)}`}>Show more</Link>
+          </Button>
+        </nav>
       )}
     </main>
   );

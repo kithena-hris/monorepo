@@ -1,16 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import { provisionTenant, type ProvisionTenantDeps } from './provision-tenant.js';
+import {
+  provisionTenant,
+  type ProvisionScope,
+  type ProvisionTenantDeps,
+} from './provision-tenant.js';
 
-function deps(
-  over: Partial<ProvisionTenantDeps> = {},
-): ProvisionTenantDeps & { written: string[] } {
-  const written: string[] = [];
+/**
+ * A scope whose four writes append to one list, so a test can assert *order*
+ * as well as content. Order is the thing that broke: `enterTenant` after the
+ * first account insert is a 42501, and nothing about the individual calls says
+ * so.
+ */
+function scope(written: string[], over: Partial<ProvisionScope> = {}): ProvisionScope {
   return {
-    written,
     createTenant: (input) => {
       written.push(`tenant:${input.slug}`);
       return Promise.resolve('00000000-0000-4000-8000-00000000000a');
+    },
+    enterTenant: (tenantId) => {
+      written.push(`enter:${tenantId}`);
+      return Promise.resolve();
     },
     inviteAdmin: (_t, email) => {
       written.push(`account:${email}`);
@@ -20,8 +30,15 @@ function deps(
       written.push(`token:${accountId}`);
       return Promise.resolve(`token-for-${accountId}`);
     },
-    inTransaction: (fn) => fn(),
     ...over,
+  };
+}
+
+function deps(over: Partial<ProvisionScope> = {}): ProvisionTenantDeps & { written: string[] } {
+  const written: string[] = [];
+  return {
+    written,
+    inTransaction: (fn) => fn(scope(written, over)),
   };
 }
 
@@ -29,7 +46,17 @@ const request = {
   slug: 'acme',
   displayName: 'Acme Corp',
   admins: ['ada@acme.example', 'grace@acme.example'],
-  accentColor: null,
+  themeId: 'indigo',
+  logoUrl: null,
+  coverImageUrl: null,
+  address: {
+    country: 'ES',
+    line1: 'Calle de Alcalá 45',
+    line2: null,
+    city: 'Madrid',
+    subdivision: '28',
+    postcode: '28013',
+  },
 };
 
 describe('provisionTenant', () => {
@@ -55,35 +82,53 @@ describe('provisionTenant', () => {
     expect(d.written).toEqual([]);
   });
 
-  it('insists on two administrators before writing anything', async () => {
+  it('insists on an administrator before writing anything', async () => {
+    // One is enough since 2026-08-22; none never was. A company nobody can sign
+    // in to is not a company, and it would look like a successful signup.
     const d = deps();
-    expect((await provisionTenant(d)({ ...request, admins: ['ada@acme.example'] })).ok).toBe(false);
+    expect((await provisionTenant(d)({ ...request, admins: [] })).ok).toBe(false);
     expect(d.written).toEqual([]);
+  });
+
+  it('creates a company with a single administrator', async () => {
+    const d = deps();
+    const result = await provisionTenant(d)({ ...request, admins: ['ada@acme.example'] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.invitations).toHaveLength(1);
   });
 
   it('does all of it inside one transaction', async () => {
     // Half of this is a company that exists with nobody able to reach it, which
     // looks like a working signup right until somebody tries to log in.
-    let inside = false;
-    let sawTenantInside = false;
-    const d = deps({
+    //
+    // Every write now comes from the scope the transaction hands out, so
+    // "inside" is structural rather than something a test has to catch a
+    // closure doing. What is asserted is that nothing was written after it
+    // closed — which is what a leaked pool connection would show as.
+    const written: string[] = [];
+    let open = false;
+    let escaped = false;
+
+    await provisionTenant({
       inTransaction: async (fn) => {
-        inside = true;
-        const value = await fn();
-        inside = false;
+        open = true;
+        const value = await fn(
+          scope(written, {
+            createTenant: (input) => {
+              if (!open) escaped = true;
+              written.push(`tenant:${input.slug}`);
+              return Promise.resolve('00000000-0000-4000-8000-00000000000a');
+            },
+          }),
+        );
+        open = false;
         return value;
       },
-    });
-    const spy = deps({
-      ...d,
-      createTenant: (input) => {
-        sawTenantInside = inside;
-        return d.createTenant(input);
-      },
-    });
+    })(request);
 
-    await provisionTenant(spy)(request);
-    expect(sawTenantInside).toBe(true);
+    expect(escaped).toBe(false);
+    expect(written[0]).toBe('tenant:acme');
   });
 
   it('lets a duplicate label fail rather than checking for one first', async () => {
@@ -92,5 +137,32 @@ describe('provisionTenant', () => {
     // be told it was free.
     const d = deps({ createTenant: () => Promise.reject(new Error('duplicate key')) });
     await expect(provisionTenant(d)(request)).rejects.toThrow('duplicate key');
+  });
+});
+
+describe('row-level security during provisioning', () => {
+  it('enters the tenant before writing anything scoped to it', async () => {
+    // `platform.account` carries RLS with FORCE, so an insert with no
+    // `app.tenant_id` set is refused with 42501 — which is what happened, and
+    // it surfaced as a 500 on the one path that matters. The order is the
+    // assertion: the tenant has to exist before its id can be entered, and the
+    // context has to be set before the first account is written.
+    const d = deps();
+    const result = await provisionTenant(d)(request);
+    expect(result.ok).toBe(true);
+
+    const tenant = d.written.indexOf('tenant:acme');
+    const enter = d.written.indexOf('enter:00000000-0000-4000-8000-00000000000a');
+    const firstAccount = d.written.findIndex((w) => w.startsWith('account:'));
+
+    expect(tenant).toBeGreaterThanOrEqual(0);
+    expect(enter).toBeGreaterThan(tenant);
+    expect(firstAccount).toBeGreaterThan(enter);
+  });
+
+  it('does not enter a tenant it refused to create', async () => {
+    const d = deps();
+    await provisionTenant(d)({ ...request, admins: [] });
+    expect(d.written).toEqual([]);
   });
 });

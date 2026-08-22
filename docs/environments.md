@@ -144,40 +144,71 @@ right instinct and the wrong test — `neondb_owner` passes it and leaks anyway.
 See [SECURITY.md](../SECURITY.md#writing-a-row-level-security-policy) for the two
 details every policy needs.
 
-### Identity, on Fly
+### Why the back-office does not rebuild on every push
 
-`platform/identity/Dockerfile` builds it and `fly.toml` describes where it runs.
-Fly rather than Vercel for one reason that is not preference: the service holds
-a Postgres pool and a Valkey connection across requests, and a
-function-per-request runtime takes both away. Every request would open a new
-connection and Postgres would run out long before the traffic justified it.
+`apps/admin/vercel.json` sets an ignore command:
 
-    fly launch --no-deploy --copy-config --dockerfile platform/identity/Dockerfile
-    fly secrets set \
-      IDENTITY_DATABASE_URL='postgres://…'   # the app role, not the owner
-      VALKEY_URL='rediss://…'                 \
-      INTERNAL_API_TOKEN='…'                  \
-      AUTH_SIGNING_KEY='{"kty":"EC",…}'       # a private JWK, ES256
-    fly deploy
+    npx --yes turbo-ignore @kithena/admin
 
-`AUTH_SIGNING_KEY` is required rather than defaulted, and the service refuses to
-start without it when `NODE_ENV=production`. A key generated at boot would look
-like intermittent logouts rather than like a missing setting, which is a much
-longer afternoon. Generate one with `jose`:
+`vercel.json` takes no comments, so the reason is here. Vercel's Git
+integration builds a project on every push to every branch, and on 2026-08-22
+that hit the Hobby plan's daily build limit — thirteen of the last twenty
+deployments were Dependabot branches touching packages the back-office does not
+depend on. The check on the open pull request then failed with
+`upgradeToPro=build-rate-limit`, which looks exactly like a broken build and is
+not one.
 
-    node -e "import('jose').then(async j => {
-      const { privateKey } = await j.generateKeyPair('ES256', { extractable: true });
-      console.log(JSON.stringify(await j.exportJWK(privateKey)));
-    })"
+`turbo-ignore` asks turbo whether anything in `@kithena/admin`'s dependency
+graph actually changed since the last deployment, and exits 0 to skip when
+nothing did. A Dependabot bump to Storybook no longer spends a build; a change
+to `packages/contracts` still does, because the back-office imports it.
 
-`min_machines_running = 1` and `auto_stop_machines = "off"`, deliberately. A cold
-start here is a cold start on the login page, and the session read path runs
-through it — scaling to nothing saves a few pounds and spends them on the first
-person to sign in each morning.
+This is a quota workaround. It is also just correct — a build that cannot
+produce a different artifact is a build worth skipping — so it stays whatever
+plan this ends up on.
 
-Valkey needs a host too. Losing it logs nobody out, because every session is
-also a row in Postgres, so a managed Redis on a free tier is an acceptable
-starting point.
+### Identity, on Vercel
+
+`platform/identity/api/[...path].ts` is the whole of the deployment surface: a
+Vercel Node function that awaits the same `compose()` router `src/main.ts` puts
+behind `node:http`. A Node function receives `VercelRequest` and
+`VercelResponse`, which extend `IncomingMessage` and `ServerResponse`, so every
+route moved across unchanged and so did its tests.
+
+This ran on Fly until 2026-08-22. The reason it did was real at the time — the
+service held a Postgres pool *and a Valkey connection* across requests, and a
+function-per-request runtime takes both away. Valkey is gone: challenges live
+in Postgres, because a Valkey machine with no declared services could not be
+autostarted by Fly's proxy and took a passkey enrolment down with it. What was
+left was a Postgres pool, and Neon ships a pooler for exactly that.
+
+So the argument had already dissolved before the platform was changed. What
+finally decided it was operational: a trial organisation reaps idle machines,
+refuses `fly deploy` for new Launch machines, and had left production with zero
+machines for a day. Two platforms for one product, one of which could not
+deploy.
+
+Three things this depends on, none of them optional:
+
+  * **The pooled Neon host.** `IDENTITY_DATABASE_URL` must be the `-pooler`
+    endpoint. A serverless instance opening a direct connection each time is
+    the objection that sent this to a container in the first place.
+  * **`prepare: false` and `max: 1`** on the postgres client, set in
+    `composition.ts`. Neon's pooler is PgBouncer in transaction mode, which
+    hands a different server connection to each transaction — a prepared
+    statement made on one is missing on the next. It fails as
+    `prepared statement "s1" does not exist`, under concurrency and nowhere
+    else.
+  * **A custom domain.** `ssoProtection` is `all_except_custom_domains`, so
+    every `*.vercel.app` host answers `302` to a login page. Only
+    `identity.staging.kithena.com` and `identity.kithena.com` are reachable,
+    which is also why the smoke tests name them rather than the deployment URL.
+
+`Dockerfile` and `src/main.ts` stay, and are not dead weight. They are what
+`just dev` runs, and they are the reason this is still an HTTP server that
+happens to be deployed as a function rather than one that can only ever be a
+function. Nothing under `src/` imports anything from Vercel.
+
 
 ### Until then, the back-office is a locked door
 

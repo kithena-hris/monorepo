@@ -49,7 +49,9 @@ const routes = await compose({
   // migrations, and an owner bypasses row-level security on its own tables
   // regardless of any policy. Identity connects as `svc_identity`, which cannot.
   databaseUrl: required('IDENTITY_DATABASE_URL'),
-  valkeyUrl: process.env['VALKEY_URL'] ?? 'redis://localhost:6379',
+  // Optional now: challenges live in Postgres. Passed through so a deployment
+  // with a real always-on Redis can still choose the Valkey store.
+  ...(process.env['VALKEY_URL'] ? { valkeyUrl: process.env['VALKEY_URL'] } : {}),
   internalToken: required('INTERNAL_API_TOKEN'),
   rpId: process.env['WEBAUTHN_RP_ID'] ?? 'app.localhost',
   adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',

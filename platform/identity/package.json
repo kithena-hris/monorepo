@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",
-    "@simplewebauthn/server": "^13.3.2",
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
+    "@simplewebauthn/server": "^13.3.2",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^6.0.0",
     "jose": "^6.0.0",
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
+    "@vercel/node": "^6.0.0",
     "vitest": "^3.2.0"
   }
 }

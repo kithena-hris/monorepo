@@ -65,7 +65,6 @@ jobs:
           missing=
           [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
           [ -z "${{ secrets.DATABASE_URL }}" ] && missing="$missing DATABASE_URL"
-          [ -z "${{ secrets.FLY_API_TOKEN }}" ] && missing="$missing FLY_API_TOKEN"
           [ -z "${{ vars.VERCEL_WEB_PROJECT_ID }}" ] && missing="$missing VERCEL_WEB_PROJECT_ID"
           if [ -n "$missing" ]; then
             echo "::error::missing staging secret(s):$missing"
@@ -81,7 +80,14 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ATLAS_DEV_URL: ${{ vars.ATLAS_DEV_URL }}
         run: |
-          curl -sSf https://release.ariga.io/atlas/atlas-linux-amd64-latest -o /usr/local/bin/atlas
+          # Pinned, not `latest`. Atlas moved `migrate lint` behind a paid
+          # tier in v0.38, and because this downloaded `latest` the production
+          # deploy broke on a release nobody here made. A version that can
+          # change under us is a deploy that can fail for reasons not in this
+          # repository. v0.37.0 is the last release where `lint` runs without
+          # an account; bump it deliberately.
+          ATLAS_VERSION=v0.37.0
+          curl -sSf "https://release.ariga.io/atlas/atlas-linux-amd64-${ATLAS_VERSION}" -o /usr/local/bin/atlas
           chmod +x /usr/local/bin/atlas
           atlas migrate apply --env staging
 
@@ -118,22 +124,32 @@ jobs:
       # that migrates the database and ships the UI while leaving the service
       # on old code is the worst of the three states: the schema has moved, the
       # front end expects it, and the thing holding sessions has not been told.
-      - name: setup flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+
+
+      # The identity service.
+      #
+      # After the migration and before the UI. Expand-contract means new code
+      # reads the old schema and old code reads the new one, so the only
+      # ordering that is never wrong is schema, then service, then client.
+      #
+      # A Vercel function rather than a container since 2026-08-22: the reason
+      # it needed a process was a Valkey connection held across requests, and
+      # challenges live in Postgres now. docs/environments.md has the rest.
       - name: deploy identity
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
         run: |
-          flyctl deploy . \
-            --config platform/identity/fly.staging.toml \
-            --dockerfile platform/identity/Dockerfile \
-            --remote-only --yes
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN"
 
+      # The custom domain, not the deployment URL. `ssoProtection` is set to
+      # `all_except_custom_domains`, so a `.vercel.app` host answers 302 to a
+      # login page and would pass a naive check that follows redirects.
       - name: smoke test identity
         run: |
           curl --fail --silent --show-error \
             --retry 5 --retry-delay 5 --max-time 30 \
-            https://kithena-identity.fly.dev/.well-known/jwks.json >/dev/null
+            https://identity.staging.kithena.com/.well-known/jwks.json >/dev/null
 
       - name: build back-office
         run: pnpm turbo run build --filter=@kithena/admin...
