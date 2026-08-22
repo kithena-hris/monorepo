@@ -29,11 +29,6 @@ import { tenantRoutes } from './tenancy/http/tenant-routes.js';
 import { jwksRoute } from './token/http/jwks-route.js';
 import { developmentKey, joseSigner } from './token/infrastructure/jose-signer.js';
 import { uuidv7 } from './shared/uuid.js';
-import { operatorSignIn } from './operator/application/operator-sign-in.js';
-import { drizzleOperatorRepository } from './operator/infrastructure/drizzle-operator-repository.js';
-import { operatorRoutes } from './operator/http/operator-routes.js';
-import { provisionTenant } from './tenancy/application/provision-tenant.js';
-import { adminRoutes } from './tenancy/http/admin-routes.js';
 
 /**
  * Where the slices are joined.
@@ -49,16 +44,6 @@ import { adminRoutes } from './tenancy/http/admin-routes.js';
  */
 export interface Config {
   readonly databaseUrl: string;
-  /**
-   * The back-office's relying party, which is deliberately not the product's.
-   *
-   * `admin.kithena.com` is not under `app.kithena.com`, so a browser will not
-   * offer an employee's passkey to the back-office and will not offer an
-   * operator's to the product. That isolation costs nothing and is the main
-   * reason the back-office lives on its own registrable domain.
-   */
-  readonly adminRpId: string;
-  readonly adminOrigin: string;
   readonly valkeyUrl: string;
   readonly internalToken: string;
   readonly rpId: string;
@@ -220,137 +205,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
       ),
   });
 
-  /* ------------------------------------------------------------ back-office */
-
-  const operators = drizzleOperatorRepository(db);
-  const adminRelyingParty = simpleWebAuthnRelyingParty({
-    rpId: config.adminRpId,
-    rpName: 'Kithena back-office',
-  });
-  const adminOrigins = {
-    rpId: config.adminRpId,
-    authOrigin: config.adminOrigin,
-    allowInsecure: config.allowInsecureOrigins,
-  };
-
-  const operator = operatorRoutes({
-    operators,
-    internalToken: config.internalToken,
-    clock: systemClock,
-    beginAssertion: () => adminRelyingParty.beginAuthentication(),
-    beginRegistration: (input) =>
-      adminRelyingParty.beginRegistration({
-        identityId: input.identityId,
-        displayName: input.displayName,
-        excludeCredentialIds: [],
-        // The back-office is where hardware-bound authenticators would be
-        // demanded if anywhere. Left off until there is a second operator to
-        // inconvenience; the policy is recorded in auth-administration.md.
-        requireHardwareBound: false,
-      }),
-    finishRegistration: async (response, expected) => {
-      const verified = await adminRelyingParty.finishRegistration(response, expected);
-      await db.execute(sql`
-        INSERT INTO platform.credential
-          (id, identity_id, kind, external_id, provider, public_key, sign_count, backed_up)
-        VALUES (${uuidv7()}::uuid, ${expected.identityId}::uuid, 'passkey',
-                ${verified.credentialId}, ${verified.aaguid},
-                ${Buffer.from(verified.publicKey)}, ${verified.signCount}, ${verified.backedUp})
-      `);
-    },
-    rememberChallenge: (challenge, purpose, subject) =>
-      challenges.issue(challenge, { purpose, subject }, 300),
-    spendChallenge: (challenge) => challenges.consume(challenge),
-    onRefusal: (reason) => {
-      logger.info({ reason }, 'operator refused');
-    },
-    signIn: operatorSignIn({
-      clock: systemClock,
-      verify: async (request) => {
-        const verified = await signInWithPasskey({
-          rp: adminRelyingParty,
-          challenges: {
-            // The challenge was already spent by the route, so this sees a
-            // ceremony that has been admitted once and must not be admitted
-            // again by a second consume.
-            issue: () => Promise.resolve(),
-            consume: () => Promise.resolve({ purpose: 'authentication', subject: null }),
-          },
-          credentials: drizzleCredentialRepository(db),
-          origins: adminOrigins,
-          policyFor: () => Promise.resolve(defaultCredentialPolicy),
-          onRefusal: (reason) => {
-            logger.info({ reason }, 'operator passkey refused');
-          },
-        })(request);
-
-        return verified.ok ? ok({ identityId: verified.value.identityId }) : verified;
-      },
-      findOperator: (identityId) => operators.byIdentity(identityId),
-      startSession: async (operatorId, expiresAt) => {
-        const id = uuidv7();
-        await operators.startSession({ id, operatorId, expiresAt, ip: null, userAgent: null });
-        return id;
-      },
-      onRefusal: (reason) => {
-        logger.info({ reason }, 'operator sign-in refused');
-      },
-    }),
-  });
-
-  const admin = adminRoutes({
-    internalToken: config.internalToken,
-    listTenants: async () => {
-      const rows = await db.execute(sql`
-        SELECT t.id, t.slug, t.display_name, t.status, t.created_at,
-               count(a.id) FILTER (WHERE a.status = 'active')  AS admins,
-               count(a.id) FILTER (WHERE a.status = 'invited') AS pending
-          FROM platform.tenant t
-          LEFT JOIN platform.account a ON a.tenant_id = t.id
-         GROUP BY t.id
-         ORDER BY t.created_at DESC
-      `);
-      return [...rows].map((row) => ({
-        id: String(row['id']),
-        slug: String(row['slug']),
-        displayName: String(row['display_name']),
-        status: String(row['status']),
-        createdAt: String(row['created_at']),
-        admins: Number(row['admins']),
-        pendingInvites: Number(row['pending']),
-      }));
-    },
-    provision: provisionTenant({
-      inTransaction: (fn) => db.transaction(() => fn()),
-      createTenant: async (input) => {
-        const rows = await db.execute(sql`
-          INSERT INTO platform.tenant (slug, display_name, accent_color)
-          VALUES (${input.slug}, ${input.displayName}, ${input.accentColor})
-          RETURNING id
-        `);
-        return String([...rows][0]?.['id']);
-      },
-      inviteAdmin: async (tenantId, email) => {
-        const identityId = uuidv7();
-        await db.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
-        const rows = await db.execute(sql`
-          INSERT INTO platform.account
-            (tenant_id, identity_id, status, work_email, time_zone, employment_start)
-          VALUES (${tenantId}::uuid, ${identityId}::uuid, 'invited', ${email},
-                  'Etc/UTC', current_date)
-          RETURNING id
-        `);
-        return String([...rows][0]?.['id']);
-      },
-      issueEnrolment: (tenantId, accountId) =>
-        drizzleEnrolmentTokenStore(db, tenantId).issue({
-          accountId,
-          secondChannel: 'in_person',
-          issuedBy: null,
-        }),
-    }),
-  });
-
   /*
    * Routes, tried in order.
    *
@@ -362,7 +216,5 @@ export async function compose(config: Config): Promise<RequestHandler> {
     jwks(request, response) ||
     (await webauthn(request, response)) ||
     (await enrolment(request, response)) ||
-    (await operator(request, response)) ||
-    (await admin(request, response)) ||
     (await tenants(request, response));
 }
