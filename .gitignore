@@ -46,4 +46,22 @@ docker-compose.override.yml
 #
 # Ignored rather than merely deleted: they reappear, and a stray `tsconfig 2.json`
 # next to the real one is a file somebody will eventually edit and wonder about.
+# iCloud conflict copies.
+#
+# "Desktop & Documents" sync is on and this repository lives under ~/Desktop, so
+# iCloud writes a copy named `thing 2.ts` whenever it sees concurrent writes —
+# which a build tool touching thousands of files does constantly. 1,531 of them
+# were cleared out of this checkout on 2026-08-22, and thirteen copies of real
+# source files were once committed to main.
+#
+# Four patterns, not one. `* [0-9].*` only matches names carrying an extension,
+# so it missed directories entirely: `src/routes 2`, `app/api/operator 2` and
+# `app/companies/new 2` were all sitting untracked but committable, which is
+# exactly how the earlier incident happened. The two-digit forms matter too —
+# `oxlint 12` is a real name iCloud produced here.
+#
+# This is a net, not a cure. The cure is moving the repository off ~/Desktop.
+* [0-9]
+* [0-9][0-9]
 * [0-9].*
+* [0-9][0-9].*

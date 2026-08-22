@@ -167,6 +167,19 @@ This is a quota workaround. It is also just correct — a build that cannot
 produce a different artifact is a build worth skipping — so it stays whatever
 plan this ends up on.
 
+### A note on where this repository lives
+
+`~/Desktop/workspace/claude/kithena`, with iCloud "Desktop & Documents" sync
+turned on. That combination produces conflict copies — `composition 2.ts`,
+`src/routes 2`, `oxlint 12` — because iCloud makes one whenever it sees
+concurrent writes, and a build tool writes thousands of files in seconds.
+
+1,531 were cleared from a single checkout on 2026-08-22, and thirteen copies of
+real source files reached `main` on an earlier occasion. `.gitignore` now
+matches directories and two-digit copies as well as the obvious
+`name 2.ext` case, but that is a net rather than a cure: the repository wants
+moving somewhere iCloud does not watch.
+
 ### Identity, on Vercel
 
 `platform/identity/api/[...path].ts` is the whole of the deployment surface: a
