@@ -3,7 +3,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { TenantStatus } from '@kithena/contracts';
 
 import type { TenantRepository } from '../application/tenant-repository.js';
-import type { Tenant } from '../domain/tenant.js';
+import { brandingFor, type Tenant } from '../domain/tenant.js';
 import { tenant } from './tenant-table.js';
 
 /**
@@ -19,7 +19,15 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
   return {
     async bySlug(slug) {
       const rows = await db
-        .select({ id: tenant.id, slug: tenant.slug, status: tenant.status })
+        .select({
+          id: tenant.id,
+          slug: tenant.slug,
+          status: tenant.status,
+          displayName: tenant.displayName,
+          logoUrl: tenant.logoUrl,
+          accentColor: tenant.accentColor,
+          brandingPublic: tenant.brandingPublic,
+        })
         .from(tenant)
         .where(eq(tenant.slug, slug))
         .limit(1);
@@ -30,7 +38,12 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
       const status = TenantStatus.safeParse(row.status);
       if (!status.success) return null;
 
-      return { id: row.id, slug: row.slug, status: status.data } satisfies Tenant;
+      return {
+        id: row.id,
+        slug: row.slug,
+        status: status.data,
+        branding: brandingFor(row),
+      } satisfies Tenant;
     },
   };
 }

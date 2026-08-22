@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { admit, isLookupWorthwhile, type Tenant } from './tenant.js';
+import { admit, brandingFor, isLookupWorthwhile, type Tenant } from './tenant.js';
 
 /**
  * These are isolation tests, not lookup tests.
@@ -10,7 +10,12 @@ import { admit, isLookupWorthwhile, type Tenant } from './tenant.js';
  * reason the file exists.
  */
 
-const acme: Tenant = { id: '00000000-0000-4000-8000-000000000001', slug: 'acme', status: 'active' };
+const acme: Tenant = {
+  id: '00000000-0000-4000-8000-000000000001',
+  slug: 'acme',
+  status: 'active',
+  branding: { displayName: null, logoUrl: null, accentColor: null },
+};
 
 describe('isLookupWorthwhile', () => {
   it('accepts a well-formed, unreserved label', () => {
@@ -64,5 +69,42 @@ describe('admit', () => {
     const closed = admit({ ...acme, status: 'closed' });
     if (suspended.ok || closed.ok) throw new Error('both should fail');
     expect(suspended.error.message).toBe(closed.error.message);
+  });
+});
+
+describe('brandingFor', () => {
+  const row = {
+    displayName: 'Acme Corp',
+    logoUrl: 'https://assets.example/acme.png',
+    accentColor: 'oklch(0.55 0.18 264)',
+    brandingPublic: true,
+  };
+
+  it('names the company when it has agreed to be named', () => {
+    expect(brandingFor(row)).toEqual({
+      displayName: 'Acme Corp',
+      logoUrl: 'https://assets.example/acme.png',
+      accentColor: 'oklch(0.55 0.18 264)',
+    });
+  });
+
+  it('says nothing at all when it has not', () => {
+    // Not "no logo but still the name". A login page that says "Acme Corp"
+    // confirms Acme is a customer just as surely as one that shows the mark,
+    // and confirming that is the whole thing being withheld.
+    expect(brandingFor({ ...row, brandingPublic: false })).toEqual({
+      displayName: null,
+      logoUrl: null,
+      accentColor: null,
+    });
+  });
+
+  it('passes through a company that has uploaded nothing', () => {
+    const bare = { ...row, logoUrl: null, accentColor: null };
+    expect(brandingFor(bare)).toEqual({
+      displayName: 'Acme Corp',
+      logoUrl: null,
+      accentColor: null,
+    });
   });
 });

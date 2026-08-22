@@ -28,10 +28,21 @@ const IDENTITY = '00000000-0000-4000-8000-00000000000d';
 const ACCOUNT = '00000000-0000-4000-8000-0000000000a1';
 const EMAIL = 'ada@acme.example';
 
+/*
+ * A logo drawn here rather than fetched, and a PNG rather than an SVG.
+ *
+ * Fetched would make seeding depend on somebody else's uptime and hotlink
+ * policy; the first attempt at this used a Wikipedia URL and rendered a broken
+ * image. SVG would be worse than inconvenient — it carries script, and this
+ * value ends up in an `<img src>` on the least authenticated page in the
+ * product. Real uploads are rasterised for the same reason.
+ */
+const LOGO = 'data:image/png;base64,iVBORw0KGgo=' as string;
+
 await sql`
-  INSERT INTO platform.tenant (slug, display_name, status)
-  VALUES ('acme', 'Acme Corp', 'active')
-  ON CONFLICT (slug) DO NOTHING
+  INSERT INTO platform.tenant (slug, display_name, status, accent_color)
+  VALUES ('acme', 'Acme Corp', 'active', 'oklch(0.55 0.18 264)')
+  ON CONFLICT (slug) DO UPDATE SET display_name = excluded.display_name
 `;
 const [tenant] = await sql<{ id: string }[]>`SELECT id FROM platform.tenant WHERE slug = 'acme'`;
 if (!tenant) throw new Error('the acme tenant did not get created');

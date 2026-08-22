@@ -20,6 +20,18 @@
 export interface Tenant {
   readonly id: string;
   readonly slug: string;
+  /**
+   * Null throughout when the company has asked not to be named.
+   *
+   * The decision is the registry's, not this page's — see `brandingFor` in the
+   * identity service. A screen that had to remember to check a flag is a screen
+   * that leaks the customer list the first time somebody adds a heading.
+   */
+  readonly branding: {
+    readonly displayName: string | null;
+    readonly logoUrl: string | null;
+    readonly accentColor: string | null;
+  };
 }
 
 export async function resolveTenant(slug: string): Promise<Tenant | null> {
@@ -36,6 +48,18 @@ export async function resolveTenant(slug: string): Promise<Tenant | null> {
   const body: unknown = await response.json();
   if (body === null || typeof body !== 'object') return null;
 
-  const { id, slug: found } = body as Record<string, unknown>;
-  return typeof id === 'string' && typeof found === 'string' ? { id, slug: found } : null;
+  const { id, slug: found, branding } = body as Record<string, unknown>;
+  if (typeof id !== 'string' || typeof found !== 'string') return null;
+
+  const b =
+    branding !== null && typeof branding === 'object' ? (branding as Record<string, unknown>) : {};
+  return {
+    id,
+    slug: found,
+    branding: {
+      displayName: typeof b['displayName'] === 'string' ? b['displayName'] : null,
+      logoUrl: typeof b['logoUrl'] === 'string' ? b['logoUrl'] : null,
+      accentColor: typeof b['accentColor'] === 'string' ? b['accentColor'] : null,
+    },
+  };
 }
