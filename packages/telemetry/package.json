@@ -21,7 +21,7 @@
     "@kithena/contracts": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/sdk-node": "^0.217.0",
-    "@opentelemetry/auto-instrumentations-node": "^0.75.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.79.0",
     "pino": "^9.7.0"
   },
   "devDependencies": {}
