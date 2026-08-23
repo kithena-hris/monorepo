@@ -19,6 +19,9 @@ export default defineConfig({
     include: [/[\\/]node_modules[\\/]@reach[\\/]ui[\\/]/],
   },
   server: {
+    // The server compile needs to emit; the app's tsconfig sets `noEmit`.
+    // See tsconfig.server.json for what that cost before it was noticed.
+    tsconfigPath: './tsconfig.server.json',
     // Streaming SSR. Modern.js only supports Module Federation alongside
     // streaming, and it is the mode that matters anyway: the login screen has
     // to paint on the low-end hardware the deskless case depends on.

@@ -1,0 +1,42 @@
+{
+  /*
+   * The server half, and the one thing it must do that the app's tsconfig
+   * forbids: emit.
+   *
+   * `tsconfig.json` sets `noEmit: true`, which is right for an app whose
+   * JavaScript is produced by Rspack. Modern.js compiles `server/` with the
+   * TypeScript API and honours that flag, so the custom server typechecked,
+   * logged "Ts compile succeed", and wrote nothing. Nothing then appeared in
+   * `dist` or in `.vercel/output`, and the deployed origin fell straight
+   * through to the page router — a 404 on `/api/identity/*` that looks like a
+   * routing mistake rather than a file that was never built.
+   *
+   * `server.tsconfigPath` in `modern.config.ts` points the server compile here.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    // The base config allows importing `.ts` extensions, which TypeScript only
+    // permits when nothing is emitted (TS5096). The server emits, and its own
+    // imports carry `.js`, so this is off here and on everywhere else.
+    "allowImportingTsExtensions": false,
+    // CommonJS, because Modern.js `require()`s this file at runtime. Inheriting
+    // the app's ESM setting emitted `import` statements and the function died
+    // on every invocation with "Cannot use import statement outside a module" —
+    // a 500 on every route, including pages that had worked a moment earlier.
+    // node16, not CommonJS+Node. This package declares no `"type": "module"`,
+    // so node16 emits CommonJS — which is what Modern.js `require()`s — while
+    // `moduleResolution: "Node"` resolves to node10, and TypeScript 6 refuses
+    // it outright with TS5107. That error only appeared in CI, because the
+    // local build printed it among the Rspack output and I did not read far
+    // enough.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "verbatimModuleSyntax": false,
+    "outDir": "./dist",
+    "rootDir": "."
+  },
+  "include": ["server/**/*"],
+  // The tests are not part of the server the platform runs.
+  "exclude": ["server/**/*.test.ts"]
+}

@@ -35,6 +35,14 @@ export default tseslint.config(
       // `foo.ts`. Git ignores them; ESLint does not read `.gitignore`, so it
       // was reporting a parse error for a file nothing is meant to see.
       '**/* [0-9].*',
+      '**/* [0-9][0-9].*',
+      // `modern deploy` output. `.vercel/output` holds the Build Output API
+      // bundles and `.output` the plain Node server; both are generated
+      // JavaScript belonging to no tsconfig, so the type-aware rules report a
+      // parse error on every file. Same reason as the conflict copies above:
+      // ESLint does not read `.gitignore`.
+      '**/.vercel/**',
+      '**/.output/**',
     ],
   },
   ...tseslint.configs.strictTypeChecked,
