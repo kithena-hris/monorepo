@@ -189,6 +189,7 @@ jobs:
       # separate Vercel projects exist to make the wrong thing hard rather than
       # merely forbidden."
       - name: deploy identity
+        id: identity
         env:
           VERCEL_PROJECT_ID: prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
         run: |
@@ -318,22 +319,70 @@ jobs:
       # The database is deliberately not rolled back with it. Migrations are
       # expand-contract, so the previous build reads the new schema perfectly
       # well; undoing the migration is what would break it.
+      #
+      # Every project this job promoted, not just the docs one. Rolling back a
+      # single project out of five leaves production in a state no commit ever
+      # produced: four surfaces on the build that just failed its smoke test,
+      # one on the build before it. That is worse than either end.
+      #
+      # Clients first, then the service, which is the deploy order reversed.
+      # Schema, then service, then client is the only ordering that is never
+      # wrong going forwards, so undoing it back-to-front is the only ordering
+      # that is never wrong coming back.
+      #
+      # Each project is skipped unless its own deploy step succeeded — a run
+      # that failed while deploying the back-office must not try to promote a
+      # tenant app it never shipped.
       - name: roll back if the smoke test failed
-        if: failure() && steps.docs.outcome == 'success'
+        if: failure()
         env:
-          VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+          WEB_OUTCOME: ${{ steps.web.outcome }}
+          ADMIN_OUTCOME: ${{ steps.admin.outcome }}
+          DOCS_OUTCOME: ${{ steps.docs.outcome }}
+          STORYBOOK_OUTCOME: ${{ steps.storybook.outcome }}
+          IDENTITY_OUTCOME: ${{ steps.identity.outcome }}
         run: |
-          previous="$(npx --yes vercel@${VERCEL_CLI_VERSION} list \
-            --prod --token "$VERCEL_TOKEN" --yes 2>/dev/null \
-            | grep -oE 'https://[a-z0-9.-]+\.vercel\.app' | sed -n '2p')"
-          if [ -z "$previous" ]; then
-            echo "::error::smoke test failed and no previous production deployment was found to roll back to"
+          rolled=()
+          missing=()
+
+          roll_back() {
+            local name="$1" outcome="$2" project="$3"
+            if [ "$outcome" != "success" ]; then
+              echo "$name was not deployed by this run; nothing to roll back"
+              return 0
+            fi
+            # `sed -n '2p'`: the first URL is the deployment this job just made,
+            # the second is the one it replaced.
+            local previous
+            previous="$(VERCEL_PROJECT_ID="$project" npx --yes vercel@${VERCEL_CLI_VERSION} list \
+              --prod --token "$VERCEL_TOKEN" --yes 2>/dev/null \
+              | grep -oE 'https://[a-z0-9.-]+\.vercel\.app' | sed -n '2p')"
+            if [ -z "$previous" ]; then
+              echo "::warning::$name has no previous production deployment to roll back to"
+              missing+=("$name")
+              return 0
+            fi
+            echo "::warning::rolling $name back to $previous"
+            VERCEL_PROJECT_ID="$project" npx --yes vercel@${VERCEL_CLI_VERSION} promote "$previous" \
+              --token "$VERCEL_TOKEN" --yes
+            rolled+=("$name -> $previous")
+          }
+
+          roll_back storybook   "$STORYBOOK_OUTCOME" prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+          roll_back docs        "$DOCS_OUTCOME"      prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+          roll_back back-office "$ADMIN_OUTCOME"     prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          roll_back tenant-app  "$WEB_OUTCOME"       prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
+          roll_back identity    "$IDENTITY_OUTCOME"  prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
+
+          if [ ${#rolled[@]} -eq 0 ] && [ ${#missing[@]} -eq 0 ]; then
+            echo "::error::this job failed before it deployed anything; nothing was rolled back"
             exit 1
           fi
-          echo "::warning::smoke test failed — rolling back to $previous"
-          npx --yes vercel@${VERCEL_CLI_VERSION} promote "$previous" \
-            --token "$VERCEL_TOKEN" --yes
-          echo "::error::production was rolled back to $previous. Fix forward; do not re-run this job."
+          for line in "${rolled[@]}"; do echo "rolled back: $line"; done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::these had no previous deployment and are still on the failed build: ${missing[*]}"
+          fi
+          echo "::error::production was rolled back. Fix forward; do not re-run this job."
           exit 1
 
       - name: comment the urls on the pr
