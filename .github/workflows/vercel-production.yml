@@ -254,6 +254,29 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Tenant app production: $url"
 
+      # The auth origin, which no workflow has ever deployed — to production or
+      # to staging. `apps/auth/shell` got a Vercel target this week and has been
+      # shipped by hand since.
+      #
+      # No build step: unlike the Next apps, this one carries its own
+      # `vercel.json` with `buildCommand: pnpm run deploy`, so Vercel builds it
+      # from `apps/auth/shell` as its Root Directory. Deploying from the
+      # repository root is what gives that command the workspace it needs —
+      # `build:packages` filters on `@kithena/auth-shell^...`.
+      #
+      # `auth.app.kithena.com` mirrors `auth.staging.app.kithena.com`. It sits
+      # under the `*.app.kithena.com` wildcard that `kithena-web-production`
+      # holds, which is fine: an explicitly assigned domain wins over a
+      # wildcard, so this reaches the auth origin and not the tenant app.
+      - name: deploy auth
+        id: auth
+        env:
+          VERCEL_PROJECT_ID: prj_ms3cotgBZ4hrzEoSDKoUAGVjIhiZ
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Auth origin production: $url"
+
       - name: deploy back-office
         id: admin
         env:
@@ -305,6 +328,7 @@ jobs:
           # and it needs a tenant that is guaranteed to exist first.
           for url in "$WEB_URL" "$DOCS_URL" "$STORYBOOK_URL" \
                      https://design.kithena.com https://storybook.kithena.com \
+                     https://auth.app.kithena.com \
                      https://admin.kithena.com/sign-in; do
             echo "checking $url"
             curl --fail --silent --show-error --location \
@@ -337,6 +361,7 @@ jobs:
         if: failure()
         env:
           WEB_OUTCOME: ${{ steps.web.outcome }}
+          AUTH_OUTCOME: ${{ steps.auth.outcome }}
           ADMIN_OUTCOME: ${{ steps.admin.outcome }}
           DOCS_OUTCOME: ${{ steps.docs.outcome }}
           STORYBOOK_OUTCOME: ${{ steps.storybook.outcome }}
@@ -371,6 +396,7 @@ jobs:
           roll_back storybook   "$STORYBOOK_OUTCOME" prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
           roll_back docs        "$DOCS_OUTCOME"      prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
           roll_back back-office "$ADMIN_OUTCOME"     prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          roll_back auth        "$AUTH_OUTCOME"      prj_ms3cotgBZ4hrzEoSDKoUAGVjIhiZ
           roll_back tenant-app  "$WEB_OUTCOME"       prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
           roll_back identity    "$IDENTITY_OUTCOME"  prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
 
