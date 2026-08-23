@@ -44,6 +44,18 @@ concurrency:
 jobs:
   preview:
     name: preview deploy
+    # Skipped for Dependabot, which cannot pass. GitHub withholds repository
+    # secrets from a Dependabot-triggered run, so `VERCEL_TOKEN` is empty
+    # and this job fails on every dependency bump — a red cross that says
+    # nothing about the change and trains people to ignore a failing check.
+    #
+    # Keyed on the actor rather than the branch, because the two differ in the
+    # case that matters: a human pushing a fix onto a Dependabot branch *does*
+    # get the secrets, and that run should deploy rather than skip.
+    #
+    # A skip reports neutral, not green. Neither of these is a required check,
+    # so nothing that gated a merge before gates it any differently now.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
