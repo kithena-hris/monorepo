@@ -14,9 +14,20 @@ on:
 permissions:
   contents: read
 
+# Superseded runs are cancelled on a pull request, where only the tip matters
+# and an older commit's result is noise worth paying nothing for.
+#
+# Never on `main`, because the group key there is the same string for every
+# push — `refs/heads/main` — so a second merge cancels the first merge's run.
+# That is not just a lost result: `vercel-production` triggers on this workflow
+# and refuses anything whose conclusion is not `success`, and a cancelled run
+# reports `cancelled`. The deploy is then skipped silently, with no failure
+# anywhere to notice, and `main` sits undeployed until something else happens
+# to push. Two merges nine minutes apart is all it takes, which is exactly how
+# #8 came to never reach production.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
