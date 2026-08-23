@@ -125,11 +125,22 @@ const asRgb = (hex) => {
   return 'rgb(' + r + ', ' + g + ', ' + b + ')';
 };
 
+/**
+ * The element that actually paints the sidebar.
+ *
+ * Storybook 10 moved the fill off `<nav>` and onto the `header` wrapping it, so
+ * reading `<nav>` there returns `rgba(0, 0, 0, 0)` in both themes and this
+ * check reports the chrome refusing to follow the control — a break that is
+ * entirely in the selector, not in the addon it names. `<nav>` stays as a
+ * fallback so the check still measures the right box on Storybook 9.
+ */
+const SIDEBAR = 'header.sidebar-container, nav';
+
 const sidebarBackground = () =>
-  page.evaluate(() => {
-    const nav = document.querySelector('nav');
-    return nav ? getComputedStyle(nav).backgroundColor : null;
-  });
+  page.evaluate((selector) => {
+    const sidebar = document.querySelector(selector);
+    return sidebar ? getComputedStyle(sidebar).backgroundColor : null;
+  }, SIDEBAR);
 
 const MANAGER = BASE + '/?path=/story/components-stepper--playground&globals=theme:light';
 
@@ -176,11 +187,11 @@ async function toggleAndWatchSidebar() {
   // rather than for a fixed delay.
   await page
     .waitForFunction(
-      (was) => {
-        const nav = document.querySelector('nav');
-        return nav !== null && getComputedStyle(nav).backgroundColor !== was;
+      ([was, selector]) => {
+        const sidebar = document.querySelector(selector);
+        return sidebar !== null && getComputedStyle(sidebar).backgroundColor !== was;
       },
-      before,
+      [before, SIDEBAR],
       { timeout: 10000 },
     )
     .catch(() => undefined);
