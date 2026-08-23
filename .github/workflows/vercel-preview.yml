@@ -1,6 +1,7 @@
 name: vercel-preview
 
-# A preview of both public surfaces per pull request.
+# A preview of every deployable surface per pull request: the tenant app, the
+# back-office, the auth origin, the identity service, and the two Reach sites.
 #
 # `.github/workflows/ci.yml` decides whether a change is *correct*; this only
 # makes it possible to look at. It deliberately does not gate the pull request:
@@ -10,8 +11,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - 'apps/docs/**'
-      - 'apps/storybook/**'
+      # Every app, not the two Reach ones. A change to the back-office or the
+      # tenant app is exactly the kind a reviewer wants to look at, and until
+      # now the only previews built were the two nobody needed to click.
+      - 'apps/**'
+      - 'platform/**'
       - 'packages/**'
       - 'services/**'
       - 'tools/**'
@@ -57,10 +61,16 @@ jobs:
     # so nothing that gated a merge before gates it any differently now.
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Up to six builds and six uploads rather than two. Usually far fewer —
+    # see the scope step — but a change to shared code fans out to all of them,
+    # and 25 minutes was sized for two.
+    timeout-minutes: 45
     steps:
+      # Full history: the scope step below asks turbo what changed since the
+      # base commit, and turbo needs both ends of that range present.
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
       - name: pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - name: node
@@ -78,6 +88,45 @@ jobs:
             exit 1
           fi
 
+      # Which apps this pull request can actually have changed.
+      #
+      # Deploying all six on every push is what the account cannot afford: the
+      # Hobby plan has a daily build cap and this repository already reaches it
+      # — a `Vercel` check failed on `upgradeToPro=build-rate-limit` while these
+      # very changes were in flight. Six builds a push burns that three times
+      # faster than two.
+      #
+      # Parallelising would not have helped. A matrix runs the same six builds
+      # at once; the cap counts builds, not minutes.
+      #
+      # So this asks turbo, which already knows the dependency graph, rather
+      # than matching paths by hand: `...[base]` means "packages changed since
+      # base, and everything that depends on them". A change to `packages/ui`
+      # correctly brings Storybook, docs, the back-office and the tenant app
+      # with it; a change to `apps/admin` brings only the back-office. Editing
+      # a workflow file touches the root package and brings nothing, which is
+      # the right answer.
+      #
+      # Same instinct as the story sweep in `ci.yml`: narrow what runs by what
+      # changed, and let the shared-code case fan back out on its own.
+      - name: pick affected apps
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          packages="$(pnpm turbo run build --filter="...[${BASE_SHA}]" --dry=json | jq -r '.packages[]')"
+          echo "affected packages:"
+          echo "$packages" | sed 's/^/  /'
+          has() { grep -qx "$1" <<<"$packages" && echo true || echo false; }
+          {
+            echo "web=$(has '@kithena/web')"
+            echo "admin=$(has '@kithena/admin')"
+            echo "auth=$(has '@kithena/auth-shell')"
+            echo "identity=$(has '@kithena/identity')"
+            echo "docs=$(has '@reach/docs')"
+            echo "storybook=$(has '@reach/storybook')"
+          } >> "$GITHUB_OUTPUT"
+
       # Built here and uploaded, rather than through `vercel pull` + `vercel
       # build` + `--prebuilt`.
       #
@@ -92,12 +141,28 @@ jobs:
       # Uploading the finished directory is what `vercel-production.yml` already
       # does, and it keeps the preview identical to what CI just checked.
       - name: build docs
+        if: steps.scope.outputs.docs == 'true'
         run: pnpm --filter @reach/docs build
       - name: build storybook
+        if: steps.scope.outputs.storybook == 'true'
         run: pnpm storybook:build
+
+      # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
+      # trailing `...` means "and everything X depends on": turbo.json makes
+      # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
+      # `next build` against workspace packages that were never built. That is
+      # the `Module not found: Can't resolve '@kithena/contracts'` failure
+      # `vercel-staging.yml` already documents.
+      - name: build web
+        if: steps.scope.outputs.web == 'true'
+        run: pnpm turbo run build --filter=@kithena/web...
+      - name: build back-office
+        if: steps.scope.outputs.admin == 'true'
+        run: pnpm turbo run build --filter=@kithena/admin...
 
       - name: deploy docs
         id: docs
+        if: steps.scope.outputs.docs == 'true'
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
@@ -108,6 +173,7 @@ jobs:
 
       - name: deploy storybook
         id: storybook
+        if: steps.scope.outputs.storybook == 'true'
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
@@ -116,21 +182,105 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook preview: $url"
 
+      # The Kithena apps. Deployed from the repository root rather than from a
+      # built directory, because each of these projects carries its own Root
+      # Directory and build settings on Vercel — `apps/web`, `apps/admin`,
+      # `apps/auth/shell`, `platform/identity` — and that is how
+      # `vercel-staging.yml` and `vercel-production.yml` already ship them.
+      - name: deploy web
+        id: web
+        if: steps.scope.outputs.web == 'true'
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Web preview: $url"
+
+      - name: deploy back-office
+        id: admin
+        if: steps.scope.outputs.admin == 'true'
+        env:
+          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/admin \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Back-office preview: $url"
+
+      - name: deploy auth
+        id: auth
+        if: steps.scope.outputs.auth == 'true'
+        env:
+          VERCEL_PROJECT_ID: prj_SGKR5ItEN1XaYgorCPRNBYQxuHqM
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Auth preview: $url"
+
+      - name: deploy identity
+        id: identity
+        if: steps.scope.outputs.identity == 'true'
+        env:
+          VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Identity preview: $url"
+
       - name: comment the urls on the pr
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+          WEB_URL: ${{ steps.web.outputs.url }}
+          ADMIN_URL: ${{ steps.admin.outputs.url }}
+          AUTH_URL: ${{ steps.auth.outputs.url }}
+          IDENTITY_URL: ${{ steps.identity.outputs.url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
+          # One row per app that was actually deployed. A skipped app has no
+          # output to read, so an empty URL is the signal — listing it with a
+          # blank cell would read as a broken deploy rather than an untouched
+          # one.
+          rows=""
+          row() {
+            if [ -n "$2" ]; then
+              rows="${rows}| $1 | $2 |
+          "
+            fi
+          }
+          row "Tenant app"  "$WEB_URL"
+          row "Back-office" "$ADMIN_URL"
+          row "Auth origin" "$AUTH_URL"
+          row "Identity"    "$IDENTITY_URL"
+          row "Docs"        "$DOCS_URL"
+          row "Storybook"   "$STORYBOOK_URL"
+
+          if [ -z "$rows" ]; then
+            summary="Nothing to preview: this change does not reach any deployable app."
+          else
+            summary="| App | Preview |
+          | --- | --- |
+          ${rows}"
+          fi
+
           body="<!-- vercel-preview -->
           ## 🚀 Vercel Preview
 
-          - **Docs:** ${DOCS_URL}
-          - **Storybook:** ${STORYBOOK_URL}
+          ${summary}
+
+          Only the apps this change can reach are built, so the daily build
+          quota is not spent on six deploys when one moved.
 
           Built from the monorepo and uploaded, so this is the same output CI checked.
+
+          Deployment URLs are \`.vercel.app\` hosts, and \`ssoProtection\` covers
+          everything except custom domains — so these ask for a Vercel login.
           "
           # Edited in place rather than appended, so a pull request with thirty
           # pushes carries one comment rather than thirty.
