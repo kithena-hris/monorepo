@@ -34,6 +34,24 @@ env:
 jobs:
   chromatic:
     name: visual regression
+    # Skipped for Dependabot, which cannot pass. GitHub withholds repository
+    # secrets from a Dependabot-triggered run, so `CHROMATIC_PROJECT_TOKEN` is empty
+    # and this job fails on every dependency bump — a red cross that says
+    # nothing about the change and trains people to ignore a failing check.
+    #
+    # Keyed on the actor rather than the branch, because the two differ in the
+    # case that matters: a human pushing a fix onto a Dependabot branch *does*
+    # get the secrets, and that run should snapshot rather than skip.
+    #
+    # A skip reports neutral, not green. This is not a required check, so
+    # nothing that gated a merge before gates it any differently now.
+    #
+    # Narrowed to pull requests on purpose. This workflow also runs on `push:
+    # main` and `merge_group`, and the push is what establishes the baseline
+    # `onlyChanged` compares against — skipping that because the actor happened
+    # to be Dependabot would leave every later pull request diffing against a
+    # baseline nobody took.
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
