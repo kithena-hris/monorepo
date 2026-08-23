@@ -126,21 +126,38 @@ const asRgb = (hex) => {
 };
 
 /**
- * The element that actually paints the sidebar.
+ * The boxes that may paint the sidebar, outermost first.
  *
  * Storybook 10 moved the fill off `<nav>` and onto the `header` wrapping it, so
  * reading `<nav>` there returns `rgba(0, 0, 0, 0)` in both themes and this
- * check reports the chrome refusing to follow the control — a break that is
- * entirely in the selector, not in the addon it names. `<nav>` stays as a
- * fallback so the check still measures the right box on Storybook 9.
+ * check reports the chrome refusing to follow the theme control — a break
+ * entirely in the selector, not in the addon it names.
+ *
+ * Both are listed rather than one being picked by version, and the first that
+ * is not transparent wins. A selector list would not do: `header` exists in
+ * both versions, so matching it first and stopping would read a transparent
+ * box on whichever version does not paint it, which is the failure this is
+ * fixing.
  */
-const SIDEBAR = 'header.sidebar-container, nav';
+const SIDEBAR_CANDIDATES = ['header.sidebar-container', 'nav'];
 
-const sidebarBackground = () =>
-  page.evaluate((selector) => {
-    const sidebar = document.querySelector(selector);
-    return sidebar ? getComputedStyle(sidebar).backgroundColor : null;
-  }, SIDEBAR);
+/** Reads the first candidate that actually paints. Runs in the page. */
+function readSidebarBackground(selectors) {
+  const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+  let seen = null;
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element === null) continue;
+    const background = getComputedStyle(element).backgroundColor;
+    // Remember the first one found, so a chrome that is genuinely transparent
+    // reports that rather than `null` — which would read as "no sidebar".
+    if (seen === null) seen = background;
+    if (background !== TRANSPARENT) return background;
+  }
+  return seen;
+}
+
+const sidebarBackground = () => page.evaluate(readSidebarBackground, SIDEBAR_CANDIDATES);
 
 const MANAGER = BASE + '/?path=/story/components-stepper--playground&globals=theme:light';
 
@@ -164,7 +181,7 @@ async function toggleAndWatchSidebar() {
   // Waiting for the control's own state to flip separates the two.
   const titleBefore = await themeControl.getAttribute('title');
   await themeControl.click();
-  await page
+  const controlFlipped = await page
     .waitForFunction(
       (was) => {
         const button = document.querySelector('button[title^="Theme: "]');
@@ -173,7 +190,8 @@ async function toggleAndWatchSidebar() {
       titleBefore,
       { timeout: 10000 },
     )
-    .catch(() => undefined);
+    .then(() => true)
+    .catch(() => false);
   // The control is a single-click toggle, so the click above already switched.
   // This stays as a fallback: if it ever becomes a menu again, the option is
   // picked here rather than the check reporting that the chrome refused to
@@ -187,15 +205,29 @@ async function toggleAndWatchSidebar() {
   // rather than for a fixed delay.
   await page
     .waitForFunction(
-      ([was, selector]) => {
-        const sidebar = document.querySelector(selector);
-        return sidebar !== null && getComputedStyle(sidebar).backgroundColor !== was;
+      // Repeats the scan above rather than calling it: Playwright serialises
+      // this function and runs it in the page, where it cannot close over
+      // anything in this module.
+      ([was, selectors]) => {
+        const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+        let seen = null;
+        for (const selector of selectors) {
+          const element = document.querySelector(selector);
+          if (element === null) continue;
+          const background = getComputedStyle(element).backgroundColor;
+          if (seen === null) seen = background;
+          if (background !== TRANSPARENT) {
+            seen = background;
+            break;
+          }
+        }
+        return seen !== null && seen !== was;
       },
-      [before, SIDEBAR],
+      [before, SIDEBAR_CANDIDATES],
       { timeout: 10000 },
     )
     .catch(() => undefined);
-  return { before, after: await sidebarBackground() };
+  return { before, after: await sidebarBackground(), controlFlipped };
 }
 
 /*
@@ -224,9 +256,28 @@ await page
   .waitFor({ state: 'visible', timeout: 15000 })
   .catch(() => undefined);
 
-let { before: beforeToggle, after: afterToggle } = await toggleAndWatchSidebar();
-if (afterToggle === beforeToggle) {
-  ({ before: beforeToggle, after: afterToggle } = await toggleAndWatchSidebar());
+/*
+ * Retried while the *control* is the thing that did not move.
+ *
+ * `controlFlipped` is what separates the two failures that look identical from
+ * the sidebar alone: a click that landed before React attached its handler
+ * leaves the control on its old title and nothing else happens, which is a
+ * flake, while a control that flipped and a sidebar that did not is the real
+ * break this gate exists to catch. Only the first is worth another attempt, and
+ * a run that never gets the control to move says so rather than blaming the
+ * addon.
+ */
+let beforeToggle;
+let afterToggle;
+let controlEverFlipped = false;
+
+for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const result = await toggleAndWatchSidebar();
+  ({ before: beforeToggle, after: afterToggle } = result);
+  controlEverFlipped = controlEverFlipped || result.controlFlipped;
+  // A flipped control that moved the sidebar is the answer; a flipped control
+  // that did not is a real break and must not be retried into a pass.
+  if (result.controlFlipped) break;
 }
 
 const wantLight = asRgb(snapshot.light['surface-sunken']);
@@ -234,6 +285,12 @@ const wantDark = asRgb(snapshot.dark['surface-sunken']);
 
 if (beforeToggle !== wantLight) {
   mismatches.push('sidebar starts at ' + beforeToggle + ', expected ' + wantLight);
+}
+if (!controlEverFlipped) {
+  mismatches.push(
+    'sidebar theme control never changed state across 3 attempts, so the chrome was ' +
+      'never asked to re-theme. This is the control, not the addon.',
+  );
 }
 if (afterToggle !== wantDark) {
   mismatches.push(
