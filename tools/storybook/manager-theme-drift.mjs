@@ -125,11 +125,39 @@ const asRgb = (hex) => {
   return 'rgb(' + r + ', ' + g + ', ' + b + ')';
 };
 
-const sidebarBackground = () =>
-  page.evaluate(() => {
-    const nav = document.querySelector('nav');
-    return nav ? getComputedStyle(nav).backgroundColor : null;
-  });
+/**
+ * The boxes that may paint the sidebar, outermost first.
+ *
+ * Storybook 10 moved the fill off `<nav>` and onto the `header` wrapping it, so
+ * reading `<nav>` there returns `rgba(0, 0, 0, 0)` in both themes and this
+ * check reports the chrome refusing to follow the theme control — a break
+ * entirely in the selector, not in the addon it names.
+ *
+ * Both are listed rather than one being picked by version, and the first that
+ * is not transparent wins. A selector list would not do: `header` exists in
+ * both versions, so matching it first and stopping would read a transparent
+ * box on whichever version does not paint it, which is the failure this is
+ * fixing.
+ */
+const SIDEBAR_CANDIDATES = ['header.sidebar-container', 'nav'];
+
+/** Reads the first candidate that actually paints. Runs in the page. */
+function readSidebarBackground(selectors) {
+  const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+  let seen = null;
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element === null) continue;
+    const background = getComputedStyle(element).backgroundColor;
+    // Remember the first one found, so a chrome that is genuinely transparent
+    // reports that rather than `null` — which would read as "no sidebar".
+    if (seen === null) seen = background;
+    if (background !== TRANSPARENT) return background;
+  }
+  return seen;
+}
+
+const sidebarBackground = () => page.evaluate(readSidebarBackground, SIDEBAR_CANDIDATES);
 
 const MANAGER = BASE + '/?path=/story/components-stepper--playground&globals=theme:light';
 
@@ -153,7 +181,7 @@ async function toggleAndWatchSidebar() {
   // Waiting for the control's own state to flip separates the two.
   const titleBefore = await themeControl.getAttribute('title');
   await themeControl.click();
-  await page
+  const controlFlipped = await page
     .waitForFunction(
       (was) => {
         const button = document.querySelector('button[title^="Theme: "]');
@@ -162,12 +190,25 @@ async function toggleAndWatchSidebar() {
       titleBefore,
       { timeout: 10000 },
     )
-    .catch(() => undefined);
+    .then(() => true)
+    .catch(() => false);
   // The control is a single-click toggle, so the click above already switched.
   // This stays as a fallback: if it ever becomes a menu again, the option is
   // picked here rather than the check reporting that the chrome refused to
   // follow.
-  const darkOption = page.getByRole('button', { name: /^dark$/i }).first();
+  //
+  // It must never match the toggle itself. The toggle's label alternates, so
+  // once the click above has switched to dark its accessible name *is* "Dark"
+  // and this matched it — clicking it a second time and switching straight
+  // back to light. Whether that lost the run came down to which landed first,
+  // the re-theme or the measurement: a warm machine read dark and passed, and
+  // CI read light and reported the chrome refusing to follow a control that
+  // had in fact followed it twice. The title is the part that does not
+  // alternate, so it is what rules the toggle out.
+  const darkOption = page
+    .getByRole('button', { name: /^dark$/i })
+    .and(page.locator('button:not([title^="Theme: "])'))
+    .first();
   await darkOption.waitFor({ state: 'visible', timeout: 1500 }).catch(() => undefined);
   if (await darkOption.isVisible().catch(() => false)) {
     await darkOption.click();
@@ -176,15 +217,29 @@ async function toggleAndWatchSidebar() {
   // rather than for a fixed delay.
   await page
     .waitForFunction(
-      (was) => {
-        const nav = document.querySelector('nav');
-        return nav !== null && getComputedStyle(nav).backgroundColor !== was;
+      // Repeats the scan above rather than calling it: Playwright serialises
+      // this function and runs it in the page, where it cannot close over
+      // anything in this module.
+      ([was, selectors]) => {
+        const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+        let seen = null;
+        for (const selector of selectors) {
+          const element = document.querySelector(selector);
+          if (element === null) continue;
+          const background = getComputedStyle(element).backgroundColor;
+          if (seen === null) seen = background;
+          if (background !== TRANSPARENT) {
+            seen = background;
+            break;
+          }
+        }
+        return seen !== null && seen !== was;
       },
-      before,
+      [before, SIDEBAR_CANDIDATES],
       { timeout: 10000 },
     )
     .catch(() => undefined);
-  return { before, after: await sidebarBackground() };
+  return { before, after: await sidebarBackground(), controlFlipped };
 }
 
 /*
@@ -213,9 +268,29 @@ await page
   .waitFor({ state: 'visible', timeout: 15000 })
   .catch(() => undefined);
 
-let { before: beforeToggle, after: afterToggle } = await toggleAndWatchSidebar();
-if (afterToggle === beforeToggle) {
-  ({ before: beforeToggle, after: afterToggle } = await toggleAndWatchSidebar());
+/*
+ * Retried until the sidebar moves, because an unmoved sidebar has two causes
+ * and neither is visible from the value alone.
+ *
+ * A flipped control is *not* proof the chrome was asked to re-theme. The
+ * optimizer reload described above can land after the click: the title flips,
+ * the document is then thrown away, and the reload restores `theme:light` from
+ * the URL. That reads back exactly like a chrome refusing to follow, and it is
+ * the failure this gate kept hitting on CI while passing on a warm cache.
+ *
+ * So the retry is keyed on the measurement, not on the control. `controlFlipped`
+ * is kept for the diagnosis only: a run where it never flipped is a control
+ * that never responded, which is worth saying rather than blaming the addon.
+ */
+let beforeToggle;
+let afterToggle;
+let controlEverFlipped = false;
+
+for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const result = await toggleAndWatchSidebar();
+  ({ before: beforeToggle, after: afterToggle } = result);
+  controlEverFlipped = controlEverFlipped || result.controlFlipped;
+  if (result.after !== result.before) break;
 }
 
 const wantLight = asRgb(snapshot.light['surface-sunken']);
@@ -223,6 +298,12 @@ const wantDark = asRgb(snapshot.dark['surface-sunken']);
 
 if (beforeToggle !== wantLight) {
   mismatches.push('sidebar starts at ' + beforeToggle + ', expected ' + wantLight);
+}
+if (!controlEverFlipped) {
+  mismatches.push(
+    'sidebar theme control never changed state across 3 attempts, so the chrome was ' +
+      'never asked to re-theme. This is the control, not the addon.',
+  );
 }
 if (afterToggle !== wantDark) {
   mismatches.push(
