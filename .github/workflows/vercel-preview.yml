@@ -1,6 +1,7 @@
 name: vercel-preview
 
-# A preview of both public surfaces per pull request.
+# A preview of every deployable surface per pull request: the tenant app, the
+# back-office, the auth origin, the identity service, and the two Reach sites.
 #
 # `.github/workflows/ci.yml` decides whether a change is *correct*; this only
 # makes it possible to look at. It deliberately does not gate the pull request:
@@ -10,8 +11,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - 'apps/docs/**'
-      - 'apps/storybook/**'
+      # Every app, not the two Reach ones. A change to the back-office or the
+      # tenant app is exactly the kind a reviewer wants to look at, and until
+      # now the only previews built were the two nobody needed to click.
+      - 'apps/**'
+      - 'platform/**'
       - 'packages/**'
       - 'services/**'
       - 'tools/**'
@@ -57,7 +61,9 @@ jobs:
     # so nothing that gated a merge before gates it any differently now.
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Six builds and six uploads rather than two. 25 minutes was sized for the
+    # two Reach apps and is not enough once the four Kithena ones are in.
+    timeout-minutes: 45
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,6 +102,17 @@ jobs:
       - name: build storybook
         run: pnpm storybook:build
 
+      # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
+      # trailing `...` means "and everything X depends on": turbo.json makes
+      # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
+      # `next build` against workspace packages that were never built. That is
+      # the `Module not found: Can't resolve '@kithena/contracts'` failure
+      # `vercel-staging.yml` already documents.
+      - name: build web
+        run: pnpm turbo run build --filter=@kithena/web...
+      - name: build back-office
+        run: pnpm turbo run build --filter=@kithena/admin...
+
       - name: deploy docs
         id: docs
         env:
@@ -116,21 +133,79 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook preview: $url"
 
+      # The Kithena apps. Deployed from the repository root rather than from a
+      # built directory, because each of these projects carries its own Root
+      # Directory and build settings on Vercel — `apps/web`, `apps/admin`,
+      # `apps/auth/shell`, `platform/identity` — and that is how
+      # `vercel-staging.yml` and `vercel-production.yml` already ship them.
+      - name: deploy web
+        id: web
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Web preview: $url"
+
+      - name: deploy back-office
+        id: admin
+        env:
+          VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/admin \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Back-office preview: $url"
+
+      - name: deploy auth
+        id: auth
+        env:
+          VERCEL_PROJECT_ID: prj_SGKR5ItEN1XaYgorCPRNBYQxuHqM
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Auth preview: $url"
+
+      - name: deploy identity
+        id: identity
+        env:
+          VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Identity preview: $url"
+
       - name: comment the urls on the pr
         env:
           GH_TOKEN: ${{ github.token }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+          WEB_URL: ${{ steps.web.outputs.url }}
+          ADMIN_URL: ${{ steps.admin.outputs.url }}
+          AUTH_URL: ${{ steps.auth.outputs.url }}
+          IDENTITY_URL: ${{ steps.identity.outputs.url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
           body="<!-- vercel-preview -->
           ## 🚀 Vercel Preview
 
-          - **Docs:** ${DOCS_URL}
-          - **Storybook:** ${STORYBOOK_URL}
+          | App | Preview |
+          | --- | --- |
+          | Tenant app | ${WEB_URL} |
+          | Back-office | ${ADMIN_URL} |
+          | Auth origin | ${AUTH_URL} |
+          | Identity | ${IDENTITY_URL} |
+          | Docs | ${DOCS_URL} |
+          | Storybook | ${STORYBOOK_URL} |
 
           Built from the monorepo and uploaded, so this is the same output CI checked.
+
+          Deployment URLs are \`.vercel.app\` hosts, and \`ssoProtection\` covers
+          everything except custom domains — so these ask for a Vercel login.
           "
           # Edited in place rather than appended, so a pull request with thirty
           # pushes carries one comment rather than thirty.
