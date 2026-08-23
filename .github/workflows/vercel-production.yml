@@ -47,6 +47,24 @@ jobs:
     environment:
       name: production
       url: https://app.kithena.com
+
+    # The throwaway database `atlas migrate lint` replays the directory into,
+    # run here rather than left to `docker://` so that the service roles can be
+    # created in it first. See the `atlas dev roles` step for why that matters.
+    services:
+      atlas-dev:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U dev -d dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       # The commit `ci` actually tested, not whatever main points at now. A
       # second push while this queued would otherwise deploy an untested tip.
@@ -87,10 +105,47 @@ jobs:
       # explicit that there are no down migrations against a multi-tenant
       # production database — a failed migration is fixed forward, by a
       # migration, reviewed like any other change.
+      # Roles are cluster-level in Postgres, so a container Atlas has just
+      # started has none of them. `migrate lint` replays the whole directory
+      # into the dev database to work out what a migration does, reaches
+      # `GRANT ... TO svc_identity`, and dies on a role nothing in the
+      # directory creates:
+      #
+      #     Error: executing statement: pq: role "svc_identity" does not exist
+      #     -- 1 version with errors
+      #
+      # Production has these roles and is correctly migrated; only the scratch
+      # database lacked them. The failure therefore said nothing about
+      # production, and because this step runs under `bash -e`, `lint` exiting
+      # non-zero meant `apply` and every deploy step below it never ran. The
+      # identity and web deploys were silently skipped for a day.
+      #
+      # Created NOLOGIN and without a password: a GRANT only needs the role to
+      # exist, nothing connects to this container as one of them, and a
+      # password here would be a credential in the workflow for no gain.
+      #
+      # Kept in step with `tools/scripts/init-db.sql` — same three roles, same
+      # reason. A migration granting to a role this step does not know about
+      # fails here, which is the right place to find out.
+      #
+      # A service container rather than Atlas's own `docker://` dev URL,
+      # because the HCL `docker` block that would let Atlas seed the roles
+      # itself needs `atlas login` — the paid tier this version is pinned to
+      # avoid.
+      - name: atlas dev roles
+        env:
+          PGPASSWORD: dev
+        run: |
+          psql -h localhost -p 5433 -U dev -d dev -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE svc_people;
+          CREATE ROLE svc_timeoff;
+          CREATE ROLE svc_identity NOBYPASSRLS;
+          SQL
+
       - name: migrate production
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ATLAS_DEV_URL: ${{ vars.ATLAS_DEV_URL }}
+          ATLAS_DEV_URL: postgres://dev:dev@localhost:5433/dev?sslmode=disable&search_path=public
         run: |
           # Pinned, not `latest`. Atlas moved `migrate lint` behind a paid
           # tier in v0.38, and because this downloaded `latest` the production
@@ -121,9 +176,21 @@ jobs:
       # A Vercel function rather than a container since 2026-08-22: the reason
       # it needed a process was a Valkey connection held across requests, and
       # challenges live in Postgres now. docs/environments.md has the rest.
+      #
+      # `kithena-identity-production`, not `kithena-identity`. This deployed to
+      # the staging project until now, which is the project `identity.staging`
+      # points at — so production identity code went to the staging project's
+      # production environment and never reached `identity.kithena.com`, which
+      # belongs to `kithena-identity-production`. The smoke test below passed
+      # throughout, because the domain kept serving the older deployment that
+      # *was* in the right project.
+      #
+      # `docs/environments.md`: "separate databases, separate credentials and
+      # separate Vercel projects exist to make the wrong thing hard rather than
+      # merely forbidden."
       - name: deploy identity
         env:
-          VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
+          VERCEL_PROJECT_ID: prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
         run: |
           npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
             --yes --archive=tgz --token "$VERCEL_TOKEN"
@@ -136,6 +203,23 @@ jobs:
           curl --fail --silent --show-error \
             --retry 5 --retry-delay 5 --max-time 30 \
             https://identity.kithena.com/.well-known/jwks.json >/dev/null
+
+      # The tenant app, which no workflow has ever deployed to production.
+      #
+      # `kithena-web-production` already owns `app.kithena.com` and
+      # `*.app.kithena.com` — the domains were attached and the DNS wildcard
+      # was in place. The project simply had no deployments, so every tenant
+      # host answered `DEPLOYMENT_NOT_FOUND`. Staging has shipped `apps/web`
+      # since it existed; production never did.
+      #
+      # `TENANT_HOST_SUFFIX` is what `apps/web/src/proxy.ts` strips to find the
+      # tenant in a host. It falls back to `''`, so leaving it unset does not
+      # fail the build — it silently produces an app that cannot resolve a
+      # tenant, which is worse.
+      - name: build web
+        env:
+          TENANT_HOST_SUFFIX: app.kithena.com
+        run: pnpm turbo run build --filter=@kithena/web...
 
       - name: build back-office
       # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
@@ -156,6 +240,19 @@ jobs:
       # `admin.kithena.com` is not under `app.kithena.com`, so a browser will
       # not offer an employee's passkey here and will not offer an operator's
       # there. The isolation is free and it is why this is a separate host.
+      # `--prod` and no `alias set`. The two tenant domains are production
+      # domains of this project, so promoting the deployment is what points
+      # them at it; aliasing each one by hand is what staging has to do because
+      # it deploys as a preview.
+      - name: deploy web
+        id: web
+        env:
+          VERCEL_PROJECT_ID: prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
+        run: |
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Tenant app production: $url"
+
       - name: deploy back-office
         id: admin
         env:
@@ -189,6 +286,7 @@ jobs:
       # its certificate can lapse without the deployment noticing.
       - name: smoke test
         env:
+          WEB_URL: ${{ steps.web.outputs.url }}
           DOCS_URL: ${{ steps.docs.outputs.url }}
           STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
         run: |
@@ -196,7 +294,15 @@ jobs:
           # nobody is signed in, which is correct and is a 307. Following it
           # would be following a redirect into a page that must never render
           # for a stranger.
-          for url in "$DOCS_URL" "$STORYBOOK_URL" \
+          #
+          # The tenant app is checked by its deployment URL and *not* by
+          # `app.kithena.com`. The bare host has no tenant in it, so
+          # `apps/web/src/proxy.ts` has nothing to resolve and answers 404 by
+          # design — `staging.app.kithena.com` does the same today. Naming it
+          # here would fail every deploy and roll production back on a
+          # correctly working app. A per-tenant host would be the real check,
+          # and it needs a tenant that is guaranteed to exist first.
+          for url in "$WEB_URL" "$DOCS_URL" "$STORYBOOK_URL" \
                      https://design.kithena.com https://storybook.kithena.com \
                      https://admin.kithena.com/sign-in; do
             echo "checking $url"
