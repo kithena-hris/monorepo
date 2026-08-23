@@ -28,7 +28,7 @@
     "@types/react-dom": "^19.1.0",
     "tailwindcss": "^4.1.12",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^3.2.0"
+    "vitest": "^4.1.11"
   },
   "//typescript": "TypeScript 6, not the repo's 7. Modern.js compiles server/ with the TypeScript programmatic API via TypescriptLoader({ appDirectory }), which resolves from here \u2014 and 7.0 ships no programmatic API, so ts.sys is undefined and the build dies in getFormatHost. This package therefore typechecks on 6 as well, which is the merge gate anyway.",
   "//deploy": "Deployed as Vercel Functions, not a static site: this app has a Custom Web Server and SSR, which Modern.js's guide says must go to Functions. MODERNJS_DEPLOY is set explicitly rather than left to platform detection \u2014 without it `modern deploy` emits the Node.js server output and prints 'preview this build by node .output/index', which Vercel cannot serve. Being explicit also means this command produces the same artifact locally as it does on Vercel."
