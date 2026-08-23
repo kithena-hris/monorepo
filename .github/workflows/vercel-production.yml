@@ -47,6 +47,24 @@ jobs:
     environment:
       name: production
       url: https://app.kithena.com
+
+    # The throwaway database `atlas migrate lint` replays the directory into,
+    # run here rather than left to `docker://` so that the service roles can be
+    # created in it first. See the `atlas dev roles` step for why that matters.
+    services:
+      atlas-dev:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U dev -d dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       # The commit `ci` actually tested, not whatever main points at now. A
       # second push while this queued would otherwise deploy an untested tip.
@@ -87,10 +105,47 @@ jobs:
       # explicit that there are no down migrations against a multi-tenant
       # production database — a failed migration is fixed forward, by a
       # migration, reviewed like any other change.
+      # Roles are cluster-level in Postgres, so a container Atlas has just
+      # started has none of them. `migrate lint` replays the whole directory
+      # into the dev database to work out what a migration does, reaches
+      # `GRANT ... TO svc_identity`, and dies on a role nothing in the
+      # directory creates:
+      #
+      #     Error: executing statement: pq: role "svc_identity" does not exist
+      #     -- 1 version with errors
+      #
+      # Production has these roles and is correctly migrated; only the scratch
+      # database lacked them. The failure therefore said nothing about
+      # production, and because this step runs under `bash -e`, `lint` exiting
+      # non-zero meant `apply` and every deploy step below it never ran. The
+      # identity and web deploys were silently skipped for a day.
+      #
+      # Created NOLOGIN and without a password: a GRANT only needs the role to
+      # exist, nothing connects to this container as one of them, and a
+      # password here would be a credential in the workflow for no gain.
+      #
+      # Kept in step with `tools/scripts/init-db.sql` — same three roles, same
+      # reason. A migration granting to a role this step does not know about
+      # fails here, which is the right place to find out.
+      #
+      # A service container rather than Atlas's own `docker://` dev URL,
+      # because the HCL `docker` block that would let Atlas seed the roles
+      # itself needs `atlas login` — the paid tier this version is pinned to
+      # avoid.
+      - name: atlas dev roles
+        env:
+          PGPASSWORD: dev
+        run: |
+          psql -h localhost -p 5433 -U dev -d dev -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE svc_people;
+          CREATE ROLE svc_timeoff;
+          CREATE ROLE svc_identity NOBYPASSRLS;
+          SQL
+
       - name: migrate production
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ATLAS_DEV_URL: ${{ vars.ATLAS_DEV_URL }}
+          ATLAS_DEV_URL: postgres://dev:dev@localhost:5433/dev?sslmode=disable&search_path=public
         run: |
           # Pinned, not `latest`. Atlas moved `migrate lint` behind a paid
           # tier in v0.38, and because this downloaded `latest` the production
