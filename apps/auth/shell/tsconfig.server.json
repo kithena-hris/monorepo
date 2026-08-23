@@ -20,6 +20,19 @@
     // permits when nothing is emitted (TS5096). The server emits, and its own
     // imports carry `.js`, so this is off here and on everywhere else.
     "allowImportingTsExtensions": false,
+    // CommonJS, because Modern.js `require()`s this file at runtime. Inheriting
+    // the app's ESM setting emitted `import` statements and the function died
+    // on every invocation with "Cannot use import statement outside a module" —
+    // a 500 on every route, including pages that had worked a moment earlier.
+    // node16, not CommonJS+Node. This package declares no `"type": "module"`,
+    // so node16 emits CommonJS — which is what Modern.js `require()`s — while
+    // `moduleResolution: "Node"` resolves to node10, and TypeScript 6 refuses
+    // it outright with TS5107. That error only appeared in CI, because the
+    // local build printed it among the Rspack output and I did not read far
+    // enough.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "verbatimModuleSyntax": false,
     "outDir": "./dist",
     "rootDir": "."
   },
