@@ -196,7 +196,19 @@ async function toggleAndWatchSidebar() {
   // This stays as a fallback: if it ever becomes a menu again, the option is
   // picked here rather than the check reporting that the chrome refused to
   // follow.
-  const darkOption = page.getByRole('button', { name: /^dark$/i }).first();
+  //
+  // It must never match the toggle itself. The toggle's label alternates, so
+  // once the click above has switched to dark its accessible name *is* "Dark"
+  // and this matched it — clicking it a second time and switching straight
+  // back to light. Whether that lost the run came down to which landed first,
+  // the re-theme or the measurement: a warm machine read dark and passed, and
+  // CI read light and reported the chrome refusing to follow a control that
+  // had in fact followed it twice. The title is the part that does not
+  // alternate, so it is what rules the toggle out.
+  const darkOption = page
+    .getByRole('button', { name: /^dark$/i })
+    .and(page.locator('button:not([title^="Theme: "])'))
+    .first();
   await darkOption.waitFor({ state: 'visible', timeout: 1500 }).catch(() => undefined);
   if (await darkOption.isVisible().catch(() => false)) {
     await darkOption.click();
@@ -257,15 +269,18 @@ await page
   .catch(() => undefined);
 
 /*
- * Retried while the *control* is the thing that did not move.
+ * Retried until the sidebar moves, because an unmoved sidebar has two causes
+ * and neither is visible from the value alone.
  *
- * `controlFlipped` is what separates the two failures that look identical from
- * the sidebar alone: a click that landed before React attached its handler
- * leaves the control on its old title and nothing else happens, which is a
- * flake, while a control that flipped and a sidebar that did not is the real
- * break this gate exists to catch. Only the first is worth another attempt, and
- * a run that never gets the control to move says so rather than blaming the
- * addon.
+ * A flipped control is *not* proof the chrome was asked to re-theme. The
+ * optimizer reload described above can land after the click: the title flips,
+ * the document is then thrown away, and the reload restores `theme:light` from
+ * the URL. That reads back exactly like a chrome refusing to follow, and it is
+ * the failure this gate kept hitting on CI while passing on a warm cache.
+ *
+ * So the retry is keyed on the measurement, not on the control. `controlFlipped`
+ * is kept for the diagnosis only: a run where it never flipped is a control
+ * that never responded, which is worth saying rather than blaming the addon.
  */
 let beforeToggle;
 let afterToggle;
@@ -275,9 +290,7 @@ for (let attempt = 1; attempt <= 3; attempt += 1) {
   const result = await toggleAndWatchSidebar();
   ({ before: beforeToggle, after: afterToggle } = result);
   controlEverFlipped = controlEverFlipped || result.controlFlipped;
-  // A flipped control that moved the sidebar is the answer; a flipped control
-  // that did not is a real break and must not be retried into a pass.
-  if (result.controlFlipped) break;
+  if (result.after !== result.before) break;
 }
 
 const wantLight = asRgb(snapshot.light['surface-sunken']);
