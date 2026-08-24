@@ -1,27 +1,15 @@
-import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 
 /**
- * The shared secret between the apps that own an origin and this service.
+ * Reading an internal request: who sent it, and what they sent.
  *
- * Constant-time, because the obvious comparison leaks the token. `a === b` on
- * strings returns at the first differing byte, so how long it takes says how
- * many leading bytes were right, and a few thousand requests turn that into the
- * secret. `timingSafeEqual` throws on a length mismatch — itself a leak of the
- * length — so lengths are compared first and only equal-length inputs reach it.
- *
- * Lives in `shared/` because two slices need it and neither owns it. Anything
- * that lands here should be able to survive that sentence being said out loud.
+ * The constant-time secret comparison moved to `@kithena/auth-kit` when the
+ * messaging service needed it too. It is re-exported here rather than having
+ * every call site change import, and because "is this one of ours" is the same
+ * question on both sides of that wire — a second copy of a constant-time
+ * comparison is a second chance to write `===`.
  */
-export function presentsInternalToken(request: IncomingMessage, expected: string): boolean {
-  const presented = request.headers['x-internal-token'];
-  if (typeof presented !== 'string' || expected.length === 0) return false;
-
-  const a = Buffer.from(presented);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
+export { presentsInternalToken } from '@kithena/auth-kit';
 
 /** Reads a JSON body, with a cap. Returns null for anything unparseable. */
 export async function readJsonBody(

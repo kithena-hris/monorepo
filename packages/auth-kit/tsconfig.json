@@ -1,8 +1,15 @@
 {
+  // `types: ["node"]` because `service-token.ts` reads a header off a request
+  // and compares it with `node:crypto`. This is the first package under
+  // `packages/` to touch a node built-in, and automatic `@types` discovery does
+  // not reach it from here — naming it is both the fix and the more honest
+  // statement, since the ambient types a package compiles against should be a
+  // decision rather than whatever happened to be installed above it.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "references": [

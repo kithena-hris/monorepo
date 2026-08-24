@@ -10,6 +10,7 @@
     { "path": "./packages/telemetry" },
     { "path": "./packages/testing" },
     { "path": "./platform/identity" },
+    { "path": "./platform/messaging" },
     { "path": "./services/people" },
     { "path": "./services/timeoff" }
   ]

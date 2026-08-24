@@ -108,17 +108,49 @@ jobs:
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
         run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
           url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           npx --yes vercel@${VERCEL_CLI_VERSION} alias set "$url" \
             staging.app.kithena.com --token "$VERCEL_TOKEN"
 
+      # Whether the deployment is serving, not whether a tenant exists.
+      #
+      # `staging.app.kithena.com` is the tenant host *suffix*, not a tenant, so
+      # it answers 404 — and that is the correct answer rather than a fault.
+      # `apps/web/src/lib/tenant.ts` is part of the isolation boundary and is
+      # written to fail closed: an unparseable host, an unknown label and a
+      # reserved label all produce `null`, and `null` is a 404. A bare suffix
+      # has no label at all.
+      #
+      # `--fail` therefore turned the app behaving correctly into a failed
+      # deploy, and because this step runs under `bash -e` it took `deploy
+      # identity` and the back-office down with it — the schema moved, the front
+      # end shipped, and the thing holding sessions was never told. That is the
+      # exact failure mode #38 is about, one layer up.
+      #
+      # So: a response, and not a server error. A 404 from the app proves Next
+      # is running and the host was resolved. A 502 or a timeout does not.
+      # Asserting 404 exactly would break the day the suffix grows a marketing
+      # page, which is not a thing this check should have an opinion about.
       - name: smoke test
         run: |
-          curl --fail --silent --show-error --location \
+          code="$(curl --silent --show-error --location --output /dev/null \
             --retry 5 --retry-delay 5 --max-time 30 \
-            https://staging.app.kithena.com >/dev/null
+            --write-out '%{http_code}' https://staging.app.kithena.com)"
+          echo "staging.app.kithena.com answered $code"
+          if [ -z "$code" ] || [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
+            echo "::error::the tenant app is not serving (answered ${code:-nothing})"
+            exit 1
+          fi
 
       # The identity service, which no workflow deployed until now. A pipeline
       # that migrates the database and ships the UI while leaving the service
@@ -135,11 +167,22 @@ jobs:
       # A Vercel function rather than a container since 2026-08-22: the reason
       # it needed a process was a Valkey connection held across requests, and
       # challenges live in Postgres now. docs/environments.md has the rest.
+      #
+      # `--prod`, and that is not a typo. This is the *staging* project, whose
+      # production environment is staging — `kithena-identity` holds only
+      # `identity.staging.kithena.com`, and production lives in a different
+      # project entirely for the reason `vercel-production.yml` sets out at
+      # length.
+      #
+      # Without it this deployed a preview and aliased nothing, so the custom
+      # domain went on serving whatever it served before and the smoke test
+      # below passed against it. A deploy step that cannot change what the
+      # domain serves is a deploy step that does nothing, and it passes.
       - name: deploy identity
         env:
           VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
         run: |
-          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
             --yes --archive=tgz --token "$VERCEL_TOKEN"
 
       # The custom domain, not the deployment URL. `ssoProtection` is set to
@@ -150,6 +193,40 @@ jobs:
           curl --fail --silent --show-error \
             --retry 5 --retry-delay 5 --max-time 30 \
             https://identity.staging.kithena.com/.well-known/jwks.json >/dev/null
+
+      # The messaging service.
+      #
+      # After identity, because identity is what calls it: deploying the caller
+      # first would leave a window where an invitation is issued and the thing
+      # that mails it is still the previous build. Nothing breaks either way —
+      # the link comes back in the response regardless — but the ordering costs
+      # nothing and one of the two is right.
+      #
+      # Its project id comes from a repository variable rather than being
+      # written here, because the project is created once by hand and this
+      # workflow has to be mergeable before that happens.
+      - name: deploy messaging
+        id: messaging
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_STAGING != ''
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_STAGING }}
+        run: |
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN"
+
+      # `/healthz`, which is deliberately unauthenticated and says nothing worth
+      # having — a status and which transport is composed. Putting the shared
+      # secret into a smoke test is how the shared secret reaches a workflow log.
+      #
+      # The custom domain, not the deployment URL: `ssoProtection` is
+      # `all_except_custom_domains`, so a `.vercel.app` host answers 302 to a
+      # login page and would pass a naive check that follows redirects.
+      - name: smoke test messaging
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_STAGING != ''
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            https://messaging.staging.kithena.com/healthz >/dev/null
 
       - name: build back-office
         run: pnpm turbo run build --filter=@kithena/admin...
@@ -165,8 +242,16 @@ jobs:
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: |
-          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy apps/admin \
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
+          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           npx --yes vercel@${VERCEL_CLI_VERSION} alias set "$url" \
             admin.staging.kithena.com --token "$VERCEL_TOKEN"

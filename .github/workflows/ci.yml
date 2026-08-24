@@ -78,6 +78,19 @@ jobs:
       - name: unit tests
         run: pnpm test
 
+      # The invitation email carries concrete sRGB values, because a mail client
+      # has no stylesheet to load, no custom properties and no `oklch()` —
+      # Outlook renders through Word, which has none of the three. A snapshot of
+      # a colour goes stale silently, so this reads the real stylesheet,
+      # resolves the `var()` chain and converts, and fails if the copy has
+      # moved.
+      #
+      # Here rather than in the Storybook job because it needs no browser: the
+      # conversion is checked against `reach-tokens.json`, which a browser
+      # produced, so it is verified against the renderer it stands in for.
+      - name: email theme drift
+        run: pnpm email:theme-drift
+
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 20

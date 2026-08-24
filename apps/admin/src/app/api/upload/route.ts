@@ -42,10 +42,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ message: 'Unknown image kind.' }, { status: 400 });
   }
   if (!ALLOWED.has(file.type)) {
-    return NextResponse.json(
-      { message: 'Use a PNG, JPEG, WebP or SVG image.' },
-      { status: 415 },
-    );
+    return NextResponse.json({ message: 'Use a PNG, JPEG, WebP or SVG image.' }, { status: 415 });
   }
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ message: 'That image is larger than 2 MB.' }, { status: 413 });

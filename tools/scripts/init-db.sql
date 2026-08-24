@@ -8,6 +8,10 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS people;
 CREATE SCHEMA IF NOT EXISTS timeoff;
 CREATE SCHEMA IF NOT EXISTS platform;
+-- Messaging is a platform service too, and gets its own schema for the same
+-- reason a module does: `svc_messaging` can see this and nothing else, so a
+-- cross-schema read fails at the database rather than in review.
+CREATE SCHEMA IF NOT EXISTS messaging;
 
 -- Separate database for OpenFGA's own storage.
 SELECT 'CREATE DATABASE openfga OWNER kithena'
@@ -33,11 +37,18 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_identity') THEN
     CREATE ROLE svc_identity LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
+  -- The messaging service. NOBYPASSRLS for the same reason: `messaging.delivery`
+  -- carries a tenant policy, and a role that ignores it would let one customer's
+  -- support query read another's.
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_messaging') THEN
+    CREATE ROLE svc_messaging LOGIN PASSWORD 'kithena' NOBYPASSRLS;
+  END IF;
 END $$;
 
 GRANT USAGE ON SCHEMA people   TO svc_people;
 GRANT USAGE ON SCHEMA timeoff  TO svc_timeoff;
 GRANT USAGE ON SCHEMA platform TO svc_identity;
+GRANT USAGE ON SCHEMA messaging TO svc_messaging;
 
 -- Table privileges cannot be granted here: this file runs at container
 -- initialisation, before any migration has created a table. Default privileges
@@ -45,3 +56,8 @@ GRANT USAGE ON SCHEMA platform TO svc_identity;
 -- creates them — `kithena` runs the migrations, so the grant follows from it.
 ALTER DEFAULT PRIVILEGES FOR ROLE kithena IN SCHEMA platform
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO svc_identity;
+
+-- No DELETE for messaging. A delivery record is an audit trail; retention
+-- removes it on a schedule, not a service on a whim.
+ALTER DEFAULT PRIVILEGES FOR ROLE kithena IN SCHEMA messaging
+  GRANT SELECT, INSERT, UPDATE ON TABLES TO svc_messaging;

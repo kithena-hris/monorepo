@@ -39,6 +39,7 @@ function snapshot(over: Partial<AccountSnapshot> = {}): AccountSnapshot {
     identityId: '00000000-0000-4000-8000-0000000000d1',
     tenantId: TENANT,
     status: 'active',
+    workEmail: 'ada@acme.example',
     employmentStart: '2026-03-01',
     timeZone: 'Europe/Madrid',
     sessions: [],

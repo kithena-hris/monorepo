@@ -7,6 +7,21 @@ export interface IssueRequest {
   readonly issuedBy: string | null;
 }
 
+/**
+ * What issuing produces: the token, once, and when it stops working.
+ *
+ * The deadline is here rather than recomputed by the caller because the
+ * database is what sets it — `now() + interval` runs on the server. A message
+ * that states a different expiry from the row is wrong on exactly the detail
+ * the person reading it acts on.
+ */
+export interface IssuedEnrolment {
+  /** In memory, once. The row holds only its hash. */
+  readonly token: string;
+  /** ISO 8601 with an offset. */
+  readonly expiresAt: string;
+}
+
 export interface EnrolmentTokenStore {
   /**
    * Mint a token, returning it once. The row holds only the hash.
@@ -16,7 +31,7 @@ export interface EnrolmentTokenStore {
    * three usable ones, and the two they did not use are two more chances for
    * somebody else.
    */
-  issue(request: IssueRequest): Promise<string>;
+  issue(request: IssueRequest): Promise<IssuedEnrolment>;
 
   /**
    * Spend a token, atomically.

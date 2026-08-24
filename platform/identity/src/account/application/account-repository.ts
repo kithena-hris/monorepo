@@ -18,6 +18,22 @@ export interface AccountRepository {
   load(tx: PostgresJsDatabase, accountId: string): Promise<AccountSnapshot | null>;
 
   /**
+   * Write a newly commissioned account, and drain its events into the outbox.
+   *
+   * Separate from `save`, which updates. It exists because creating an account
+   * used to be two raw inserts in the composition root — so
+   * `identity.account.provisioned` was a defined contract event that nothing
+   * ever raised, and the audit trail HR is entitled to began at enrolment
+   * rather than at hire.
+   *
+   * Writes `platform.identity` too. One human is one identity globally and one
+   * account per company; a commissioned account whose identity row is missing
+   * is a foreign key violation at best and an account nobody can attach a
+   * passkey to at worst.
+   */
+  create(tx: PostgresJsDatabase, account: Account): Promise<void>;
+
+  /**
    * Persist the aggregate and drain its events into the outbox, in the caller's
    * transaction — which is what makes the write and its event atomic.
    *

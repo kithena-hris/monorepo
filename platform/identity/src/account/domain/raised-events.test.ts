@@ -45,6 +45,7 @@ function snapshot(over: Partial<AccountSnapshot> = {}): AccountSnapshot {
     identityId: '00000000-0000-4000-8000-0000000000d1',
     tenantId: TENANT,
     status: 'active',
+    workEmail: 'ada@acme.example',
     employmentStart: '2026-03-01',
     timeZone: 'Europe/Madrid',
     sessions: [],
@@ -83,7 +84,49 @@ function raisedBy(
   return account.drainEvents().map((e) => ({ ...e, recordedAt: ctx.clock.instant() }));
 }
 
+/**
+ * Commissioning, which is a factory rather than a transition on an existing
+ * aggregate, so it does not fit `raisedBy`.
+ */
+function commissioned(at = '2026-02-01T09:00:00.000Z'): readonly Record<string, unknown>[] {
+  const ctx = context(at);
+  const account = Account.commission(
+    {
+      id: '00000000-0000-4000-8000-0000000000a1',
+      identityId: '00000000-0000-4000-8000-0000000000d1',
+      tenantId: TENANT,
+      workEmail: 'ada@acme.example',
+      timeZone: 'Europe/Madrid',
+      employmentStart: '2026-03-01',
+      via: 'admin_api',
+    },
+    ctx,
+  );
+  return account.drainEvents().map((e) => ({ ...e, recordedAt: ctx.clock.instant() }));
+}
+
 const transitions: readonly [string, () => readonly Record<string, unknown>[]][] = [
+  ['commission', () => commissioned()],
+  [
+    'invite',
+    () =>
+      raisedBy(
+        (a, c) =>
+          void a.invite({ expiresAt: '2026-03-04T09:00:00.000Z', secondChannel: 'in_person' }, c),
+        '2026-03-01T09:00:00.000Z',
+        { status: 'provisioned' },
+      ),
+  ],
+  [
+    'invite again, which is the ordinary case',
+    () =>
+      raisedBy(
+        (a, c) =>
+          void a.invite({ expiresAt: '2026-03-07T09:00:00.000Z', secondChannel: 'known_value' }, c),
+        '2026-03-04T09:00:00.000Z',
+        { status: 'invited' },
+      ),
+  ],
   [
     'enrol',
     () =>
@@ -179,5 +222,65 @@ describe('the harness itself works', () => {
     expect(good).toBeDefined();
     expect(enrolled?.safeParse(good).success).toBe(true);
     expect(enrolled?.safeParse({ ...good, payload: { credentialId: null } }).success).toBe(false);
+  });
+});
+
+describe('commissioning carries the employment date on the envelope', () => {
+  it('sets effectiveFrom to the start date, not to null', () => {
+    // Load bearing, not informational. A hire entered three weeks early must
+    // not be able to enrol during those three weeks, and a consumer deciding
+    // whether this hire is live yet reads the envelope rather than a payload
+    // field whose name it would have to know.
+    const [provisioned] = commissioned();
+    expect(provisioned?.['effectiveFrom']).toBe('2026-03-01');
+  });
+
+  it('leaves effectiveFrom null on everything else', () => {
+    // An account transition takes effect when it is recorded. Only employment
+    // is effective-dated.
+    const [invited] = raisedBy(
+      (a, c) =>
+        void a.invite({ expiresAt: '2026-03-04T09:00:00.000Z', secondChannel: 'in_person' }, c),
+      '2026-03-01T09:00:00.000Z',
+      { status: 'provisioned' },
+    );
+    expect(invited?.['effectiveFrom']).toBeNull();
+  });
+});
+
+describe('who may be invited', () => {
+  const invite = (status: 'provisioned' | 'invited' | 'active' | 'suspended' | 'terminated') => {
+    const account = Account.rehydrate(snapshot({ status }));
+    return account.invite(
+      { expiresAt: '2026-03-04T09:00:00.000Z', secondChannel: 'in_person' },
+      context('2026-03-01T09:00:00.000Z'),
+    );
+  };
+
+  it.each(['provisioned', 'invited'] as const)('issues a link to a %s account', (status) => {
+    expect(invite(status).ok).toBe(true);
+  });
+
+  it('refuses somebody who has already enrolled', () => {
+    // That person needs recovery, which is HR-mediated precisely so that it is
+    // not an emailed link. Sending them an invitation instead would be the
+    // phishing-shaped path this whole design exists to avoid.
+    const result = invite('active');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('INVALID_TRANSITION');
+  });
+
+  it.each(['suspended', 'terminated'] as const)('refuses a %s account', (status) => {
+    expect(invite(status).ok).toBe(false);
+  });
+
+  it('raises nothing when it refuses', () => {
+    const account = Account.rehydrate(snapshot({ status: 'terminated' }));
+    account.invite(
+      { expiresAt: '2026-03-04T09:00:00.000Z', secondChannel: 'in_person' },
+      context('2026-03-01T09:00:00.000Z'),
+    );
+    expect(account.drainEvents()).toEqual([]);
   });
 });

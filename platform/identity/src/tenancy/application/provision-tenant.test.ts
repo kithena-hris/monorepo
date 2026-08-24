@@ -5,6 +5,7 @@ import {
   type ProvisionScope,
   type ProvisionTenantDeps,
 } from './provision-tenant.js';
+import type { Invitation } from './invitation-notifier.js';
 
 /**
  * A scope whose four writes append to one list, so a test can assert *order*
@@ -24,21 +25,41 @@ function scope(written: string[], over: Partial<ProvisionScope> = {}): Provision
     },
     inviteAdmin: (_t, email) => {
       written.push(`account:${email}`);
-      return Promise.resolve(`acct-${email}`);
-    },
-    issueEnrolment: (_t, accountId) => {
-      written.push(`token:${accountId}`);
-      return Promise.resolve(`token-for-${accountId}`);
+      return Promise.resolve({
+        accountId: `acct-${email}`,
+        identityId: `id-${email}`,
+        token: `token-for-acct-${email}`,
+        expiresAt: EXPIRES,
+      });
     },
     ...over,
   };
 }
 
-function deps(over: Partial<ProvisionScope> = {}): ProvisionTenantDeps & { written: string[] } {
+/** The deadline the database would return. Fixed, so the message is assertable. */
+const EXPIRES = '2026-08-27T09:05:00.000Z';
+
+const AUTH_ORIGIN = 'https://auth.app.kithena.com';
+
+function deps(
+  over: Partial<ProvisionScope> = {},
+  extra: Partial<ProvisionTenantDeps> = {},
+): ProvisionTenantDeps & { written: string[]; announced: Invitation[] } {
   const written: string[] = [];
+  const announced: Invitation[] = [];
+
   return {
     written,
+    announced,
+    authOrigin: AUTH_ORIGIN,
+    notifier: {
+      send: (invitation) => {
+        announced.push(invitation);
+        return Promise.resolve({ delivered: true, messageId: 'msg_1', reason: null });
+      },
+    },
     inTransaction: (fn) => fn(scope(written, over)),
+    ...extra,
   };
 }
 
@@ -111,6 +132,7 @@ describe('provisionTenant', () => {
     let escaped = false;
 
     await provisionTenant({
+      authOrigin: AUTH_ORIGIN,
       inTransaction: async (fn) => {
         open = true;
         const value = await fn(
@@ -140,6 +162,78 @@ describe('provisionTenant', () => {
   });
 });
 
+describe('telling the administrators', () => {
+  it('sends one message per administrator, with a link the enrolment page reads', async () => {
+    const d = deps();
+    const result = await provisionTenant(d)(request);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(d.announced.map((i) => i.email)).toEqual(['ada@acme.example', 'grace@acme.example']);
+
+    const link = new URL(d.announced[0]?.enrolUrl ?? '');
+    expect(link.origin).toBe(AUTH_ORIGIN);
+    expect(link.pathname).toBe('/enrol');
+    expect(link.searchParams.get('tenant')).toBe('acme');
+    // The half of the brief that is not the email: the page names the account
+    // before the device prompt appears.
+    expect(link.searchParams.get('name')).toBe('ada@acme.example');
+    expect(link.searchParams.get('token')).toBe('token-for-acct-ada@acme.example');
+  });
+
+  it('states the deadline the database set, not one it recomputed', async () => {
+    const d = deps();
+    await provisionTenant(d)(request);
+    expect(d.announced[0]?.expiresAt).toBe(EXPIRES);
+  });
+
+  it('sends nothing until the transaction has committed', async () => {
+    // An email cannot be rolled back, so a send inside the transaction would be
+    // claiming a guarantee that does not exist — and it would hold a Postgres
+    // connection open across a call to a third party while doing it.
+    const order: string[] = [];
+    const announced: Invitation[] = [];
+
+    const result = await provisionTenant({
+      authOrigin: AUTH_ORIGIN,
+      notifier: {
+        send: (invitation) => {
+          announced.push(invitation);
+          order.push('send');
+          return Promise.resolve({ delivered: true, messageId: null, reason: null });
+        },
+      },
+      inTransaction: async (fn) => {
+        const value = await fn(scope([]));
+        order.push('commit');
+        return value;
+      },
+    })(request);
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(['commit', 'send', 'send']);
+    expect(announced).toHaveLength(2);
+  });
+
+  it('still hands back the links when nothing could be sent', async () => {
+    // A messaging outage must not fail the creation of a customer. The company
+    // exists, the tokens are live, and the operator becomes the channel — which
+    // is the channel docs/authentication.md prefers anyway.
+    const d = deps({}, { notifier: undefined });
+    const result = await provisionTenant(d)(request);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    for (const invitation of result.value.invitations) {
+      expect(invitation.delivery.delivered).toBe(false);
+      expect(invitation.delivery.reason).toBe('no_messaging_service');
+      expect(invitation.enrolUrl).toContain('/enrol?');
+      // And the token is still shown once, which is what the back-office reads.
+      expect(invitation.token).toBe(`token-for-acct-${invitation.email}`);
+    }
+  });
+});
+
 describe('row-level security during provisioning', () => {
   it('enters the tenant before writing anything scoped to it', async () => {
     // `platform.account` carries RLS with FORCE, so an insert with no
@@ -164,5 +258,45 @@ describe('row-level security during provisioning', () => {
     const d = deps();
     await provisionTenant(d)({ ...request, admins: [] });
     expect(d.written).toEqual([]);
+  });
+});
+
+describe('what an invitation carries', () => {
+  it('sends the company mark the operator just uploaded', async () => {
+    // `brandingFor` is not consulted, and that is correct rather than an
+    // oversight: it answers whether a company may be *named* on a surface it
+    // does not control, and `branding_public` defaults to true for a company
+    // nobody has had the chance to configure yet.
+    const d = deps();
+    await provisionTenant(d)({
+      ...request,
+      logoUrl: 'https://x.public.blob.vercel-storage.com/acme.png',
+    });
+
+    expect(d.announced[0]?.logoUrl).toBe('https://x.public.blob.vercel-storage.com/acme.png');
+  });
+
+  it('sends nothing when the operator skipped the upload', async () => {
+    const d = deps();
+    await provisionTenant(d)(request);
+    expect(d.announced[0]?.logoUrl).toBeNull();
+  });
+
+  it('returns a link the enrolment page can actually read', async () => {
+    // The back-office used to compose one out of the slug and the token, which
+    // could not work: enrolment is on the auth origin rather than the tenant
+    // host, and the page reads four parameters of which that guess carried one.
+    const d = deps();
+    const result = await provisionTenant(d)(request);
+    if (!result.ok) throw new Error('expected a provisioned tenant');
+
+    for (const invitation of result.value.invitations) {
+      const link = new URL(invitation.enrolUrl);
+      expect(link.origin).toBe(AUTH_ORIGIN);
+      expect(link.pathname).toBe('/enrol');
+      for (const param of ['identity', 'tenant', 'token', 'name']) {
+        expect(link.searchParams.get(param)).not.toBeNull();
+      }
+    }
   });
 });

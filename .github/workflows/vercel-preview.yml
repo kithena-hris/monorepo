@@ -123,6 +123,7 @@ jobs:
             echo "admin=$(has '@kithena/admin')"
             echo "auth=$(has '@kithena/auth-shell')"
             echo "identity=$(has '@kithena/identity')"
+            echo "messaging=$(has '@kithena/messaging')"
             echo "docs=$(has '@reach/docs')"
             echo "storybook=$(has '@reach/storybook')"
           } >> "$GITHUB_OUTPUT"
@@ -166,8 +167,16 @@ jobs:
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/docs/dist \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Docs preview: $url"
 
@@ -177,8 +186,16 @@ jobs:
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/storybook/storybook-static \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook preview: $url"
 
@@ -193,8 +210,16 @@ jobs:
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
         run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Web preview: $url"
 
@@ -204,8 +229,25 @@ jobs:
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: |
-          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/admin \
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
+          # No path argument. The project's root directory is already
+          # `apps/admin`, so the CLI resolves this against it and looks for
+          # `apps/admin/apps/admin`, which fails outright. `--archive=tgz` from
+          # the repo root plus the project's own root directory already say
+          # what the path was trying to.
+          #
+          # `apps/docs/dist` and `apps/storybook/storybook-static` above keep
+          # theirs: those two projects have no root directory set, so the path
+          # is the only thing pointing at the built output.
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Back-office preview: $url"
 
@@ -215,8 +257,16 @@ jobs:
         env:
           VERCEL_PROJECT_ID: prj_SGKR5ItEN1XaYgorCPRNBYQxuHqM
         run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Auth preview: $url"
 
@@ -226,10 +276,53 @@ jobs:
         env:
           VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
         run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Identity preview: $url"
+
+      # The messaging service.
+      #
+      # Its project id comes from a repository variable rather than being
+      # written here like the others', because the project is created once by
+      # hand and this workflow has to be mergeable before that happens. Unset
+      # means the step is skipped with a notice rather than failing the PR —
+      # a missing preview is an inconvenience, and a red check on every
+      # unrelated pull request is not.
+      - name: deploy messaging
+        id: messaging
+        if: steps.scope.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING != ''
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_MESSAGING }}
+        run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Messaging preview: $url"
+
+      - name: note a missing messaging project
+        if: steps.scope.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING == ''
+        run: |
+          echo "::notice::VERCEL_PROJECT_ID_MESSAGING is unset, so the messaging \
+          service was not previewed. Create the Vercel project with its root \
+          directory set to platform/messaging and add the id as a repository \
+          variable."
 
       - name: comment the urls on the pr
         env:
@@ -240,6 +333,7 @@ jobs:
           ADMIN_URL: ${{ steps.admin.outputs.url }}
           AUTH_URL: ${{ steps.auth.outputs.url }}
           IDENTITY_URL: ${{ steps.identity.outputs.url }}
+          MESSAGING_URL: ${{ steps.messaging.outputs.url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
@@ -258,6 +352,7 @@ jobs:
           row "Back-office" "$ADMIN_URL"
           row "Auth origin" "$AUTH_URL"
           row "Identity"    "$IDENTITY_URL"
+          row "Messaging"   "$MESSAGING_URL"
           row "Docs"        "$DOCS_URL"
           row "Storybook"   "$STORYBOOK_URL"
 
