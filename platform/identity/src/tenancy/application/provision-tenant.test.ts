@@ -260,3 +260,43 @@ describe('row-level security during provisioning', () => {
     expect(d.written).toEqual([]);
   });
 });
+
+describe('what an invitation carries', () => {
+  it('sends the company mark the operator just uploaded', async () => {
+    // `brandingFor` is not consulted, and that is correct rather than an
+    // oversight: it answers whether a company may be *named* on a surface it
+    // does not control, and `branding_public` defaults to true for a company
+    // nobody has had the chance to configure yet.
+    const d = deps();
+    await provisionTenant(d)({
+      ...request,
+      logoUrl: 'https://x.public.blob.vercel-storage.com/acme.png',
+    });
+
+    expect(d.announced[0]?.logoUrl).toBe('https://x.public.blob.vercel-storage.com/acme.png');
+  });
+
+  it('sends nothing when the operator skipped the upload', async () => {
+    const d = deps();
+    await provisionTenant(d)(request);
+    expect(d.announced[0]?.logoUrl).toBeNull();
+  });
+
+  it('returns a link the enrolment page can actually read', async () => {
+    // The back-office used to compose one out of the slug and the token, which
+    // could not work: enrolment is on the auth origin rather than the tenant
+    // host, and the page reads four parameters of which that guess carried one.
+    const d = deps();
+    const result = await provisionTenant(d)(request);
+    if (!result.ok) throw new Error('expected a provisioned tenant');
+
+    for (const invitation of result.value.invitations) {
+      const link = new URL(invitation.enrolUrl);
+      expect(link.origin).toBe(AUTH_ORIGIN);
+      expect(link.pathname).toBe('/enrol');
+      for (const param of ['identity', 'tenant', 'token', 'name']) {
+        expect(link.searchParams.get(param)).not.toBeNull();
+      }
+    }
+  });
+});

@@ -214,11 +214,18 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
                 email: admin.email,
                 enrolUrl: link.value,
                 expiresAt: admin.expiresAt,
-                // A company being created does not have a resolved mark yet.
-                // The wizard uploads one, but nothing has been through
-                // `brandingFor` at this point, and guessing is worse than a
-                // clean message.
-                logoUrl: null,
+                /*
+                 * The mark the operator just uploaded.
+                 *
+                 * It does not need `brandingFor` here, and that is worth
+                 * saying rather than assuming: that function answers whether a
+                 * company may be *named* on a surface it does not control, and
+                 * `branding_public` defaults to true for a company being
+                 * created — nobody has had the chance to turn it off. The URL
+                 * is also one this request just validated as ours, since
+                 * `checkProvisionable` refuses anything off the blob host.
+                 */
+                logoUrl: checked.value.logoUrl,
               }),
       });
     }

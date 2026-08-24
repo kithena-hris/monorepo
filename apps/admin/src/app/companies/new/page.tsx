@@ -4,7 +4,10 @@ import type { JSX } from 'react';
 
 import { callIdentity } from '../../../lib/identity';
 import { currentOperator } from '../../../lib/session';
-import { NewCompanyWizard } from '../../../components/new-company-wizard';
+import {
+  NewCompanyWizard,
+  type ProvisionedInvitation,
+} from '../../../components/new-company-wizard';
 
 /**
  * Adding a customer.
@@ -30,7 +33,7 @@ export default async function NewCompany(): Promise<JSX.Element> {
   async function create(
     draft: Draft,
   ): Promise<
-    | { ok: true; slug: string; invitations: { email: string; token: string }[] }
+    | { ok: true; slug: string; invitations: ProvisionedInvitation[] }
     | { ok: false; message: string; path?: string[] }
   > {
     'use server';
@@ -53,7 +56,7 @@ export default async function NewCompany(): Promise<JSX.Element> {
       return {
         ok: true,
         slug: String(slug),
-        invitations: (invitations ?? []) as { email: string; token: string }[],
+        invitations: (invitations ?? []) as ProvisionedInvitation[],
       };
     }
 
@@ -78,8 +81,8 @@ export default async function NewCompany(): Promise<JSX.Element> {
     <main className="mx-auto max-w-2xl px-6 py-12">
       <h1 className="text-2xl font-semibold">Add a company</h1>
       <p className="text-fg-muted mt-1 text-sm">
-        This creates the tenant and invites its administrators. You are not given a way to sign in
-        as them — each receives their own single-use link.
+        This creates the tenant and emails each administrator their own single-use link. You are not
+        given a way to sign in as them.
       </p>
       <NewCompanyWizard action={create} />
     </main>

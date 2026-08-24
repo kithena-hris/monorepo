@@ -89,9 +89,7 @@ describe('checkProvisionable', () => {
 
 describe('the registered address', () => {
   it('refuses an address whose postcode does not fit its country', () => {
-    const result = checkProvisionable(
-      request({ address: { ...address, postcode: '99999' } }),
-    );
+    const result = checkProvisionable(request({ address: { ...address, postcode: '99999' } }));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('ADDRESS_INVALID');
@@ -141,8 +139,8 @@ describe('branding', () => {
     // The uploader returns a blob URL. Anything else arriving here came from a
     // caller constructing the request by hand, and a stored off-site URL is a
     // customer's login page loading an image somebody else can swap.
-    expect(
-      checkProvisionable(request({ logoUrl: 'https://evil.example/logo.png' })).ok,
-    ).toBe(false);
+    expect(checkProvisionable(request({ logoUrl: 'https://evil.example/logo.png' })).ok).toBe(
+      false,
+    );
   });
 });

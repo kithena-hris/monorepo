@@ -13,6 +13,8 @@ import {
 } from '@reach/ui';
 import { useActionState, useState, type JSX } from 'react';
 
+import { deliveryNote, type Delivery } from '../lib/delivery';
+
 /**
  * Adding one person to a company that already exists.
  *
@@ -38,11 +40,7 @@ export interface Invitation {
   readonly expiresAt: string;
   readonly employmentStart: string;
   readonly timeZone: string;
-  readonly delivery: {
-    readonly delivered: boolean;
-    readonly messageId: string | null;
-    readonly reason: string | null;
-  };
+  readonly delivery: Delivery;
 }
 
 export type InviteResult =
@@ -56,35 +54,6 @@ export interface InvitePersonFormProps {
    */
   readonly action: (previous: InviteResult | null, form: FormData) => Promise<InviteResult>;
   readonly companyName: string;
-}
-
-/**
- * Why a delivery failure is not an error state.
- *
- * The account exists and the link works whether or not the message arrived, so
- * showing a failed send as a failed invitation would be a lie that makes an
- * operator repeat an action that already succeeded. It is a success with a
- * caveat, and the caveat is actionable: you are the channel now.
- */
-function deliveryNote(delivery: Invitation['delivery']): {
-  tone: 'success' | 'warning';
-  text: string;
-} {
-  if (delivery.delivered) return { tone: 'success', text: 'The invitation was emailed.' };
-
-  const why: Record<string, string> = {
-    no_messaging_service: 'No messaging service is configured in this environment.',
-    unreachable: 'The messaging service did not respond.',
-    address: 'The address was refused before anything was sent.',
-    provider: 'The email provider refused the message.',
-    untrusted_link: 'The enrolment link did not point at the auth origin.',
-    link_unbuildable: 'The enrolment link could not be built.',
-  };
-
-  return {
-    tone: 'warning',
-    text: `${why[delivery.reason ?? ''] ?? 'The message was not sent.'} Send them the link yourself.`,
-  };
 }
 
 export function InvitePersonForm({ action, companyName }: InvitePersonFormProps): JSX.Element {

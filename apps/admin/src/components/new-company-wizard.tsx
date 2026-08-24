@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Combobox,
+  CopyField,
   Field,
   FieldDescription,
   FieldError,
@@ -21,6 +22,8 @@ import {
   type PostalAddress,
 } from '@kithena/contracts';
 import { useMemo, useState, type JSX } from 'react';
+
+import { deliveryNote, type Delivery } from '../lib/delivery';
 
 /**
  * Adding a company, in four steps.
@@ -40,7 +43,7 @@ import { useMemo, useState, type JSX } from 'react';
  */
 
 type Result =
-  | { ok: true; slug: string; invitations: { email: string; token: string }[] }
+  | { ok: true; slug: string; invitations: ProvisionedInvitation[] }
   | { ok: false; message: string; path?: string[] };
 
 interface Draft {
@@ -115,7 +118,8 @@ export function NewCompanyWizard({
     if (index === 0) {
       if (draft.displayName.trim() === '') found['displayName'] = 'A company needs a name.';
       if (!/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])$/.test(draft.slug)) {
-        found['slug'] = '3 to 63 characters of a–z, 0–9 and hyphens, not starting or ending in one.';
+        found['slug'] =
+          '3 to 63 characters of a–z, 0–9 and hyphens, not starting or ending in one.';
       } else if (draft.slug.includes('--')) {
         found['slug'] = 'Two hyphens in a row are not allowed — they begin a punycode name.';
       }
@@ -186,9 +190,7 @@ export function NewCompanyWizard({
           // Spread rather than set to `undefined`: `exactOptionalPropertyTypes`
           // distinguishes an absent key from one holding undefined, and
           // `StepperStep.status` accepts only the first.
-          ...(i < step && Object.keys(validate(i)).length > 0
-            ? { status: 'error' as const }
-            : {}),
+          ...(i < step && Object.keys(validate(i)).length > 0 ? { status: 'error' as const } : {}),
         }))}
         current={step}
         label="Adding a company"
@@ -457,10 +459,7 @@ function AddressStep({
         <FieldError>{problems['address.country']}</FieldError>
       </Field>
 
-      <fieldset
-        disabled={rules === undefined}
-        className="flex flex-col gap-5 disabled:opacity-50"
-      >
+      <fieldset disabled={rules === undefined} className="flex flex-col gap-5 disabled:opacity-50">
         <Field invalid={Boolean(problems['address.line1'])}>
           <FieldLabel htmlFor="line1">Street and number</FieldLabel>
           <Input
@@ -507,7 +506,11 @@ function AddressStep({
               label={rules?.subdivisionLabel ?? 'Region'}
               options={(rules?.subdivisions ?? []).map((s) => ({ value: s.code, label: s.name }))}
               value={draft.address.subdivision}
-              placeholder={rules ? `Choose a ${rules.subdivisionLabel.toLowerCase()}` : 'Choose a country first'}
+              placeholder={
+                rules
+                  ? `Choose a ${rules.subdivisionLabel.toLowerCase()}`
+                  : 'Choose a country first'
+              }
               searchPlaceholder="Search"
               disabled={rules === undefined}
               onChange={(value) => {
@@ -699,26 +702,62 @@ function ThemeStep({
   );
 }
 
+/**
+ * What came back for each administrator.
+ *
+ * `enrolUrl` is built by the service that minted the token, and that matters:
+ * this screen used to compose one out of the slug and the token, which produced
+ * a link that could not work. Enrolment happens on the auth origin rather than
+ * the tenant host, and the page reads four parameters — `identity`, `tenant`,
+ * `token` and `name` — of which that guess carried one. An operator who handed
+ * it over was handing over a dead link.
+ */
+export interface ProvisionedInvitation {
+  readonly email: string;
+  readonly token: string;
+  readonly enrolUrl: string;
+  readonly delivery: Delivery;
+}
+
 function Created({
   result,
 }: {
-  result: { slug: string; invitations: { email: string; token: string }[] };
+  result: { slug: string; invitations: ProvisionedInvitation[] };
 }): JSX.Element {
+  const undelivered = result.invitations.filter((i) => !i.delivery.delivered);
+
   return (
     <div className="mt-8 flex flex-col gap-4">
-      <Alert tone="success" title={`${result.slug} created`}>
-        Send each person their own link. They are shown once — the database holds only their
-        hashes, so there is no way to read them back.
+      <Alert
+        tone={undelivered.length === 0 ? 'success' : 'warning'}
+        title={`${result.slug} created`}
+      >
+        {undelivered.length === 0
+          ? 'Each administrator has been emailed their own single-use link.'
+          : `${String(undelivered.length)} of ${String(result.invitations.length)} could not be emailed. Send those people their link yourself.`}{' '}
+        The links are shown once — the database holds only their hashes, so there is no way to read
+        them back.
       </Alert>
       <ul className="flex flex-col gap-3">
-        {result.invitations.map((invitation) => (
-          <li key={invitation.email} className="border-border rounded-md border p-3">
-            <p className="text-sm font-medium">{invitation.email}</p>
-            <code className="text-fg-muted mt-1 block text-xs break-all">
-              {`https://${result.slug}.app.kithena.com/enrol?token=${invitation.token}`}
-            </code>
-          </li>
-        ))}
+        {result.invitations.map((invitation) => {
+          const note = deliveryNote(invitation.delivery);
+          return (
+            <li key={invitation.email} className="border-border rounded-md border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="truncate text-sm font-medium">{invitation.email}</p>
+                <Badge tone={note.tone === 'success' ? 'success' : 'warning'}>{note.text}</Badge>
+              </div>
+              <div className="mt-2">
+                <CopyField
+                  value={invitation.enrolUrl}
+                  label={`Copy the link for ${invitation.email}`}
+                  mono
+                  size="sm"
+                />
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
