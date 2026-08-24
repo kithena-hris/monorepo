@@ -85,6 +85,25 @@ export interface Config {
    * reports itself undelivered rather than pretending otherwise.
    */
   readonly messagingUrl?: string | undefined;
+  /**
+   * The secret identity presents to the messaging service.
+   *
+   * Its own, rather than `internalToken`, and that is a security property
+   * rather than a naming preference. `INTERNAL_API_TOKEN` is shared by every
+   * app that calls identity — the auth origin, the tenant app, the back-office
+   * — so reusing it here would mean a leak from any one of those front ends
+   * also grants the ability to send Kithena-branded mail to any address.
+   *
+   * One secret per pair of services is the least privilege version, and it has
+   * a practical benefit too: Vercel stores these write-only, so the shared one
+   * cannot be read back to copy onto a new service. A separate secret is
+   * generated once and set on exactly the two ends that need it, instead of
+   * rotating one across six projects and redeploying all of them.
+   *
+   * Falls back to `internalToken` when unset, so a deployment that has not
+   * split them yet keeps working.
+   */
+  readonly messagingToken?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -480,7 +499,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
       ? undefined
       : httpInvitationNotifier({
           baseUrl: config.messagingUrl,
-          internalToken: config.internalToken,
+          internalToken: config.messagingToken ?? config.internalToken,
         });
 
   if (notifier === undefined) {

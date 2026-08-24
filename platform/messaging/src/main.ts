@@ -48,7 +48,16 @@ const routes = compose({
   resendApiKey: process.env['RESEND_API_KEY'],
   from: process.env['RESEND_FROM'],
   replyTo: process.env['RESEND_REPLY_TO'],
-  internalToken: process.env['INTERNAL_API_TOKEN'] ?? '',
+  /*
+   * Its own secret, falling back to the shared one.
+   *
+   * `INTERNAL_API_TOKEN` is what every front end presents to identity, so
+   * reusing it here would mean a leak from any one of them also grants the
+   * ability to send Kithena-branded mail to any address. One secret per pair of
+   * services is the least privilege version, and identity sends this one — see
+   * `Config.messagingToken` there.
+   */
+  internalToken: process.env['MESSAGING_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
   authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://localhost:3100',
   allowLogTransport: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, nothing is recorded and the outcome lives in the response

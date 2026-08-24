@@ -62,6 +62,10 @@ const routes = await compose({
   // Optional. Absent, invitations are not emailed and the enrolment link comes
   // back in the response only — a supported deployment, not a broken one.
   ...(process.env['MESSAGING_URL'] ? { messagingUrl: process.env['MESSAGING_URL'] } : {}),
+  // Its own secret, falling back to the shared one. See `Config.messagingToken`.
+  ...(process.env['MESSAGING_API_TOKEN']
+    ? { messagingToken: process.env['MESSAGING_API_TOKEN'] }
+    : {}),
 });
 
 const server = createServer((request, response) => {

@@ -35,7 +35,9 @@ function routes(): RequestHandler {
     resendApiKey: process.env['RESEND_API_KEY'],
     from: process.env['RESEND_FROM'],
     replyTo: process.env['RESEND_REPLY_TO'],
-    internalToken: required('INTERNAL_API_TOKEN'),
+    // Its own secret, falling back to the shared one. Identity sends whichever
+    // of the two it has; see `Config.messagingToken` there for why they differ.
+    internalToken: process.env['MESSAGING_API_TOKEN'] ?? required('INTERNAL_API_TOKEN'),
     // Required rather than defaulted. A default here would be an origin this
     // deployment does not serve, and every invitation would be refused as an
     // untrusted link — which is the safe way to be wrong, but still wrong.
