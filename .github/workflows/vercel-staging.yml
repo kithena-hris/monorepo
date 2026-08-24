@@ -122,11 +122,35 @@ jobs:
           npx --yes vercel@${VERCEL_CLI_VERSION} alias set "$url" \
             staging.app.kithena.com --token "$VERCEL_TOKEN"
 
+      # Whether the deployment is serving, not whether a tenant exists.
+      #
+      # `staging.app.kithena.com` is the tenant host *suffix*, not a tenant, so
+      # it answers 404 — and that is the correct answer rather than a fault.
+      # `apps/web/src/lib/tenant.ts` is part of the isolation boundary and is
+      # written to fail closed: an unparseable host, an unknown label and a
+      # reserved label all produce `null`, and `null` is a 404. A bare suffix
+      # has no label at all.
+      #
+      # `--fail` therefore turned the app behaving correctly into a failed
+      # deploy, and because this step runs under `bash -e` it took `deploy
+      # identity` and the back-office down with it — the schema moved, the front
+      # end shipped, and the thing holding sessions was never told. That is the
+      # exact failure mode #38 is about, one layer up.
+      #
+      # So: a response, and not a server error. A 404 from the app proves Next
+      # is running and the host was resolved. A 502 or a timeout does not.
+      # Asserting 404 exactly would break the day the suffix grows a marketing
+      # page, which is not a thing this check should have an opinion about.
       - name: smoke test
         run: |
-          curl --fail --silent --show-error --location \
+          code="$(curl --silent --show-error --location --output /dev/null \
             --retry 5 --retry-delay 5 --max-time 30 \
-            https://staging.app.kithena.com >/dev/null
+            --write-out '%{http_code}' https://staging.app.kithena.com)"
+          echo "staging.app.kithena.com answered $code"
+          if [ -z "$code" ] || [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
+            echo "::error::the tenant app is not serving (answered ${code:-nothing})"
+            exit 1
+          fi
 
       # The identity service, which no workflow deployed until now. A pipeline
       # that migrates the database and ships the UI while leaving the service
