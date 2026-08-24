@@ -124,7 +124,7 @@ jobs:
       # exist, nothing connects to this container as one of them, and a
       # password here would be a credential in the workflow for no gain.
       #
-      # Kept in step with `tools/scripts/init-db.sql` — same three roles, same
+      # Kept in step with `tools/scripts/init-db.sql` — same roles, same
       # reason. A migration granting to a role this step does not know about
       # fails here, which is the right place to find out.
       #
@@ -140,6 +140,7 @@ jobs:
           CREATE ROLE svc_people;
           CREATE ROLE svc_timeoff;
           CREATE ROLE svc_identity NOBYPASSRLS;
+          CREATE ROLE svc_messaging NOBYPASSRLS;
           SQL
 
       - name: migrate production
@@ -204,6 +205,57 @@ jobs:
           curl --fail --silent --show-error \
             --retry 5 --retry-delay 5 --max-time 30 \
             https://identity.kithena.com/.well-known/jwks.json >/dev/null
+
+      # The messaging service.
+      #
+      # After the migration, because it owns `messaging.delivery`, and after
+      # identity, because identity is what calls it. Deploying the caller first
+      # would leave a window where an invitation is issued and the thing that
+      # mails it is still the previous build.
+      #
+      # Its project id comes from a repository variable rather than being
+      # written here like identity's. The project is created once by hand, and
+      # this workflow has to be mergeable before that happens — the alternative
+      # is a literal id that does not exist yet, which fails the deploy for a
+      # reason not in this repository.
+      - name: deploy messaging
+        id: messaging
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION != ''
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION }}
+        run: |
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN"
+
+      # `/healthz` is unauthenticated on purpose and says nothing worth having:
+      # a status, and which transport is composed. Putting the shared secret in
+      # a smoke test is how the shared secret reaches a workflow log.
+      #
+      # It reports the transport for a reason. `log` in production means
+      # `RESEND_API_KEY` is missing and every invitation is being written to
+      # stdout instead of sent — which looks exactly like a working deployment
+      # until somebody asks why no new hire has ever been able to log in. The
+      # service refuses to boot in that state, so this asserting `resend` is the
+      # belt to that braces.
+      - name: smoke test messaging
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION != ''
+        run: |
+          set -o pipefail
+          body="$(curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            https://messaging.kithena.com/healthz)"
+          echo "$body"
+          if ! grep -q '"transport":"resend"' <<<"$body"; then
+            echo "::error::messaging is not composed against a real provider"
+            exit 1
+          fi
+
+      - name: warn about a missing messaging project
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION == ''
+        run: |
+          echo "::warning::VERCEL_PROJECT_ID_MESSAGING_PRODUCTION is unset, so \
+          the messaging service was not deployed. Invitations will not be \
+          emailed; enrolment links are still returned to the back-office."
 
       # The tenant app, which no workflow has ever deployed to production.
       #

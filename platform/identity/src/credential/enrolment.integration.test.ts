@@ -117,7 +117,8 @@ async function enrol(
     const tokens = drizzleEnrolmentTokenStore(tx, TENANT);
     const token =
       options.token ??
-      (await tokens.issue({ accountId: ACCOUNT, secondChannel: 'in_person', issuedBy: null }));
+      (await tokens.issue({ accountId: ACCOUNT, secondChannel: 'in_person', issuedBy: null }))
+        .token;
 
     const { challenge } = await rp.beginRegistration({
       identityId: IDENTITY,
@@ -202,7 +203,7 @@ describe('a first passkey', () => {
     // The stolen-link case. A link that has been used is gone, whether or not
     // whoever used it was supposed to.
     await invitedAccount();
-    const tokens = await inTenant((tx) =>
+    const issued = await inTenant((tx) =>
       drizzleEnrolmentTokenStore(tx, TENANT).issue({
         accountId: ACCOUNT,
         secondChannel: 'in_person',
@@ -210,8 +211,8 @@ describe('a first passkey', () => {
       }),
     );
 
-    const first = await enrol(softwareAuthenticator('first'), { token: tokens });
-    const second = await enrol(softwareAuthenticator('second'), { token: tokens });
+    const first = await enrol(softwareAuthenticator('first'), { token: issued.token });
+    const second = await enrol(softwareAuthenticator('second'), { token: issued.token });
 
     expect(first.result.ok).toBe(true);
     expect(second.result.ok).toBe(false);
@@ -265,7 +266,7 @@ describe('re-issuing a link', () => {
         secondChannel: 'in_person',
         issuedBy: null,
       });
-      return [a, b];
+      return [a.token, b.token];
     });
 
     const stale = await enrol(softwareAuthenticator('stale'), { token: first });
@@ -278,7 +279,7 @@ describe('re-issuing a link', () => {
   it('stores a hash, never the token', async () => {
     // A backup, a replica or a support query must not yield anything usable.
     await invitedAccount();
-    const token = await inTenant((tx) =>
+    const issued = await inTenant((tx) =>
       drizzleEnrolmentTokenStore(tx, TENANT).issue({
         accountId: ACCOUNT,
         secondChannel: 'in_person',
@@ -288,7 +289,7 @@ describe('re-issuing a link', () => {
 
     const rows = await admin.execute(sql`SELECT token_hash FROM platform.enrolment_token`);
     const stored = [...rows][0]?.['token_hash'];
-    expect(String(stored)).not.toContain(token);
+    expect(String(stored)).not.toContain(issued.token);
     expect(Buffer.from(stored as Uint8Array)).toHaveLength(32);
   });
 });

@@ -647,6 +647,12 @@ the two:
 The in-person variant is the good one, and an HRIS is unusually well placed to
 use it: a new hire has a first day, and somebody is already handing them a laptop.
 
+> **Where the link is actually sent.** `platform/messaging` — see
+> [messaging.md](./messaging.md). It is the delivery channel and nothing more:
+> today `second_channel` is _recorded_ rather than _enforced_, so the message
+> deliberately makes no claim about a second channel. When enforcement lands,
+> the copy changes with it.
+
 ---
 
 ## Google Workspace

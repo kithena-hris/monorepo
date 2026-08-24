@@ -5,7 +5,7 @@ import { outboxTable, publish } from '@kithena/db-kit';
 import type { AccountRepository } from '../application/account-repository.js';
 import type { AccountSnapshot, AccountStatus } from '../domain/account.js';
 import type { Session } from '../domain/session.js';
-import { account, session } from './account-tables.js';
+import { account, identity, session } from './account-tables.js';
 
 const outbox = outboxTable('platform');
 
@@ -36,6 +36,7 @@ export function drizzleAccountRepository(): AccountRepository {
         identityId: row.identityId,
         tenantId: row.tenantId,
         status: row.status as AccountStatus,
+        workEmail: row.workEmail,
         employmentStart: row.employmentStart,
         timeZone: row.timeZone,
         sessionLimit: row.sessionLimit,
@@ -55,6 +56,38 @@ export function drizzleAccountRepository(): AccountRepository {
           },
         })),
       } satisfies AccountSnapshot;
+    },
+
+    async create(tx, aggregate) {
+      const row = aggregate.commissioned;
+
+      // The human first: `platform.account.identity_id` references it, and one
+      // human is one identity globally. `DO NOTHING` because a contractor
+      // joining their second customer already has one — the identity is the
+      // thing that crosses the tenant boundary, and the account is the thing
+      // that does not.
+      await tx
+        .insert(identity)
+        .values({ id: row.identityId, createdAt: sql`now()` })
+        .onConflictDoNothing();
+
+      await tx.insert(account).values({
+        id: aggregate.id,
+        tenantId: row.tenantId,
+        identityId: row.identityId,
+        status: aggregate.status,
+        workEmail: row.workEmail,
+        timeZone: row.timeZone,
+        employmentStart: row.employmentStart,
+        sessionLimit: row.sessionLimit,
+        version: aggregate.version,
+        createdAt: sql`now()`,
+        updatedAt: sql`now()`,
+      });
+
+      // Same transaction as the write, which is the whole mechanism: Debezium
+      // tails the WAL, so the event exists if and only if the row committed.
+      await publish(tx, outbox, aggregate.drainEvents());
     },
 
     async save(tx, aggregate) {
@@ -105,7 +138,7 @@ export function drizzleAccountRepository(): AccountRepository {
 
       await tx
         .update(account)
-        .set({ status: aggregate.status, version: aggregate.version })
+        .set({ status: aggregate.status, version: aggregate.version, updatedAt: sql`now()` })
         .where(eq(account.id, aggregate.id));
 
       // Same transaction as the write. That is the whole mechanism: Debezium

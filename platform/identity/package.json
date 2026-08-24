@@ -16,6 +16,7 @@
     "seed:operator": "tsx scripts/seed-operator.ts"
   },
   "dependencies": {
+    "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",

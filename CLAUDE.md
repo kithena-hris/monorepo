@@ -78,6 +78,26 @@ than quietly working around it.
   so the Kanban board moves the item in a throwaway copy as it crosses a
   boundary and discards that copy on drop. The props stay the truth either side
   of the drag.
+- **Transactional email is Resend, behind a port, in `platform/messaging`.**
+  A platform service rather than a module — nobody buys it, every tenant has it,
+  and `ModuleKey` correctly does not list it. Identity calls it over internal
+  HTTP rather than importing it: one process holds the signing key and the one
+  plaintext copy of an enrolment token, the other holds a third party's API key.
+
+  **`messaging.delivery` records outcomes and never a body.** No subject, no
+  link, and an integration test asserts the column list. The enrolment link is
+  the one secret passing through, and `platform.enrolment_token` keeps only its
+  hash precisely so a backup or a support query yields nothing usable.
+
+  **The email is Reach, resolved.** `packages/ui` may not be imported by a
+  service and should not be — but an email is presentation with nowhere else to
+  live, so the tokens are copied into `palette.ts` as sRGB (no mail client
+  resolves `oklch()`) and `pnpm email:theme-drift` fails when one moves. Same
+  trade as `reach-tokens.json` and `kithena-mark-data-uri.ts`, both of which
+  copy a value and pay for it with a drift check.
+
+  `docs/messaging.md` has the reasoning and the Resend settings that matter.
+
 - **Charts are hand-drawn SVG in `packages/ui`, not a charting library.** The
   four shapes a dashboard needs are a few hundred lines; a library brings its
   own colour system, tooltip and focus behaviour, and the design system would
@@ -152,6 +172,8 @@ just test-all             # unit + integration + contract
 just codegen              # regenerate derived artifacts from Zod contracts
 just standalone timeoff   # boot one module with no siblings
 just supergraph           # compose the federated schema locally
+just admin-dev            # messaging, identity, the auth origin and the back-office
+just invite <tenant> <email>  # invite one person and send them their link
 just storybook            # design system docs on :6006
 just test-stories         # render every story in Chromium, run axe over it
 ```

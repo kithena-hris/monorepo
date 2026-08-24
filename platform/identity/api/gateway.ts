@@ -51,6 +51,9 @@ function routes(): Promise<RequestHandler> {
     authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
     signingKey: process.env['AUTH_SIGNING_KEY'],
     allowInsecureOrigins: process.env['VERCEL_ENV'] !== 'production',
+    // Optional. Absent, invitations are not emailed and the enrolment link
+    // comes back in the response only — a supported deployment, not a broken one.
+    ...(process.env['MESSAGING_URL'] ? { messagingUrl: process.env['MESSAGING_URL'] } : {}),
   });
   return routesPromise;
 }

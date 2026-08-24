@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { ok, systemClock } from '@kithena/domain-kit';
+import { ok, systemClock, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
 import { startSession } from './account/application/start-session.js';
@@ -11,7 +11,8 @@ import {
   drizzleAccountRepository,
   findActiveAccountForIdentity,
 } from './account/infrastructure/drizzle-account-repository.js';
-import { Account } from './account/domain/account.js';
+import { Account, type EventContext } from './account/domain/account.js';
+import type { AccountRepository } from './account/application/account-repository.js';
 import { defaultCredentialPolicy } from './credential/domain/credential.js';
 import { signInWithPasskey } from './credential/application/sign-in-with-passkey.js';
 import { signIn } from './credential/application/sign-in.js';
@@ -22,6 +23,7 @@ import { webauthnRoutes } from './credential/http/webauthn-routes.js';
 import { completeEnrolment } from './credential/application/complete-enrolment.js';
 import { drizzleEnrolmentTokenStore } from './credential/infrastructure/drizzle-enrolment-token-store.js';
 import { enrolmentRoutes } from './credential/http/enrolment-routes.js';
+import { brandingFor } from './tenancy/domain/tenant.js';
 import { resolveTenant } from './tenancy/application/resolve-tenant.js';
 import { drizzleTenantRepository } from './tenancy/infrastructure/drizzle-tenant-repository.js';
 import { tenantRoutes } from './tenancy/http/tenant-routes.js';
@@ -32,6 +34,8 @@ import { operatorSignIn } from './operator/application/operator-sign-in.js';
 import { drizzleOperatorRepository } from './operator/infrastructure/drizzle-operator-repository.js';
 import { operatorRoutes } from './operator/http/operator-routes.js';
 import { provisionTenant } from './tenancy/application/provision-tenant.js';
+import { inviteAccount } from './tenancy/application/invite-account.js';
+import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
 import { adminRoutes } from './tenancy/http/admin-routes.js';
 
 /**
@@ -71,6 +75,16 @@ export interface Config {
   readonly authOrigin: string;
   readonly signingKey: string | undefined;
   readonly allowInsecureOrigins: boolean;
+  /**
+   * Where the messaging service is, or absent.
+   *
+   * Absent is a supported deployment, not a broken one. Provisioning and
+   * inviting both return the enrolment link in the response, and
+   * `docs/authentication.md` prefers that link handed over in person — so a
+   * deployment with no messaging service still works, and every invitation
+   * reports itself undelivered rather than pretending otherwise.
+   */
+  readonly messagingUrl?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -97,6 +111,94 @@ function text(value: unknown): string {
 
 function textOrNull(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
+}
+
+/**
+ * A human, and the account they hold at one company. Both, or neither.
+ *
+ * Through the aggregate, not through two INSERTs. That is the whole point of
+ * this function existing: creating an account used to be raw SQL right here, so
+ * `identity.account.provisioned` was a contract event that nothing ever raised
+ * and the audit trail HR is entitled to began at enrolment rather than at hire.
+ * `Account.commission` raises it, and `create` drains it into the outbox inside
+ * the same transaction as the row.
+ *
+ * `platform.identity` is written by the repository for the same reason: one
+ * human is one identity globally and one account per company, so a contractor
+ * at their second customer keeps the identity that carries their passkey.
+ */
+async function commissionAccount(
+  tx: PostgresJsDatabase,
+  accounts: AccountRepository,
+  input: {
+    tenantId: string;
+    email: string;
+    employmentStart: string;
+    timeZone: string;
+    via: 'people_module' | 'admin_api' | 'scim';
+  },
+  ctx: EventContext,
+): Promise<{ accountId: string; identityId: string }> {
+  const accountId = uuidv7();
+  const identityId = uuidv7();
+
+  const account = Account.commission(
+    {
+      id: accountId,
+      identityId,
+      tenantId: input.tenantId,
+      workEmail: input.email,
+      timeZone: input.timeZone,
+      employmentStart: input.employmentStart,
+      via: input.via,
+    },
+    ctx,
+  );
+
+  await accounts.create(tx, account);
+  return { accountId, identityId };
+}
+
+/**
+ * Mint the link and record that it was issued, as one fact.
+ *
+ * The order is forced: `identity.account.invited` carries the token's expiry,
+ * so the token has to exist before the aggregate can be told about it. Both
+ * land in the same transaction, so a link that exists is a link somebody can
+ * see was issued.
+ */
+async function inviteCommissioned(
+  tx: PostgresJsDatabase,
+  accounts: AccountRepository,
+  input: {
+    tenantId: string;
+    accountId: string;
+    issuedBy: string | null;
+    secondChannel: 'in_person' | 'known_value';
+  },
+  ctx: EventContext,
+): Promise<Result<{ token: string; expiresAt: string }>> {
+  const issued = await drizzleEnrolmentTokenStore(tx, input.tenantId).issue({
+    accountId: input.accountId,
+    secondChannel: input.secondChannel,
+    issuedBy: input.issuedBy,
+  });
+
+  const snapshot = await accounts.load(tx, input.accountId);
+  if (!snapshot) throw new Error('account vanished mid-invitation');
+
+  const account = Account.rehydrate(snapshot);
+  const invited = account.invite(
+    { expiresAt: issued.expiresAt, secondChannel: input.secondChannel },
+    ctx,
+  );
+  // The aggregate is the authority. `mayInvite` refused the same set a moment
+  // ago with a message the operator can act on; if this still refuses, the
+  // state changed underneath us and the transaction should carry nothing.
+  if (!invited.ok) return invited;
+
+  await accounts.save(tx, account);
+  return ok(issued);
 }
 
 export async function compose(config: Config): Promise<RequestHandler> {
@@ -154,6 +256,24 @@ export async function compose(config: Config): Promise<RequestHandler> {
     clock: systemClock,
     newEventId: () => uuidv7(),
     actor: { kind: 'user' as const, userId: actorId },
+    correlationId: randomUUID(),
+    causationId: null,
+  });
+
+  /**
+   * The same envelope, for acts nobody inside the tenant performed.
+   *
+   * Commissioning and inviting are done by a back-office operator, who is not
+   * one of the customer's employees and has no `platform.account` row there.
+   * `Actor` has a `system` arm for exactly this, and naming the process is what
+   * an auditor asking "who created this account" actually gets — a `user` arm
+   * pointing at an id that does not exist in this tenant would be worse than
+   * saying nothing.
+   */
+  const systemContext = (process: string) => ({
+    clock: systemClock,
+    newEventId: () => uuidv7(),
+    actor: { kind: 'system' as const, process },
     correlationId: randomUUID(),
     causationId: null,
   });
@@ -346,6 +466,75 @@ export async function compose(config: Config): Promise<RequestHandler> {
     }),
   });
 
+  /*
+   * How an invited person is told, when there is anywhere to tell them.
+   *
+   * Over HTTP rather than by importing the sender. Identity holds the signing
+   * key and the one plaintext copy of an enrolment token; messaging holds a
+   * third party's API key and talks to the public internet on every request.
+   * Neither belongs inside the other, and a module will need the second one
+   * over the wire anyway — `no-platform-in-modules` sees to that.
+   */
+  const notifier =
+    config.messagingUrl === undefined || config.messagingUrl === ''
+      ? undefined
+      : httpInvitationNotifier({
+          baseUrl: config.messagingUrl,
+          internalToken: config.internalToken,
+        });
+
+  if (notifier === undefined) {
+    logger.warn(
+      { reason: 'no MESSAGING_URL' },
+      'invitations will not be emailed; links are returned in the response only',
+    );
+  }
+
+  /**
+   * Reading a company by id, for the invitation path.
+   *
+   * `platform.tenant` carries no row-level security — it is the table read
+   * before a tenant is known — so this needs no tenant transaction, which is
+   * also why it can run before one is entered.
+   */
+  const tenantById = async (
+    tenantId: string,
+  ): Promise<{ slug: string; displayName: string; logoUrl: string | null } | null> => {
+    const rows = await db.execute(sql`
+      SELECT slug, display_name, logo_url, accent_color, branding_public
+        FROM platform.tenant
+       WHERE id = ${tenantId}::uuid
+    `);
+    const row = [...rows][0];
+    if (!row) return null;
+
+    /*
+     * The mark goes through `brandingFor`, the name does not.
+     *
+     * `branding_public` is what a company sets when it does not want to be
+     * displayed on a surface it does not control — mid-acquisition, or in a
+     * regulated matter. An email is forwarded, so the mark respects it.
+     *
+     * The company *name* cannot: it is in the subject line, and an invitation
+     * that will not say which company it is for is not an invitation. The flag
+     * was never about hiding the name from the person who works there; it is
+     * about the login page not publishing the customer list to anyone who
+     * guesses a slug.
+     */
+    const branding = brandingFor({
+      displayName: text(row['display_name']),
+      logoUrl: textOrNull(row['logo_url']),
+      accentColor: textOrNull(row['accent_color']),
+      brandingPublic: row['branding_public'] !== false,
+    });
+
+    return {
+      slug: text(row['slug']),
+      displayName: text(row['display_name']),
+      logoUrl: branding.logoUrl,
+    };
+  };
+
   const admin = adminRoutes({
     internalToken: config.internalToken,
     listTenants: async (page) => {
@@ -403,9 +592,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
           };
         }),
         nextCursor:
-          hasMore && last
-            ? { createdAt: text(last['created_at']), id: text(last['id']) }
-            : null,
+          hasMore && last ? { createdAt: text(last['created_at']), id: text(last['id']) } : null,
       };
     },
     tenantDetail: async (id) => {
@@ -467,7 +654,55 @@ export async function compose(config: Config): Promise<RequestHandler> {
         })),
       };
     },
+    invite: inviteAccount({
+      tenantById,
+      authOrigin: config.authOrigin,
+      clock: systemClock,
+      ...(notifier === undefined ? {} : { notifier }),
+      inTenantTransaction: (tenantId, fn) =>
+        inTenantTransaction(tenantId, (tx) =>
+          fn({
+            findByEmail: async (email) => {
+              // Inside the tenant transaction, so row-level security is doing
+              // the scoping. The `tenant_id` predicate is belt and braces: read
+              // on a bare connection this returns nothing at all, which is a
+              // wrong answer rather than an error.
+              const rows = await tx.execute(sql`
+                SELECT id, identity_id, status
+                  FROM platform.account
+                 WHERE tenant_id = ${tenantId}::uuid AND work_email = ${email}
+              `);
+              const row = [...rows][0];
+              if (!row) return null;
+              return {
+                accountId: text(row['id']),
+                identityId: text(row['identity_id']),
+                status: text(row['status']),
+              };
+            },
+            commission: (input) =>
+              commissionAccount(
+                tx,
+                accounts,
+                { tenantId, via: 'admin_api', ...input },
+                // The commissioning act has no account inside the tenant to
+                // attribute it to — a back-office operator is not one of the
+                // customer's employees — so the actor is the process.
+                systemContext('invite-account'),
+              ),
+            invite: (input) =>
+              inviteCommissioned(
+                tx,
+                accounts,
+                { tenantId, ...input },
+                systemContext('invite-account'),
+              ),
+          }),
+        ),
+    }),
     provision: provisionTenant({
+      authOrigin: config.authOrigin,
+      ...(notifier === undefined ? {} : { notifier }),
       // The scope is built *inside* the transaction and every statement uses
       // `tx`. Building it outside would hand back closures over the pool, which
       // is what made this four transactions and lost the `app.tenant_id` that
@@ -500,23 +735,43 @@ export async function compose(config: Config): Promise<RequestHandler> {
               await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
             },
             inviteAdmin: async (tenantId, email) => {
-              const identityId = uuidv7();
-              await tx.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
-              const rows = await tx.execute(sql`
-                INSERT INTO platform.account
-                  (tenant_id, identity_id, status, work_email, time_zone, employment_start)
-                VALUES (${tenantId}::uuid, ${identityId}::uuid, 'invited', ${email},
-                        'Etc/UTC', current_date)
-                RETURNING id
-              `);
-              return text([...rows][0]?.['id']);
+              const ctx = systemContext('provision-tenant');
+              const commissioned = await commissionAccount(
+                tx,
+                accounts,
+                {
+                  tenantId,
+                  email,
+                  // A company's first administrators start when the company
+                  // does. There is no employment record to read yet — the
+                  // People module does not exist for this tenant at the moment
+                  // it is created — so today is the honest answer rather than a
+                  // default standing in for one.
+                  employmentStart: systemClock.date('Etc/UTC'),
+                  timeZone: 'Etc/UTC',
+                  via: 'admin_api',
+                },
+                ctx,
+              );
+
+              const issued = await inviteCommissioned(
+                tx,
+                accounts,
+                {
+                  tenantId,
+                  accountId: commissioned.accountId,
+                  issuedBy: null,
+                  secondChannel: 'in_person',
+                },
+                ctx,
+              );
+              // A freshly commissioned account cannot refuse an invitation, so
+              // this is a bug rather than a condition — and it has to abort the
+              // transaction rather than return a half-provisioned company.
+              if (!issued.ok) throw new Error(`invitation refused: ${issued.error.code}`);
+
+              return { ...commissioned, ...issued.value };
             },
-            issueEnrolment: (tenantId, accountId) =>
-              drizzleEnrolmentTokenStore(tx, tenantId).issue({
-                accountId,
-                secondChannel: 'in_person',
-                issuedBy: null,
-              }),
           }),
         ),
     }),

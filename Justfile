@@ -77,14 +77,22 @@ auth-dev postgres_port="5432" valkey_port="6379":
     # server finds one left behind by a process that was killed rather than
     # stopped. Cheap to clear, and it is always the answer.
     rm -rf apps/auth/shell/node_modules/.cache
+    export INTERNAL_API_TOKEN=dev-only-key
+    export AUTH_ORIGIN=http://localhost:3100
+    # Messaging first, so identity has somewhere to send an invitation. With no
+    # RESEND_API_KEY it prints the message instead of sending it, which is what
+    # you want while working on this — the enrolment link is single-use, so
+    # every walk through the flow needs a fresh one.
+    MESSAGING_DATABASE_URL="postgres://svc_messaging:kithena@localhost:{{postgres_port}}/kithena" \
+      npx tsx platform/messaging/src/main.ts &
     IDENTITY_DATABASE_URL="postgres://svc_identity:kithena@localhost:{{postgres_port}}/kithena" \
     VALKEY_URL="redis://localhost:{{valkey_port}}" \
-    INTERNAL_API_TOKEN=dev-only-key \
-    WEBAUTHN_RP_ID=localhost AUTH_ORIGIN=http://localhost:3100 \
+    MESSAGING_URL=http://localhost:4101 \
+    WEBAUTHN_RP_ID=localhost \
       npx tsx platform/identity/src/main.ts &
     trap 'kill 0' EXIT
     cd apps/auth/shell
-    INTERNAL_API_URL=http://localhost:4100 INTERNAL_API_TOKEN=dev-only-key npx modern dev
+    INTERNAL_API_URL=http://localhost:4100 npx modern dev
 
 # Put a tenant, an invited account and a fresh enrolment link in the database,
 # and print the link. The link is single-use, so this is how you get another.
@@ -103,9 +111,15 @@ admin-dev postgres_port="5432" valkey_port="6379":
     rm -rf apps/auth/shell/node_modules/.cache
     export INTERNAL_API_TOKEN=dev-only-key
     export INTERNAL_API_URL=http://localhost:4100
+    export AUTH_ORIGIN=http://localhost:3100
+    # Messaging first. Creating a company in the back-office invites its
+    # administrators, and with this running you see the message they would get.
+    MESSAGING_DATABASE_URL="postgres://svc_messaging:kithena@localhost:{{postgres_port}}/kithena" \
+      npx tsx platform/messaging/src/main.ts &
     IDENTITY_DATABASE_URL="postgres://svc_identity:kithena@localhost:{{postgres_port}}/kithena" \
     VALKEY_URL="redis://localhost:{{valkey_port}}" \
-    WEBAUTHN_RP_ID=localhost AUTH_ORIGIN=http://localhost:3100 \
+    MESSAGING_URL=http://localhost:4101 \
+    WEBAUTHN_RP_ID=localhost \
     ADMIN_RP_ID=localhost ADMIN_ORIGIN=http://localhost:3001 \
       npx tsx platform/identity/src/main.ts &
     trap 'kill 0' EXIT
@@ -116,3 +130,25 @@ admin-dev postgres_port="5432" valkey_port="6379":
 # Prints the link that enrols one.
 admin-seed postgres_port="5432" email="ops@kithena.com":
     npx tsx platform/identity/scripts/seed-operator.ts {{postgres_port}} {{email}}
+
+# Invite one person into a company that already exists, and send them the link.
+#
+# The path HR takes, from the outside: this is the same endpoint the back-office
+# calls. Needs `just admin-dev` or `just auth-dev` running, because it goes
+# through identity — which mints the token — and identity hands the link to
+# messaging.
+invite tenant_id email:
+    curl -sS -X POST \
+      -H 'content-type: application/json' \
+      -H 'x-internal-token: dev-only-key' \
+      -d '{"email":"{{email}}"}' \
+      http://localhost:4100/api/internal/admin/tenants/{{tenant_id}}/invitations
+
+# Render the invitation email to a file and print the plain-text half.
+#
+# Sending a real message to look at it is a bad loop: the link is single-use, a
+# send costs a real address, and a bounce off a typo hurts the sending domain.
+# Pass a logo to see the co-branded version — only `https:` URLs render, because
+# Gmail drops `data:` image sources.
+email-preview logo="":
+    pnpm --filter @kithena/messaging preview {{ if logo != "" { "--logo " + logo } else { "" } }}

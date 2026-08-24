@@ -159,6 +159,40 @@ jobs:
             --retry 5 --retry-delay 5 --max-time 30 \
             https://identity.staging.kithena.com/.well-known/jwks.json >/dev/null
 
+      # The messaging service.
+      #
+      # After identity, because identity is what calls it: deploying the caller
+      # first would leave a window where an invitation is issued and the thing
+      # that mails it is still the previous build. Nothing breaks either way —
+      # the link comes back in the response regardless — but the ordering costs
+      # nothing and one of the two is right.
+      #
+      # Its project id comes from a repository variable rather than being
+      # written here, because the project is created once by hand and this
+      # workflow has to be mergeable before that happens.
+      - name: deploy messaging
+        id: messaging
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_STAGING != ''
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_STAGING }}
+        run: |
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN"
+
+      # `/healthz`, which is deliberately unauthenticated and says nothing worth
+      # having — a status and which transport is composed. Putting the shared
+      # secret into a smoke test is how the shared secret reaches a workflow log.
+      #
+      # The custom domain, not the deployment URL: `ssoProtection` is
+      # `all_except_custom_domains`, so a `.vercel.app` host answers 302 to a
+      # login page and would pass a naive check that follows redirects.
+      - name: smoke test messaging
+        if: vars.VERCEL_PROJECT_ID_MESSAGING_STAGING != ''
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            https://messaging.staging.kithena.com/healthz >/dev/null
+
       - name: build back-office
         run: pnpm turbo run build --filter=@kithena/admin...
 

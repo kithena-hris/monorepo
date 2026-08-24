@@ -59,6 +59,9 @@ const routes = await compose({
   authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
   signingKey,
   allowInsecureOrigins: process.env['NODE_ENV'] !== 'production',
+  // Optional. Absent, invitations are not emailed and the enrolment link comes
+  // back in the response only — a supported deployment, not a broken one.
+  ...(process.env['MESSAGING_URL'] ? { messagingUrl: process.env['MESSAGING_URL'] } : {}),
 });
 
 const server = createServer((request, response) => {

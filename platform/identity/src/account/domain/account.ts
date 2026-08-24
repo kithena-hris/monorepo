@@ -33,11 +33,40 @@ export type SuspensionReason =
 export type RevocationReason =
   'signed_out' | 'evicted' | 'expired' | 'revoked_by_user' | 'revoked_by_admin' | 'terminated';
 
+/**
+ * Which of the two provisioning paths an account came from.
+ *
+ * Not a detail: it is the difference between HR entering a hire and a
+ * customer's directory pushing one, and an auditor asking "who created this
+ * account" wants it. Mirrors the enum on `identity.account.provisioned`.
+ */
+export type ProvisioningRoute = 'people_module' | 'admin_api' | 'scim';
+
+/**
+ * How the second channel was satisfied.
+ *
+ * Declared here rather than imported from the credential slice, which owns the
+ * token: `no-cross-slice-imports` forbids the import and is right to. Both
+ * mirror the enum on `identity.account.invited`, which is the vocabulary they
+ * actually share.
+ */
+export type SecondChannel = 'in_person' | 'known_value';
+
 export interface AccountSnapshot {
   readonly id: string;
   readonly identityId: string;
   readonly tenantId: string;
   readonly status: AccountStatus;
+  /**
+   * Used once, to route the invitation. Never an identifier afterwards — the
+   * migration and `identity.account.provisioned` both say so, and `sub` rather
+   * than `email` is what a federated login is matched on.
+   *
+   * It is on the aggregate at all because commissioning raises an event that
+   * carries it, and an aggregate that cannot describe the row it is about to
+   * write is an aggregate the insert has to work around.
+   */
+  readonly workEmail: string;
   /** Employment start. A calendar date, which is why `timeZone` is here too. */
   readonly employmentStart: string;
   /** IANA zone. Decides when the start date and the last working day fall. */
@@ -68,6 +97,9 @@ export interface StartSessionInput {
   readonly amr: readonly string[];
 }
 
+/** `platform.account.session_limit`'s default. Tenant policy overrides it. */
+const DEFAULT_SESSION_LIMIT = 4;
+
 const InvalidTransition = (from: AccountStatus, action: string): ReturnType<typeof failure> =>
   failure('INVALID_TRANSITION', `An account that is ${from} cannot be ${action}`);
 
@@ -81,6 +113,7 @@ export class Account extends AggregateRoot<string> {
   #sessions: Session[];
   readonly #identityId: string;
   readonly #tenantId: TenantId;
+  readonly #workEmail: string;
   readonly #employmentStart: string;
   readonly #timeZone: string;
   readonly #sessionLimit: number;
@@ -95,6 +128,7 @@ export class Account extends AggregateRoot<string> {
     // said so". A malformed tenant id reaching the domain is a bug, and a bug
     // is the one thing worth throwing for.
     this.#tenantId = TenantId.parse(snapshot.tenantId);
+    this.#workEmail = snapshot.workEmail;
     this.#employmentStart = snapshot.employmentStart;
     this.#timeZone = snapshot.timeZone;
     this.#sessionLimit = snapshot.sessionLimit;
@@ -103,6 +137,94 @@ export class Account extends AggregateRoot<string> {
   /** Rebuild from storage. Raises nothing — this is not a transition. */
   static rehydrate(snapshot: AccountSnapshot): Account {
     return new Account(snapshot);
+  }
+
+  /**
+   * A new account, commissioned. Nobody can log in yet.
+   *
+   * Its own factory rather than a second `rehydrate`, because this *is* a
+   * transition: it raises `identity.account.provisioned`, and rehydration
+   * raises nothing. The two had been the same call for as long as accounts
+   * were created by an INSERT in the composition root, which is how a defined
+   * contract event ended up being raised by nothing at all.
+   *
+   * `effectiveFrom` on that event is the employment start date, and it is load
+   * bearing rather than informational: a hire entered three weeks early must
+   * not be able to enrol during those three weeks. `enrol` is what enforces it;
+   * this is what records the date it enforces against.
+   */
+  static commission(
+    input: {
+      readonly id: string;
+      readonly identityId: string;
+      readonly tenantId: string;
+      readonly workEmail: string;
+      readonly timeZone: string;
+      readonly employmentStart: string;
+      readonly via: ProvisioningRoute;
+      readonly sessionLimit?: number;
+    },
+    ctx: EventContext,
+  ): Account {
+    const account = new Account({
+      id: input.id,
+      identityId: input.identityId,
+      tenantId: input.tenantId,
+      status: 'provisioned',
+      workEmail: input.workEmail,
+      employmentStart: input.employmentStart,
+      timeZone: input.timeZone,
+      sessions: [],
+      sessionLimit: input.sessionLimit ?? DEFAULT_SESSION_LIMIT,
+    });
+
+    account.#raise(
+      'identity.account.provisioned',
+      {
+        accountId: input.id,
+        identityId: input.identityId,
+        workEmail: input.workEmail,
+        timeZone: input.timeZone,
+        employmentStart: input.employmentStart,
+        via: input.via,
+      },
+      ctx,
+      // The one event here whose `effectiveFrom` is not null. Everything else
+      // an account does takes effect when it is recorded; employment does not.
+      input.employmentStart,
+    );
+
+    return account;
+  }
+
+  /**
+   * An enrolment link was issued. The token itself is never in the event.
+   *
+   * Reachable from `provisioned` and from `invited`, and the second one is the
+   * ordinary case rather than the edge: a link lasts 72 hours, people start on
+   * Mondays, and issuing a new one invalidates whatever came before. What is
+   * refused is an account that has already enrolled — that person needs
+   * recovery, which is HR-mediated precisely so that it is not an emailed link.
+   */
+  invite(
+    input: { readonly expiresAt: string; readonly secondChannel: SecondChannel },
+    ctx: EventContext,
+  ): Result<void> {
+    if (this.#status !== 'provisioned' && this.#status !== 'invited') {
+      return err(InvalidTransition(this.#status, 'invited'));
+    }
+
+    this.#status = 'invited';
+    this.#raise(
+      'identity.account.invited',
+      {
+        accountId: this.id,
+        expiresAt: input.expiresAt,
+        secondChannel: input.secondChannel,
+      },
+      ctx,
+    );
+    return ok(undefined);
   }
 
   get status(): AccountStatus {
@@ -262,12 +384,22 @@ export class Account extends AggregateRoot<string> {
   /**
    * The envelope, built once.
    *
-   * `effectiveFrom` is null on every event here: an account transition takes
-   * effect when it is recorded. The dates that *are* effective-dated —
-   * employment start, last working day — travel in the payload, because they
-   * describe the employment rather than the moment the record changed.
+   * `effectiveFrom` is null on all but one: an account transition takes effect
+   * when it is recorded. The dates that *are* effective-dated travel in the
+   * payload instead, because they describe the employment rather than the
+   * moment the record changed.
+   *
+   * The exception is `account.provisioned`, where the employment start date is
+   * the envelope's `effectiveFrom` as well — a consumer deciding whether this
+   * hire is live yet reads the envelope, not a payload field whose name it
+   * would have to know.
    */
-  #raise(eventName: string, payload: Record<string, unknown>, ctx: EventContext): void {
+  #raise(
+    eventName: string,
+    payload: Record<string, unknown>,
+    ctx: EventContext,
+    effectiveFrom: string | null = null,
+  ): void {
     const at = ctx.clock.instant();
     const event: PendingEvent = {
       eventId: ctx.newEventId(),
@@ -275,7 +407,7 @@ export class Account extends AggregateRoot<string> {
       eventVersion: 1,
       tenantId: this.#tenantId,
       occurredAt: at,
-      effectiveFrom: null,
+      effectiveFrom: effectiveFrom as PendingEvent['effectiveFrom'],
       aggregate: { type: 'Account', id: this.id, version: this.version + 1 },
       actor: ctx.actor,
       correlationId: ctx.correlationId,
@@ -288,6 +420,25 @@ export class Account extends AggregateRoot<string> {
   /** The human this account belongs to. One human, several accounts. */
   get identityId(): string {
     return this.#identityId;
+  }
+
+  /** The row this aggregate describes, for a repository writing it the first time. */
+  get commissioned(): {
+    readonly identityId: string;
+    readonly tenantId: string;
+    readonly workEmail: string;
+    readonly timeZone: string;
+    readonly employmentStart: string;
+    readonly sessionLimit: number;
+  } {
+    return {
+      identityId: this.#identityId,
+      tenantId: this.#tenantId,
+      workEmail: this.#workEmail,
+      timeZone: this.#timeZone,
+      employmentStart: this.#employmentStart,
+      sessionLimit: this.#sessionLimit,
+    };
   }
 
   /** The company. Needed by anything writing a tenant-scoped row. */

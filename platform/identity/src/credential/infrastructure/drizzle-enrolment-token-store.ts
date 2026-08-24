@@ -45,19 +45,29 @@ export function drizzleEnrolmentTokenStore(
 
       const { token, hash } = mintEnrolmentToken();
 
-      await tx.insert(enrolmentToken).values({
-        id: sql`gen_random_uuid()`,
-        tenantId,
-        accountId: request.accountId,
-        tokenHash: hash,
-        secondChannel: request.secondChannel,
-        expiresAt: sql`now() + make_interval(secs => ${ENROLMENT_TTL_SECONDS})`,
-        createdAt: sql`now()`,
-        issuedBy: request.issuedBy,
-      });
+      // `returning` rather than computing the deadline here. The interval is
+      // added by Postgres against Postgres's clock, and the invitation states
+      // the deadline to the person reading it — so it has to be the row's, not
+      // this process's idea of what the row's probably is.
+      const [row] = await tx
+        .insert(enrolmentToken)
+        .values({
+          id: sql`gen_random_uuid()`,
+          tenantId,
+          accountId: request.accountId,
+          tokenHash: hash,
+          secondChannel: request.secondChannel,
+          expiresAt: sql`now() + make_interval(secs => ${ENROLMENT_TTL_SECONDS})`,
+          createdAt: sql`now()`,
+          issuedBy: request.issuedBy,
+        })
+        .returning({ expiresAt: enrolmentToken.expiresAt });
 
-      // Returned once, in memory, and never read back. The row holds the hash.
-      return token;
+      if (!row) throw new Error('the enrolment token insert returned no row');
+
+      // The token is returned once, in memory, and never read back. The row
+      // holds the hash.
+      return { token, expiresAt: asInstant(row.expiresAt) };
     },
 
     async consume(token) {
@@ -99,4 +109,35 @@ export function drizzleEnrolmentTokenStore(
       };
     },
   };
+}
+
+/**
+ * A `timestamptz` as the driver hands it over, turned into an instant.
+ *
+ * `@kithena/db-kit`'s `instant` column is `mode: 'string'`, so what comes back
+ * is Postgres's own text format — `2026-08-26 22:31:15.112301+00`, with a space
+ * and a two-digit offset. That is not ISO 8601, and the difference is not
+ * cosmetic: the messaging service validates this field with `z.iso.datetime`
+ * and refused every invitation with a 422 until this existed. Nothing in the
+ * type system had anything to say, because both shapes are `string`.
+ *
+ * Parsed as-is rather than repaired first. Substituting a `T` for the space
+ * makes it *worse* — `2026-08-26T22:31:15.112301+00` is a malformed ISO string
+ * and returns `Invalid Date`, where the original parses correctly through the
+ * legacy path. So the input is left alone and the output is `toISOString`,
+ * which is ISO 8601 by construction.
+ *
+ * Converted here rather than by widening the column type, because `instant` is
+ * shared by sessions, challenges and the outbox, and changing what all of them
+ * return to fix one caller is how an unrelated thing breaks.
+ */
+export function asInstant(value: string): string {
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) {
+    // A bug, not a condition. The column is `timestamptz NOT NULL`, so an
+    // unreadable value means the driver or the column type changed underneath
+    // this, and carrying on would put a broken deadline in front of a person.
+    throw new Error(`unreadable timestamp from the database: ${value}`);
+  }
+  return at.toISOString();
 }

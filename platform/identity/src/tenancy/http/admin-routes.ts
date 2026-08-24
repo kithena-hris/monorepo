@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { DEFAULT_THEME_ID } from '@kithena/contracts';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
+import type { InviteAccount } from '../application/invite-account.js';
 import type { ProvisionTenant } from '../application/provision-tenant.js';
 
 /**
@@ -24,6 +25,26 @@ const LIST = '/api/internal/admin/tenants';
  */
 const DETAIL =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+/**
+ * `/api/internal/admin/tenants/<uuid>/invitations`, the same shape one segment
+ * longer.
+ *
+ * A collection under the tenant rather than a top-level `/invitations` with the
+ * company in the body, because an invitation has no meaning outside one — and
+ * because the tenant id in the path is what an audit log reads without having
+ * to parse a body.
+ */
+const INVITATIONS =
+  /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/invitations$/i;
+
+/**
+ * Deliberately not a full RFC 5322 grammar; see the messaging service's
+ * `toAddress` for why one is neither achievable nor useful. This is the
+ * boundary check — enough shape that a typo is refused before an account is
+ * created against it — and messaging re-checks it before spending a send.
+ */
+const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 export interface TenantPerson {
   readonly id: string;
@@ -58,10 +79,7 @@ export interface TenantCursor {
 }
 
 export interface AdminRoutesDeps {
-  readonly listTenants: (page: {
-    limit: number;
-    cursor: TenantCursor | null;
-  }) => Promise<{
+  readonly listTenants: (page: { limit: number; cursor: TenantCursor | null }) => Promise<{
     tenants: readonly {
       id: string;
       slug: string;
@@ -75,6 +93,7 @@ export interface AdminRoutesDeps {
   }>;
   readonly tenantDetail: (id: string) => Promise<TenantDetail | null>;
   readonly provision: ProvisionTenant;
+  readonly invite: InviteAccount;
   readonly internalToken: string;
 }
 
@@ -82,12 +101,14 @@ export function adminRoutes({
   listTenants,
   tenantDetail,
   provision,
+  invite,
   internalToken,
 }: AdminRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const path = (request.url ?? '').split('?')[0] ?? '';
     const detail = DETAIL.exec(path);
-    if (path !== LIST && !detail) return false;
+    const invitations = INVITATIONS.exec(path);
+    if (path !== LIST && !detail && !invitations) return false;
 
     if (!presentsInternalToken(request, internalToken)) {
       response.writeHead(401).end();
@@ -100,6 +121,67 @@ export function adminRoutes({
         .end(JSON.stringify(body));
       return true;
     };
+
+    if (invitations) {
+      if (request.method !== 'POST') {
+        response.writeHead(405, { allow: 'POST' }).end();
+        return true;
+      }
+
+      const asked = (await readJsonBody(request)) as Record<string, unknown> | null;
+      if (asked === null) return json(400, {});
+
+      const email = typeof asked['email'] === 'string' ? asked['email'].trim() : '';
+      if (email === '' || email.length > 254 || !EMAIL.test(email)) {
+        return json(422, {
+          code: 'EMAIL_MALFORMED',
+          message: 'That is not an address an invitation can be sent to',
+          path: ['email'],
+        });
+      }
+
+      const optional = (key: string): string | undefined =>
+        typeof asked[key] === 'string' && asked[key] !== '' ? asked[key] : undefined;
+
+      const invited = await invite({
+        tenantId: invitations[1] ?? '',
+        email,
+        // The operator acting is a back-office operator, not an account inside
+        // the tenant, so there is nobody in `platform.account` to name here.
+        // `issued_by` references that table; a back-office identity in it would
+        // be an account at a customer we do not work for.
+        issuedBy: null,
+        /*
+         * Passed through unchecked on purpose. The shape of a calendar date and
+         * whether a zone exists are rules about what an employment record *is*,
+         * so they live in `checkEmployment` — a rule enforced in one of four
+         * transports is a rule that leaks the day a SCIM push arrives.
+         *
+         * Absent means "today, in UTC", decided there rather than here for the
+         * same reason.
+         */
+        ...(optional('employmentStart') === undefined
+          ? {}
+          : { employmentStart: optional('employmentStart') }),
+        ...(optional('timeZone') === undefined ? {} : { timeZone: optional('timeZone') }),
+        ...(asked['secondChannel'] === 'known_value'
+          ? { secondChannel: 'known_value' as const }
+          : {}),
+      });
+
+      if (!invited.ok) {
+        return json(422, {
+          code: invited.error.code,
+          message: invited.error.message,
+          path: invited.error.path ?? [],
+        });
+      }
+
+      // 201: an account and a live enrolment token now exist. Whether the
+      // message arrived is reported inside, because it is a different question
+      // and the operator has to be able to see the answer is no.
+      return json(201, invited.value);
+    }
 
     if (detail) {
       if (request.method !== 'GET') {
