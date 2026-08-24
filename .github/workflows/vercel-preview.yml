@@ -233,7 +233,16 @@ jobs:
           # reported is `tail`'s, so a deploy that failed exits 0 here and
           # hands an empty URL to everything downstream.
           set -o pipefail
-          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/admin \
+          # No path argument. The project's root directory is already
+          # `apps/admin`, so the CLI resolves this against it and looks for
+          # `apps/admin/apps/admin`, which fails outright. `--archive=tgz` from
+          # the repo root plus the project's own root directory already say
+          # what the path was trying to.
+          #
+          # `apps/docs/dist` and `apps/storybook/storybook-static` above keep
+          # theirs: those two projects have no root directory set, so the path
+          # is the only thing pointing at the built output.
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"

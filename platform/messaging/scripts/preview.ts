@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -54,8 +54,24 @@ const rendered = renderInvitation({
 
 if (!rendered.ok) throw new Error(`the message could not be rendered: ${rendered.error.code}`);
 
-const out = flag('out') ?? join(tmpdir(), 'kithena-invitation.html');
-writeFileSync(out, rendered.value.html);
+/*
+ * A private directory, not a predictable name in the shared one.
+ *
+ * `join(tmpdir(), 'kithena-invitation.html')` is a path any local user can
+ * guess, and `writeFileSync` follows symlinks — so another account on the same
+ * machine can create that name pointing at a file the developer running this
+ * can write, and this clobbers it. CodeQL flags it as `js/insecure-temporary-file`
+ * and is right to: the fact that this is a development script does not make the
+ * developer's own home directory a safe thing to overwrite.
+ *
+ * `mkdtempSync` creates a uniquely named directory with 0700 permissions, so
+ * there is nothing to guess and nothing for anybody else to have created first.
+ */
+const out = flag('out') ?? join(mkdtempSync(join(tmpdir(), 'kithena-email-')), 'invitation.html');
+
+// `wx` fails if the path already exists rather than following a link to
+// somewhere else. Redundant inside a directory we just created, and free.
+writeFileSync(out, rendered.value.html, { flag: flag('out') === undefined ? 'wx' : 'w' });
 
 process.stdout.write(
   [
