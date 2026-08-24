@@ -33,7 +33,7 @@ export default async function NewCompany(): Promise<JSX.Element> {
   async function create(
     draft: Draft,
   ): Promise<
-    | { ok: true; slug: string; invitations: ProvisionedInvitation[] }
+    | { ok: true; tenantId: string; slug: string; invitations: ProvisionedInvitation[] }
     | { ok: false; message: string; path?: string[] }
   > {
     'use server';
@@ -52,9 +52,13 @@ export default async function NewCompany(): Promise<JSX.Element> {
     });
 
     if (status === 201 && body !== null && typeof body === 'object') {
-      const { slug, invitations } = body as Record<string, unknown>;
+      // `tenantId` is what the wizard navigates to. It comes back from
+      // `provisionTenant` and used to be dropped here, which is why there was
+      // nowhere for the wizard to go afterwards.
+      const { tenantId, slug, invitations } = body as Record<string, unknown>;
       return {
         ok: true,
+        tenantId: String(tenantId),
         slug: String(slug),
         invitations: (invitations ?? []) as ProvisionedInvitation[],
       };

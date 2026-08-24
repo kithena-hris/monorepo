@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { CreatedToast } from '../../../components/created-toast';
 import { callIdentity } from '../../../lib/identity';
 import { currentOperator } from '../../../lib/session';
 import {
@@ -41,12 +42,15 @@ interface Detail {
 
 export default async function Company({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<JSX.Element> {
   if (!(await currentOperator())) redirect('/sign-in');
 
   const { id } = await params;
+  const query = await searchParams;
   const { status, body } = await callIdentity(`/api/internal/admin/tenants/${id}`);
   if (status === 404) notFound();
   const company = body as Detail | null;
@@ -110,8 +114,30 @@ export default async function Company({
   const theme = company.themeId === null ? undefined : themePreset(company.themeId);
   const country = company.address ? countryRules(company.address.country) : undefined;
 
+  /**
+   * Counts only, and that is the whole contract with the wizard.
+   *
+   * A token in a URL is a token in browser history, in the referrer of every
+   * image the page loads, and in anything watching the path — so the links
+   * never travel here. They do not need to: the form below issues a fresh one
+   * for anybody, which invalidates the old one anyway.
+   */
+  const count = (key: string): number => {
+    const raw = query[key];
+    const value = Number(Array.isArray(raw) ? raw[0] : raw);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  };
+  const justCreated = query['created'] === '1';
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
+      {justCreated ? (
+        <CreatedToast
+          companyName={company.displayName}
+          invited={count('invited')}
+          undelivered={count('undelivered')}
+        />
+      ) : null}
       <Link href="/" className="text-fg-muted hover:text-fg text-sm">
         ← All companies
       </Link>

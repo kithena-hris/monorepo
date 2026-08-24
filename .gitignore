@@ -69,3 +69,4 @@ docker-compose.override.yml
 # Modern.js deploy output. `modern deploy` writes .vercel/output for the
 # Vercel target and .output for the plain Node one; only the first was ignored.
 .output
+.env*
