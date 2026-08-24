@@ -199,6 +199,7 @@ interface View {
  */
 function html(view: View): string {
   const preheader = `Set up your account at ${view.company}. The link works once, until ${view.deadline}.`;
+  const pad = scale.cardPadding;
 
   return `<!doctype html>
 <html lang="en" style="margin:0;padding:0;">
@@ -217,8 +218,8 @@ function html(view: View): string {
       </style>
     <![endif]-->
     <style>
-      /* Only the clients that keep a style block and honour the query get
-         this. The inline light theme stands everywhere else. */
+      /* Only clients that keep a style block and honour the query get this.
+         The inline light theme stands everywhere else. */
       @media (prefers-color-scheme: dark) {
         .k-canvas { background: ${dark.canvas} !important; }
         .k-surface { background: ${dark.surface} !important; border-color: ${dark.border} !important; }
@@ -227,12 +228,13 @@ function html(view: View): string {
         .k-muted { color: ${dark['fg-muted']} !important; }
         .k-accent { color: ${dark.accent} !important; }
         .k-rule { background: ${dark.border} !important; }
+        .k-chip { background: ${dark['accent-subtle']} !important; color: ${dark['accent-fg']} !important; }
       }
-      /* A phone is 320px wide at its narrowest. The card loses its outer
-         margin rather than its padding: cramped copy reads worse than a card
-         that touches the edges. */
+      /* A phone is 320px at its narrowest. The card loses its outer margin
+         rather than its padding: cramped copy reads worse than a card that
+         touches the edges. */
       @media only screen and (max-width: 600px) {
-        .k-pad { padding-left: 16px !important; padding-right: 16px !important; }
+        .k-pad { padding-left: 18px !important; padding-right: 18px !important; }
         .k-button { display: block !important; }
       }
     </style>
@@ -240,86 +242,102 @@ function html(view: View): string {
   <body class="k-canvas" style="margin:0;padding:0;width:100%;background:${light.canvas};font-family:${scale.fontFamily};-webkit-font-smoothing:antialiased;">
     <!-- Shown in the inbox list beside the subject. Without it, clients pull
          the first line of the body, which here is the heading repeated. The
-         trailing entities pad it so the client does not fill the rest of the
-         preview line with the markup that follows. -->
+         entities pad it so the client does not fill the rest of the preview
+         line with the markup that follows. -->
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}${'&#847;&zwnj;&nbsp;'.repeat(30)}</div>
 
     <table role="presentation" class="k-canvas" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${light.canvas};">
       <tr>
-        <td align="center" style="padding:32px 12px;">
+        <td align="center" style="padding:40px 12px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:544px;">
 
             <!-- Wordmark. Type rather than an image on purpose: Gmail drops
-                 'data:' image sources and Outlook desktop will not render SVG
-                 at all, so the mark would be a broken box for most of the
-                 people receiving this. Set in the brand colour at '--text-xs'
-                 with the tracking a wordmark wants. -->
+                 data: image sources and Outlook desktop will not render SVG,
+                 so the mark would be a broken box for most recipients. -->
             <tr>
-              <td style="padding:0 4px 16px 4px;">
-                <span class="k-accent" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${light.accent};">Kithena</span>
+              <td style="padding:0 4px 18px 4px;">
+                <span class="k-accent" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:${light.accent};">Kithena</span>
               </td>
             </tr>
 
-            <!-- The card. 'Card variant="outlined"': a line, not a shadow. -->
+            <!-- Card variant="outlined": a line, not a shadow. -->
             <tr>
-              <td class="k-surface" style="background:${light.surface};border:1px solid ${light.border};border-radius:${scale.radiusCard};">
+              <td class="k-surface" style="background:${light.surface};border:1px solid ${light.border};border-radius:${scale.radiusCard};overflow:hidden;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-${logoRow(view)}
+
+                  <!-- A 3px accent rule across the top. The one piece of
+                       ornament, and it earns its place: it is what makes the
+                       card read as ours at a glance in a crowded inbox. -->
                   <tr>
-                    <td class="k-pad" style="padding:${view.logo === null ? scale.cardPadding : '0px'} ${scale.cardPadding} 0 ${scale.cardPadding};">
+                    <td style="height:3px;line-height:3px;font-size:0;background:${light['accent-solid']};">&nbsp;</td>
+                  </tr>
+
+${logoRow(view, pad)}
+                  <tr>
+                    <td class="k-pad" style="padding:${view.logo === null ? '28px' : '4px'} ${pad} 0 ${pad};">
                       <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">You're invited to join ${view.company}</h1>
                     </td>
                   </tr>
 
                   <tr>
-                    <td class="k-pad k-muted" style="padding:12px ${scale.cardPadding} 0 ${scale.cardPadding};font-size:${scale.body.size};line-height:${scale.body.lineHeight};color:${light['fg-muted']};">
-                      <p style="margin:0 0 12px 0;">An account is waiting for you. Setting it up takes about a minute.</p>
-                      <p style="margin:0;">There is no password to choose. Your device will ask for your fingerprint, face or PIN, and that becomes how you sign in from then on.</p>
+                    <td class="k-pad k-muted" style="padding:10px ${pad} 0 ${pad};font-size:${scale.body.size};line-height:${scale.body.lineHeight};color:${light['fg-muted']};">
+                      An account is waiting for you. Setting it up takes about a minute, and there is no password to choose.
                     </td>
                   </tr>
 
-                  <!-- Which account this is. It is the same thing the enrolment
-                       page says before the device prompt appears, and it is
-                       here for the same reason: one device holds passkeys for
-                       several accounts, and the system prompt only shows what
-                       it was told at registration. -->
+                  <!-- Which account this is. The same thing the enrolment page
+                       says before the device prompt appears, and here for the
+                       same reason: one device holds passkeys for several
+                       accounts, and the prompt only shows what it was told at
+                       registration. -->
                   <tr>
-                    <td class="k-pad" style="padding:20px ${scale.cardPadding} 0 ${scale.cardPadding};">
+                    <td class="k-pad" style="padding:22px ${pad} 0 ${pad};">
                       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="k-inset" style="background:${light['surface-sunken']};border:1px solid ${light.border};border-radius:${scale.radiusInset};">
                         <tr>
-                          <td style="padding:12px 14px;">
-                            <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.06em;text-transform:uppercase;color:${light['fg-muted']};">Your sign-in address</div>
-                            <div class="k-fg" style="padding-top:2px;font-size:${scale.body.size};line-height:${scale.body.lineHeight};font-weight:500;color:${light.fg};word-break:break-all;">${view.recipient}</div>
+                          <td style="padding:13px 15px;">
+                            <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};">Your sign-in address</div>
+                            <div class="k-fg" style="padding-top:3px;font-size:${scale.body.size};line-height:${scale.body.lineHeight};font-weight:500;color:${light.fg};word-break:break-all;">${view.recipient}</div>
                           </td>
                         </tr>
                       </table>
                     </td>
                   </tr>
 
-                  <!-- 'Button variant="primary" size="lg"', longhand. -->
+                  <!-- Button variant="primary" size="lg", longhand. -->
                   <tr>
-                    <td class="k-pad" style="padding:20px ${scale.cardPadding} 0 ${scale.cardPadding};">
+                    <td class="k-pad" style="padding:22px ${pad} 0 ${pad};">
 ${button(view)}
                     </td>
                   </tr>
 
+                  <!-- What actually happens, because a passkey is unfamiliar to
+                       most people receiving this and "no password to choose"
+                       raises more questions than it answers on its own. -->
                   <tr>
-                    <td class="k-pad k-muted" style="padding:16px ${scale.cardPadding} 0 ${scale.cardPadding};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
-                      Or copy this address into your browser:<br />
-                      <a href="${view.href}" class="k-accent" style="color:${light.accent};word-break:break-all;text-decoration:underline;">${view.plainUrl}</a>
+                    <td class="k-pad" style="padding:26px ${pad} 0 ${pad};">
+                      <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};padding-bottom:10px;">What happens next</div>
+${steps(view)}
                     </td>
                   </tr>
 
                   <tr>
-                    <td class="k-pad" style="padding:20px ${scale.cardPadding} 0 ${scale.cardPadding};">
+                    <td class="k-pad" style="padding:24px ${pad} 0 ${pad};">
                       <div class="k-rule" style="height:1px;line-height:1px;font-size:0;background:${light.border};">&nbsp;</div>
                     </td>
                   </tr>
 
                   <tr>
-                    <td class="k-pad k-muted" style="padding:16px ${scale.cardPadding} ${scale.cardPadding} ${scale.cardPadding};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
-                      <p style="margin:0 0 8px 0;">This link works once, and stops working on <strong class="k-fg" style="color:${light.fg};font-weight:600;">${view.deadline}</strong>. If it has expired, ask your HR team for another.</p>
-                      <p style="margin:0;">If you were not expecting this, or you do not recognise ${view.company}, do not use the link — tell your HR team instead.</p>
+                    <td class="k-pad" style="padding:16px ${pad} 0 ${pad};">
+                      <!-- Badge tone="accent" size="sm": rounded-full, subtle
+                           wash, medium weight. -->
+                      <span class="k-chip" style="display:inline-block;padding:3px 10px;border-radius:999px;background:${light['accent-subtle']};color:${light['accent-fg']};font-size:${scale.tiny.size};line-height:16px;font-weight:500;">Works once &middot; expires ${view.deadline}</span>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="k-pad k-muted" style="padding:12px ${pad} ${pad} ${pad};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
+                      <p style="margin:0 0 10px 0;">If it has expired, ask your HR team for another. If you were not expecting this, or you do not recognise ${view.company}, do not use the link &mdash; tell your HR team instead.</p>
+                      <p style="margin:0;">Button not working? Paste this into your browser:<br /><a href="${view.href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${view.plainUrl}</a></p>
                     </td>
                   </tr>
                 </table>
@@ -327,7 +345,7 @@ ${button(view)}
             </tr>
 
             <tr>
-              <td class="k-muted" style="padding:16px 4px 0 4px;font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};color:${light['fg-muted']};">
+              <td class="k-muted" style="padding:18px 4px 0 4px;font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};color:${light['fg-muted']};">
                 Sent by Kithena because ${view.company} added you to their team. This is a one-off message about your account, not a subscription.
               </td>
             </tr>
@@ -340,6 +358,39 @@ ${button(view)}
 }
 
 /**
+ * The numbered steps.
+ *
+ * Rows rather than an `<ol>`: list markers are styled inconsistently across
+ * clients and Outlook indents them by an amount nobody agrees on, so the number
+ * is an element of its own in a two-column row.
+ *
+ * The chip is Reach's stepper tick — `accent-subtle` on `accent-fg` rather than
+ * a solid fill, because those two are the pair chosen to clear contrast on a
+ * wash. `accent-fg` on a solid accent measures about 1.5:1 and merely looks "a
+ * bit low", which `tokens.css` warns about by name.
+ */
+function steps(view: View): string {
+  const rows = [
+    'Your device asks for your fingerprint, face or PIN.',
+    'That becomes your passkey. Nothing leaves your device.',
+    `You sign in to ${view.company} the same way from then on.`,
+  ]
+    .map(
+      (item, index) => `                        <tr>
+                          <td width="30" valign="top" style="padding:0 10px 10px 0;">
+                            <span class="k-chip" style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:999px;background:${light['accent-subtle']};color:${light['accent-fg']};font-size:${scale.tiny.size};font-weight:600;text-align:center;">${String(index + 1)}</span>
+                          </td>
+                          <td valign="top" class="k-muted" style="padding:0 0 10px 0;font-size:${scale.small.size};line-height:20px;color:${light['fg-muted']};">${item}</td>
+                        </tr>`,
+    )
+    .join('\n');
+
+  return `                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+${rows}
+                      </table>`;
+}
+
+/**
  * The company's mark, above the heading, or nothing.
  *
  * Constrained by height rather than width, so a wordmark and a square badge
@@ -347,10 +398,10 @@ ${button(view)}
  * the card on a phone; Outlook ignores it, which is why the height is the one
  * that is fixed.
  */
-function logoRow(view: View): string {
+function logoRow(view: View, pad: string): string {
   if (view.logo === null) return '';
   return `                  <tr>
-                    <td class="k-pad" style="padding:${scale.cardPadding} ${scale.cardPadding} 4px ${scale.cardPadding};">
+                    <td class="k-pad" style="padding:26px ${pad} 0 ${pad};">
                       <img src="${view.logo}" alt="${view.company}" height="28" style="height:28px;max-width:180px;width:auto;border:0;outline:none;display:block;" />
                     </td>
                   </tr>
@@ -390,21 +441,24 @@ function text(v: {
   return [
     `You're invited to join ${v.companyName}`,
     '',
-    'An account is waiting for you. Setting it up takes about a minute.',
-    '',
-    'There is no password to choose. Your device will ask for your fingerprint,',
-    'face or PIN, and that becomes how you sign in from then on.',
+    'An account is waiting for you. Setting it up takes about a minute, and there',
+    'is no password to choose.',
     '',
     `Your sign-in address: ${v.recipient}`,
     '',
     'Set up your account:',
     v.url,
     '',
-    `This link works once, and stops working on ${v.deadline}. If it has expired,`,
-    'ask your HR team for another.',
+    'What happens next',
+    '  1. Your device asks for your fingerprint, face or PIN.',
+    '  2. That becomes your passkey. Nothing leaves your device.',
+    `  3. You sign in to ${v.companyName} the same way from then on.`,
+    '',
+    `This link works once and expires ${v.deadline}. If it has expired, ask your`,
+    'HR team for another.',
     '',
     `If you were not expecting this, or you do not recognise ${v.companyName}, do`,
-    'not use the link — tell your HR team instead.',
+    'not use the link - tell your HR team instead.',
     '',
     `Sent by Kithena because ${v.companyName} added you to their team.`,
     '',

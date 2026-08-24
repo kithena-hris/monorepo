@@ -6,6 +6,11 @@ import type { JSX } from 'react';
 
 import { callIdentity } from '../../../lib/identity';
 import { currentOperator } from '../../../lib/session';
+import {
+  InvitePersonForm,
+  type Invitation,
+  type InviteResult,
+} from '../../../components/invite-person-form';
 
 /**
  * One company, everything the registry holds about it.
@@ -46,6 +51,61 @@ export default async function Company({
   if (status === 404) notFound();
   const company = body as Detail | null;
   if (company === null) notFound();
+
+  /**
+   * Inviting somebody, as a server action rather than an API route.
+   *
+   * The internal token never leaves this process — `lib/identity` is
+   * `server-only`, so importing it from a client component is a build error
+   * rather than a convention — and the enrolment link comes back without a
+   * second round trip. It is shown once and is not retrievable; the row holds
+   * only its hash.
+   */
+  async function invite(_previous: InviteResult | null, form: FormData): Promise<InviteResult> {
+    'use server';
+
+    // Re-checked inside the action, not merely on the page that renders it. A
+    // server action is a POST endpoint with a generated name, and the forms
+    // guide is explicit that rendering one behind an auth check is not the
+    // same as guarding it.
+    if (!(await currentOperator())) return { ok: false, message: 'Your session has expired.' };
+
+    const text = (key: string): string | undefined => {
+      const value = form.get(key);
+      return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+    };
+    const employmentStart = text('employmentStart');
+    const timeZone = text('timeZone');
+
+    const { status, body } = await callIdentity(`/api/internal/admin/tenants/${id}/invitations`, {
+      method: 'POST',
+      body: {
+        email: text('email') ?? '',
+        // Absent rather than empty: `checkEmployment` defaults what is
+        // missing, and an empty string is not missing.
+        ...(employmentStart === undefined ? {} : { employmentStart }),
+        ...(timeZone === undefined ? {} : { timeZone }),
+      },
+    });
+
+    if (status === 201 && body !== null && typeof body === 'object') {
+      return { ok: true, invitation: body as Invitation };
+    }
+
+    // The real reason, because the back-office is authenticated and an operator
+    // has to know whether this person is already enrolled (use recovery), was
+    // terminated (new employment record), or the date was a typo. No stranger
+    // reaches here to learn any of it.
+    const failure = (body ?? {}) as { message?: unknown; path?: unknown };
+    return {
+      ok: false,
+      message:
+        typeof failure.message === 'string' ? failure.message : 'That person could not be invited.',
+      ...(Array.isArray(failure.path)
+        ? { path: failure.path.filter((p): p is string => typeof p === 'string') }
+        : {}),
+    };
+  }
 
   const theme = company.themeId === null ? undefined : themePreset(company.themeId);
   const country = company.address ? countryRules(company.address.country) : undefined;
@@ -163,6 +223,15 @@ export default async function Company({
           </p>
         </section>
       </div>
+
+      <section className="mt-10">
+        <h2 className="mb-1 text-sm font-medium">Invite somebody</h2>
+        <p className="text-fg-muted mb-4 text-sm">
+          They are sent a link and set up a passkey on their own device. You are not given a way to
+          sign in as them.
+        </p>
+        <InvitePersonForm action={invite} companyName={company.displayName} />
+      </section>
 
       <section className="mt-10">
         <h2 className="mb-3 text-sm font-medium">People</h2>

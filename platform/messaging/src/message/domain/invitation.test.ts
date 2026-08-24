@@ -239,3 +239,55 @@ describe('the plain-text part says everything the HTML does', () => {
     expect(message).not.toContain('<');
   });
 });
+
+describe('the parts that make it read as ours', () => {
+  it('carries the accent rule across the top of the card', () => {
+    // The one piece of ornament, and it earns its place: it is what makes the
+    // card read as Kithena at a glance in a crowded inbox.
+    expect(rendered().html).toContain(`background:${light['accent-solid']};">&nbsp;`);
+  });
+
+  it('explains what a passkey actually does, in order', () => {
+    // "No password to choose" raises more questions than it answers for
+    // somebody who has never seen a passkey, which is most people receiving
+    // this.
+    const message = rendered();
+    expect(message.html).toContain('What happens next');
+    expect(message.html).toContain('fingerprint, face or PIN');
+    expect(message.html).toContain('Nothing leaves your device');
+    for (const n of ['1', '2', '3']) {
+      expect(message.html).toContain(`>${n}</span>`);
+    }
+    // And the same three, in the same order, for a client that strips HTML.
+    expect(message.text).toContain('1. Your device asks for your fingerprint');
+    expect(message.text).toContain('2. That becomes your passkey');
+    expect(message.text).toContain('3. You sign in to Acme Corp');
+  });
+
+  it('uses the wash pair for the chips, never the solid fill', () => {
+    // `tokens.css` names this mistake: `accent-fg` on a saturated fill measures
+    // about 1.5:1 and merely looks "a bit low". The subtle wash is the pair
+    // chosen to clear contrast.
+    const message = rendered().html;
+    expect(message).toContain(`background:${light['accent-subtle']};color:${light['accent-fg']}`);
+  });
+
+  it('states the deadline once, as a badge rather than a sentence', () => {
+    const message = rendered().html;
+    expect(message).toContain('Works once');
+    expect(message).toContain('border-radius:999px');
+    expect(message).toContain('27 August 2026 at 09:05 UTC');
+  });
+
+  it('demotes the fallback link rather than leading with it', () => {
+    // It was the loudest thing on the page: a 43-character token wrapped over
+    // three lines in accent blue, directly under the button it duplicates.
+    // Muted, and below the fine print, it is there for whoever needs it.
+    const message = rendered().html;
+    const button = message.indexOf('Set up your account</a>');
+    const fallback = message.indexOf('Button not working?');
+    expect(button).toBeGreaterThan(-1);
+    expect(fallback).toBeGreaterThan(button);
+    expect(message).toContain('<a href="https://auth.app.kithena.com/enrol?tenant=acme&amp;');
+  });
+});
