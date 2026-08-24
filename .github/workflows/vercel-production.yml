@@ -354,7 +354,7 @@ jobs:
           # reported is `tail`'s, so a deploy that failed exits 0 here and
           # hands an empty URL to everything downstream.
           set -o pipefail
-          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/admin --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
             exit 1

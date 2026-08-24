@@ -167,11 +167,22 @@ jobs:
       # A Vercel function rather than a container since 2026-08-22: the reason
       # it needed a process was a Valkey connection held across requests, and
       # challenges live in Postgres now. docs/environments.md has the rest.
+      #
+      # `--prod`, and that is not a typo. This is the *staging* project, whose
+      # production environment is staging — `kithena-identity` holds only
+      # `identity.staging.kithena.com`, and production lives in a different
+      # project entirely for the reason `vercel-production.yml` sets out at
+      # length.
+      #
+      # Without it this deployed a preview and aliased nothing, so the custom
+      # domain went on serving whatever it served before and the smoke test
+      # below passed against it. A deploy step that cannot change what the
+      # domain serves is a deploy step that does nothing, and it passes.
       - name: deploy identity
         env:
           VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
         run: |
-          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy \
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
             --yes --archive=tgz --token "$VERCEL_TOKEN"
 
       # The custom domain, not the deployment URL. `ssoProtection` is set to
@@ -235,7 +246,7 @@ jobs:
           # reported is `tail`'s, so a deploy that failed exits 0 here and
           # hands an empty URL to everything downstream.
           set -o pipefail
-          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy apps/admin \
+          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy \
             --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
