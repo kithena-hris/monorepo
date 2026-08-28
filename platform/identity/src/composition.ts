@@ -10,7 +10,11 @@ import { startSession } from './account/application/start-session.js';
 import {
   drizzleAccountRepository,
   findActiveAccountForIdentity,
+  loadSession,
+  workEmailOf,
 } from './account/infrastructure/drizzle-account-repository.js';
+import { authenticate } from './account/application/authenticate.js';
+import { sessionRoutes } from './account/http/session-routes.js';
 import { Account, type EventContext } from './account/domain/account.js';
 import type { AccountRepository } from './account/application/account-repository.js';
 import { defaultCredentialPolicy } from './credential/domain/credential.js';
@@ -295,6 +299,41 @@ export async function compose(config: Config): Promise<RequestHandler> {
     actor: { kind: 'system' as const, process },
     correlationId: randomUUID(),
     causationId: null,
+  });
+
+  /*
+   * The cookie check the tenant app makes on every request.
+   *
+   * No cache in front of it yet, which is a deliberate omission rather than an
+   * oversight: `SessionCache` exists and Valkey is what `docker-compose.yml`
+   * runs, but that machine had no services declared and stopped staying up —
+   * the same reason challenges moved to Postgres. A read per request against a
+   * primary-key lookup is the honest starting point, and the port is right
+   * there when the traffic justifies one.
+   */
+  const sessions = sessionRoutes({
+    internalToken: config.internalToken,
+    authenticate: authenticate({
+      cache: {
+        read: () => Promise.resolve(null),
+        write: () => Promise.resolve(),
+        forget: () => Promise.resolve(),
+      },
+      load: (tenantId, sessionId) =>
+        inTenantTransaction(tenantId, (tx) => loadSession(tx, tenantId, sessionId)),
+      clock: systemClock,
+      onTenantMismatch: (session, presented) => {
+        // A *valid* session id arriving on the wrong hostname is somebody
+        // moving a cookie between origins. Worth seeing even though the answer
+        // is the same refusal as a stale one.
+        logger.warn(
+          { sessionTenant: session.tenantId, presentedTenant: presented },
+          'session presented on another tenant host',
+        );
+      },
+    }),
+    workEmailOf: (tenantId, accountId) =>
+      inTenantTransaction(tenantId, (tx) => workEmailOf(tx, accountId)),
   });
 
   const jwks = jwksRoute(signer);
@@ -805,6 +844,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
    */
   return async (request, response) =>
     jwks(request, response) ||
+    (await sessions(request, response)) ||
     (await webauthn(request, response)) ||
     (await enrolment(request, response)) ||
     (await operator(request, response)) ||

@@ -2,7 +2,16 @@
 
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type JSX,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -13,8 +22,120 @@ import { cn } from '../../lib/cn';
  * difference is not cosmetic, the two have different keyboard contracts and
  * announce differently.
  */
-export const DropdownMenu = DropdownMenuPrimitive.Root;
-export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+/**
+ * Hover handlers, shared with the trigger and the content.
+ *
+ * A context rather than props threaded through, because the two halves are
+ * rendered by the caller and the gap between them is exactly where a naive
+ * implementation closes the menu as the pointer crosses it.
+ */
+interface HoverState {
+  readonly enabled: boolean;
+  readonly open: () => void;
+  readonly close: () => void;
+  readonly hold: () => void;
+}
+
+const HoverContext = createContext<HoverState | null>(null);
+
+export interface DropdownMenuProps
+  // `onOpenChange` is re-declared rather than inherited. Radix types it as a
+  // method signature, and destructuring one trips `unbound-method` — a rule
+  // that is right in general and wrong about a callback prop. Declared as a
+  // property it is both more accurate and quiet.
+  extends Omit<ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>, 'onOpenChange'> {
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * Also open on hover, in addition to click and keyboard.
+   *
+   * **In addition, never instead.** A menu that only opens on hover is a menu
+   * a keyboard cannot reach and a touch screen has no gesture for, and the
+   * items here are commands rather than a preview — which is also why this is
+   * not `HoverCard`, whose content is documented as non-essential.
+   *
+   * Closing is delayed. The pointer has to cross the gap between the trigger
+   * and the floating content, and a menu that closes during that journey
+   * cannot be clicked at all.
+   */
+  openOnHover?: boolean;
+  /** Milliseconds before a hover-opened menu closes. */
+  hoverCloseDelay?: number;
+}
+
+export function DropdownMenu({
+  openOnHover = false,
+  hoverCloseDelay = 150,
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: DropdownMenuProps): JSX.Element {
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hold = useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  }, []);
+
+  const hover = useMemo<HoverState>(
+    () => ({
+      enabled: openOnHover,
+      open: () => {
+        hold();
+        setHoverOpen(true);
+        onOpenChange?.(true);
+      },
+      close: () => {
+        hold();
+        timer.current = setTimeout(() => {
+          setHoverOpen(false);
+          onOpenChange?.(false);
+        }, hoverCloseDelay);
+      },
+      hold,
+    }),
+    [openOnHover, hoverCloseDelay, hold, onOpenChange],
+  );
+
+  // Uncontrolled unless hover is on. Taking control otherwise would break
+  // every existing caller that passes neither `open` nor `onOpenChange`.
+  const rootProps = openOnHover
+    ? {
+        open: open ?? hoverOpen,
+        onOpenChange: (next: boolean) => {
+          hold();
+          setHoverOpen(next);
+          onOpenChange?.(next);
+        },
+      }
+    : {
+        ...(open === undefined ? {} : { open }),
+        ...(defaultOpen === undefined ? {} : { defaultOpen }),
+        ...(onOpenChange === undefined ? {} : { onOpenChange }),
+      };
+
+  return (
+    <HoverContext value={hover}>
+      <DropdownMenuPrimitive.Root {...rootProps} {...props} />
+    </HoverContext>
+  );
+}
+
+export function DropdownMenuTrigger({
+  ...props
+}: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger>): JSX.Element {
+  const hover = useContext(HoverContext);
+
+  return (
+    <DropdownMenuPrimitive.Trigger
+      {...(hover?.enabled === true
+        ? { onPointerEnter: hover.open, onPointerLeave: hover.close }
+        : {})}
+      {...props}
+    />
+  );
+}
 export const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
@@ -38,11 +159,24 @@ export function DropdownMenuContent({
   sideOffset = 6,
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>): JSX.Element {
+  const hover = useContext(HoverContext);
+
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         sideOffset={sideOffset}
         className={cn(surface, className)}
+        {...(hover?.enabled === true
+          ? {
+              onPointerEnter: hover.hold,
+              onPointerLeave: hover.close,
+              // The pointer never reaches content that steals focus on open
+              // and then closes when the trigger loses hover.
+              onOpenAutoFocus: (event: Event) => {
+                event.preventDefault();
+              },
+            }
+          : {})}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>

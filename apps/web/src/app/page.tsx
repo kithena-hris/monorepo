@@ -1,42 +1,77 @@
 import {
   Badge,
-  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  KithenaLogo,
+  PageHeader,
+  PageSection,
+  Stack,
 } from '@reach/ui';
+import { headers } from 'next/headers';
 import type { JSX } from 'react';
 
-/**
- * Placeholder shell. It exists to prove the wiring — the design system renders
- * here exactly as it does in Storybook — not to be the product.
- */
-export default function Home(): JSX.Element {
-  return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <Badge tone="accent">Reference client</Badge>
-      {/* The lockup rather than a styled `<h1>`: this is the one screen where
-          the product names itself, so it should do it with the mark. */}
-      <KithenaLogo showSubtitle className="mt-4 text-fg" />
-      <p className="mt-4 text-fg-muted">
-        Every screen here renders through <code className="font-mono text-sm">@reach/ui</code>. The
-        API is the product; this is one of its four transports.
-      </p>
+import { AppShell } from '../components/app-shell';
+import { SignedOut } from '../components/signed-out';
+import { currentPerson, displayName } from '../lib/session';
 
-      <Card className="mt-8">
-        <CardHeader>
-          <div>
-            <CardTitle>Nothing mounted yet</CardTitle>
-            <CardDescription>Add a route per module as each one lands.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Button variant="primary">Primary action</Button>
-        </CardContent>
-      </Card>
-    </main>
+/**
+ * The first screen a person sees at their company.
+ *
+ * Starter, and honest about it: the areas in the sidebar are the modules in
+ * `ModuleKey`, and only this one is built. They are listed and disabled rather
+ * than hidden, because a sidebar that grows an item per release teaches nobody
+ * where anything lives.
+ *
+ * Nothing here reads a module's data. `apps/web` is one of four transports and
+ * this page renders the shell; the day Time Off lands, it fetches through the
+ * router like everything else.
+ */
+export default async function Home(): Promise<JSX.Element> {
+  const person = await currentPerson();
+  if (person === null) return <SignedOut />;
+
+  const name = displayName(person.workEmail);
+  /*
+   * The slug, not a display name.
+   *
+   * `proxy.ts` writes `x-tenant-id` and `x-tenant-slug` and nothing else, and
+   * it is the one file that decides what a request is allowed to claim about
+   * which company it belongs to — every inbound copy is deleted before any
+   * branch that can return early. Adding a third header there to carry a
+   * prettier label means adding a third thing to sanitise, on the file where
+   * getting it wrong is one tenant reading another's data.
+   *
+   * The slug is what the person typed to get here and what is in their address
+   * bar, so it is not a bad label. A real display name arrives with the tenant
+   * registry read, which is a change to that file made deliberately.
+   */
+  const company = (await headers()).get('x-tenant-slug') ?? 'your company';
+
+  return (
+    <AppShell person={{ name, email: person.workEmail }} companyName={company}>
+      <PageHeader title={`Hello, ${name}`} description={`Your ${company} account is set up.`} />
+
+      <PageSection>
+        <Stack gap={4}>
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>Nothing needs you yet</CardTitle>
+                <CardDescription>
+                  Requests, documents and approvals will appear here as each module is switched on.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Badge tone="neutral">
+                Signed in with {person.amr.includes('swk') ? 'a passkey' : person.amr.join(', ')}
+              </Badge>
+            </CardContent>
+          </Card>
+        </Stack>
+      </PageSection>
+    </AppShell>
   );
 }

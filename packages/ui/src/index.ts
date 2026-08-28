@@ -196,6 +196,7 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './components/dropdown-menu/dropdown-menu';
+export type { DropdownMenuProps } from './components/dropdown-menu/dropdown-menu';
 
 export {
   Field,
@@ -240,6 +241,15 @@ export type { InputProps, TextareaProps } from './components/input/input';
 
 export { Kbd } from './components/kbd/kbd';
 export type { KbdProps } from './components/kbd/kbd';
+
+export { Nav, NavGroup, NavItem, NavList, TertiaryNav } from './components/nav/nav';
+export type {
+  NavGroupProps,
+  NavItemProps,
+  NavListProps,
+  NavProps,
+  TertiaryNavProps,
+} from './components/nav/nav';
 
 export { AutoGrid, Container, Inline, Split, Stack } from './components/layout/layout';
 export type {
