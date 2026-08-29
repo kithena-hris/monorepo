@@ -15,6 +15,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { safeImageUrl } from '../../lib/safe-url';
 import { Button } from '../button/button';
 import { Progress } from '../progress/progress';
 
@@ -399,7 +400,7 @@ export function ImageUploader({
               className="group relative overflow-hidden rounded-md border border-border bg-surface animate-scale-in"
             >
               <img
-                src={image.previewUrl}
+                src={safeImageUrl(image.previewUrl)}
                 // The file name is the only description available before the
                 // user writes one. It is a poor alt text and a better one than
                 // an empty string on a photo that carries meaning.
@@ -536,9 +537,18 @@ export function AvatarUploader({
 }: AvatarUploaderProps): JSX.Element {
   const inputId = useId();
   const current = value[0];
-  // The picked file first: it is what the person just chose, and showing the
-  // stored image over it would look like the choice did not take.
-  const preview = current?.previewUrl ?? src;
+  /*
+   * The picked file first: it is what the person just chose, and showing the
+   * stored image over it would look like the choice did not take.
+   *
+   * Through `safeImageUrl`, the same guard `Avatar` uses. A locally minted
+   * `blob:` is trustworthy by construction, but `src` is a caller's value and
+   * on these screens it comes from a database column an operator filled in —
+   * so it is outside data reaching a DOM sink, which is exactly what that guard
+   * is for. It fails closed: an unrecognised scheme yields the fallback rather
+   * than something sanitised that is still whatever somebody chose.
+   */
+  const preview = safeImageUrl(current?.previewUrl ?? src) ?? null;
   const round = shape === 'circle' ? 'rounded-full' : 'rounded-lg';
 
   return (
