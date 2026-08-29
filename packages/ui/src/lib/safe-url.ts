@@ -62,11 +62,24 @@ function allowedScheme(url: string | undefined | null, schemes: Set<string>): st
 
   // A relative value must still look relative. Without this, the throwaway base
   // would let a bare `evil.test/x` through as though it were a path.
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(value) && !RELATIVE.test(value) && !value.startsWith('#')) {
-    return undefined;
-  }
+  const isAbsolute = /^[a-z][a-z0-9+.-]*:/i.test(value);
+  if (!isAbsolute && !RELATIVE.test(value) && !value.startsWith('#')) return undefined;
 
-  return value;
+  /*
+   * The parser's own output for anything absolute, not the caller's string.
+   *
+   * `href` is the URL the browser would resolve this to, normalised — so what
+   * reaches `src` is a value this function constructed rather than one it
+   * merely inspected and passed along. That closes the gap a scheme check alone
+   * leaves: a value can survive validation and still carry something the
+   * validator did not think to look at, and it is why a static analyser treats
+   * "checked, then returned unchanged" as no barrier at all.
+   *
+   * A relative value is returned as written. Resolving it would change what it
+   * means — `./logo.png` is not the same file from `/a/b/` as from `/` — and it
+   * cannot carry a scheme, which is the thing being guarded against.
+   */
+  return isAbsolute ? parsed.href : value;
 }
 
 /**
