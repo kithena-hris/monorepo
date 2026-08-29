@@ -51,6 +51,13 @@ function relativeLuminance(oklch: string): number {
 
 const contrastAgainstWhite = (colour: string): number => 1.05 / (relativeLuminance(colour) + 0.05);
 
+/** The third component of an oklch triple, which is the hue angle. */
+function hueOf(colour: string): number {
+  const match = /^oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)$/.exec(colour);
+  if (!match) throw new Error(`not an oklch triple this test can read: ${colour}`);
+  return Number(match[3]);
+}
+
 describe('theme presets', () => {
   it.each(THEME_PRESETS.map((t) => [t.id, t] as const))(
     '%s carries white text at AA',
@@ -76,6 +83,28 @@ describe('theme presets', () => {
       expect(relativeLuminance(preset.accentActive)).toBeLessThan(
         relativeLuminance(preset.accentHover),
       );
+    },
+  );
+
+  it.each(THEME_PRESETS.map((t) => [t.id, t] as const))(
+    '%s states the hue its colours are actually on',
+    (_id, preset) => {
+      /*
+       * The hue is a second copy of something the five colours already encode,
+       * kept because Reach needs an angle and an email needs literals. This is
+       * the check that keeps the copy honest: retune a preset to a new hue and
+       * forget the number, and this fails rather than shipping a login page
+       * whose buttons are teal and whose focus ring is still indigo.
+       */
+      for (const colour of [
+        preset.accent,
+        preset.accentHover,
+        preset.accentActive,
+        preset.accentSubtle,
+        preset.accentFg,
+      ]) {
+        expect(hueOf(colour)).toBe(preset.hue);
+      }
     },
   );
 

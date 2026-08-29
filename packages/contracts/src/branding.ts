@@ -26,6 +26,21 @@ import { asPublic, policy } from './classification.js';
 export interface ThemePreset {
   readonly id: string;
   readonly name: string;
+  /**
+   * The hue angle every colour below sits on, in oklch degrees.
+   *
+   * Stated as a number because the design system needs the *ramp*, not the five
+   * colours. Reach derives `--reach-brand-50` through `--reach-brand-950` from
+   * this one angle, and every accent token in both light and dark themes is
+   * already defined in terms of that ramp — so re-pointing the hue themes a
+   * customer's entire surface, including the dark scheme and the focus ring,
+   * rather than the four places somebody remembered to override.
+   *
+   * The five colours below stay because an email cannot resolve a CSS variable
+   * and needs literal values. `branding.test.ts` asserts the hue and `accent`
+   * agree, which is the same copy-and-check trade as `reach-tokens.json`.
+   */
+  readonly hue: number;
   /** The accent itself, and what a button is filled with. */
   readonly accent: string;
   /** Hover and active, one and two steps darker. */
@@ -47,6 +62,7 @@ export interface ThemePreset {
 export const THEME_PRESETS: readonly ThemePreset[] = [
   {
     id: 'indigo',
+    hue: 264,
     name: 'Indigo',
     accent: 'oklch(0.55 0.18 264)',
     accentHover: 'oklch(0.48 0.17 264)',
@@ -57,6 +73,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   },
   {
     id: 'teal',
+    hue: 195,
     name: 'Teal',
     accent: 'oklch(0.52 0.11 195)',
     accentHover: 'oklch(0.46 0.1 195)',
@@ -67,6 +84,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   },
   {
     id: 'forest',
+    hue: 156,
     name: 'Forest',
     accent: 'oklch(0.5 0.12 156)',
     accentHover: 'oklch(0.44 0.11 156)',
@@ -77,6 +95,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   },
   {
     id: 'plum',
+    hue: 320,
     name: 'Plum',
     accent: 'oklch(0.5 0.16 320)',
     accentHover: 'oklch(0.44 0.15 320)',
@@ -87,6 +106,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   },
   {
     id: 'clay',
+    hue: 40,
     name: 'Clay',
     accent: 'oklch(0.52 0.14 40)',
     accentHover: 'oklch(0.46 0.13 40)',
@@ -97,6 +117,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   },
   {
     id: 'slate',
+    hue: 250,
     name: 'Slate',
     accent: 'oklch(0.45 0.03 250)',
     accentHover: 'oklch(0.39 0.03 250)',
