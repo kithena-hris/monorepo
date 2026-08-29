@@ -137,6 +137,63 @@ export const identityProxy: MiddlewareHandler = async (c, next) => {
   return c.json(rest, asStatus(response.status));
 };
 
+/**
+ * Minting the code that carries this session to the company's own origin.
+ *
+ * On the server, and it has to be: the proxy above deliberately takes the
+ * session id *out* of the response body and puts it in an `HttpOnly` cookie, so
+ * the page that just signed somebody in does not have — and must not have — the
+ * value the handoff refers to. A route that asked the browser for it would undo
+ * the one property that arrangement exists to buy.
+ *
+ * So the browser asks for a code, this reads its own cookie, and identity
+ * exchanges the pair. What crosses the hostname boundary afterwards is 60
+ * seconds of single-use, hash-stored code — never the session.
+ */
+const HANDOFF_PATH = '/api/auth/handoff';
+
+export const handoffIssuer: MiddlewareHandler = async (c, next) => {
+  if (c.req.path !== HANDOFF_PATH) return next();
+  if (c.req.method !== 'POST') return c.json({ message: 'Use POST.' }, 405);
+
+  const cookie = c.req.header('cookie') ?? '';
+  const sessionId = new RegExp(`(?:^|; )${SESSION_COOKIE}=([^;]+)`).exec(cookie)?.[1];
+  if (sessionId === undefined) return c.json({ message: 'Not signed in.' }, 401);
+
+  const body = (await c.req.json().catch(() => null)) as { tenantId?: unknown } | null;
+  const tenantId = typeof body?.tenantId === 'string' ? body.tenantId : '';
+  if (tenantId === '') return c.json({ message: 'Which company?' }, 400);
+
+  let response: Response;
+  try {
+    response = await fetch(new URL('/api/internal/handoff/issue', IDENTITY), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': TOKEN },
+      // The tenant is checked by identity against the session it is handed;
+      // a code is only ever redeemable by the company it was issued for.
+      body: JSON.stringify({ tenantId, sessionId }),
+    });
+  } catch (error) {
+    console.error('[handoff] unreachable', { host: new URL(IDENTITY).host, error });
+    return c.json({ message: 'The identity service is unreachable.' }, 502);
+  }
+
+  if (!response.ok) return c.json({ message: 'That sign-in could not be completed.' }, 401);
+
+  const issued = (await response.json()) as { code?: unknown };
+  if (typeof issued.code !== 'string') {
+    return c.json({ message: 'That sign-in could not be completed.' }, 502);
+  }
+
+  return c.json({ code: issued.code });
+};
+
 export default defineServerConfig({
-  middlewares: [{ name: 'identity-proxy', handler: identityProxy }],
+  middlewares: [
+    // Before the proxy: this path is not under `/api/identity/`, but ordering
+    // the specific handler first keeps it that way by construction rather than
+    // by the prefix happening not to overlap.
+    { name: 'handoff-issuer', handler: handoffIssuer },
+    { name: 'identity-proxy', handler: identityProxy },
+  ],
 });

@@ -10,7 +10,14 @@ import { startSession } from './account/application/start-session.js';
 import {
   drizzleAccountRepository,
   findActiveAccountForIdentity,
+  loadSession,
+  workEmailOf,
 } from './account/infrastructure/drizzle-account-repository.js';
+import { authenticate } from './account/application/authenticate.js';
+import { issueHandoff, redeemHandoff } from './account/application/handoff.js';
+import { revokeSession } from './account/application/revoke-session.js';
+import { sessionRoutes } from './account/http/session-routes.js';
+import { asInstant } from './credential/infrastructure/drizzle-enrolment-token-store.js';
 import { Account, type EventContext } from './account/domain/account.js';
 import type { AccountRepository } from './account/application/account-repository.js';
 import { defaultCredentialPolicy } from './credential/domain/credential.js';
@@ -33,6 +40,7 @@ import { uuidv7 } from './shared/uuid.js';
 import { operatorSignIn } from './operator/application/operator-sign-in.js';
 import { drizzleOperatorRepository } from './operator/infrastructure/drizzle-operator-repository.js';
 import { operatorRoutes } from './operator/http/operator-routes.js';
+import { amendTenant } from './tenancy/application/amend-tenant.js';
 import { provisionTenant } from './tenancy/application/provision-tenant.js';
 import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
@@ -295,6 +303,160 @@ export async function compose(config: Config): Promise<RequestHandler> {
     actor: { kind: 'system' as const, process },
     correlationId: randomUUID(),
     causationId: null,
+  });
+
+  /*
+   * The cookie check the tenant app makes on every request.
+   *
+   * No cache in front of it yet, which is a deliberate omission rather than an
+   * oversight: `SessionCache` exists and Valkey is what `docker-compose.yml`
+   * runs, but that machine had no services declared and stopped staying up —
+   * the same reason challenges moved to Postgres. A read per request against a
+   * primary-key lookup is the honest starting point, and the port is right
+   * there when the traffic justifies one.
+   */
+  /**
+   * The handoff store, one statement per operation.
+   *
+   * Inside a tenant transaction because `platform.handoff_code` carries
+   * row-level security with FORCE and `svc_identity` does not bypass it — read
+   * on a bare connection every query here returns nothing, which would look
+   * like every code being invalid rather than like a misconfiguration.
+   *
+   * `spend` is a single conditional UPDATE that both claims and reads the row.
+   * A SELECT then an UPDATE would leave a window where two requests presenting
+   * the same code both pass.
+   */
+  const handoffStore = {
+    put: async (row: {
+      tenantId: string;
+      sessionId: string;
+      codeHash: Buffer;
+      expiresAt: Date;
+    }): Promise<void> => {
+      await inTenantTransaction(row.tenantId, (tx) =>
+        tx.execute(sql`
+          INSERT INTO platform.handoff_code (tenant_id, session_id, code_hash, expires_at)
+          VALUES (${row.tenantId}::uuid, ${row.sessionId}::uuid, ${row.codeHash}, ${row.expiresAt.toISOString()})
+        `),
+      );
+    },
+    spend: async (codeHash: Buffer, tenantId: string) => {
+      /*
+       * Inside the redeeming tenant's transaction, and it has to be.
+       *
+       * `platform.handoff_code` carries row-level security with FORCE and
+       * `svc_identity` does not bypass it, so a statement run without
+       * `app.tenant_id` set compares `tenant_id` against NULL and matches
+       * nothing — every redemption fails, and it fails looking exactly like an
+       * invalid code rather than like a missing setting. That was the first
+       * version of this function and the symptom was a sign-in that always
+       * refused on the last step.
+       *
+       * The upside of doing it properly: a code belonging to another company is
+       * not visible here at all, so the boundary is enforced by the database
+       * and merely *stated* by `checkRedeemable`.
+       */
+      const rows = await inTenantTransaction(tenantId, (tx) =>
+        tx.execute(sql`
+          UPDATE platform.handoff_code
+             SET redeemed_at = now()
+           WHERE code_hash = ${codeHash}
+             AND redeemed_at IS NULL
+       RETURNING tenant_id, session_id, expires_at, redeemed_at
+        `),
+      );
+      const row = [...rows][0];
+      if (!row) return null;
+
+      return {
+        tenantId: text(row['tenant_id']),
+        sessionId: text(row['session_id']),
+        // Through `asInstant` rather than `new Date(...)` directly: Postgres
+        // hands back `2026-08-28 12:00:00.123456+00`, which is not ISO 8601,
+        // and that function is where the one safe reading of it already lives.
+        expiresAt: new Date(asInstant(text(row['expires_at']))),
+        // Freshly claimed by the statement above, so this is never null here.
+        // The domain still checks it: this function is one implementation of a
+        // port, and the rule does not live in the adapter.
+        redeemedAt: null,
+      };
+    },
+  };
+
+  const sessions = sessionRoutes({
+    internalToken: config.internalToken,
+    issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
+    redeemHandoff: redeemHandoff({ store: handoffStore, clock: systemClock }),
+    authenticate: authenticate({
+      cache: {
+        read: () => Promise.resolve(null),
+        write: () => Promise.resolve(),
+        forget: () => Promise.resolve(),
+      },
+      load: (tenantId, sessionId) =>
+        inTenantTransaction(tenantId, (tx) => loadSession(tx, tenantId, sessionId)),
+      clock: systemClock,
+      /*
+       * Sliding the idle window. Not the absolute one — `expires_at` is set at
+       * sign-in and never moved, which is what makes thirty days mean thirty
+       * days however busy the person has been.
+       *
+       * Inside a tenant transaction, and the first version was not. That
+       * version wrote on a bare connection, where `platform.session`'s FORCE
+       * row-level security compares `tenant_id` against NULL, matches no rows
+       * and reports success — a sliding window that never slid, indisputable
+       * only once you notice `last_seen_at` frozen at the sign-in instant.
+       */
+      touch: async (tenantId, sessionId, at) => {
+        await inTenantTransaction(tenantId, (tx) =>
+          tx.execute(sql`
+            UPDATE platform.session
+               SET last_seen_at = ${at}
+             WHERE id = ${sessionId}::uuid
+               AND tenant_id = ${tenantId}::uuid
+          `),
+        );
+      },
+      onTenantMismatch: (session, presented) => {
+        // A *valid* session id arriving on the wrong hostname is somebody
+        // moving a cookie between origins. Worth seeing even though the answer
+        // is the same refusal as a stale one.
+        logger.warn(
+          { sessionTenant: session.tenantId, presentedTenant: presented },
+          'session presented on another tenant host',
+        );
+      },
+    }),
+    workEmailOf: (tenantId, accountId) =>
+      inTenantTransaction(tenantId, (tx) => workEmailOf(tx, accountId)),
+    /*
+     * Signing out, for real.
+     *
+     * The tenant app used to clear its cookie and stop, which ends that
+     * browser's access and leaves the row alive until its absolute lifetime
+     * runs out — so a cookie already copied elsewhere kept working. The comment
+     * in that route named the gap rather than hiding it; this closes it.
+     *
+     * `revokeSession` forgets the cache *before* deleting the row, so a failed
+     * delete cannot leave a revoked session served from cache.
+     */
+    revoke: revokeSession({
+      cache: {
+        read: () => Promise.resolve(null),
+        write: () => Promise.resolve(),
+        forget: () => Promise.resolve(),
+      },
+      remove: async (tenantId, sessionId) => {
+        await inTenantTransaction(tenantId, (tx) =>
+          tx.execute(sql`
+            DELETE FROM platform.session
+             WHERE id = ${sessionId}::uuid
+               AND tenant_id = ${tenantId}::uuid
+          `),
+        );
+      },
+    }),
   });
 
   const jwks = jwksRoute(signer);
@@ -617,7 +779,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
     tenantDetail: async (id) => {
       const rows = await db.execute(sql`
         SELECT id, slug, display_name, status, created_at, theme_id,
-               logo_url, cover_image_url, address_country, address_line1,
+               logo_url, cover_image_url, branding_public,
+               address_country, address_line1,
                address_line2, address_city, address_subdivision, address_postcode
           FROM platform.tenant
          WHERE id = ${id}::uuid
@@ -664,6 +827,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
         themeId: textOrNull(row['theme_id']),
         logoUrl: textOrNull(row['logo_url']),
         coverImageUrl: textOrNull(row['cover_image_url']),
+        brandingPublic: row['branding_public'] !== false,
         address,
         people: [...people].map((person) => ({
           id: String(person['id']),
@@ -718,6 +882,38 @@ export async function compose(config: Config): Promise<RequestHandler> {
               ),
           }),
         ),
+    }),
+    /*
+     * Editing a company. One statement, and the row count is the answer to
+     * "did that company exist" — see `amendTenant` for why it is not a read
+     * followed by a write.
+     *
+     * No tenant transaction. `platform.tenant` carries no row-level security
+     * by design: it is the table read before a tenant is known, so there is no
+     * `app.tenant_id` for a policy to compare against. The authorisation that
+     * matters happened at the route, which requires the internal token.
+     */
+    amend: amendTenant({
+      write: async (tenantId, change) => {
+        const rows = await db.execute(sql`
+          UPDATE platform.tenant
+             SET display_name = ${change.displayName},
+                 theme_id = ${change.themeId},
+                 logo_url = ${change.logoUrl},
+                 cover_image_url = ${change.coverImageUrl},
+                 branding_public = ${change.brandingPublic},
+                 address_country = ${change.address.country.toUpperCase()},
+                 address_line1 = ${change.address.line1},
+                 address_line2 = ${change.address.line2},
+                 address_city = ${change.address.city},
+                 address_subdivision = ${change.address.subdivision},
+                 address_postcode = ${change.address.postcode},
+                 updated_at = now()
+           WHERE id = ${tenantId}::uuid
+    RETURNING id
+        `);
+        return [...rows].length === 1;
+      },
     }),
     provision: provisionTenant({
       authOrigin: config.authOrigin,
@@ -805,6 +1001,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
    */
   return async (request, response) =>
     jwks(request, response) ||
+    (await sessions(request, response)) ||
     (await webauthn(request, response)) ||
     (await enrolment(request, response)) ||
     (await operator(request, response)) ||

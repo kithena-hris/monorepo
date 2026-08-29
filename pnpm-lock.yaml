@@ -107,6 +107,9 @@ importers:
 
   apps/auth/shell:
     dependencies:
+      '@kithena/contracts':
+        specifier: workspace:*
+        version: link:../../../packages/contracts
       '@modern-js/runtime':
         specifier: 3.8.2
         version: 3.8.2(core-js@3.50.0)(react-dom@19.2.8(react@19.2.8))(react-server-dom-rspack@0.0.2(@rspack/core@2.1.10(@swc/helpers@0.5.23))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
@@ -266,6 +269,9 @@ importers:
       '@reach/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@simplewebauthn/browser':
+        specifier: ^13.2.2
+        version: 13.3.0
       next:
         specifier: ^16.3.1
         version: 16.3.1(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.103.1)

@@ -14,7 +14,7 @@ const acme: Tenant = {
   id: '00000000-0000-4000-8000-000000000001',
   slug: 'acme',
   status: 'active',
-  branding: { displayName: null, logoUrl: null, accentColor: null },
+  branding: { displayName: null, logoUrl: null, coverImageUrl: null, themeId: null, accentColor: null },
 };
 
 describe('isLookupWorthwhile', () => {
@@ -84,6 +84,8 @@ describe('brandingFor', () => {
     expect(brandingFor(row)).toEqual({
       displayName: 'Acme Corp',
       logoUrl: 'https://assets.example/acme.png',
+      coverImageUrl: null,
+      themeId: null,
       accentColor: 'oklch(0.55 0.18 264)',
     });
   });
@@ -95,6 +97,8 @@ describe('brandingFor', () => {
     expect(brandingFor({ ...row, brandingPublic: false })).toEqual({
       displayName: null,
       logoUrl: null,
+      coverImageUrl: null,
+      themeId: null,
       accentColor: null,
     });
   });
@@ -104,6 +108,8 @@ describe('brandingFor', () => {
     expect(brandingFor(bare)).toEqual({
       displayName: 'Acme Corp',
       logoUrl: null,
+      coverImageUrl: null,
+      themeId: null,
       accentColor: null,
     });
   });

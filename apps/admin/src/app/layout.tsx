@@ -2,6 +2,8 @@ import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
 import type { JSX, ReactNode } from 'react';
 
+import { ToastHost } from '../components/toast-host';
+
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,7 +17,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <ToastHost>{children}</ToastHost>
+      </body>
     </html>
   );
 }

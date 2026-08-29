@@ -130,6 +130,32 @@ the 15th and effective on the 1st needs both, or payroll cannot compute a
 retroactive delta. Corrections are typed events carrying `supersedes`, never
 silent updates.
 
+**Screens are built from Reach, not from markup that looks like Reach.**
+Anything with behaviour, state or a visual treatment comes from `@reach/ui`: a
+button, an input, a select, a switch, a card, an alert, a badge, a spinner, a
+table, an avatar, a page header. Do not hand-roll one, and do not reach for a
+raw `<button>`, a bare `<img>` used as an avatar or mark, or a `<label>` with
+spans stacked to imitate a field.
+
+Two things this rule is *not*. It is not a ban on HTML: `div`, `span`, `p`,
+`ul`, `li`, `section`, `main`, `form`, `h1`–`h6`, `a` and a full-bleed
+background `<img>` are structure and text, and Reach has no opinion about them.
+And it is not a licence to add a component — check whether one exists under a
+name you did not guess (`AvatarUploader` is the profile picker, `Field` carries
+label, description and error) before concluding it does not.
+
+When Reach genuinely lacks what a screen needs, **add it to Reach first**, as a
+variant on the closest existing component rather than a new one beside it. A
+company logo needed a square, uncropped avatar; that became `shape` and `fit` on
+`Avatar`, not `CompanyMark`. The test is whether the design system can describe
+the need without knowing who is asking — `shape="rounded"` can, `variant="company"`
+cannot, and the latter is how a presentational package starts learning what a
+tenant is.
+
+Utility classes for layout and spacing are expected. Utility classes
+reimplementing a component's appearance — a border, a radius, a padding and a
+hover state assembled into something button-shaped — are the thing this forbids.
+
 **The design system stays presentational.** `packages/ui` may not import a
 contract, a domain type or a data client, and `services/*` may not import
 `packages/ui`. Both directions are dependency-cruiser rules. A module composes

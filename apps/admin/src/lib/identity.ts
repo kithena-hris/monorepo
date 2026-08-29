@@ -13,7 +13,7 @@ const TOKEN = process.env['INTERNAL_API_TOKEN'] ?? '';
 
 export async function callIdentity(
   path: string,
-  init: { method: 'GET' | 'POST'; body?: unknown } = { method: 'GET' },
+  init: { method: 'GET' | 'POST' | 'PATCH'; body?: unknown } = { method: 'GET' },
 ): Promise<{ status: number; body: unknown }> {
   const response = await fetch(`${IDENTITY}${path}`, {
     method: init.method,

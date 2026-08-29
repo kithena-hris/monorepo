@@ -3,6 +3,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { AccountRepository } from '../application/account-repository.js';
+import type { CachedSession } from '../application/session-cache.js';
 import type { AccountSnapshot, AccountStatus } from '../domain/account.js';
 import type { Session } from '../domain/session.js';
 import { account, identity, session } from './account-tables.js';
@@ -171,6 +172,55 @@ export async function findActiveAccountForIdentity(
     .limit(1);
 
   return rows[0]?.id ?? null;
+}
+
+/**
+ * One session, from the durable side, for the cookie check.
+ *
+ * Joined to `account` because `CachedSession` carries `identityId` and the
+ * session row does not — a passkey is keyed to the human rather than to the
+ * job, so anything deciding what a cookie may do needs both.
+ *
+ * `tenantId` is a predicate here as well as being enforced by row-level
+ * security. Belt and braces: read outside a tenant transaction this returns
+ * nothing at all, which is a wrong answer rather than an error.
+ */
+export async function loadSession(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  sessionId: string,
+): Promise<CachedSession | null> {
+  const rows = await tx
+    .select({
+      sessionId: session.id,
+      accountId: session.accountId,
+      tenantId: session.tenantId,
+      identityId: account.identityId,
+      amr: session.amr,
+      authenticatedAt: session.startedAt,
+      expiresAt: session.expiresAt,
+      lastSeenAt: session.lastSeenAt,
+    })
+    .from(session)
+    .innerJoin(account, eq(account.id, session.accountId))
+    .where(and(eq(session.id, sessionId), eq(session.tenantId, tenantId)))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+/** The address an account signs in under. Read to greet somebody, nothing more. */
+export async function workEmailOf(
+  tx: PostgresJsDatabase,
+  accountId: string,
+): Promise<string | null> {
+  const rows = await tx
+    .select({ workEmail: account.workEmail })
+    .from(account)
+    .where(eq(account.id, accountId))
+    .limit(1);
+
+  return rows[0]?.workEmail ?? null;
 }
 
 /** Sessions whose absolute lifetime has passed, for the reaper. */

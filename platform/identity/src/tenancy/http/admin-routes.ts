@@ -4,6 +4,7 @@ import { DEFAULT_THEME_ID } from '@kithena/contracts';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
 import type { InviteAccount } from '../application/invite-account.js';
+import type { AmendTenant } from '../application/amend-tenant.js';
 import type { ProvisionTenant } from '../application/provision-tenant.js';
 
 /**
@@ -93,6 +94,7 @@ export interface AdminRoutesDeps {
   }>;
   readonly tenantDetail: (id: string) => Promise<TenantDetail | null>;
   readonly provision: ProvisionTenant;
+  readonly amend: AmendTenant;
   readonly invite: InviteAccount;
   readonly internalToken: string;
 }
@@ -101,6 +103,7 @@ export function adminRoutes({
   listTenants,
   tenantDetail,
   provision,
+  amend,
   invite,
   internalToken,
 }: AdminRoutesDeps) {
@@ -184,11 +187,81 @@ export function adminRoutes({
     }
 
     if (detail) {
+      const tenantId = detail[1] ?? '';
+
+      /*
+       * PATCH by name and PUT by behaviour: the body carries every editable
+       * field and replaces all of them.
+       *
+       * A genuine partial update — apply the keys that are present, leave the
+       * rest — reads well and is the wrong contract for a form. `logoUrl: null`
+       * and "no logoUrl key" are different intentions, and a client that
+       * serialises a cleared field as an absent one silently loses the
+       * clearing. Requiring the whole object makes "remove the logo" something
+       * the caller has to state.
+       *
+       * It is not PUT because the resource has fields this body cannot set —
+       * the slug, the people, the status — and a PUT that quietly preserves
+       * most of the resource is a worse lie than a PATCH that replaces a
+       * documented subset.
+       */
+      if (request.method === 'PATCH') {
+        const asked = (await readJsonBody(request)) as Record<string, unknown> | null;
+        if (asked === null) return json(400, {});
+
+        const text = (key: string): string =>
+          typeof asked[key] === 'string' ? asked[key] : '';
+        const orNull = (key: string): string | null =>
+          typeof asked[key] === 'string' && asked[key] !== '' ? asked[key] : null;
+
+        const address =
+          asked['address'] !== null && typeof asked['address'] === 'object'
+            ? (asked['address'] as Record<string, unknown>)
+            : {};
+        const field = (key: string): string =>
+          typeof address[key] === 'string' ? address[key] : '';
+        const fieldOrNull = (key: string): string | null =>
+          typeof address[key] === 'string' && address[key] !== '' ? address[key] : null;
+
+        const amended = await amend(tenantId, {
+          displayName: text('displayName'),
+          themeId: text('themeId'),
+          logoUrl: orNull('logoUrl'),
+          coverImageUrl: orNull('coverImageUrl'),
+          // Absent means public. The flag is the exception a company opts into,
+          // and defaulting a missing value to "hidden" would quietly un-brand
+          // every company whose client forgot the field.
+          brandingPublic: asked['brandingPublic'] !== false,
+          address: {
+            country: field('country').toUpperCase(),
+            line1: field('line1'),
+            line2: fieldOrNull('line2'),
+            city: field('city'),
+            subdivision: fieldOrNull('subdivision'),
+            postcode: fieldOrNull('postcode'),
+          },
+        });
+
+        if (!amended.ok) {
+          return json(amended.error.code === 'TENANT_UNKNOWN' ? 404 : 422, {
+            code: amended.error.code,
+            message: amended.error.message,
+            path: amended.error.path ?? [],
+          });
+        }
+
+        // The stored company, re-read rather than echoed. The caller renders
+        // what came back, and echoing the request would show it its own
+        // uncommitted idea of the row.
+        const found = await tenantDetail(tenantId);
+        return found ? json(200, found) : json(404, {});
+      }
+
       if (request.method !== 'GET') {
-        response.writeHead(405, { allow: 'GET' }).end();
+        response.writeHead(405, { allow: 'GET, PATCH' }).end();
         return true;
       }
-      const found = await tenantDetail(detail[1] ?? '');
+      const found = await tenantDetail(tenantId);
       return found ? json(200, found) : json(404, {});
     }
 

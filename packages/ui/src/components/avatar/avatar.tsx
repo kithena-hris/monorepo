@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn';
 import { safeImageUrl } from '../../lib/safe-url';
 
 const avatar = cva(
-  'relative flex shrink-0 overflow-hidden rounded-full bg-surface-sunken ring-1 ring-border select-none',
+  'relative flex shrink-0 overflow-hidden bg-surface-sunken ring-1 ring-border select-none',
   {
     variants: {
       size: {
@@ -17,15 +17,38 @@ const avatar = cva(
         md: 'size-8 text-xs',
         lg: 'size-10 text-sm',
         xl: 'size-14 text-md',
+        '2xl': 'size-16 text-lg',
+      },
+      /**
+       * A face is round; a wordmark is not.
+       *
+       * `circle` crops to a disc, which is right for a person and destroys a
+       * logo — half of one is outside the circle. Added because the alternative
+       * was every screen showing a company mark reaching for a bare `<img>`,
+       * and three of them had already done it, each with its own idea of the
+       * border and the padding.
+       */
+      shape: {
+        circle: 'rounded-full',
+        rounded: 'rounded-lg',
       },
     },
-    defaultVariants: { size: 'md' },
+    defaultVariants: { size: 'md', shape: 'circle' },
   },
 );
 
 export interface AvatarProps
   extends ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>, VariantProps<typeof avatar> {
   src?: string | undefined;
+  /**
+   * How the image sits in the frame.
+   *
+   * `cover` fills and crops, which is what a photograph of a person wants.
+   * `contain` fits the whole image inside with a little breathing room, which
+   * is the only correct treatment for a mark somebody designed — cropping a
+   * logo is not a rendering choice, it is a different logo.
+   */
+  fit?: 'cover' | 'contain';
   /**
    * Used for the image alt text and to derive initials. Pass the person's
    * display name, not an id.
@@ -45,14 +68,18 @@ function initialsOf(name: string): string {
 }
 
 /**
- * A person.
+ * A person, or anything else that is represented by one small image.
  *
  * The fallback is initials rather than a generic silhouette: in a directory of
- * 900 people, nine hundred identical silhouettes carry no information.
+ * 900 people, nine hundred identical silhouettes carry no information. A
+ * company works the same way — `name` is its display name, so a customer with
+ * no logo yet gets its own initial rather than a grey square.
  */
 export function Avatar({
   className,
   size,
+  shape,
+  fit = 'cover',
   src,
   name,
   fallback,
@@ -64,14 +91,17 @@ export function Avatar({
   const safeSrc = safeImageUrl(src);
 
   return (
-    <AvatarPrimitive.Root className={cn(avatar({ size }), className)} {...props}>
+    <AvatarPrimitive.Root className={cn(avatar({ size, shape }), className)} {...props}>
       {safeSrc === undefined ? null : (
         <AvatarPrimitive.Image
           src={safeSrc}
           alt={name}
           // Radix only mounts the image once it has decoded, so this animates
           // on arrival rather than on a half-painted image.
-          className="size-full object-cover animate-fade-in"
+          className={cn(
+            'size-full animate-fade-in',
+            fit === 'contain' ? 'object-contain p-1' : 'object-cover',
+          )}
         />
       )}
       <AvatarPrimitive.Fallback

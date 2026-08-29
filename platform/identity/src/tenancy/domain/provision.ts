@@ -69,7 +69,7 @@ export const ImageNotOurs = failure(
  */
 const BLOB_HOST = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//;
 
-function imageIsOurs(url: string | null): boolean {
+export function imageIsOurs(url: string | null): boolean {
   return url === null || BLOB_HOST.test(url);
 }
 

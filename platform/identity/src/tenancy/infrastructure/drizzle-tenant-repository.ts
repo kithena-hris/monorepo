@@ -25,6 +25,8 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
           status: tenant.status,
           displayName: tenant.displayName,
           logoUrl: tenant.logoUrl,
+          coverImageUrl: tenant.coverImageUrl,
+          themeId: tenant.themeId,
           accentColor: tenant.accentColor,
           brandingPublic: tenant.brandingPublic,
         })

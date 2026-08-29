@@ -17,6 +17,8 @@ export const tenant = platform.table('tenant', {
   displayName: text('display_name').notNull(),
   status: text('status').notNull(),
   logoUrl: text('logo_url'),
+  coverImageUrl: text('cover_image_url'),
+  themeId: text('theme_id'),
   accentColor: text('accent_color'),
   brandingPublic: boolean('branding_public').notNull(),
   createdAt: instant('created_at').notNull(),

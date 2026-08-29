@@ -2,28 +2,30 @@
 
 import {
   Alert,
-  Badge,
+  AvatarUploader,
   Button,
   Combobox,
-  CopyField,
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
   Input,
+  Spinner,
   Stepper,
 } from '@reach/ui';
 import {
   COUNTRIES,
   DEFAULT_THEME_ID,
-  THEME_PRESETS,
   checkAddress,
   countryRules,
   type PostalAddress,
 } from '@kithena/contracts';
+import type { UploadedImage } from '@reach/ui';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState, type JSX } from 'react';
 
-import { deliveryNote, type Delivery } from '../lib/delivery';
+import type { Delivery } from '../lib/delivery';
+import { ThemePicker } from './theme-picker';
 
 /**
  * Adding a company, in four steps.
@@ -43,7 +45,7 @@ import { deliveryNote, type Delivery } from '../lib/delivery';
  */
 
 type Result =
-  | { ok: true; slug: string; invitations: ProvisionedInvitation[] }
+  | { ok: true; tenantId: string; slug: string; invitations: ProvisionedInvitation[] }
   | { ok: false; message: string; path?: string[] };
 
 interface Draft {
@@ -97,6 +99,7 @@ export function NewCompanyWizard({
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
+  const router = useRouter();
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]): void => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -110,7 +113,28 @@ export function NewCompanyWizard({
 
   const rules = useMemo(() => countryRules(draft.address.country), [draft.address.country]);
 
-  if (result?.ok === true) return <Created result={result} />;
+  /*
+   * Straight to the company that was just created.
+   *
+   * The wizard used to end on a screen holding the enrolment links, which was
+   * the only place they existed — so leaving it lost them, and it left the
+   * operator nowhere useful. Losing them is no longer a loss: the company page
+   * issues a fresh link for anybody, which invalidates the old one anyway.
+   *
+   * Counts travel in the query string and nothing else does. A token in a URL
+   * is a token in browser history, in the referrer of every image the page
+   * loads, and in anything watching the path.
+   */
+  if (result?.ok === true) {
+    const undelivered = result.invitations.filter((i) => !i.delivery.delivered).length;
+    const query = new URLSearchParams({
+      created: '1',
+      invited: String(result.invitations.length),
+      undelivered: String(undelivered),
+    });
+    router.replace(`/companies/${result.tenantId}?${query.toString()}`);
+    return <Redirecting />;
+  }
 
   const validate = (index: number): Problems => {
     const found: Problems = {};
@@ -241,7 +265,7 @@ export function NewCompanyWizard({
       ) : null}
 
       {step === 3 ? (
-        <ThemeStep
+        <ThemePicker
           selected={draft.themeId}
           onChange={(id) => {
             set('themeId', id);
@@ -306,7 +330,7 @@ function IdentityStep({
       </Field>
 
       <Field invalid={Boolean(problems['slug'])}>
-        <FieldLabel htmlFor="slug">Address</FieldLabel>
+        <FieldLabel htmlFor="slug">Host</FieldLabel>
         <Input
           id="slug"
           value={draft.slug}
@@ -317,25 +341,38 @@ function IdentityStep({
         />
         <FieldDescription>
           {draft.slug === ''
-            ? 'Becomes their sign-in address.'
+            ? 'Becomes the hostname they sign in on.'
             : `Becomes ${draft.slug}.app.kithena.com`}
           {slugTouched ? '' : ' Suggested from the name; edit it if you prefer.'}
         </FieldDescription>
         <FieldError>{problems['slug']}</FieldError>
       </Field>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      {/*
+        One row, two targets, one height.
+        These were a square dropzone beside a 3:1 dropzone, which made the row a
+        head taller on one side than the other and then changed height again the
+        moment an upload finished. `AvatarUploader` is a fixed-height target with
+        its controls beside it, so both states and both shapes line up.
+      */}
+      <div className="border-border bg-surface-sunken/40 grid gap-6 rounded-lg border p-5 sm:grid-cols-2">
         <ImageField
           kind="logo"
           label="Logo"
-          hint="The mark, shown beside their name in lists. Square works best."
+          shape="rounded"
+          ratio="square"
+          fit="contain"
+          hint="The mark, beside their name in lists."
           url={draft.logoUrl}
           onChange={onImage}
         />
         <ImageField
           kind="cover"
           label="Company image"
-          hint="Optional. Fills the left half of their sign-in page."
+          shape="rounded"
+          ratio="wide"
+          fit="cover"
+          hint="Fills half their sign-in page."
           url={draft.coverImageUrl}
           onChange={onImage}
         />
@@ -345,35 +382,63 @@ function IdentityStep({
 }
 
 /**
- * One image, uploaded on selection.
+ * One image, uploaded the moment it is chosen.
  *
- * Deliberately not `ImageUploader` from the design system: that component
- * manages a list and its own local object URLs, and this needs exactly one
- * image whose identity is the Blob URL the server returned. Wrapping it would
- * have meant fighting it for ownership of the value.
+ * `AvatarUploader` rather than `ImageUploader`, and rather than the hand-rolled
+ * pair this used to be. The two differ in what they are for: `ImageUploader` is
+ * a dropzone that grows to fit a list, which made a square logo picker and a
+ * 3:1 cover picker two visibly different heights side by side, and then changed
+ * height a third time once a URL existed and the component was swapped out for a
+ * card. `AvatarUploader` is a fixed target with its controls beside it, so every
+ * combination of shape and state is the same height.
+ *
+ * Its `src` prop is what makes one layout serve both states. The uploader holds
+ * the picked `File` and the object URL previewing it — it owns those and revokes
+ * them, which is the reason not to hand-roll this — while the value that
+ * survives a page load is the Blob URL the server returned. Passing that as
+ * `src` lets the same component show either, with the local pick winning
+ * because it is what the person just did.
  */
 function ImageField({
   kind,
   label,
   hint,
+  shape,
+  ratio,
+  fit,
   url,
   onChange,
 }: {
   kind: 'logo' | 'cover';
   label: string;
   hint: string;
+  shape: 'circle' | 'rounded';
+  ratio: 'square' | 'wide';
+  fit: 'cover' | 'contain';
   url: string | null;
   onChange: (kind: 'logo' | 'cover', url: string | null) => void;
 }): JSX.Element {
-  const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<readonly UploadedImage[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const upload = (file: File): void => {
-    setBusy(true);
+  const accept = (next: readonly UploadedImage[]): void => {
     setError(null);
+    const file = next.at(-1);
+
+    if (file === undefined) {
+      setPicked([]);
+      onChange(kind, null);
+      return;
+    }
+
+    setPicked(next);
+    setUploading(true);
+
     const body = new FormData();
-    body.set('file', file);
+    body.set('file', file.file);
     body.set('kind', kind);
+
     void fetch('/api/upload', { method: 'POST', body })
       .then(async (response) => {
         const payload = (await response.json()) as { url?: string; message?: string };
@@ -382,46 +447,39 @@ function ImageField({
       })
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : 'That upload failed.');
+        // Dropped rather than left showing: a preview of a file the server
+        // never took is a picture of something that does not exist.
+        setPicked([]);
       })
       .finally(() => {
-        setBusy(false);
+        setUploading(false);
       });
   };
 
   return (
-    <Field invalid={Boolean(error)}>
-      <FieldLabel htmlFor={`image-${kind}`}>{label}</FieldLabel>
-      {url === null ? (
-        <input
-          id={`image-${kind}`}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          disabled={busy}
-          className="border-border bg-bg text-fg-muted file:bg-surface file:text-fg file:border-border rounded-md border px-3 py-2 text-sm file:mr-3 file:rounded file:border file:px-2 file:py-1 file:text-xs"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) upload(file);
-          }}
-        />
-      ) : (
-        <div className="border-border flex items-center gap-3 rounded-md border p-3">
-          {/* A plain img, not next/image: a Blob URL on a host next.config
-              would have to list in remotePatterns. */}
-          <img src={url} alt="" className="bg-surface size-12 rounded object-contain" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              onChange(kind, null);
-            }}
-          >
-            Remove
-          </Button>
-        </div>
-      )}
-      <FieldDescription>{busy ? 'Uploading…' : hint}</FieldDescription>
-      <FieldError>{error}</FieldError>
-    </Field>
+    <div>
+      <AvatarUploader
+        label={label}
+        hint={uploading ? 'Uploading…' : hint}
+        value={picked}
+        onChange={accept}
+        src={url}
+        orientation="stacked"
+        shape={shape}
+        ratio={ratio}
+        fit={fit}
+        // Matches the server, which is the half that counts — `accept` is a hint
+        // to the picker and `File.type` comes from the client.
+        accept={['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']}
+        maxSize={2 * 1024 * 1024}
+        disabled={uploading}
+        invalid={error !== null}
+        onReject={(rejections) => {
+          setError(rejections[0]?.message ?? 'That image was not accepted.');
+        }}
+      />
+      {error === null ? null : <p className="text-danger-fg mt-2 text-xs">{error}</p>}
+    </div>
   );
 }
 
@@ -644,74 +702,6 @@ function AdminsStep({
   );
 }
 
-function ThemeStep({
-  selected,
-  onChange,
-}: {
-  selected: string;
-  onChange: (id: string) => void;
-}): JSX.Element {
-  return (
-    <fieldset className="flex flex-col gap-4">
-      <legend className="text-sm font-medium">Accent colour</legend>
-      <p className="text-fg-muted text-sm">
-        Re-points the accent on their sign-in page. Each of these carries white text at WCAG AA, so
-        whichever is chosen stays legible.
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {THEME_PRESETS.map((preset) => {
-          const isSelected = preset.id === selected;
-          return (
-            <label
-              key={preset.id}
-              className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition ${
-                isSelected ? 'border-accent bg-accent-subtle' : 'border-border hover:bg-surface'
-              }`}
-            >
-              <input
-                type="radio"
-                name="theme"
-                value={preset.id}
-                checked={isSelected}
-                className="sr-only"
-                onChange={() => {
-                  onChange(preset.id);
-                }}
-              />
-              <span
-                aria-hidden
-                className="border-border size-9 shrink-0 rounded-full border"
-                style={{ background: preset.accent }}
-              />
-              <span className="flex flex-col">
-                <span className="text-sm font-medium">{preset.name}</span>
-                <span className="text-fg-muted text-xs">
-                  {preset.contrastOnWhite.toFixed(1)}:1 on white
-                </span>
-              </span>
-              {isSelected ? (
-                <Badge tone="success" className="ml-auto">
-                  Chosen
-                </Badge>
-              ) : null}
-            </label>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
-}
-
-/**
- * What came back for each administrator.
- *
- * `enrolUrl` is built by the service that minted the token, and that matters:
- * this screen used to compose one out of the slug and the token, which produced
- * a link that could not work. Enrolment happens on the auth origin rather than
- * the tenant host, and the page reads four parameters — `identity`, `tenant`,
- * `token` and `name` — of which that guess carried one. An operator who handed
- * it over was handing over a dead link.
- */
 export interface ProvisionedInvitation {
   readonly email: string;
   readonly token: string;
@@ -719,46 +709,18 @@ export interface ProvisionedInvitation {
   readonly delivery: Delivery;
 }
 
-function Created({
-  result,
-}: {
-  result: { slug: string; invitations: ProvisionedInvitation[] };
-}): JSX.Element {
-  const undelivered = result.invitations.filter((i) => !i.delivery.delivered);
-
+/**
+ * The moment between a successful create and the company page appearing.
+ *
+ * A `Spinner` rather than nothing: the redirect is a client navigation and the
+ * company page fetches, so there is a beat where a blank panel would read as
+ * the submit having done nothing.
+ */
+function Redirecting(): JSX.Element {
   return (
-    <div className="mt-8 flex flex-col gap-4">
-      <Alert
-        tone={undelivered.length === 0 ? 'success' : 'warning'}
-        title={`${result.slug} created`}
-      >
-        {undelivered.length === 0
-          ? 'Each administrator has been emailed their own single-use link.'
-          : `${String(undelivered.length)} of ${String(result.invitations.length)} could not be emailed. Send those people their link yourself.`}{' '}
-        The links are shown once — the database holds only their hashes, so there is no way to read
-        them back.
-      </Alert>
-      <ul className="flex flex-col gap-3">
-        {result.invitations.map((invitation) => {
-          const note = deliveryNote(invitation.delivery);
-          return (
-            <li key={invitation.email} className="border-border rounded-md border p-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-sm font-medium">{invitation.email}</p>
-                <Badge tone={note.tone === 'success' ? 'success' : 'warning'}>{note.text}</Badge>
-              </div>
-              <div className="mt-2">
-                <CopyField
-                  value={invitation.enrolUrl}
-                  label={`Copy the link for ${invitation.email}`}
-                  mono
-                  size="sm"
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+    <div className="mt-8 flex items-center gap-3">
+      <Spinner />
+      <p className="text-fg-muted text-sm">Opening the company…</p>
     </div>
   );
 }

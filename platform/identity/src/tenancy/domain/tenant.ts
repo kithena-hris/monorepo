@@ -19,6 +19,19 @@ import { isRegistrableSlug, type TenantStatus } from '@kithena/contracts';
 export interface TenantBranding {
   readonly displayName: string | null;
   readonly logoUrl: string | null;
+  /** The larger picture, filling half the sign-in page. */
+  readonly coverImageUrl: string | null;
+  /**
+   * The preset the company chose, as an id rather than a colour.
+   *
+   * The app turns it into a whole ramp — `THEME_PRESETS` has the hue and Reach's
+   * `brandRamp` builds every accent token from it, in both colour schemes. That
+   * is why an id travels and not a value: a colour would theme the one token
+   * somebody remembered to set, and would pin the company to whatever the
+   * preset happened to be on the afternoon they signed up.
+   */
+  readonly themeId: string | null;
+  /** @deprecated Superseded by `themeId`. Retained until nothing reads it. */
   readonly accentColor: string | null;
 }
 
@@ -46,16 +59,38 @@ export interface Tenant {
 export function brandingFor(row: {
   displayName: string;
   logoUrl: string | null;
+  coverImageUrl?: string | null;
+  themeId?: string | null;
   accentColor: string | null;
   brandingPublic: boolean;
 }): TenantBranding {
   if (!row.brandingPublic) {
-    return { displayName: null, logoUrl: null, accentColor: null };
+    return {
+      displayName: null,
+      logoUrl: null,
+      coverImageUrl: null,
+      // The theme is not withheld, and it is the one field that is not.
+      //
+      // The flag hides *who the customer is* — the name, the mark, the
+      // photograph of their building. An accent colour identifies nobody: six
+      // presets across every customer, and the company that picked Teal is not
+      // discoverable from a teal button. Withholding it would drop a
+      // mid-acquisition customer back to the default indigo, which is a visible
+      // change to their own staff for no privacy gained.
+      themeId: row.themeId ?? null,
+      accentColor: null,
+    };
   }
 
   return {
     displayName: row.displayName,
     logoUrl: row.logoUrl,
+    // The cover is branding like the rest of it, so it lives or dies by the
+    // same flag. A company that asked not to be named but whose photograph
+    // still filled half the page would have been told the flag did something
+    // it did not.
+    coverImageUrl: row.coverImageUrl ?? null,
+    themeId: row.themeId ?? null,
     accentColor: row.accentColor,
   };
 }
