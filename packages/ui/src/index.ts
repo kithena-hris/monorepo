@@ -453,6 +453,7 @@ export type { TooltipProps } from './components/tooltip/tooltip';
 export { iconGroups, iconNames, icons } from './icons/index';
 export type { IconGroup, IconName, LucideIcon } from './icons/index';
 
+export { brandRamp } from './lib/brand-ramp';
 export { cn } from './lib/cn';
 
 export {

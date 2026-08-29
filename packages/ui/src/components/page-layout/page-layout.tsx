@@ -246,11 +246,26 @@ export function PageLayout({
           aria-label="Main"
           data-collapsed={sidebarState.collapsed || undefined}
           className={cn(
-            'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface md:block',
+            'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface',
+            /*
+             * A flex column, not a block.
+             *
+             * The rail toggle below is a sibling *above* the caller's sidebar,
+             * so in a block container a sidebar asking for `h-full` gets the
+             * nav's whole height and then sits under a 32px toggle — 32px
+             * taller than the column it lives in. The visible symptom is a
+             * sidebar that scrolls as one piece and takes whatever is pinned to
+             * its bottom, usually the profile and sign-out, below the fold.
+             *
+             * As a flex column the toggle takes its own height and the sidebar
+             * slot takes the rest, so `h-full` inside it means what a caller
+             * expects.
+             */
+            'md:flex md:flex-col',
             'ps-safe-left',
             // Its own scroll container, sticky under the header: a 40-item
             // navigation must not push the page taller than the content.
-            'md:sticky md:top-14 md:max-h-[calc(100dvh-3.5rem)] md:overflow-y-auto md:overscroll-contain',
+            'md:sticky md:top-14 md:max-h-[calc(100dvh-3.5rem)] md:overscroll-contain',
             // The width animates rather than snapping. `overflow-x-hidden`
             // matters as much as the duration: without it the labels spill
             // across the content for the length of the transition.
@@ -283,7 +298,12 @@ export function PageLayout({
                 className="sticky top-0 z-10 flex justify-end p-2 pb-0"
               />
             ) : null}
-            {sidebar}
+            {/*
+              `min-h-0` so this can be shorter than its content and let the
+              caller scroll a region inside it, rather than growing the column
+              and pushing anything pinned to the bottom out of reach.
+            */}
+            <div className="min-h-0 flex-1">{sidebar}</div>
           </RailContext>
         </nav>
       ) : null}

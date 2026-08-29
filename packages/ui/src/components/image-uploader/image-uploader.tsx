@@ -463,6 +463,49 @@ export interface AvatarUploaderProps extends Omit<
 > {
   /** Shown when nothing has been chosen: initials, a silhouette. */
   fallback?: ReactNode;
+  /**
+   * The target's outline. A face is round; a logo or a photograph is not.
+   *
+   * `circle` crops to a disc, which is right for a person and wrong for a
+   * wordmark — half of one disappears. `rounded` keeps the corners.
+   */
+  shape?: 'circle' | 'rounded';
+  /**
+   * The target's proportions.
+   *
+   * All three are the same *height*, which is the point: two of these side by
+   * side line up whatever they are holding, and the row does not develop a step
+   * in it because one image happens to be a banner.
+   */
+  ratio?: 'square' | 'wide';
+  /**
+   * An already-stored image to show instead of a locally picked one.
+   *
+   * Without this the component can only display a file it is holding, and a
+   * value that lives on a server — an uploaded URL, a photo from a previous
+   * visit — has nowhere to go. Callers in that position were reduced to
+   * swapping the whole component out for a different layout once an upload
+   * finished, which read as the picker disappearing.
+   *
+   * A locally picked file wins, because it is the newer of the two and is what
+   * the person just did.
+   */
+  src?: string | null;
+  /** How the image sits in the target. A logo is `contain`; a face is `cover`. */
+  fit?: 'cover' | 'contain';
+  /**
+   * Where the label and controls sit relative to the target.
+   *
+   * `inline` puts them beside it, which is right for a profile photo in a form
+   * — one row, read left to right. It is wrong for two of these in a grid: the
+   * targets differ in width, so they reach the wrapping threshold at different
+   * container widths and the row goes ragged, one cell wrapping while its
+   * neighbour does not.
+   *
+   * `stacked` puts them underneath. Two stacked uploaders are the same shape
+   * whatever their targets are, which is what makes a row of them line up.
+   */
+  orientation?: 'inline' | 'stacked';
 }
 
 /**
@@ -484,18 +527,53 @@ export function AvatarUploader({
   invalid = false,
   onReject,
   fallback,
+  shape = 'circle',
+  ratio = 'square',
+  src = null,
+  fit = 'cover',
+  orientation = 'inline',
   className,
 }: AvatarUploaderProps): JSX.Element {
   const inputId = useId();
   const current = value[0];
+  // The picked file first: it is what the person just chose, and showing the
+  // stored image over it would look like the choice did not take.
+  const preview = current?.previewUrl ?? src;
+  const round = shape === 'circle' ? 'rounded-full' : 'rounded-lg';
 
   return (
-    <div className={cn('flex items-center gap-4', className)}>
-      <div className="relative">
+    /*
+     * `min-w-0` on the text column below and wrapping here, because this is
+     * routinely put in a half-width grid cell. Without them the actions row
+     * cannot shrink past the intrinsic width of two buttons and pushes out of
+     * its container — the target keeps its size, the text refuses to narrow,
+     * and the row overflows instead of reflowing.
+     */
+    <div
+      className={cn(
+        'flex gap-x-4 gap-y-3',
+        orientation === 'stacked'
+          ? 'flex-col items-start'
+          : 'flex-wrap items-center',
+        className,
+      )}
+    >
+      {/* `max-w-full` here as well as on the label. The label's own cap
+          resolves against this wrapper, and a wrapper sized to its content is
+          not a constraint — so without both, the target still sticks out of a
+          column narrower than 9rem. */}
+      <div className="relative max-w-full">
         <label
           htmlFor={inputId}
           className={cn(
-            'group grid size-20 cursor-pointer place-items-center overflow-hidden rounded-full border border-border bg-surface-sunken',
+            'group relative grid h-20 shrink-0 cursor-pointer place-items-center overflow-hidden border border-border bg-surface-sunken',
+            // One height, two widths. Two of these in a row line up.
+            //
+            // `max-w-full` so the target can still shrink: 9rem is wider than a
+            // grid cell gets on a narrow screen, and a fixed width there is an
+            // element sticking out of its own column.
+            ratio === 'wide' ? 'w-36 max-w-full' : 'w-20 max-w-full',
+            round,
             'transition-[border-color,box-shadow] duration-(--animate-duration-fast)',
             'hover:border-accent',
             'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
@@ -503,19 +581,23 @@ export function AvatarUploader({
             disabled && 'pointer-events-none opacity-55',
           )}
         >
-          {current ? (
-            <img
-              src={current.previewUrl}
-              alt=""
-              className="size-full animate-fade-in object-cover"
-            />
-          ) : (
+          {preview === null ? (
             <span className="text-fg-subtle">{fallback ?? <Upload className="size-5" />}</span>
+          ) : (
+            <img
+              src={preview}
+              alt=""
+              className={cn(
+                'size-full animate-fade-in',
+                fit === 'contain' ? 'object-contain p-2' : 'object-cover',
+              )}
+            />
           )}
           <span
             aria-hidden
             className={cn(
-              'absolute inset-0 grid place-items-center rounded-full bg-overlay text-fg-on-accent opacity-0',
+              'absolute inset-0 grid place-items-center bg-overlay text-fg-on-accent opacity-0',
+              round,
               'transition-opacity duration-(--animate-duration-fast) group-hover:opacity-100',
             )}
           >
@@ -557,13 +639,16 @@ export function AvatarUploader({
         </label>
       </div>
 
-      <div className="min-w-0">
+      <div className={cn('min-w-0', orientation === 'stacked' ? 'w-full' : 'flex-1 basis-40')}>
         <label htmlFor={inputId} className="text-sm font-medium text-fg">
           {label}
         </label>
         {hint ? <p className="mt-0.5 text-xs text-fg-muted">{hint}</p> : null}
-        {current ? (
-          <div className="mt-2 flex gap-2">
+        {/* Keyed off the preview, not the picked file: an image that came from
+            the server is just as replaceable as one picked a second ago, and
+            reading `current` here left a stored image with no controls at all. */}
+        {preview !== null ? (
+          <div className="mt-2 flex flex-wrap gap-2">
             <Button
               size="sm"
               startIcon={<RotateCcw />}
@@ -578,7 +663,9 @@ export function AvatarUploader({
               variant="ghost"
               startIcon={<Trash2 />}
               onClick={() => {
-                URL.revokeObjectURL(current.previewUrl);
+                // Only a locally created object URL is ours to revoke. `src`
+                // belongs to the caller and may still be on screen elsewhere.
+                if (current) URL.revokeObjectURL(current.previewUrl);
                 onChange([]);
               }}
             >

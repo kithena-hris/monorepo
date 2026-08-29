@@ -364,3 +364,99 @@ export const Avatar: Story = {
     );
   },
 };
+
+/**
+ * A 1×1 transparent GIF, inline.
+ *
+ * Stories are rendered in Chromium by `pnpm test-stories` with no network, so a
+ * remote URL would be a broken image in the one place the design system is
+ * checked. This is the smallest thing that proves `src` renders.
+ */
+const STORED_IMAGE =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+export const AvatarShapes: Story = {
+  name: 'AvatarUploader — shapes and ratios',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A circle crops to a disc, which is right for a face and wrong for a wordmark — half of one disappears. `shape="rounded"` keeps the corners, and `ratio="wide"` widens the target without changing its height, so two of these side by side line up whatever they are holding. `fit="contain"` is for a mark that should not be cropped at all.',
+      },
+    },
+  },
+  render: function ShapesStory() {
+    const [logo, setLogo] = useState<readonly UploadedImage[]>([]);
+    const [cover, setCover] = useState<readonly UploadedImage[]>([]);
+
+    return (
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Company images</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-6 sm:grid-cols-2">
+          <AvatarUploader
+            label="Logo"
+            hint="The mark, beside their name in lists."
+            orientation="stacked"
+            shape="rounded"
+            ratio="square"
+            fit="contain"
+            value={logo}
+            onChange={setLogo}
+          />
+          <AvatarUploader
+            label="Company image"
+            hint="Fills half their sign-in page."
+            orientation="stacked"
+            shape="rounded"
+            ratio="wide"
+            fit="cover"
+            value={cover}
+            onChange={setCover}
+          />
+        </CardContent>
+      </Card>
+    );
+  },
+};
+
+export const AvatarStored: Story = {
+  name: 'AvatarUploader — an already-stored image',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`src` shows an image the component is not holding — one already uploaded, or loaded from a previous visit. Without it a caller whose value lives on a server had to swap the whole component out for a different layout once an upload finished, which read as the picker disappearing. Replace and Remove are offered for a stored image exactly as they are for a picked one; a locally picked file takes precedence, because it is what the person just did.',
+      },
+    },
+  },
+  render: function StoredStory() {
+    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    const [stored, setStored] = useState<string | null>(STORED_IMAGE);
+
+    return (
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Acme Corp</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AvatarUploader
+            label="Logo"
+            hint="Already uploaded. Replacing it uploads a new one."
+            shape="rounded"
+            fit="contain"
+            src={stored}
+            value={images}
+            onChange={(next) => {
+              setImages(next);
+              // Clearing both is the caller's job: the component reports the
+              // change and does not know where the stored copy came from.
+              if (next.length === 0) setStored(null);
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  },
+};
