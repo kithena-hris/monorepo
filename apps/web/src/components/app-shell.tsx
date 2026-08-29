@@ -46,6 +46,8 @@ const SignOut = icons.signOut;
 export interface AppShellProps {
   readonly person: { readonly name: string; readonly email: string | null };
   readonly companyName: string;
+  /** The company's mark, shown above the areas when they have uploaded one. */
+  readonly logoUrl?: string | null;
   readonly children: ReactNode;
 }
 
@@ -64,7 +66,12 @@ const AREAS = [
   { label: 'Documents', icon: <Document />, href: '/documents', current: false },
 ] as const;
 
-export function AppShell({ person, companyName, children }: AppShellProps): JSX.Element {
+export function AppShell({
+  person,
+  companyName,
+  logoUrl = null,
+  children,
+}: AppShellProps): JSX.Element {
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
@@ -90,11 +97,53 @@ export function AppShell({ person, companyName, children }: AppShellProps): JSX.
             // is `auto`, so the rail is as wide as whatever it is given. The
             // collapsed width is the layout's own `md:w-14`, which is why this
             // one drops away once the rail is collapsed.
-            className="flex h-full w-60 flex-col gap-4 p-3 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2"
+            // `min-h-0` matters more than it looks. A flex child's default
+            // `min-height: auto` refuses to shrink below its content, so the
+            // scrolling region below would grow the column instead of
+            // scrolling and the whole sidebar — profile included — would move
+            // off-screen together.
+            className="flex h-full min-h-0 w-60 flex-col gap-4 p-3 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2"
           >
-            <KithenaLogo className="text-fg px-2 pt-1" />
+            {/*
+              The company's mark where theirs exists, ours where it does not.
 
-            <Nav label="Areas" className="flex-1">
+              Not both. This is the top-left of an employee's own workplace tool
+              and the question it answers is "whose account am I in" — a person
+              signing in to Acme should see Acme. Kithena is the vendor, and a
+              vendor's mark stacked above a customer's is an advertisement in a
+              place that is supposed to be orienting.
+
+              It collapses with the rail: the mark alone survives, the name does
+              not, which is what the 14px column has room for.
+            */}
+            {logoUrl === null ? (
+              <KithenaLogo className="text-fg shrink-0 px-2 pt-1" />
+            ) : (
+              <div className="flex shrink-0 items-center gap-2.5 px-2 pt-1">
+                <Avatar
+                  size="md"
+                  shape="rounded"
+                  fit="contain"
+                  src={logoUrl}
+                  name={companyName}
+                />
+                <span className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden">
+                  {companyName}
+                </span>
+              </div>
+            )}
+
+            {/*
+              The areas scroll; the mark above and the person below do not.
+
+              `flex-1 min-h-0 overflow-y-auto` rather than letting the column
+              grow: with enough modules switched on this list is taller than the
+              viewport, and a sidebar that scrolls as one piece takes the
+              profile and sign-out with it — so the control somebody reaches for
+              to leave is the one that disappears first. Pinning the ends and
+              scrolling the middle keeps both reachable at any height.
+            */}
+            <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
               <NavList>
                 {AREAS.map((area) => (
                   <NavItem
@@ -128,7 +177,12 @@ export function AppShell({ person, companyName, children }: AppShellProps): JSX.
               </NavList>
             </Nav>
 
-            <PersonMenu person={person} />
+            {/* Pinned. `shrink-0` so it keeps its height when the list above
+                is long, and `mt-auto` so it sits at the bottom when the list is
+                short rather than floating under the last item. */}
+            <div className="border-border mt-auto shrink-0 border-t pt-3">
+              <PersonMenu person={person} />
+            </div>
           </div>
         }
       >

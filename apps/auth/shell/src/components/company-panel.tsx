@@ -1,3 +1,4 @@
+import { Avatar } from '@reach/ui';
 import type { JSX } from 'react';
 
 import type { Tenant } from '../lib/tenant';
@@ -16,23 +17,58 @@ import type { Tenant } from '../lib/tenant';
  */
 export function CompanyPanel({ tenant }: { tenant: Tenant | null }): JSX.Element | null {
   const branding = tenant?.branding;
-  if (!branding || (branding.displayName === null && branding.logoUrl === null)) return null;
+  if (
+    !branding ||
+    (branding.displayName === null &&
+      branding.logoUrl === null &&
+      branding.coverImageUrl === null)
+  ) {
+    return null;
+  }
 
   return (
     <aside
-      className="bg-surface border-border flex flex-col justify-center gap-4 border-b p-8 md:min-h-dvh md:w-2/5 md:border-r md:border-b-0"
+      className={`bg-surface border-border relative isolate flex flex-col gap-4 overflow-hidden border-b p-8 md:min-h-dvh md:w-2/5 md:border-r md:border-b-0 ${
+        branding.coverImageUrl === null ? 'justify-center' : 'justify-end'
+      }`}
       /*
-       * The accent arrives as an OKLCH triple that Reach's own token takes
-       * directly, so a customer re-points the design system's accent rather
-       * than introducing a colour beside it. A CHECK constraint on the column
-       * is what stops arbitrary CSS reaching this attribute.
+       * No accent here any more. It used to set `--reach-color-accent` on this
+       * panel alone, which themed the half of the page with no controls on it
+       * and left the sign-in button on the default hue. The page now applies
+       * `brandRamp` above both panels, which re-points the whole ramp — accent,
+       * focus ring, subtle washes, in either colour scheme.
        */
-      style={
-        branding.accentColor === null
-          ? undefined
-          : ({ '--reach-color-accent': branding.accentColor } as React.CSSProperties)
-      }
     >
+      {/*
+        The company's own photograph, behind everything else.
+        `aria-hidden` and empty alt: it carries no information the rest of the
+        panel does not already give, and a screen reader reading out a
+        description of an office lobby before the sign-in button is noise.
+        The scrim is what keeps the logo and the name legible over whatever
+        they uploaded — a bright photograph and dark text is the failure this
+        panel would otherwise have on exactly the screen we do not control.
+      */}
+      {branding.coverImageUrl === null ? null : (
+        <>
+          <img
+            src={branding.coverImageUrl}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 -z-20 size-full object-cover"
+          />
+          <div
+            /*
+              A gradient, not a flat wash. A uniform 80% scrim made every
+              photograph look like a grey rectangle — it protected text that
+              occupies one corner by erasing the whole image. This is opaque
+              along the bottom, where the mark and name are, and gone by
+              halfway up, where nothing is being read over anything.
+            */
+            className="from-surface/95 absolute inset-0 -z-10 bg-gradient-to-t to-transparent to-55%"
+          />
+        </>
+      )}
+
       {branding.logoUrl === null ? null : (
         <img
           src={branding.logoUrl}

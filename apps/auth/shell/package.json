@@ -13,6 +13,7 @@
     "deploy": "pnpm run build:packages && MODERNJS_DEPLOY=vercel modern deploy"
   },
   "dependencies": {
+    "@kithena/contracts": "workspace:*",
     "@modern-js/runtime": "3.8.2",
     "@modern-js/server-runtime": "3.8.2",
     "@reach/ui": "workspace:*",

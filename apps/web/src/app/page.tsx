@@ -9,11 +9,11 @@ import {
   PageSection,
   Stack,
 } from '@reach/ui';
-import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { AppShell } from '../components/app-shell';
-import { SignedOut } from '../components/signed-out';
+import { currentTenant } from '../lib/branding';
 import { currentPerson, displayName } from '../lib/session';
 
 /**
@@ -30,7 +30,21 @@ import { currentPerson, displayName } from '../lib/session';
  */
 export default async function Home(): Promise<JSX.Element> {
   const person = await currentPerson();
-  if (person === null) return <SignedOut />;
+  const tenant = await currentTenant();
+
+  /*
+   * Straight to the sign-in page, rather than a panel explaining that the
+   * handoff is unbuilt. It is built — see `app/auth/callback` for the half that
+   * lands here and `platform.handoff_code` for what crosses between.
+   */
+  if (person === null) {
+    const authOrigin = process.env['AUTH_ORIGIN'] ?? '';
+    redirect(
+      authOrigin === '' || tenant === null
+        ? '/signed-out'
+        : `${authOrigin}/login?tenant=${encodeURIComponent(tenant.slug)}`,
+    );
+  }
 
   const name = displayName(person.workEmail);
   /*
@@ -47,10 +61,15 @@ export default async function Home(): Promise<JSX.Element> {
    * bar, so it is not a bad label. A real display name arrives with the tenant
    * registry read, which is a change to that file made deliberately.
    */
-  const company = (await headers()).get('x-tenant-slug') ?? 'your company';
-
+  // The name they chose, falling back to the label in the address bar. Both are
+  // things the person already knows this company by.
+  const company = tenant?.branding.displayName ?? tenant?.slug ?? 'your company';
   return (
-    <AppShell person={{ name, email: person.workEmail }} companyName={company}>
+    <AppShell
+      person={{ name, email: person.workEmail }}
+      companyName={company}
+      logoUrl={tenant?.branding.logoUrl ?? null}
+    >
       <PageHeader title={`Hello, ${name}`} description={`Your ${company} account is set up.`} />
 
       <PageSection>
@@ -65,7 +84,12 @@ export default async function Home(): Promise<JSX.Element> {
               </div>
             </CardHeader>
             <CardContent>
-              <Badge tone="neutral">
+              {/* `accent`, not `neutral`. How somebody signed in is a fact
+                  about their account rather than a warning, and the accent is
+                  the tenant's own — so the one badge on the starter dashboard
+                  carries the theme instead of sitting grey beside a themed
+                  sidebar. */}
+              <Badge tone="accent">
                 Signed in with {person.amr.includes('swk') ? 'a passkey' : person.amr.join(', ')}
               </Badge>
             </CardContent>

@@ -1,10 +1,10 @@
 import { countryRules, themePreset } from '@kithena/contracts';
-import { Alert, Badge, Button } from '@reach/ui';
+import { Alert, Avatar, Badge, Button, Card } from '@reach/ui';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
-import { CreatedToast } from '../../../components/created-toast';
+import { CreatedToast, SavedToast } from '../../../components/created-toast';
 import { callIdentity } from '../../../lib/identity';
 import { currentOperator } from '../../../lib/session';
 import {
@@ -29,6 +29,7 @@ interface Detail {
   themeId: string | null;
   logoUrl: string | null;
   coverImageUrl: string | null;
+  brandingPublic: boolean;
   address: {
     country: string;
     line1: string;
@@ -128,6 +129,7 @@ export default async function Company({
     return Number.isFinite(value) && value >= 0 ? value : 0;
   };
   const justCreated = query['created'] === '1';
+  const justSaved = query['saved'] === '1';
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
@@ -138,51 +140,79 @@ export default async function Company({
           undelivered={count('undelivered')}
         />
       ) : null}
+      {justSaved ? <SavedToast companyName={company.displayName} /> : null}
       <Link href="/" className="text-fg-muted hover:text-fg text-sm">
         ← All companies
       </Link>
 
-      <header className="mt-4 mb-8 flex items-start gap-4">
-        {company.logoUrl === null ? (
-          <span
-            aria-hidden
-            className="bg-surface border-border text-fg-muted grid size-12 shrink-0 place-items-center rounded-md border text-lg font-semibold"
-          >
-            {company.displayName.charAt(0).toUpperCase()}
-          </span>
-        ) : (
-          // A plain img, not next/image: these are Blob URLs on a host
-          // next.config would have to list in remotePatterns, and that list
-          // would need changing whenever the Blob store does.
-          <img
-            src={company.logoUrl}
-            alt=""
-            className="bg-surface border-border size-12 shrink-0 rounded-md border object-contain"
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold">{company.displayName}</h1>
-          <p className="text-fg-muted mt-1 text-sm">
-            <code>{company.slug}</code>.app.kithena.com
-          </p>
+      {/*
+        The company's own images, shown the way their sign-in page shows them
+        rather than as two fields in a list. An operator checking a logo is
+        checking whether it looks right where it will appear, and a 48px square
+        in a form row does not answer that.
+
+        The banner is washed with the company's accent where no image covers
+        it. Deliberately an inline `background` on this one element rather than
+        `brandRamp`: the ramp only works from `<html>` — see its documentation —
+        and the back-office is Kithena's own tool, so re-pointing the whole
+        page's accent per customer would leave an operator unable to tell which
+        product they are in. One swatch answers "what did they choose"; a
+        recoloured application does not.
+      */}
+      <header className="border-border mt-4 mb-8 overflow-hidden rounded-xl border">
+        <div
+          className="bg-surface-sunken relative h-32 sm:h-40"
+          style={theme ? { background: theme.accentSubtle } : undefined}
+        >
+          {company.coverImageUrl === null ? null : (
+            // A plain img, not next/image: these are Blob URLs on a host
+            // next.config would have to list in remotePatterns, and that list
+            // would need changing whenever the Blob store does.
+            <img
+              src={company.coverImageUrl}
+              alt={`The image on ${company.displayName}'s sign-in page`}
+              className="size-full object-cover"
+            />
+          )}
         </div>
-        <Badge tone={company.status === 'active' ? 'success' : 'warning'}>{company.status}</Badge>
+
+        <div className="bg-surface flex items-end gap-4 p-5">
+          {/* `Avatar`, which handles both states. It used to be a hand-rolled
+              `<img>` beside a hand-rolled initial-in-a-box, which is two
+              treatments of the same idea that had to be kept in step by hand —
+              and the design system already derives initials from a name. */}
+          <Avatar
+            size="2xl"
+            shape="rounded"
+            fit="contain"
+            src={company.logoUrl ?? undefined}
+            name={company.displayName}
+            className="bg-surface -mt-12 shadow-sm"
+          />
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-semibold">{company.displayName}</h1>
+            <p className="text-fg-muted mt-0.5 text-sm">
+              <code>{company.slug}</code>.app.kithena.com
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {company.brandingPublic ? null : (
+              <Badge tone="neutral">Unbranded</Badge>
+            )}
+            <Badge tone={company.status === 'active' ? 'success' : 'warning'}>
+              {company.status}
+            </Badge>
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/companies/${company.id}/edit`}>Edit</Link>
+            </Button>
+          </div>
+        </div>
       </header>
 
-      {company.coverImageUrl === null ? null : (
-        <section className="mb-8">
-          <h2 className="mb-2 text-sm font-medium">Sign-in page image</h2>
-          {/* A plain img, for the same reason as the logo above. */}
-          <img
-            src={company.coverImageUrl}
-            alt={`The image shown on ${company.displayName}'s sign-in page`}
-            className="border-border max-h-48 w-full rounded-md border object-cover"
-          />
-        </section>
-      )}
-
-      <div className="grid gap-8 sm:grid-cols-2">
-        <section>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Card variant="outlined" padded>
           <h2 className="mb-3 text-sm font-medium">Registered address</h2>
           {company.address === null ? (
             <p className="text-fg-muted text-sm">
@@ -215,9 +245,9 @@ export default async function Company({
               {country?.name ?? company.address.country}
             </address>
           )}
-        </section>
+        </Card>
 
-        <section>
+        <Card variant="outlined" padded>
           <h2 className="mb-3 text-sm font-medium">Theme</h2>
           {theme === undefined ? (
             <p className="text-fg-muted text-sm">Using the default accent.</p>
@@ -247,19 +277,19 @@ export default async function Company({
               })}
             </time>
           </p>
-        </section>
+        </Card>
       </div>
 
-      <section className="mt-10">
+      <Card variant="outlined" padded className="mt-5">
         <h2 className="mb-1 text-sm font-medium">Invite somebody</h2>
         <p className="text-fg-muted mb-4 text-sm">
           They are sent a link and set up a passkey on their own device. You are not given a way to
           sign in as them.
         </p>
         <InvitePersonForm action={invite} companyName={company.displayName} />
-      </section>
+      </Card>
 
-      <section className="mt-10">
+      <Card variant="outlined" padded className="mt-5">
         <h2 className="mb-3 text-sm font-medium">People</h2>
         {company.people.length === 0 ? (
           <Alert tone="warning" title="Nobody can sign in">
@@ -275,7 +305,7 @@ export default async function Company({
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
       <footer className="border-border mt-10 border-t pt-6">
         <Button asChild variant="secondary">

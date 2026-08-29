@@ -30,6 +30,18 @@ export interface Tenant {
   readonly branding: {
     readonly displayName: string | null;
     readonly logoUrl: string | null;
+    /** Fills the left half of the sign-in page. */
+    readonly coverImageUrl: string | null;
+    /**
+     * The preset id, which becomes the whole brand ramp.
+     *
+     * Present even when the company has asked not to be named: an accent
+     * identifies nobody — six presets across every customer — and withholding
+     * it would drop their own staff back to the default colour for no privacy
+     * gained. See `brandingFor` in the identity service.
+     */
+    readonly themeId: string | null;
+    /** @deprecated Superseded by `themeId`. */
     readonly accentColor: string | null;
   };
 }
@@ -59,6 +71,8 @@ export async function resolveTenant(slug: string): Promise<Tenant | null> {
     branding: {
       displayName: typeof b['displayName'] === 'string' ? b['displayName'] : null,
       logoUrl: typeof b['logoUrl'] === 'string' ? b['logoUrl'] : null,
+      coverImageUrl: typeof b['coverImageUrl'] === 'string' ? b['coverImageUrl'] : null,
+      themeId: typeof b['themeId'] === 'string' ? b['themeId'] : null,
       accentColor: typeof b['accentColor'] === 'string' ? b['accentColor'] : null,
     },
   };

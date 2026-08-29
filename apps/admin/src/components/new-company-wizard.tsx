@@ -2,15 +2,13 @@
 
 import {
   Alert,
-  Badge,
+  AvatarUploader,
   Button,
   Combobox,
-  Card,
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
-  ImageUploader,
   Input,
   Spinner,
   Stepper,
@@ -18,7 +16,6 @@ import {
 import {
   COUNTRIES,
   DEFAULT_THEME_ID,
-  THEME_PRESETS,
   checkAddress,
   countryRules,
   type PostalAddress,
@@ -28,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, type JSX } from 'react';
 
 import type { Delivery } from '../lib/delivery';
+import { ThemePicker } from './theme-picker';
 
 /**
  * Adding a company, in four steps.
@@ -267,7 +265,7 @@ export function NewCompanyWizard({
       ) : null}
 
       {step === 3 ? (
-        <ThemeStep
+        <ThemePicker
           selected={draft.themeId}
           onChange={(id) => {
             set('themeId', id);
@@ -350,20 +348,31 @@ function IdentityStep({
         <FieldError>{problems['slug']}</FieldError>
       </Field>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      {/*
+        One row, two targets, one height.
+        These were a square dropzone beside a 3:1 dropzone, which made the row a
+        head taller on one side than the other and then changed height again the
+        moment an upload finished. `AvatarUploader` is a fixed-height target with
+        its controls beside it, so both states and both shapes line up.
+      */}
+      <div className="border-border bg-surface-sunken/40 grid gap-6 rounded-lg border p-5 sm:grid-cols-2">
         <ImageField
           kind="logo"
           label="Logo"
-          aspect="square"
-          hint="The mark, shown beside their name in lists. Square works best."
+          shape="rounded"
+          ratio="square"
+          fit="contain"
+          hint="The mark, beside their name in lists."
           url={draft.logoUrl}
           onChange={onImage}
         />
         <ImageField
           kind="cover"
           label="Company image"
-          aspect="wide"
-          hint="Optional. Fills the left half of their sign-in page."
+          shape="rounded"
+          ratio="wide"
+          fit="cover"
+          hint="Fills half their sign-in page."
           url={draft.coverImageUrl}
           onChange={onImage}
         />
@@ -373,25 +382,39 @@ function IdentityStep({
 }
 
 /**
- * One image, uploaded on selection.
+ * One image, uploaded the moment it is chosen.
  *
- * Deliberately not `ImageUploader` from the design system: that component
- * manages a list and its own local object URLs, and this needs exactly one
- * image whose identity is the Blob URL the server returned. Wrapping it would
- * have meant fighting it for ownership of the value.
+ * `AvatarUploader` rather than `ImageUploader`, and rather than the hand-rolled
+ * pair this used to be. The two differ in what they are for: `ImageUploader` is
+ * a dropzone that grows to fit a list, which made a square logo picker and a
+ * 3:1 cover picker two visibly different heights side by side, and then changed
+ * height a third time once a URL existed and the component was swapped out for a
+ * card. `AvatarUploader` is a fixed target with its controls beside it, so every
+ * combination of shape and state is the same height.
+ *
+ * Its `src` prop is what makes one layout serve both states. The uploader holds
+ * the picked `File` and the object URL previewing it — it owns those and revokes
+ * them, which is the reason not to hand-roll this — while the value that
+ * survives a page load is the Blob URL the server returned. Passing that as
+ * `src` lets the same component show either, with the local pick winning
+ * because it is what the person just did.
  */
 function ImageField({
   kind,
   label,
   hint,
-  aspect,
+  shape,
+  ratio,
+  fit,
   url,
   onChange,
 }: {
   kind: 'logo' | 'cover';
   label: string;
   hint: string;
-  aspect: 'square' | 'wide';
+  shape: 'circle' | 'rounded';
+  ratio: 'square' | 'wide';
+  fit: 'cover' | 'contain';
   url: string | null;
   onChange: (kind: 'logo' | 'cover', url: string | null) => void;
 }): JSX.Element {
@@ -399,19 +422,6 @@ function ImageField({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /*
-   * Two sources of truth, joined here rather than fought over.
-   *
-   * `ImageUploader` is controlled and owns local `File` objects and the object
-   * URLs that preview them — it revokes those, which is the whole reason not to
-   * hand-roll this. What the wizard needs is something else: the Blob URL the
-   * server returned, which is the only form that survives a page load.
-   *
-   * So the uploader holds the picked file, this uploads it, and the committed
-   * value is the URL. Once there is one, the uploader steps aside — the file it
-   * was holding is gone after a step change and its preview would be empty,
-   * which would read as the image having been lost when it has not.
-   */
   const accept = (next: readonly UploadedImage[]): void => {
     setError(null);
     const file = next.at(-1);
@@ -446,56 +456,30 @@ function ImageField({
       });
   };
 
-  if (url !== null) {
-    return (
-      <Field>
-        <FieldLabel>{label}</FieldLabel>
-        <Card variant="outlined" padded className="flex items-center gap-3">
-          {/* A plain img, not next/image: these are Blob URLs on a host
-              next.config would have to list in `remotePatterns`, and that list
-              would need changing whenever the Blob store does. */}
-          <img
-            src={url}
-            alt=""
-            className="bg-surface-sunken size-12 shrink-0 rounded object-contain"
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setPicked([]);
-              onChange(kind, null);
-            }}
-          >
-            Replace
-          </Button>
-        </Card>
-        <FieldDescription>{hint}</FieldDescription>
-      </Field>
-    );
-  }
-
   return (
-    <ImageUploader
-      label={label}
-      hint={hint}
-      value={picked}
-      onChange={accept}
-      aspect={aspect}
-      // Matches the server, which is the half that counts — `accept` is a hint
-      // to the picker and `File.type` comes from the client.
-      accept={['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']}
-      maxSize={2 * 1024 * 1024}
-      maxFiles={1}
-      disabled={uploading}
-      invalid={error !== null}
-      // `null` is indeterminate: the upload is one request and there is no
-      // progress to report, only that it is happening.
-      {...(uploading ? { progress: null } : {})}
-      onReject={(rejections) => {
-        setError(rejections[0]?.message ?? 'That image was not accepted.');
-      }}
-    />
+    <div>
+      <AvatarUploader
+        label={label}
+        hint={uploading ? 'Uploading…' : hint}
+        value={picked}
+        onChange={accept}
+        src={url}
+        orientation="stacked"
+        shape={shape}
+        ratio={ratio}
+        fit={fit}
+        // Matches the server, which is the half that counts — `accept` is a hint
+        // to the picker and `File.type` comes from the client.
+        accept={['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']}
+        maxSize={2 * 1024 * 1024}
+        disabled={uploading}
+        invalid={error !== null}
+        onReject={(rejections) => {
+          setError(rejections[0]?.message ?? 'That image was not accepted.');
+        }}
+      />
+      {error === null ? null : <p className="text-danger-fg mt-2 text-xs">{error}</p>}
+    </div>
   );
 }
 
@@ -715,64 +699,6 @@ function AdminsStep({
         </Alert>
       ) : null}
     </div>
-  );
-}
-
-function ThemeStep({
-  selected,
-  onChange,
-}: {
-  selected: string;
-  onChange: (id: string) => void;
-}): JSX.Element {
-  return (
-    <fieldset className="flex flex-col gap-4">
-      <legend className="text-sm font-medium">Accent colour</legend>
-      <p className="text-fg-muted text-sm">
-        Re-points the accent on their sign-in page. Each of these carries white text at WCAG AA, so
-        whichever is chosen stays legible.
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {THEME_PRESETS.map((preset) => {
-          const isSelected = preset.id === selected;
-          return (
-            <label
-              key={preset.id}
-              className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition ${
-                isSelected ? 'border-accent bg-accent-subtle' : 'border-border hover:bg-surface'
-              }`}
-            >
-              <input
-                type="radio"
-                name="theme"
-                value={preset.id}
-                checked={isSelected}
-                className="sr-only"
-                onChange={() => {
-                  onChange(preset.id);
-                }}
-              />
-              <span
-                aria-hidden
-                className="border-border size-9 shrink-0 rounded-full border"
-                style={{ background: preset.accent }}
-              />
-              <span className="flex flex-col">
-                <span className="text-sm font-medium">{preset.name}</span>
-                <span className="text-fg-muted text-xs">
-                  {preset.contrastOnWhite.toFixed(1)}:1 on white
-                </span>
-              </span>
-              {isSelected ? (
-                <Badge tone="success" className="ml-auto">
-                  Chosen
-                </Badge>
-              ) : null}
-            </label>
-          );
-        })}
-      </div>
-    </fieldset>
   );
 }
 

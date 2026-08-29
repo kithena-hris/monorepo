@@ -61,3 +61,29 @@ export function CreatedToast({
 
   return null;
 }
+
+/**
+ * The confirmation for a company that was just edited.
+ *
+ * Raised on the company page rather than on the form, for the same reason the
+ * form redirects here: the change is only real once the registry has been
+ * re-read, and a success message beside a form still holding the typed values
+ * cannot tell an operator which of the two they are looking at.
+ */
+export function SavedToast({ companyName }: { readonly companyName: string }): JSX.Element | null {
+  const { toast } = useToast();
+  const shown = useRef(false);
+
+  useEffect(() => {
+    if (shown.current) return;
+    shown.current = true;
+
+    toast({
+      tone: 'success',
+      title: 'Changes saved',
+      description: `${companyName} is updated everywhere, including their sign-in page.`,
+    });
+  }, [toast, companyName]);
+
+  return null;
+}

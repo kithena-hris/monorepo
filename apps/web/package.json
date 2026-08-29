@@ -11,14 +11,15 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.1.0",
+    "@kithena/contracts": "workspace:*",
+    "@reach/ui": "workspace:*",
+    "@simplewebauthn/browser": "^13.2.2",
     "next": "^16.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@kithena/contracts": "workspace:*",
-    "@reach/ui": "workspace:*",
-    "zod": "^4.4.3",
     "react-hook-form": "^7.60.0",
-    "@hookform/resolvers": "^5.1.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.12",
