@@ -173,12 +173,16 @@ local:
     trap 'kill 0' EXIT
     npx tsx platform/messaging/src/main.ts &
     npx tsx platform/identity/src/main.ts &
-    npx next dev apps/web -p 3200 &
+    npx next dev apps/web -p 3000 &
     (cd apps/auth/shell && npx modern dev) &
     cd apps/admin && npx next dev -p 3001
 
-# The tenant app on its own, on 3200. Reach it as acme.app.localhost:3200 —
+# The tenant app on its own, on 3000. Reach it as acme.app.localhost:3000 —
 # a bare localhost has no tenant label in front of the suffix, and the proxy
 # answers 404 rather than guessing which company you meant.
+#
+# 3000 rather than 3200 to match the package's own `dev` script and
+# `MODERN_TENANT_APP_BASE`, which is what the auth origin redirects to after a
+# sign-in. Two ports for one app meant that redirect landed on nothing.
 web-dev:
-    npx next dev apps/web -p 3200
+    npx next dev apps/web -p 3000
