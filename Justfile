@@ -152,3 +152,33 @@ invite tenant_id email:
 # Gmail drops `data:` image sources.
 email-preview logo="":
     pnpm --filter @kithena/messaging preview {{ if logo != "" { "--logo " + logo } else { "" } }}
+
+# Everything, locally: both platform services and all three front ends.
+#
+# Reads `.env`, which `set dotenv-load` above loads for every recipe — so the
+# ports, the database URLs and the shared secret live in one gitignored file
+# rather than in five shell invocations that drift apart.
+#
+# POSTGRES_PORT defaults to 55432 rather than 5432. A developer with Postgres
+# already installed loses the race for 5432: the host daemon binds it, Docker
+# publishes to the wildcard, and `localhost` reaches the wrong server — every
+# role appears not to exist. `docker-compose.override.yml` publishes 55432 too.
+local:
+    docker compose up -d postgres valkey --wait
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Rspack keeps a lock in its cache and panics if a second dev server finds
+    # one left by a process that was killed rather than stopped.
+    rm -rf apps/auth/shell/node_modules/.cache
+    trap 'kill 0' EXIT
+    npx tsx platform/messaging/src/main.ts &
+    npx tsx platform/identity/src/main.ts &
+    npx next dev apps/web -p 3200 &
+    (cd apps/auth/shell && npx modern dev) &
+    cd apps/admin && npx next dev -p 3001
+
+# The tenant app on its own, on 3200. Reach it as acme.app.localhost:3200 —
+# a bare localhost has no tenant label in front of the suffix, and the proxy
+# answers 404 rather than guessing which company you meant.
+web-dev:
+    npx next dev apps/web -p 3200
