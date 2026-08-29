@@ -233,6 +233,64 @@ jobs:
 
       # The back-office, on its own registrable domain rather than a path.
       #
+      # The auth origin, which staging did not deploy until now.
+      #
+      # It was "shipped by hand" — which meant staging ran a new identity and a
+      # new tenant app against whatever build of the sign-in page somebody last
+      # pushed from a laptop. That is the worst of the three to have stale,
+      # because it is the one holding the ceremony: the handoff endpoint this
+      # release adds returned 404 on staging while both sides of it were live.
+      #
+      # No build step, matching production: this app carries its own
+      # `vercel.json` with `buildCommand`, so Vercel builds it from
+      # `apps/auth/shell` as its Root Directory, and deploying from the
+      # repository root is what gives that command its workspace.
+      #
+      # `--prod` because this project's production deployment *is* staging's
+      # auth origin — `auth.staging.app.kithena.com` is assigned to it. A
+      # preview deploy would build the change and alias it nowhere.
+      - name: deploy auth
+        id: auth
+        env:
+          VERCEL_PROJECT_ID: prj_SGKR5ItEN1XaYgorCPRNBYQxuHqM
+        run: |
+          # `pipefail`, because this pipes into `tail`: without it the status
+          # reported is `tail`'s, so a deploy that failed exits 0 here and
+          # hands an empty URL to everything downstream.
+          set -o pipefail
+          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Auth origin staging: $url"
+
+      # The sign-in page itself, which must render before anybody can use it,
+      # and the handoff route that finishes a sign-in. Both unauthenticated: one
+      # is a public page, the other answers 400 to an empty body and says
+      # nothing about whether any session exists.
+      - name: smoke test auth
+        run: |
+          code="$(curl -fsS --retry 5 --retry-delay 4 --retry-all-errors \
+            --output /dev/null --write-out '%{http_code}' \
+            'https://auth.staging.app.kithena.com/login?tenant=acme')"
+          echo "auth.staging login answered $code"
+
+          handoff="$(curl -sS --retry 3 --retry-delay 4 --retry-all-errors \
+            --output /dev/null --write-out '%{http_code}' \
+            -X POST -H 'content-type: application/json' -d '{}' \
+            'https://auth.staging.app.kithena.com/api/auth/handoff')"
+          echo "auth.staging handoff answered $handoff"
+          # 401 is the correct answer to a request with no session cookie. A 404
+          # means the deploy did not carry this release's routes at all, which
+          # is exactly the staleness this step exists to catch.
+          if [ "$handoff" = "404" ]; then
+            echo "::error::the auth origin is missing /api/auth/handoff"
+            exit 1
+          fi
+
       # `admin.kithena.com` is not under `app.kithena.com`, so a browser will
       # not offer an employee's passkey here and will not offer an operator's
       # there. That isolation is free and it is the main reason this is a
