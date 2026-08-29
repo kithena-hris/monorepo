@@ -70,7 +70,10 @@ afterEach(() => {
 describe('the identity proxy', () => {
   it('turns a session id into a cookie and takes it out of the body', async () => {
     upstream({ sessionId: 's3cr3t-session', accountId: 'acct-1' });
-    const { c, captured } = context('/api/identity/session', 'POST');
+    // The ceremony's finish, which is the response that actually carries a
+    // session id. `/api/identity/session` is the tenant app's server-to-server
+    // check and is not reachable from a browser at all — see the allowlist.
+    const { c, captured } = context('/api/identity/webauthn/authenticate/finish', 'POST');
 
     await identityProxy(c, () => Promise.resolve());
 
@@ -86,7 +89,7 @@ describe('the identity proxy', () => {
 
   it('sets the flags that make the cookie worth setting', async () => {
     upstream({ sessionId: 'abc' });
-    const { c, captured } = context('/api/identity/session', 'POST');
+    const { c, captured } = context('/api/identity/webauthn/authenticate/finish', 'POST');
 
     await identityProxy(c, () => Promise.resolve());
     const cookie = captured.headers.find(([name]) => name === 'set-cookie')?.[1] ?? '';
@@ -183,5 +186,95 @@ describe('the identity proxy', () => {
 
     expect(captured.json?.status).toBe(502);
     expect(JSON.stringify(captured.json?.body)).not.toContain('localhost');
+  });
+});
+
+/*
+ * The proxy forwards with a service token attached, so what it is willing to
+ * forward *is* the public API of the internal one.
+ *
+ * It used to forward everything under `/api/identity/`. That published the whole
+ * internal surface to the internet with credentials this server supplied:
+ * `admin/tenants` listed every customer and the work email of every account at
+ * any of them, and a `POST` to `admin/tenants/<id>/invitations` minted an
+ * enrolment token for an address of the caller's choosing — account takeover at
+ * any tenant, from a browser, with no session.
+ *
+ * These are the tests that keep it an allowlist. A prefix grows silently every
+ * time identity gains a route; a list does not.
+ */
+describe('the identity proxy, on what it will not forward', () => {
+  const forbidden: [string, string][] = [
+    ['/api/identity/admin/tenants', 'GET'],
+    ['/api/identity/admin/tenants/4f59e318-7e25-4e3b-865a-dc813866ef52', 'GET'],
+    ['/api/identity/admin/tenants/4f59e318-7e25-4e3b-865a-dc813866ef52/invitations', 'POST'],
+    ['/api/identity/admin/tenants/4f59e318-7e25-4e3b-865a-dc813866ef52', 'PATCH'],
+    ['/api/identity/handoff/issue', 'POST'],
+    ['/api/identity/handoff/redeem', 'POST'],
+    ['/api/identity/session', 'POST'],
+    ['/api/identity/session/revoke', 'POST'],
+    ['/api/identity/operator/begin', 'POST'],
+    ['/api/identity/operator/session', 'POST'],
+  ];
+
+  it.each(forbidden)('refuses %s %s without calling identity', async (path, method) => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const { c, captured } = context(path, method);
+
+    await identityProxy(c, () => Promise.resolve());
+
+    expect(captured.json?.status).toBe(404);
+    // The refusal must happen *before* the request, or the token has already
+    // been spent on it and only the response is being withheld.
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still forwards the five routes the sign-in pages actually use', async () => {
+    const allowed: [string, string][] = [
+      ['/api/identity/tenant/acme', 'GET'],
+      ['/api/identity/webauthn/authenticate/begin', 'POST'],
+      ['/api/identity/webauthn/authenticate/finish', 'POST'],
+      ['/api/identity/webauthn/register/begin', 'POST'],
+      ['/api/identity/webauthn/register/finish', 'POST'],
+    ];
+
+    for (const [path, method] of allowed) {
+      upstream({ ok: true });
+      const { c, captured } = context(path, method);
+      await identityProxy(c, () => Promise.resolve());
+      expect(captured.json?.status, `${method} ${path}`).toBe(200);
+    }
+  });
+
+  /*
+   * The method is part of the rule. A route that gains a `DELETE` upstream must
+   * not gain one here just because its path is on the list.
+   */
+  it('refuses an allowed path on a method it does not allow', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const { c, captured } = context('/api/identity/tenant/acme', 'DELETE');
+
+    await identityProxy(c, () => Promise.resolve());
+
+    expect(captured.json?.status).toBe(404);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The slug is matched, not trusted. Without that, the one parameterised route
+   * is a way to walk into every route beside it.
+   */
+  it('refuses a tenant slug that tries to leave its segment', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    for (const slug of ['../admin/tenants', 'acme/../../admin/tenants', 'ACME', 'a'.repeat(64)]) {
+      const { c, captured } = context(`/api/identity/tenant/${slug}`, 'GET');
+      await identityProxy(c, () => Promise.resolve());
+      expect(captured.json?.status, slug).toBe(404);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
