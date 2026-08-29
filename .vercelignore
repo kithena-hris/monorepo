@@ -1,0 +1,38 @@
+# What not to upload to Vercel.
+#
+# `vercel deploy --archive=tgz` packs the working directory, and without this it
+# packed all of it: 1.2 GB per deploy against 4.7 MB of actual source. None of
+# the difference was ever used — Vercel runs `pnpm install` and builds from
+# source on its side, so every byte of `node_modules` and every prebuilt `.next`
+# was uploaded, ignored, and thrown away.
+#
+# Six projects deploy on every green pipeline, so that waste was paid six times
+# a merge. It is also why deploys took minutes and why the Hobby plan's daily
+# deploy limit hurt as much as it did.
+#
+# This file is not `.gitignore`. A deploy needs things git does not track (an
+# untracked `.env.production` on a machine that has one) and must not need
+# things git does track. Keeping them separate means neither surprises the
+# other.
+
+# Reinstalled by Vercel from the lockfile. The largest single entry by far.
+node_modules
+
+# Build output, rebuilt by Vercel. Uploading it neither speeds the build up nor
+# gets used — and a stale local build being present is worse than absent,
+# because it looks like it might be what shipped.
+.next
+.turbo
+dist
+.vercel/output
+storybook-static
+
+# History. Vercel builds a snapshot, not a repository.
+.git
+
+# Local noise.
+*.log
+coverage
+test-results
+playwright-report
+.DS_Store
