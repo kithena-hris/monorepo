@@ -1,38 +1,49 @@
 import { themePreset } from '@kithena/contracts';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Alert, Button, Spinner, brandRamp } from '@reach/ui';
-import { useCallback, useEffect, useState, type JSX } from 'react';
+import {
+  Alert,
+  Button,
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  Input,
+  Spinner,
+  brandRamp,
+} from '@reach/ui';
+import { useCallback, useEffect, useState, type FormEvent, type JSX } from 'react';
 
 import { CompanyPanel } from '../../components/company-panel';
 import { resolveTenant, type Tenant } from '../../lib/tenant';
 
 /**
- * Signing in with a passkey, on the auth origin, branded as the company's.
+ * Signing in, from one address for everybody.
  *
- * The whole ceremony happens here — this page is the sign-in page and does not
- * bounce anybody anywhere to reach one. What it cannot do is *finish*, and the
- * reason is a browser rule rather than a design choice: the session cookie is
- * `__Host-` prefixed, which forbids a `Domain` attribute, so only
- * `acme.app.kithena.com` can ever be sent it and this origin is not that host.
+ * This page used to require the company in its URL, so a person had to know a
+ * hostname before they could sign in and a shared machine served only whoever
+ * knew the right link. The work address does that job now: typed here, sent
+ * with the assertion, and used by identity to narrow the verified passkey to
+ * the one account it names. `chooseAccount` holds the rule.
  *
- * So the last step is a redirect carrying a one-time code — 60 seconds, single
- * use, hashed at rest, bound to the company that may spend it. The tenant app
- * exchanges it for the session over a back channel the browser is not part of
- * and sets its own cookie. `docs/authentication.md` specifies the handoff; the
- * migration for `platform.handoff_code` records why it is not PKCE.
+ * **The address is not a username and does not gate the prompt.** No
+ * `allowCredentials` is sent — a recorded decision in
+ * `simplewebauthn-relying-party.ts`, because a per-address credential list is
+ * an enumeration oracle for anybody who can type an address. The browser offers
+ * whichever passkeys the device holds, exactly as before; the address only
+ * decides which of that person's jobs this sign-in is for. A wrong address is
+ * refused the same way a wrong passkey is.
  *
- * There is no success state on this screen. Ending here with a banner saying
- * "signed in" would report the mechanism and leave the person exactly where
- * they started; the only visible outcome of signing in is their dashboard.
+ * `?tenant=acme` still works and is still branded. That path names the company,
+ * shows its mark and its colour, and needs no address — it is where an
+ * enrolment email sends somebody, and removing it would break every link
+ * already in the world.
  */
 
-/**
- * Where a company's own app lives. `{slug}` is substituted with its label.
- *
- * Inlined at build time — Modern.js exposes `MODERN_`-prefixed variables to the
- * browser, the same convention Next uses for `NEXT_PUBLIC_`.
- */
+/** Where a company's own app lives. `{slug}` is substituted with its label. */
 const TENANT_APP_BASE = process.env['MODERN_TENANT_APP_BASE'] ?? '';
+
+/** Shape only, and only to save a wasted prompt. Existence is identity's answer. */
+const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 type State =
   | { readonly kind: 'idle' }
@@ -44,177 +55,177 @@ type State =
 export default function Login(): JSX.Element {
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [email, setEmail] = useState('');
+  const [emailProblem, setEmailProblem] = useState<string | null>(null);
 
   /*
-   * The company, looked up as the page mounts.
+   * The company, when the URL named one.
    *
-   * Not on the server: on one shared origin there is no hostname to resolve
-   * from — see `lib/tenant.ts`. The panel arrives a moment after the form,
-   * which is why the first paint is deliberately unbranded rather than briefly
-   * branded as somebody else.
+   * Absent on the generic page, and that is the whole difference between the
+   * two: there is nothing to brand until a passkey has said who this is, and
+   * guessing from a half-typed address would flash one customer's colours at
+   * somebody who works for another.
    */
+  const named = new URLSearchParams(
+    typeof window === 'undefined' ? '' : window.location.search,
+  ).get('tenant');
+
   useEffect(() => {
-    const slug = new URLSearchParams(window.location.search).get('tenant') ?? '';
-    void resolveTenant(slug).then(setTenant);
-  }, []);
+    if (named === null || named === '') return;
+    void resolveTenant(named).then(setTenant);
+  }, [named]);
 
-  const signIn = useCallback(async () => {
-    setState({ kind: 'working' });
+  const signIn = useCallback(
+    async (event?: FormEvent) => {
+      event?.preventDefault();
 
-    // The company's name, not its id. Resolved through the registry, so a
-    // reserved label or a suspended customer is refused here rather than
-    // producing a lookup that quietly finds nothing later.
-    const resolved =
-      tenant ??
-      (await resolveTenant(new URLSearchParams(window.location.search).get('tenant') ?? ''));
-    if (resolved === null) {
-      setState({ kind: 'refused' });
-      return;
-    }
+      if (named === null && !LOOKS_LIKE_EMAIL.test(email.trim())) {
+        setEmailProblem('Enter the work address you were invited with.');
+        return;
+      }
+      setEmailProblem(null);
+      setState({ kind: 'working' });
 
-    if (TENANT_APP_BASE === '') {
-      // Checked before the prompt, not after. Asking somebody for a passkey and
-      // then discovering there is nowhere to send them spends a real
-      // interaction on a failure that was knowable beforehand.
-      setState({ kind: 'misconfigured' });
-      return;
-    }
-
-    try {
-      const begun = (await post('/api/identity/webauthn/authenticate/begin', {})) as {
-        options?: unknown;
-      };
-      if (!begun.options) {
-        setState({ kind: 'refused' });
+      if (TENANT_APP_BASE === '') {
+        // Checked before the prompt. Asking for a passkey and then finding
+        // there is nowhere to send somebody spends a real interaction on a
+        // failure that was knowable beforehand.
+        setState({ kind: 'misconfigured' });
         return;
       }
 
-      // The browser prompt. Everything before this is arrangement; this is the
-      // only moment a human is asked for anything.
-      const assertion = await startAuthentication({ optionsJSON: begun.options as never });
+      try {
+        const begun = (await post('/api/identity/webauthn/authenticate/begin', {})) as {
+          options?: unknown;
+        };
+        if (!begun.options) {
+          setState({ kind: 'refused' });
+          return;
+        }
 
-      const finished = (await post('/api/identity/webauthn/authenticate/finish', {
-        tenantId: resolved.id,
-        origin: window.location.origin,
-        response: assertion,
-        // No address. A browser cannot see its own, and inventing a placeholder
-        // is what once put the literal 'unknown' into an `inet` column.
-        // Whatever terminates the connection supplies it, or nothing does.
-        device: { userAgent: navigator.userAgent },
-      })) as { accountId?: string } | null;
+        // The browser prompt. Everything before this is arrangement; this is
+        // the only moment a human is asked for anything.
+        const assertion = await startAuthentication({ optionsJSON: begun.options as never });
 
-      if (finished?.accountId === undefined) {
+        const finished = (await post('/api/identity/webauthn/authenticate/finish', {
+          // One or the other. The branded page names a company; the generic one
+          // sends the typed address and lets identity find it.
+          ...(named === null ? { workEmail: email.trim() } : { tenantId: tenant?.id }),
+          origin: window.location.origin,
+          response: assertion,
+          // No network address. A browser cannot see its own, and inventing a
+          // placeholder is what once put the literal 'unknown' into an `inet`
+          // column. Whatever terminates the connection supplies one or nothing.
+          device: { userAgent: navigator.userAgent },
+        })) as { accountId?: string; tenantId?: string; tenantSlug?: string } | null;
+
+        if (finished?.tenantSlug === undefined || finished.tenantId === undefined) {
+          setState({ kind: 'refused' });
+          return;
+        }
+
+        /*
+         * The session id is not here, deliberately. `server/modern.server.ts`
+         * takes it out of the response and puts it in an `HttpOnly` cookie, so
+         * this page never holds one — the handoff is minted by that server from
+         * its own cookie.
+         */
+        const handed = (await post('/api/auth/handoff', {
+          tenantId: finished.tenantId,
+        })) as { code?: string } | null;
+
+        if (handed?.code === undefined) {
+          setState({ kind: 'refused' });
+          return;
+        }
+
+        setState({ kind: 'leaving' });
+        // `replace`, not `assign`: Back from the dashboard should leave, not
+        // return to a sign-in page holding a code that has been spent.
+        window.location.replace(
+          `${TENANT_APP_BASE.replace('{slug}', finished.tenantSlug)}/auth/callback?code=${encodeURIComponent(handed.code)}`,
+        );
+      } catch {
+        // A cancelled prompt throws, and so does a refusal. They are the same
+        // outcome here: nothing happened, try again.
         setState({ kind: 'refused' });
-        return;
       }
+    },
+    [email, named, tenant],
+  );
 
-      /*
-       * The session id is not here, and that is on purpose.
-       *
-       * `server/modern.server.ts` strips it from the response and puts it in an
-       * `HttpOnly` cookie on this origin, so this page never holds it. The
-       * handoff is therefore minted by that server from its own cookie — this
-       * only says which company, and gets back a code.
-       */
-      const handed = (await post('/api/auth/handoff', {
-        tenantId: resolved.id,
-      })) as { code?: string } | null;
-
-      if (handed?.code === undefined) {
-        setState({ kind: 'refused' });
-        return;
-      }
-
-      setState({ kind: 'leaving' });
-      // `replace`, not `assign`: Back from the dashboard should leave, not
-      // return to a sign-in page holding a code that has already been spent.
-      window.location.replace(
-        `${TENANT_APP_BASE.replace('{slug}', resolved.slug)}/auth/callback?code=${encodeURIComponent(handed.code)}`,
-      );
-    } catch {
-      // A cancelled prompt throws, and so does a refusal. They are the same
-      // outcome to this screen: nothing happened, try again.
-      setState({ kind: 'refused' });
-    }
-  }, [tenant]);
-
-  const themeId = tenant?.branding.themeId ?? null;
-
-  /*
-   * The company's ramp, written onto `<html>`.
-   *
-   * Imperatively, and it has to be here rather than as a `style` prop on the
-   * div below. `brandRamp` documents why at length: `--reach-color-accent` is
-   * declared as `var(--reach-brand-600)` **on `:root`**, and a `var()` is
-   * substituted where the declaration lives — so a ramp set on any descendant
-   * changes a variable nothing consults again, and the visible result is a
-   * themed page whose buttons are still the default hue. That is exactly what
-   * this page did until it was looked at in a browser.
-   *
-   * Next puts this on `<html>` in a server-rendered layout. This app resolves
-   * its tenant in the browser, so there is no server render that knows the
-   * company — which leaves the document element and an effect.
-   */
-  useEffect(() => {
-    const preset = themeId === null ? undefined : themePreset(themeId);
-    if (!preset) return;
-
-    const root = document.documentElement;
-    const ramp = brandRamp(preset.hue) as Record<string, string>;
-    for (const [name, value] of Object.entries(ramp)) root.style.setProperty(name, value);
-
-    // Removed on the way out. The auth origin serves more than one company and
-    // a ramp left behind is the previous customer's colour on the next one's
-    // screen.
-    return () => {
-      for (const name of Object.keys(ramp)) root.style.removeProperty(name);
-    };
-  }, [themeId]);
+  const preset =
+    tenant?.branding.themeId == null ? undefined : themePreset(tenant.branding.themeId);
+  const busy = state.kind === 'working' || state.kind === 'leaving';
 
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
+    <div
+      className="flex min-h-dvh flex-col md:flex-row"
+      style={preset ? brandRamp(preset.hue) : undefined}
+    >
       <CompanyPanel tenant={tenant} />
 
       <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
         <div>
           <h1 className="text-xl font-semibold">Sign in</h1>
           <p className="text-fg-muted mt-1 text-sm">
-            Use the passkey on this device. There is no password to remember.
+            {named === null
+              ? 'Your work address tells us which company. Your passkey does the rest.'
+              : 'Use the passkey on this device. There is no password to remember.'}
           </p>
         </div>
 
-        <Button
-          // `primary`, not the default. `Button` defaults to `secondary`, a
-          // white fill with a border — right beside another button, wrong as
-          // the only action on the page, where it made a themed page look
-          // unthemed.
-          variant="primary"
-          onClick={() => void signIn()}
-          disabled={state.kind === 'working' || state.kind === 'leaving'}
-        >
-          {state.kind === 'working' ? 'Waiting for your device…' : 'Sign in with a passkey'}
-        </Button>
+        {/*
+          A real form, so Enter submits and a password manager can fill the
+          address. `onSubmit` rather than a click handler is what makes the
+          keyboard path work without a second implementation of it.
+        */}
+        <form onSubmit={(event) => void signIn(event)} className="flex flex-col gap-5">
+          {named === null ? (
+            <Field invalid={emailProblem !== null}>
+              <FieldLabel htmlFor="workEmail">Work email address</FieldLabel>
+              <Input
+                id="workEmail"
+                name="workEmail"
+                type="email"
+                value={email}
+                disabled={busy}
+                required
+                // `username webauthn` is what lets a password manager offer the
+                // right passkey against the right address on a shared device.
+                autoComplete="username webauthn"
+                placeholder="you@yourcompany.com"
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  if (emailProblem !== null) setEmailProblem(null);
+                }}
+              />
+              <FieldDescription>The address your HR team invited you with.</FieldDescription>
+              <FieldError>{emailProblem}</FieldError>
+            </Field>
+          ) : null}
+
+          <Button type="submit" variant="primary" disabled={busy}>
+            {state.kind === 'working' ? 'Waiting for your device…' : 'Sign in with a passkey'}
+          </Button>
+        </form>
 
         {state.kind === 'leaving' ? <Spinner label="Taking you to your dashboard" /> : null}
 
         {state.kind === 'refused' ? (
           /*
-           * One message for every failure, unlike enrolment.
-           *
-           * Anyone can present a passkey here, so distinguishing "wrong
-           * passkey" from "no account at this company" would answer a question
-           * that is not the asker's to ask. The precise reason is in the
-           * identity service's log, where the person who can act on it looks.
+           * One message for every failure. Anybody can present a passkey and
+           * type any address, so separating "wrong passkey" from "no account
+           * under that address" would answer a question that is not the
+           * asker's to ask. The precise reason is in identity's log.
            */
           <Alert tone="danger" title="That did not work">
-            Check you are signing in to the right company, or ask your HR team for a new enrolment
-            link.
+            Check the address, and that you are using the passkey you set up. If you have not set
+            one up yet, use the link your HR team sent you.
           </Alert>
         ) : null}
 
         {state.kind === 'misconfigured' ? (
-          // Configuration, not a user error, and said plainly rather than
-          // dressed up as one — whoever reads this needs the variable name.
           <Alert tone="warning" title="Nowhere to send you">
             <code>MODERN_TENANT_APP_BASE</code> is not set on this deployment, so this page cannot
             work out your company’s address.

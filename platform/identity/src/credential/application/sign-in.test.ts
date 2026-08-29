@@ -26,7 +26,15 @@ function deps(over: Partial<SignInDeps> = {}): SignInDeps & { refusals: string[]
   return {
     refusals,
     verify: () => Promise.resolve(ok(credential)),
-    activeAccountFor: () => Promise.resolve(started.accountId),
+    accountsFor: () =>
+      Promise.resolve([
+        {
+          accountId: started.accountId,
+          tenantId: request.tenantId,
+          tenantSlug: 'acme',
+          workEmail: 'ada.lovelace@acme.example',
+        },
+      ]),
     beginSession: () => Promise.resolve(ok(started)),
     onRefusal: (reason) => refusals.push(reason),
     ...over,
@@ -52,7 +60,7 @@ describe('signIn', () => {
   it('refuses a valid passkey with no account at this company', async () => {
     // Commissioning, enforced. A perfectly valid passkey belonging to somebody
     // this customer has never hired gets a refusal, not an account.
-    const d = deps({ activeAccountFor: () => Promise.resolve(null) });
+    const d = deps({ accountsFor: () => Promise.resolve([]) });
 
     expect((await signIn(d)(request)).ok).toBe(false);
     expect(d.refusals).toEqual(['no-account']);
@@ -64,9 +72,9 @@ describe('signIn', () => {
     let asked = 0;
     const d = deps({
       verify: () => Promise.resolve(err(failure('AUTHENTICATION_FAILED', 'no'))),
-      activeAccountFor: () => {
+      accountsFor: () => {
         asked += 1;
-        return Promise.resolve(started.accountId);
+        return Promise.resolve([]);
       },
     });
 
@@ -80,7 +88,7 @@ describe('signIn', () => {
     const badKey = deps({
       verify: () => Promise.resolve(err(failure('AUTHENTICATION_FAILED', 'no'))),
     });
-    const noAccount = deps({ activeAccountFor: () => Promise.resolve(null) });
+    const noAccount = deps({ accountsFor: () => Promise.resolve([]) });
 
     const a = await signIn(badKey)(request);
     const b = await signIn(noAccount)(request);

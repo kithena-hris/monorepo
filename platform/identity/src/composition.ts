@@ -9,7 +9,6 @@ import { logger } from '@kithena/telemetry';
 import { startSession } from './account/application/start-session.js';
 import {
   drizzleAccountRepository,
-  findActiveAccountForIdentity,
   loadSession,
   workEmailOf,
 } from './account/infrastructure/drizzle-account-repository.js';
@@ -487,8 +486,28 @@ export async function compose(config: Config): Promise<RequestHandler> {
           logger.info({ reason }, 'passkey refused');
         },
       }),
-      activeAccountFor: (tenantId, identityId) =>
-        inTenantTransaction(tenantId, (tx) => findActiveAccountForIdentity(tx, identityId)),
+      /*
+       * Every company this person may sign into, across tenants.
+       *
+       * Through `platform.accounts_for_identity`, a SECURITY DEFINER function,
+       * because `platform.account` carries FORCE row-level security and this is
+       * the one question that legitimately spans tenants — asked before any
+       * tenant is known, which is exactly when there is no `app.tenant_id` for
+       * a policy to compare against. The migration explains why that is a
+       * function rather than a privilege on the service role.
+       */
+      accountsFor: async (identityId) => {
+        const rows = await db.execute(sql`
+          SELECT account_id, tenant_id, tenant_slug, work_email
+            FROM platform.accounts_for_identity(${identityId}::uuid)
+        `);
+        return [...rows].map((row) => ({
+          accountId: text(row['account_id']),
+          tenantId: text(row['tenant_id']),
+          tenantSlug: text(row['tenant_slug']),
+          workEmail: text(row['work_email']),
+        }));
+      },
       beginSession: async (tenantId, accountId, device, amr) => {
         const sessionId = uuidv7();
         const started = await begin(

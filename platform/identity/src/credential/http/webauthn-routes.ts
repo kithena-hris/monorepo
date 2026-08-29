@@ -78,12 +78,31 @@ export function webauthnRoutes({
 
     const input = body as {
       tenantId?: unknown;
+      workEmail?: unknown;
       origin?: unknown;
       response?: unknown;
       device?: unknown;
     };
 
-    if (typeof input.tenantId !== 'string' || typeof input.origin !== 'string') {
+    /*
+     * The tenant is optional now, and the address is the other way of saying
+     * which account this is. One of the two has to be present: without either,
+     * a valid passkey held by somebody with jobs at three companies has no
+     * answer, and picking one for them is how you sign a person into the wrong
+     * employer.
+     *
+     * Both are *narrowing*, never authorisation — `chooseAccount` only ever
+     * removes candidates the verified passkey already produced, so neither can
+     * be used to reach an account the passkey does not hold.
+     */
+    const tenantId = typeof input.tenantId === 'string' && input.tenantId !== ''
+      ? input.tenantId
+      : undefined;
+    const workEmail = typeof input.workEmail === 'string' && input.workEmail.trim() !== ''
+      ? input.workEmail
+      : undefined;
+
+    if (typeof input.origin !== 'string' || (tenantId === undefined && workEmail === undefined)) {
       response.writeHead(400).end();
       return true;
     }
@@ -96,7 +115,8 @@ export function webauthnRoutes({
     }
 
     const result = await signIn({
-      tenantId: input.tenantId,
+      ...(tenantId === undefined ? {} : { tenantId }),
+      ...(workEmail === undefined ? {} : { workEmail }),
       response: input.response,
       origin: input.origin,
       challenge,

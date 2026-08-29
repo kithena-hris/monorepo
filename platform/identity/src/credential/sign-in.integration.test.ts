@@ -10,7 +10,6 @@ import { startPostgres, startValkey } from '@kithena/testing';
 import { startSession } from '../account/application/start-session.js';
 import {
   drizzleAccountRepository,
-  findActiveAccountForIdentity,
 } from '../account/infrastructure/drizzle-account-repository.js';
 import { uuidv7 } from '../shared/uuid.js';
 import { signIn } from './application/sign-in.js';
@@ -126,8 +125,21 @@ function subject(refusals: string[] = []) {
       policyFor: () => Promise.resolve(defaultCredentialPolicy),
       onRefusal: (reason) => refusals.push(reason),
     }),
-    activeAccountFor: (tenantId, identityId) =>
-      inTenantTransaction(tenantId, (tx) => findActiveAccountForIdentity(tx, identityId)),
+    // The same cross-tenant lookup the service uses. Exercised here rather
+    // than stubbed, because the SECURITY DEFINER function is the half that
+    // row-level security would otherwise silently return nothing from.
+    accountsFor: async (identityId) => {
+      const rows = await db.execute(sql`
+        SELECT account_id, tenant_id, tenant_slug, work_email
+          FROM platform.accounts_for_identity(${identityId}::uuid)
+      `);
+      return [...rows].map((row) => ({
+        accountId: String(row['account_id']),
+        tenantId: String(row['tenant_id']),
+        tenantSlug: String(row['tenant_slug']),
+        workEmail: String(row['work_email']),
+      }));
+    },
     beginSession: async (tenantId, accountId, device, amr) => {
       const sessionId = uuidv7();
       const result = await begin(
