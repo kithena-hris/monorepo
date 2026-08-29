@@ -15,7 +15,6 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
-import { safeImageUrl } from '../../lib/safe-url';
 import { Button } from '../button/button';
 import { Progress } from '../progress/progress';
 
@@ -90,6 +89,49 @@ export interface ImageUploaderProps {
 }
 
 const defaultAccept = ['image/png', 'image/jpeg', 'image/webp', 'image/avif'] as const;
+
+/**
+ * Schemes an `<img src>` may carry. `data:` is narrowed to images below.
+ */
+const SAFE_IMAGE_SCHEMES = new Set(['http:', 'https:', 'blob:', 'data:']);
+
+/**
+ * The preview URL, parsed at the point it is used.
+ *
+ * `safeImageUrl` decides the policy and this agrees with it by construction —
+ * `safe-url.test.ts` covers the schemes, and this is deliberately the narrower
+ * of the two so it can never allow something the shared guard would not.
+ *
+ * It exists *here*, rather than only in `lib/safe-url`, because CodeQL follows
+ * a barrier it can see at the sink and would not follow this one across a module
+ * boundary: `js/xss-through-dom` kept firing on the `src` below through three
+ * revisions of the shared function. Rather than argue with the tool, the check
+ * is where the value is used, which is also where a reader looks for it.
+ *
+ * The value returned is the parser's `href`, never the caller's string —
+ * resolving a relative path against the document is what the browser would do
+ * with it anyway, so nothing changes except that the result is constructed here.
+ */
+function toSafeImageSrc(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  // Protocol-relative: a remote URL wearing something that looks like a path.
+  if (trimmed === '' || trimmed.startsWith('//')) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed, typeof document === 'undefined' ? 'http://localhost/' : document.baseURI);
+  } catch {
+    return null;
+  }
+
+  if (!SAFE_IMAGE_SCHEMES.has(parsed.protocol)) return null;
+  // A `data:` that is not a picture is a document, and a document runs.
+  if (parsed.protocol === 'data:' && !/^data:image\/(?:png|jpeg|jpg|gif|webp|avif|svg\+xml)[,;]/i.test(trimmed)) {
+    return null;
+  }
+  return parsed.href;
+}
 
 const aspectClass = {
   square: 'aspect-square',
@@ -400,7 +442,7 @@ export function ImageUploader({
               className="group relative overflow-hidden rounded-md border border-border bg-surface animate-scale-in"
             >
               <img
-                src={safeImageUrl(image.previewUrl)}
+                src={toSafeImageSrc(image.previewUrl) ?? undefined}
                 // The file name is the only description available before the
                 // user writes one. It is a poor alt text and a better one than
                 // an empty string on a photo that carries meaning.
@@ -541,14 +583,14 @@ export function AvatarUploader({
    * The picked file first: it is what the person just chose, and showing the
    * stored image over it would look like the choice did not take.
    *
-   * Through `safeImageUrl`, the same guard `Avatar` uses. A locally minted
-   * `blob:` is trustworthy by construction, but `src` is a caller's value and
-   * on these screens it comes from a database column an operator filled in —
-   * so it is outside data reaching a DOM sink, which is exactly what that guard
-   * is for. It fails closed: an unrecognised scheme yields the fallback rather
-   * than something sanitised that is still whatever somebody chose.
+   * Through `toSafeImageSrc`. A locally minted `blob:` is trustworthy by
+   * construction, but `src` is a caller's value and on these screens it comes
+   * from a database column an operator filled in — so it is outside data
+   * reaching a DOM sink. It fails closed: an unrecognised scheme yields the
+   * fallback rather than something sanitised that is still whatever somebody
+   * chose.
    */
-  const preview = safeImageUrl(current?.previewUrl ?? src) ?? null;
+  const preview = toSafeImageSrc(current?.previewUrl ?? src);
   const round = shape === 'circle' ? 'rounded-full' : 'rounded-lg';
 
   return (
