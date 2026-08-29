@@ -11,6 +11,6 @@
     "typecheck:authoritative": "tsc6 --noEmit"
   },
   "devDependencies": {
-    "wgc": "^0.80.0"
+    "wgc": "^0.130.0"
   }
 }
