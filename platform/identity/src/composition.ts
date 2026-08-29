@@ -535,6 +535,61 @@ export async function compose(config: Config): Promise<RequestHandler> {
     challenges,
     internalToken: config.internalToken,
     /*
+     * A read inside the tenant, because `platform.enrolment_token` carries
+     * row-level security and a token belonging to another customer must not be
+     * visible to match — the same reason `consume` runs there.
+     */
+    inspectToken: (tenantId, token) =>
+      inTenantTransaction(tenantId, (tx) =>
+        drizzleEnrolmentTokenStore(tx, tenantId).inspect(token),
+      ),
+    /*
+     * Replacing a passkey. The assertion check is the same one sign-in uses —
+     * literally the same function, so the bar for proving who you are cannot
+     * drift between the two.
+     */
+    verifyAssertion: signInWithPasskey({
+      rp: relyingParty,
+      challenges,
+      credentials: drizzleCredentialRepository(db),
+      origins: { rpId: config.rpId, authOrigin: config.authOrigin },
+      policyFor: () => Promise.resolve(defaultCredentialPolicy),
+      onRefusal: (reason) => {
+        logger.info({ reason }, 'passkey refused during replacement');
+      },
+    }),
+    credentialIdsOf: async (identityId) => {
+      const rows = await db.execute(sql`
+        SELECT external_id FROM platform.credential
+         WHERE identity_id = ${identityId}::uuid AND revoked_at IS NULL
+      `);
+      return [...rows].map((row) => text(row['external_id']));
+    },
+    storeCredential: async (identityId, cred) => {
+      // Not inside a tenant transaction: `platform.credential` belongs to the
+      // human rather than to a job, so it carries no tenant and no policy to
+      // enter one for. The same insert enrolment makes, on a connection that
+      // has already proved who this is.
+      const id = uuidv7();
+      await db.execute(sql`
+        INSERT INTO platform.credential
+          (id, identity_id, kind, external_id, provider, public_key, sign_count, backed_up)
+        VALUES (${id}::uuid, ${identityId}::uuid, 'passkey', ${cred.credentialId},
+                ${cred.aaguid}, ${Buffer.from(cred.publicKey)},
+                ${cred.signCount}, ${cred.backedUp})
+      `);
+      return id;
+    },
+    revokeOtherCredentials: async (identityId, keepCredentialId) => {
+      await db.execute(sql`
+        UPDATE platform.credential
+           SET revoked_at = now()
+         WHERE identity_id = ${identityId}::uuid
+           AND id <> ${keepCredentialId}::uuid
+           AND revoked_at IS NULL
+      `);
+    },
+    /*
      * Enrolment runs inside one tenant-scoped transaction from end to end.
      *
      * Spending the link, writing the credential and activating the account

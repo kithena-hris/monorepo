@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import type { EnrolmentTokenStore } from '../application/enrolment-token-store.js';
+import { enrolmentState } from '../domain/enrolment-state.js';
 import {
   ENROLMENT_TTL_SECONDS,
   hashEnrolmentToken,
@@ -68,6 +69,40 @@ export function drizzleEnrolmentTokenStore(
       // The token is returned once, in memory, and never read back. The row
       // holds the hash.
       return { token, expiresAt: asInstant(row.expiresAt) };
+    },
+
+    /*
+     * A read, and only a read.
+     *
+     * The page asks this before showing its button, so it must not have
+     * `consume`'s side effect — a check that spent the link would make opening
+     * the page the thing that invalidates it.
+     *
+     * Joined to the account because the useful answer is about the person, not
+     * the row: "you already have a passkey" and "that link was used and did not
+     * finish" are the same `consumed_at` and different things to be told.
+     * Row-level security scopes this to the tenant, so a token belonging to
+     * another customer is not visible to match.
+     */
+    async inspect(token) {
+      const rows = await tx.execute(sql`
+        SELECT e.expires_at, e.consumed_at, a.status AS account_status
+          FROM platform.enrolment_token e
+          JOIN platform.account a ON a.id = e.account_id
+         WHERE e.token_hash = ${hashEnrolmentToken(token)}
+      `);
+
+      const row = [...rows][0];
+      if (!row) return 'unknown';
+
+      return enrolmentState(
+        {
+          expiresAt: asInstant(String(row['expires_at'])),
+          consumedAt: row['consumed_at'] === null ? null : asInstant(String(row['consumed_at'])),
+          accountStatus: String(row['account_status']),
+        },
+        new Date(),
+      );
     },
 
     async consume(token) {
