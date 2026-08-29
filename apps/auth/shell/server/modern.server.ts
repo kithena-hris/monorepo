@@ -27,6 +27,49 @@ const PUBLIC_PREFIX = '/api/identity/';
 const INTERNAL_PREFIX = '/api/internal/';
 
 /**
+ * Exactly what a browser on this origin may reach, and nothing else.
+ *
+ * This used to forward *everything* under `/api/identity/` to the matching
+ * `/api/internal/` path with the service token attached. That is the entire
+ * internal API — `admin/tenants`, `handoff/issue`, `session/revoke`,
+ * `operator/*` — published to the internet with credentials supplied by this
+ * server. Unauthenticated callers could list every customer, read the work
+ * email of every account at any of them, and `POST` an invitation to mint an
+ * enrolment token for an address of their choosing, which is account takeover
+ * at any tenant.
+ *
+ * A prefix is not an allowlist. Adding a route to identity silently added it
+ * here, so the surface grew with every release and nothing in review looked
+ * like a change to this file. The five entries below are what
+ * `apps/auth/shell/src` actually calls; anything else is answered 404 without
+ * ever reaching identity.
+ *
+ * Methods are pinned too. `GET` on the registry, `POST` on the ceremonies —
+ * so a route that gains a `DELETE` upstream does not gain one here.
+ */
+const ALLOWED = new Map<string, 'GET' | 'POST'>([
+  ['webauthn/authenticate/begin', 'POST'],
+  ['webauthn/authenticate/finish', 'POST'],
+  ['webauthn/register/begin', 'POST'],
+  ['webauthn/register/finish', 'POST'],
+]);
+
+/**
+ * The one parameterised route: resolving a company by its label.
+ *
+ * The slug is matched rather than trusted, so `tenant/../admin/tenants` cannot
+ * walk out of the segment it is allowed to occupy. It mirrors `TenantSlug`:
+ * lowercase letters, digits and hyphens.
+ */
+const TENANT_ROUTE = /^tenant\/[a-z0-9-]{1,63}$/;
+
+function permitted(path: string, method: string): boolean {
+  const route = path.slice(PUBLIC_PREFIX.length);
+  if (TENANT_ROUTE.test(route)) return method === 'GET';
+  return ALLOWED.get(route) === method;
+}
+
+/**
  * The cookie the browser gets instead of the session id.
  *
  * `__Host-` is not decoration: a browser refuses the prefix unless the cookie
@@ -67,6 +110,14 @@ function carriesSession(value: unknown): value is { sessionId: string } {
 export const identityProxy: MiddlewareHandler = async (c, next) => {
   const path: string = c.req.path;
   if (!path.startsWith(PUBLIC_PREFIX)) return next();
+
+  if (!permitted(path, c.req.method)) {
+    // 404, not 403. This endpoint's existence is not something a caller needs
+    // confirmed, and an internal route that is deliberately unreachable from a
+    // browser should look like it is not there.
+    console.warn('[identity-proxy] refused', { path, method: c.req.method });
+    return c.json({ message: 'Not found.' }, 404);
+  }
 
   // Built against the identity base rather than by mutating the incoming URL:
   // reassigning `protocol` and `host` on a parsed URL is order-dependent and
