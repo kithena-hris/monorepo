@@ -80,6 +80,15 @@ export interface Config {
   readonly valkeyUrl?: string | undefined;
   readonly internalToken: string;
   readonly rpId: string;
+  /**
+   * Hosts an uploaded company image may be served from.
+   *
+   * Defaulted rather than required, because every deployment today uses Vercel
+   * Blob and a required value would be a required value nobody varies. It is
+   * configuration so that self-hosting the bucket is a variable rather than an
+   * edit to a domain rule and its tests — see `docs/self-hosting.md`.
+   */
+  readonly imageHosts?: readonly string[] | undefined;
   readonly authOrigin: string;
   readonly signingKey: string | undefined;
   readonly allowInsecureOrigins: boolean;
@@ -228,7 +237,21 @@ async function inviteCommissioned(
   return ok(issued);
 }
 
+/**
+ * Where a company's uploaded images are allowed to be served from.
+ *
+ * The default is the Blob host every deployment uses today, expressed as a
+ * suffix so it covers whichever bucket a store happens to get. It lives here
+ * rather than in the domain because it is a deployment fact: the rule is "ours
+ * or nothing", and this says which host is ours.
+ *
+ * Two entries are supported so a move between stores can overlap — allow both
+ * while URLs are rewritten, then drop the old one.
+ */
+const DEFAULT_IMAGE_HOSTS = ['.public.blob.vercel-storage.com'] as const;
+
 export async function compose(config: Config): Promise<RequestHandler> {
+  const images = { hosts: config.imageHosts ?? DEFAULT_IMAGE_HOSTS };
   /*
    * One connection per instance, and no prepared statements.
    *
@@ -894,6 +917,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
      * matters happened at the route, which requires the internal token.
      */
     amend: amendTenant({
+      images,
       write: async (tenantId, change) => {
         const rows = await db.execute(sql`
           UPDATE platform.tenant
@@ -916,6 +940,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
       },
     }),
     provision: provisionTenant({
+      images,
       authOrigin: config.authOrigin,
       ...(notifier === undefined ? {} : { notifier }),
       // The scope is built *inside* the transaction and every statement uses

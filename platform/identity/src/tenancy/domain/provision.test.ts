@@ -24,14 +24,16 @@ const request = (over: Partial<ProvisionRequest> = {}): ProvisionRequest => ({
   ...over,
 });
 
+const IMAGES = { hosts: ['.public.blob.vercel-storage.com'] };
+
 describe('checkProvisionable', () => {
   it('accepts a well-formed company', () => {
-    expect(checkProvisionable(request()).ok).toBe(true);
+    expect(checkProvisionable(request(), IMAGES).ok).toBe(true);
   });
 
   it('refuses a label that cannot be a hostname', () => {
     for (const slug of ['-acme', 'acme-', 'ACME', 'ac', 'a c m e', 'xn--pple-43d']) {
-      expect(checkProvisionable(request({ slug })).ok, slug).toBe(false);
+      expect(checkProvisionable(request({ slug }), IMAGES).ok, slug).toBe(false);
     }
   });
 
@@ -39,8 +41,8 @@ describe('checkProvisionable', () => {
     // Two different things to be told: "that cannot be a hostname" and "that
     // one is ours". A single message would send somebody looking for a typo in
     // a name that is perfectly well formed.
-    const malformed = checkProvisionable(request({ slug: '-acme' }));
-    const reserved = checkProvisionable(request({ slug: 'admin' }));
+    const malformed = checkProvisionable(request({ slug: '-acme' }), IMAGES);
+    const reserved = checkProvisionable(request({ slug: 'admin' }), IMAGES);
     if (malformed.ok || reserved.ok) throw new Error('both should refuse');
 
     expect(malformed.error.code).toBe('SLUG_MALFORMED');
@@ -49,7 +51,7 @@ describe('checkProvisionable', () => {
 
   it('refuses every reserved label, including the ones we serve from', () => {
     for (const slug of ['auth', 'login', 'admin', 'app', 'api', 'www']) {
-      expect(checkProvisionable(request({ slug })).ok, slug).toBe(false);
+      expect(checkProvisionable(request({ slug }), IMAGES).ok, slug).toBe(false);
     }
   });
 
@@ -57,8 +59,8 @@ describe('checkProvisionable', () => {
     // Was two until 2026-08-22. The rule is now one, at the product owner's
     // explicit instruction; docs/auth-administration.md records what that costs.
     // Zero is still refused: a company nobody can sign in to is not a company.
-    expect(checkProvisionable(request({ admins: [] })).ok).toBe(false);
-    expect(checkProvisionable(request({ admins: ['ada@acme.example'] })).ok).toBe(true);
+    expect(checkProvisionable(request({ admins: [] }), IMAGES).ok).toBe(false);
+    expect(checkProvisionable(request({ admins: ['ada@acme.example'] }), IMAGES).ok).toBe(true);
   });
 
   it('does not count the same person twice', () => {
@@ -67,6 +69,7 @@ describe('checkProvisionable', () => {
     // produce two invitations to one mailbox.
     const result = checkProvisionable(
       request({ admins: ['ada@acme.example', ' ADA@acme.example '] }),
+      IMAGES,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -76,6 +79,7 @@ describe('checkProvisionable', () => {
   it('normalises the addresses it accepts', () => {
     const result = checkProvisionable(
       request({ admins: [' Ada@Acme.example ', 'grace@acme.example', ''] }),
+      IMAGES,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -83,13 +87,16 @@ describe('checkProvisionable', () => {
   });
 
   it('refuses a company with no name', () => {
-    expect(checkProvisionable(request({ displayName: '   ' })).ok).toBe(false);
+    expect(checkProvisionable(request({ displayName: '   ' }), IMAGES).ok).toBe(false);
   });
 });
 
 describe('the registered address', () => {
   it('refuses an address whose postcode does not fit its country', () => {
-    const result = checkProvisionable(request({ address: { ...address, postcode: '99999' } }));
+    const result = checkProvisionable(
+      request({ address: { ...address, postcode: '99999' } }),
+      IMAGES,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('ADDRESS_INVALID');
@@ -98,19 +105,21 @@ describe('the registered address', () => {
   it('refuses a postcode that contradicts the province it names', () => {
     // 08 is Barcelona and 28013 is Madrid. Neither field is wrong alone, which
     // is why a per-field check would pass this.
-    expect(checkProvisionable(request({ address: { ...address, subdivision: '08' } })).ok).toBe(
-      false,
-    );
+    expect(
+      checkProvisionable(request({ address: { ...address, subdivision: '08' } }), IMAGES).ok,
+    ).toBe(false);
   });
 
   it('refuses a country whose rules nobody has verified', () => {
-    expect(checkProvisionable(request({ address: { ...address, country: 'ZZ' } })).ok).toBe(false);
+    expect(checkProvisionable(request({ address: { ...address, country: 'ZZ' } }), IMAGES).ok).toBe(
+      false,
+    );
   });
 
   it('carries the reason out to the field it belongs to', () => {
     // The wizard puts the message under one input, so a failure that cannot say
     // which field it came from would have to be shown against the whole step.
-    const result = checkProvisionable(request({ address: { ...address, city: '' } }));
+    const result = checkProvisionable(request({ address: { ...address, city: '' } }), IMAGES);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.path).toContain('address.city');
@@ -119,7 +128,7 @@ describe('the registered address', () => {
 
 describe('branding', () => {
   it('refuses a theme that is not one of ours', () => {
-    const result = checkProvisionable(request({ themeId: 'hotpink' }));
+    const result = checkProvisionable(request({ themeId: 'hotpink' }), IMAGES);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('THEME_UNKNOWN');
@@ -127,20 +136,22 @@ describe('branding', () => {
 
   it('accepts every preset the design system offers', () => {
     for (const preset of THEME_PRESETS) {
-      expect(checkProvisionable(request({ themeId: preset.id })).ok, preset.id).toBe(true);
+      expect(checkProvisionable(request({ themeId: preset.id }), IMAGES).ok, preset.id).toBe(true);
     }
   });
 
   it('treats both images as optional', () => {
-    expect(checkProvisionable(request({ logoUrl: null, coverImageUrl: null })).ok).toBe(true);
+    expect(checkProvisionable(request({ logoUrl: null, coverImageUrl: null }), IMAGES).ok).toBe(
+      true,
+    );
   });
 
   it('refuses an image that is not somewhere we put images', () => {
     // The uploader returns a blob URL. Anything else arriving here came from a
     // caller constructing the request by hand, and a stored off-site URL is a
     // customer's login page loading an image somebody else can swap.
-    expect(checkProvisionable(request({ logoUrl: 'https://evil.example/logo.png' })).ok).toBe(
-      false,
-    );
+    expect(
+      checkProvisionable(request({ logoUrl: 'https://evil.example/logo.png' }), IMAGES).ok,
+    ).toBe(false);
   });
 });

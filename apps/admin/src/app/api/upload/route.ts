@@ -1,6 +1,6 @@
-import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
+import { imageStore } from '../../../lib/image-store';
 import { currentOperator } from '../../../lib/session';
 
 /**
@@ -48,7 +48,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ message: 'That image is larger than 2 MB.' }, { status: 413 });
   }
 
-  if (!process.env['BLOB_READ_WRITE_TOKEN']) {
+  const store = imageStore();
+  if (store === null) {
     // Said plainly rather than surfacing as a stack trace from the SDK. This is
     // the first thing that breaks in an environment nobody configured, and the
     // operator reading it cannot fix it from the screen they are on.
@@ -58,14 +59,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const blob = await put(`companies/${kind}/${crypto.randomUUID()}`, file, {
-    access: 'public',
-    // The uploader chose the name; a company logo called `../../etc/passwd.png`
-    // is not a threat to Blob, but a random name means two customers uploading
-    // `logo.png` cannot collide either.
-    addRandomSuffix: false,
-    contentType: file.type,
-  });
+  // The uploader chose the filename; a company logo called `../../etc/passwd.png`
+  // is not a threat to object storage, but a random key means two customers
+  // uploading `logo.png` cannot collide either — and nobody picks the path.
+  const stored = await store.put(
+    `companies/${kind}/${crypto.randomUUID()}`,
+    file,
+    file.type,
+  );
 
-  return NextResponse.json({ url: blob.url });
+  return NextResponse.json({ url: stored.url });
 }

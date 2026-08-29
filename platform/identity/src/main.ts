@@ -54,6 +54,20 @@ const routes = await compose({
   ...(process.env['VALKEY_URL'] ? { valkeyUrl: process.env['VALKEY_URL'] } : {}),
   internalToken: required('INTERNAL_API_TOKEN'),
   rpId: process.env['WEBAUTHN_RP_ID'] ?? 'app.localhost',
+  /*
+   * Where a company's uploaded images may be served from, comma separated. An
+   * entry beginning with a dot is a suffix — `.public.blob.vercel-storage.com`
+   * covers every bucket. Absent, the Blob host every deployment uses today is
+   * assumed; `docs/self-hosting.md` says why this is configuration at all.
+   */
+  ...(process.env['IDENTITY_IMAGE_HOSTS']
+    ? {
+        imageHosts: process.env['IDENTITY_IMAGE_HOSTS']
+          .split(',')
+          .map((host) => host.trim())
+          .filter((host) => host !== ''),
+      }
+    : {}),
   adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',
   adminOrigin: process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001',
   authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',

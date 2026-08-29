@@ -2,6 +2,7 @@ import { ok, type Result } from '@kithena/domain-kit';
 import type { PostalAddress } from '@kithena/contracts';
 
 import { enrolmentLink } from '../domain/invitation.js';
+import type { ImageHostPolicy } from '../domain/image-host.js';
 import { checkProvisionable, type ProvisionRequest } from '../domain/provision.js';
 import { notDelivered, type Delivery, type InvitationNotifier } from './invitation-notifier.js';
 
@@ -114,6 +115,14 @@ export interface ProvisionScope {
 
 export interface ProvisionTenantDeps {
   readonly inTransaction: <T>(fn: (scope: ProvisionScope) => Promise<T>) => Promise<T>;
+  /**
+   * Hosts an uploaded image may be served from.
+   *
+   * Configuration rather than a literal in the rule: the rule is "ours or
+   * nothing", and which host is ours is a deployment decision. See
+   * `ImageHostPolicy`.
+   */
+  readonly images: ImageHostPolicy;
   /** Where enrolment happens. Always the auth origin, never a tenant host. */
   readonly authOrigin: string;
   /**
@@ -136,7 +145,7 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
     // Everything knowable without a query, first. Availability of the label is
     // not checked here on purpose: that is a unique index, and asking the
     // database before writing would be a check-then-act with a gap in it.
-    const checked = checkProvisionable(request);
+    const checked = checkProvisionable(request, deps.images);
     if (!checked.ok) return checked;
 
     const provisioned = await deps.inTransaction(async (scope) => {
