@@ -138,3 +138,110 @@ describe('authenticate', () => {
     expect(a.error).toEqual(b.error);
   });
 });
+
+/*
+ * The idle window has to move, or it is not an idle window.
+ *
+ * With `lastSeenAt` frozen at sign-in, the eight-hour idle limit behaves as an
+ * eight-hour absolute limit and somebody working through the day is signed out
+ * mid-afternoon. These are the tests that keep the two limits distinct.
+ */
+describe('authenticate, keeping somebody signed in', () => {
+  it('slides lastSeenAt once the session has been idle a while', async () => {
+    const touched: { id: string; at: string }[] = [];
+    const run = authenticate({
+      cache: fakeCache(),
+      load: () => Promise.resolve(session({ lastSeenAt: '2026-04-01T09:00:00.000Z' })),
+      clock,
+      touch: (_tenantId, id, at) => {
+        touched.push({ id, at });
+        return Promise.resolve();
+      },
+    });
+
+    const result = await run(TENANT, 'any');
+    expect(result.ok).toBe(true);
+    expect(touched).toHaveLength(1);
+    expect(touched[0]?.at).toBe('2026-04-01T10:00:00.000Z');
+    // The returned session carries the new value, so the caller is not handed a
+    // record it would immediately have to re-read to see the truth.
+    if (result.ok) expect(result.value.lastSeenAt).toBe('2026-04-01T10:00:00.000Z');
+  });
+
+  it('does not write on every request', async () => {
+    let touches = 0;
+    const run = authenticate({
+      cache: fakeCache(session({ lastSeenAt: '2026-04-01T09:59:00.000Z' })),
+      load: () => Promise.resolve(null),
+      clock,
+      touch: () => {
+        touches += 1;
+        return Promise.resolve();
+      },
+    });
+
+    // A minute of idleness is inside the five-minute threshold. A session read
+    // on every page, image and server action must not cost a write each time.
+    expect((await run(TENANT, 'any')).ok).toBe(true);
+    expect(touches).toBe(0);
+  });
+
+  /*
+   * The distinction that matters, and the one a sliding window usually gets
+   * wrong: activity extends the idle limit and must never extend the absolute
+   * one. Thirty days after signing in, a person signs in again.
+   */
+  it('never extends the absolute lifetime', async () => {
+    const run = authenticate({
+      cache: fakeCache(),
+      load: () =>
+        Promise.resolve(session({ expiresAt: '2026-05-01T09:00:00.000Z' })),
+      clock,
+      touch: () => Promise.resolve(),
+    });
+
+    const result = await run(TENANT, 'any');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value.expiresAt).toBe('2026-05-01T09:00:00.000Z');
+  });
+
+  it('refuses a session past its absolute lifetime however recently it was used', async () => {
+    let touches = 0;
+    const run = authenticate({
+      cache: fakeCache(),
+      load: () =>
+        Promise.resolve(
+          session({
+            // Used a moment ago, but a month and a day old.
+            lastSeenAt: '2026-04-01T09:59:59.000Z',
+            expiresAt: '2026-04-01T09:00:00.000Z',
+          }),
+        ),
+      clock,
+      touch: () => {
+        touches += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect((await run(TENANT, 'any')).ok).toBe(false);
+    // And is not resurrected by the request that discovered it.
+    expect(touches).toBe(0);
+  });
+
+  it('refuses a session idle past the timeout rather than sliding it', async () => {
+    let touches = 0;
+    const run = authenticate({
+      cache: fakeCache(),
+      load: () => Promise.resolve(session({ lastSeenAt: '2026-03-31T20:00:00.000Z' })),
+      clock,
+      touch: () => {
+        touches += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect((await run(TENANT, 'any')).ok).toBe(false);
+    expect(touches).toBe(0);
+  });
+});
