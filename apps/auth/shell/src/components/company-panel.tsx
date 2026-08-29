@@ -70,12 +70,20 @@ export function CompanyPanel({ tenant }: { tenant: Tenant | null }): JSX.Element
       )}
 
       {branding.logoUrl === null ? null : (
-        <img
+        // `Avatar`, not a bare `<img>`: `shape` and `fit` exist on it precisely
+        // so a company mark is framed without being cropped, and the design
+        // system owns the border and the fallback rather than three screens
+        // each having their own idea of both.
+        //
+        // The company name, not "logo". A screen reader announcing "logo" has
+        // told the listener nothing they could not already infer.
+        <Avatar
+          size="xl"
+          shape="rounded"
+          fit="contain"
           src={branding.logoUrl}
-          // The company name, not "logo". A screen reader announcing "logo" has
-          // told the listener nothing they could not already infer.
-          alt={branding.displayName ?? ''}
-          className="h-10 w-auto self-start object-contain"
+          name={branding.displayName ?? 'This company'}
+          className="bg-surface self-start"
         />
       )}
       {branding.displayName === null ? null : (
