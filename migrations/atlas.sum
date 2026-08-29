@@ -1,4 +1,4 @@
-h1:BJ/C+JcAmfGp5717Z7HNpmzvsJy4PjYbB6I5ELpB100=
+h1:e67CfpOZBU+48T9emFk6EOK0wbpT+H0DA3JG71mVj0A=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -8,3 +8,4 @@ h1:BJ/C+JcAmfGp5717Z7HNpmzvsJy4PjYbB6I5ELpB100=
 20260822180000_webauthn_challenge.sql h1:me6Stu3GDnW5+8fkTxBlQ1H7RAhUR2Ygz4N78jStmEQ=
 20260822200000_tenant_account_counts.sql h1:i2rBOAoc7ahlcqXmn+fqRluYE3qVEnDtek00bMKMMXY=
 20260824090000_messaging.sql h1:mMg9MNp/sP806cJfDz1MwQzx08wIDk++noP0MoXD9HM=
+20260828120000_handoff_code.sql h1:yLgnnXQMWiY+MxdtH+4ncpWX1L5NFvkgSI3/aRdLSs0=
