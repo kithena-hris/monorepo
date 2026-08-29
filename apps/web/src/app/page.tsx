@@ -33,18 +33,14 @@ export default async function Home(): Promise<JSX.Element> {
   const tenant = await currentTenant();
 
   /*
-   * Straight to the sign-in page, rather than a panel explaining that the
-   * handoff is unbuilt. It is built — see `app/auth/callback` for the half that
-   * lands here and `platform.handoff_code` for what crosses between.
+   * Straight to this company's own sign-in page, which is on this hostname.
+   *
+   * Not a central one. The passkey ceremony is legal here — `app.kithena.com`
+   * is a registrable suffix of `acme.app.kithena.com` — so the whole sign-in
+   * happens on the origin the cookie belongs to, and nobody is sent somewhere
+   * that has to hand a session back.
    */
-  if (person === null) {
-    const authOrigin = process.env['AUTH_ORIGIN'] ?? '';
-    redirect(
-      authOrigin === '' || tenant === null
-        ? '/signed-out'
-        : `${authOrigin}/login?tenant=${encodeURIComponent(tenant.slug)}`,
-    );
-  }
+  if (person === null) redirect('/login');
 
   const name = displayName(person.workEmail);
   /*

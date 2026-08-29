@@ -28,6 +28,18 @@ import { enrolmentToken } from './enrolment-token-table.js';
  * commit together or not at all. Threading the transaction through the port
  * would have put a Drizzle type in an interface the domain side reads.
  */
+/**
+ * A timestamp column, as a string this module can parse.
+ *
+ * `String(unknown)` is what a driver change turns into `[object Object]` — and
+ * a broken deadline reads as a link that expired rather than as a bug. A `Date`
+ * is converted deliberately; anything else is refused loudly by `asInstant`.
+ */
+function instantOf(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === 'string' ? value : '';
+}
+
 export function drizzleEnrolmentTokenStore(
   tx: PostgresJsDatabase,
   tenantId: string,
@@ -97,9 +109,9 @@ export function drizzleEnrolmentTokenStore(
 
       return enrolmentState(
         {
-          expiresAt: asInstant(String(row['expires_at'])),
-          consumedAt: row['consumed_at'] === null ? null : asInstant(String(row['consumed_at'])),
-          accountStatus: String(row['account_status']),
+          expiresAt: asInstant(instantOf(row['expires_at'])),
+          consumedAt: row['consumed_at'] == null ? null : asInstant(instantOf(row['consumed_at'])),
+          accountStatus: typeof row['account_status'] === 'string' ? row['account_status'] : '',
         },
         new Date(),
       );

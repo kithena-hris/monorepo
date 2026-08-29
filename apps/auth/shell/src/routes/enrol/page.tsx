@@ -91,8 +91,11 @@ export default function Enrol(): JSX.Element {
    * them is that they are already set up and where to sign in.
    */
   useEffect(() => {
-    const tenant = params.get('tenant') ?? '';
-    const token = params.get('token') ?? '';
+    // Read here rather than closing over the object built during render: a new
+    // `URLSearchParams` every render would be a new dependency every render.
+    const query = new URLSearchParams(window.location.search);
+    const tenant = query.get('tenant') ?? '';
+    const token = query.get('token') ?? '';
     if (tenant === '' || token === '') {
       setState({ kind: 'refused', reason: 'link_invalid' });
       return;
@@ -125,8 +128,6 @@ export default function Enrol(): JSX.Element {
     return () => {
       current = false;
     };
-    // `params` is read from the query string, which does not change under us.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const enrol = useCallback(async () => {
