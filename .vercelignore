@@ -27,6 +27,17 @@ dist
 .vercel/output
 storybook-static
 
+# Incremental build state, and it has to go with `dist` or the build breaks in a
+# way that reads as a missing dependency.
+#
+# `tsc -b` decides what to emit by comparing this file against its inputs. Ship
+# it without the `dist` it describes and the compiler says "Done", emits
+# nothing, and the next package to import the result fails with
+# `Cannot find module '@kithena/contracts'` — which looks like an undeclared
+# dependency and is not one. That is exactly what happened the first time this
+# file excluded `dist`.
+*.tsbuildinfo
+
 # History. Vercel builds a snapshot, not a repository.
 .git
 
