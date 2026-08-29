@@ -50,6 +50,32 @@ describe('safeImageUrl', () => {
     expect(safeImageUrl('//evil.test/pixel.gif')).toBeUndefined();
   });
 
+  /*
+   * The reason this parses rather than pattern-matches. A URL parser strips
+   * tabs and newlines from a scheme before resolving it, so `java\tscript:` is
+   * `javascript:` by the time a browser acts on it — and a regex anchored on
+   * `^javascript:` never sees it.
+   */
+  it('refuses a scheme obfuscated the way a parser will still resolve it', () => {
+    for (const url of [
+      'java\tscript:alert(1)',
+      'java\nscript:alert(1)',
+      'java\rscript:alert(1)',
+      '\u0000javascript:alert(1)',
+    ]) {
+      expect(safeImageUrl(url), JSON.stringify(url)).toBeUndefined();
+    }
+  });
+
+  /*
+   * A bare host has no scheme and is not a path either. Resolved against the
+   * throwaway base it would classify as ordinary `http:`, so it is refused
+   * explicitly rather than by accident.
+   */
+  it('refuses a bare host that is neither absolute nor a path', () => {
+    expect(safeImageUrl('evil.test/pixel.gif')).toBeUndefined();
+  });
+
   it('refuses nothing at all', () => {
     expect(safeImageUrl('')).toBeUndefined();
     expect(safeImageUrl('   ')).toBeUndefined();
