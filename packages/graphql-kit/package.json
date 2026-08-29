@@ -18,7 +18,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@apollo/subgraph": "^2.11.0",
+    "@apollo/subgraph": "^2.14.4",
     "@escape.tech/graphql-armor": "^3.2.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
