@@ -149,30 +149,6 @@ export function drizzleAccountRepository(): AccountRepository {
   };
 }
 
-/**
- * The account a verified human holds at this company, if it is usable.
- *
- * Runs inside a tenant-scoped transaction, so row-level security is doing the
- * scoping rather than the `WHERE` clause — pass the wrong tenant and this
- * returns nothing regardless of what the identity id says.
- *
- * `active` only. A provisioned or invited account has not enrolled, a suspended
- * one is being held, and a terminated one is a tombstone; none of them may
- * start a session, and returning one here would move that decision into
- * whichever caller remembered to check.
- */
-export async function findActiveAccountForIdentity(
-  tx: PostgresJsDatabase,
-  identityId: string,
-): Promise<string | null> {
-  const rows = await tx
-    .select({ id: account.id })
-    .from(account)
-    .where(and(eq(account.identityId, identityId), eq(account.status, 'active')))
-    .limit(1);
-
-  return rows[0]?.id ?? null;
-}
 
 /**
  * One session, from the durable side, for the cookie check.

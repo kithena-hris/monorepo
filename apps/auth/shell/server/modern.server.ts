@@ -52,6 +52,15 @@ const ALLOWED = new Map<string, 'GET' | 'POST'>([
   ['webauthn/authenticate/finish', 'POST'],
   ['webauthn/register/begin', 'POST'],
   ['webauthn/register/finish', 'POST'],
+  // Reading a link's state before prompting for a passkey. Holding the token is
+  // what authorises the answer; the route says nothing without one.
+  ['enrolment/status', 'POST'],
+  // Replacing a passkey. `begin` is gated by an assertion it verifies itself,
+  // and `finish` by a challenge the server bound to the identity that assertion
+  // proved — neither trusts anything this origin's browser says about whose
+  // passkey is being replaced.
+  ['webauthn/replace/begin', 'POST'],
+  ['webauthn/replace/finish', 'POST'],
 ]);
 
 /**

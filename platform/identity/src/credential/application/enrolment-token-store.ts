@@ -1,3 +1,4 @@
+import type { EnrolmentState } from '../domain/enrolment-state.js';
 import type { EnrolmentToken, SecondChannel } from '../domain/enrolment-token.js';
 
 export interface IssueRequest {
@@ -41,4 +42,17 @@ export interface EnrolmentTokenStore {
    * difference between "used" and "never existed" tells them something.
    */
   consume(token: string): Promise<EnrolmentToken | null>;
+
+  /**
+   * What a token is worth, without spending it.
+   *
+   * Separate from `consume` because it must not have its side effect: the page
+   * asks this on load, and a check that burnt the link would make opening the
+   * page the thing that invalidates it.
+   *
+   * Reports the reason rather than a bare null, unlike `consume`. The caller
+   * holds a 256-bit token handed over out of band, so it already has the
+   * secret — see `EnrolmentState` for why that changes what may be said.
+   */
+  inspect(token: string): Promise<EnrolmentState>;
 }

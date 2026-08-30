@@ -233,6 +233,9 @@ describe('the identity proxy, on what it will not forward', () => {
   it('still forwards the five routes the sign-in pages actually use', async () => {
     const allowed: [string, string][] = [
       ['/api/identity/tenant/acme', 'GET'],
+      ['/api/identity/enrolment/status', 'POST'],
+      ['/api/identity/webauthn/replace/begin', 'POST'],
+      ['/api/identity/webauthn/replace/finish', 'POST'],
       ['/api/identity/webauthn/authenticate/begin', 'POST'],
       ['/api/identity/webauthn/authenticate/finish', 'POST'],
       ['/api/identity/webauthn/register/begin', 'POST'],

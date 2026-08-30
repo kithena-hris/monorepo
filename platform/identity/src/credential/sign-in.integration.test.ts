@@ -10,7 +10,6 @@ import { startPostgres, startValkey } from '@kithena/testing';
 import { startSession } from '../account/application/start-session.js';
 import {
   drizzleAccountRepository,
-  findActiveAccountForIdentity,
 } from '../account/infrastructure/drizzle-account-repository.js';
 import { uuidv7 } from '../shared/uuid.js';
 import { signIn } from './application/sign-in.js';
@@ -60,7 +59,16 @@ beforeAll(async () => {
   adminClient = postgres(pg.url, { max: 1 });
   admin = drizzle(adminClient);
 
-  for (const file of ['20260821120000_tenant_registry.sql', '20260821230000_identity.sql']) {
+  for (const file of [
+    '20260821120000_tenant_registry.sql',
+    '20260821230000_identity.sql',
+    // Signing in without a tenant in the URL asks which companies a person may
+    // sign into, which is a cross-tenant question and therefore a SECURITY
+    // DEFINER function rather than a query. Listed here because this suite
+    // names the migrations it needs: leaving it out fails as
+    // `42883 No function matches`, which reads like a typo in the query.
+    '20260829090000_accounts_for_identity.sql',
+  ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
   }
@@ -90,6 +98,16 @@ beforeAll(async () => {
   await admin.execute(
     sql`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO svc_test`,
   );
+  /*
+   * Functions too, and this role needs them now.
+   *
+   * `accounts_for_identity` is SECURITY DEFINER and revokes EXECUTE from
+   * PUBLIC, so a service role that was only granted tables gets `42501
+   * permission denied` — which looks like a row-level security refusal and is
+   * not one. `svc_test` stands in for `svc_identity` here, and the real role is
+   * granted the same thing by the migration.
+   */
+  await admin.execute(sql`GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA platform TO svc_test`);
 
   const asService = new URL(pg.url);
   asService.username = 'svc_test';
@@ -126,8 +144,21 @@ function subject(refusals: string[] = []) {
       policyFor: () => Promise.resolve(defaultCredentialPolicy),
       onRefusal: (reason) => refusals.push(reason),
     }),
-    activeAccountFor: (tenantId, identityId) =>
-      inTenantTransaction(tenantId, (tx) => findActiveAccountForIdentity(tx, identityId)),
+    // The same cross-tenant lookup the service uses. Exercised here rather
+    // than stubbed, because the SECURITY DEFINER function is the half that
+    // row-level security would otherwise silently return nothing from.
+    accountsFor: async (identityId) => {
+      const rows = await db.execute(sql`
+        SELECT account_id, tenant_id, tenant_slug, work_email
+          FROM platform.accounts_for_identity(${identityId}::uuid)
+      `);
+      return [...rows].map((row) => ({
+        accountId: String(row['account_id']),
+        tenantId: String(row['tenant_id']),
+        tenantSlug: String(row['tenant_slug']),
+        workEmail: String(row['work_email']),
+      }));
+    },
     beginSession: async (tenantId, accountId, device, amr) => {
       const sessionId = uuidv7();
       const result = await begin(

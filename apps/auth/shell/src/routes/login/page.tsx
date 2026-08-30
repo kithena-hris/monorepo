@@ -1,159 +1,93 @@
 import { themePreset } from '@kithena/contracts';
-import { startAuthentication } from '@simplewebauthn/browser';
-import { Alert, Button, Spinner, brandRamp } from '@reach/ui';
-import { useCallback, useEffect, useState, type JSX } from 'react';
+import { Alert, Spinner, brandRamp } from '@reach/ui';
+import { useEffect, useState, type JSX } from 'react';
 
 import { CompanyPanel } from '../../components/company-panel';
 import { resolveTenant, type Tenant } from '../../lib/tenant';
 
 /**
- * Signing in with a passkey, on the auth origin, branded as the company's.
+ * The signpost to a company's own sign-in page.
  *
- * The whole ceremony happens here — this page is the sign-in page and does not
- * bounce anybody anywhere to reach one. What it cannot do is *finish*, and the
- * reason is a browser rule rather than a design choice: the session cookie is
- * `__Host-` prefixed, which forbids a `Domain` attribute, so only
- * `acme.app.kithena.com` can ever be sent it and this origin is not that host.
+ * Signing in happens on the company's hostname — `acme.app.kithena.com/login`
+ * — and not here. `docs/authentication.md` records why that is allowed:
+ * `app.kithena.com` is a registrable suffix of `acme.app.kithena.com`, so the
+ * relying-party id is legal there, the ceremony is branded end to end, and the
+ * session cookie is set by the host it belongs to. A central page would have to
+ * verify a passkey and then hand the result across a hostname, which is a
+ * mechanism to build and maintain in exchange for nothing.
  *
- * So the last step is a redirect carrying a one-time code — 60 seconds, single
- * use, hashed at rest, bound to the company that may spend it. The tenant app
- * exchanges it for the session over a back channel the browser is not part of
- * and sets its own cookie. `docs/authentication.md` specifies the handoff; the
- * migration for `platform.handoff_code` records why it is not PKCE.
+ * This page stays because links to it exist: every enrolment email sent so far
+ * ends here, and a URL somebody was given a week ago should not be a dead end.
+ * It resolves the company and forwards.
  *
- * There is no success state on this screen. Ending here with a banner saying
- * "signed in" would report the mechanism and leave the person exactly where
- * they started; the only visible outcome of signing in is their dashboard.
+ * Google is the case that will bring real work back to this origin. Google
+ * requires every redirect URI registered exactly and offers no wildcards, so a
+ * central callback is forced. Passkeys are not that case.
  */
 
-/**
- * Where a company's own app lives. `{slug}` is substituted with its label.
- *
- * Inlined at build time — Modern.js exposes `MODERN_`-prefixed variables to the
- * browser, the same convention Next uses for `NEXT_PUBLIC_`.
- */
+/** Where a company's own app lives. `{slug}` is substituted with its label. */
 const TENANT_APP_BASE = process.env['MODERN_TENANT_APP_BASE'] ?? '';
 
-type State =
-  | { readonly kind: 'idle' }
-  | { readonly kind: 'working' }
-  | { readonly kind: 'leaving' }
-  | { readonly kind: 'refused' }
-  | { readonly kind: 'misconfigured' };
+type State = { readonly kind: 'forwarding' } | { readonly kind: 'stuck'; readonly why: Why };
+type Why = 'unknown_company' | 'no_company_named' | 'misconfigured';
+
+const STUCK: Record<Why, { title: string; body: string }> = {
+  no_company_named: {
+    title: 'Which company?',
+    body: 'Sign in at your company’s own address — the one your HR team gave you. It looks like yourcompany.app.kithena.com.',
+  },
+  unknown_company: {
+    title: 'That company could not be found',
+    body: 'Check the link you were sent, or ask your HR team for a new one.',
+  },
+  misconfigured: {
+    title: 'Nowhere to send you',
+    body: 'This deployment has no tenant app configured, so this page cannot work out your company’s address.',
+  },
+};
 
 export default function Login(): JSX.Element {
-  const [state, setState] = useState<State>({ kind: 'idle' });
+  const [state, setState] = useState<State>({ kind: 'forwarding' });
   const [tenant, setTenant] = useState<Tenant | null>(null);
 
-  /*
-   * The company, looked up as the page mounts.
-   *
-   * Not on the server: on one shared origin there is no hostname to resolve
-   * from — see `lib/tenant.ts`. The panel arrives a moment after the form,
-   * which is why the first paint is deliberately unbranded rather than briefly
-   * branded as somebody else.
-   */
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get('tenant') ?? '';
-    void resolveTenant(slug).then(setTenant);
-  }, []);
-
-  const signIn = useCallback(async () => {
-    setState({ kind: 'working' });
-
-    // The company's name, not its id. Resolved through the registry, so a
-    // reserved label or a suspended customer is refused here rather than
-    // producing a lookup that quietly finds nothing later.
-    const resolved =
-      tenant ??
-      (await resolveTenant(new URLSearchParams(window.location.search).get('tenant') ?? ''));
-    if (resolved === null) {
-      setState({ kind: 'refused' });
+    if (slug === '') {
+      // Nothing to forward to, and nothing to guess from. Saying so beats
+      // sitting on a spinner that will never resolve.
+      setState({ kind: 'stuck', why: 'no_company_named' });
       return;
     }
-
     if (TENANT_APP_BASE === '') {
-      // Checked before the prompt, not after. Asking somebody for a passkey and
-      // then discovering there is nowhere to send them spends a real
-      // interaction on a failure that was knowable beforehand.
-      setState({ kind: 'misconfigured' });
+      setState({ kind: 'stuck', why: 'misconfigured' });
       return;
     }
 
-    try {
-      const begun = (await post('/api/identity/webauthn/authenticate/begin', {})) as {
-        options?: unknown;
-      };
-      if (!begun.options) {
-        setState({ kind: 'refused' });
+    void resolveTenant(slug).then((found) => {
+      setTenant(found);
+      if (found === null) {
+        // One answer for a reserved label, a suspended customer and a name
+        // nobody registered. Distinguishing them tells whoever is probing
+        // slugs which companies are customers.
+        setState({ kind: 'stuck', why: 'unknown_company' });
         return;
       }
-
-      // The browser prompt. Everything before this is arrangement; this is the
-      // only moment a human is asked for anything.
-      const assertion = await startAuthentication({ optionsJSON: begun.options as never });
-
-      const finished = (await post('/api/identity/webauthn/authenticate/finish', {
-        tenantId: resolved.id,
-        origin: window.location.origin,
-        response: assertion,
-        // No address. A browser cannot see its own, and inventing a placeholder
-        // is what once put the literal 'unknown' into an `inet` column.
-        // Whatever terminates the connection supplies it, or nothing does.
-        device: { userAgent: navigator.userAgent },
-      })) as { accountId?: string } | null;
-
-      if (finished?.accountId === undefined) {
-        setState({ kind: 'refused' });
-        return;
-      }
-
-      /*
-       * The session id is not here, and that is on purpose.
-       *
-       * `server/modern.server.ts` strips it from the response and puts it in an
-       * `HttpOnly` cookie on this origin, so this page never holds it. The
-       * handoff is therefore minted by that server from its own cookie — this
-       * only says which company, and gets back a code.
-       */
-      const handed = (await post('/api/auth/handoff', {
-        tenantId: resolved.id,
-      })) as { code?: string } | null;
-
-      if (handed?.code === undefined) {
-        setState({ kind: 'refused' });
-        return;
-      }
-
-      setState({ kind: 'leaving' });
-      // `replace`, not `assign`: Back from the dashboard should leave, not
-      // return to a sign-in page holding a code that has already been spent.
-      window.location.replace(
-        `${TENANT_APP_BASE.replace('{slug}', resolved.slug)}/auth/callback?code=${encodeURIComponent(handed.code)}`,
-      );
-    } catch {
-      // A cancelled prompt throws, and so does a refusal. They are the same
-      // outcome to this screen: nothing happened, try again.
-      setState({ kind: 'refused' });
-    }
-  }, [tenant]);
+      // `replace`, not `assign`: this page is a signpost, and Back from the
+      // company's own page should leave rather than bounce through here again.
+      window.location.replace(`${TENANT_APP_BASE.replace('{slug}', found.slug)}/login`);
+    });
+  }, []);
 
   const themeId = tenant?.branding.themeId ?? null;
 
   /*
-   * The company's ramp, written onto `<html>`.
+   * The company's ramp on `<html>`, written imperatively.
    *
-   * Imperatively, and it has to be here rather than as a `style` prop on the
-   * div below. `brandRamp` documents why at length: `--reach-color-accent` is
-   * declared as `var(--reach-brand-600)` **on `:root`**, and a `var()` is
-   * substituted where the declaration lives — so a ramp set on any descendant
-   * changes a variable nothing consults again, and the visible result is a
-   * themed page whose buttons are still the default hue. That is exactly what
-   * this page did until it was looked at in a browser.
-   *
-   * Next puts this on `<html>` in a server-rendered layout. This app resolves
-   * its tenant in the browser, so there is no server render that knows the
-   * company — which leaves the document element and an effect.
+   * `brandRamp` documents why it cannot go on a wrapper: the accent tokens are
+   * declared on `:root` and a `var()` is substituted where the declaration
+   * lives, so a ramp set on a descendant changes a variable nothing consults
+   * again. This app resolves its tenant in the browser, so there is no server
+   * render that knows the company — which leaves the document element.
    */
   useEffect(() => {
     const preset = themeId === null ? undefined : themePreset(themeId);
@@ -163,9 +97,8 @@ export default function Login(): JSX.Element {
     const ramp = brandRamp(preset.hue) as Record<string, string>;
     for (const [name, value] of Object.entries(ramp)) root.style.setProperty(name, value);
 
-    // Removed on the way out. The auth origin serves more than one company and
-    // a ramp left behind is the previous customer's colour on the next one's
-    // screen.
+    // Removed on the way out. This origin serves more than one company, and a
+    // ramp left behind is the previous customer's colour on the next one's page.
     return () => {
       for (const name of Object.keys(ramp)) root.style.removeProperty(name);
     };
@@ -179,65 +112,20 @@ export default function Login(): JSX.Element {
         <div>
           <h1 className="text-xl font-semibold">Sign in</h1>
           <p className="text-fg-muted mt-1 text-sm">
-            Use the passkey on this device. There is no password to remember.
+            {state.kind === 'forwarding'
+              ? 'Taking you to your company’s sign-in page…'
+              : 'Sign in at your company’s own address.'}
           </p>
         </div>
 
-        <Button
-          // `primary`, not the default. `Button` defaults to `secondary`, a
-          // white fill with a border — right beside another button, wrong as
-          // the only action on the page, where it made a themed page look
-          // unthemed.
-          variant="primary"
-          onClick={() => void signIn()}
-          disabled={state.kind === 'working' || state.kind === 'leaving'}
-        >
-          {state.kind === 'working' ? 'Waiting for your device…' : 'Sign in with a passkey'}
-        </Button>
-
-        {state.kind === 'leaving' ? <Spinner label="Taking you to your dashboard" /> : null}
-
-        {state.kind === 'refused' ? (
-          /*
-           * One message for every failure, unlike enrolment.
-           *
-           * Anyone can present a passkey here, so distinguishing "wrong
-           * passkey" from "no account at this company" would answer a question
-           * that is not the asker's to ask. The precise reason is in the
-           * identity service's log, where the person who can act on it looks.
-           */
-          <Alert tone="danger" title="That did not work">
-            Check you are signing in to the right company, or ask your HR team for a new enrolment
-            link.
+        {state.kind === 'forwarding' ? (
+          <Spinner label="Redirecting" />
+        ) : (
+          <Alert tone={state.why === 'misconfigured' ? 'warning' : 'danger'} title={STUCK[state.why].title}>
+            {STUCK[state.why].body}
           </Alert>
-        ) : null}
-
-        {state.kind === 'misconfigured' ? (
-          // Configuration, not a user error, and said plainly rather than
-          // dressed up as one — whoever reads this needs the variable name.
-          <Alert tone="warning" title="Nowhere to send you">
-            <code>MODERN_TENANT_APP_BASE</code> is not set on this deployment, so this page cannot
-            work out your company’s address.
-          </Alert>
-        ) : null}
+        )}
       </main>
     </div>
   );
-}
-
-/**
- * Through this origin's proxy, which adds the credential identity requires.
- *
- * A refusal is an empty 401, so `json()` would throw on it. Returning null
- * keeps every failure the same shape as every other failure.
- */
-async function post(path: string, body: unknown): Promise<unknown> {
-  const response = await fetch(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) return null;
-  const text = await response.text();
-  return text === '' ? null : JSON.parse(text);
 }

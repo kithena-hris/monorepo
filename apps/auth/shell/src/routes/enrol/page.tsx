@@ -1,9 +1,9 @@
 import { startRegistration } from '@simplewebauthn/browser';
-import { Alert, Button } from '@reach/ui';
+import { Alert, Button, Spinner } from '@reach/ui';
 import { useNavigate } from '@modern-js/runtime/router';
 
 import { resolveTenant } from '../../lib/tenant';
-import { useCallback, useState, type JSX } from 'react';
+import { useCallback, useEffect, useState, type JSX } from 'react';
 
 /**
  * Creating a first passkey.
@@ -14,9 +14,13 @@ import { useCallback, useState, type JSX } from 'react';
  * preference. This screen is the last step of that, not the whole of it.
  */
 type State =
+  /** Asking what the link is worth. The button is not offered yet. */
+  | { readonly kind: 'checking' }
   | { readonly kind: 'idle' }
   | { readonly kind: 'working' }
   | { readonly kind: 'done' }
+  /** They have a passkey already. Not a failure — a different destination. */
+  | { readonly kind: 'already_enrolled' }
   | { readonly kind: 'refused'; readonly reason: Reason };
 
 /**
@@ -58,7 +62,7 @@ const MESSAGES: Record<Reason, { title: string; body: string }> = {
 };
 
 export default function Enrol(): JSX.Element {
-  const [state, setState] = useState<State>({ kind: 'idle' });
+  const [state, setState] = useState<State>({ kind: 'checking' });
   const navigate = useNavigate();
 
   /*
@@ -76,6 +80,55 @@ export default function Enrol(): JSX.Element {
   const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const account = params.get('name');
   const company = params.get('tenant');
+
+  /*
+   * What this link is worth, asked before the button appears.
+   *
+   * This page used to find out by trying: it ran the whole ceremony — a real
+   * prompt, on a real device — and then said "this link has already been used".
+   * Somebody returning to a bookmark, or opening it on a second device, is the
+   * ordinary case rather than the strange one, and the useful thing to tell
+   * them is that they are already set up and where to sign in.
+   */
+  useEffect(() => {
+    // Read here rather than closing over the object built during render: a new
+    // `URLSearchParams` every render would be a new dependency every render.
+    const query = new URLSearchParams(window.location.search);
+    const tenant = query.get('tenant') ?? '';
+    const token = query.get('token') ?? '';
+    if (tenant === '' || token === '') {
+      setState({ kind: 'refused', reason: 'link_invalid' });
+      return;
+    }
+
+    let current = true;
+    void resolveTenant(tenant)
+      .then(async (resolved) => {
+        if (resolved === null) return { state: 'unknown' as const };
+        const asked = await post('/api/identity/enrolment/status', {
+          tenantId: resolved.id,
+          token,
+        });
+        return (asked.body ?? { state: 'unknown' }) as { state: string };
+      })
+      .then(({ state: found }) => {
+        if (!current) return;
+        if (found === 'usable') setState({ kind: 'idle' });
+        else if (found === 'already_enrolled') setState({ kind: 'already_enrolled' });
+        else if (found === 'spent') setState({ kind: 'refused', reason: 'link_used_or_expired' });
+        else if (found === 'expired') setState({ kind: 'refused', reason: 'link_used_or_expired' });
+        else setState({ kind: 'refused', reason: 'link_invalid' });
+      })
+      .catch(() => {
+        // Unreachable identity is not a spent link, and saying so would send
+        // somebody to ask HR for a replacement they do not need.
+        if (current) setState({ kind: 'refused', reason: 'link_invalid' });
+      });
+
+    return () => {
+      current = false;
+    };
+  }, []);
 
   const enrol = useCallback(async () => {
     setState({ kind: 'working' });
@@ -161,8 +214,31 @@ export default function Enrol(): JSX.Element {
         </Alert>
       ) : null}
 
-      {state.kind === 'done' ? null : (
-        <Button onClick={() => void enrol()} disabled={state.kind === 'working'}>
+      {state.kind === 'already_enrolled' ? (
+        <>
+          <Alert tone="info" title="You already have a passkey">
+            This link has done its job. Sign in with the passkey on the device you set up, or
+            replace it if that device is gone.
+          </Alert>
+          <div className="flex flex-col gap-2">
+            <Button variant="primary" onClick={() => void navigate('/login')}>
+              Go to sign in
+            </Button>
+            {/*
+              Replacing needs the current passkey, which is what makes this
+              safe to offer on a page anybody holding an old link can open.
+            */}
+            <Button variant="secondary" onClick={() => void navigate('/passkey')}>
+              Replace my passkey
+            </Button>
+          </div>
+        </>
+      ) : null}
+
+      {state.kind === 'checking' ? <Spinner label="Checking your link" /> : null}
+
+      {state.kind === 'done' || state.kind === 'already_enrolled' || state.kind === 'checking' ? null : (
+        <Button variant="primary" onClick={() => void enrol()} disabled={state.kind === 'working'}>
           {state.kind === 'working' ? 'Waiting for your device…' : 'Create a passkey'}
         </Button>
       )}
