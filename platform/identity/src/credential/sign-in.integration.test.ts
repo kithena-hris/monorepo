@@ -98,6 +98,16 @@ beforeAll(async () => {
   await admin.execute(
     sql`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO svc_test`,
   );
+  /*
+   * Functions too, and this role needs them now.
+   *
+   * `accounts_for_identity` is SECURITY DEFINER and revokes EXECUTE from
+   * PUBLIC, so a service role that was only granted tables gets `42501
+   * permission denied` — which looks like a row-level security refusal and is
+   * not one. `svc_test` stands in for `svc_identity` here, and the real role is
+   * granted the same thing by the migration.
+   */
+  await admin.execute(sql`GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA platform TO svc_test`);
 
   const asService = new URL(pg.url);
   asService.username = 'svc_test';
