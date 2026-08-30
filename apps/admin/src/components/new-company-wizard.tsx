@@ -90,7 +90,17 @@ function suggestSlug(name: string): string {
 
 export function NewCompanyWizard({
   action,
+  hostSuffix,
 }: {
+  /**
+   * This environment's tenant host suffix, handed down from the page.
+   *
+   * A prop rather than `process.env`: this is a client component, so a server
+   * variable is simply absent here and the value would silently be the string
+   * `undefined`. A `NEXT_PUBLIC_` twin would be a second variable to keep in
+   * step with the one `proxy.ts` already reads.
+   */
+  hostSuffix: string;
   action: (draft: Draft) => Promise<Result>;
 }): JSX.Element {
   const [step, setStep] = useState(0);
@@ -236,6 +246,7 @@ export function NewCompanyWizard({
           draft={draft}
           problems={problems}
           slugTouched={slugTouched}
+          hostSuffix={hostSuffix}
           onName={(name) => {
             set('displayName', name);
             if (!slugTouched) set('slug', suggestSlug(name));
@@ -303,6 +314,7 @@ function IdentityStep({
   draft,
   problems,
   slugTouched,
+  hostSuffix,
   onName,
   onSlug,
   onImage,
@@ -310,6 +322,7 @@ function IdentityStep({
   draft: Draft;
   problems: Problems;
   slugTouched: boolean;
+  hostSuffix: string;
   onName: (value: string) => void;
   onSlug: (value: string) => void;
   onImage: (kind: 'logo' | 'cover', url: string | null) => void;
@@ -342,7 +355,7 @@ function IdentityStep({
         <FieldDescription>
           {draft.slug === ''
             ? 'Becomes the hostname they sign in on.'
-            : `Becomes ${draft.slug}.app.kithena.com`}
+            : `Becomes ${draft.slug}.${hostSuffix}`}
           {slugTouched ? '' : ' Suggested from the name; edit it if you prefer.'}
         </FieldDescription>
         <FieldError>{problems['slug']}</FieldError>

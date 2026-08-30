@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { resolveTenant, type Tenant } from './lib/tenant';
+import { SESSION_COOKIE } from './lib/session-cookie';
 
 /**
  * Tenant resolution, before anything else runs.
@@ -14,6 +15,15 @@ import { resolveTenant, type Tenant } from './lib/tenant';
 
 /** The part of the hostname after the tenant label. Differs per environment. */
 const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
+
+/**
+ * Pages a signed-out person is allowed to reach.
+ *
+ * Sign-in itself, the callback that lands them here afterwards, the page that
+ * explains a sign-in which did not finish, and sign-out — which has to work
+ * *because* it is how a stale cookie gets cleared. Anything else redirects.
+ */
+const PUBLIC_PATH = /^\/(login|signed-out|auth\/|api\/session)/;
 
 /**
  * Resolved tenants, briefly.
@@ -80,6 +90,31 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   headers.set('x-tenant-id', tenant.id);
   headers.set('x-tenant-slug', tenant.slug);
+
+  /*
+   * Nobody sees a company's pages without a session cookie.
+   *
+   * Every page here belongs to somebody, so a person who is not signed in has
+   * nothing to be shown and should be asked to sign in rather than served an
+   * empty frame — including on a page that has not been written yet, which is
+   * the case this exists for. A guard added per page is a guard the next page
+   * forgets.
+   *
+   * **A cookie-presence check, not a session lookup.** `docs/authentication.md`
+   * is explicit that the session must not be read here: this runs on every
+   * request including assets, and a lookup per request is the wrong shape. This
+   * asks only whether a cookie exists, which is free and needs no network.
+   *
+   * So it is a *convenience*, not the authorisation. A forged or expired cookie
+   * gets past this and is then refused by `currentPerson()`, which does the real
+   * check on the server, per render. Nothing here is load-bearing for security,
+   * and it is written this way so nobody later mistakes it for the thing that
+   * is.
+   */
+  if (!PUBLIC_PATH.test(request.nextUrl.pathname) && !request.cookies.has(SESSION_COOKIE)) {
+    const login = new URL('/login', request.url);
+    return NextResponse.redirect(login);
+  }
 
   return NextResponse.next({ request: { headers } });
 }

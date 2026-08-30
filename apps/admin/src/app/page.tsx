@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { callIdentity } from '../lib/identity';
+import { tenantHost } from '../lib/tenant-host';
 import { currentOperator } from '../lib/session';
 
 /**
@@ -84,7 +85,7 @@ export default async function Companies({
                 <div className="min-w-0">
                   <p className="truncate font-medium">{tenant.displayName}</p>
                   <p className="text-fg-muted truncate text-sm">
-                    <code>{tenant.slug}</code>.app.kithena.com
+                    <code>{tenantHost(tenant.slug)}</code>
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-sm">

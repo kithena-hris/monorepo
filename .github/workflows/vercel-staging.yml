@@ -257,6 +257,12 @@ jobs:
             https://messaging.staging.kithena.com/healthz >/dev/null
 
       - name: build back-office
+        env:
+          # The same suffix `apps/web/src/proxy.ts` strips to find a tenant, so
+          # the two cannot disagree about what a company's address is. Without
+          # it the back-office printed `acme.app.kithena.com` on every screen —
+          # a real hostname, belonging to production, and wrong everywhere else.
+          TENANT_HOST_SUFFIX: staging.app.kithena.com
         run: pnpm turbo run build --filter=@kithena/admin...
 
       # The back-office, on its own registrable domain rather than a path.
