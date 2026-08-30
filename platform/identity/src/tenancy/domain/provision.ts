@@ -1,4 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { imageIsOurs, type ImageHostPolicy } from './image-host.js';
 import {
   PostalAddress,
   ThemeId,
@@ -60,27 +61,16 @@ export const ImageNotOurs = failure(
 );
 
 /**
- * Where an uploaded image is allowed to live.
- *
- * A customer's login page renders these, so an off-site URL is an image
- * somebody else can swap after we have approved it — and the login page is the
- * one screen where a swapped image is a convincing phishing prompt. The
- * uploader writes to Vercel Blob, whose public URLs are all on this host.
- */
-const BLOB_HOST = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//;
-
-export function imageIsOurs(url: string | null): boolean {
-  return url === null || BLOB_HOST.test(url);
-}
-
-/**
  * Whether this company may be created, before anything is written.
  *
  * Availability of the label is not decided here — that is a unique index, and
  * asking the database first would be a check-then-act with a gap in the middle.
  * What is decided here is everything that can be known without a query.
  */
-export function checkProvisionable(request: ProvisionRequest): Result<ProvisionRequest> {
+export function checkProvisionable(
+  request: ProvisionRequest,
+  images: ImageHostPolicy,
+): Result<ProvisionRequest> {
   if (request.displayName.trim() === '') return err(DisplayNameMissing);
 
   if (!TenantSlug.safeParse(request.slug).success) return err(SlugMalformed);
@@ -95,7 +85,7 @@ export function checkProvisionable(request: ProvisionRequest): Result<ProvisionR
 
   if (!ThemeId.safeParse(request.themeId).success) return err(ThemeUnknown);
 
-  if (!imageIsOurs(request.logoUrl) || !imageIsOurs(request.coverImageUrl)) {
+  if (!imageIsOurs(request.logoUrl, images) || !imageIsOurs(request.coverImageUrl, images)) {
     return err(ImageNotOurs);
   }
 

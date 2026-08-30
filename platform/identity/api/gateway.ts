@@ -46,6 +46,19 @@ function routes(): Promise<RequestHandler> {
     databaseUrl: required('IDENTITY_DATABASE_URL'),
     internalToken: required('INTERNAL_API_TOKEN'),
     rpId: process.env['WEBAUTHN_RP_ID'] ?? 'app.localhost',
+    /*
+     * Where a company's uploaded images may be served from, comma separated.
+     * An entry beginning with a dot is a suffix — `.public.blob.vercel-storage.com`
+     * covers every bucket. Absent, the Blob host every deployment uses today is
+     * assumed; see `docs/self-hosting.md` for why this is configuration.
+     */
+    ...(process.env['IDENTITY_IMAGE_HOSTS']
+      ? {
+          imageHosts: process.env['IDENTITY_IMAGE_HOSTS'].split(',')
+            .map((host) => host.trim())
+            .filter((host) => host !== ''),
+        }
+      : {}),
     adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',
     adminOrigin: process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001',
     authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',

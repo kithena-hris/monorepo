@@ -51,6 +51,7 @@ function deps(
   return {
     written,
     announced,
+    images: { hosts: ['.public.blob.vercel-storage.com'] },
     authOrigin: AUTH_ORIGIN,
     notifier: {
       send: (invitation) => {
@@ -132,6 +133,7 @@ describe('provisionTenant', () => {
     let escaped = false;
 
     await provisionTenant({
+      images: { hosts: ['.public.blob.vercel-storage.com'] },
       authOrigin: AUTH_ORIGIN,
       inTransaction: async (fn) => {
         open = true;
@@ -195,6 +197,7 @@ describe('telling the administrators', () => {
     const announced: Invitation[] = [];
 
     const result = await provisionTenant({
+      images: { hosts: ['.public.blob.vercel-storage.com'] },
       authOrigin: AUTH_ORIGIN,
       notifier: {
         send: (invitation) => {
