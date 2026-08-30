@@ -214,21 +214,28 @@ export default function Enrol(): JSX.Element {
         </Alert>
       ) : null}
 
+      {/*
+        Only ever reached from a link that cannot be used: an original signup
+        link opened again, or a recovery link already spent. A live recovery
+        link never lands here — it goes straight to the button below, which is
+        the whole point of `purpose` on the token.
+      */}
       {state.kind === 'already_enrolled' ? (
         <>
           <Alert tone="info" title="You already have a passkey">
-            This link has done its job. Sign in with the passkey on the device you set up, or
-            replace it if that device is gone.
+            This link has done its job. Sign in with the passkey on the device you set up — or if
+            that device is gone, ask for a new setup link.
           </Alert>
           <div className="flex flex-col gap-2">
             <Button variant="primary" onClick={() => void navigate('/login')}>
               Go to sign in
             </Button>
             {/*
-              Lost the device rather than forgotten the page. This asks for a
-              fresh setup link by email rather than for the passkey they no
-              longer have, which is what the previous version of this button
-              did — correct as a gate, useless in the only case it was for.
+              Lost the device rather than forgotten the page. Asks for a fresh
+              link by email rather than for the passkey they no longer have —
+              which is what the previous version of this button did, correct as
+              a gate and useless in the only case it was for. The link it sends
+              opens straight onto setup.
             */}
             <Button variant="secondary" onClick={() => void navigate('/recover')}>
               I no longer have that passkey

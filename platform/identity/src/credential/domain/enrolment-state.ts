@@ -25,6 +25,18 @@ export type EnrolmentState =
   | 'unknown';
 
 export interface EnrolmentRow {
+  /**
+   * Why the link was issued.
+   *
+   * `'invitation'` is the first one, gated by a second channel. `'recovery'` is
+   * a replacement asked for with an email address alone.
+   *
+   * A `string` rather than a union, deliberately: the column is `text` with a
+   * CHECK so the database can gain a third purpose without a type migration,
+   * and a value this build has never heard of is treated as the stricter kind
+   * rather than cast into a shape that lets it through.
+   */
+  readonly purpose: string;
   readonly expiresAt: string;
   readonly consumedAt: string | null;
   readonly accountStatus: string;
@@ -33,38 +45,41 @@ export interface EnrolmentRow {
 export function enrolmentState(row: EnrolmentRow | null, now: Date): EnrolmentState {
   if (row === null) return 'unknown';
 
-  /*
-   * The link is judged before the account, and that ordering is the whole of
-   * this function.
-   *
-   * It used to be the other way round: an `active` account meant
-   * `already_enrolled`, full stop. That was right while the only way to hold a
-   * live link was to be waiting for a first enrolment — and it became wrong the
-   * moment recovery existed, because a recovery link is *always* issued to an
-   * active account. The page then told somebody who had just asked for a new
-   * passkey that they already had one, and offered to send them to a sign-in
-   * they could not complete.
-   *
-   * So: a live link is usable, whoever it belongs to. `already_enrolled` is
-   * what is left when there is no usable link and the account is nonetheless
-   * signed-in-able.
-   */
+  // States enrolment does not apply to at all, whatever the link says.
+  // `provisioned` means no invitation was ever issued; suspended and terminated
+  // are their HR team's to resolve, and a link is not the way through either.
+  if (row.accountStatus !== 'active' && row.accountStatus !== 'invited') return 'unknown';
+
   const spent = row.consumedAt !== null;
   // `<=`: a link good *until* an instant is not good at it.
   const expired = Date.parse(row.expiresAt) <= now.getTime();
   const live = !spent && !expired;
 
-  // States enrolment does not apply to at all. `provisioned` means no
-  // invitation was ever issued; suspended and terminated are their HR team's to
-  // resolve, and a link is not the way through either.
-  if (row.accountStatus !== 'active' && row.accountStatus !== 'invited') return 'unknown';
+  /*
+   * A live recovery link means setting up a passkey, and nothing about the
+   * account changes that.
+   *
+   * This used to be inferred — first from the account's status, then from the
+   * link's liveness — and both readings were proxies for the question actually
+   * being asked. A recovery link is *always* issued to an active account, so
+   * reading `active` as "you already have a passkey" blocked the flow the email
+   * had just started and offered a sign-in the person could not complete, the
+   * passkey being the thing they lost.
+   *
+   * The link now says why it exists, so neither this function nor the next
+   * reader has to reconstruct it.
+   */
+  if (live && row.purpose === 'recovery') return 'usable';
 
-  if (live) return 'usable';
+  // An invitation is only usable while the account is still waiting for one.
+  // An unrecognised purpose lands here too: the stricter of the two, so a
+  // future third kind cannot become a way past this by being unknown.
+  if (live && row.accountStatus === 'invited') return 'usable';
 
   /*
-   * No usable link. If they can already sign in, say so — that is the ordinary
-   * case of somebody returning to a bookmark, and telling them to ask for a
-   * replacement would be true about the link and useless about them.
+   * No usable link. Somebody who can already sign in is told so — the
+   * bookmark case — and the page offers them a fresh link if the passkey is
+   * genuinely gone.
    */
   if (row.accountStatus === 'active') return 'already_enrolled';
 
