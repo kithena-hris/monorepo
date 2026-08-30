@@ -34,23 +34,39 @@ export function enrolmentState(row: EnrolmentRow | null, now: Date): EnrolmentSt
   if (row === null) return 'unknown';
 
   /*
-   * Enrolled is checked first, and outranks every other reason.
+   * The link is judged before the account, and that ordering is the whole of
+   * this function.
    *
-   * A link that was used last week and expired yesterday describes somebody
-   * who is perfectly able to sign in. Telling them to ask for a replacement
-   * would be true about the link and useless about them.
+   * It used to be the other way round: an `active` account meant
+   * `already_enrolled`, full stop. That was right while the only way to hold a
+   * live link was to be waiting for a first enrolment — and it became wrong the
+   * moment recovery existed, because a recovery link is *always* issued to an
+   * active account. The page then told somebody who had just asked for a new
+   * passkey that they already had one, and offered to send them to a sign-in
+   * they could not complete.
+   *
+   * So: a live link is usable, whoever it belongs to. `already_enrolled` is
+   * what is left when there is no usable link and the account is nonetheless
+   * signed-in-able.
+   */
+  const spent = row.consumedAt !== null;
+  // `<=`: a link good *until* an instant is not good at it.
+  const expired = Date.parse(row.expiresAt) <= now.getTime();
+  const live = !spent && !expired;
+
+  // States enrolment does not apply to at all. `provisioned` means no
+  // invitation was ever issued; suspended and terminated are their HR team's to
+  // resolve, and a link is not the way through either.
+  if (row.accountStatus !== 'active' && row.accountStatus !== 'invited') return 'unknown';
+
+  if (live) return 'usable';
+
+  /*
+   * No usable link. If they can already sign in, say so — that is the ordinary
+   * case of somebody returning to a bookmark, and telling them to ask for a
+   * replacement would be true about the link and useless about them.
    */
   if (row.accountStatus === 'active') return 'already_enrolled';
 
-  // Anything other than a waiting account is not a state to walk somebody
-  // through: suspended and terminated are their HR team's to resolve, and
-  // `provisioned` means no invitation was ever issued.
-  if (row.accountStatus !== 'invited') return 'unknown';
-
-  if (row.consumedAt !== null) return 'spent';
-
-  // `<=`: a link good *until* an instant is not good at it.
-  if (Date.parse(row.expiresAt) <= now.getTime()) return 'expired';
-
-  return 'usable';
+  return spent ? 'spent' : 'expired';
 }
