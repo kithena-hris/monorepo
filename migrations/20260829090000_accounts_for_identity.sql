@@ -46,5 +46,22 @@ AS $$
      AND t.status = 'active';
 $$;
 
+-- The role is created here if it is absent, the same way the messaging schema
+-- creates its own. `svc_identity` is made by `tools/scripts/init-db.sql` for a
+-- local compose stack and by hand on a managed database — neither of which
+-- exists in the throwaway Postgres an integration test starts, where a bare
+-- GRANT fails with "role does not exist" and takes the whole migration with it.
+--
+-- NOBYPASSRLS spelled out although it is the default, because it is the point
+-- of the role: this function is SECURITY DEFINER precisely so that the *one*
+-- query which must cross tenants can, and a service role that ignored row-level
+-- security everywhere else would make that distinction meaningless.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_identity') THEN
+    CREATE ROLE svc_identity NOLOGIN NOBYPASSRLS;
+  END IF;
+END $$;
+
 REVOKE ALL ON FUNCTION platform.accounts_for_identity(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION platform.accounts_for_identity(uuid) TO svc_identity;

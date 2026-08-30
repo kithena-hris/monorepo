@@ -59,7 +59,16 @@ beforeAll(async () => {
   adminClient = postgres(pg.url, { max: 1 });
   admin = drizzle(adminClient);
 
-  for (const file of ['20260821120000_tenant_registry.sql', '20260821230000_identity.sql']) {
+  for (const file of [
+    '20260821120000_tenant_registry.sql',
+    '20260821230000_identity.sql',
+    // Signing in without a tenant in the URL asks which companies a person may
+    // sign into, which is a cross-tenant question and therefore a SECURITY
+    // DEFINER function rather than a query. Listed here because this suite
+    // names the migrations it needs: leaving it out fails as
+    // `42883 No function matches`, which reads like a typo in the query.
+    '20260829090000_accounts_for_identity.sql',
+  ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
   }
