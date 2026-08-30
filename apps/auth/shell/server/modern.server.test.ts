@@ -215,6 +215,10 @@ describe('the identity proxy, on what it will not forward', () => {
     ['/api/identity/session/revoke', 'POST'],
     ['/api/identity/operator/begin', 'POST'],
     ['/api/identity/operator/session', 'POST'],
+    // Removed with the flow that used them. Listed so the allowlist cannot
+    // quietly regain a route nothing calls any more.
+    ['/api/identity/webauthn/replace/begin', 'POST'],
+    ['/api/identity/webauthn/replace/finish', 'POST'],
   ];
 
   it.each(forbidden)('refuses %s %s without calling identity', async (path, method) => {
@@ -230,12 +234,11 @@ describe('the identity proxy, on what it will not forward', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('still forwards the five routes the sign-in pages actually use', async () => {
+  it('still forwards the routes the sign-in pages actually use', async () => {
     const allowed: [string, string][] = [
       ['/api/identity/tenant/acme', 'GET'],
       ['/api/identity/enrolment/status', 'POST'],
-      ['/api/identity/webauthn/replace/begin', 'POST'],
-      ['/api/identity/webauthn/replace/finish', 'POST'],
+      ['/api/identity/enrolment/recover', 'POST'],
       ['/api/identity/webauthn/authenticate/begin', 'POST'],
       ['/api/identity/webauthn/authenticate/finish', 'POST'],
       ['/api/identity/webauthn/register/begin', 'POST'],

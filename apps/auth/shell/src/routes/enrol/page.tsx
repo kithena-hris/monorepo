@@ -225,11 +225,13 @@ export default function Enrol(): JSX.Element {
               Go to sign in
             </Button>
             {/*
-              Replacing needs the current passkey, which is what makes this
-              safe to offer on a page anybody holding an old link can open.
+              Lost the device rather than forgotten the page. This asks for a
+              fresh setup link by email rather than for the passkey they no
+              longer have, which is what the previous version of this button
+              did — correct as a gate, useless in the only case it was for.
             */}
-            <Button variant="secondary" onClick={() => void navigate('/passkey')}>
-              Replace my passkey
+            <Button variant="secondary" onClick={() => void navigate('/recover')}>
+              I no longer have that passkey
             </Button>
           </div>
         </>

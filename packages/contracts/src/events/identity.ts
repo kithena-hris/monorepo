@@ -127,6 +127,31 @@ export const AccountEnrolled = defineEvent(
 );
 
 /**
+ * A lost passkey was replaced with a new one.
+ *
+ * Distinct from enrolment although both end with a usable credential. Enrolment
+ * is the first one and is gated by a second channel — in person, or a value
+ * only the person and their HR team know. Recovery is not: it is requested with
+ * an email address and answered with a link to that address, which is a weaker
+ * proof and is recorded as its own event precisely so the difference is
+ * countable rather than lost.
+ *
+ * SP 800-63B-4 deprecates email as a channel, and `docs/auth-administration.md`
+ * explains why enrolment does not use it. This path was asked for deliberately,
+ * with that trade understood: recovery is instant and self-service, and
+ * whoever holds the mailbox can take the account. The event exists so that is
+ * visible in the stream rather than indistinguishable from a first enrolment.
+ */
+export const AccountRecovered = defineEvent(
+  'identity.account.recovered',
+  1,
+  z.object({
+    accountId: AccountId,
+    credentialId: CredentialId,
+  }),
+);
+
+/**
  * A suspension was lifted. Distinct from enrolment, which it superficially
  * resembles — both end with an active account.
  *
@@ -250,12 +275,25 @@ export const CredentialRemoved = defineEvent(
 /* -------------------------------------------------------------- recovery -- */
 
 /**
- * Someone lost their authenticator.
+ * Someone lost their authenticator and asked for a new setup link.
  *
- * There is no self-service reset path, so there is nothing to phish. Recovery
- * is mediated by an HR admin who can verify the person the way they already
- * can, and both halves are events so the employee can be shown what happened
- * to their own account.
+ * **This was a mediated path and is now self-service.** It used to say there
+ * was nothing to phish here, because recovery went through an HR admin who
+ * could verify the person the way they already can. That is no longer true: a
+ * request is made with an email address and answered with a link to that
+ * address, so whoever holds the mailbox can take the account.
+ *
+ * The trade was made deliberately — the alternative asked somebody to present
+ * the passkey they had just lost — and it is written down rather than left for
+ * a reader to infer from the code. SP 800-63B-4 deprecates email as a channel
+ * and `docs/auth-administration.md` explains why first enrolment does not use
+ * it; recovery now does. `AccountRecovered` is a separate event from
+ * `AccountEnrolled` so the weaker path stays countable.
+ *
+ * `RecoveryApproved` is unused while recovery is self-service. It is kept
+ * because reinstating an approval step is a product decision, not a schema
+ * migration, and deleting the event would make that decision cost more than it
+ * should.
  */
 export const RecoveryRequested = defineEvent(
   'identity.recovery.requested',
@@ -283,6 +321,7 @@ export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
   AccountEnrolled,
+  AccountRecovered,
   AccountReinstated,
   AccountSuspended,
   AccountTerminated,

@@ -23,7 +23,7 @@ const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
  * explains a sign-in which did not finish, and sign-out — which has to work
  * *because* it is how a stale cookie gets cleared. Anything else redirects.
  */
-const PUBLIC_PATH = /^\/(login|signed-out|auth\/|api\/session)/;
+const PUBLIC_PATH = /^\/(login|recover|signed-out|auth\/|api\/(session|recover))/;
 
 /**
  * Resolved tenants, briefly.

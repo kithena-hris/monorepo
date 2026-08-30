@@ -139,6 +139,16 @@ export function PasskeySignIn(): JSX.Element {
         <Button type="submit" variant="primary" disabled={busy}>
           {busy ? 'Waiting for your device…' : 'Sign in with a passkey'}
         </Button>
+
+        {/* The passkey equivalent of "forgot my password". Placed under the
+            button rather than beside the address, because it is the thing you
+            reach for after the sign-in did not work, not before trying. */}
+        <a
+          href="/recover"
+          className="text-fg-muted hover:text-fg self-start text-sm underline-offset-2 hover:underline"
+        >
+          I no longer have my passkey
+        </a>
       </form>
 
       {state.kind === 'refused' ? (
