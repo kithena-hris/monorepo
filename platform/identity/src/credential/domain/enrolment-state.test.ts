@@ -36,6 +36,20 @@ describe('enrolmentState', () => {
     expect(enrolmentState({ ...live, consumedAt: NOW.toISOString() }, NOW)).toBe('spent');
   });
 
+  /*
+   * The bug this function shipped with. A recovery link is *always* issued to
+   * an active account — that is what recovery is — and the first version
+   * answered `already_enrolled` for any active account regardless of the link.
+   * Somebody who had just asked for a new passkey was told they already had
+   * one and offered a sign-in they could not complete.
+   *
+   * A live link wins. It is the more specific fact, and it is the one the
+   * person is holding.
+   */
+  it('lets an active account use a live link, which is what recovery is', () => {
+    expect(enrolmentState({ ...live, accountStatus: 'active' }, NOW)).toBe('usable');
+  });
+
   it('reports an expired link as expired while it is still unused', () => {
     expect(enrolmentState({ ...live, expiresAt: '2026-08-29T11:59:59.000Z' }, NOW)).toBe('expired');
   });
