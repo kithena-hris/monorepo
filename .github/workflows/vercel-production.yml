@@ -275,6 +275,12 @@ jobs:
         run: pnpm turbo run build --filter=@kithena/web...
 
       - name: build back-office
+        env:
+          # The same suffix `apps/web/src/proxy.ts` strips to find a tenant, so
+          # the two cannot disagree about what a company's address is. Without
+          # it the back-office printed `acme.app.kithena.com` everywhere,
+          # including on staging, where that is production's hostname.
+          TENANT_HOST_SUFFIX: app.kithena.com
       # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
       # trailing `...` means "and everything X depends on": turbo.json makes
       # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs

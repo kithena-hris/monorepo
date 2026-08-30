@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { callIdentity } from '../../../lib/identity';
+import { tenantHostSuffix } from '../../../lib/tenant-host';
 import { currentOperator } from '../../../lib/session';
 import {
   NewCompanyWizard,
@@ -88,7 +89,7 @@ export default async function NewCompany(): Promise<JSX.Element> {
         This creates the tenant and emails each administrator their own single-use link. You are not
         given a way to sign in as them.
       </p>
-      <NewCompanyWizard action={create} />
+      <NewCompanyWizard action={create} hostSuffix={tenantHostSuffix()} />
     </main>
   );
 }

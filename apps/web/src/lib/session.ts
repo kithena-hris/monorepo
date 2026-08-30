@@ -1,6 +1,8 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
 
+import { SESSION_COOKIE } from './session-cookie';
+
 /**
  * Who is signed in at this company, if anybody.
  *
@@ -13,7 +15,7 @@ import { cookies, headers } from 'next/headers';
  * **Fail closed.** If identity cannot be reached the answer is "not signed in",
  * never "let them through while we work it out".
  */
-export const SESSION_COOKIE = '__Host-ksession';
+export { SESSION_COOKIE } from './session-cookie';
 
 export interface SignedIn {
   readonly accountId: string;

@@ -43,6 +43,17 @@ export async function POST(request: Request): Promise<Response> {
       },
       body: JSON.stringify({
         tenantId,
+        /*
+         * The address the person typed, passed through unchecked.
+         *
+         * It narrows, it never authorises: identity applies it *after* the
+         * assertion verifies, and only to remove candidates the verified passkey
+         * already produced. A caller cannot reach an account their passkey does
+         * not hold by putting a different address here.
+         */
+        ...(typeof Reflect.get(body, 'workEmail') === 'string'
+          ? { workEmail: Reflect.get(body, 'workEmail') as string }
+          : {}),
         // The origin as this server knows it, not as the page reported it. It
         // is one of the three things the assertion is checked against, and a
         // value taken from the request body is a value the caller chose.

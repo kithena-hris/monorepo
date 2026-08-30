@@ -1,11 +1,12 @@
 import { countryRules, themePreset } from '@kithena/contracts';
-import { Alert, Avatar, Badge, Button, Card } from '@reach/ui';
+import { Alert, Avatar, Badge, Button, Card, CopyButton } from '@reach/ui';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { CreatedToast, SavedToast } from '../../../components/created-toast';
 import { callIdentity } from '../../../lib/identity';
+import { tenantHost, tenantUrl } from '../../../lib/tenant-host';
 import { currentOperator } from '../../../lib/session';
 import {
   InvitePersonForm,
@@ -192,9 +193,26 @@ export default async function Company({
 
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-semibold">{company.displayName}</h1>
-            <p className="text-fg-muted mt-0.5 text-sm">
-              <code>{company.slug}</code>.app.kithena.com
-            </p>
+            {/* The address an operator will actually follow, so it has to be
+                this environment's. A copy button rather than asking somebody to
+                select a hostname out of a sentence by hand. */}
+            <div className="mt-0.5 flex items-center gap-1">
+              <a
+                href={tenantUrl(company.slug)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-fg-muted hover:text-fg text-sm underline-offset-2 hover:underline"
+              >
+                {tenantHost(company.slug)}
+              </a>
+              <CopyButton
+                value={tenantUrl(company.slug)}
+                size="sm"
+                variant="ghost"
+                label={`Copy ${company.displayName}'s address`}
+                tooltip
+              />
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

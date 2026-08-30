@@ -9,6 +9,7 @@ import {
   type EditResult,
 } from '../../../../components/edit-company-form';
 import { callIdentity } from '../../../../lib/identity';
+import { tenantHost } from '../../../../lib/tenant-host';
 import { currentOperator } from '../../../../lib/session';
 
 /**
@@ -124,7 +125,7 @@ export default async function EditCompany({
       <header className="mt-4 mb-8">
         <h1 className="text-2xl font-semibold">Edit company</h1>
         <p className="text-fg-muted mt-1 text-sm">
-          <code>{company.slug}</code>.app.kithena.com
+          <code>{tenantHost(company.slug)}</code>
         </p>
       </header>
 
