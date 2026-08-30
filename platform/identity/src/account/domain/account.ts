@@ -243,6 +243,31 @@ export class Account extends AggregateRoot<string> {
    * perfectly ordinary thing to be told about and the caller should be able to
    * say so to a person.
    */
+  /**
+   * A replacement passkey for somebody who lost the one they had.
+   *
+   * Separate from `enrol` because the state it starts from is different — this
+   * one begins at `active` — and because the two mean different things to
+   * anybody reading the event stream afterwards. An account that enrolled twice
+   * is not a thing that happens; an account that recovered is, and it is worth
+   * being able to count.
+   *
+   * No employment-start check. That gate exists so a new hire cannot sign in
+   * before their first day; somebody recovering has been working here, and
+   * re-applying it would refuse the one case this exists for.
+   *
+   * **The old credential is revoked by the caller, not here.** The aggregate
+   * does not own credentials — they belong to the human rather than to the job,
+   * and one identity's passkey serves every account they hold. Revoking is
+   * therefore a decision about the *identity*, made where that is visible.
+   */
+  recover(credentialId: string, ctx: EventContext): Result<void> {
+    if (this.#status !== 'active') return err(InvalidTransition(this.#status, 'recovered'));
+
+    this.#raise('identity.account.recovered', { accountId: this.id, credentialId }, ctx);
+    return ok(undefined);
+  }
+
   enrol(credentialId: string, ctx: EventContext): Result<void> {
     if (this.#status !== 'invited') return err(InvalidTransition(this.#status, 'enrolled'));
 

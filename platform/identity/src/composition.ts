@@ -40,6 +40,7 @@ import { operatorSignIn } from './operator/application/operator-sign-in.js';
 import { drizzleOperatorRepository } from './operator/infrastructure/drizzle-operator-repository.js';
 import { operatorRoutes } from './operator/http/operator-routes.js';
 import { amendTenant } from './tenancy/application/amend-tenant.js';
+import { recoverAccount } from './tenancy/application/recover-account.js';
 import { provisionTenant } from './tenancy/application/provision-tenant.js';
 import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
@@ -248,6 +249,41 @@ async function inviteCommissioned(
  * while URLs are rewritten, then drop the old one.
  */
 const DEFAULT_IMAGE_HOSTS = ['.public.blob.vercel-storage.com'] as const;
+
+/**
+ * The account holding an address at a company.
+ *
+ * Shared by invitation and recovery so the two cannot disagree about which
+ * account an address names — they are the same question asked by different
+ * screens, and two copies would drift the first time one was fixed.
+ *
+ * Matched on `lower(work_email)`, which is what `account_live_email_key`
+ * indexes. Case is not part of an address's identity there and must not be
+ * here, or an address recorded with a capital letter can never be typed
+ * correctly by the person who owns it.
+ *
+ * Runs inside a tenant transaction, so row-level security does the scoping. The
+ * `tenant_id` predicate is belt and braces: on a bare connection this returns
+ * nothing at all, which is a wrong answer rather than an error.
+ */
+async function findAccountByEmail(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  email: string,
+): Promise<{ accountId: string; identityId: string; status: string } | null> {
+  const rows = await tx.execute(sql`
+    SELECT id, identity_id, status
+      FROM platform.account
+     WHERE tenant_id = ${tenantId}::uuid AND lower(work_email) = lower(${email})
+  `);
+  const row = [...rows][0];
+  if (!row) return null;
+  return {
+    accountId: text(row['id']),
+    identityId: text(row['identity_id']),
+    status: text(row['status']),
+  };
+}
 
 export async function compose(config: Config): Promise<RequestHandler> {
   const images = { hosts: config.imageHosts ?? DEFAULT_IMAGE_HOSTS };
@@ -553,118 +589,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
     }),
   });
 
-  const enrolment = enrolmentRoutes({
-    rp: relyingParty,
-    challenges,
-    internalToken: config.internalToken,
-    /*
-     * A read inside the tenant, because `platform.enrolment_token` carries
-     * row-level security and a token belonging to another customer must not be
-     * visible to match — the same reason `consume` runs there.
-     */
-    inspectToken: (tenantId, token) =>
-      inTenantTransaction(tenantId, (tx) =>
-        drizzleEnrolmentTokenStore(tx, tenantId).inspect(token),
-      ),
-    /*
-     * Replacing a passkey. The assertion check is the same one sign-in uses —
-     * literally the same function, so the bar for proving who you are cannot
-     * drift between the two.
-     */
-    verifyAssertion: signInWithPasskey({
-      rp: relyingParty,
-      challenges,
-      credentials: drizzleCredentialRepository(db),
-      origins: { rpId: config.rpId, authOrigin: config.authOrigin },
-      policyFor: () => Promise.resolve(defaultCredentialPolicy),
-      onRefusal: (reason) => {
-        logger.info({ reason }, 'passkey refused during replacement');
-      },
-    }),
-    credentialIdsOf: async (identityId) => {
-      const rows = await db.execute(sql`
-        SELECT external_id FROM platform.credential
-         WHERE identity_id = ${identityId}::uuid AND revoked_at IS NULL
-      `);
-      return [...rows].map((row) => text(row['external_id']));
-    },
-    storeCredential: async (identityId, cred) => {
-      // Not inside a tenant transaction: `platform.credential` belongs to the
-      // human rather than to a job, so it carries no tenant and no policy to
-      // enter one for. The same insert enrolment makes, on a connection that
-      // has already proved who this is.
-      const id = uuidv7();
-      await db.execute(sql`
-        INSERT INTO platform.credential
-          (id, identity_id, kind, external_id, provider, public_key, sign_count, backed_up)
-        VALUES (${id}::uuid, ${identityId}::uuid, 'passkey', ${cred.credentialId},
-                ${cred.aaguid}, ${Buffer.from(cred.publicKey)},
-                ${cred.signCount}, ${cred.backedUp})
-      `);
-      return id;
-    },
-    revokeOtherCredentials: async (identityId, keepCredentialId) => {
-      await db.execute(sql`
-        UPDATE platform.credential
-           SET revoked_at = now()
-         WHERE identity_id = ${identityId}::uuid
-           AND id <> ${keepCredentialId}::uuid
-           AND revoked_at IS NULL
-      `);
-    },
-    /*
-     * Enrolment runs inside one tenant-scoped transaction from end to end.
-     *
-     * Spending the link, writing the credential and activating the account
-     * commit together or not at all. Half of that is an account that cannot log
-     * in holding a link that has been spent — a new hire locked out on their
-     * first morning, with nothing obviously broken to point at.
-     */
-    complete: (request) =>
-      inTenantTransaction(request.tenantId, (tx) =>
-        completeEnrolment({
-          tokens: drizzleEnrolmentTokenStore(tx, request.tenantId),
-          verifyRegistration: (response, expected) =>
-            relyingParty.finishRegistration(response, expected),
-          identityOf: async (accountId) => {
-            const rows = await tx.execute(
-              sql`SELECT identity_id FROM platform.account WHERE id = ${accountId}::uuid`,
-            );
-            // Narrowed rather than stringified. `String(unknown)` on a row
-            // value renders an object as "[object Object]" and hands that on as
-            // if it were an identity id — a lookup that then finds nothing, for
-            // a reason no log would explain.
-            const value = [...rows][0]?.['identity_id'];
-            return typeof value === 'string' ? value : null;
-          },
-          storeCredential: async (identityId, credential) => {
-            const id = uuidv7();
-            await tx.execute(sql`
-              INSERT INTO platform.credential
-                (id, identity_id, kind, external_id, provider, public_key, sign_count, backed_up)
-              VALUES (${id}::uuid, ${identityId}::uuid, 'passkey', ${credential.credentialId},
-                      ${credential.aaguid}, ${Buffer.from(credential.publicKey)},
-                      ${credential.signCount}, ${credential.backedUp})
-            `);
-            return id;
-          },
-          enrolAccount: async (accountId, credentialId) => {
-            const snapshot = await accounts.load(tx, accountId);
-            if (!snapshot) throw new Error('account vanished mid-enrolment');
-            const account = Account.rehydrate(snapshot);
-            const enrolled = account.enrol(credentialId, context(accountId));
-            if (!enrolled.ok) return enrolled;
-            await accounts.save(tx, account);
-            return ok(undefined);
-          },
-          origins,
-          clock: systemClock,
-          onRefusal: (reason) => {
-            logger.info({ reason }, 'enrolment refused');
-          },
-        })(request),
-      ),
-  });
 
   /* ------------------------------------------------------------ back-office */
 
@@ -813,6 +737,150 @@ export async function compose(config: Config): Promise<RequestHandler> {
     };
   };
 
+  /*
+   * Composed here rather than beside the other credential routes, because
+   * recovery needs `tenantById` and the notifier — both declared above for the
+   * invitation path, and both the same values, so recovery cannot disagree with
+   * an invitation about a company's name or where its links point.
+   */
+  const enrolment = enrolmentRoutes({
+    rp: relyingParty,
+    challenges,
+    internalToken: config.internalToken,
+    /*
+     * A read inside the tenant, because `platform.enrolment_token` carries
+     * row-level security and a token belonging to another customer must not be
+     * visible to match — the same reason `consume` runs there.
+     */
+    inspectToken: (tenantId, token) =>
+      inTenantTransaction(tenantId, (tx) =>
+        drizzleEnrolmentTokenStore(tx, tenantId).inspect(token),
+      ),
+    /*
+     * A fresh setup link for somebody who lost their passkey.
+     *
+     * `reissue` mints a token against an account that already exists and does
+     * not touch its status: an `active` account stays active until the new
+     * credential is actually registered, so asking for a link cannot lock
+     * anybody out. That matters — this endpoint is unauthenticated, and a
+     * request that revoked on arrival would be a denial of service anybody
+     * could aim at a colleague.
+     */
+    recover: recoverAccount({
+      tenantById,
+      authOrigin: config.authOrigin,
+      clock: systemClock,
+      ...(notifier === undefined ? {} : { notifier }),
+      onRefusal: (reason) => {
+        // Logged and never returned. The caller gets 202 either way.
+        logger.info({ reason }, 'recovery not sent');
+      },
+      inTenantTransaction: (tenantId, fn) =>
+        inTenantTransaction(tenantId, (tx) =>
+          fn({
+            findByEmail: (email) => findAccountByEmail(tx, tenantId, email),
+            reissue: async (accountId) => {
+              const issued = await drizzleEnrolmentTokenStore(tx, tenantId).issue({
+                accountId,
+                // The channel this actually used, recorded honestly. It is an
+                // emailed link and nothing more, which is the whole of what was
+                // traded away — see `recoverAccount`.
+                secondChannel: 'known_value',
+                // Nobody authorised it but the person asking. `issued_by`
+                // references `platform.account`, and there is no admin here to
+                // name.
+                issuedBy: null,
+              });
+              return { token: issued.token, expiresAt: issued.expiresAt };
+            },
+          }),
+        ),
+    }),
+    /*
+     * Enrolment runs inside one tenant-scoped transaction from end to end.
+     *
+     * Spending the link, writing the credential and activating the account
+     * commit together or not at all. Half of that is an account that cannot log
+     * in holding a link that has been spent — a new hire locked out on their
+     * first morning, with nothing obviously broken to point at.
+     */
+    complete: (request) =>
+      inTenantTransaction(request.tenantId, (tx) =>
+        completeEnrolment({
+          tokens: drizzleEnrolmentTokenStore(tx, request.tenantId),
+          verifyRegistration: (response, expected) =>
+            relyingParty.finishRegistration(response, expected),
+          identityOf: async (accountId) => {
+            const rows = await tx.execute(
+              sql`SELECT identity_id FROM platform.account WHERE id = ${accountId}::uuid`,
+            );
+            // Narrowed rather than stringified. `String(unknown)` on a row
+            // value renders an object as "[object Object]" and hands that on as
+            // if it were an identity id — a lookup that then finds nothing, for
+            // a reason no log would explain.
+            const value = [...rows][0]?.['identity_id'];
+            return typeof value === 'string' ? value : null;
+          },
+          storeCredential: async (identityId, credential) => {
+            const id = uuidv7();
+            await tx.execute(sql`
+              INSERT INTO platform.credential
+                (id, identity_id, kind, external_id, provider, public_key, sign_count, backed_up)
+              VALUES (${id}::uuid, ${identityId}::uuid, 'passkey', ${credential.credentialId},
+                      ${credential.aaguid}, ${Buffer.from(credential.publicKey)},
+                      ${credential.signCount}, ${credential.backedUp})
+            `);
+            return id;
+          },
+          enrolAccount: async (accountId, credentialId) => {
+            const snapshot = await accounts.load(tx, accountId);
+            if (!snapshot) throw new Error('account vanished mid-enrolment');
+            const account = Account.rehydrate(snapshot);
+
+            /*
+             * The same link serves a first enrolment and a recovery, and which
+             * one this is depends on the account rather than on the token.
+             *
+             * An `active` account holding a live link is somebody who lost their
+             * passkey and asked for another, so this registers the new
+             * credential and retires the old ones — the point of recovery is
+             * that the lost device stops working. Doing that here rather than
+             * when the link was requested is deliberate: this endpoint is
+             * unauthenticated, and revoking on request would let anybody lock a
+             * colleague out by typing their address.
+             */
+            const recovering = account.status === 'active';
+            const applied = recovering
+              ? account.recover(credentialId, context(accountId))
+              : account.enrol(credentialId, context(accountId));
+            if (!applied.ok) return applied;
+
+            await accounts.save(tx, account);
+
+            if (recovering) {
+              // Every credential this human had except the one just made.
+              // Credentials belong to the identity rather than to the job, so
+              // this is not tenant-scoped and cannot be.
+              await tx.execute(sql`
+                UPDATE platform.credential
+                   SET revoked_at = now()
+                 WHERE identity_id = ${snapshot.identityId}::uuid
+                   AND id <> ${credentialId}::uuid
+                   AND revoked_at IS NULL
+              `);
+            }
+
+            return ok(undefined);
+          },
+          origins,
+          clock: systemClock,
+          onRefusal: (reason) => {
+            logger.info({ reason }, 'enrolment refused');
+          },
+        })(request),
+      ),
+  });
+
   const admin = adminRoutes({
     internalToken: config.internalToken,
     listTenants: async (page) => {
@@ -942,24 +1010,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
       inTenantTransaction: (tenantId, fn) =>
         inTenantTransaction(tenantId, (tx) =>
           fn({
-            findByEmail: async (email) => {
-              // Inside the tenant transaction, so row-level security is doing
-              // the scoping. The `tenant_id` predicate is belt and braces: read
-              // on a bare connection this returns nothing at all, which is a
-              // wrong answer rather than an error.
-              const rows = await tx.execute(sql`
-                SELECT id, identity_id, status
-                  FROM platform.account
-                 WHERE tenant_id = ${tenantId}::uuid AND work_email = ${email}
-              `);
-              const row = [...rows][0];
-              if (!row) return null;
-              return {
-                accountId: text(row['id']),
-                identityId: text(row['identity_id']),
-                status: text(row['status']),
-              };
-            },
+            findByEmail: (email) => findAccountByEmail(tx, tenantId, email),
             commission: (input) =>
               commissionAccount(
                 tx,

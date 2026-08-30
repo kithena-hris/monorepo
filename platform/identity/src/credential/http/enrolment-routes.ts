@@ -5,8 +5,7 @@ import { challengeFrom } from '../domain/client-data.js';
 import type { EnrolmentState } from '../domain/enrolment-state.js';
 import type { ChallengeStore } from '../application/challenge-store.js';
 import type { RelyingParty } from '../application/relying-party.js';
-import type { CompleteEnrolment, RegisteredCredential } from '../application/complete-enrolment.js';
-import type { SignInWithPasskey } from '../application/sign-in-with-passkey.js';
+import type { CompleteEnrolment } from '../application/complete-enrolment.js';
 
 /**
  * Registering a first passkey.
@@ -29,20 +28,13 @@ const FINISH = '/api/internal/webauthn/register/finish';
 const STATUS = '/api/internal/enrolment/status';
 
 /**
- * Replacing a passkey, gated by the one being replaced.
+ * A fresh setup link for somebody who lost their passkey.
  *
- * Two steps, and the gate is the first. `BEGIN` verifies an assertion — a real
- * prompt on the device holding the current passkey — and only then issues a
- * registration challenge bound to the identity that assertion proved. `FINISH`
- * spends that challenge, stores the new credential and revokes the old.
- *
- * No enrolment token anywhere in this, which is the point: a link is something
- * somebody can be tricked into forwarding, and possession of the current
- * passkey is not. It is also why this is safe to offer from a page that anybody
- * holding a spent link can open.
+ * This replaced a flow that asked the person to present the passkey they had
+ * just lost — correct as a gate and useless in the only situation it existed
+ * for. `recoverAccount` explains what was traded away to remove it.
  */
-const REPLACE_BEGIN = '/api/internal/webauthn/replace/begin';
-const REPLACE_FINISH = '/api/internal/webauthn/replace/finish';
+const RECOVER = '/api/internal/enrolment/recover';
 
 const CHALLENGE_TTL_SECONDS = 300;
 
@@ -52,22 +44,19 @@ export interface EnrolmentRoutesDeps {
   readonly complete: CompleteEnrolment;
   /** Reads a token's state without spending it, inside the tenant. */
   readonly inspectToken: (tenantId: string, token: string) => Promise<EnrolmentState>;
-  /** The assertion check that gates a replacement. Same one sign-in uses. */
-  readonly verifyAssertion: SignInWithPasskey;
-  /** Their current credentials, so the device is asked not to make a duplicate. */
-  readonly credentialIdsOf: (identityId: string) => Promise<readonly string[]>;
-  readonly storeCredential: (
-    identityId: string,
-    credential: RegisteredCredential,
-  ) => Promise<string>;
   /**
-   * Retire every credential this identity had except the one just made.
+   * Sends a fresh setup link, and always succeeds.
    *
-   * Replacing means the old one stops working. The usual reason somebody is
-   * here is a device they no longer have, and leaving its passkey live would
-   * make "replace" mean "add", which is the opposite of what they asked for.
+   * The signature is declared here rather than imported from the tenancy slice
+   * that implements it: `no-cross-slice-imports` forbids credential reaching
+   * into tenancy, and is right to. `sign-in.ts` states its account dependency
+   * the same way — the slice says what it needs, `composition.ts` supplies it,
+   * and neither slice learns the other's shape.
+   *
+   * Returning nothing is the contract, not an omission. An unknown address and
+   * a real one produce the same answer; the difference goes to the log.
    */
-  readonly revokeOtherCredentials: (identityId: string, keepCredentialId: string) => Promise<void>;
+  readonly recover: (request: { tenantId: string; workEmail: string }) => Promise<void>;
   readonly internalToken: string;
 }
 
@@ -76,23 +65,12 @@ export function enrolmentRoutes({
   challenges,
   complete,
   inspectToken,
-  verifyAssertion,
-  credentialIdsOf,
-  storeCredential,
-  revokeOtherCredentials,
+  recover,
   internalToken,
 }: EnrolmentRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const path = (request.url ?? '').split('?')[0];
-    if (
-      path !== BEGIN &&
-      path !== FINISH &&
-      path !== STATUS &&
-      path !== REPLACE_BEGIN &&
-      path !== REPLACE_FINISH
-    ) {
-      return false;
-    }
+    if (path !== BEGIN && path !== FINISH && path !== STATUS && path !== RECOVER) return false;
 
     if (request.method !== 'POST') {
       response.writeHead(405, { allow: 'POST' }).end();
@@ -133,66 +111,27 @@ export function enrolmentRoutes({
       return true;
     }
 
-    if (path === REPLACE_BEGIN || path === REPLACE_FINISH) {
-      const origin = typeof input['origin'] === 'string' ? input['origin'] : '';
-      const presented = input['response'];
-      const challenge = challengeFrom(presented);
-      if (origin === '' || challenge === null) {
+    if (path === RECOVER) {
+      const tenantId = typeof input['tenantId'] === 'string' ? input['tenantId'] : '';
+      const workEmail = typeof input['workEmail'] === 'string' ? input['workEmail'] : '';
+      if (tenantId === '' || workEmail === '') {
         response.writeHead(400).end();
         return true;
       }
 
-      if (path === REPLACE_BEGIN) {
-        // The gate. Everything after this happens for the identity this
-        // assertion proved, and for no other.
-        const asserted = await verifyAssertion({ response: presented, origin, challenge });
-        if (!asserted.ok) {
-          // One refusal, like sign-in. Whoever is asking has proved nothing.
-          response.writeHead(401, { 'cache-control': 'no-store' }).end();
-          return true;
-        }
-
-        const identityId = asserted.value.identityId;
-        const { options, challenge: registration } = await rp.beginRegistration({
-          identityId,
-          displayName: typeof input['displayName'] === 'string' ? input['displayName'] : 'Kithena',
-          // So the device offers to make a *new* passkey rather than silently
-          // overwriting the one being replaced before it has been revoked.
-          excludeCredentialIds: [...(await credentialIdsOf(identityId))],
-          // The same policy first enrolment uses. A replacement is not the
-          // moment to raise the bar: somebody whose device is gone would be
-          // told to produce a hardware key they were never asked for.
-          requireHardwareBound: false,
-        });
-
-        // The challenge carries the subject, which is what stops `finish` from
-        // having to be told whose identity to register against — a value a
-        // caller could otherwise choose.
-        await challenges.issue(
-          registration,
-          { purpose: 'registration', subject: identityId },
-          CHALLENGE_TTL_SECONDS,
-        );
-
-        response
-          .writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-          .end(JSON.stringify({ options }));
-        return true;
-      }
-
-      const issued = await challenges.consume(challenge);
-      if (issued === null || issued.purpose !== 'registration' || issued.subject === null) {
-        response.writeHead(401, { 'cache-control': 'no-store' }).end();
-        return true;
-      }
-
-      const verdict = await rp.finishRegistration(presented, { challenge, origin });
-      const credentialId = await storeCredential(issued.subject, verdict);
-      await revokeOtherCredentials(issued.subject, credentialId);
-
-      response
-        .writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-        .end(JSON.stringify({ replaced: true }));
+      /*
+       * 202 whatever happened, with an empty body.
+       *
+       * An unknown address, an address at another company and a suspended
+       * account are one answer here — anything else is an oracle for whether a
+       * given person works at a given company. The reason is in the log.
+       *
+       * Awaited rather than fired and forgotten: a caller that got 202 before
+       * the send was attempted would be told a message is coming when the
+       * service that sends it may be unreachable.
+       */
+      await recover({ tenantId, workEmail });
+      response.writeHead(202, { 'cache-control': 'no-store' }).end();
       return true;
     }
 
