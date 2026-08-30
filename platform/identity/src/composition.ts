@@ -216,6 +216,8 @@ async function inviteCommissioned(
 ): Promise<Result<{ token: string; expiresAt: string }>> {
   const issued = await drizzleEnrolmentTokenStore(tx, input.tenantId).issue({
     accountId: input.accountId,
+    // The invitation path. Recovery mints its own, in `recover`.
+    purpose: 'invitation',
     secondChannel: input.secondChannel,
     issuedBy: input.issuedBy,
   });
@@ -782,6 +784,9 @@ export async function compose(config: Config): Promise<RequestHandler> {
             reissue: async (accountId) => {
               const issued = await drizzleEnrolmentTokenStore(tx, tenantId).issue({
                 accountId,
+                // What makes the link open straight onto passkey setup rather
+                // than "you already have a passkey" — see `enrolmentState`.
+                purpose: 'recovery',
                 // The channel this actually used, recorded honestly. It is an
                 // emailed link and nothing more, which is the whole of what was
                 // traded away — see `recoverAccount`.

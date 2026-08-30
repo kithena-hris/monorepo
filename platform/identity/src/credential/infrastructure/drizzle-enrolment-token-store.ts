@@ -69,6 +69,7 @@ export function drizzleEnrolmentTokenStore(
           tenantId,
           accountId: request.accountId,
           tokenHash: hash,
+          purpose: request.purpose,
           secondChannel: request.secondChannel,
           expiresAt: sql`now() + make_interval(secs => ${ENROLMENT_TTL_SECONDS})`,
           createdAt: sql`now()`,
@@ -98,7 +99,7 @@ export function drizzleEnrolmentTokenStore(
      */
     async inspect(token) {
       const rows = await tx.execute(sql`
-        SELECT e.expires_at, e.consumed_at, a.status AS account_status
+        SELECT e.purpose, e.expires_at, e.consumed_at, a.status AS account_status
           FROM platform.enrolment_token e
           JOIN platform.account a ON a.id = e.account_id
          WHERE e.token_hash = ${hashEnrolmentToken(token)}
@@ -109,6 +110,7 @@ export function drizzleEnrolmentTokenStore(
 
       return enrolmentState(
         {
+          purpose: typeof row['purpose'] === 'string' ? row['purpose'] : 'invitation',
           expiresAt: asInstant(instantOf(row['expires_at'])),
           consumedAt: row['consumed_at'] == null ? null : asInstant(instantOf(row['consumed_at'])),
           accountStatus: typeof row['account_status'] === 'string' ? row['account_status'] : '',
