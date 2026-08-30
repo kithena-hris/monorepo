@@ -1,7 +1,8 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { PostalAddress, ThemeId, checkAddress } from '@kithena/contracts';
 
-import { DisplayNameMissing, ImageNotOurs, ThemeUnknown, imageIsOurs } from './provision.js';
+import { imageIsOurs, type ImageHostPolicy } from './image-host.js';
+import { DisplayNameMissing, ImageNotOurs, ThemeUnknown } from './provision.js';
 
 /**
  * Changing what we hold about a company that already exists.
@@ -39,13 +40,16 @@ export interface AmendRequest {
  * in particular exists to stop a login page rendering an image somebody else
  * controls — a rule worth nothing if it only holds on day one.
  */
-export function checkAmendable(request: AmendRequest): Result<AmendRequest> {
+export function checkAmendable(
+  request: AmendRequest,
+  images: ImageHostPolicy,
+): Result<AmendRequest> {
   const displayName = request.displayName.trim();
   if (displayName === '') return err(DisplayNameMissing);
 
   if (!ThemeId.safeParse(request.themeId).success) return err(ThemeUnknown);
 
-  if (!imageIsOurs(request.logoUrl) || !imageIsOurs(request.coverImageUrl)) {
+  if (!imageIsOurs(request.logoUrl, images) || !imageIsOurs(request.coverImageUrl, images)) {
     return err(ImageNotOurs);
   }
 

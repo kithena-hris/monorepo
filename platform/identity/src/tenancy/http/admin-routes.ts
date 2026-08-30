@@ -209,8 +209,7 @@ export function adminRoutes({
         const asked = (await readJsonBody(request)) as Record<string, unknown> | null;
         if (asked === null) return json(400, {});
 
-        const text = (key: string): string =>
-          typeof asked[key] === 'string' ? asked[key] : '';
+        const text = (key: string): string => (typeof asked[key] === 'string' ? asked[key] : '');
         const orNull = (key: string): string | null =>
           typeof asked[key] === 'string' && asked[key] !== '' ? asked[key] : null;
 

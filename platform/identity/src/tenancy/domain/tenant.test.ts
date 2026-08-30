@@ -14,7 +14,13 @@ const acme: Tenant = {
   id: '00000000-0000-4000-8000-000000000001',
   slug: 'acme',
   status: 'active',
-  branding: { displayName: null, logoUrl: null, coverImageUrl: null, themeId: null, accentColor: null },
+  branding: {
+    displayName: null,
+    logoUrl: null,
+    coverImageUrl: null,
+    themeId: null,
+    accentColor: null,
+  },
 };
 
 describe('isLookupWorthwhile', () => {

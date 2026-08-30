@@ -24,25 +24,27 @@ function request(overrides: Partial<AmendRequest> = {}): AmendRequest {
   };
 }
 
+const IMAGES = { hosts: ['.public.blob.vercel-storage.com'] };
+
 describe('checkAmendable', () => {
   it('accepts an unchanged company', () => {
-    expect(checkAmendable(request()).ok).toBe(true);
+    expect(checkAmendable(request(), IMAGES).ok).toBe(true);
   });
 
   it('trims the display name rather than storing the spaces', () => {
-    const result = checkAmendable(request({ displayName: '  Acme Corp  ' }));
+    const result = checkAmendable(request({ displayName: '  Acme Corp  ' }), IMAGES);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.displayName).toBe('Acme Corp');
   });
 
   it('refuses a name that is only whitespace', () => {
-    const result = checkAmendable(request({ displayName: '   ' }));
+    const result = checkAmendable(request({ displayName: '   ' }), IMAGES);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('DISPLAY_NAME_MISSING');
   });
 
   it('refuses a theme that is not on the list', () => {
-    const result = checkAmendable(request({ themeId: 'hotpink' }));
+    const result = checkAmendable(request({ themeId: 'hotpink' }), IMAGES);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('THEME_UNKNOWN');
   });
@@ -55,15 +57,15 @@ describe('checkAmendable', () => {
    */
   it('refuses an image hosted somewhere we do not control', () => {
     for (const field of ['logoUrl', 'coverImageUrl'] as const) {
-      const result = checkAmendable(request({ [field]: 'https://evil.example/logo.png' }));
+      const result = checkAmendable(request({ [field]: 'https://evil.example/logo.png' }), IMAGES);
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.code).toBe('IMAGE_NOT_OURS');
     }
   });
 
   it('accepts an image on the blob host, and accepts none at all', () => {
-    expect(checkAmendable(request({ logoUrl: BLOB, coverImageUrl: BLOB })).ok).toBe(true);
-    expect(checkAmendable(request({ logoUrl: null, coverImageUrl: null })).ok).toBe(true);
+    expect(checkAmendable(request({ logoUrl: BLOB, coverImageUrl: BLOB }), IMAGES).ok).toBe(true);
+    expect(checkAmendable(request({ logoUrl: null, coverImageUrl: null }), IMAGES).ok).toBe(true);
   });
 
   it('refuses a postcode the country does not use', () => {
@@ -78,6 +80,7 @@ describe('checkAmendable', () => {
           postcode: 'not a postcode',
         },
       }),
+      IMAGES,
     );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.path?.[0]).toMatch(/^address\./);
@@ -95,7 +98,7 @@ describe('checkAmendable', () => {
   });
 
   it('can turn branding off without touching anything else', () => {
-    const result = checkAmendable(request({ brandingPublic: false, logoUrl: BLOB }));
+    const result = checkAmendable(request({ brandingPublic: false, logoUrl: BLOB }), IMAGES);
     expect(result.ok).toBe(true);
     // Stored, not discarded. The flag governs who may be *shown* the mark, and
     // a company that turns it back on should not have to upload again.

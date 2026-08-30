@@ -1,10 +1,19 @@
 import { err, ok, failure, type Result } from '@kithena/domain-kit';
 
 import { checkAmendable, type AmendRequest } from '../domain/amend.js';
+import type { ImageHostPolicy } from '../domain/image-host.js';
 
 export const TenantUnknown = failure('TENANT_UNKNOWN', 'There is no such company', ['id']);
 
 export interface AmendTenantDeps {
+  /**
+   * Hosts an uploaded image may be served from.
+   *
+   * Configuration rather than a literal in the rule: the rule is "ours or
+   * nothing", and which host is ours is a deployment decision. See
+   * `ImageHostPolicy`.
+   */
+  readonly images: ImageHostPolicy;
   /**
    * Writes the change and reports whether there was a row to change.
    *
@@ -35,9 +44,9 @@ export type AmendTenant = (
  * contract to keep for nobody. When a module needs one, it gets one — with a
  * classification policy per field, like every other event.
  */
-export function amendTenant({ write }: AmendTenantDeps): AmendTenant {
+export function amendTenant({ write, images }: AmendTenantDeps): AmendTenant {
   return async (tenantId, request) => {
-    const checked = checkAmendable(request);
+    const checked = checkAmendable(request, images);
     if (!checked.ok) return checked;
 
     const written = await write(tenantId, checked.value);
