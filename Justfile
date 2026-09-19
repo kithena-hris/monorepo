@@ -70,7 +70,7 @@ standalone module:
 # every role appears not to exist. Override them and the compose file with
 # `docker-compose.override.yml`, which is gitignored.
 auth-dev postgres_port="5432" valkey_port="6379":
-    docker compose up -d postgres valkey --wait
+    docker compose up -d postgres --wait
     #!/usr/bin/env bash
     set -euo pipefail
     # Rspack keeps a lock in its cache directory and panics if a second dev
@@ -103,7 +103,7 @@ auth-seed postgres_port="5432":
 # back-office. Ports as arguments for the same reason `auth-dev` takes them —
 # a developer with Postgres installed loses the race for `localhost:5432`.
 admin-dev postgres_port="5432" valkey_port="6379":
-    docker compose up -d postgres valkey --wait
+    docker compose up -d postgres --wait
     #!/usr/bin/env bash
     set -euo pipefail
     # Rspack keeps a lock in its cache and panics if a second dev server finds
@@ -164,7 +164,7 @@ email-preview logo="":
 # publishes to the wildcard, and `localhost` reaches the wrong server — every
 # role appears not to exist. `docker-compose.override.yml` publishes 55432 too.
 local:
-    docker compose up -d postgres valkey --wait
+    docker compose up -d postgres --wait
     #!/usr/bin/env bash
     set -euo pipefail
     # Rspack keeps a lock in its cache and panics if a second dev server finds

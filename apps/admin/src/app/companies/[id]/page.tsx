@@ -1,11 +1,35 @@
 import { countryRules, themePreset } from '@kithena/contracts';
-import { Alert, Avatar, Badge, Button, Card, CopyButton } from '@reach/ui';
+import {
+  Alert,
+  AutoGrid,
+  Avatar,
+  Badge,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  Button,
+  Container,
+  CopyButton,
+  PageHeader,
+  PageSection,
+  Stack,
+  Stat,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@reach/ui';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { CreatedToast, SavedToast } from '../../../components/created-toast';
-import { callIdentity } from '../../../lib/identity';
+import { callIdentity, readIdentity } from '../../../lib/identity';
 import { tenantHost, tenantUrl } from '../../../lib/tenant-host';
 import { currentOperator } from '../../../lib/session';
 import {
@@ -49,14 +73,33 @@ export default async function Company({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<JSX.Element> {
-  if (!(await currentOperator())) redirect('/sign-in');
-
   const { id } = await params;
   const query = await searchParams;
-  const { status, body } = await callIdentity(`/api/internal/admin/tenants/${id}`);
-  if (status === 404) notFound();
-  const company = body as Detail | null;
-  if (company === null) notFound();
+
+  /*
+   * The session check and the company, at the same time.
+   *
+   * Sequentially this page paid for two round trips to a separate deployment
+   * before it could render anything, and the second question does not depend on
+   * the answer to the first. The guard below still decides whether any of it is
+   * shown.
+   */
+  const [operator, found] = await Promise.all([
+    currentOperator(),
+    readIdentity(`/api/internal/admin/tenants/${id}`),
+  ]);
+  if (!operator) redirect('/sign-in');
+
+  /*
+   * `null` here means 404 and only 404.
+   *
+   * It used to mean "anything that was not a body", so an identity service
+   * answering 500 — or not answering at all — rendered as "this page could not
+   * be found" on a company that plainly exists in the list one click back. A
+   * real failure now reaches `app/error.tsx` and says which status came back.
+   */
+  if (found === null) notFound();
+  const company = found as Detail;
 
   /**
    * Inviting somebody, as a server action rather than an API route.
@@ -116,6 +159,10 @@ export default async function Company({
   const theme = company.themeId === null ? undefined : themePreset(company.themeId);
   const country = company.address ? countryRules(company.address.country) : undefined;
 
+  const active = company.people.filter((person) => person.status === 'active').length;
+  const invited = company.people.filter((person) => person.status === 'invited').length;
+  const other = company.people.length - active - invited;
+
   /**
    * Counts only, and that is the whole contract with the wizard.
    *
@@ -133,7 +180,7 @@ export default async function Company({
   const justSaved = query['saved'] === '1';
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <Container size="lg" className="py-10 sm:py-12">
       {justCreated ? (
         <CreatedToast
           companyName={company.displayName}
@@ -142,9 +189,6 @@ export default async function Company({
         />
       ) : null}
       {justSaved ? <SavedToast companyName={company.displayName} /> : null}
-      <Link href="/" className="text-fg-muted hover:text-fg text-sm">
-        ← All companies
-      </Link>
 
       {/*
         The company's own images, shown the way their sign-in page shows them
@@ -160,9 +204,9 @@ export default async function Company({
         product they are in. One swatch answers "what did they choose"; a
         recoloured application does not.
       */}
-      <header className="border-border mt-4 mb-8 overflow-hidden rounded-xl border">
+      <div className="border-border overflow-hidden rounded-xl border">
         <div
-          className="bg-surface-sunken relative h-32 sm:h-40"
+          className="bg-surface-sunken relative h-32 sm:h-44"
           style={theme ? { background: theme.accentSubtle } : undefined}
         >
           {company.coverImageUrl === null ? null : (
@@ -177,7 +221,7 @@ export default async function Company({
           )}
         </div>
 
-        <div className="bg-surface flex items-end gap-4 p-5">
+        <div className="bg-surface px-5 pt-3 pb-5">
           {/* `Avatar`, which handles both states. It used to be a hand-rolled
               `<img>` beside a hand-rolled initial-in-a-box, which is two
               treatments of the same idea that had to be kept in step by hand —
@@ -188,150 +232,206 @@ export default async function Company({
             fit="contain"
             src={company.logoUrl ?? undefined}
             name={company.displayName}
-            className="bg-surface -mt-12 shadow-sm"
+            className="bg-surface -mt-14 mb-3 shadow-sm"
           />
 
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-semibold">{company.displayName}</h1>
-            {/* The address an operator will actually follow, so it has to be
-                this environment's. A copy button rather than asking somebody to
-                select a hostname out of a sentence by hand. */}
-            <div className="mt-0.5 flex items-center gap-1">
-              <a
-                href={tenantUrl(company.slug)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-fg-muted hover:text-fg text-sm underline-offset-2 hover:underline"
-              >
-                {tenantHost(company.slug)}
-              </a>
-              <CopyButton
-                value={tenantUrl(company.slug)}
-                size="sm"
-                variant="ghost"
-                label={`Copy ${company.displayName}'s address`}
-                tooltip
-              />
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            {company.brandingPublic ? null : (
-              <Badge tone="neutral">Unbranded</Badge>
-            )}
-            <Badge tone={company.status === 'active' ? 'success' : 'warning'}>
-              {company.status}
-            </Badge>
-            <Button asChild variant="secondary" size="sm">
-              <Link href={`/companies/${company.id}/edit`}>Edit</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Card variant="outlined" padded>
-          <h2 className="mb-3 text-sm font-medium">Registered address</h2>
-          {company.address === null ? (
-            <p className="text-fg-muted text-sm">
-              None recorded. This company was created before an address was asked for.
-            </p>
-          ) : (
-            <address className="text-fg-muted text-sm not-italic">
-              {company.address.line1}
-              <br />
-              {company.address.line2 === null ? null : (
-                <>
-                  {company.address.line2}
-                  <br />
-                </>
-              )}
-              {company.address.city}
-              {company.address.subdivision === null
-                ? null
-                : `, ${
-                    country?.subdivisions.find((s) => s.code === company.address?.subdivision)
-                      ?.name ?? company.address.subdivision
-                  }`}
-              <br />
-              {company.address.postcode === null ? null : (
-                <>
-                  {company.address.postcode}
-                  <br />
-                </>
-              )}
-              {country?.name ?? company.address.country}
-            </address>
-          )}
-        </Card>
-
-        <Card variant="outlined" padded>
-          <h2 className="mb-3 text-sm font-medium">Theme</h2>
-          {theme === undefined ? (
-            <p className="text-fg-muted text-sm">Using the default accent.</p>
-          ) : (
-            <div className="flex items-center gap-3">
-              <span
-                aria-hidden
-                className="border-border size-9 rounded-full border"
-                style={{ background: theme.accent }}
-              />
-              <span className="flex flex-col">
-                <span className="text-sm font-medium">{theme.name}</span>
-                <span className="text-fg-muted text-xs">
-                  {theme.contrastOnWhite.toFixed(1)}:1 on white
-                </span>
+          <PageHeader
+            breadcrumb={
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link href="/">Companies</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{company.displayName}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            }
+            title={company.displayName}
+            description={
+              // The address an operator will actually follow, so it has to be
+              // this environment's. A copy button rather than asking somebody to
+              // select a hostname out of a sentence by hand.
+              <span className="flex items-center gap-1">
+                <a
+                  href={tenantUrl(company.slug)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-fg underline-offset-2 hover:underline"
+                >
+                  {tenantHost(company.slug)}
+                </a>
+                <CopyButton
+                  value={tenantUrl(company.slug)}
+                  size="sm"
+                  variant="ghost"
+                  label={`Copy ${company.displayName}'s address`}
+                  tooltip
+                />
               </span>
-            </div>
-          )}
-
-          <h2 className="mt-6 mb-2 text-sm font-medium">Created</h2>
-          <p className="text-fg-muted text-sm">
-            <time dateTime={company.createdAt}>
-              {new Date(company.createdAt).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </time>
-          </p>
-        </Card>
+            }
+            meta={
+              <>
+                <Badge dot tone={company.status === 'active' ? 'success' : 'warning'}>
+                  {company.status}
+                </Badge>
+                {company.brandingPublic ? null : <Badge tone="neutral">Unbranded</Badge>}
+              </>
+            }
+            actions={
+              <Button asChild variant="secondary" size="sm">
+                <Link href={`/companies/${company.id}/edit`}>Edit</Link>
+              </Button>
+            }
+          />
+        </div>
       </div>
 
-      <Card variant="outlined" padded className="mt-5">
-        <h2 className="mb-1 text-sm font-medium">Invite somebody</h2>
-        <p className="text-fg-muted mb-4 text-sm">
-          They are sent a link and set up a passkey on their own device. You are not given a way to
-          sign in as them.
-        </p>
-        <InvitePersonForm action={invite} companyName={company.displayName} />
-      </Card>
+      <Stack gap={8} className="mt-8">
+        {/*
+          The four questions an operator opens this page to answer, before any
+          of the detail below: can anybody sign in, is anybody still waiting,
+          is anybody locked out, and how long has this company been here.
+        */}
+        <AutoGrid minItemWidth="11rem" gap={4}>
+          <Stat label="Can sign in" value={active} />
+          <Stat
+            label="Awaiting enrolment"
+            value={invited}
+            sentiment={invited > 0 ? 'negative' : 'neutral'}
+          />
+          <Stat label="Other accounts" value={other} />
+          <Stat label="Customer since" value={formatDate(company.createdAt)} />
+        </AutoGrid>
 
-      <Card variant="outlined" padded className="mt-5">
-        <h2 className="mb-3 text-sm font-medium">People</h2>
-        {company.people.length === 0 ? (
-          <Alert tone="warning" title="Nobody can sign in">
-            This company has no accounts at all.
-          </Alert>
-        ) : (
-          <ul className="divide-border border-border divide-y rounded-md border">
-            {company.people.map((person) => (
-              <li key={person.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="truncate text-sm">{person.email}</span>
-                <Badge tone={badgeTone(person.status)}>{person.status}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <PageSection title="Registered address" surface>
+            {company.address === null ? (
+              <p className="text-fg-muted text-sm">
+                None recorded. This company was created before an address was asked for.
+              </p>
+            ) : (
+              <address className="text-fg-muted text-sm not-italic">
+                {company.address.line1}
+                <br />
+                {company.address.line2 === null ? null : (
+                  <>
+                    {company.address.line2}
+                    <br />
+                  </>
+                )}
+                {company.address.city}
+                {company.address.subdivision === null
+                  ? null
+                  : `, ${
+                      country?.subdivisions.find((s) => s.code === company.address?.subdivision)
+                        ?.name ?? company.address.subdivision
+                    }`}
+                <br />
+                {company.address.postcode === null ? null : (
+                  <>
+                    {company.address.postcode}
+                    <br />
+                  </>
+                )}
+                {country?.name ?? company.address.country}
+              </address>
+            )}
+          </PageSection>
 
-      <footer className="border-border mt-10 border-t pt-6">
-        <Button asChild variant="secondary">
-          <Link href="/">Back to companies</Link>
-        </Button>
-      </footer>
-    </main>
+          <PageSection
+            title="Sign-in page"
+            description="What this company's own people see."
+            surface
+          >
+            <Stack gap={4}>
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className="border-border size-9 shrink-0 rounded-full border"
+                  style={theme ? { background: theme.accent } : undefined}
+                />
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-sm font-medium">{theme?.name ?? 'Default accent'}</span>
+                  <span className="text-fg-muted text-xs">
+                    {theme === undefined
+                      ? 'No theme chosen, so the product accent is used.'
+                      : `${theme.contrastOnWhite.toFixed(1)}:1 on white`}
+                  </span>
+                </span>
+              </div>
+
+              {company.brandingPublic ? null : (
+                <Alert tone="info" title="Branding is hidden">
+                  Their logo and cover image are stored but are not shown before somebody signs in.
+                </Alert>
+              )}
+            </Stack>
+          </PageSection>
+        </div>
+
+        <PageSection
+          title="Invite somebody"
+          description="They are sent a link and set up a passkey on their own device. You are not given a way to sign in as them."
+          surface
+        >
+          <InvitePersonForm action={invite} companyName={company.displayName} />
+        </PageSection>
+
+        <PageSection
+          title="People"
+          description={`${company.people.length} ${company.people.length === 1 ? 'account' : 'accounts'} in the registry.`}
+          surface
+        >
+          {company.people.length === 0 ? (
+            <Alert tone="warning" title="Nobody can sign in">
+              This company has no accounts at all.
+            </Alert>
+          ) : (
+            <Table aria-label={`People at ${company.displayName}`}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Work email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Added</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {company.people.map((person) => (
+                  <TableRow key={person.id}>
+                    <TableCell className="truncate">{person.email}</TableCell>
+                    <TableCell>
+                      <Badge dot tone={badgeTone(person.status)}>
+                        {person.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell numeric>
+                      <time dateTime={person.createdAt} className="text-fg-muted text-sm">
+                        {formatDate(person.createdAt)}
+                      </time>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </PageSection>
+      </Stack>
+    </Container>
   );
+}
+
+/** The date an operator reads, not the timestamp the database stores. */
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 /**

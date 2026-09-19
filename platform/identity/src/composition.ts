@@ -895,7 +895,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
       // deleted while it holds employment records.
       const cursor = page.cursor;
       const rows = await db.execute(sql`
-        SELECT t.id, t.slug, t.display_name, t.status, t.created_at
+        SELECT t.id, t.slug, t.display_name, t.status, t.created_at, t.logo_url
           FROM platform.tenant t
          WHERE ${
            cursor === null
@@ -938,6 +938,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
             displayName: text(row['display_name']),
             status: text(row['status']),
             createdAt: text(row['created_at']),
+            // The mark, so the list can show one. The same column the detail
+            // page reads; sending it here saves the back-office a request per
+            // row to render an avatar it already has the URL for.
+            logoUrl: textOrNull(row['logo_url']),
             admins: count.active,
             pendingInvites: count.invited,
           };

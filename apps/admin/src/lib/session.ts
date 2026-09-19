@@ -1,5 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 
 import { callIdentity } from './identity';
 
@@ -23,7 +24,18 @@ export interface OperatorIdentity {
   readonly email: string;
 }
 
-export async function currentOperator(): Promise<OperatorIdentity | null> {
+/*
+ * Memoised for the length of one render.
+ *
+ * Every page checks this, and a page that also renders a server action checks
+ * it again inside the action — correctly, because an action is a POST endpoint
+ * in its own right. Without `cache` that is two round trips to identity for one
+ * screen, and identity is a separate deployment: each one is a function
+ * invocation, a pooled connection and a query. `cache` dedupes within a single
+ * render and does not persist across requests, so nothing is remembered between
+ * one operator and the next.
+ */
+export const currentOperator = cache(async (): Promise<OperatorIdentity | null> => {
   const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
   if (sessionId === undefined || sessionId === '') return null;
 
@@ -41,4 +53,4 @@ export async function currentOperator(): Promise<OperatorIdentity | null> {
   } catch {
     return null;
   }
-}
+});
