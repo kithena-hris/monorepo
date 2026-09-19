@@ -384,7 +384,7 @@ export default async function Company({
 
         <PageSection
           title="People"
-          description={`${company.people.length} ${company.people.length === 1 ? 'account' : 'accounts'} in the registry.`}
+          description={`${String(company.people.length)} ${company.people.length === 1 ? 'account' : 'accounts'} in the registry.`}
           surface
         >
           {company.people.length === 0 ? (

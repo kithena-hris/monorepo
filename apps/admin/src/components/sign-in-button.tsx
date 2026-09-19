@@ -26,7 +26,7 @@ export function SignInButton(): JSX.Element {
    * its own, and a stale one is re-requested rather than risked — sixty seconds
    * is well inside any server-side expiry and long enough to cover a reach.
    */
-  const warmed = useRef<{ at: number; options: Promise<unknown | null> } | null>(null);
+  const warmed = useRef<{ at: number; options: Promise<unknown> } | null>(null);
 
   function warm(): void {
     if (warmed.current !== null && Date.now() - warmed.current.at < WARM_FOR_MS) return;

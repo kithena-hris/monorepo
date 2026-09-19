@@ -48,7 +48,7 @@ export async function callIdentity(
  * So: absent is `null`, and *broken* throws. `null` is a 404 and nothing else.
  * Everything else reaches `app/error.tsx`, which says what actually happened.
  */
-export async function readIdentity(path: string): Promise<unknown | null> {
+export async function readIdentity(path: string): Promise<unknown> {
   const { status, body } = await callIdentity(path);
   if (status === 404) return null;
   if (status !== 200) {

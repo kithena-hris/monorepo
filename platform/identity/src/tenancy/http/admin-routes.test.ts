@@ -57,7 +57,7 @@ function fakeResponse(): {
   return {
     response,
     status: () => status,
-    body: () => (payload === undefined ? undefined : JSON.parse(payload)),
+    body: (): unknown => (payload === undefined ? undefined : (JSON.parse(payload) as unknown)),
   };
 }
 
@@ -74,7 +74,7 @@ function request(url: string, token: string | null = TOKEN): IncomingMessage {
 function routes(tenantDetail: (id: string) => Promise<TenantDetail | null>) {
   return adminRoutes({
     internalToken: TOKEN,
-    listTenants: async () => ({ tenants: [], nextCursor: null }),
+    listTenants: () => Promise.resolve({ tenants: [], nextCursor: null }),
     tenantDetail,
     // None of these are reached by a GET on the detail path, and a test that
     // supplied working versions would be asserting the wiring rather than the
@@ -88,7 +88,7 @@ function routes(tenantDetail: (id: string) => Promise<TenantDetail | null>) {
 describe('the company detail route', () => {
   it('answers 200 with the company when it exists', async () => {
     const { response, status, body } = fakeResponse();
-    const handled = await routes(async () => detailOf())(
+    const handled = await routes(() => Promise.resolve(detailOf()))(
       request(`/api/internal/admin/tenants/${ID}`),
       response,
     );
@@ -100,7 +100,7 @@ describe('the company detail route', () => {
 
   it('answers 404 only when the company is genuinely not there', async () => {
     const { response, status } = fakeResponse();
-    await routes(async () => null)(request(`/api/internal/admin/tenants/${ID}`), response);
+    await routes(() => Promise.resolve(null))(request(`/api/internal/admin/tenants/${ID}`), response);
 
     expect(status()).toBe(404);
   });
@@ -112,14 +112,14 @@ describe('the company detail route', () => {
     // happened.
     const { response } = fakeResponse();
     await expect(
-      routes(async () => {
+      routes(() => {
         throw new Error('permission denied for table account');
       })(request(`/api/internal/admin/tenants/${ID}`), response),
     ).rejects.toThrow('permission denied');
   });
 
   it('refuses a caller with no token before it reads anything', async () => {
-    const tenantDetail = vi.fn(async () => detailOf());
+    const tenantDetail = vi.fn(() => Promise.resolve(detailOf()));
     const { response, status } = fakeResponse();
     await routes(tenantDetail)(request(`/api/internal/admin/tenants/${ID}`, null), response);
 
@@ -132,7 +132,7 @@ describe('the company detail route', () => {
     // matters: a route that claimed this would answer 401 to anything under
     // `/api/internal/admin/tenants/…`, including paths it cannot serve.
     const { response } = fakeResponse();
-    const handled = await routes(async () => detailOf())(
+    const handled = await routes(() => Promise.resolve(detailOf()))(
       request('/api/internal/admin/tenants/not-a-uuid'),
       response,
     );
@@ -143,9 +143,9 @@ describe('the company detail route', () => {
   it('matches the id whatever case it arrives in, and ignores the query string', async () => {
     const seen: string[] = [];
     const { response, status } = fakeResponse();
-    await routes(async (id) => {
+    await routes((id) => {
       seen.push(id);
-      return detailOf();
+      return Promise.resolve(detailOf());
     })(request(`/api/internal/admin/tenants/${ID.toUpperCase()}?created=1`), response);
 
     expect(status()).toBe(200);

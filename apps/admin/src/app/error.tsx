@@ -39,7 +39,13 @@ export default function AdminError({
           </p>
         )}
         <Stack gap={3} className="sm:flex-row">
-          <Button onClick={() => retry()}>Try again</Button>
+          <Button
+            onClick={() => {
+              retry();
+            }}
+          >
+            Try again
+          </Button>
           <Button asChild variant="secondary">
             <Link href="/">Back to companies</Link>
           </Button>
