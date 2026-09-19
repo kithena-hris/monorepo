@@ -38,11 +38,16 @@ if (!existing[0]) {
 await sql`DELETE FROM platform.operator_session`;
 await sql`DELETE FROM platform.credential WHERE identity_id = ${identityId}::uuid`;
 
-const enrol = new URL('http://localhost:3001/enrol');
+// The back-office origin this deployment uses. Same reasoning as the tenant
+// seed: a passkey is bound to the hostname it was created on, so a printed link
+// that names a different one enrols a credential nothing will ever match.
+const origin = process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001';
+
+const enrol = new URL('/enrol', origin);
 enrol.searchParams.set('identity', identityId);
 
 process.stdout.write(
-  `\nOperator: ${email}\nEnrol:    ${enrol.toString()}\nSign in:  http://localhost:3001/sign-in\n\n`,
+  `\nOperator: ${email}\nEnrol:    ${enrol.toString()}\nSign in:  ${new URL('/sign-in', origin).toString()}\n\n`,
 );
 
 await sql.end();

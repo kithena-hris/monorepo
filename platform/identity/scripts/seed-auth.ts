@@ -124,13 +124,24 @@ await sql`
           now() + interval '72 hours')
 `;
 
-const enrol = new URL('http://localhost:3100/enrol');
+/*
+ * The auth origin this deployment actually uses, not a guess.
+ *
+ * It was `http://localhost:3100`, and a passkey created there is refused when
+ * `WEBAUTHN_RP_ID` is `app.localhost` — a relying party id has to be a suffix
+ * of the hostname the ceremony runs on, and `app.localhost` is not a suffix of
+ * `localhost`. The browser rejects it before the service sees it, so the
+ * symptom is a sign-in that quietly never recognises anybody.
+ */
+const origin = process.env['AUTH_ORIGIN'] ?? 'http://localhost:3100';
+
+const enrol = new URL('/enrol', origin);
 enrol.searchParams.set('identity', IDENTITY);
 enrol.searchParams.set('tenant', 'acme');
 enrol.searchParams.set('token', token);
 enrol.searchParams.set('name', EMAIL);
 
-const login = new URL('http://localhost:3100/login');
+const login = new URL('/login', origin);
 // The slug, which is what the hostname will carry in production. A uuid in a
 // link is a uuid somebody has to copy correctly.
 login.searchParams.set('tenant', 'acme');
