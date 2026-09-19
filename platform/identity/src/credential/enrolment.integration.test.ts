@@ -52,6 +52,10 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260821230000_identity.sql',
     '20260822010000_enrolment_token.sql',
+    // Adds `purpose`, which `issue` writes and `inspect` reads. Listed because
+    // this suite names the migrations it needs: leaving it out fails on the
+    // insert, which reads like a bug in the store rather than a missing column.
+    '20260830100000_enrolment_token_purpose.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
@@ -117,7 +121,7 @@ async function enrol(
     const tokens = drizzleEnrolmentTokenStore(tx, TENANT);
     const token =
       options.token ??
-      (await tokens.issue({ accountId: ACCOUNT, secondChannel: 'in_person', issuedBy: null }))
+      (await tokens.issue({ accountId: ACCOUNT, purpose: 'invitation', secondChannel: 'in_person', issuedBy: null }))
         .token;
 
     const { challenge } = await rp.beginRegistration({
@@ -206,7 +210,7 @@ describe('a first passkey', () => {
     const issued = await inTenant((tx) =>
       drizzleEnrolmentTokenStore(tx, TENANT).issue({
         accountId: ACCOUNT,
-        secondChannel: 'in_person',
+        purpose: 'invitation', secondChannel: 'in_person',
         issuedBy: null,
       }),
     );
@@ -258,12 +262,12 @@ describe('re-issuing a link', () => {
       const store = drizzleEnrolmentTokenStore(tx, TENANT);
       const a = await store.issue({
         accountId: ACCOUNT,
-        secondChannel: 'in_person',
+        purpose: 'invitation', secondChannel: 'in_person',
         issuedBy: null,
       });
       const b = await store.issue({
         accountId: ACCOUNT,
-        secondChannel: 'in_person',
+        purpose: 'invitation', secondChannel: 'in_person',
         issuedBy: null,
       });
       return [a.token, b.token];
@@ -282,7 +286,7 @@ describe('re-issuing a link', () => {
     const issued = await inTenant((tx) =>
       drizzleEnrolmentTokenStore(tx, TENANT).issue({
         accountId: ACCOUNT,
-        secondChannel: 'in_person',
+        purpose: 'invitation', secondChannel: 'in_person',
         issuedBy: null,
       }),
     );

@@ -3,6 +3,14 @@ import type { EnrolmentToken, SecondChannel } from '../domain/enrolment-token.js
 
 export interface IssueRequest {
   readonly accountId: string;
+  /**
+   * Why this link exists: the first one, or a replacement.
+   *
+   * Stored rather than inferred later. The page a link opens has to know
+   * whether it is a first enrolment or a recovery, and every way of guessing
+   * that from other columns has been wrong — see `enrolmentState`.
+   */
+  readonly purpose: 'invitation' | 'recovery';
   readonly secondChannel: SecondChannel;
   /** The HR admin who authorised it. Null when the platform provisions a tenant. */
   readonly issuedBy: string | null;

@@ -216,6 +216,8 @@ async function inviteCommissioned(
 ): Promise<Result<{ token: string; expiresAt: string }>> {
   const issued = await drizzleEnrolmentTokenStore(tx, input.tenantId).issue({
     accountId: input.accountId,
+    // The invitation path. Recovery mints its own, in `recover`.
+    purpose: 'invitation',
     secondChannel: input.secondChannel,
     issuedBy: input.issuedBy,
   });
@@ -782,6 +784,9 @@ export async function compose(config: Config): Promise<RequestHandler> {
             reissue: async (accountId) => {
               const issued = await drizzleEnrolmentTokenStore(tx, tenantId).issue({
                 accountId,
+                // What makes the link open straight onto passkey setup rather
+                // than "you already have a passkey" — see `enrolmentState`.
+                purpose: 'recovery',
                 // The channel this actually used, recorded honestly. It is an
                 // emailed link and nothing more, which is the whole of what was
                 // traded away — see `recoverAccount`.
@@ -890,7 +895,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
       // deleted while it holds employment records.
       const cursor = page.cursor;
       const rows = await db.execute(sql`
-        SELECT t.id, t.slug, t.display_name, t.status, t.created_at
+        SELECT t.id, t.slug, t.display_name, t.status, t.created_at, t.logo_url
           FROM platform.tenant t
          WHERE ${
            cursor === null
@@ -933,6 +938,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
             displayName: text(row['display_name']),
             status: text(row['status']),
             createdAt: text(row['created_at']),
+            // The mark, so the list can show one. The same column the detail
+            // page reads; sending it here saves the back-office a request per
+            // row to render an avatar it already has the URL for.
+            logoUrl: textOrNull(row['logo_url']),
             admins: count.active,
             pendingInvites: count.invited,
           };

@@ -63,6 +63,14 @@ export interface TenantDetail {
   readonly themeId: string | null;
   readonly logoUrl: string | null;
   readonly coverImageUrl: string | null;
+  /**
+   * Whether the company's own branding is shown on its sign-in page.
+   *
+   * Declared here because the detail response has always carried it and the
+   * back-office has always read it — the type simply did not say so, which
+   * meant the one field a client depends on was the one field nothing checked.
+   */
+  readonly brandingPublic: boolean;
   readonly address: {
     readonly country: string;
     readonly line1: string;
@@ -87,6 +95,7 @@ export interface AdminRoutesDeps {
       displayName: string;
       status: string;
       createdAt: string;
+      logoUrl: string | null;
       admins: number;
       pendingInvites: number;
     }[];

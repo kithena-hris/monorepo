@@ -4,87 +4,106 @@ import { enrolmentState, type EnrolmentRow } from './enrolment-state.js';
 
 const NOW = new Date('2026-08-29T12:00:00.000Z');
 
-const live: EnrolmentRow = {
+/** A first link, live, for somebody who has not enrolled yet. */
+const invitation: EnrolmentRow = {
+  purpose: 'invitation',
   expiresAt: '2026-08-31T12:00:00.000Z',
   consumedAt: null,
   accountStatus: 'invited',
 };
 
-describe('enrolmentState', () => {
+/** A replacement link, live, for somebody who lost their passkey. */
+const recovery: EnrolmentRow = { ...invitation, purpose: 'recovery', accountStatus: 'active' };
+
+describe('enrolmentState, on an invitation', () => {
   it('is usable while the link is live and the account is waiting', () => {
-    expect(enrolmentState(live, NOW)).toBe('usable');
+    expect(enrolmentState(invitation, NOW)).toBe('usable');
   });
 
   /*
-   * The state this exists for. Somebody follows their link a second time —
-   * from a bookmark, a second device, or because they forgot they had already
-   * done it — and the old page ran the whole biometric ceremony before telling
-   * them the link was spent. This is knowable before the prompt.
+   * The returning-to-a-bookmark case, and the only one that should ever say
+   * this. Somebody opens their original signup link again, months later, from
+   * a device that already has their passkey.
    */
   it('says the passkey is already set up once the account is active', () => {
-    expect(enrolmentState({ ...live, consumedAt: NOW.toISOString(), accountStatus: 'active' }, NOW))
+    expect(enrolmentState({ ...invitation, consumedAt: NOW.toISOString(), accountStatus: 'active' }, NOW))
       .toBe('already_enrolled');
   });
 
-  /*
-   * Spent but *not* enrolled is a different thing to be told. The token is
-   * burnt on presentation whether or not registration succeeded, so this is
-   * somebody whose device refused halfway — they need a new link, not a
-   * sign-in page they cannot use.
-   */
   it('distinguishes a spent link from a finished one', () => {
-    expect(enrolmentState({ ...live, consumedAt: NOW.toISOString() }, NOW)).toBe('spent');
-  });
-
-  /*
-   * The bug this function shipped with. A recovery link is *always* issued to
-   * an active account — that is what recovery is — and the first version
-   * answered `already_enrolled` for any active account regardless of the link.
-   * Somebody who had just asked for a new passkey was told they already had
-   * one and offered a sign-in they could not complete.
-   *
-   * A live link wins. It is the more specific fact, and it is the one the
-   * person is holding.
-   */
-  it('lets an active account use a live link, which is what recovery is', () => {
-    expect(enrolmentState({ ...live, accountStatus: 'active' }, NOW)).toBe('usable');
+    // Spent but not enrolled: the device refused halfway. They need a new link,
+    // not a sign-in page they cannot use.
+    expect(enrolmentState({ ...invitation, consumedAt: NOW.toISOString() }, NOW)).toBe('spent');
   });
 
   it('reports an expired link as expired while it is still unused', () => {
-    expect(enrolmentState({ ...live, expiresAt: '2026-08-29T11:59:59.000Z' }, NOW)).toBe('expired');
+    expect(enrolmentState({ ...invitation, expiresAt: '2026-08-29T11:59:59.000Z' }, NOW))
+      .toBe('expired');
+  });
+
+  it('treats the expiry instant itself as expired', () => {
+    expect(enrolmentState({ ...invitation, expiresAt: NOW.toISOString() }, NOW)).toBe('expired');
+  });
+});
+
+describe('enrolmentState, on a recovery link', () => {
+  /*
+   * The bug this column exists for. A recovery link is *always* issued to an
+   * active account — that is what recovery is — and the page used to read that
+   * as "you already have a passkey", blocking the flow the email had just
+   * started and offering a sign-in the person could not complete.
+   *
+   * Coming from a recovery link means setting up a passkey. Nothing about the
+   * account changes that.
+   */
+  it('goes straight to setup, whatever the account says', () => {
+    expect(enrolmentState(recovery, NOW)).toBe('usable');
+    expect(enrolmentState({ ...recovery, accountStatus: 'invited' }, NOW)).toBe('usable');
   });
 
   /*
-   * Enrolled wins over expired. A link that ran out yesterday for somebody who
-   * used it last week should send them to sign in, not tell them to ask for a
-   * replacement they do not need.
+   * Spent is the one thing a live link cannot survive: the token is single-use
+   * and the row is consumed. They need another, which is a different message
+   * from "you already have a passkey" — and on an active account that is
+   * exactly what they now have.
    */
-  it('prefers already-enrolled over expired', () => {
+  it('sends somebody back for another link once this one is spent', () => {
+    expect(enrolmentState({ ...recovery, consumedAt: NOW.toISOString() }, NOW))
+      .toBe('already_enrolled');
     expect(
-      enrolmentState(
-        { expiresAt: '2026-08-01T00:00:00.000Z', consumedAt: '2026-08-01T00:00:00.000Z', accountStatus: 'active' },
-        NOW,
-      ),
-    ).toBe('already_enrolled');
+      enrolmentState({ ...recovery, consumedAt: NOW.toISOString(), accountStatus: 'invited' }, NOW),
+    ).toBe('spent');
   });
 
+  it('expires like any other link', () => {
+    expect(enrolmentState({ ...recovery, expiresAt: '2026-08-29T11:59:59.000Z' }, NOW))
+      .toBe('already_enrolled');
+  });
+});
+
+describe('enrolmentState, on anything else', () => {
   it('treats a missing row as unknown', () => {
     expect(enrolmentState(null, NOW)).toBe('unknown');
   });
 
   /*
-   * An account that is not `invited` and not `active` — suspended, terminated,
-   * or still merely provisioned — is not something to walk somebody through.
-   * It is refused as unknown rather than described, because the person reading
-   * cannot act on the difference and their HR team can.
+   * Suspended, terminated or merely provisioned is not a state to walk somebody
+   * through. They cannot act on the difference and their HR team can.
    */
-  it('refuses an account in a state enrolment does not apply to', () => {
+  it('refuses an account enrolment does not apply to, whatever the link', () => {
     for (const accountStatus of ['suspended', 'terminated', 'provisioned'] as const) {
-      expect(enrolmentState({ ...live, accountStatus }, NOW), accountStatus).toBe('unknown');
+      expect(enrolmentState({ ...invitation, accountStatus }, NOW), accountStatus).toBe('unknown');
+      expect(enrolmentState({ ...recovery, accountStatus }, NOW), accountStatus).toBe('unknown');
     }
   });
 
-  it('treats the expiry instant itself as expired', () => {
-    expect(enrolmentState({ ...live, expiresAt: NOW.toISOString() }, NOW)).toBe('expired');
+  /*
+   * A purpose this build has never heard of is treated as an invitation: the
+   * stricter of the two, since it is the one that can refuse an active account.
+   * A future third kind should not become a way past that by being unknown.
+   */
+  it('treats an unrecognised purpose as the stricter kind', () => {
+    const odd = { ...recovery, purpose: 'something-new' } as unknown as EnrolmentRow;
+    expect(enrolmentState(odd, NOW)).toBe('already_enrolled');
   });
 });

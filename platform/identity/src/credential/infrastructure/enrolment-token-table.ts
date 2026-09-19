@@ -10,6 +10,8 @@ export const enrolmentToken = platform.table('enrolment_token', {
   tenantId: uuid('tenant_id').notNull(),
   accountId: uuid('account_id').notNull(),
   tokenHash: bytea('token_hash').notNull(),
+  /** `invitation` or `recovery`. Text with a CHECK, not an enum — see the migration. */
+  purpose: text('purpose').notNull(),
   secondChannel: text('second_channel').notNull(),
   expiresAt: instant('expires_at').notNull(),
   consumedAt: instant('consumed_at'),

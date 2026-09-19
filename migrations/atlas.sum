@@ -1,4 +1,4 @@
-h1:P7VRg/t+9k2E4DvztcNkCfK5ZRVFYfIfa0fzADFg+no=
+h1:hkAgTTgnoF9WQ9RvGVrDn1gcX1rG9GDmDNTdbVudXk8=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -10,3 +10,4 @@ h1:P7VRg/t+9k2E4DvztcNkCfK5ZRVFYfIfa0fzADFg+no=
 20260824090000_messaging.sql h1:mMg9MNp/sP806cJfDz1MwQzx08wIDk++noP0MoXD9HM=
 20260828120000_handoff_code.sql h1:yLgnnXQMWiY+MxdtH+4ncpWX1L5NFvkgSI3/aRdLSs0=
 20260829090000_accounts_for_identity.sql h1:cUfNjpMV1oHyWc+rPZxeHWpWqc4x1+kwON7i1/sdSQQ=
+20260830100000_enrolment_token_purpose.sql h1:lNeVXabHvmVht1b06LoVBV6+/BGc1s2jTvJAZfsKqCY=
