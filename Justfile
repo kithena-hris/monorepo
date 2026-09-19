@@ -69,7 +69,7 @@ standalone module:
 # Docker publishes to the wildcard, so `localhost` reaches the wrong server and
 # every role appears not to exist. Override them and the compose file with
 # `docker-compose.override.yml`, which is gitignored.
-auth-dev postgres_port="5432" valkey_port="6379":
+auth-dev postgres_port=env_var_or_default("POSTGRES_PORT", "5432") valkey_port="6379":
     docker compose up -d postgres --wait
     #!/usr/bin/env bash
     set -euo pipefail
@@ -96,13 +96,13 @@ auth-dev postgres_port="5432" valkey_port="6379":
 
 # Put a tenant, an invited account and a fresh enrolment link in the database,
 # and print the link. The link is single-use, so this is how you get another.
-auth-seed postgres_port="5432":
+auth-seed postgres_port=env_var_or_default("POSTGRES_PORT", "5432"):
     pnpm --filter @kithena/identity seed {{postgres_port}}
 
 # The whole authenticated surface: identity, the auth origin and the
 # back-office. Ports as arguments for the same reason `auth-dev` takes them —
 # a developer with Postgres installed loses the race for `localhost:5432`.
-admin-dev postgres_port="5432" valkey_port="6379":
+admin-dev postgres_port=env_var_or_default("POSTGRES_PORT", "5432") valkey_port="6379":
     docker compose up -d postgres --wait
     #!/usr/bin/env bash
     set -euo pipefail
@@ -128,7 +128,7 @@ admin-dev postgres_port="5432" valkey_port="6379":
 
 # Put an operator back in the state they start in: named, with no credential.
 # Prints the link that enrols one.
-admin-seed postgres_port="5432" email="ops@kithena.com":
+admin-seed postgres_port=env_var_or_default("POSTGRES_PORT", "5432") email="ops@kithena.com":
     npx tsx platform/identity/scripts/seed-operator.ts {{postgres_port}} {{email}}
 
 # Invite one person into a company that already exists, and send them the link.
@@ -155,27 +155,115 @@ email-preview logo="":
 
 # Everything, locally: both platform services and all three front ends.
 #
-# Reads `.env`, which `set dotenv-load` above loads for every recipe — so the
-# ports, the database URLs and the shared secret live in one gitignored file
-# rather than in five shell invocations that drift apart.
+# The one command for working on a screen. Brings up Postgres, applies any
+# migration the database has not seen, then runs the five processes in one shell
+# so Ctrl-C stops all of them.
 #
-# POSTGRES_PORT defaults to 55432 rather than 5432. A developer with Postgres
-# already installed loses the race for 5432: the host daemon binds it, Docker
-# publishes to the wildcard, and `localhost` reaches the wrong server — every
-# role appears not to exist. `docker-compose.override.yml` publishes 55432 too.
-local:
-    docker compose up -d postgres --wait
+# Reads `.env`, which `set dotenv-load` above loads for every recipe, so the
+# ports, the connection strings and the shared secret live in one gitignored
+# file rather than in five shell invocations that drift apart. Those values
+# point at this machine. `.env.staging` holds the remote ones and nothing loads
+# it, because a local process against the staging database is not a mode worth
+# having one keystroke away.
+local: local-db
     #!/usr/bin/env bash
     set -euo pipefail
     # Rspack keeps a lock in its cache and panics if a second dev server finds
     # one left by a process that was killed rather than stopped.
     rm -rf apps/auth/shell/node_modules/.cache
+
+    # A shebang recipe, so all of this is one shell. `just` runs an ordinary
+    # recipe a line at a time in separate processes, which is why `trap` and
+    # `export` never applied in the recipes above — and why stopping one left
+    # orphaned dev servers holding their ports.
     trap 'kill 0' EXIT
+
+    # `printf`, not a heredoc: `just` strips the common indentation from a
+    # recipe body, so an indented heredoc's closing delimiter stops matching the
+    # one it was opened with and `cat` reads to end of file, printing the rest
+    # of the recipe instead of running it.
+    printf '%s\n' \
+      '' \
+      '  back-office   http://localhost:3001' \
+      '  auth origin   http://auth.app.localhost:3100' \
+      '  a tenant      http://<company>.app.localhost:3000' \
+      '  identity      http://localhost:4100' \
+      '  messaging     http://localhost:4101' \
+      "  postgres      localhost:${POSTGRES_PORT:-5432}" \
+      '' \
+      'Nothing is signed in yet. `just admin-seed` prints the link that enrols' \
+      'the first back-office passkey; the back-office is where companies and' \
+      'their people are created.' \
+      ''
+
     npx tsx platform/messaging/src/main.ts &
     npx tsx platform/identity/src/main.ts &
     npx next dev apps/web -p 3000 &
     (cd apps/auth/shell && npx modern dev) &
-    cd apps/admin && npx next dev -p 3001
+    (cd apps/admin && npx next dev -p 3001) &
+    wait
+
+# Postgres, migrated, without starting anything else.
+#
+# The migration directory is applied with `psql` inside the container rather
+# than with Atlas. Atlas stays the source of truth — it writes these files, it
+# lints them, and it is what CI applies to staging and production — but needing
+# it installed before a laptop can run the app at all is the friction that sends
+# somebody to a deployed environment to test a button.
+#
+# Which files have run is recorded in `public.local_migration`, so a new
+# migration is applied on the next run and the companies and passkeys already in
+# the database survive. That table is this recipe's own bookkeeping and is not
+# Atlas's revision history; it sits in `public` rather than `platform` so it
+# cannot be mistaken for part of a schema a module owns.
+local-db:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker compose up -d postgres --wait
+
+    # `client_min_messages=warning`, because every `IF NOT EXISTS` in the
+    # directory otherwise prints a NOTICE — and a wall of "already exists,
+    # skipping" on a clean run teaches you to stop reading the output.
+    psql() {
+      docker compose exec -T -e PGOPTIONS='-c client_min_messages=warning' postgres \
+        psql -v ON_ERROR_STOP=1 -U kithena -d kithena "$@"
+    }
+
+    psql -q -c "CREATE TABLE IF NOT EXISTS public.local_migration (
+      filename text PRIMARY KEY,
+      applied_at timestamptz NOT NULL DEFAULT now()
+    )"
+
+    # A database with a schema but no ledger was migrated by something else — an
+    # older copy of this recipe, or Atlas — and there is no way to tell from
+    # here how far it got. Guessing either skips a migration or repeats one, and
+    # both fail later in a way that reads as a bug in the code.
+    applied=$(psql -tAc "SELECT count(*) FROM public.local_migration")
+    schema=$(psql -tAc "SELECT to_regclass('platform.tenant') IS NOT NULL")
+    if [ "${applied}" = "0" ] && [ "${schema}" = "t" ]; then
+      echo "This database has a schema but no migration ledger, so how much of" >&2
+      echo "the directory it has already seen is unknown. Run 'just local-reset'." >&2
+      exit 1
+    fi
+
+    for file in migrations/*.sql; do
+      name=$(basename "${file}")
+      seen=$(psql -tAc "SELECT EXISTS (SELECT 1 FROM public.local_migration WHERE filename = '${name}')")
+      if [ "${seen}" = "t" ]; then continue; fi
+      echo "applying ${name}"
+      psql -q -f - < "${file}"
+      psql -q -c "INSERT INTO public.local_migration (filename) VALUES ('${name}')"
+    done
+
+# Throw the local database away and build it again from the migrations.
+#
+# Destructive and meant to be: dropping the volume takes the roles, every
+# company and every passkey with it, so the enrolment ceremony has to be walked
+# again afterwards starting from `just admin-seed`.
+local-reset:
+    docker compose rm -sfv postgres
+    docker volume rm -f kithena_pgdata
+    just local-db
 
 # The tenant app on its own, on 3000. Reach it as acme.app.localhost:3000 —
 # a bare localhost has no tenant label in front of the suffix, and the proxy

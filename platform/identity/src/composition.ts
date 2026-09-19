@@ -308,10 +308,22 @@ export async function compose(config: Config): Promise<RequestHandler> {
    */
   const db = drizzle(postgres(config.databaseUrl, { max: 1, prepare: false }));
 
+  /*
+   * Empty counts as absent.
+   *
+   * `AUTH_SIGNING_KEY=` with nothing after it is how every example file and
+   * every dashboard spells "not set yet", and it arrives as `''` rather than
+   * `undefined` — which reached `JSON.parse` and killed the service at boot
+   * with `Unexpected end of JSON input`. A missing key is a supported local
+   * deployment: one is generated and the log says so.
+   */
+  const signingKey =
+    config.signingKey === undefined || config.signingKey.trim() === ''
+      ? undefined
+      : config.signingKey;
+
   const signer = await joseSigner(
-    config.signingKey === undefined
-      ? await developmentKey()
-      : (JSON.parse(config.signingKey) as never),
+    signingKey === undefined ? await developmentKey() : (JSON.parse(signingKey) as never),
   );
 
   const relyingParty = simpleWebAuthnRelyingParty({ rpId: config.rpId, rpName: 'Kithena' });
