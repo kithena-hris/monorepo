@@ -168,6 +168,10 @@ email-preview logo="":
 local: local-db
     #!/usr/bin/env bash
     set -euo pipefail
+    # Mailpit, because `SMTP_URL` in `.env` points at it and a messaging service
+    # that cannot reach its transport refuses every send. Its inbox is printed
+    # below; every invitation and recovery link lands there, rendered.
+    docker compose up -d mailpit --wait
     # Rspack keeps a lock in its cache and panics if a second dev server finds
     # one left by a process that was killed rather than stopped.
     rm -rf apps/auth/shell/node_modules/.cache
@@ -190,14 +194,18 @@ local: local-db
       '  identity      http://localhost:4100' \
       '  messaging     http://localhost:4101' \
       "  postgres      localhost:${POSTGRES_PORT:-5432}" \
+      '  mailbox       http://localhost:8025' \
       '' \
       'Nothing is signed in yet. `just admin-seed` prints the link that enrols' \
       'the first back-office passkey; the back-office is where companies and' \
       'their people are created.' \
       ''
 
-    npx tsx platform/messaging/src/main.ts &
-    npx tsx platform/identity/src/main.ts &
+    # `tsx watch`, not `tsx`. The front ends have always reloaded on a save and
+    # these two never did, so a change to a route or a query looked like it had
+    # no effect — the process still running was the one started before the edit.
+    npx tsx watch platform/messaging/src/main.ts &
+    npx tsx watch platform/identity/src/main.ts &
     npx next dev apps/web -p 3000 &
     (cd apps/auth/shell && npx modern dev) &
     (cd apps/admin && npx next dev -p 3001) &

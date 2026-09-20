@@ -42,10 +42,18 @@ just admin-seed       # print the link that enrols the first back-office passkey
 | Identity | `http://localhost:4100` | |
 | Messaging | `http://localhost:4101` | logs invitations instead of sending them |
 | Storybook | `http://localhost:6006` | `just storybook` |
+| Mailbox | `http://localhost:8025` | every invitation and recovery link, rendered |
 
 Nothing needs a hosts file: browsers resolve anything under `.localhost` to the
 loopback and treat it as a secure context, which is the only reason WebAuthn
 works here without a certificate.
+
+**Email is real locally.** `SMTP_URL` points messaging at Mailpit, which
+`docker-compose.yml` has always started, so every invitation and recovery link
+arrives at `http://localhost:8025` rendered, with its links live and its markup
+checkable. Without `SMTP_URL` the service falls back to writing the message to
+the log, which is enough to copy a link out of and no use for the half of an
+invitation that is HTML. Neither transport is reachable in production.
 
 Two relying parties, so two passkeys. `app.localhost` covers the tenant apps and
 the auth origin beneath it; the back-office is on `localhost:3001`, which is not

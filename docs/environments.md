@@ -276,6 +276,27 @@ between the internet and every customer's account list. It is written to fail
 closed, including when identity is unreachable, which is the state it will be in
 on the day it first deploys.
 
+### Origins
+
+Every enrolment and recovery link is built from `AUTH_ORIGIN`, and two services
+read it: identity mints the link, messaging refuses to send one that is not on
+that origin. They must agree, and the value differs per environment.
+
+| Setting        | Local                            | Staging                          | Production                |
+| -------------- | -------------------------------- | -------------------------------- | ------------------------- |
+| `AUTH_ORIGIN`  | `http://auth.app.localhost:3100` | `https://auth.staging.kithena.com` | `https://auth.kithena.com` |
+| `ADMIN_ORIGIN` | `http://localhost:3001`          | `https://admin.staging.kithena.com` | `https://admin.kithena.com` |
+
+Set on the identity, messaging and tenant-app projects alike. A deployment that
+sets it on one of them has services disagreeing about which links are ours, and
+the symptom is every invitation refused as `untrusted_link` — a message that
+names neither the setting nor the mismatch.
+
+Identity **refuses to start** in production without it. That is deliberate: the
+fallback is a localhost address, and a service that quietly emails a new hire a
+link to a machine that is not theirs fails in a way nothing downstream can
+detect. A boot failure naming the variable is the cheaper outcome.
+
 ### Secrets
 
 Per GitHub Environment, never repository-wide, so a job cannot read the other
