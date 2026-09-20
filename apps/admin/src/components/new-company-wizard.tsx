@@ -21,6 +21,7 @@ import {
   type PostalAddress,
 } from '@kithena/contracts';
 import type { UploadedImage } from '@reach/ui';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -285,19 +286,40 @@ export function NewCompanyWizard({
       ) : null}
 
       <div className="border-border flex items-center justify-between border-t pt-6">
-        <Button
-          variant="ghost"
-          disabled={step === 0 || busy}
-          onClick={() => {
-            setStep((s) => Math.max(0, s - 1));
-          }}
-        >
-          Back
-        </Button>
-        {step < STEPS.length - 1 ? (
-          <Button onClick={advance}>Continue</Button>
+        {/*
+          On the first step there is nothing to go back to, and the button was
+          simply disabled — which left somebody who had opened this screen by
+          mistake with no way out of it but the browser's back button. The
+          control keeps its position and changes what it means: leave, or
+          retreat one step.
+
+          A link rather than `router.back()`, because this screen is also
+          reached from a bookmark and from the address bar, where "back" is
+          wherever that person happened to be beforehand.
+        */}
+        {step === 0 ? (
+          <Button asChild variant="ghost">
+            <Link href="/">Cancel</Link>
+          </Button>
         ) : (
-          <Button onClick={submit} disabled={busy}>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setStep((s) => Math.max(0, s - 1));
+            }}
+          >
+            Back
+          </Button>
+        )}
+        {/* `Button` defaults to `secondary`. The one control that moves this
+            screen forward should not look like the one that leaves it. */}
+        {step < STEPS.length - 1 ? (
+          <Button variant="primary" onClick={advance}>
+            Continue
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={submit} disabled={busy}>
             {busy ? 'Creating…' : 'Create company'}
           </Button>
         )}
@@ -631,7 +653,7 @@ function AdminsStep({
       return;
     }
     if (admins.includes(email)) {
-      setLocal('That person is already on the list.');
+      setLocal('That employee is already on the list.');
       return;
     }
     onChange([...admins, email]);

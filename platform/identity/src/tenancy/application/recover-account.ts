@@ -134,6 +134,11 @@ export function recoverAccount(deps: RecoverAccountDeps): RecoverAccount {
       enrolUrl: sent.enrolUrl,
       expiresAt: sent.expiresAt,
       logoUrl: tenant.logoUrl,
+      // The one line that makes this a recovery message rather than an
+      // invitation. The token already records the same thing — see the
+      // migration that added `purpose` — and this is the reader on the other
+      // side of the wire.
+      purpose: 'recovery',
     });
   };
 }

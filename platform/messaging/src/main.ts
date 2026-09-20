@@ -49,6 +49,13 @@ const routes = compose({
   from: process.env['RESEND_FROM'],
   replyTo: process.env['RESEND_REPLY_TO'],
   /*
+   * A mailbox on this machine, when one is running. `just local` starts Mailpit
+   * and sets this; nothing outside development can reach the branch that reads
+   * it.
+   */
+  smtpUrl: process.env['SMTP_URL'],
+  mailboxUrl: process.env['MAILBOX_URL'] ?? 'http://localhost:8025',
+  /*
    * Its own secret, falling back to the shared one.
    *
    * `INTERNAL_API_TOKEN` is what every front end presents to identity, so
@@ -58,7 +65,17 @@ const routes = compose({
    * `Config.messagingToken` there.
    */
   internalToken: process.env['MESSAGING_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
-  authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://localhost:3100',
+  /*
+   * The same default identity builds links from, and it has to be.
+   *
+   * Identity mints the enrolment link from its `AUTH_ORIGIN`; this service
+   * refuses to send a link that is not on its own. Two copies of one value, and
+   * the defaults disagreed — identity's `http://auth.app.localhost:3100`
+   * against this one's `http://localhost:3100` — so a deployment that set
+   * neither refused every invitation as untrusted, for a reason neither log
+   * line explained.
+   */
+  authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
   allowLogTransport: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, nothing is recorded and the outcome lives in the response
   // and the structured log — a supported deployment, and the one `just

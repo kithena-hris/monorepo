@@ -41,13 +41,23 @@ export interface SessionRoutesDeps {
   readonly authenticate: Authenticate;
   readonly internalToken: string;
   /**
-   * The work email for an account. Used once, to greet somebody by name.
+   * What a screen needs to greet somebody: their name, their address and the
+   * zone they work in.
    *
-   * A separate lookup rather than a field on the session: the cached session is
-   * read on every request and carries only what an authorisation decision
-   * needs. An address is not that.
+   * A separate lookup rather than fields on the session, which is read on every
+   * request and carries only what an authorisation decision needs. None of this
+   * is that — it is what a dashboard renders once.
    */
-  readonly workEmailOf: (tenantId: string, accountId: string) => Promise<string | null>;
+  readonly profileOf: (
+    tenantId: string,
+    accountId: string,
+  ) => Promise<{
+    workEmail: string | null;
+    givenName: string | null;
+    familyName: string | null;
+    preferredName: string | null;
+    timeZone: string | null;
+  } | null>;
   readonly issueHandoff: IssueHandoff;
   readonly redeemHandoff: RedeemHandoff;
   readonly revoke: RevokeSession;
@@ -56,7 +66,7 @@ export interface SessionRoutesDeps {
 export function sessionRoutes({
   authenticate,
   internalToken,
-  workEmailOf,
+  profileOf,
   issueHandoff,
   redeemHandoff,
   revoke,
@@ -133,10 +143,28 @@ export function sessionRoutes({
     // for all four, and the differences are only useful to somebody probing.
     if (!session.ok) return json(401, {});
 
+    const profile = await profileOf(tenantId, session.value.accountId);
+
     return json(200, {
       accountId: session.value.accountId,
       identityId: session.value.identityId,
-      workEmail: await workEmailOf(tenantId, session.value.accountId),
+      workEmail: profile?.workEmail ?? null,
+      /*
+       * The name and the zone, for the screen that says hello.
+       *
+       * Null throughout for an account enrolled before onboarding asked, which
+       * the caller handles by falling back to the address — the same fallback
+       * it used when identity held no name at all.
+       */
+      name:
+        profile?.givenName == null || profile.familyName == null
+          ? null
+          : {
+              given: profile.givenName,
+              family: profile.familyName,
+              preferred: profile.preferredName,
+            },
+      timeZone: profile?.timeZone ?? null,
       amr: session.value.amr,
       authenticatedAt: session.value.authenticatedAt,
       expiresAt: session.value.expiresAt,

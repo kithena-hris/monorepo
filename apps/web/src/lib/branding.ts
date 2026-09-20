@@ -25,6 +25,14 @@ export interface TenantContext {
   readonly id: string;
   readonly slug: string;
   readonly branding: Branding;
+  /**
+   * Where the company is, in the two parts anybody says out loud.
+   *
+   * Outside `branding` for the same reason it is on the identity side: a
+   * company that asked not to be shown on a public login page has not asked to
+   * be hidden from its own employees.
+   */
+  readonly location: { city: string; country: string } | null;
 }
 
 const NOTHING: Branding = {
@@ -59,7 +67,7 @@ export async function currentTenant(): Promise<TenantContext | null> {
         cache: 'no-store',
       },
     );
-    if (!response.ok) return { id, slug, branding: NOTHING };
+    if (!response.ok) return { id, slug, branding: NOTHING, location: null };
 
     const body: unknown = await response.json();
     const branding =
@@ -74,6 +82,15 @@ export async function currentTenant(): Promise<TenantContext | null> {
     const text = (key: string): string | null =>
       typeof branding[key] === 'string' ? branding[key] : null;
 
+    const place =
+      body !== null &&
+      typeof body === 'object' &&
+      'location' in body &&
+      body.location !== null &&
+      typeof body.location === 'object'
+        ? (body.location as Record<string, unknown>)
+        : null;
+
     return {
       id,
       slug,
@@ -83,8 +100,12 @@ export async function currentTenant(): Promise<TenantContext | null> {
         coverImageUrl: text('coverImageUrl'),
         themeId: text('themeId'),
       },
+      location:
+        place !== null && typeof place['city'] === 'string' && typeof place['country'] === 'string'
+          ? { city: place['city'], country: place['country'] }
+          : null,
     };
   } catch {
-    return { id, slug, branding: NOTHING };
+    return { id, slug, branding: NOTHING, location: null };
   }
 }

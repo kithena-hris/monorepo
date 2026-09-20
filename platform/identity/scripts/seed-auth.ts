@@ -101,9 +101,24 @@ await sql`
 const [tenant] = await sql<{ id: string }[]>`SELECT id FROM platform.tenant WHERE slug = 'acme'`;
 if (!tenant) throw new Error('the acme tenant did not get created');
 
-await sql`DELETE FROM platform.session`;
-await sql`DELETE FROM platform.enrolment_token`;
-await sql`DELETE FROM platform.credential`;
+/*
+ * Only this demo account's rows. Every one of these used to be unscoped.
+ *
+ * `DELETE FROM platform.credential` with no WHERE clause deletes every passkey
+ * in the database — the operator's back-office credential included — so asking
+ * for a second enrolment link signed the whole machine out and destroyed
+ * credentials that cannot be recreated without walking each person's enrolment
+ * again. It did exactly that, which is why the scoping is here now.
+ *
+ * A seed script is run casually and repeatedly, by definition. That is the
+ * argument for it being narrow, not for trusting whoever runs it to know what
+ * it touches.
+ *
+ * `just local-reset` is the one that clears everything, and it says so.
+ */
+await sql`DELETE FROM platform.session       WHERE account_id = ${ACCOUNT}::uuid`;
+await sql`DELETE FROM platform.enrolment_token WHERE account_id = ${ACCOUNT}::uuid`;
+await sql`DELETE FROM platform.credential    WHERE identity_id = ${IDENTITY}::uuid`;
 await sql`INSERT INTO platform.identity (id) VALUES (${IDENTITY}::uuid) ON CONFLICT DO NOTHING`;
 
 await sql`
@@ -124,13 +139,24 @@ await sql`
           now() + interval '72 hours')
 `;
 
-const enrol = new URL('http://localhost:3100/enrol');
+/*
+ * The auth origin this deployment actually uses, not a guess.
+ *
+ * It was `http://localhost:3100`, and a passkey created there is refused when
+ * `WEBAUTHN_RP_ID` is `app.localhost` — a relying party id has to be a suffix
+ * of the hostname the ceremony runs on, and `app.localhost` is not a suffix of
+ * `localhost`. The browser rejects it before the service sees it, so the
+ * symptom is a sign-in that quietly never recognises anybody.
+ */
+const origin = process.env['AUTH_ORIGIN'] ?? 'http://localhost:3100';
+
+const enrol = new URL('/enrol', origin);
 enrol.searchParams.set('identity', IDENTITY);
 enrol.searchParams.set('tenant', 'acme');
 enrol.searchParams.set('token', token);
 enrol.searchParams.set('name', EMAIL);
 
-const login = new URL('http://localhost:3100/login');
+const login = new URL('/login', origin);
 // The slug, which is what the hostname will carry in production. A uuid in a
 // link is a uuid somebody has to copy correctly.
 login.searchParams.set('tenant', 'acme');

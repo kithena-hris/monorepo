@@ -142,12 +142,21 @@ export function PasskeySignIn(): JSX.Element {
 
         {/* The passkey equivalent of "forgot my password". Placed under the
             button rather than beside the address, because it is the thing you
-            reach for after the sign-in did not work, not before trying. */}
+            reach for after the sign-in did not work, not before trying.
+
+            The label is the heading of the page it opens, and the same words
+            every other route into recovery uses. It used to say "I no longer
+            have my passkey" while the enrolment screen said "I no longer have
+            that passkey" and the sign-in page offered "Ask for a new setup
+            link" — three phrasings for one destination. Naming the destination
+            also survives being read out of context, which a statement about
+            the reader does not: a screen reader listing every link on this page
+            announces this one on its own. */}
         <a
           href="/recover"
           className="text-fg-muted hover:text-fg self-start text-sm underline-offset-2 hover:underline"
         >
-          I no longer have my passkey
+          Set up a new passkey
         </a>
       </form>
 

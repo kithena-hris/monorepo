@@ -1,4 +1,16 @@
 import type { PostalAddress } from '@kithena/contracts';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  Container,
+  PageHeader,
+} from '@reach/ui';
+import Link from 'next/link';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
@@ -57,6 +69,11 @@ export default async function NewCompany(): Promise<JSX.Element> {
       // `provisionTenant` and used to be dropped here, which is why there was
       // nowhere for the wizard to go afterwards.
       const { tenantId, slug, invitations } = body as Record<string, unknown>;
+      // A new customer changes every figure on the list, and the wizard sends
+      // somebody straight to the company it just created — so the list is not
+      // re-requested until they navigate back to a route the router has
+      // already cached.
+      revalidatePath('/');
       return {
         ok: true,
         tenantId: String(tenantId),
@@ -83,13 +100,35 @@ export default async function NewCompany(): Promise<JSX.Element> {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      <h1 className="text-2xl font-semibold">Add a company</h1>
-      <p className="text-fg-muted mt-1 text-sm">
-        This creates the tenant and emails each administrator their own single-use link. You are not
-        given a way to sign in as them.
-      </p>
-      <NewCompanyWizard action={create} hostSuffix={tenantHostSuffix()} />
-    </main>
+    <Container size="md" className="py-10 sm:py-12">
+      {/*
+        A breadcrumb, because this screen is a step inside the companies list
+        rather than a place of its own — and because a wizard that can only be
+        left by finishing it is a wizard people abandon through the browser.
+        The footer of the wizard carries the same exit as a button.
+      */}
+      <PageHeader
+        breadcrumb={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/">Companies</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator>/</BreadcrumbSeparator>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Add a company</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+        title="Add a company"
+        description="This creates the tenant and emails each administrator their own single-use link. You are not given a way to sign in as them."
+      />
+      <div className="mt-8">
+        <NewCompanyWizard action={create} hostSuffix={tenantHostSuffix()} />
+      </div>
+    </Container>
   );
 }

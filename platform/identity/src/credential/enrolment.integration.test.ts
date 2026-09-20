@@ -56,6 +56,8 @@ beforeAll(async () => {
     // this suite names the migrations it needs: leaving it out fails on the
     // insert, which reads like a bug in the store rather than a missing column.
     '20260830100000_enrolment_token_purpose.sql',
+    // The name columns, which completing an enrolment writes.
+    '20260919160000_account_name.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
@@ -146,6 +148,18 @@ async function enrol(
         return [...rows][0]?.['identity_id'] === undefined
           ? null
           : String([...rows][0]?.['identity_id']);
+      },
+      // Written to the same transaction the rest of enrolment uses, so a test
+      // asserting the account afterwards sees what a real enrolment would have
+      // left behind.
+      recordName: async (accountId, name) => {
+        await tx.execute(sql`
+          UPDATE platform.account
+             SET given_name = ${name.given},
+                 family_name = ${name.family},
+                 preferred_name = ${name.preferred}
+           WHERE id = ${accountId}::uuid
+        `);
       },
       storeCredential: async (identityId, credential) => {
         const id = uuidv7();

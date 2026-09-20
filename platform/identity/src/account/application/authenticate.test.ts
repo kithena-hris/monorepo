@@ -230,11 +230,16 @@ describe('authenticate, keeping somebody signed in', () => {
   });
 
   it('refuses a session idle past the timeout rather than sliding it', async () => {
+    // The mechanism still works; what changed is the default, which is now the
+    // absolute lifetime — so idleness alone never ends a session and a tenant
+    // that wants one back sets it. The timeout is passed explicitly here for
+    // exactly that reason: this test is about the rule, not the default.
     let touches = 0;
     const run = authenticate({
       cache: fakeCache(),
       load: () => Promise.resolve(session({ lastSeenAt: '2026-03-31T20:00:00.000Z' })),
       clock,
+      idleTimeoutSeconds: 8 * 60 * 60,
       touch: () => {
         touches += 1;
         return Promise.resolve();
@@ -243,5 +248,20 @@ describe('authenticate, keeping somebody signed in', () => {
 
     expect((await run(TENANT, 'any')).ok).toBe(false);
     expect(touches).toBe(0);
+  });
+
+  it('keeps a session that has been idle for a week, because idleness alone does not end one', async () => {
+    // The behaviour that was asked for and the one the eight-hour default
+    // quietly prevented: signed in on a device stays signed in until the
+    // thirty days run out, somebody signs out, or a fifth device takes the
+    // slot.
+    const run = authenticate({
+      cache: fakeCache(),
+      load: () => Promise.resolve(session({ lastSeenAt: '2026-03-25T09:00:00.000Z' })),
+      clock,
+      touch: () => Promise.resolve(),
+    });
+
+    expect((await run(TENANT, 'any')).ok).toBe(true);
   });
 });

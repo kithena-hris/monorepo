@@ -21,6 +21,7 @@ const acme: Tenant = {
     themeId: null,
     accentColor: null,
   },
+  location: null,
 };
 
 describe('isLookupWorthwhile', () => {

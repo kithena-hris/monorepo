@@ -344,7 +344,7 @@ function DirectoryTable(): JSX.Element {
 
 function MobileTabs(): JSX.Element {
   return (
-    <nav aria-label="Main, compact" className="flex md:hidden">
+    <nav aria-label="Main, compact" className="flex">
       {nav.slice(0, 4).map((item) => (
         <a
           key={item.id}
@@ -381,6 +381,9 @@ const renderShell: NonNullable<Story['render']> = (args) => (
       </div>
     }
     bottomBar={<MobileTabs />}
+    // On the wrapper, not on the nav inside it: the wrapper is what carries the
+    // border, so hiding only the content leaves a bordered strip on desktop.
+    bottomBarClassName="md:hidden"
     contentClassName="p-4 sm:p-6"
   >
     <Stack gap={5}>

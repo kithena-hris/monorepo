@@ -1,5 +1,6 @@
 import { DEFAULT_THEME_ID } from '@kithena/contracts';
 import Link from 'next/link';
+import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
@@ -112,7 +113,15 @@ export default async function EditCompany({
   ): Promise<EditResult> {
     'use server';
     const result = await save(previous, form);
-    if (result.ok) redirect(`/companies/${id}?saved=1`);
+    if (result.ok) {
+      // The name, the logo and the theme all show on both screens, and the
+      // router keeps the payload it already has for a route it has rendered.
+      // Without this the company you just renamed still has its old name on
+      // the page the redirect lands on.
+      revalidatePath(`/companies/${id}`);
+      revalidatePath('/');
+      redirect(`/companies/${id}?saved=1`);
+    }
     return result;
   }
 

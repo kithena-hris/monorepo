@@ -19,6 +19,22 @@ export interface AuthenticateDeps {
   /** The durable read, used only on a cache miss. */
   readonly load: (tenantId: string, sessionId: string) => Promise<CachedSession | null>;
   readonly clock: Clock;
+  /**
+   * Thirty days, which is the absolute lifetime — so idleness alone never ends
+   * a session.
+   *
+   * It was eight hours, and that is the setting that made "signed in" last a
+   * working day rather than a month: the row survived thirty days and the idle
+   * check refused it overnight. A device stays signed in until the absolute
+   * lifetime runs out, the person signs out, or another device takes their
+   * fourth slot.
+   *
+   * **This is a deliberate weakening.** An idle timeout is what protects a
+   * shared or unattended machine, and there is now nothing between a borrowed
+   * laptop and somebody's employment record but the screen lock. The mechanism
+   * stays here, configured rather than deleted, so a tenant policy can put it
+   * back for the customers that need it.
+   */
   readonly idleTimeoutSeconds?: number;
   /**
    * Records that the session was used, sliding the idle window.
@@ -69,7 +85,7 @@ export function authenticate({
   cache,
   load,
   clock,
-  idleTimeoutSeconds = 8 * 60 * 60,
+  idleTimeoutSeconds = 30 * 24 * 60 * 60,
   touch,
   touchAfterSeconds = 5 * 60,
   onTenantMismatch,

@@ -269,7 +269,7 @@ export function EditCompanyForm({
       ) : null}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="primary" disabled={pending}>
           {pending ? 'Saving…' : 'Save changes'}
         </Button>
         <Button asChild variant="ghost">

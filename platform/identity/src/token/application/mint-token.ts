@@ -20,13 +20,19 @@ export interface MintTokenDeps {
   readonly issuer: string;
   readonly audience: string;
   /**
-   * Two minutes.
+   * Fifteen minutes.
    *
-   * Long enough that a single server-rendered page does not re-mint mid-render,
-   * short enough that a revoked session is dead within a window nobody would
-   * describe as "still logged in". It is deliberately not the session lifetime:
-   * the session is a row that can be deleted, and this is a bearer token that
-   * cannot be recalled once handed out.
+   * The access half of the pair: this is a bearer token that cannot be recalled
+   * once handed out, and the session row behind it is the refresh credential —
+   * deletable, capped at four devices, good for thirty days.
+   *
+   * It was two minutes, which bought a tighter revocation window at the cost of
+   * re-minting on almost every navigation. Fifteen is the industry's answer to
+   * the same trade and what this deployment asked for. **The cost is real and
+   * worth stating: a revoked session keeps working for up to fifteen minutes**,
+   * because nothing can reach a token already in somebody's hands. Anything
+   * that must take effect immediately — a termination, a compromised device —
+   * has to invalidate at the resource rather than rely on this expiring.
    */
   readonly lifetimeSeconds?: number;
 }
@@ -38,7 +44,7 @@ export function mintToken({
   clock,
   issuer,
   audience,
-  lifetimeSeconds = 120,
+  lifetimeSeconds = 15 * 60,
 }: MintTokenDeps): MintToken {
   return async (claims) => {
     const now = clock.now();

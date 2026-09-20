@@ -59,7 +59,7 @@ export function EnrolButton({ identityId }: { identityId: string | null }): JSX.
           Taking you to sign in…
         </Alert>
       ) : (
-        <Button onClick={() => void enrol()} disabled={state === 'working'}>
+        <Button variant="primary" onClick={() => void enrol()} disabled={state === 'working'}>
           {state === 'working' ? 'Waiting for your device…' : 'Create a passkey'}
         </Button>
       )}

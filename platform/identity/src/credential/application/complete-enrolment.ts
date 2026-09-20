@@ -1,5 +1,6 @@
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
+import type { PersonName } from '../../shared/person-name.js';
 import { isAcceptableOrigin, type OriginPolicy } from '../../shared/origin.js';
 import { tokenStillValid } from '../domain/enrolment-token.js';
 import type { EnrolmentTokenStore } from './enrolment-token-store.js';
@@ -40,6 +41,16 @@ export interface CompleteEnrolmentDeps {
   ) => Promise<string>;
   /** The account state machine's `enrol`, which enforces the employment start date. */
   readonly enrolAccount: (accountId: string, credentialId: string) => Promise<Result<void>>;
+  /**
+   * What onboarding asked them to confirm, written before the passkey is.
+   *
+   * Before, and that order is the point: if the name cannot be stored, nothing
+   * else should happen either, and a person who has already created a
+   * credential cannot be sent back through a form. It is also the last moment
+   * anybody is going to be asked — after this the link is spent and the screen
+   * is gone.
+   */
+  readonly recordName: (accountId: string, name: PersonName) => Promise<void>;
   readonly origins: OriginPolicy;
   readonly clock: Clock;
   readonly onRefusal?: (reason: string) => void;
@@ -51,6 +62,14 @@ export interface CompleteEnrolmentRequest {
   readonly response: unknown;
   readonly origin: string;
   readonly challenge: string;
+  /**
+   * Already checked by `checkName` at the boundary, so this arm holds a name
+   * rather than whatever a form posted. Optional because a recovery link
+   * replaces a passkey for somebody the registry already knows: asking them to
+   * retype their own name to get back in would be a worse screen and a chance
+   * to disagree with the row that is already there.
+   */
+  readonly name?: PersonName;
 }
 
 /**
@@ -117,6 +136,8 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
     } catch {
       return refuse('attestation', 'passkey_rejected');
     }
+
+    if (request.name !== undefined) await deps.recordName(spent.accountId, request.name);
 
     const credentialId = await deps.storeCredential(identityId, registered);
 

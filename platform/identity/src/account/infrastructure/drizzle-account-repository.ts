@@ -186,6 +186,41 @@ export async function loadSession(
 }
 
 /** The address an account signs in under. Read to greet somebody, nothing more. */
+/**
+ * The handful of facts a screen needs to greet somebody.
+ *
+ * Not on the session: that is read on every request and carries what an
+ * authorisation decision needs, which is none of this. One lookup, on the one
+ * screen that renders a person rather than acting on their behalf.
+ */
+export interface AccountProfile {
+  readonly workEmail: string | null;
+  readonly givenName: string | null;
+  readonly familyName: string | null;
+  readonly preferredName: string | null;
+  /** IANA, and always set — the column is `not null`. */
+  readonly timeZone: string | null;
+}
+
+export async function profileOf(
+  tx: PostgresJsDatabase,
+  accountId: string,
+): Promise<AccountProfile | null> {
+  const rows = await tx
+    .select({
+      workEmail: account.workEmail,
+      givenName: account.givenName,
+      familyName: account.familyName,
+      preferredName: account.preferredName,
+      timeZone: account.timeZone,
+    })
+    .from(account)
+    .where(eq(account.id, accountId))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
 export async function workEmailOf(
   tx: PostgresJsDatabase,
   accountId: string,

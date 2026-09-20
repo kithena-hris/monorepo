@@ -24,6 +24,56 @@ just dev              # compose up, migrate, seed, run everything
 The gateway comes up on `http://localhost:4000`. Temporal UI is on `:8233`,
 Mailpit on `:8025`, MinIO console on `:9001`.
 
+### Working on a screen
+
+`just dev` starts the whole infrastructure stack — Redpanda, Temporal, OpenFGA,
+Typesense, MinIO. Most days none of that is running for a reason. Use:
+
+```bash
+just local            # postgres, migrate, then every app, in one shell
+just admin-seed       # print the link that enrols the first back-office passkey
+```
+
+| What | Where | Notes |
+| --- | --- | --- |
+| Back-office | `http://localhost:3001` | passkeys are bound to `localhost` |
+| Auth origin | `http://auth.app.localhost:3100` | |
+| A tenant | `http://acme.app.localhost:3000` | the label in front of the suffix is the company |
+| Identity | `http://localhost:4100` | |
+| Messaging | `http://localhost:4101` | logs invitations instead of sending them |
+| Storybook | `http://localhost:6006` | `just storybook` |
+| Mailbox | `http://localhost:8025` | every invitation and recovery link, rendered |
+
+Nothing needs a hosts file: browsers resolve anything under `.localhost` to the
+loopback and treat it as a secure context, which is the only reason WebAuthn
+works here without a certificate.
+
+**Email is real locally.** `SMTP_URL` points messaging at Mailpit, which
+`docker-compose.yml` has always started, so every invitation and recovery link
+arrives at `http://localhost:8025` rendered, with its links live and its markup
+checkable. Without `SMTP_URL` the service falls back to writing the message to
+the log, which is enough to copy a link out of and no use for the half of an
+invitation that is HTML. Neither transport is reachable in production.
+
+Two relying parties, so two passkeys. `app.localhost` covers the tenant apps and
+the auth origin beneath it; the back-office is on `localhost:3001`, which is not
+under that suffix and therefore cannot share the credential. Enrol the
+back-office one with `just admin-seed`, then create a company there — inviting
+somebody prints their enrolment link to the terminal, because no `RESEND_API_KEY`
+means messaging logs a message rather than sending it.
+
+`just local` applies `migrations/` with `psql` inside the container and records
+what it applied in `public.local_migration`, so a new migration is picked up on
+the next run and the companies and passkeys already in the database survive.
+Atlas is still what writes and lints those files and what CI applies to staging
+and production; it is simply not needed to run the app on a laptop. `just
+local-reset` throws the database away and builds it again.
+
+`.env` holds local values and nothing else. A machine that also needs the
+staging connection strings should keep them in `.env.staging`, which nothing
+loads automatically — `set dotenv-load` means anything in `.env` is what every
+`just` recipe runs against, including `pnpm db:migrate`.
+
 ## Layout
 
 ```

@@ -15,9 +15,23 @@ import { dark, light, scale } from './palette.js';
  * messaging has no business learning its shape.
  */
 
+/**
+ * Why a link was sent, and therefore what the message says.
+ *
+ * Both kinds carry the same link to the same page; what differs is everything a
+ * person reads around it. Recovery sent the invitation copy verbatim, so
+ * somebody who had worked somewhere for two years and lost their phone was
+ * emailed "You're invited to join Acme Corp" with "An account is waiting for
+ * you" underneath — which reads as a mistake, and the safety advice at the
+ * bottom then told them not to use a link they had just asked for.
+ */
+export type MessagePurpose = 'invitation' | 'recovery';
+
 export interface InvitationMessage {
   /** The company's display name, as the tenant registry holds it. */
   readonly companyName: string;
+  /** Defaults to an invitation, which is what every caller sent before this existed. */
+  readonly purpose?: MessagePurpose;
   readonly recipient: EmailAddress;
   /** Where the button goes. Already checked against the trusted origin. */
   readonly enrolUrl: string;
@@ -133,9 +147,12 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
   const deadline = formatDeadline(message.expiresAt);
   if (deadline === null) return err(Unrenderable);
 
+  const copy = COPY[message.purpose ?? 'invitation'];
+
   return ok({
-    subject: `You're invited to join ${companyName} on Kithena`,
+    subject: copy.subject(companyName),
     html: html({
+      copy,
       company: escapeHtml(companyName),
       recipient: escapeHtml(message.recipient),
       href,
@@ -147,6 +164,7 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
       logo: safeImageSrc(message.logoUrl ?? null),
     }),
     text: text({
+      copy,
       companyName,
       recipient: message.recipient,
       url: message.enrolUrl,
@@ -155,9 +173,68 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
   });
 }
 
+/**
+ * What each kind of message says, in one place.
+ *
+ * A table rather than eight conditionals through the template: the markup is
+ * already hard to read for reasons Outlook imposes, and a variant threaded
+ * through it as inline ternaries is how one of the eight gets missed.
+ */
+interface Copy {
+  readonly subject: (company: string) => string;
+  readonly heading: (company: string) => string;
+  readonly lede: string;
+  readonly action: string;
+  readonly steps: (company: string) => readonly string[];
+  readonly expiry: readonly string[];
+  readonly caution: (company: string) => readonly string[];
+  readonly footer: (company: string) => string;
+}
+
+const COPY: Record<MessagePurpose, Copy> = {
+  invitation: {
+    subject: (company) => `You're invited to join ${company} on Kithena`,
+    heading: (company) => `You're invited to join ${company}`,
+    lede: 'An account is waiting for you. Setting it up takes about a minute, and there is no password to choose.',
+    action: 'Set up your account',
+    steps: (company) => [
+      'Your device asks for your fingerprint, face or PIN.',
+      'That becomes your passkey. Nothing leaves your device.',
+      `You sign in to ${company} the same way from then on.`,
+    ],
+    expiry: ['This link works once and expires', 'If it has expired, ask your HR team for another.'],
+    caution: (company) => [
+      `If you were not expecting this, or you do not recognise ${company}, do not use the link —`,
+      'tell your HR team instead.',
+    ],
+    footer: (company) => `Sent by Kithena because ${company} added you to their team.`,
+  },
+  recovery: {
+    subject: (company) => `Set up a new passkey for ${company}`,
+    heading: () => 'Set up a new passkey',
+    lede: 'You asked for a new way to sign in. The passkey you had stays where it is — this one is for the device you are on now.',
+    action: 'Set up a new passkey',
+    steps: (company) => [
+      'Your device asks for your fingerprint, face or PIN.',
+      'That becomes your new passkey. Nothing leaves your device.',
+      `You sign in to ${company} with it from then on.`,
+    ],
+    expiry: [
+      'This link works once and expires',
+      'If it has expired, ask for another from your sign-in page.',
+    ],
+    caution: () => [
+      'If you did not ask for this, you can ignore it — the link does nothing until somebody',
+      'uses it, and nobody can use it without this mailbox.',
+    ],
+    footer: () => 'Sent by Kithena because somebody asked for a new setup link for this address.',
+  },
+};
+
 /* -------------------------------------------------------------- rendering -- */
 
 interface View {
+  readonly copy: Copy;
   readonly company: string;
   readonly recipient: string;
   readonly href: string;
@@ -198,7 +275,7 @@ interface View {
  * `#f9fafb` is a usable dark, an inverted `#ffffff` is not.
  */
 function html(view: View): string {
-  const preheader = `Set up your account at ${view.company}. The link works once, until ${view.deadline}.`;
+  const preheader = `${view.copy.action} at ${view.company}. The link works once, until ${view.deadline}.`;
   const pad = scale.cardPadding;
 
   return `<!doctype html>
@@ -209,7 +286,7 @@ function html(view: View): string {
     <meta name="x-apple-disable-message-reformatting" />
     <meta name="color-scheme" content="light dark" />
     <meta name="supported-color-schemes" content="light dark" />
-    <title>You're invited to join ${view.company}</title>
+    <title>${view.copy.heading(view.company)}</title>
     <!--[if mso]>
       <style>
         /* Word substitutes Times New Roman for any family it cannot resolve,
@@ -275,13 +352,13 @@ function html(view: View): string {
 ${logoRow(view, pad)}
                   <tr>
                     <td class="k-pad" style="padding:${view.logo === null ? '28px' : '4px'} ${pad} 0 ${pad};">
-                      <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">You're invited to join ${view.company}</h1>
+                      <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">${view.copy.heading(view.company)}</h1>
                     </td>
                   </tr>
 
                   <tr>
                     <td class="k-pad k-muted" style="padding:10px ${pad} 0 ${pad};font-size:${scale.body.size};line-height:${scale.body.lineHeight};color:${light['fg-muted']};">
-                      An account is waiting for you. Setting it up takes about a minute, and there is no password to choose.
+                      ${view.copy.lede}
                     </td>
                   </tr>
 
@@ -336,7 +413,7 @@ ${steps(view)}
 
                   <tr>
                     <td class="k-pad k-muted" style="padding:12px ${pad} ${pad} ${pad};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
-                      <p style="margin:0 0 10px 0;">If it has expired, ask your HR team for another. If you were not expecting this, or you do not recognise ${view.company}, do not use the link &mdash; tell your HR team instead.</p>
+                      <p style="margin:0 0 10px 0;">${view.copy.expiry[1] ?? ''} ${view.copy.caution(view.company).join(' ')}</p>
                       <p style="margin:0;">Button not working? Paste this into your browser:<br /><a href="${view.href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${view.plainUrl}</a></p>
                     </td>
                   </tr>
@@ -346,7 +423,7 @@ ${steps(view)}
 
             <tr>
               <td class="k-muted" style="padding:18px 4px 0 4px;font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};color:${light['fg-muted']};">
-                Sent by Kithena because ${view.company} added you to their team. This is a one-off message about your account, not a subscription.
+                ${view.copy.footer(view.company)} This is a one-off message about your account, not a subscription.
               </td>
             </tr>
           </table>
@@ -370,11 +447,8 @@ ${steps(view)}
  * bit low", which `tokens.css` warns about by name.
  */
 function steps(view: View): string {
-  const rows = [
-    'Your device asks for your fingerprint, face or PIN.',
-    'That becomes your passkey. Nothing leaves your device.',
-    `You sign in to ${view.company} the same way from then on.`,
-  ]
+  const rows = view.copy
+    .steps(view.company)
     .map(
       (item, index) => `                        <tr>
                           <td width="30" valign="top" style="padding:0 10px 10px 0;">
@@ -424,43 +498,39 @@ function button(view: View): string {
   return `                      <!--[if mso]>
                       <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${view.href}" style="height:${scale.controlHeight};v-text-anchor:middle;width:220px;" arcsize="18%" stroke="f" fillcolor="${light['accent-solid']}">
                         <w:anchorlock/>
-                        <center style="color:${light['fg-on-accent']};font-family:'Segoe UI',Arial,sans-serif;font-size:${scale.body.size};font-weight:500;">Set up your account</center>
+                        <center style="color:${light['fg-on-accent']};font-family:'Segoe UI',Arial,sans-serif;font-size:${scale.body.size};font-weight:500;">${view.copy.action}</center>
                       </v:roundrect>
                       <![endif]-->
                       <!--[if !mso]><!-- -->
-                      <a href="${view.href}" class="k-button" style="display:inline-block;box-sizing:border-box;height:${scale.controlHeight};line-height:${scale.controlHeight};padding:0 20px;background:${light['accent-solid']};color:${light['fg-on-accent']};font-size:${scale.body.size};font-weight:500;text-align:center;text-decoration:none;border-radius:${scale.radiusControl};mso-hide:all;">Set up your account</a>
+                      <a href="${view.href}" class="k-button" style="display:inline-block;box-sizing:border-box;height:${scale.controlHeight};line-height:${scale.controlHeight};padding:0 20px;background:${light['accent-solid']};color:${light['fg-on-accent']};font-size:${scale.body.size};font-weight:500;text-align:center;text-decoration:none;border-radius:${scale.radiusControl};mso-hide:all;">${view.copy.action}</a>
                       <!--<![endif]-->`;
 }
 
 function text(v: {
+  copy: Copy;
   companyName: string;
   recipient: string;
   url: string;
   deadline: string;
 }): string {
   return [
-    `You're invited to join ${v.companyName}`,
+    v.copy.heading(v.companyName),
     '',
-    'An account is waiting for you. Setting it up takes about a minute, and there',
-    'is no password to choose.',
+    v.copy.lede,
     '',
     `Your sign-in address: ${v.recipient}`,
     '',
-    'Set up your account:',
+    `${v.copy.action}:`,
     v.url,
     '',
     'What happens next',
-    '  1. Your device asks for your fingerprint, face or PIN.',
-    '  2. That becomes your passkey. Nothing leaves your device.',
-    `  3. You sign in to ${v.companyName} the same way from then on.`,
+    ...v.copy.steps(v.companyName).map((step, index) => `  ${String(index + 1)}. ${step}`),
     '',
-    `This link works once and expires ${v.deadline}. If it has expired, ask your`,
-    'HR team for another.',
+    `${v.copy.expiry[0] ?? ''} ${v.deadline}. ${v.copy.expiry[1] ?? ''}`,
     '',
-    `If you were not expecting this, or you do not recognise ${v.companyName}, do`,
-    'not use the link - tell your HR team instead.',
+    ...v.copy.caution(v.companyName),
     '',
-    `Sent by Kithena because ${v.companyName} added you to their team.`,
+    v.copy.footer(v.companyName),
     '',
   ].join('\n');
 }

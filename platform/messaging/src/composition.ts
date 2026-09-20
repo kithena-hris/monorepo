@@ -11,6 +11,7 @@ import { noDeliveryLog, type DeliveryLog } from './message/application/delivery-
 import type { EmailTransport } from './message/application/email-transport.js';
 import { resendTransport } from './message/infrastructure/resend-transport.js';
 import { logTransport } from './message/infrastructure/log-transport.js';
+import { smtpTransport } from './message/infrastructure/smtp-transport.js';
 import { drizzleDeliveryLog } from './message/infrastructure/drizzle-delivery-log.js';
 import { resendWebhookVerifier } from './message/infrastructure/resend-webhooks.js';
 import { messagingRoutes } from './message/http/messaging-routes.js';
@@ -24,6 +25,24 @@ import { webhookRoutes } from './message/http/webhook-routes.js';
  * `main.ts` starts a server; this decides what the server is.
  */
 export interface Config {
+  /**
+   * A local mailbox, if one is running. `smtp://localhost:1025` is Mailpit,
+   * which `docker-compose.yml` has been starting all along and nothing has ever
+   * sent to.
+   *
+   * Chosen over the log transport when set, because a rendered message in a
+   * real client is the half of this service's output a log line cannot show.
+   * Never reachable in production: the same flag that refuses the log transport
+   * refuses this one.
+   */
+  readonly smtpUrl?: string | undefined;
+  /**
+   * Where the local mailbox can be read, printed on every send.
+   *
+   * Mailpit's web UI, not its SMTP port — two different numbers, and the one a
+   * person wants is the one they can open.
+   */
+  readonly mailboxUrl?: string | undefined;
   /** Absent locally. Its absence selects the transport that writes to the log. */
   readonly resendApiKey: string | undefined;
   /**
@@ -96,9 +115,38 @@ export function selectTransport(config: Config): EmailTransport {
     if (!config.allowLogTransport) {
       throw new Error('RESEND_API_KEY is required outside development');
     }
+
+    /*
+     * A local mailbox beats a log line, where one is running.
+     *
+     * Behind the same gate as the log transport, deliberately: `allowLogTransport`
+     * is the one flag that says "this is somebody's machine", and a second flag
+     * for SMTP would make a self-hosted relay reachable from production by
+     * setting one variable.
+     */
+    if (config.smtpUrl !== undefined && config.smtpUrl !== '') {
+      const sender = parseSender(config.from ?? 'Kithena <invitations@localhost>');
+      if (!sender.ok) {
+        throw new Error(`RESEND_FROM is not a usable sender: ${JSON.stringify(config.from)}`);
+      }
+      logger.info(
+        { transport: 'smtp', url: config.smtpUrl, from: sender.value.formatted },
+        'invitations will be sent to the local mailbox',
+      );
+      return smtpTransport({
+        url: config.smtpUrl,
+        from: sender.value.formatted,
+        replyTo: config.replyTo === '' ? undefined : config.replyTo,
+        note: (line) => {
+          logger.info({ transport: 'smtp' }, line);
+        },
+        inboxUrl: config.mailboxUrl,
+      });
+    }
+
     logger.warn(
       { transport: 'log' },
-      'no RESEND_API_KEY: invitations will be written to the log, not sent',
+      'no RESEND_API_KEY and no SMTP_URL: invitations will be written to the log, not sent',
     );
     return logTransport((line) => process.stdout.write(`${line}\n`));
   }

@@ -44,6 +44,30 @@ if (signingKey === undefined) {
   );
 }
 
+/*
+ * The origin every enrolment and recovery link is built on.
+ *
+ * Required outside development, because the fallback is a localhost address and
+ * the failure it produces is silent: a deployment that never set this emails a
+ * new hire a link to a machine that is not theirs, and nothing in the send path
+ * can tell that apart from a correct one. Better to refuse to start and name
+ * the setting.
+ *
+ * The same argument as `AUTH_SIGNING_KEY` above, one step further: a missing
+ * key looks like random sign-outs, a missing origin looks like a link that
+ * works on the developer's laptop and nowhere else.
+ */
+const authOrigin = process.env['AUTH_ORIGIN'];
+if (authOrigin === undefined || authOrigin === '') {
+  if (process.env['NODE_ENV'] === 'production') {
+    throw new Error('AUTH_ORIGIN is required in production: it is what enrolment links point at');
+  }
+  logger.warn(
+    { service: 'identity', assumed: 'http://auth.app.localhost:3100' },
+    'no AUTH_ORIGIN: enrolment links will point at localhost',
+  );
+}
+
 const routes = await compose({
   // Deliberately not `DATABASE_URL`. That one is the owner's, used by
   // migrations, and an owner bypasses row-level security on its own tables
@@ -70,7 +94,7 @@ const routes = await compose({
     : {}),
   adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',
   adminOrigin: process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001',
-  authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
+  authOrigin: authOrigin === undefined || authOrigin === '' ? 'http://auth.app.localhost:3100' : authOrigin,
   signingKey,
   allowInsecureOrigins: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, invitations are not emailed and the enrolment link comes

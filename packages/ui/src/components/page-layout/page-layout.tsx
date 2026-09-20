@@ -42,21 +42,33 @@ import { Tooltip } from '../tooltip/tooltip';
  *   nobody notices is missing.
  */
 
+/*
+ * Five rows, and every slot says which one it is in.
+ *
+ * It was four, with `header`, `banner`, `footer` and `bottomBar` relying on
+ * implicit placement — which works only while a header and a banner are both
+ * present to fill rows one and two. A layout with neither, which is every
+ * screen in the tenant app, put the bottom bar in row one: a mobile tab bar
+ * pinned to the top of the page, `sticky bottom-0` and all.
+ *
+ * Explicit rows cost nothing and cannot be arranged wrongly by an absent
+ * sibling.
+ */
 const layout = cva('grid min-h-dvh bg-canvas', {
   variants: {
     preset: {
       /** Header over content. Settings, a wizard, a detail page. */
-      stacked: 'grid-rows-[auto_auto_minmax(0,1fr)_auto] grid-cols-1',
+      stacked: 'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1',
       /** Navigation rail beside content. The default application shell. */
       sidebar:
-        'grid-rows-[auto_auto_minmax(0,1fr)_auto] grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)]',
+        'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)]',
       /** Navigation, content, and a detail rail. Three panes at desk sizes. */
       'sidebar-aside':
-        'grid-rows-[auto_auto_minmax(0,1fr)_auto] grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_auto]',
+        'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_auto]',
       /** No navigation at all: onboarding, a signature flow, a modal page. */
-      focused: 'grid-rows-[auto_auto_minmax(0,1fr)_auto] grid-cols-1',
+      focused: 'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1',
       /** Content fills the viewport and manages its own scrolling, a Kanban board, a calendar. */
-      canvas: 'grid-rows-[auto_auto_minmax(0,1fr)_auto] grid-cols-1 overflow-hidden',
+      canvas: 'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 overflow-hidden',
     },
   },
   defaultVariants: { preset: 'stacked' },
@@ -142,6 +154,20 @@ export interface PageLayoutProps
   banner?: ReactNode;
   /** Primary navigation. Rendered as `<nav>`; hidden below `md`: pair it with `bottomBar` or a `Sheet`. */
   sidebar?: ReactNode;
+  /**
+   * Pinned to the top of the sidebar, sharing its row with the collapse
+   * control.
+   *
+   * A product mark, a workspace switcher, a company's name. It exists because
+   * the collapse control used to occupy a strip of its own above the sidebar
+   * slot — about 40px of empty chrome that a caller could not put anything in,
+   * and which read as the sidebar starting some way down the page. Anything
+   * passed here now shares that row, so the space is used rather than reserved.
+   *
+   * It does not scroll with the navigation below it, and it stays visible when
+   * the rail is collapsed: keep what survives at 3.5rem to a mark.
+   */
+  sidebarHeader?: ReactNode;
   /** Secondary rail: activity, help, a detail summary. Rendered as `<aside>`; hidden below `xl`. */
   aside?: ReactNode;
   /** Status strip at the bottom of the page flow. Rendered as `<footer>`. */
@@ -160,6 +186,16 @@ export interface PageLayoutProps
   sidebarShortcut?: string | null;
   /** Classes for the scrolling `<main>`. Padding belongs here. */
   contentClassName?: string;
+  /**
+   * Classes for the bottom bar's own wrapper, which carries the border and the
+   * sticky positioning.
+   *
+   * `md:hidden` is what a mobile tab bar wants, and it has to go here rather
+   * than on the content: hiding only the content leaves the wrapper behind as a
+   * one-pixel bordered strip across the bottom of every desktop page. Reach's
+   * own shell story had exactly that.
+   */
+  bottomBarClassName?: string;
   /** Accessible name for the `<main>` landmark when a page has more than one region worth naming. */
   contentLabel?: string;
 }
@@ -167,11 +203,13 @@ export interface PageLayoutProps
 export function PageLayout({
   className,
   contentClassName,
+  bottomBarClassName,
   contentLabel,
   preset,
   header,
   banner,
   sidebar,
+  sidebarHeader,
   aside,
   footer,
   bottomBar,
@@ -225,7 +263,7 @@ export function PageLayout({
           // user can decline and a class name cannot be queried.
           data-material="chrome"
           className={cn(
-            'sticky top-0 z-30 col-span-full border-b border-border bg-surface/95',
+            'sticky top-0 z-30 row-start-1 col-span-full border-b border-border bg-surface/95',
             'backdrop-blur-material backdrop-saturate-(--reach-material-saturate)',
             'pt-safe-top ps-safe-left pe-safe-right',
             // Supports-backdrop-filter, because a solid fallback is better
@@ -238,7 +276,7 @@ export function PageLayout({
         </header>
       ) : null}
 
-      {banner ? <div className="col-span-full">{banner}</div> : null}
+      {banner ? <div className="row-start-2 col-span-full">{banner}</div> : null}
 
       {hasSidebar ? (
         <nav
@@ -265,7 +303,14 @@ export function PageLayout({
             'ps-safe-left',
             // Its own scroll container, sticky under the header: a 40-item
             // navigation must not push the page taller than the content.
-            'md:sticky md:top-14 md:max-h-[calc(100dvh-3.5rem)] md:overscroll-contain',
+            //
+            // The offset is the header's height, and only when there is one.
+            // It was 3.5rem unconditionally, so a layout with no header
+            // reserved a header's worth of space it never filled — the
+            // sidebar stuck 56px down the page and stopped 56px short of the
+            // bottom.
+            'md:sticky md:overscroll-contain',
+            header ? 'md:top-14 md:max-h-[calc(100dvh-3.5rem)]' : 'md:top-0 md:max-h-dvh',
             // The width animates rather than snapping. `overflow-x-hidden`
             // matters as much as the duration: without it the labels spill
             // across the content for the length of the transition.
@@ -286,17 +331,32 @@ export function PageLayout({
           inert={sidebarCollapse.mode === 'hidden' && sidebarState.collapsed ? true : undefined}
         >
           <RailContext value={{ collapsed: sidebarState.collapsed }}>
-            {sidebarState.enabled &&
-            !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
-              <RailToggle
-                side="start"
-                controls={sidebarId}
-                collapsed={sidebarState.collapsed}
-                onToggle={sidebarState.toggle}
-                label="navigation"
-                shortcut={sidebarShortcut}
-                className="sticky top-0 z-10 flex justify-end p-2 pb-0"
-              />
+            {/*
+              One row, holding whatever the caller pinned at the top and the
+              collapse control at its end.
+
+              Rendered whenever either exists, so a sidebar with no header is
+              unchanged and one with a header no longer pays for a strip of
+              chrome above it.
+            */}
+            {sidebarHeader ??
+            (sidebarState.enabled &&
+              !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed)) ? (
+              <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 p-2 pb-0">
+                <div className="min-w-0 flex-1">{sidebarHeader}</div>
+                {sidebarState.enabled &&
+                !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
+                  <RailToggle
+                    side="start"
+                    controls={sidebarId}
+                    collapsed={sidebarState.collapsed}
+                    onToggle={sidebarState.toggle}
+                    label="navigation"
+                    shortcut={sidebarShortcut}
+                    className="shrink-0"
+                  />
+                ) : null}
+              </div>
             ) : null}
             {/*
               `min-h-0` so this can be shorter than its content and let the
@@ -391,7 +451,7 @@ export function PageLayout({
       ) : null}
 
       {footer ? (
-        <footer className="col-span-full border-t border-border bg-surface pb-safe-bottom">
+        <footer className="row-start-4 col-span-full border-t border-border bg-surface pb-safe-bottom">
           {footer}
         </footer>
       ) : null}
@@ -399,8 +459,9 @@ export function PageLayout({
       {bottomBar ? (
         <div
           className={cn(
-            'sticky bottom-0 z-30 col-span-full border-t border-border bg-surface',
+            'sticky bottom-0 z-30 row-start-5 col-span-full border-t border-border bg-surface',
             'pb-safe-bottom ps-safe-left pe-safe-right',
+            bottomBarClassName,
           )}
         >
           {bottomBar}

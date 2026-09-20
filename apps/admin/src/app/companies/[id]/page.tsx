@@ -1,7 +1,5 @@
 import { countryRules, themePreset } from '@kithena/contracts';
 import {
-  Alert,
-  AutoGrid,
   Avatar,
   Badge,
   Breadcrumb,
@@ -14,29 +12,26 @@ import {
   Container,
   CopyButton,
   PageHeader,
-  PageSection,
-  Stack,
-  Stat,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Tooltip,
+  icons,
 } from '@reach/ui';
+
+const ExternalLinkIcon = icons.externalLink;
 import Link from 'next/link';
+import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
-import type { JSX } from 'react';
+import { Suspense, type JSX } from 'react';
 
 import { CreatedToast, SavedToast } from '../../../components/created-toast';
 import { callIdentity, readIdentity } from '../../../lib/identity';
+import { placeFor } from '../../../lib/place';
 import { tenantHost, tenantUrl } from '../../../lib/tenant-host';
 import { currentOperator } from '../../../lib/session';
-import {
-  InvitePersonForm,
-  type Invitation,
-  type InviteResult,
-} from '../../../components/invite-person-form';
+import { CompanyDetailTabs } from '../../../components/company-detail-tabs';
+import type { EmployeeActionResult } from '../../../components/employee-actions';
+import { AddressCard } from '../../../components/address-card';
+import { CompanySummaryTile } from '../../../components/company-summary-tile';
+import type { Invitation, InviteResult } from '../../../components/invite-employee-form';
 
 /**
  * One company, everything the registry holds about it.
@@ -138,6 +133,24 @@ export default async function Company({
     });
 
     if (status === 201 && body !== null && typeof body === 'object') {
+      /*
+       * The employee is in the registry now, so the page that lists them is
+       * stale — and it was staying stale until somebody reloaded by hand.
+       *
+       * `callIdentity` already passes `cache: 'no-store'`, so nothing was
+       * cached on the server side; what held the old table was the client's
+       * router cache, which keeps the RSC payload for a route it has already
+       * rendered and has no way of knowing an action changed it.
+       * `revalidatePath` is what tells it, and it re-renders the server
+       * components underneath the open dialog rather than replacing it — so
+       * the enrolment link, which is shown once and is not retrievable, stays
+       * on screen while the table behind it fills in.
+       *
+       * The list too: its counts and its "nobody can reach" figure both move
+       * the moment a company gains its first account.
+       */
+      revalidatePath(`/companies/${id}`);
+      revalidatePath('/');
       return { ok: true, invitation: body as Invitation };
     }
 
@@ -149,19 +162,135 @@ export default async function Company({
     return {
       ok: false,
       message:
-        typeof failure.message === 'string' ? failure.message : 'That person could not be invited.',
+        typeof failure.message === 'string' ? failure.message : 'That employee could not be invited.',
       ...(Array.isArray(failure.path)
         ? { path: failure.path.filter((p): p is string => typeof p === 'string') }
         : {}),
     };
   }
 
+  /**
+   * A fresh link for one person, whichever kind they need.
+   *
+   * Two capabilities behind one menu item, because the operator's intent is the
+   * same — "they cannot get in, send them something" — and which endpoint
+   * answers it is a fact about the account rather than a decision anybody
+   * should have to make from a table.
+   *
+   * The difference is visible in what comes back. An invitation returns the
+   * link, because the person has not proved anything yet and the operator is
+   * the second channel. Recovery does not: it goes to the address already on
+   * the account and never through here, which is what stops the weaker path
+   * becoming a way to take somebody's account.
+   */
+  async function resendFor(
+    accountId: string,
+    email: string,
+    status: string,
+  ): Promise<EmployeeActionResult> {
+    'use server';
+
+    if (!(await currentOperator())) return { ok: false, message: 'Your session has expired.' };
+
+    if (status === 'active') {
+      const { status: code } = await callIdentity('/api/internal/enrolment/recover', {
+        method: 'POST',
+        body: { tenantId: id, workEmail: email },
+      });
+      // Recovery answers the same way for an address it knows and one it does
+      // not, by design. A non-2xx here is the service being unreachable.
+      if (code >= 400) return { ok: false, message: 'The link could not be sent. Try again.' };
+      revalidatePath(`/companies/${id}`);
+      return { ok: true, kind: 'recovered' };
+    }
+
+    const { status: code, body } = await callIdentity(
+      `/api/internal/admin/tenants/${id}/invitations`,
+      { method: 'POST', body: { email } },
+    );
+
+    if (code === 201 && body !== null && typeof body === 'object') {
+      const invitation = body as Invitation;
+      revalidatePath(`/companies/${id}`);
+      revalidatePath('/');
+      return { ok: true, kind: 'invited', enrolUrl: invitation.enrolUrl, expiresAt: invitation.expiresAt };
+    }
+
+    const failed = (body ?? {}) as { message?: unknown };
+    return {
+      ok: false,
+      message:
+        typeof failed.message === 'string' ? failed.message : 'A new link could not be issued.',
+    };
+  }
+
+  /**
+   * Withdrawing an invitation nobody used.
+   *
+   * Only ever offered for an account that has not enrolled — identity refuses
+   * the rest — so what this destroys is a link and a row with no history behind
+   * it. `accountId` rather than the address: two people at two companies can
+   * share an address, and the id is what the tenant scope is checked against.
+   */
+  async function withdrawFor(accountId: string): Promise<EmployeeActionResult> {
+    'use server';
+
+    if (!(await currentOperator())) return { ok: false, message: 'Your session has expired.' };
+
+    const { status: code, body } = await callIdentity(
+      `/api/internal/admin/tenants/${id}/accounts/${accountId}/invitation`,
+      { method: 'DELETE' },
+    );
+
+    if (code === 204) {
+      revalidatePath(`/companies/${id}`);
+      revalidatePath('/');
+      return { ok: true, kind: 'withdrawn' };
+    }
+
+    const failed = (body ?? {}) as { message?: unknown };
+    return {
+      ok: false,
+      message:
+        typeof failed.message === 'string'
+          ? failed.message
+          : 'That invitation could not be cancelled.',
+    };
+  }
+
   const theme = company.themeId === null ? undefined : themePreset(company.themeId);
   const country = company.address ? countryRules(company.address.country) : undefined;
 
-  const active = company.people.filter((person) => person.status === 'active').length;
-  const invited = company.people.filter((person) => person.status === 'invited').length;
-  const other = company.people.length - active - invited;
+  /*
+   * The address as lines, resolved once.
+   *
+   * It used to be assembled inline out of six conditionals and two lookups,
+   * which is why a missing subdivision rendered a stray comma. A list of lines
+   * is also what a client component can be handed; a rule table is not.
+   */
+  const counts = {
+    active: company.people.filter((person) => person.status === 'active').length,
+    invited: company.people.filter((person) => person.status === 'invited').length,
+    other: 0,
+  };
+  counts.other = company.people.length - counts.active - counts.invited;
+
+  const addressLines: string[] =
+    company.address === null
+      ? []
+      : [
+          company.address.line1,
+          company.address.line2,
+          company.address.subdivision === null
+            ? company.address.city
+            : `${company.address.city}, ${
+                country?.subdivisions.find((s) => s.code === company.address?.subdivision)?.name ??
+                company.address.subdivision
+              }`,
+          company.address.postcode,
+          country?.name ?? company.address.country,
+        ].filter((line): line is string => line !== null && line !== '');
+
 
   /**
    * Counts only, and that is the whole contract with the wizard.
@@ -176,6 +305,12 @@ export default async function Company({
     const value = Number(Array.isArray(raw) ? raw[0] : raw);
     return Number.isFinite(value) && value >= 0 ? value : 0;
   };
+  const tile = {
+    companyName: company.displayName,
+    createdAt: company.createdAt,
+    counts,
+  };
+
   const justCreated = query['created'] === '1';
   const justSaved = query['saved'] === '1';
 
@@ -272,6 +407,32 @@ export default async function Company({
                   label={`Copy ${company.displayName}'s address`}
                   tooltip
                 />
+                {/*
+                  Straight to the sign-in page, which is the screen an operator
+                  is checking when they follow this: a branded logo, the right
+                  hostname, the right accent. The hostname beside it opens the
+                  app, which for anybody not signed in is a redirect to this
+                  page anyway — but only after a round trip that looks like a
+                  broken link when the tenant app is the part that is down.
+
+                  `rel="noreferrer"`, so the back-office URL never appears in a
+                  customer's referrer log. Same reason the hostname link has it.
+                */}
+                <Tooltip content="Open their sign-in page">
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="ghost"
+                    startIcon={<ExternalLinkIcon aria-hidden />}
+                  >
+                    <a
+                      href={tenantUrl(company.slug, '/login')}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open ${company.displayName}'s sign-in page in a new tab`}
+                    />
+                  </Button>
+                </Tooltip>
               </span>
             }
             meta={
@@ -291,158 +452,79 @@ export default async function Company({
         </div>
       </div>
 
-      <Stack gap={8} className="mt-8">
+      <div className="mt-8">
         {/*
-          The four questions an operator opens this page to answer, before any
-          of the detail below: can anybody sign in, is anybody still waiting,
-          is anybody locked out, and how long has this company been here.
+          One tile rather than four. The numbers describe one company, so they
+          read as one group; the space that saved is where the sky goes.
         */}
-        <AutoGrid minItemWidth="11rem" gap={4}>
-          <Stat label="Can sign in" value={active} />
-          <Stat
-            label="Awaiting enrolment"
-            value={invited}
-            sentiment={invited > 0 ? 'negative' : 'neutral'}
-          />
-          <Stat label="Other accounts" value={other} />
-          <Stat label="Customer since" value={formatDate(company.createdAt)} />
-        </AutoGrid>
+        <CompanySummaryTile {...tile} />
+      </div>
 
-        <div className="grid gap-5 lg:grid-cols-2">
-          <PageSection title="Registered address" surface>
-            {company.address === null ? (
-              <p className="text-fg-muted text-sm">
-                None recorded. This company was created before an address was asked for.
-              </p>
-            ) : (
-              <address className="text-fg-muted text-sm not-italic">
-                {company.address.line1}
-                <br />
-                {company.address.line2 === null ? null : (
-                  <>
-                    {company.address.line2}
-                    <br />
-                  </>
-                )}
-                {company.address.city}
-                {company.address.subdivision === null
-                  ? null
-                  : `, ${
-                      country?.subdivisions.find((s) => s.code === company.address?.subdivision)
-                        ?.name ?? company.address.subdivision
-                    }`}
-                <br />
-                {company.address.postcode === null ? null : (
-                  <>
-                    {company.address.postcode}
-                    <br />
-                  </>
-                )}
-                {country?.name ?? company.address.country}
-              </address>
-            )}
-          </PageSection>
+      <div className="mt-6">
+        {/*
+          The country and the theme are resolved here rather than in the tabs.
+          `@kithena/contracts` is a server-side lookup either way, and sending
+          the two strings an operator reads is smaller than sending the rule
+          tables to the browser so it can do the same lookup again.
+        */}
+        <CompanyDetailTabs
+          companyName={company.displayName}
+          resend={resendFor}
+          withdraw={withdrawFor}
+          addressCard={
+            /*
+              Streamed, so the weather never delays the page.
 
-          <PageSection
-            title="Sign-in page"
-            description="What this company's own people see."
-            surface
-          >
-            <Stack gap={4}>
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="border-border size-9 shrink-0 rounded-full border"
-                  style={theme ? { background: theme.accent } : undefined}
-                />
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-sm font-medium">{theme?.name ?? 'Default accent'}</span>
-                  <span className="text-fg-muted text-xs">
-                    {theme === undefined
-                      ? 'No theme chosen, so the product accent is used.'
-                      : `${theme.contrastOnWhite.toFixed(1)}:1 on white`}
-                  </span>
-                </span>
-              </div>
-
-              {company.brandingPublic ? null : (
-                <Alert tone="info" title="Branding is hidden">
-                  Their logo and cover image are stored but are not shown before somebody signs in.
-                </Alert>
-              )}
-            </Stack>
-          </PageSection>
-        </div>
-
-        <PageSection
-          title="Invite somebody"
-          description="They are sent a link and set up a passkey on their own device. You are not given a way to sign in as them."
-          surface
-        >
-          <InvitePersonForm action={invite} companyName={company.displayName} />
-        </PageSection>
-
-        <PageSection
-          title="People"
-          description={`${String(company.people.length)} ${company.people.length === 1 ? 'account' : 'accounts'} in the registry.`}
-          surface
-        >
-          {company.people.length === 0 ? (
-            <Alert tone="warning" title="Nobody can sign in">
-              This company has no accounts at all.
-            </Alert>
-          ) : (
-            <Table aria-label={`People at ${company.displayName}`}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Work email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Added</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {company.people.map((person) => (
-                  <TableRow key={person.id}>
-                    <TableCell className="truncate">{person.email}</TableCell>
-                    <TableCell>
-                      <Badge dot tone={badgeTone(person.status)}>
-                        {person.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell numeric>
-                      <time dateTime={person.createdAt} className="text-fg-muted text-sm">
-                        {formatDate(person.createdAt)}
-                      </time>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </PageSection>
-      </Stack>
+              The address is only known once identity has answered, so the
+              lookup cannot join the first `Promise.all` — awaiting it inline
+              would put two more round trips, and a four second timeout, in
+              front of a screen that already has everything else. The fallback
+              is the same card without a sky, which is exactly what a company
+              with no address renders anyway.
+            */
+            <Suspense fallback={<AddressCard addressLines={addressLines} place={null} />}>
+              <AddressCardWithPlace
+                addressLines={addressLines}
+                city={company.address?.city ?? null}
+                country={country?.code ?? null}
+              />
+            </Suspense>
+          }
+          people={company.people}
+          brandingPublic={company.brandingPublic}
+          hasLogo={company.logoUrl !== null}
+          hasCover={company.coverImageUrl !== null}
+          theme={
+            theme === undefined
+              ? null
+              : {
+                  name: theme.name,
+                  accent: theme.accent,
+                  contrastOnWhite: theme.contrastOnWhite,
+                }
+          }
+          invite={invite}
+        />
+      </div>
     </Container>
   );
 }
 
-/** The date an operator reads, not the timestamp the database stores. */
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 /**
- * `invited` is deliberately not a warning.
+ * The address card, once its city has been looked up.
  *
- * It is the correct state for somebody who has been sent a link and has not
- * used it yet, which is most of a company's first week. Colouring the normal
- * case as a problem teaches an operator to ignore the colour.
+ * Its own component because only an async one can suspend, and suspending is
+ * the point: the page renders complete without it and this swaps in when the
+ * weather arrives.
  */
-function badgeTone(status: string): 'success' | 'info' | 'warning' {
-  if (status === 'active') return 'success';
-  if (status === 'invited') return 'info';
-  return 'warning';
+async function AddressCardWithPlace({
+  addressLines,
+  city,
+  country,
+}: {
+  addressLines: readonly string[];
+  city: string | null;
+  country: string | null;
+}): Promise<JSX.Element> {
+  return <AddressCard addressLines={addressLines} place={await placeFor(city, country)} />;
 }

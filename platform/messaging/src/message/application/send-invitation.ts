@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { toAddress } from '../domain/address.js';
-import { linkIsTrusted, renderInvitation } from '../domain/invitation.js';
+import { linkIsTrusted, renderInvitation, type MessagePurpose } from '../domain/invitation.js';
 import type { EmailTransport } from './email-transport.js';
 import type { DeliveryLog } from './delivery-log.js';
 
@@ -19,6 +19,14 @@ import type { DeliveryLog } from './delivery-log.js';
 export interface SendInvitationRequest {
   /** Whose invitation this is. For the log, never for the recipient. */
   readonly tenantId: string;
+  /**
+   * Why it was issued, which decides everything a person reads.
+   *
+   * Optional, defaulting to an invitation: every caller sent one before this
+   * existed, and a required field would make the recovery fix a breaking change
+   * for a service that has exactly one client.
+   */
+  readonly purpose?: MessagePurpose | undefined;
   readonly companyName: string;
   readonly email: string;
   /** The single-use enrolment link, built by whoever minted the token. */
@@ -84,6 +92,7 @@ export function sendInvitation(deps: SendInvitationDeps): SendInvitation {
     }
 
     const message = renderInvitation({
+      ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
       companyName: request.companyName,
       recipient: recipient.value,
       enrolUrl: request.enrolUrl,

@@ -29,6 +29,8 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
           themeId: tenant.themeId,
           accentColor: tenant.accentColor,
           brandingPublic: tenant.brandingPublic,
+          addressCity: tenant.addressCity,
+          addressCountry: tenant.addressCountry,
         })
         .from(tenant)
         .where(eq(tenant.slug, slug))
@@ -45,6 +47,12 @@ export function drizzleTenantRepository(db: PostgresJsDatabase): TenantRepositor
         slug: row.slug,
         status: status.data,
         branding: brandingFor(row),
+        // Both parts or neither. A country with no city reads as a mistake
+        // beside a clock, and the address form takes them together.
+        location:
+          row.addressCity === null || row.addressCountry === null
+            ? null
+            : { city: row.addressCity, country: row.addressCountry },
       } satisfies Tenant;
     },
   };

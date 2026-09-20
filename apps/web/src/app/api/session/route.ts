@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+import { ceremonyOrigin } from '../../../lib/ceremony-origin';
 import { SESSION_COOKIE } from '../../../lib/session';
 
 /**
@@ -23,10 +24,14 @@ import { SESSION_COOKIE } from '../../../lib/session';
  * ask for a session at a company it does not belong to by editing a payload.
  */
 export async function POST(request: Request): Promise<Response> {
-  const tenantId = (await headers()).get('x-tenant-id');
+  const inbound = await headers();
+  const tenantId = inbound.get('x-tenant-id');
   if (tenantId === null || tenantId === '') {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
+
+  const origin = ceremonyOrigin(inbound);
+  if (origin === null) return NextResponse.json({ ok: false }, { status: 400 });
 
   const body: unknown = await request.json().catch(() => null);
   if (body === null || typeof body !== 'object' || !('response' in body)) {
@@ -57,7 +62,10 @@ export async function POST(request: Request): Promise<Response> {
         // The origin as this server knows it, not as the page reported it. It
         // is one of the three things the assertion is checked against, and a
         // value taken from the request body is a value the caller chose.
-        origin: new URL(request.url).origin,
+        //
+        // Built from the host the proxy already resolved a tenant from, not
+        // from `request.url` — see `ceremonyOrigin` for the failure that was.
+        origin,
         response: body.response,
         // A browser cannot see its own network address. Whatever terminates the
         // connection supplies one or nothing does — never a placeholder, which
@@ -75,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const session = (await verified.json()) as { sessionId?: unknown };
+  const session = (await verified.json()) as { sessionId?: unknown; expiresAt?: unknown };
   if (typeof session.sessionId !== 'string' || session.sessionId === '') {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
@@ -99,6 +107,24 @@ export async function POST(request: Request): Promise<Response> {
     // about signing in requires arriving from another site.
     sameSite: 'strict',
     path: '/',
+    /*
+     * Until the session row expires, and not a moment more.
+     *
+     * Without this it was a *browser-session* cookie: discarded when the window
+     * closed, whatever the thirty-day row behind it said. So "stay signed in
+     * for thirty days" held until somebody quit their browser, which is the one
+     * thing everybody does — the row outlived the cookie that pointed at it and
+     * the next visit looked like a sign-out nobody asked for.
+     *
+     * Taken from the session identity issued rather than restated here, so the
+     * cookie and the row cannot disagree about when this ends. A cookie that
+     * outlives its row is a request that fails the session check; one that dies
+     * first is this bug.
+     */
+    expires:
+      typeof session.expiresAt === 'string' && !Number.isNaN(Date.parse(session.expiresAt))
+        ? new Date(session.expiresAt)
+        : undefined,
   });
 
   return landed;

@@ -117,6 +117,22 @@ export function TabsList({
       data-indicator={rect ? 'ready' : undefined}
       className={cn(
         'group/tabs relative flex items-center gap-1 border-b border-border',
+        /*
+         * The strip scrolls sideways rather than overflowing the page.
+         *
+         * Three ordinary tabs — "Overview", "Employees (12)", "Sign-in page" —
+         * measure wider than a 390px phone, and without this the whole document
+         * scrolled horizontally to accommodate them. A tab strip is the one
+         * navigation control that is allowed to be wider than its container, so
+         * long as it carries its own scroll; the page is not.
+         *
+         * `pb-px` is what makes that safe. `overflow-x` clips at the padding
+         * box, and both the marker and each trigger's own underline sit one
+         * pixel below the content — the padding gives them that pixel back.
+         * `overscroll-contain` stops a swipe that runs off the end of the strip
+         * from turning into a back-navigation gesture.
+         */
+        'overflow-x-auto overscroll-x-contain pb-px',
         className,
       )}
       {...props}
@@ -135,7 +151,11 @@ export function TabsList({
         aria-hidden="true"
         data-slot="tabs-indicator"
         className={cn(
-          'pointer-events-none absolute -bottom-px left-0 h-0.5 rounded-full bg-accent',
+          // `bottom-0`, not `-bottom-px`: the list clips at its padding box, so
+          // a marker positioned outside it disappears the moment the strip
+          // becomes scrollable. It sits on the border rather than over it,
+          // which at one pixel is the same picture.
+          'pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-accent',
           // Only `transform` and `width` animate. `left` would relayout the
           // strip on every frame; a translate stays on the compositor.
           'transition-[transform,width,opacity] duration-(--animate-duration-spring-move)',
@@ -160,7 +180,9 @@ export function TabsTrigger({
     <TabsPrimitive.Trigger
       className={cn(
         'relative -mb-px inline-flex items-center gap-2 px-3 py-2 text-base font-medium',
-        'text-fg-muted whitespace-nowrap',
+        // `shrink-0` so a strip that does not fit scrolls instead of squeezing
+        // every label into the same cramped column.
+        'text-fg-muted shrink-0 whitespace-nowrap',
         'border-b-2 border-transparent',
         'transition-colors duration-(--animate-duration-fast) ease-standard',
         'hover:text-fg',

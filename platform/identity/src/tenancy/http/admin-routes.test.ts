@@ -79,6 +79,7 @@ function routes(tenantDetail: (id: string) => Promise<TenantDetail | null>) {
     // None of these are reached by a GET on the detail path, and a test that
     // supplied working versions would be asserting the wiring rather than the
     // route.
+    withdrawInvitation: vi.fn() as never,
     provision: vi.fn() as never,
     amend: vi.fn() as never,
     invite: vi.fn() as never,

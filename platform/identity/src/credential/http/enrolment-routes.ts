@@ -1,3 +1,4 @@
+import { checkName, type PersonName } from '../../shared/person-name.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
@@ -43,7 +44,10 @@ export interface EnrolmentRoutesDeps {
   readonly challenges: ChallengeStore;
   readonly complete: CompleteEnrolment;
   /** Reads a token's state without spending it, inside the tenant. */
-  readonly inspectToken: (tenantId: string, token: string) => Promise<EnrolmentState>;
+  readonly inspectToken: (
+    tenantId: string,
+    token: string,
+  ) => Promise<{ state: EnrolmentState; purpose: string; name: PersonName | null }>;
   /**
    * Sends a fresh setup link, and always succeeds.
    *
@@ -104,10 +108,22 @@ export function enrolmentRoutes({
        * logs those. The distinction is for the person holding the link, in the
        * page they are looking at.
        */
-      const state = await inspectToken(tenantId, token);
+      const found = await inspectToken(tenantId, token);
       response
         .writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-        .end(JSON.stringify({ state }));
+        // The purpose goes out too. It tells whoever holds this link nothing
+        // they do not already know — they received it — and it is what lets the
+        // page ask an invited person for their name and leave a recovering one
+        // alone.
+        /*
+         * The purpose and the name go out too.
+         *
+         * Neither tells whoever holds this link anything they do not know —
+         * they received it, and the name is their own. What it buys is a form
+         * that only asks when there is nothing on file, and that can show what
+         * is on file for them to correct.
+         */
+        .end(JSON.stringify({ state: found.state, purpose: found.purpose, name: found.name }));
       return true;
     }
 
@@ -193,12 +209,50 @@ export function enrolmentRoutes({
       return true;
     }
 
+    /*
+     * The name onboarding collected, checked here at the boundary.
+     *
+     * Zod validates shape at a boundary and the aggregate rule lives in the
+     * domain, which is what `checkName` is — so this calls it rather than
+     * restating a length or a character class that would then have two
+     * definitions. A refusal is a 422 with the field named, because the form
+     * that sent it can point at the input.
+     *
+     * Absent is allowed and means a recovery link: somebody replacing a lost
+     * passkey is already in the registry, and asking them to retype their own
+     * name to get back in would be a worse screen and a chance to disagree
+     * with the row that is already there.
+     */
+    const asked = input['name'];
+    let name: PersonName | undefined;
+    if (asked !== undefined && asked !== null) {
+      if (typeof asked !== 'object') {
+        response.writeHead(400).end();
+        return true;
+      }
+      const checked = checkName(asked);
+      if (!checked.ok) {
+        response
+          .writeHead(422, { 'content-type': 'application/json' })
+          .end(
+            JSON.stringify({
+              reason: 'name_invalid',
+              code: checked.error.code,
+              path: checked.error.path ?? [],
+            }),
+          );
+        return true;
+      }
+      name = checked.value;
+    }
+
     const result = await complete({
       tenantId: input['tenantId'],
       token: input['token'],
       response: input['response'],
       origin: input['origin'],
       challenge,
+      ...(name === undefined ? {} : { name }),
     });
 
     if (!result.ok) {
