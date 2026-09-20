@@ -45,7 +45,16 @@ beforeAll(async () => {
   // The real migrations, not a hand-rolled approximation. A schema retyped for
   // a test is a schema that can disagree with production, and the disagreement
   // is always in the constraint somebody forgot to copy.
-  for (const file of ['20260821120000_tenant_registry.sql', '20260821230000_identity.sql']) {
+  for (const file of [
+    '20260821120000_tenant_registry.sql',
+    '20260821230000_identity.sql',
+    // Adds the name columns. Listed because this suite names the migrations it
+    // needs, and `account` is loaded through Drizzle — which selects every
+    // column in the table definition, whether or not this suite reads them. A
+    // missing one fails as `42703 column "given_name" does not exist`, from a
+    // query the test never wrote.
+    '20260919160000_account_name.sql',
+  ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
   }

@@ -56,6 +56,8 @@ beforeAll(async () => {
     // this suite names the migrations it needs: leaving it out fails on the
     // insert, which reads like a bug in the store rather than a missing column.
     '20260830100000_enrolment_token_purpose.sql',
+    // The name columns, which completing an enrolment writes.
+    '20260919160000_account_name.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));

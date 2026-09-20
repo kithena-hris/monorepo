@@ -68,6 +68,8 @@ beforeAll(async () => {
     // names the migrations it needs: leaving it out fails as
     // `42883 No function matches`, which reads like a typo in the query.
     '20260829090000_accounts_for_identity.sql',
+    // The name columns, which `profileOf` selects when a screen greets somebody.
+    '20260919160000_account_name.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
