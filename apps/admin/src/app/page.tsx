@@ -1,28 +1,11 @@
-import {
-  AutoGrid,
-  Badge,
-  Button,
-  Container,
-  EmptyState,
-  KithenaMark,
-  PageHeader,
-  PageSection,
-  Stack,
-  Stat,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Avatar,
-} from '@reach/ui';
+import { Button, Container, EmptyState, PageHeader, Badge } from '@reach/ui';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { CompaniesOverview, type CompanyRow } from '../components/companies-overview';
 import { readIdentity } from '../lib/identity';
-import { tenantHost } from '../lib/tenant-host';
+import { tenantHostSuffix } from '../lib/tenant-host';
 import { currentOperator } from '../lib/session';
 
 /**
@@ -31,19 +14,10 @@ import { currentOperator } from '../lib/session';
  * Reads `platform.*` and nothing else. An employee count would mean querying
  * `people.*`, and a back-office that does that stops working the day a customer
  * runs Time Off alone against Workday. Counts arrive as a projection built from
- * events, when there are events to build one from.
+ * events, when there are events to build one from — which is also why every
+ * number on this screen is derived from the rows themselves rather than asked
+ * for separately.
  */
-interface Row {
-  id: string;
-  slug: string;
-  displayName: string;
-  status: string;
-  createdAt: string;
-  logoUrl: string | null;
-  admins: number;
-  pendingInvites: number;
-}
-
 export default async function Companies({
   searchParams,
 }: {
@@ -65,7 +39,7 @@ export default async function Companies({
     currentOperator(),
     readIdentity(
       `/api/internal/admin/tenants?limit=50${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
-    ) as Promise<{ tenants?: Row[]; nextCursor?: string | null } | null>,
+    ) as Promise<{ tenants?: CompanyRow[]; nextCursor?: string | null } | null>,
   ]);
 
   // Fail closed. This is the only surface that crosses tenants and it is served
@@ -76,19 +50,10 @@ export default async function Companies({
   const tenants = page?.tenants ?? [];
   const nextCursor = page?.nextCursor ?? null;
 
-  const active = tenants.filter((tenant) => tenant.status === 'active').length;
-  const administrators = tenants.reduce((total, tenant) => total + tenant.admins, 0);
-  const awaiting = tenants.reduce((total, tenant) => total + tenant.pendingInvites, 0);
-
   return (
     <Container size="lg" className="py-10 sm:py-12">
       <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <KithenaMark className="text-accent size-6" />
-            Companies
-          </span>
-        }
+        title="Companies"
         description={`Signed in as ${operator.email}`}
         meta={
           tenants.length === 0 ? null : (
@@ -99,7 +64,7 @@ export default async function Companies({
           )
         }
         actions={
-          <Button asChild>
+          <Button asChild variant="primary">
             <Link href="/companies/new">Add a company</Link>
           </Button>
         }
@@ -111,132 +76,39 @@ export default async function Companies({
           title="No companies yet"
           description="Adding one creates the tenant and invites its first administrators. Nobody is given a credential — each is sent their own link and enrols themselves."
           action={
-            <Button asChild>
+            <Button asChild variant="primary">
               <Link href="/companies/new">Add a company</Link>
             </Button>
           }
         />
       ) : (
-        <Stack gap={8} className="mt-8">
+        <div className="mt-8">
           {/*
-            Four numbers an operator otherwise counts by eye. They are computed
-            from the rows on this page rather than asked of the database,
-            because a cross-tenant `count(*)` is exactly the query the registry
-            avoids — and the caption says so rather than letting a partial
-            number read as a total.
+            The suffix is handed down rather than read in the browser:
+            `TENANT_HOST_SUFFIX` is a server value and would be `undefined`
+            there, which is how a hostname ends up rendering as `acme.undefined`.
           */}
-          <AutoGrid minItemWidth="11rem" gap={4}>
-            <Stat label="Companies" value={tenants.length} />
-            <Stat label="Active" value={active} />
-            <Stat label="Administrators" value={administrators} />
-            <Stat
-              label="Awaiting enrolment"
-              value={awaiting}
-              sentiment={awaiting > 0 ? 'negative' : 'neutral'}
-            />
-          </AutoGrid>
+          <CompaniesOverview
+            rows={tenants}
+            hostSuffix={tenantHostSuffix()}
+            partial={nextCursor !== null}
+          />
+        </div>
+      )}
 
-          <PageSection
-            title="All companies"
-            description={
-              nextCursor === null
-                ? 'Newest first.'
-                : 'Newest first. The counts above cover the companies listed here, not every company.'
-            }
-          >
-            <Table aria-label="Companies">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>People</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Added</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tenants.map((tenant) => (
-                  <TableRow key={tenant.id} interactive className="relative">
-                    <TableCell>
-                      <span className="flex items-center gap-3">
-                        <Avatar
-                          size="md"
-                          shape="rounded"
-                          fit="contain"
-                          src={tenant.logoUrl ?? undefined}
-                          name={tenant.displayName}
-                        />
-                        <span className="flex min-w-0 flex-col">
-                          {/*
-                            One real link, stretched over the whole row by a
-                            pseudo-element. A 4px target beside a 700px row is
-                            the difference between clicking a company and
-                            clicking nothing — and doing it this way keeps the
-                            row a row for a screen reader, which a nest of
-                            links inside table cells would not.
-                          */}
-                          <Link
-                            href={`/companies/${tenant.id}`}
-                            className="focus-visible:outline-border-focus truncate font-medium after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
-                          >
-                            {tenant.displayName}
-                          </Link>
-                          <code className="text-fg-muted truncate text-xs">
-                            {tenantHost(tenant.slug)}
-                          </code>
-                        </span>
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {tenant.admins} active
-                        {tenant.pendingInvites > 0 ? (
-                          <span className="text-fg-muted">
-                            {', '}
-                            {tenant.pendingInvites} invited
-                          </span>
-                        ) : null}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge dot tone={tenant.status === 'active' ? 'success' : 'warning'}>
-                        {tenant.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell numeric>
-                      <time dateTime={tenant.createdAt} className="text-fg-muted text-sm">
-                        {formatDate(tenant.createdAt)}
-                      </time>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </PageSection>
-
-          {nextCursor === null ? null : (
-            <nav className="flex justify-center" aria-label="More companies">
-              {/*
-                A cursor, not a page number. The list is ordered by creation and
-                only grows, so `?page=7` names a different set of companies each
-                time somebody is added — and the last page of an OFFSET query is
-                the slowest, which is the one a long list is read from.
-              */}
-              <Button asChild variant="secondary">
-                <Link href={`/?cursor=${encodeURIComponent(nextCursor)}`}>Show more</Link>
-              </Button>
-            </nav>
-          )}
-        </Stack>
+      {nextCursor === null ? null : (
+        <nav className="mt-8 flex justify-center" aria-label="More companies">
+          {/*
+            A cursor, not a page number. The list is ordered by creation and
+            only grows, so `?page=7` names a different set of companies each
+            time somebody is added — and the last page of an OFFSET query is
+            the slowest, which is the one a long list is read from.
+          */}
+          <Button asChild variant="secondary">
+            <Link href={`/?cursor=${encodeURIComponent(nextCursor)}`}>Show more</Link>
+          </Button>
+        </nav>
       )}
     </Container>
   );
-}
-
-/** The date an operator reads, not the timestamp the database stores. */
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
 }

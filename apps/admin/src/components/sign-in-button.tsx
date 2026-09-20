@@ -76,6 +76,7 @@ export function SignInButton(): JSX.Element {
   return (
     <>
       <Button
+        variant="primary"
         onClick={() => void signIn()}
         onPointerEnter={warm}
         onFocus={warm}

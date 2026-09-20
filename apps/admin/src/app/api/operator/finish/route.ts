@@ -1,3 +1,4 @@
+import { ceremonyOrigin } from '../../../../lib/ceremony-origin';
 import { callIdentity } from '../../../../lib/identity';
 import { SESSION_COOKIE } from '../../../../lib/session';
 
@@ -20,7 +21,7 @@ export async function POST(request: Request): Promise<Response> {
     body: {
       response: input['response'],
       challenge: input['challenge'],
-      origin: new URL(request.url).origin,
+      origin: ceremonyOrigin(request),
     },
   });
 

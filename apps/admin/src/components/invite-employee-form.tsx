@@ -46,7 +46,7 @@ export interface Invitation {
 export type InviteResult =
   { ok: true; invitation: Invitation } | { ok: false; message: string; path?: string[] };
 
-export interface InvitePersonFormProps {
+export interface InviteEmployeeFormProps {
   /**
    * A server action. The internal token never reaches this component —
    * `lib/identity` is `server-only`, so importing it here would fail the build
@@ -56,7 +56,7 @@ export interface InvitePersonFormProps {
   readonly companyName: string;
 }
 
-export function InvitePersonForm({ action, companyName }: InvitePersonFormProps): JSX.Element {
+export function InviteEmployeeForm({ action, companyName }: InviteEmployeeFormProps): JSX.Element {
   const [state, submit, pending] = useActionState(action, null);
   const [showDates, setShowDates] = useState(false);
 
@@ -105,7 +105,7 @@ export function InvitePersonForm({ action, companyName }: InvitePersonFormProps)
         ) : null}
 
         <div className="flex items-center gap-3">
-          <Button type="submit" loading={pending} loadingLabel="Sending the invitation">
+          <Button type="submit" variant="primary" loading={pending} loadingLabel="Sending the invitation">
             Send invitation
           </Button>
           <Button
