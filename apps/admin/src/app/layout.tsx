@@ -1,5 +1,4 @@
-import { TooltipProvider } from '@reach/ui';
-import { KithenaMark } from '@reach/ui';
+import { KithenaMark, TooltipProvider } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
 import Link from 'next/link';
