@@ -3,14 +3,14 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { ok, systemClock, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, systemClock, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
 import { startSession } from './account/application/start-session.js';
 import {
   drizzleAccountRepository,
   loadSession,
-  workEmailOf,
+  profileOf,
 } from './account/infrastructure/drizzle-account-repository.js';
 import { authenticate } from './account/application/authenticate.js';
 import { issueHandoff, redeemHandoff } from './account/application/handoff.js';
@@ -39,6 +39,7 @@ import { uuidv7 } from './shared/uuid.js';
 import { operatorSignIn } from './operator/application/operator-sign-in.js';
 import { drizzleOperatorRepository } from './operator/infrastructure/drizzle-operator-repository.js';
 import { operatorRoutes } from './operator/http/operator-routes.js';
+import { mayWithdrawInvitation } from './tenancy/domain/invitation.js';
 import { amendTenant } from './tenancy/application/amend-tenant.js';
 import { recoverAccount } from './tenancy/application/recover-account.js';
 import { provisionTenant } from './tenancy/application/provision-tenant.js';
@@ -500,8 +501,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
         );
       },
     }),
-    workEmailOf: (tenantId, accountId) =>
-      inTenantTransaction(tenantId, (tx) => workEmailOf(tx, accountId)),
+    profileOf: (tenantId, accountId) =>
+      inTenantTransaction(tenantId, (tx) => profileOf(tx, accountId)),
     /*
      * Signing out, for real.
      *
@@ -555,8 +556,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
         // Until then every tenant gets the floor: user verification required,
         // synced passkeys accepted.
         policyFor: () => Promise.resolve(defaultCredentialPolicy),
-        onRefusal: (reason) => {
-          logger.info({ reason }, 'passkey refused');
+        onRefusal: (reason, context) => {
+          logger.info({ reason, ...context }, 'passkey refused');
         },
       }),
       /*
@@ -663,8 +664,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
           credentials: drizzleCredentialRepository(db),
           origins: adminOrigins,
           policyFor: () => Promise.resolve(defaultCredentialPolicy),
-          onRefusal: (reason) => {
-            logger.info({ reason }, 'operator passkey refused');
+          onRefusal: (reason, context) => {
+            logger.info({ reason, ...context }, 'operator passkey refused');
           },
         })(request);
 
@@ -849,6 +850,29 @@ export async function compose(config: Config): Promise<RequestHandler> {
             `);
             return id;
           },
+          /*
+           * The name, on `platform.account` beside the work address.
+           *
+           * Identity keeps this and stops here. It already holds the address,
+           * the time zone and the employment start — the facts the ceremony and
+           * the enrolment rules need — and a name is the same kind of fact: it
+           * is what the passkey prompt renders, and that cannot wait for a
+           * module the customer may not have bought.
+           *
+           * A job title, a manager, a department, an emergency contact: those
+           * are the People module's, and identity holding them would give one
+           * person two records that drift. The onboarding form asks for a name
+           * and nothing else for exactly that reason.
+           */
+          recordName: async (accountId, name) => {
+            await tx.execute(sql`
+              UPDATE platform.account
+                 SET given_name = ${name.given},
+                     family_name = ${name.family},
+                     preferred_name = ${name.preferred}
+               WHERE id = ${accountId}::uuid
+            `);
+          },
           enrolAccount: async (accountId, credentialId) => {
             const snapshot = await accounts.load(tx, accountId);
             if (!snapshot) throw new Error('account vanished mid-enrolment');
@@ -907,7 +931,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
       // deleted while it holds employment records.
       const cursor = page.cursor;
       const rows = await db.execute(sql`
-        SELECT t.id, t.slug, t.display_name, t.status, t.created_at, t.logo_url
+        SELECT t.id, t.slug, t.display_name, t.status, t.created_at, t.logo_url,
+               t.address_country
           FROM platform.tenant t
          WHERE ${
            cursor === null
@@ -954,6 +979,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
             // page reads; sending it here saves the back-office a request per
             // row to render an avatar it already has the URL for.
             logoUrl: textOrNull(row['logo_url']),
+            // The country alone, not the address. It is what a back-office
+            // dashboard can legitimately aggregate — where the customers are is
+            // a fact about the company, where its office is is a fact about a
+            // building — and a street address has no business in a list
+            // response that renders one row per customer.
+            addressCountry: textOrNull(row['address_country']),
             admins: count.active,
             pendingInvites: count.invited,
           };
@@ -1023,6 +1054,47 @@ export async function compose(config: Config): Promise<RequestHandler> {
         })),
       };
     },
+    /*
+     * Withdrawing an invitation: the links stop working, and the account that
+     * never used one goes with them.
+     *
+     * Inside the tenant's transaction, because `platform.account` and
+     * `platform.enrolment_token` both carry row-level security with FORCE and
+     * `svc_identity` does not bypass it. Run on a bare connection this deletes
+     * nothing and reports success, which is the worst of both.
+     *
+     * The identity row is deliberately left behind. One person can hold
+     * accounts at several customers — a contractor is the ordinary case — so
+     * `platform.identity` is shared, and deleting it here would take their
+     * access somewhere else with it. An identity with no accounts is inert.
+     */
+    withdrawInvitation: ({ tenantId, accountId }) =>
+      inTenantTransaction(tenantId, async (tx) => {
+        const rows = await tx.execute(sql`
+          SELECT status FROM platform.account
+           WHERE id = ${accountId}::uuid AND tenant_id = ${tenantId}::uuid
+        `);
+        const found = [...rows][0];
+        if (!found) {
+          return err(failure('ACCOUNT_UNKNOWN', 'No such person at this company', ['accountId']));
+        }
+
+        const allowed = mayWithdrawInvitation(text(found['status']));
+        if (!allowed.ok) return allowed;
+
+        // Tokens first. If the account delete then failed, what is left is an
+        // account with no live link — which is a recoverable state. The other
+        // order leaves a live link pointing at nothing.
+        await tx.execute(sql`
+          DELETE FROM platform.enrolment_token WHERE account_id = ${accountId}::uuid
+        `);
+        await tx.execute(sql`
+          DELETE FROM platform.account
+           WHERE id = ${accountId}::uuid AND tenant_id = ${tenantId}::uuid
+        `);
+
+        return ok(undefined);
+      }),
     invite: inviteAccount({
       tenantById,
       authOrigin: config.authOrigin,

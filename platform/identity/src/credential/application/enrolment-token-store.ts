@@ -1,3 +1,4 @@
+import type { PersonName } from '../../shared/person-name.js';
 import type { EnrolmentState } from '../domain/enrolment-state.js';
 import type { EnrolmentToken, SecondChannel } from '../domain/enrolment-token.js';
 
@@ -62,5 +63,19 @@ export interface EnrolmentTokenStore {
    * holds a 256-bit token handed over out of band, so it already has the
    * secret — see `EnrolmentState` for why that changes what may be said.
    */
-  inspect(token: string): Promise<EnrolmentState>;
+  /**
+   * What this link is worth, and why it was issued.
+   *
+   * Both, because they answer different questions: `state` decides whether to
+   * offer the ceremony at all, `purpose` decides what to ask before it. A
+   * recovery link belongs to somebody already in the registry, so it skips the
+   * onboarding form rather than inviting them to retype a name that is already
+   * on their row.
+   */
+  inspect(token: string): Promise<{
+    state: EnrolmentState;
+    purpose: string;
+    /** What the account is already called, or null if nobody has been asked. */
+    name: PersonName | null;
+  }>;
 }

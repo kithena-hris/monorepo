@@ -78,6 +78,47 @@ export function mayInvite(status: string): Result<void> {
   }
 }
 
+/**
+ * Whether an invitation may be withdrawn.
+ *
+ * The mirror of `mayInvite`, and the states it allows are the states where
+ * withdrawing costs nothing: nobody has enrolled, so there is no credential to
+ * orphan and no history to lose. An account that reached `active` is a person
+ * who works here — taking that away is termination, which is a different act
+ * with different consequences and does not belong behind a menu item called
+ * "cancel invitation".
+ *
+ * Takes a `string` for the same reason `mayInvite` does, and refuses an
+ * unrecognised state for the same reason too: a state whose rules this does not
+ * know is not a state to start deleting rows in.
+ */
+export function mayWithdrawInvitation(status: string): Result<void> {
+  switch (status) {
+    case 'provisioned':
+    case 'invited':
+      return ok(undefined);
+    case 'active':
+      return err(
+        failure(
+          'ALREADY_ENROLLED',
+          'They have already set up a passkey, so there is no invitation to withdraw',
+          ['status'],
+        ),
+      );
+    case 'suspended':
+    case 'terminated':
+      return err(
+        failure(
+          'NOT_AN_INVITATION',
+          'This account is not an outstanding invitation',
+          ['status'],
+        ),
+      );
+    default:
+      return err(AccountUnknownState);
+  }
+}
+
 /** The address as it is stored and matched. Lower case, because people type it. */
 export function normaliseWorkEmail(raw: string): string {
   return raw.trim().toLowerCase();

@@ -21,6 +21,10 @@ export const tenant = platform.table('tenant', {
   themeId: text('theme_id'),
   accentColor: text('accent_color'),
   brandingPublic: boolean('branding_public').notNull(),
+  // The registered address. Only the two parts a screen says out loud are
+  // declared here: a person reads "London, United Kingdom", never a street.
+  addressCity: text('address_city'),
+  addressCountry: text('address_country'),
   createdAt: instant('created_at').notNull(),
   updatedAt: instant('updated_at').notNull(),
 });

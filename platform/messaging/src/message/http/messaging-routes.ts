@@ -48,6 +48,16 @@ const InvitationRequest = z.object({
    * them is a caller that needs updating.
    */
   logoUrl: z.string().nullish(),
+  /**
+   * Why the link exists, which decides what the message says.
+   *
+   * Optional and defaulted here rather than required, because a caller that
+   * predates this field is sending an invitation — which is what every caller
+   * was doing when the field did not exist. An unrecognised value is refused
+   * rather than treated as an invitation: a third kind of link nobody has
+   * written copy for should not quietly borrow an invitation's.
+   */
+  purpose: z.enum(['invitation', 'recovery']).optional(),
 });
 
 /** A provider that said no is worth retrying. Everything else is not. */

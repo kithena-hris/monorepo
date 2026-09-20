@@ -10,3 +10,4 @@ export * from './events/timeoff.js';
 export * from './payroll.js';
 export * from './address.js';
 export * from './branding.js';
+export * from './person-name.js';

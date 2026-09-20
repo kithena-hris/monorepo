@@ -57,13 +57,14 @@ describe('a minted token', () => {
     expect(payload['auth_time']).toBe(Date.parse(session.authenticatedAt) / 1000);
   });
 
-  it('expires two minutes after it is minted', async () => {
-    // Short on purpose. A session is a row that can be deleted; this is a
-    // bearer token that cannot be recalled once handed out, so the window in
-    // which a revoked session still works is exactly this number.
+  it('expires fifteen minutes after it is minted', async () => {
+    // The access half of the pair, and the number is the whole contract: this
+    // is a bearer token that cannot be recalled once handed out, so the window
+    // in which a revoked session still works is exactly this. The session row
+    // behind it is the refresh credential — deletable, capped, thirty days.
     const { mint } = await subject();
     const claims = claimsOf(await mint(principalFrom(session)));
-    expect(Number(claims['exp']) - Number(claims['iat'])).toBe(120);
+    expect(Number(claims['exp']) - Number(claims['iat'])).toBe(15 * 60);
   });
 
   it('is refused by a module holding a different key', async () => {

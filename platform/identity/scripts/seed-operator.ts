@@ -35,7 +35,14 @@ if (!existing[0]) {
   `;
 }
 
-await sql`DELETE FROM platform.operator_session`;
+// This operator's sessions, not everybody's. The credential delete below was
+// already scoped; this one was not, so resetting one operator signed out every
+// other one — harmless with a single back-office account and wrong the moment
+// there are two.
+await sql`
+  DELETE FROM platform.operator_session
+   WHERE operator_id IN (SELECT id FROM platform.operator WHERE identity_id = ${identityId}::uuid)
+`;
 await sql`DELETE FROM platform.credential WHERE identity_id = ${identityId}::uuid`;
 
 // The back-office origin this deployment uses. Same reasoning as the tenant

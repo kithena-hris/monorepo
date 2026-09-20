@@ -33,8 +33,15 @@ export interface SignInDeps {
   };
   readonly origins: OriginPolicy;
   readonly policyFor: (identityId: string) => Promise<CredentialPolicy>;
-  /** Failures are logged with a reason the caller never sees. */
-  readonly onRefusal?: (reason: string) => void;
+  /**
+   * Failures are logged with a reason the caller never sees.
+   *
+   * `context` carries the value that decided it, where there is one. A refusal
+   * that says only `origin` is a refusal somebody debugs by guessing which
+   * hostname the browser actually used — which is exactly the guessing game an
+   * origin mismatch is.
+   */
+  readonly onRefusal?: (reason: string, context?: Record<string, unknown>) => void;
 }
 
 export interface SignInRequest {
@@ -54,13 +61,15 @@ export function signInWithPasskey({
   policyFor,
   onRefusal,
 }: SignInDeps): SignInWithPasskey {
-  const refuse = (reason: string): Result<Credential> => {
-    onRefusal?.(reason);
+  const refuse = (reason: string, context?: Record<string, unknown>): Result<Credential> => {
+    onRefusal?.(reason, context);
     return err(Refused);
   };
 
   return async ({ response, origin, challenge }) => {
-    if (!isAcceptableOrigin(origin, origins)) return refuse('origin');
+    if (!isAcceptableOrigin(origin, origins)) {
+      return refuse('origin', { origin, expected: origins.authOrigin, rpId: origins.rpId });
+    }
 
     const issued = await challenges.consume(challenge);
     if (!issued || issued.purpose !== 'authentication') return refuse('challenge');

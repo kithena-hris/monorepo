@@ -32,6 +32,12 @@ export const account = platform.table(
     identityId: uuid('identity_id').notNull(),
     status: text('status').notNull(),
     workEmail: text('work_email').notNull(),
+    // Nullable: an account enrolled before onboarding asked for a name has
+    // none, and the column constraint keeps the two halves of a legal name
+    // together rather than requiring either.
+    givenName: text('given_name'),
+    familyName: text('family_name'),
+    preferredName: text('preferred_name'),
     timeZone: text('time_zone').notNull(),
     employmentStart: date('employment_start', { mode: 'string' }).notNull(),
     sessionLimit: smallint('session_limit').notNull(),

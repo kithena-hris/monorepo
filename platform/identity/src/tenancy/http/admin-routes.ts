@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { DEFAULT_THEME_ID } from '@kithena/contracts';
+import type { Result } from '@kithena/domain-kit';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
 import type { InviteAccount } from '../application/invite-account.js';
@@ -38,6 +39,18 @@ const DETAIL =
  */
 const INVITATIONS =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/invitations$/i;
+
+/**
+ * `/api/internal/admin/tenants/<uuid>/accounts/<uuid>/invitation`, deleted.
+ *
+ * Under the tenant *and* the account, because both are needed to authorise it:
+ * the tenant scopes the row-level security this runs inside, and the account
+ * names what is being withdrawn. An endpoint taking only the account id would
+ * work and would let a caller withdraw across a tenant boundary by knowing one
+ * uuid, which is the boundary this schema exists to enforce.
+ */
+const ACCOUNT_INVITATION =
+  /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/accounts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/invitation$/i;
 
 /**
  * Deliberately not a full RFC 5322 grammar; see the messaging service's
@@ -96,6 +109,7 @@ export interface AdminRoutesDeps {
       status: string;
       createdAt: string;
       logoUrl: string | null;
+      addressCountry: string | null;
       admins: number;
       pendingInvites: number;
     }[];
@@ -105,6 +119,19 @@ export interface AdminRoutesDeps {
   readonly provision: ProvisionTenant;
   readonly amend: AmendTenant;
   readonly invite: InviteAccount;
+  /**
+   * Withdraws an outstanding invitation: the links stop working and the
+   * never-used account goes with them.
+   *
+   * Returns a `Result` rather than throwing, because "they have already
+   * enrolled" is an answer the operator needs rather than a fault — the row
+   * they were looking at was simply stale, which on a screen somebody left open
+   * is ordinary.
+   */
+  readonly withdrawInvitation: (input: {
+    tenantId: string;
+    accountId: string;
+  }) => Promise<Result<void>>;
   readonly internalToken: string;
 }
 
@@ -114,13 +141,15 @@ export function adminRoutes({
   provision,
   amend,
   invite,
+  withdrawInvitation,
   internalToken,
 }: AdminRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const path = (request.url ?? '').split('?')[0] ?? '';
     const detail = DETAIL.exec(path);
     const invitations = INVITATIONS.exec(path);
-    if (path !== LIST && !detail && !invitations) return false;
+    const accountInvitation = ACCOUNT_INVITATION.exec(path);
+    if (path !== LIST && !detail && !invitations && !accountInvitation) return false;
 
     if (!presentsInternalToken(request, internalToken)) {
       response.writeHead(401).end();
@@ -133,6 +162,36 @@ export function adminRoutes({
         .end(JSON.stringify(body));
       return true;
     };
+
+    if (accountInvitation) {
+      // DELETE, because that is what it does: the links stop working and the
+      // account that never used one is removed. A POST named `withdraw` would
+      // be the same act with a worse name.
+      if (request.method !== 'DELETE') {
+        response.writeHead(405, { allow: 'DELETE' }).end();
+        return true;
+      }
+
+      const withdrawn = await withdrawInvitation({
+        tenantId: accountInvitation[1] ?? '',
+        accountId: accountInvitation[2] ?? '',
+      });
+
+      if (!withdrawn.ok) {
+        // 404 for an account that is not in this tenant, 422 for one that is
+        // and cannot be withdrawn. The difference matters to the screen: the
+        // first is a stale list, the second is a person who has already
+        // enrolled.
+        return json(withdrawn.error.code === 'ACCOUNT_UNKNOWN' ? 404 : 422, {
+          code: withdrawn.error.code,
+          message: withdrawn.error.message,
+          path: withdrawn.error.path ?? [],
+        });
+      }
+
+      response.writeHead(204).end();
+      return true;
+    }
 
     if (invitations) {
       if (request.method !== 'POST') {

@@ -147,6 +147,18 @@ async function enrol(
           ? null
           : String([...rows][0]?.['identity_id']);
       },
+      // Written to the same transaction the rest of enrolment uses, so a test
+      // asserting the account afterwards sees what a real enrolment would have
+      // left behind.
+      recordName: async (accountId, name) => {
+        await tx.execute(sql`
+          UPDATE platform.account
+             SET given_name = ${name.given},
+                 family_name = ${name.family},
+                 preferred_name = ${name.preferred}
+           WHERE id = ${accountId}::uuid
+        `);
+      },
       storeCredential: async (identityId, credential) => {
         const id = uuidv7();
         await tx.execute(sql`

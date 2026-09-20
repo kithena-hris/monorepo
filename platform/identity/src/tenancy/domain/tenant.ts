@@ -35,11 +35,30 @@ export interface TenantBranding {
   readonly accentColor: string | null;
 }
 
+/**
+ * Where a company is, in the two parts anybody says out loud.
+ *
+ * Not the registered address: a street and a postcode are what an operator
+ * checks in the back-office, and neither belongs on a dashboard. The city and
+ * the country are what answers "where is this company" for somebody who works
+ * there — and, beside a clock, what makes the time mean something.
+ *
+ * Outside `branding`, deliberately. A company that has asked not to be shown on
+ * a login page has not asked to be hidden from its own employees, and putting
+ * this under a flag about public display would tie the two together.
+ */
+export interface TenantLocation {
+  readonly city: string;
+  readonly country: string;
+}
+
 export interface Tenant {
   readonly id: string;
   readonly slug: string;
   readonly status: TenantStatus;
   readonly branding: TenantBranding;
+  /** Null where the company was created before an address was asked for. */
+  readonly location: TenantLocation | null;
 }
 
 /**

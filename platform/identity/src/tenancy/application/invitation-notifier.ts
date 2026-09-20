@@ -37,6 +37,14 @@ export interface Invitation {
    * header — the same argument the login page makes.
    */
   readonly logoUrl: string | null;
+  /**
+   * Why the link was issued, so the message can say the right thing.
+   *
+   * Recovery used to send the invitation copy word for word, which greeted
+   * somebody who had worked there two years with "You're invited to join Acme
+   * Corp" and then advised them not to use a link they had just asked for.
+   */
+  readonly purpose?: 'invitation' | 'recovery';
 }
 
 export interface Delivery {

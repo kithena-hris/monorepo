@@ -99,24 +99,57 @@ export function drizzleEnrolmentTokenStore(
      */
     async inspect(token) {
       const rows = await tx.execute(sql`
-        SELECT e.purpose, e.expires_at, e.consumed_at, a.status AS account_status
+        SELECT e.purpose, e.expires_at, e.consumed_at, a.status AS account_status,
+               a.given_name, a.family_name, a.preferred_name
           FROM platform.enrolment_token e
           JOIN platform.account a ON a.id = e.account_id
          WHERE e.token_hash = ${hashEnrolmentToken(token)}
       `);
 
       const row = [...rows][0];
-      if (!row) return 'unknown';
+      if (!row) return { state: 'unknown', purpose: 'invitation', name: null };
 
-      return enrolmentState(
-        {
-          purpose: typeof row['purpose'] === 'string' ? row['purpose'] : 'invitation',
-          expiresAt: asInstant(instantOf(row['expires_at'])),
-          consumedAt: row['consumed_at'] == null ? null : asInstant(instantOf(row['consumed_at'])),
-          accountStatus: typeof row['account_status'] === 'string' ? row['account_status'] : '',
-        },
-        new Date(),
-      );
+      // The purpose travels alongside the state rather than being collapsed
+      // into it. `enrolmentState` folds both into one word, which is what the
+      // page needs to decide whether to offer the link at all — and not enough
+      // to decide what to *ask* once it does. A recovery link belongs to
+      // somebody the registry already knows, so it skips the onboarding form.
+      const purpose = typeof row['purpose'] === 'string' ? row['purpose'] : 'invitation';
+      /*
+       * The name already on the account, or null.
+       *
+       * What decides whether the onboarding form is shown: an account that has
+       * one does not need asking again, and one that does not needs asking
+       * whatever kind of link brought them here. Both halves of a legal name or
+       * neither — the column constraint says so — so the given name alone is a
+       * sufficient test.
+       */
+      const given = row['given_name'];
+      const family = row['family_name'];
+      const preferred = row['preferred_name'];
+
+      return {
+        purpose,
+        name:
+          typeof given === 'string' && typeof family === 'string'
+            ? {
+                given,
+                family,
+                preferred: typeof preferred === 'string' ? preferred : null,
+              }
+            : null,
+        state: enrolmentState(
+          {
+            purpose,
+            expiresAt: asInstant(instantOf(row['expires_at'])),
+            consumedAt:
+              row['consumed_at'] == null ? null : asInstant(instantOf(row['consumed_at'])),
+            accountStatus:
+              typeof row['account_status'] === 'string' ? row['account_status'] : '',
+          },
+          new Date(),
+        ),
+      };
     },
 
     async consume(token) {
