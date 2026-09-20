@@ -6,6 +6,7 @@ import { PasskeySignIn } from '../../components/passkey-sign-in';
 import { currentTenant } from '../../lib/branding';
 import { currentPerson } from '../../lib/session';
 
+
 /**
  * The company's own sign-in page, on the company's own hostname.
  *

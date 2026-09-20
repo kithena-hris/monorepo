@@ -2,7 +2,16 @@
 
 import {
   Avatar,
+  Button,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -10,14 +19,15 @@ import {
   DropdownMenuTrigger,
   KithenaLogo,
   Nav,
-  NavGroup,
   NavItem,
   NavList,
   PageLayout,
   TooltipProvider,
 } from '@reach/ui';
 import { icons } from '@reach/ui';
-import type { JSX, ReactNode } from 'react';
+import { useEffect, useState, type JSX, type ReactNode } from 'react';
+
+import { THEME_KEY } from '../lib/theme';
 
 /*
  * Reach's icon set, by meaning rather than by drawing.
@@ -33,6 +43,8 @@ const People = icons.people;
 const Document = icons.document;
 const Settings = icons.settings;
 const SignOut = icons.signOut;
+const ThemeDark = icons.themeDark;
+const ThemeLight = icons.theme;
 
 /**
  * The signed-in shell: sidebar, content, and the person at the bottom of it.
@@ -66,12 +78,44 @@ const AREAS = [
   { label: 'Documents', icon: <Document />, href: '/documents', current: false },
 ] as const;
 
+/**
+ * Light or dark, for whatever in this shell offers it.
+ *
+ * Read from the DOM rather than from storage, because the inline script in the
+ * root layout may have honoured a stored choice that disagrees with the system
+ * preference — and reading anything else would show the wrong state on the
+ * control that sets it.
+ */
+function useTheme(): readonly [boolean, (next: boolean) => void] {
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  return [
+    dark,
+    (next: boolean) => {
+      setDark(next);
+      document.documentElement.classList.toggle('dark', next);
+      // `try`, because Safari's private mode throws on write — and a theme that
+      // cannot be remembered is not a reason to break the control.
+      try {
+        localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
+      } catch {
+        /* not remembered, still applied */
+      }
+    },
+  ] as const;
+}
+
 export function AppShell({
   person,
   companyName,
   logoUrl = null,
   children,
 }: AppShellProps): JSX.Element {
+  const [dark, setTheme] = useTheme();
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
@@ -90,7 +134,46 @@ export function AppShell({
         // to `stacked`.
         preset="sidebar"
         sidebarCollapse={{ mode: 'rail', defaultCollapsed: false }}
+        /*
+          Below `md` the sidebar is gone — `PageLayout` hides it, because a
+          240px rail on a 390px screen is most of the screen. Without a
+          replacement that left a phone with a page and no way off it, which is
+          what "the sidebar is gone" looked like.
+
+          Tabs rather than a hamburger: the destinations are four, they fit, and
+          a bar that is always on screen costs one tap where a drawer costs two
+          and hides where you are. It is the pattern every app on the device
+          already uses, which is the argument for it.
+        */
+        bottomBar={<MobileTabs person={person} dark={dark} onTheme={setTheme} />}
+        bottomBarClassName="md:hidden"
         contentClassName="px-6 py-8"
+        /*
+          The company's mark where theirs exists, ours where it does not.
+
+          Not both. This is the top-left of an employee's own workplace tool and
+          the question it answers is "whose account am I in" — a person signing
+          in to Acme should see Acme. Kithena is the vendor, and a vendor's mark
+          stacked above a customer's is an advertisement in a place that is
+          supposed to be orienting.
+
+          In `sidebarHeader` rather than inside the sidebar itself, so it shares
+          the row with the collapse control instead of sitting under a strip of
+          empty chrome. The name collapses with the rail; the mark survives,
+          which is what the 3.5rem column has room for.
+        */
+        sidebarHeader={
+          logoUrl === null ? (
+            <KithenaLogo className="text-fg h-6 w-auto shrink-0" />
+          ) : (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Avatar size="md" shape="rounded" fit="contain" src={logoUrl} name={companyName} />
+              <span className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden">
+                {companyName}
+              </span>
+            </div>
+          )
+        }
         sidebar={
           <div
             // The expanded width lives here, not in PageLayout: its grid column
@@ -104,35 +187,6 @@ export function AppShell({
             // off-screen together.
             className="flex h-full min-h-0 w-60 flex-col gap-4 p-3 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2"
           >
-            {/*
-              The company's mark where theirs exists, ours where it does not.
-
-              Not both. This is the top-left of an employee's own workplace tool
-              and the question it answers is "whose account am I in" — a person
-              signing in to Acme should see Acme. Kithena is the vendor, and a
-              vendor's mark stacked above a customer's is an advertisement in a
-              place that is supposed to be orienting.
-
-              It collapses with the rail: the mark alone survives, the name does
-              not, which is what the 14px column has room for.
-            */}
-            {logoUrl === null ? (
-              <KithenaLogo className="text-fg shrink-0 px-2 pt-1" />
-            ) : (
-              <div className="flex shrink-0 items-center gap-2.5 px-2 pt-1">
-                <Avatar
-                  size="md"
-                  shape="rounded"
-                  fit="contain"
-                  src={logoUrl}
-                  name={companyName}
-                />
-                <span className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden">
-                  {companyName}
-                </span>
-              </div>
-            )}
-
             {/*
               The areas scroll; the mark above and the person below do not.
 
@@ -159,29 +213,54 @@ export function AppShell({
                   </NavItem>
                 ))}
               </NavList>
-
-              <NavList className="mt-4">
-                <NavGroup label={companyName}>
-                  <NavList level={2}>
-                    <NavItem
-                      level={2}
-                      href="/settings"
-                      icon={<Settings />}
-                      aria-disabled
-                      tabIndex={-1}
-                    >
-                      Settings
-                    </NavItem>
-                  </NavList>
-                </NavGroup>
-              </NavList>
             </Nav>
 
             {/* Pinned. `shrink-0` so it keeps its height when the list above
                 is long, and `mt-auto` so it sits at the bottom when the list is
-                short rather than floating under the last item. */}
-            <div className="border-border mt-auto shrink-0 border-t pt-3">
-              <PersonMenu person={person} />
+                short rather than floating under the last item.
+
+                Settings sits here rather than in the scrolling list above: it
+                is where you go to change something rather than somewhere you
+                work, so it belongs with the account controls and not among the
+                areas — and pinned, it stays reachable however many modules a
+                company switches on. */}
+            <div className="border-border mt-auto flex shrink-0 flex-col gap-3 border-t pt-3">
+              <Nav label="Account">
+                <NavList>
+                  <NavItem href="/settings" icon={<Settings />} aria-disabled tabIndex={-1}>
+                    Settings
+                  </NavItem>
+                </NavList>
+              </Nav>
+              {/*
+                A visible control, not only an item inside the profile menu.
+
+                It was in the menu alone, which opens on hovering the person's
+                name at the very bottom of the sidebar — something somebody has
+                to already know about to find. A preference nobody can see is a
+                preference nobody has.
+
+                A `Button`, not a `NavItem`: this changes something rather than
+                going somewhere, and `NavItem` renders an anchor. `asChild` on
+                it would be the obvious way round that and does not work —
+                `Slot` needs a single child and `NavItem` gives it an icon, a
+                label and a badge slot.
+              */}
+              <Button
+                variant="ghost"
+                size="sm"
+                fullWidth
+                aria-pressed={dark}
+                startIcon={dark ? <ThemeLight /> : <ThemeDark />}
+                className="justify-start group-data-[collapsed]/sidebar:hidden"
+                onClick={() => {
+                  setTheme(!dark);
+                }}
+              >
+                {dark ? 'Light mode' : 'Dark mode'}
+              </Button>
+
+              <PersonMenu person={person} dark={dark} onTheme={setTheme} />
             </div>
           </div>
         }
@@ -203,7 +282,15 @@ export function AppShell({
  * Sign-out is a form rather than a link. It changes server state, and a `GET`
  * that ends a session is one a prefetcher or a link scanner can fire.
  */
-function PersonMenu({ person }: { person: AppShellProps['person'] }): JSX.Element {
+function PersonMenu({
+  person,
+  dark,
+  onTheme,
+}: {
+  person: AppShellProps['person'];
+  dark: boolean;
+  onTheme: (next: boolean) => void;
+}): JSX.Element {
   return (
     <DropdownMenu openOnHover>
       <DropdownMenuTrigger className="border-border hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-3 rounded-md border px-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2">
@@ -216,6 +303,8 @@ function PersonMenu({ person }: { person: AppShellProps['person'] }): JSX.Elemen
           {person.email ?? person.name}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <ThemeChoice dark={dark} onChange={onTheme} />
+        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <form action="/auth/sign-out" method="post" className="w-full">
             <button type="submit" className="flex w-full items-center gap-2">
@@ -226,5 +315,140 @@ function PersonMenu({ person }: { person: AppShellProps['person'] }): JSX.Elemen
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * Light or dark, in the menu where the rest of this person's preferences are.
+ *
+ * A checkbox item rather than a button in the sidebar: the rail collapses to
+ * 3.5rem and a preference is not worth one of the few slots that survive that.
+ * It is also where every tool this audience already uses keeps it.
+ *
+ * `onSelect` is prevented from closing the menu, so somebody can look at the
+ * result and change their mind without opening it again — which is most of what
+ * anybody does with this control.
+ *
+ * The state is read from the DOM rather than from storage, because the inline
+ * script in the root layout may have honoured a stored choice that disagrees
+ * with the system preference. Reading anything else would show the wrong tick.
+ */
+function ThemeChoice({
+  dark,
+  onChange,
+}: {
+  readonly dark: boolean;
+  readonly onChange: (next: boolean) => void;
+}): JSX.Element {
+  return (
+    <DropdownMenuCheckboxItem
+      checked={dark}
+      onSelect={(event) => {
+        event.preventDefault();
+      }}
+      onCheckedChange={onChange}
+    >
+      <ThemeDark />
+      Dark mode
+    </DropdownMenuCheckboxItem>
+  );
+}
+
+/**
+ * The sidebar, for a screen too narrow to hold one.
+ *
+ * Everything the rail offers is reachable here and nothing is dropped: the four
+ * areas are tabs, and the fifth slot opens a sheet holding what the sidebar
+ * keeps pinned to its foot — settings, the theme, the person, signing out.
+ *
+ * Five is the ceiling. A sixth tab on a 390px screen is a 60px target with a
+ * clipped word under it, and the thing that gets cut is always the one
+ * somebody needs; the sheet is what stops the list growing into the labels.
+ */
+function MobileTabs({
+  person,
+  dark,
+  onTheme,
+}: {
+  readonly person: AppShellProps['person'];
+  readonly dark: boolean;
+  readonly onTheme: (next: boolean) => void;
+}): JSX.Element {
+  return (
+    <nav aria-label="Main, compact" className="flex">
+      {AREAS.map((area) => (
+        <a
+          key={area.label}
+          href={area.href}
+          aria-current={area.current ? 'page' : undefined}
+          // Not yet built, like the sidebar's copy of the same list.
+          {...(area.current ? {} : { 'aria-disabled': true, tabIndex: -1 })}
+          className={`focus-visible:outline-border-focus flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs focus-visible:outline-2 focus-visible:-outline-offset-2 ${
+            area.current ? 'text-accent-fg' : 'text-fg-muted'
+          } ${area.current ? '' : 'opacity-60'}`}
+        >
+          <span aria-hidden className="[&_svg]:size-5">
+            {area.icon}
+          </span>
+          {area.label}
+        </a>
+      ))}
+
+      <Sheet>
+        <SheetTrigger asChild>
+          <button
+            type="button"
+            className="focus-visible:outline-border-focus text-fg-muted flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs focus-visible:outline-2 focus-visible:-outline-offset-2"
+          >
+            <Avatar name={person.name} size="xs" />
+            You
+          </button>
+        </SheetTrigger>
+
+        <SheetContent side="bottom" className="pb-safe-bottom">
+          <SheetHeader>
+            <SheetTitle>{person.name}</SheetTitle>
+            <SheetDescription>{person.email ?? person.name}</SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            <Nav label="Account">
+              <NavList>
+                <NavItem href="/settings" icon={<Settings />} aria-disabled tabIndex={-1}>
+                  Settings
+                </NavItem>
+              </NavList>
+            </Nav>
+
+            <Button
+              variant="ghost"
+              fullWidth
+              aria-pressed={dark}
+              startIcon={dark ? <ThemeLight /> : <ThemeDark />}
+              className="mt-2 justify-start"
+              onClick={() => {
+                onTheme(!dark);
+              }}
+            >
+              {dark ? 'Light mode' : 'Dark mode'}
+            </Button>
+
+            {/* A form, not a link, for the same reason as in the sidebar: it
+                changes server state, and a `GET` that ends a session is one a
+                prefetcher can fire. */}
+            <form action="/auth/sign-out" method="post" className="mt-1 w-full">
+              <Button
+                type="submit"
+                variant="ghost"
+                fullWidth
+                startIcon={<SignOut />}
+                className="justify-start"
+              >
+                Sign out
+              </Button>
+            </form>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+    </nav>
   );
 }

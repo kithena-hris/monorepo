@@ -1,18 +1,31 @@
+import { countryRules } from '@kithena/contracts';
 import {
-  Badge,
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
   PageHeader,
   PageSection,
   Stack,
+  icons,
 } from '@reach/ui';
+
+const PinIcon = icons.location;
+
+/**
+ * `GB` is a fine thing to store and a poor thing to read.
+ *
+ * The same lookup the back-office uses, so one company is named the same way on
+ * both sides. An unknown code falls through as itself rather than as nothing.
+ */
+function countryName(code: string): string {
+  return countryRules(code)?.name ?? code;
+}
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { AppShell } from '../components/app-shell';
+import { LocalTime } from '../components/local-time';
 import { currentTenant } from '../lib/branding';
 import { currentPerson, displayName } from '../lib/session';
 
@@ -42,7 +55,17 @@ export default async function Home(): Promise<JSX.Element> {
    */
   if (person === null) redirect('/login');
 
-  const name = displayName(person.workEmail);
+  /*
+   * What to call them: the name they chose, then their legal given name, then
+   * a guess from their address.
+   *
+   * The preferred name comes first because it is the one they asked to be
+   * called — that is the whole reason onboarding collects it separately from
+   * the legal name payroll needs.
+   */
+  const greeting =
+    person.name?.preferred ?? person.name?.given ?? displayName(person.workEmail);
+  const name = person.name === null ? displayName(person.workEmail) : `${person.name.given} ${person.name.family}`;
   /*
    * The slug, not a display name.
    *
@@ -66,7 +89,54 @@ export default async function Home(): Promise<JSX.Element> {
       companyName={company}
       logoUrl={tenant?.branding.logoUrl ?? null}
     >
-      <PageHeader title={`Hello, ${name}`} description={`Your ${company} account is set up.`} />
+      {/*
+        Their zone, rendered beside the greeting rather than in a card.
+
+        It answers a question somebody has every day and nowhere else in this
+        app can: what time is it where I work, and are my colleagues likely at
+        their desks. The account carries the zone because HR sets it when a
+        person is invited, so it is a fact rather than a guess from the browser.
+      */}
+      <PageHeader
+        title={`Hi ${greeting}`}
+        description={
+          /*
+            The place, under the greeting and on its own line.
+            
+            The company's registered city and country, which is what "the
+            workplace" means — identity holds no address for a person. Falls
+            back to the old sentence for a company created before an address
+            was asked for.
+          */
+          tenant?.location === null || tenant?.location === undefined ? (
+            `Your ${company} account is set up.`
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <PinIcon aria-hidden className="size-3.5" />
+              {tenant.location.city}, {countryName(tenant.location.country)}
+            </span>
+          )
+        }
+        meta={
+          person.timeZone === null ? null : (
+            <LocalTime
+              timeZone={person.timeZone}
+              initial={new Date().toLocaleTimeString('en-GB', {
+                timeZone: person.timeZone,
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+              initialHour={Number(
+                new Date().toLocaleString('en-GB', {
+                  timeZone: person.timeZone,
+                  hour: '2-digit',
+                  hour12: false,
+                }),
+              )}
+            />
+          )
+        }
+      />
 
       <PageSection>
         <Stack gap={4}>
@@ -79,16 +149,6 @@ export default async function Home(): Promise<JSX.Element> {
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent>
-              {/* `accent`, not `neutral`. How somebody signed in is a fact
-                  about their account rather than a warning, and the accent is
-                  the tenant's own — so the one badge on the starter dashboard
-                  carries the theme instead of sitting grey beside a themed
-                  sidebar. */}
-              <Badge tone="accent">
-                Signed in with {person.amr.includes('swk') ? 'a passkey' : person.amr.join(', ')}
-              </Badge>
-            </CardContent>
           </Card>
         </Stack>
       </PageSection>

@@ -20,8 +20,14 @@ export { SESSION_COOKIE } from './session-cookie';
 export interface SignedIn {
   readonly accountId: string;
   readonly identityId: string;
-  /** The address the account signs in under. There is no name yet — see below. */
   readonly workEmail: string | null;
+  /**
+   * What they are called, or null for an account enrolled before onboarding
+   * asked. `displayName` below is the fallback for that case.
+   */
+  readonly name: { given: string; family: string; preferred: string | null } | null;
+  /** The IANA zone they work in, which is what a local clock is rendered from. */
+  readonly timeZone: string | null;
   readonly amr: readonly string[];
 }
 
@@ -60,10 +66,24 @@ export async function currentPerson(): Promise<SignedIn | null> {
     if (accountId === null || identityId === null) return null;
 
     const amr: unknown = Reflect.get(body, 'amr');
+    const named: unknown = Reflect.get(body, 'name');
+    const part = (key: string): string | null => {
+      if (named === null || typeof named !== 'object') return null;
+      const value: unknown = Reflect.get(named, key);
+      return typeof value === 'string' ? value : null;
+    };
+    const given = part('given');
+    const family = part('family');
+
     return {
       accountId,
       identityId,
       workEmail: read('workEmail'),
+      // Both halves or neither: the column constraint says a legal name is not
+      // half of one, and a screen greeting somebody by a family name alone
+      // would be worse than greeting them by their address.
+      name: given === null || family === null ? null : { given, family, preferred: part('preferred') },
+      timeZone: read('timeZone'),
       amr: Array.isArray(amr) ? amr.filter((a): a is string => typeof a === 'string') : [],
     };
   } catch {
@@ -74,10 +94,10 @@ export async function currentPerson(): Promise<SignedIn | null> {
 /**
  * What to call somebody, from the only thing identity holds about them.
  *
- * Identity stores a work email and deliberately nothing else — names, and
- * everything else about a person, live in the People module on the other side
- * of a boundary. So this derives a display name from the local part until there
- * is a People record to ask, and it is the one place that guess is made.
+ * The fallback, for an account that has no name stored — one enrolled before
+ * onboarding asked for one. Identity holds a name now, so this is no longer the
+ * only answer; it is the answer when there is nothing better, and deriving one
+ * from the local part of an address is better than an empty greeting.
  *
  * `ada.lovelace@acme.example` becomes `Ada Lovelace`. A local part that is not
  * a name — `payroll+test`, `a.b.c.d` — comes back looking odd, which is the

@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import type { JSX, ReactNode } from 'react';
 
 import { currentTenant } from '../lib/branding';
+import { THEME_KEY } from '../lib/theme';
 
 import './globals.css';
 
@@ -16,6 +17,20 @@ export const metadata: Metadata = {
   // out of step with the logo the app renders.
   icons: { icon: kithenaMarkDataUri },
 };
+
+/**
+ * Light or dark, decided before the first paint.
+ *
+ * Inline and blocking, which is the whole point: an effect runs after
+ * hydration, so a machine set to dark would be shown a white page first. That
+ * flash is the reason this is a string of JavaScript in the document rather
+ * than a `useEffect` like the rest of the app.
+ *
+ * A stored choice wins over the system preference, because somebody who chose
+ * light on a dark machine meant it. `try`, because Safari's private mode throws
+ * on `localStorage` and a theme is not worth a blank page.
+ */
+const themeScript = `try{var s=localStorage.getItem(${JSON.stringify(THEME_KEY)});var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}`;
 
 export default async function RootLayout({
   children,
@@ -42,6 +57,9 @@ export default async function RootLayout({
   // before paint, which the server render cannot know about.
   return (
     <html lang="en" suppressHydrationWarning style={preset ? brandRamp(preset.hue) : undefined}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );
