@@ -248,7 +248,7 @@ export function PageLayout({
   }, [sidebarShortcut, sidebarState]);
 
   return (
-    <div className={cn('group/layout relative', layout({ preset }), className)} {...props}>
+    <div className={cn('relative', layout({ preset }), className)} {...props}>
       {header ? (
         <header
           // `col-span-full` rather than a grid area: the header spans every
@@ -373,6 +373,28 @@ export function PageLayout({
         className={cn(
           'row-start-3 min-w-0',
           preset === 'canvas' ? 'overflow-hidden' : 'overflow-y-auto',
+          /*
+           * Smooth only where smoothness is ours to give.
+           *
+           * `scroll-behavior` governs *programmatic* scrolling — an anchor, a
+           * `scrollIntoView`, a "back to top" — and nothing else. A wheel, a
+           * trackpad and a finger are already smooth, and are the browser's to
+           * animate; a script that intercepts them is how an app ends up with
+           * scrolling that fights the hardware and ignores the platform's
+           * momentum curve. So this is a property, not a library.
+           *
+           * Not inherited, so it stays on this scroller and does not reach the
+           * listbox inside a `Combobox`, where a keyboard user arrowing down a
+           * long list wants the option under the cursor *now*.
+           *
+           * `base.css` forces it back to `auto` under `prefers-reduced-motion`,
+           * which is why there is no `motion-safe:` here.
+           *
+           * The padding is the sticky header's height, so an anchored target
+           * lands below the header rather than under it.
+           */
+          'scroll-smooth',
+          header ? 'scroll-pt-14' : null,
           !hasSidebar && 'col-span-full',
           contentClassName,
         )}
@@ -530,15 +552,18 @@ function RailToggle({
           className={cn(
             'pointer-events-auto grid size-6 place-items-center rounded-full',
             'border border-border bg-surface text-fg-subtle shadow-sm',
-            'transition-[color,background-color,opacity,transform] duration-(--animate-duration-fast) ease-standard',
+            'transition-[color,background-color,transform] duration-(--animate-duration-fast) ease-standard',
             'hover:bg-surface-hover hover:text-fg active:scale-95',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-            // Quiet until the pointer is in the layout, or until the panel is
-            // already away, a permanent chevron on every edge is noise on a
-            // screen nobody is collapsing. Always visible on touch, where
-            // there is no hover to reveal it with.
-            'opacity-0 focus-visible:opacity-100 group-hover/layout:opacity-100 touch:opacity-100',
-            collapsed && 'opacity-100',
+            // Always visible.
+            //
+            // It used to fade in on `group-hover/layout`, on the argument that
+            // a permanent chevron is noise on a screen nobody is collapsing.
+            // The cost was worse than the noise: a control nobody can see is a
+            // control nobody knows exists, and the reveal made it flicker —
+            // anything that suppressed `:hover` on the layout for a moment,
+            // such as a modal layer disabling pointer events on the body, blinked
+            // it out and back with every pointer move.
           )}
         >
           <Icon className="size-3.5" aria-hidden />

@@ -391,6 +391,17 @@
   --animate-scale-in: scale-in var(--animate-duration-fast) var(--ease-entrance);
   --animate-scale-out: scale-out var(--animate-duration-fast) var(--ease-exit);
   --animate-slide-up: slide-up var(--animate-duration-normal) var(--ease-entrance);
+
+  /* A screen's content arriving, which is the only motion a navigation should
+     have. Half a rem of rise and a fade: enough that the page reads as having
+     been placed rather than having blinked, small enough that somebody moving
+     through a back-office twenty times an hour never waits for it.
+
+     `backwards` for the same reason `--animate-pop-in` needs it. Without a fill
+     mode the content paints at full opacity for one frame before snapping to
+     the keyframe's start, and that frame is a flash on every navigation — the
+     one thing an entrance animation is supposed to remove. */
+  --animate-enter: slide-up var(--animate-duration-normal) var(--ease-entrance) backwards;
   --animate-shimmer: shimmer 1.6s linear infinite;
 
   /* Panels that travel from an edge. The distance is 100% of the panel, so a
