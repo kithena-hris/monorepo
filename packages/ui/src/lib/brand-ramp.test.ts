@@ -2,15 +2,20 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { BRAND_CURVE, brandRamp } from './brand-ramp';
+import { BRAND_CURVE, BRAND_WASHES, brandRamp } from './brand-ramp';
 
 const STOPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const;
 
-/** The `--reach-brand-*` block of `tokens.css`, parsed rather than restated. */
-function rampFromCss(): Map<number, { lightness: number; chroma: number; hue: number }> {
+/** `tokens.css`, read once. */
+function tokensCss(): string {
   // From the package root, which is where vitest runs. `import.meta.url` points
   // into the transformed module rather than the source tree here.
-  const css = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+  return readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+}
+
+/** The `--reach-brand-*` block of `tokens.css`, parsed rather than restated. */
+function rampFromCss(): Map<number, { lightness: number; chroma: number; hue: number }> {
+  const css = tokensCss();
   const found = new Map<number, { lightness: number; chroma: number; hue: number }>();
 
   for (const line of css.split('\n')) {
@@ -34,10 +39,16 @@ function parse(value: string): { lightness: number; chroma: number; hue: number 
 describe('brandRamp', () => {
   const css = rampFromCss();
 
-  it('covers every stop the stylesheet defines', () => {
+  it('covers every stop the stylesheet defines, and the washes beside them', () => {
     const generated = Object.keys(brandRamp(264));
-    expect(generated).toHaveLength(STOPS.length);
+    expect(generated).toHaveLength(STOPS.length + BRAND_WASHES.length);
+    // The stylesheet's numbered stops. The washes are named rather than
+    // numbered, so `rampFromCss` does not see them and this count stays the
+    // length of the scale itself.
     expect(css.size).toBe(STOPS.length);
+    for (const [name] of BRAND_WASHES) {
+      expect(generated).toContain(`--reach-brand-${name}`);
+    }
   });
 
   /*
@@ -84,6 +95,50 @@ describe('brandRamp', () => {
     // Not so much less that the ramp stops reading as a colour. Every stop the
     // stylesheet asks for is within reach at this hue or close to it.
     expect(generated.chroma).toBeGreaterThan(fromCurve[2] * 0.75);
+  });
+
+  /*
+   * The washes are a copy of the stylesheet in exactly the way the stops are,
+   * so they get the same drift check. They sit off the eleven-stop scale — see
+   * `BRAND_WASHES` — which is why they are matched by name here.
+   */
+  it.each(BRAND_WASHES)('wash %s is copied faithfully from the stylesheet', (name, l, c) => {
+    const match = new RegExp(
+      `--reach-brand-${name}:\\s*oklch\\(([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)\\)`,
+    ).exec(tokensCss());
+    expect(match, `--reach-brand-${name} is not declared in tokens.css`).not.toBeNull();
+    if (!match) return;
+
+    expect(Number(match[1])).toBe(l);
+    expect(Number(match[2])).toBe(c);
+    // On the ramp's own hue, like every stop. A wash on a different angle would
+    // be a second brand colour nobody chose.
+    expect(Number(match[3])).toBe(272);
+  });
+
+  /*
+   * The regression this pair exists for.
+   *
+   * Both were literal `oklch(...)` values in the dark block, which made them
+   * the only accent tokens that ignored `brandRamp` — every company on Teal or
+   * Clay got an indigo wash behind their badges and selected rows after dark,
+   * while the same tokens in the light block were already `var(--reach-brand-*)`
+   * and followed the hue correctly. A literal here is the bug, not a style.
+   */
+  it('maps the dark accent washes through the ramp rather than hard-coding them', () => {
+    // The dark block only, and no fallback. Both tokens are declared in the
+    // light block too — with the correct `var()` — so a search across the whole
+    // file would find those, pass, and prove nothing about the scope that had
+    // the bug.
+    const dark = /\.dark\s*\{([^}]*)\}/s.exec(tokensCss())?.[1];
+    expect(dark, 'no `.dark` block in tokens.css').toBeDefined();
+    if (dark === undefined) return;
+
+    for (const token of ['accent-subtle', 'accent-subtle-hover']) {
+      const declared = new RegExp(`--reach-color-${token}:\\s*([^;]+);`).exec(dark)?.[1]?.trim();
+      expect(declared, `--reach-color-${token} is not declared in the dark theme`).toBeDefined();
+      expect(declared).toMatch(/^var\(--reach-brand-/);
+    }
   });
 
   it('holds every stop of every hue inside sRGB', () => {

@@ -73,6 +73,32 @@ export const BRAND_CURVE: readonly (readonly [
 ];
 
 /**
+ * The two brand values that are not on the eleven-stop scale.
+ *
+ * The dark theme's accent wash sits between 900 and 950 and is fractionally
+ * less saturated than either: 950 is too dark to read as a wash and 900 is too
+ * light to carry `accent-fg` at the ratio the light theme's pairing gets. So it
+ * is an authored value rather than a stop, and `tokens.css` declares it beside
+ * the ramp for that reason.
+ *
+ * It is emitted here because being off the scale is not a reason to be off the
+ * *hue*. Written into the dark block as a literal — which is what it was — it
+ * became the one accent token that ignored the customer's theme, and every
+ * company on Teal or Clay got an indigo wash behind their badges and selected
+ * rows after dark.
+ *
+ * Same shape as `BRAND_CURVE`, same drift check, same gamut clamp.
+ */
+export const BRAND_WASHES: readonly (readonly [
+  name: string,
+  lightness: number,
+  chroma: number,
+])[] = [
+  ['wash', 0.31, 0.09],
+  ['wash-hover', 0.36, 0.11],
+];
+
+/**
  * The most chroma this hue can hold at this lightness and stay in sRGB.
  *
  * Found by bisection rather than by a formula, because the sRGB gamut boundary
@@ -161,17 +187,22 @@ export function brandRamp(hue: number): CSSProperties {
   // Custom properties are not in `CSSProperties`' index signature, but React
   // passes any `--`-prefixed key straight through to the style attribute.
   const style: CSSProperties = {};
-  for (const [stop, lightness, chroma] of BRAND_CURVE) {
-    // Floored to four places, not rounded. `toFixed` rounds half away from
-    // zero, which can lift a value that was exactly at the gamut boundary back
-    // over it — the clamp then reads as having done nothing. Truncating can
-    // only ever move further inside.
+  // Floored to four places, not rounded. `toFixed` rounds half away from zero,
+  // which can lift a value that was exactly at the gamut boundary back over it
+  // — the clamp then reads as having done nothing. Truncating can only ever
+  // move further inside.
+  const at = (lightness: number, chroma: number): string => {
     const c = Math.floor(chromaCeiling(lightness, angle, chroma) * 1e4) / 1e4;
-    Reflect.set(
-      style,
-      `--reach-brand-${String(stop)}`,
-      `oklch(${String(lightness)} ${c.toFixed(4)} ${String(angle)})`,
-    );
+    return `oklch(${String(lightness)} ${c.toFixed(4)} ${String(angle)})`;
+  };
+
+  for (const [stop, lightness, chroma] of BRAND_CURVE) {
+    Reflect.set(style, `--reach-brand-${String(stop)}`, at(lightness, chroma));
+  }
+  // The off-scale pair, clamped and hued identically. A theme that re-pointed
+  // eleven stops and left these two behind is the bug this exists to close.
+  for (const [name, lightness, chroma] of BRAND_WASHES) {
+    Reflect.set(style, `--reach-brand-${name}`, at(lightness, chroma));
   }
   return style;
 }

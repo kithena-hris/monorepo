@@ -46,6 +46,26 @@
     --reach-brand-900: oklch(0.382 0.132 272);
     --reach-brand-950: oklch(0.269 0.095 272);
 
+    /*
+     * Two brand values that are not on the eleven-stop scale.
+     *
+     * The dark theme's accent wash sits between 900 and 950 and is fractionally
+     * less saturated than either — the stop above is too light to read `fg` on
+     * comfortably and the stop below is too dark to read as a wash at all. It
+     * was previously written into the dark block as a literal `oklch(...)`, and
+     * that is exactly what made it the one accent token that ignored the
+     * customer's hue: every other one there is a `var(--reach-brand-*)`, so
+     * re-pointing the ramp themed all of them and left this pair on Kithena
+     * indigo whatever a company had chosen.
+     *
+     * Named rather than snapped to 950. Snapping would have changed the default
+     * theme's appearance to fix a bug about the other six, and `brandRamp`
+     * emits these two alongside the stops — so they clamp to the sRGB gamut the
+     * same way and follow the hue like everything else.
+     */
+    --reach-brand-wash: oklch(0.31 0.09 272);
+    --reach-brand-wash-hover: oklch(0.36 0.11 272);
+
     --reach-green-50: oklch(0.972 0.024 156);
     --reach-green-100: oklch(0.94 0.048 156);
     --reach-green-200: oklch(0.885 0.08 156);
@@ -273,8 +293,8 @@
     --reach-color-accent-solid: var(--reach-brand-600);
     --reach-color-accent-hover: var(--reach-brand-400);
     --reach-color-accent-active: var(--reach-brand-300);
-    --reach-color-accent-subtle: oklch(0.31 0.09 272);
-    --reach-color-accent-subtle-hover: oklch(0.36 0.11 272);
+    --reach-color-accent-subtle: var(--reach-brand-wash);
+    --reach-color-accent-subtle-hover: var(--reach-brand-wash-hover);
     --reach-color-accent-fg: var(--reach-brand-300);
 
     --reach-color-success-solid: var(--reach-green-700);
