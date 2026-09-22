@@ -91,6 +91,39 @@ jobs:
       - name: email theme drift
         run: pnpm email:theme-drift
 
+      # `atlas migrate apply` verifies the directory against `atlas.sum` before
+      # it applies anything, so a migration added without re-hashing fails the
+      # deploy — after this workflow has gone green, because nothing here used
+      # to read the ledger.
+      #
+      # It has happened twice: #62 and #65, each unblocking a deploy that had
+      # already passed every check. The reason it is easy to miss is that the
+      # local path does not go through Atlas at all — `just local-db` applies
+      # the directory with `psql` against its own `local_migration` table, so a
+      # migration can be written, applied and tested without Atlas ever running.
+      #
+      # Re-hash and fail on a diff. `migrate validate` would be the fuller
+      # check and is the wrong one here: it replays the whole directory, which
+      # needs a database and the `svc_*` roles the deploy job creates in its
+      # throwaway one first. This needs neither, and catches the failure that
+      # actually happens.
+      #
+      # Pinned for the same reason the deploy pins it: `latest` moved `migrate
+      # lint` behind a paid tier in v0.38 and broke a production deploy on a
+      # release nobody here made.
+      - name: migration ledger
+        run: |
+          ATLAS_VERSION=v0.37.0
+          curl -sSf "https://release.ariga.io/atlas/atlas-linux-amd64-${ATLAS_VERSION}" -o /usr/local/bin/atlas
+          chmod +x /usr/local/bin/atlas
+          atlas migrate hash --dir "file://migrations"
+          if ! git diff --quiet -- migrations/atlas.sum; then
+            echo "::error file=migrations/atlas.sum::atlas.sum is stale. Run 'atlas migrate hash --dir file://migrations' and commit the result."
+            git --no-pager diff -- migrations/atlas.sum
+            exit 1
+          fi
+          echo "migration ledger matches the directory"
+
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 20
