@@ -4,7 +4,8 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { readFile } from 'node:fs/promises';
 import { getTableColumns } from 'drizzle-orm';
-import { outboxTable } from '@kithena/db-kit';
+import { outboxTable, publish } from '@kithena/db-kit';
+import { CalendarDate, Instant, TenantId } from '@kithena/contracts';
 import { startPostgres } from '@kithena/testing';
 
 /**
@@ -409,7 +410,7 @@ describe('uniqueness on a tenant-defined attribute', () => {
 });
 
 describe('the outbox', () => {
-  it('is the shape db-kit writes, column for column', async () => {
+  it('is the shape db-kit writes, column for column and type for type', async () => {
     /*
      * Compared against `outboxTable` rather than against `platform.outbox`.
      *
@@ -419,18 +420,64 @@ describe('the outbox', () => {
      * mean applying identity's migration here, which couples a People test to
      * another service's schema and fails this suite the day identity adds a
      * column of its own.
+     *
+     * Types as well as names, because the drift that matters is not a missing
+     * column — `publish()` fails loudly on one of those. It is
+     * `aggregate_id` declared `uuid` here and `text` in db-kit: every insert
+     * still succeeds until the first aggregate whose id is not a uuid, and
+     * every Debezium consumer downstream has by then been told the field is
+     * a uuid.
+     *
+     * Drizzle's `getSQLType()` and `information_schema.data_type` agree on
+     * spelling for every type this table uses, which is what lets the two be
+     * compared directly rather than through a mapping nobody would maintain.
      */
     const expected = Object.values(getTableColumns(outboxTable('people')))
-      .map((column) => column.name)
+      .map((column) => `${column.name}:${column.getSQLType()}`)
       .toSorted();
 
     const rows = await admin.execute(sql`
-      SELECT column_name FROM information_schema.columns
+      SELECT column_name, data_type FROM information_schema.columns
        WHERE table_schema = 'people' AND table_name = 'outbox'
        ORDER BY column_name
     `);
 
-    expect([...rows].map((r) => String(r['column_name']))).toEqual(expected);
+    expect([...rows].map((r) => `${String(r['column_name'])}:${String(r['data_type'])}`)).toEqual(
+      expected,
+    );
+  });
+
+  it('takes what publish() actually writes', async () => {
+    // The column list above is a shape check; this is the one that proves the
+    // types accept real values. `publish()` is db-kit's own insert path, run
+    // against the table the migration created rather than against the DDL
+    // db-kit's own suite hand-writes for itself.
+    await seedPerson(ACME, ADA);
+
+    await inTenant(ACME, (tx) =>
+      publish(tx, outboxTable('people'), [
+        {
+          eventId: '01890000-0000-7000-8000-00000000000e',
+          eventName: 'people.person.hired',
+          eventVersion: 1,
+          // Parsed rather than cast, for the reason db-kit's own suite gives:
+          // the brands exist so a raw string cannot be mistaken for a
+          // validated one, and a test reaching for `as` to get past them is
+          // the first place that guarantee stops applying.
+          tenantId: TenantId.parse(ACME),
+          occurredAt: Instant.parse('2026-09-22T09:00:00.000Z'),
+          effectiveFrom: CalendarDate.parse('2026-09-01'),
+          aggregate: { type: 'Person', id: ADA, version: 1 },
+          actor: { kind: 'system', process: 'integration-test' },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+          causationId: null,
+          payload: { personId: ADA },
+        },
+      ]),
+    );
+
+    const rows = await admin.execute(sql`SELECT event_name, envelope FROM people.outbox`);
+    expect([...rows][0]).toMatchObject({ event_name: 'people.person.hired' });
   });
 
   it('partitions by tenant and aggregate, keeping one record\'s changes ordered', async () => {
