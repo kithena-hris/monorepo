@@ -107,6 +107,18 @@ export class Person extends AggregateRoot<string> {
     return this.#hireDate;
   }
 
+  /**
+   * The last working day, once notice has been given or employment has ended.
+   *
+   * Read by the repository writing the row and by the retention job, which
+   * counts its schedule from here rather than from the day the record was
+   * last touched — a leaver's file is kept for so many months after the
+   * employment ended, not after somebody last opened it.
+   */
+  get lastWorkingDay(): string | null {
+    return this.#lastWorkingDay;
+  }
+
   get identityAccountId(): string | null {
     return this.#identityAccountId;
   }

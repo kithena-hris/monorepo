@@ -86,6 +86,16 @@ describe('the path a record actually takes', () => {
     expect(p.status).toBe('terminated');
   });
 
+  it('remembers the last working day notice was given for', () => {
+    // Read by the repository writing the row and by the retention job, which
+    // counts its schedule from the end of the employment rather than from the
+    // day somebody last opened the file.
+    const p = person({ status: 'active' });
+    expect(p.lastWorkingDay).toBeNull();
+    p.giveNotice('2026-12-31', ctx);
+    expect(p.lastWorkingDay).toBe('2026-12-31');
+  });
+
   it('lets somebody on leave resign without coming back first', () => {
     const p = person({ status: 'on_leave' });
     expect(p.giveNotice('2026-12-31', ctx).ok).toBe(true);

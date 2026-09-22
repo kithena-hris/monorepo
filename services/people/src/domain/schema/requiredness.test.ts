@@ -113,6 +113,31 @@ describe('each operand', () => {
     expect(evaluate(rule, { values: { visa_type: 'student' } }).required).toBe(false);
   });
 
+  it('does not let a structured value equal the string a rule names', () => {
+    // An address stringifies to `[object Object]`, which would compare equal
+    // to every other object of its kind — one rule quietly matching every
+    // record that has any address at all.
+    const rule = {
+      mode: 'conditional',
+      when: {
+        clauses: [
+          { operand: 'attribute', key: 'visa_type', is: 'equals', equals: '[object Object]' },
+        ],
+      },
+    };
+    expect(evaluate(rule, { values: { visa_type: { country: 'ES' } } }).required).toBe(false);
+  });
+
+  it('still counts a structured value as set', () => {
+    // Present is present. It is only the comparison against a scalar that has
+    // no meaningful answer.
+    const rule = {
+      mode: 'conditional',
+      when: { clauses: [{ operand: 'attribute', key: 'visa_type', is: 'set' }] },
+    };
+    expect(evaluate(rule, { values: { visa_type: { country: 'ES' } } }).required).toBe(true);
+  });
+
   it('treats an empty string as unset, because a form posts one', () => {
     const rule = {
       mode: 'conditional',

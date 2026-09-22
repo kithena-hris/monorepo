@@ -112,7 +112,21 @@ function holds(clause: PredicateClause, facts: PersonFacts, unevaluable: string[
       // An empty string is what a form posts for a field somebody skipped, and
       // reading it as "set" would satisfy a rule nobody answered.
       const isSet = value !== undefined && value !== null && value !== '';
-      return clause.is === 'set' ? isSet : isSet && String(value) === clause.equals;
+      if (clause.is === 'set') return isSet;
+
+      /*
+       * Only a scalar can equal the string a rule was written against.
+       *
+       * An address, a repeating group or a document reference stringifies to
+       * `[object Object]`, which would compare equal to every other object of
+       * its kind — one rule quietly matching every record with any address at
+       * all. A structured value is not comparable to a scalar, so the clause
+       * does not hold rather than holding by accident.
+       */
+      if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+        return false;
+      }
+      return isSet && String(value) === clause.equals;
     }
   }
 }
