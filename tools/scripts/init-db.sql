@@ -21,8 +21,11 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'openfga')\gexec
 -- nothing else, so cross-schema joins fail at the database, not in review.
 DO $$
 BEGIN
+  -- NOBYPASSRLS spelled out for the reason given against `svc_identity` below:
+  -- every People table carries a tenant policy, and a role that ignores one
+  -- reads every customer's employee records whatever the policy says.
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_people') THEN
-    CREATE ROLE svc_people LOGIN PASSWORD 'kithena';
+    CREATE ROLE svc_people LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_timeoff') THEN
     CREATE ROLE svc_timeoff LOGIN PASSWORD 'kithena';
@@ -56,6 +59,12 @@ GRANT USAGE ON SCHEMA messaging TO svc_messaging;
 -- creates them — `kithena` runs the migrations, so the grant follows from it.
 ALTER DEFAULT PRIVILEGES FOR ROLE kithena IN SCHEMA platform
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO svc_identity;
+
+-- The same, for the People module's tables. DELETE is included because a
+-- `discarded` provisional record is the one state the lifecycle permits a hard
+-- delete from; everything else is a tombstone and stays.
+ALTER DEFAULT PRIVILEGES FOR ROLE kithena IN SCHEMA people
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO svc_people;
 
 -- No DELETE for messaging. A delivery record is an audit trail; retention
 -- removes it on a schedule, not a service on a whim.
