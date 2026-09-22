@@ -127,6 +127,65 @@ describe('enrolment happens once', () => {
   });
 });
 
+/* --------------------------------------------- what onboarding asked for -- */
+
+/**
+ * The name and the zone a person confirms on their way in.
+ *
+ * People needs both and has no route to either — reading `platform.account`
+ * across a service boundary is not one. So enrolment carries them, and the
+ * rule worth a test is what it deliberately does not carry: the mobile number
+ * is contact data People asks for itself, and an event that hands it to every
+ * consumer of the identity stream is a phone number in one more log.
+ */
+describe('the profile captured at enrolment', () => {
+  const clock = fixedClock('2026-03-02T09:00:00.000Z');
+  const captured = {
+    name: { given: 'Ada', family: 'Lovelace', preferred: null },
+    mobilePresent: true,
+  };
+
+  it('is published beside account.enrolled', () => {
+    const account = Account.rehydrate(snapshot({ status: 'invited' }));
+    account.enrol('cred-1', context(clock), captured);
+    const names = account.drainEvents().map((e) => e.eventName);
+    expect(names).toEqual([
+      'identity.account.enrolled',
+      'identity.account.profile_captured',
+    ]);
+  });
+
+  it('carries whether a mobile is on file, never the number', () => {
+    const account = Account.rehydrate(snapshot({ status: 'invited' }));
+    account.enrol('cred-1', context(clock), captured);
+    const event = account.drainEvents()[1];
+    expect(event?.payload).toEqual({
+      accountId: ACCOUNT,
+      identityId: '00000000-0000-4000-8000-0000000000d1',
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+      timeZone: 'Europe/Madrid',
+      mobilePresent: true,
+      capturedAt: '2026-03-02T09:00:00.000Z',
+    });
+  });
+
+  /* A recovery link belongs to somebody the registry already knows, so the
+   * form does not ask again — and an event saying a profile was captured when
+   * nothing was is a lie a consumer would act on. */
+  it('is absent when the form asked for nothing', () => {
+    const account = Account.rehydrate(snapshot({ status: 'invited' }));
+    account.enrol('cred-1', context(clock));
+    const names = account.drainEvents().map((e) => e.eventName);
+    expect(names).toEqual(['identity.account.enrolled']);
+  });
+
+  it('is not raised when enrolment itself refuses', () => {
+    const account = Account.rehydrate(snapshot({ status: 'active' }));
+    expect(account.enrol('cred-1', context(clock), captured).ok).toBe(false);
+    expect(account.drainEvents()).toEqual([]);
+  });
+});
+
 describe('termination is terminal', () => {
   const clock = fixedClock('2026-06-01T09:00:00.000Z');
 

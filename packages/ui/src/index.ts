@@ -57,7 +57,11 @@ export {
   ChartDataTable,
   ChartLegend,
   DonutChart,
+  FunnelChart,
+  HeatmapChart,
+  HorizontalBarChart,
   Sparkline,
+  StackedBarChart,
   TrendChart,
 } from './components/chart/chart';
 export type {
@@ -69,7 +73,14 @@ export type {
   ChartTone,
   DonutChartProps,
   DonutSlice,
+  FunnelChartProps,
+  FunnelStage,
+  HeatmapCell,
+  HeatmapChartProps,
+  HorizontalBarChartProps,
   SparklineProps,
+  StackedBarChartProps,
+  StackedSeries,
   TrendChartProps,
 } from './components/chart/chart';
 

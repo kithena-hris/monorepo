@@ -1,5 +1,6 @@
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
+import type { CapturedProfile } from '../../shared/captured-profile.js';
 import type { PersonName } from '../../shared/person-name.js';
 import type { PersonProfile } from '../../shared/person-profile.js';
 import { isAcceptableOrigin, type OriginPolicy } from '../../shared/origin.js';
@@ -40,8 +41,21 @@ export interface CompleteEnrolmentDeps {
     identityId: string,
     credential: RegisteredCredential,
   ) => Promise<string>;
-  /** The account state machine's `enrol`, which enforces the employment start date. */
-  readonly enrolAccount: (accountId: string, credentialId: string) => Promise<Result<void>>;
+  /**
+   * The account state machine's `enrol`, which enforces the employment start
+   * date and publishes what the form captured.
+   *
+   * `captured` travels with it rather than being written quietly beside the
+   * row: a name confirmed here is a name the People module needs, and reading
+   * another service's table is not how it would get one. It is absent for a
+   * recovery, where the form asks for nothing because the registry already
+   * knows this person.
+   */
+  readonly enrolAccount: (
+    accountId: string,
+    credentialId: string,
+    captured?: CapturedProfile,
+  ) => Promise<Result<void>>;
   /**
    * What onboarding asked them to confirm, written before the passkey is.
    *
@@ -162,7 +176,15 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
     // Last, and it can still refuse: a hire entered three weeks early has an
     // invited account and a valid passkey, and those three weeks are not
     // employment.
-    const enrolled = await deps.enrolAccount(spent.accountId, credentialId);
+    // The number is deliberately left behind. People asks for a mobile itself,
+    // under its own classification; an event carrying one to every consumer of
+    // the identity stream is a phone number in one more log.
+    const captured: CapturedProfile | undefined =
+      request.name === undefined
+        ? undefined
+        : { name: request.name, mobilePresent: request.profile?.mobile != null };
+
+    const enrolled = await deps.enrolAccount(spent.accountId, credentialId, captured);
     if (!enrolled.ok) {
       return refuse(
         enrolled.error.code,

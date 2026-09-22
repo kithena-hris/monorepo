@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { defineEvent } from '../event.js';
-import { CalendarDate } from '../primitives.js';
-import { policy, asContact, asInternal, asPublic } from '../classification.js';
+import { CalendarDate, Instant } from '../primitives.js';
+import { policy, asContact, asIdentity, asInternal, asPublic } from '../classification.js';
 
 /**
  * The identity lifecycle, as events.
@@ -123,6 +123,48 @@ export const AccountEnrolled = defineEvent(
   z.object({
     accountId: AccountId,
     credentialId: CredentialId,
+  }),
+);
+
+/**
+ * What onboarding asked the person to confirm on their way in.
+ *
+ * Identity captures a name, a time zone and a mobile number at enrolment
+ * because the ceremony and the enrolment rules need them — `docs/people-prd.md`
+ * §5 sets out which of the five facts identity owns and which it holds a copy
+ * of. Until this event existed it captured them and told nobody, so the People
+ * module's only route to a name typed twenty seconds earlier was to read
+ * `platform.account` across a service boundary, which is not a thing this
+ * system does.
+ *
+ * **`mobilePresent`, never the number.** A mobile is contact data People asks
+ * for itself, under its own classification and on its own form. An event that
+ * carries a phone number to every consumer of the identity stream — whether or
+ * not any of them needs it — is a phone number in one more log, one more
+ * backup and one more DSAR. The boolean answers the only question a consumer
+ * has at this point: is there a second channel on file or not.
+ *
+ * The name is carried because People genuinely needs it, and it is the same
+ * value People would otherwise ask the same person for twice on the same
+ * morning.
+ */
+export const AccountProfileCaptured = defineEvent(
+  'identity.account.profile_captured',
+  1,
+  z.object({
+    accountId: AccountId,
+    identityId: IdentityId,
+    name: z.object({
+      given: z.string().min(1).register(policy, asIdentity()),
+      family: z.string().min(1).register(policy, asIdentity()),
+      /** Display order differs by locale. Store the parts, format at the edge. */
+      preferred: z.string().nullable().register(policy, asIdentity()),
+    }),
+    /** IANA zone, as confirmed by the device standing in front of the person. */
+    timeZone: z.string().register(policy, asInternal()),
+    /** Whether a second channel is on file. Deliberately not the number. */
+    mobilePresent: z.boolean().register(policy, asInternal()),
+    capturedAt: Instant,
   }),
 );
 
@@ -321,6 +363,7 @@ export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
   AccountEnrolled,
+  AccountProfileCaptured,
   AccountRecovered,
   AccountReinstated,
   AccountSuspended,
