@@ -82,6 +82,7 @@ import {
   MessageSquare,
   Minus,
   Moon,
+  MoonStar,
   MoreHorizontal,
   MoveRight,
   Paperclip,
@@ -100,6 +101,8 @@ import {
   SlidersHorizontal,
   Star,
   Sun,
+  Sunrise,
+  Sunset,
   Table2,
   Tag,
   ThumbsDown,
@@ -226,6 +229,26 @@ export const iconGroups = {
     themeDark: Moon,
     remove: Minus,
   },
+  /**
+   * Where a clock has got to, for the band of the day it is in.
+   *
+   * Five, not the two a light-or-dark toggle needs. `theme` and `themeDark`
+   * answer "which colour scheme", which is a setting; these answer "what time
+   * is it where you work", which is a fact about the world — and a sun that
+   * means both is a glyph doing two jobs badly. A reader who sees the same Sun
+   * at 08:00 and at 16:00 learns nothing from it moving.
+   *
+   * `dawn` and `dusk` are the ones that earn their place. They are the hours
+   * when "is anybody at their desk" has a different answer at each end of a
+   * company, and a binary day/night glyph flattens both into the wrong one.
+   */
+  timeOfDay: {
+    lateNight: MoonStar,
+    dawn: Sunrise,
+    daytime: Sun,
+    dusk: Sunset,
+    night: Moon,
+  },
 } as const satisfies Record<string, Record<string, LucideIcon>>;
 
 export type IconGroup = keyof typeof iconGroups;
@@ -242,6 +265,7 @@ export const icons = {
   ...iconGroups.status,
   ...iconGroups.navigation,
   ...iconGroups.domain,
+  ...iconGroups.timeOfDay,
 } as const;
 
 export type IconName = keyof typeof icons;
