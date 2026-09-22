@@ -21,10 +21,26 @@ const instantColumn = (name: string) => timestamp(name, { withTimezone: true, mo
 export const instant: (name: string) => ReturnType<typeof instantColumn> = instantColumn;
 
 /**
- * Column-level encryption via pgcrypto for the fields the classification
- * registry marks confidential or special-category.
+ * A ciphertext column: `bytea` in the database, base64 in application code.
+ *
+ * The conversion is the point and was missing. `customType` without
+ * `toDriver`/`fromDriver` hands the value to the driver untouched, so a
+ * JavaScript string went to a `bytea` column and came back as a `Buffer` that
+ * nothing had asked for — the declaration described an intent the column did
+ * not carry out.
+ *
+ * Base64 rather than raw bytes on the application side because a ciphertext
+ * gets logged by accident, put in a test fixture, and pasted into a ticket; a
+ * string does those things visibly, while a `Buffer` renders as
+ * `<Buffer 8f 2a …>` and reads like a bug rather than like a secret.
+ *
+ * This holds a ciphertext and never a plaintext. Nothing here encrypts: the
+ * envelope is the caller's, because the key it wraps with belongs to the
+ * service that owns the data rather than to a column type.
  */
 export const encrypted = customType<{ data: string; driverData: Buffer }>({
   dataType: () => 'bytea',
+  toDriver: (value: string) => Buffer.from(value, 'base64'),
+  fromDriver: (value: Buffer) => value.toString('base64'),
 });
 /* eslint-enable @typescript-eslint/explicit-module-boundary-types */

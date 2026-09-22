@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { outboxTable } from '@kithena/db-kit';
+import { encrypted, outboxTable } from '@kithena/db-kit';
 
 /**
  * The `people` schema, as Drizzle sees it.
@@ -161,7 +161,10 @@ export const personSecret = people.table(
     tenantId: uuid('tenant_id').notNull(),
     personId: uuid('person_id').notNull(),
     attributeKey: text('attribute_key').notNull(),
-    ciphertext: text('ciphertext').notNull(),
+    // `bytea` in the database, base64 here. The migration says bytea and this
+    // said text, which is the kind of disagreement that only surfaces as a
+    // driver error on the first real write.
+    ciphertext: encrypted('ciphertext').notNull(),
     keyId: text('key_id').notNull(),
     last4: text('last4'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
