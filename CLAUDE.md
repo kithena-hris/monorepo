@@ -204,6 +204,26 @@ just storybook            # design system docs on :6006
 just test-stories         # render every story in Chromium, run axe over it
 ```
 
+## Work in flight
+
+**The People module is specified and not yet built.** Do not design it again;
+pick the next unticked ticket and follow its spec references.
+
+| What | Work from this | Read-only copy |
+| --- | --- | --- |
+| Tickets, in order, with checkboxes | `docs/people-build-plan.md` | https://claude.ai/code/artifact/647ccf50-72b0-43ab-bd0a-7cbdd3ce9fd0 |
+| Requirements | `docs/people-prd.md` | https://claude.ai/code/artifact/aec9b244-64f7-4f53-ab16-7ae6e572da6a |
+| Screens, 13, annotated with the Reach component each region uses | — | https://claude.ai/code/artifact/4d719b45-46cb-45da-9a0a-6b845f03332f |
+
+Tickets are `PEO-001` to `PEO-078`. Everything before `PEO-060` is Phase 1 and
+is needed for the module to boot alone.
+
+**`docs/people-build-plan.md` in this repository is the only record of
+progress.** Tick the box there when a ticket lands; git history is then what
+says who did what and when. The published links are read-only copies for
+sharing and reading on a phone — their checkboxes are stale by design, so never
+read progress from them and never treat one as the thing to update.
+
 ## Adding a module
 
 1. `services/<name>/module.manifest.ts` with `dependsOn: []`. If that array
