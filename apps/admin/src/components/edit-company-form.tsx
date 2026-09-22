@@ -17,7 +17,7 @@ import {
   type UploadedImage,
 } from '@reach/ui';
 import Link from 'next/link';
-import { useActionState, useState, type JSX } from 'react';
+import { useActionState, useCallback, useEffect, useRef, useState, type JSX } from 'react';
 
 import { ThemePicker } from './theme-picker';
 
@@ -80,15 +80,68 @@ export function EditCompanyForm({
   company: CompanyDraft;
   companyId: string;
 }): JSX.Element {
+  // What the registry holds, with the blanks a company that has no address on
+  // file would start from. Both the inputs' defaults and the change check read
+  // from this, so the two cannot disagree about what "unchanged" means.
+  const stored = company.address ?? EMPTY_ADDRESS;
   const [result, submit, pending] = useActionState(action, null);
+
+  /*
+   * Save is offered only once something differs from the stored company.
+   *
+   * A permanently enabled Save on a form that starts full of the current values
+   * invites a press that sends the row back to itself — a write, an event and a
+   * revision for no change — and, worse, tells an operator nothing about
+   * whether the thing they just typed registered.
+   *
+   * Compared against the values rather than tracked as "has anybody touched
+   * anything": typing a character and deleting it again leaves the form
+   * *touched* and unchanged, and a Save that stays lit after that is the same
+   * lie in a smaller form. Retyping a value identical to the stored one
+   * correctly puts it back to disabled.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  const [dirty, setDirty] = useState(false);
+
+  const recheck = useCallback(() => {
+    const form = formRef.current;
+    if (form === null) return;
+    const data = new FormData(form);
+    const read = (key: string): string => {
+      const value = data.get(key);
+      return typeof value === 'string' ? value.trim() : '';
+    };
+    setDirty(
+      read('displayName') !== company.displayName ||
+        read('themeId') !== company.themeId ||
+        read('logoUrl') !== (company.logoUrl ?? '') ||
+        read('coverImageUrl') !== (company.coverImageUrl ?? '') ||
+        (read('brandingPublic') !== '') !== company.brandingPublic ||
+        read('country') !== stored.country ||
+        read('line1') !== stored.line1 ||
+        read('line2') !== (stored.line2 ?? '') ||
+        read('city') !== stored.city ||
+        read('subdivision') !== (stored.subdivision ?? '') ||
+        read('postcode') !== (stored.postcode ?? ''),
+    );
+  }, [company, stored]);
 
   const [themeId, setThemeId] = useState(company.themeId);
   const [logoUrl, setLogoUrl] = useState(company.logoUrl);
   const [coverImageUrl, setCoverImageUrl] = useState(company.coverImageUrl);
   const [brandingPublic, setBrandingPublic] = useState(company.brandingPublic);
-  const address = company.address ?? EMPTY_ADDRESS;
-  const [country, setCountry] = useState(address.country);
-  const [subdivision, setSubdivision] = useState(address.subdivision ?? '');
+  const [country, setCountry] = useState(stored.country);
+  const [subdivision, setSubdivision] = useState(stored.subdivision ?? '');
+
+  /*
+   * Recomputed after render, not inside the setters.
+   *
+   * Four of these values reach the action through hidden inputs, so the
+   * `FormData` the check reads is only correct once React has re-rendered
+   * them. Running it in the setter would compare against the previous frame
+   * and report the change one keystroke late.
+   */
+  useEffect(recheck, [recheck, themeId, logoUrl, coverImageUrl, brandingPublic, country, subdivision]);
 
   const rules = countryRules(country);
   // The field a failure names, so the message lands under the input that caused
@@ -96,8 +149,37 @@ export function EditCompanyForm({
   const failed = (field: string): string | undefined =>
     result && !result.ok && result.path?.[0] === field ? result.message : undefined;
 
+  /*
+   * Which fields can actually show a message of their own.
+   *
+   * The banner below used to render only when a refusal named *no* field, on
+   * the reasoning that a named one is already shown under its input. That is
+   * true only for the fields in this list, and `logoUrl` was not one of them:
+   * an image refused by `imageIsOurs` came back as
+   * `path: ['logoUrl', 'coverImageUrl']`, the banner suppressed itself because
+   * the path was not empty, and the `ImageField` had nowhere to put it. The
+   * operator pressed Save and the page did nothing at all — no change, no
+   * error, no clue.
+   *
+   * So the rule is now the honest one: a message is suppressed here only when
+   * something else is definitely rendering it.
+   */
+  const INLINE_FIELDS = new Set([
+    'displayName',
+    'address.country',
+    'address.line1',
+    'address.city',
+    'address.subdivision',
+    'address.postcode',
+  ]);
+  const shownInline = result && !result.ok && result.path?.[0] !== undefined
+    ? INLINE_FIELDS.has(result.path[0])
+    : false;
+
   return (
-    <form action={submit} className="flex flex-col gap-8">
+    // `onInput` covers the text inputs, which are uncontrolled; the effect
+    // above covers everything set by a picker, a switch or an uploader.
+    <form ref={formRef} action={submit} onInput={recheck} className="flex flex-col gap-8">
       {/* Hidden rather than controlled inputs: these four are set by controls
           that are not form fields — a picker, an uploader, a switch — and this
           is how their values reach the action alongside the text inputs. */}
@@ -204,7 +286,7 @@ export function EditCompanyForm({
           <Input
             id="line1"
             name="line1"
-            defaultValue={address.line1}
+            defaultValue={stored.line1}
             required
           />
           <FieldError>{failed('address.line1')}</FieldError>
@@ -212,7 +294,7 @@ export function EditCompanyForm({
 
         <Field>
           <FieldLabel htmlFor="line2">Address line 2</FieldLabel>
-          <Input id="line2" name="line2" defaultValue={address.line2 ?? ''} />
+          <Input id="line2" name="line2" defaultValue={stored.line2 ?? ''} />
           <FieldDescription>Optional.</FieldDescription>
         </Field>
 
@@ -222,7 +304,7 @@ export function EditCompanyForm({
             <Input
               id="city"
               name="city"
-              defaultValue={address.city}
+              defaultValue={stored.city}
               required
               />
             <FieldError>{failed('address.city')}</FieldError>
@@ -251,7 +333,7 @@ export function EditCompanyForm({
             <Input
               id="postcode"
               name="postcode"
-              defaultValue={address.postcode ?? ''}
+              defaultValue={stored.postcode ?? ''}
               placeholder={rules.postcodeExample}
               />
             <FieldError>{failed('address.postcode')}</FieldError>
@@ -259,17 +341,17 @@ export function EditCompanyForm({
         ) : null}
       </Card>
 
-      {/* A failure with no field of its own. One that names a field is already
-          shown under it, and repeating it here would have an operator fix the
-          same thing twice. */}
-      {result && !result.ok && result.path?.[0] === undefined ? (
+      {/* Every failure that is not already shown under an input. Repeating one
+          that is would have an operator fix the same thing twice; swallowing
+          one that is not is a Save button that silently does nothing. */}
+      {result && !result.ok && !shownInline ? (
         <Alert tone="danger" title="That did not save">
           {result.message}
         </Alert>
       ) : null}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" disabled={pending || !dirty}>
           {pending ? 'Saving…' : 'Save changes'}
         </Button>
         <Button asChild variant="ghost">
