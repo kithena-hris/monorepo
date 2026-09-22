@@ -1,4 +1,4 @@
-h1:FwOpSxzwjM3mKwpQfjGUalQfXaNHWD3lDSV7/gLk/kk=
+h1:coVdl63P3qZSvGzvQ06QgolvXiiYnYXmDjXKv03j7pw=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -12,3 +12,4 @@ h1:FwOpSxzwjM3mKwpQfjGUalQfXaNHWD3lDSV7/gLk/kk=
 20260829090000_accounts_for_identity.sql h1:cUfNjpMV1oHyWc+rPZxeHWpWqc4x1+kwON7i1/sdSQQ=
 20260830100000_enrolment_token_purpose.sql h1:lNeVXabHvmVht1b06LoVBV6+/BGc1s2jTvJAZfsKqCY=
 20260919160000_account_name.sql h1:/UOQuAVS512kbjyCP5NY+rFXrVYe3l6YEB44mFH/Iv8=
+20260921230000_account_mobile.sql h1:+YjpJSXd01wEXcU/o+eAg5fH4vGEkt99ssnQbwKjjIU=
