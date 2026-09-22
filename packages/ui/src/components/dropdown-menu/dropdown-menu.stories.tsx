@@ -156,6 +156,44 @@ export const RowActions: Story = {
   ),
 };
 
+export const OpensOnHover: Story = {
+  name: 'Opens on hover',
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          'The sidebar profile menu. `openOnHover` adds a pointer gesture **in addition** to click and keyboard — a menu that only opened on hover would put signing out behind a gesture a keyboard cannot make and a touch screen does not have.',
+          '',
+          'Hover the trigger, then move the pointer onto the menu. It must open once and stay open. A menu that opens and closes repeatedly while the pointer sits still is the `modal` bug: Radix puts `pointer-events: none` on the body while a modal menu is open, the trigger stops receiving pointer events, `pointerleave` fires, the close timer runs, and the cycle repeats.',
+        ].join('\n'),
+      },
+    },
+  },
+  args: { openOnHover: true },
+  render: (args) => (
+    <DropdownMenu {...args}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" startIcon={<UserPen />}>
+          Grace Hopper
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="start" className="w-56">
+        <DropdownMenuLabel className="font-normal">grace@acme.example</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>
+          <UserPen />
+          Edit profile
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>
+          <ArrowRightLeft />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+};
+
 export const CheckboxItems: Story = {
   name: 'Checkbox items',
   parameters: {

@@ -149,9 +149,10 @@ invite tenant_id email:
 # Sending a real message to look at it is a bad loop: the link is single-use, a
 # send costs a real address, and a bounce off a typo hurts the sending domain.
 # Pass a logo to see the co-branded version — only `https:` URLs render, because
-# Gmail drops `data:` image sources.
-email-preview logo="":
-    pnpm --filter @kithena/messaging preview {{ if logo != "" { "--logo " + logo } else { "" } }}
+# Gmail drops `data:` image sources. Pass a theme id — indigo, teal, forest,
+# plum, clay, slate — to see the button in the colour that company chose.
+email-preview logo="" theme="":
+    pnpm --filter @kithena/messaging preview {{ if logo != "" { "--logo " + logo } else { "" } }} {{ if theme != "" { "--theme " + theme } else { "" } }}
 
 # Everything, locally: both platform services and all three front ends.
 #

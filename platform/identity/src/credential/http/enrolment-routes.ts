@@ -1,4 +1,5 @@
 import { checkName, type PersonName } from '../../shared/person-name.js';
+import { checkProfile, type PersonProfile } from '../../shared/person-profile.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
@@ -47,7 +48,13 @@ export interface EnrolmentRoutesDeps {
   readonly inspectToken: (
     tenantId: string,
     token: string,
-  ) => Promise<{ state: EnrolmentState; purpose: string; name: PersonName | null }>;
+  ) => Promise<{
+    state: EnrolmentState;
+    purpose: string;
+    name: PersonName | null;
+    employmentStart: string | null;
+    timeZone: string | null;
+  }>;
   /**
    * Sends a fresh setup link, and always succeeds.
    *
@@ -123,7 +130,28 @@ export function enrolmentRoutes({
          * that only asks when there is nothing on file, and that can show what
          * is on file for them to correct.
          */
-        .end(JSON.stringify({ state: found.state, purpose: found.purpose, name: found.name }));
+        .end(
+          JSON.stringify({
+            state: found.state,
+            purpose: found.purpose,
+            name: found.name,
+            /*
+             * The employment record, for a form that shows rather than asks.
+             *
+             * The start date is HR's and stays HR's — `Account.enrol` refuses a
+             * passkey before it, so a person who could edit it on the way in
+             * could walk past their own check. Showing it is what stops "why
+             * can I not sign in" being a support ticket.
+             *
+             * The zone is the opposite: almost every account carries `Etc/UTC`
+             * because no invitation path asks, which is what made the clock on
+             * the tenant home page read UTC for everybody. The form offers it
+             * back to the one person standing in front of a device that knows.
+             */
+            employmentStart: found.employmentStart,
+            timeZone: found.timeZone,
+          }),
+        );
       return true;
     }
 
@@ -246,6 +274,40 @@ export function enrolmentRoutes({
       name = checked.value;
     }
 
+    /*
+     * The time zone and mobile number onboarding collected, checked here too.
+     *
+     * Same split as the name above: Zod validates shape at the boundary and the
+     * rule lives in `@kithena/contracts`, so this calls `checkProfile` rather
+     * than restating a character class that would then have two definitions.
+     *
+     * Absent is allowed and means a recovery link, for the reason the name
+     * gives — somebody replacing a lost passkey already has both on their row.
+     */
+    const askedProfile = input['profile'];
+    let profile: PersonProfile | undefined;
+    if (askedProfile !== undefined && askedProfile !== null) {
+      if (typeof askedProfile !== 'object') {
+        response.writeHead(400).end();
+        return true;
+      }
+      const checked = checkProfile(askedProfile);
+      if (!checked.ok) {
+        response
+          .writeHead(422, { 'content-type': 'application/json' })
+          .end(
+            JSON.stringify({
+              reason: 'profile_invalid',
+              code: checked.error.code,
+              message: checked.error.message,
+              path: checked.error.path ?? [],
+            }),
+          );
+        return true;
+      }
+      profile = checked.value;
+    }
+
     const result = await complete({
       tenantId: input['tenantId'],
       token: input['token'],
@@ -253,6 +315,7 @@ export function enrolmentRoutes({
       origin: input['origin'],
       challenge,
       ...(name === undefined ? {} : { name }),
+      ...(profile === undefined ? {} : { profile }),
     });
 
     if (!result.ok) {

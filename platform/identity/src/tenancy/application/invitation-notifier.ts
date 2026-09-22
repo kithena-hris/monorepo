@@ -38,6 +38,16 @@ export interface Invitation {
    */
   readonly logoUrl: string | null;
   /**
+   * The theme the company chose, as a preset id, or null when they chose none.
+   *
+   * Not gated by `branding_public`, unlike the mark beside it, and for the
+   * reason the login page gives: an accent identifies nobody — six presets
+   * across every customer — so withholding it would put their own staff back
+   * on the default colour and buy no privacy. The button in the message is
+   * then the colour of the page it leads to.
+   */
+  readonly themeId: string | null;
+  /**
    * Why the link was issued, so the message can say the right thing.
    *
    * Recovery used to send the invitation copy word for word, which greeted

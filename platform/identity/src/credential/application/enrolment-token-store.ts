@@ -77,5 +77,24 @@ export interface EnrolmentTokenStore {
     purpose: string;
     /** What the account is already called, or null if nobody has been asked. */
     name: PersonName | null;
+    /**
+     * When their employment starts, so the form can show it rather than ask.
+     *
+     * Read-only on that screen deliberately. `Account.enrol` refuses a passkey
+     * before this date — it is what stops a hire entered three weeks early
+     * signing in during those three weeks — so a field the person enrolling
+     * could edit would be a field that walks past their own start-date check.
+     * Seeing it is useful; setting it is HR's.
+     */
+    employmentStart: string | null;
+    /**
+     * The zone on the account, which the form offers back for confirmation.
+     *
+     * `Etc/UTC` for almost everybody, because every invitation path defaults it
+     * there when HR types nothing — which is the bug the form is being asked to
+     * close. The form prefers what the browser reports when the stored value is
+     * that default, and prefers the stored value when HR did set one.
+     */
+    timeZone: string | null;
   }>;
 }

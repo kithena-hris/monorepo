@@ -58,6 +58,16 @@ const InvitationRequest = z.object({
    * written copy for should not quietly borrow an invitation's.
    */
   purpose: z.enum(['invitation', 'recovery']).optional(),
+  /**
+   * The company's theme, as a preset id.
+   *
+   * A string rather than `ThemeId`, and the loose type is the point: the list
+   * of presets belongs to the identity service's registry, and a messaging
+   * route that validated against it would refuse to send an invitation the
+   * afternoon a seventh preset ships and this service has not been redeployed.
+   * An id this service cannot resolve renders as Kithena's own accent.
+   */
+  themeId: z.string().nullish(),
 });
 
 /** A provider that said no is worth retrying. Everything else is not. */

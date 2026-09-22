@@ -2,21 +2,24 @@ import { startRegistration } from '@simplewebauthn/browser';
 import {
   Alert,
   Button,
+  Combobox,
   Field,
   FieldControl,
   FieldDescription,
   FieldError,
   FieldLabel,
   Input,
+  PhoneField,
   Spinner,
   Stepper,
 } from '@reach/ui';
 import { useNavigate } from '@modern-js/runtime/router';
 
-import { checkPersonName, formatPersonName } from '@kithena/contracts';
+import { checkPersonName, checkPersonProfile, formatPersonName } from '@kithena/contracts';
 
+import { useBrandRamp } from '../../lib/brand';
 import { resolveTenant } from '../../lib/tenant';
-import { useCallback, useEffect, useState, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 
 /**
  * Creating a first passkey.
@@ -39,10 +42,28 @@ import { useCallback, useEffect, useState, type JSX } from 'react';
  * also means a refusal lands on a form somebody can correct rather than after a
  * ceremony that spends the link.
  *
- * **It asks for a name and stops.** A job title, a manager, a department, an
- * emergency contact: those are the People module's, and identity collecting
- * them would give one person two records that drift apart. The rule is in
- * `CLAUDE.md` and the boundary is worth more than a longer form.
+ * **It asks for a name, a time zone and a number, and stops.** All three are
+ * facts this service already holds columns for and already needs: the name is
+ * what the passkey prompt renders, the zone is what every clock in the product
+ * is drawn from, and the number is how an HR admin verifies somebody out of
+ * band before re-issuing access — which `docs/authentication.md` calls the
+ * actual differentiator.
+ *
+ * The zone is here because nothing else asks. Every invitation path defaults it
+ * to `Etc/UTC` — `checkEmployment` does, and so does the first-administrator
+ * path — so the clock on a tenant's home page read UTC for everybody. The
+ * person enrolling is standing in front of the one device that knows the
+ * answer, so this is where it is asked.
+ *
+ * A job title, a manager, a department, an emergency contact, a home address:
+ * those are the People module's, and identity collecting them would give one
+ * person two records that drift apart. The rule is in `CLAUDE.md` and the
+ * boundary is worth more than a longer form.
+ *
+ * The employment start date is shown and not asked. `Account.enrol` refuses a
+ * passkey before it — that is what stops a hire entered three weeks early
+ * signing in during those three weeks — so a field the person enrolling could
+ * edit would be a field that walks past their own check.
  */
 type State =
   /** Asking what the link is worth. The button is not offered yet. */
@@ -99,7 +120,7 @@ const MESSAGES: Record<Reason, { title: string; body: string }> = {
  * whether they are about to be asked for something they do not have to hand.
  */
 const STEPS = [
-  { id: 'name', label: 'Your name' },
+  { id: 'about', label: 'About you' },
   { id: 'review', label: 'Review' },
   { id: 'passkey', label: 'Your passkey' },
 ] as const;
@@ -108,12 +129,35 @@ interface Draft {
   given: string;
   family: string;
   preferred: string;
+  /** IANA, and defaulted from the browser rather than left for somebody to find. */
+  timeZone: string;
+  /** The whole number, dial code included. Empty means none, which is allowed. */
+  mobile: string;
 }
 
 export default function Enrol(): JSX.Element {
   const [state, setState] = useState<State>({ kind: 'checking' });
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>({ given: '', family: '', preferred: '' });
+  const [draft, setDraft] = useState<Draft>({
+    given: '',
+    family: '',
+    preferred: '',
+    // The browser's own zone, which is the best guess anybody has and usually
+    // simply right: the person is enrolling from where they work. Overwritten
+    // below when HR set one deliberately.
+    timeZone: browserTimeZone(),
+    mobile: '',
+  });
+  /**
+   * When their employment starts, as the registry holds it.
+   *
+   * Shown on the review step and never editable here. `Account.enrol` refuses a
+   * passkey before this date, so somebody who could change it on the way in
+   * could walk past their own start-date check — and a person who cannot sign
+   * in yet is far better served by being told why than by a refusal after the
+   * ceremony has spent the link.
+   */
+  const [employmentStart, setEmploymentStart] = useState<string | null>(null);
   /**
    * Which field is wrong and why, in the words the server would use.
    *
@@ -149,6 +193,16 @@ export default function Enrol(): JSX.Element {
    * slug is the honest fallback for exactly that case.
    */
   const [company, setCompany] = useState<string | null>(slug);
+  /**
+   * The company's theme, so this page is the colour the button that opened it
+   * was.
+   *
+   * The invitation email is filled with the accent an operator chose, and
+   * arriving on a page in a different colour is the moment somebody wonders
+   * whether the link went where it said. Present even for a company that asked
+   * not to be named — an accent is one of six and identifies nobody.
+   */
+  const [themeId, setThemeId] = useState<string | null>(null);
   /*
    * Whether the registry already knows what this person is called.
    *
@@ -203,6 +257,7 @@ export default function Enrol(): JSX.Element {
         if (current && resolved.branding.displayName !== null) {
           setCompany(resolved.branding.displayName);
         }
+        if (current) setThemeId(resolved.branding.themeId);
         const asked = await post('/api/identity/enrolment/status', {
           tenantId: resolved.id,
           token,
@@ -211,10 +266,28 @@ export default function Enrol(): JSX.Element {
           state: string;
           purpose?: string;
           name?: { given: string; family: string; preferred: string | null } | null;
+          employmentStart?: string | null;
+          timeZone?: string | null;
         };
       })
-      .then(({ state: found, purpose, name }) => {
+      .then(({ state: found, purpose, name, employmentStart: starts, timeZone: stored }) => {
         if (!current) return;
+
+        if (typeof starts === 'string') setEmploymentStart(starts);
+
+        /*
+         * HR's zone wins over the browser's, unless HR did not choose one.
+         *
+         * `Etc/UTC` is what every invitation path writes when nobody types a
+         * zone, so it means "not asked" far more often than it means "this
+         * person works to UTC". Treating it as an answer is what put UTC on
+         * every clock in the product; treating it as a blank is what this
+         * form is for. Somebody who genuinely works to UTC picks it from the
+         * list, and then it is on their row because they said so.
+         */
+        if (typeof stored === 'string' && stored !== '' && stored !== 'Etc/UTC') {
+          setDraft((currentDraft) => ({ ...currentDraft, timeZone: stored }));
+        }
 
         if (purpose === 'recovery') {
           setRecovering(true);
@@ -225,11 +298,15 @@ export default function Enrol(): JSX.Element {
           // Prefilled, not skipped past. Review is still shown — it is where
           // somebody notices the name is wrong — and Edit goes back to a form
           // that already holds what the registry has rather than an empty one.
-          setDraft({
+          // Updated rather than replaced: the zone resolved a few lines above
+          // is already in this draft, and rewriting the whole object would
+          // drop it back to the browser's default.
+          setDraft((currentDraft) => ({
+            ...currentDraft,
             given: name.given,
             family: name.family,
             preferred: name.preferred ?? '',
-          });
+          }));
           setOnFile(true);
           // Only for an invitation. A recovery link has already gone to the
           // last step above and must not be walked back into a review of
@@ -312,14 +389,38 @@ export default function Enrol(): JSX.Element {
         family: draft.family,
         preferred: draft.preferred,
       },
+      /*
+       * Written in the same transaction as the name and the credential.
+       *
+       * The zone in particular has to land here rather than in a settings
+       * screen later: it is the value every clock in the product is drawn
+       * from, and the default it replaces — `Etc/UTC` — is indistinguishable
+       * from a deliberate choice once it is on the row.
+       *
+       * **Omitted entirely for a recovery link**, which is not a detail. A
+       * recovery link goes straight to the passkey step and never shows the
+       * form, so this draft holds the browser's zone and an empty number
+       * rather than anything the person confirmed — sending it would move a
+       * returning employee to wherever they happen to be sitting and delete
+       * the number their HR team just used to verify them. Identity treats an
+       * absent profile as "do not touch these columns".
+       */
+      ...(recovering
+        ? {}
+        : {
+            profile: {
+              timeZone: draft.timeZone,
+              mobile: draft.mobile,
+            },
+          }),
     })) as {
       ok: boolean;
-      // `name_invalid` is not a `Reason`: it is a form problem rather than
-      // something the person is told about their link, and it is handled
-      // before the closed set is consulted.
+      // Neither `name_invalid` nor `profile_invalid` is a `Reason`: both are
+      // form problems rather than something the person is told about their
+      // link, and both are handled before the closed set is consulted.
       body: {
         accountId?: string;
-        reason?: Reason | 'name_invalid';
+        reason?: Reason | 'name_invalid' | 'profile_invalid';
         path?: string[];
         message?: string;
       } | null;
@@ -337,14 +438,16 @@ export default function Enrol(): JSX.Element {
       return;
     }
 
-    if (finished.body?.reason === 'name_invalid') {
+    if (finished.body?.reason === 'name_invalid' || finished.body?.reason === 'profile_invalid') {
       // Back to the step that owns the field, rather than a dead end. The link
       // is spent by now, so this is the one refusal that cannot be retried —
       // which is exactly why the form is asked *before* the ceremony and this
       // branch should be unreachable.
       setProblem({
-        field: finished.body.path?.[0] ?? 'given',
-        message: finished.body.message ?? 'That name could not be accepted.',
+        field:
+          finished.body.path?.[0] ??
+          (finished.body.reason === 'profile_invalid' ? 'timeZone' : 'given'),
+        message: finished.body.message ?? 'That could not be accepted.',
       });
       setStep(0);
       setState({ kind: 'idle' });
@@ -354,7 +457,20 @@ export default function Enrol(): JSX.Element {
     // `name_invalid` is already handled above, so whatever is left is one of
     // the closed set or nothing at all.
     setState({ kind: 'refused', reason: finished.body?.reason ?? 'link_invalid' });
-  }, [navigate, draft]);
+  }, [navigate, draft, recovering]);
+
+  /*
+   * Every zone the runtime knows, plus whichever one this device reports.
+   *
+   * `Intl.supportedValuesOf('timeZone')` returns canonical names only, so a
+   * phone in India reporting `Asia/Calcutta` would not find itself in its own
+   * list — the value would be selected and the control would render a blank.
+   * Prepending the detected zone is cheaper than canonicalising it, and it
+   * keeps the alias the device actually reported, which is a legal zone.
+   */
+  const zones = useMemo(() => timeZoneOptions(draft.timeZone), [draft.timeZone]);
+
+  useBrandRamp(themeId);
 
   const onboarding = state.kind !== 'already_enrolled';
 
@@ -547,12 +663,88 @@ export default function Enrol(): JSX.Element {
                 )}
               </Field>
 
+              {/*
+                Where they work, not where the server is.
+
+                Prefilled from this device, because the person filling the form
+                in is almost always in the place the answer describes. It is
+                still a question rather than a silent read: somebody enrolling
+                from an airport would otherwise be given that airport's zone for
+                as long as nobody noticed, and the value drives every clock and
+                every calendar date in the product.
+              */}
+              <Field required invalid={problem?.field === 'timeZone'}>
+                <FieldLabel>Where you work</FieldLabel>
+                <FieldControl>
+                  <Combobox
+                    label="Time zone"
+                    options={zones}
+                    value={draft.timeZone}
+                    searchPlaceholder="Search cities and zones…"
+                    emptyMessage="No zone matches that."
+                    onChange={(value) => {
+                      setProblem(null);
+                      if (typeof value === 'string') {
+                        setDraft((current) => ({ ...current, timeZone: value }));
+                      }
+                    }}
+                  />
+                </FieldControl>
+                {problem?.field === 'timeZone' ? (
+                  <FieldError>{problem.message}</FieldError>
+                ) : (
+                  <FieldDescription>
+                    Your time zone. Clocks and dates across Kithena are shown in it.
+                  </FieldDescription>
+                )}
+              </Field>
+
+              {/*
+                A number, so a human can verify a human.
+
+                This is the channel an HR admin uses before re-issuing access
+                to somebody who has lost their device — the recovery story that
+                makes dropping the emailed reset link possible. It is never a
+                way to sign in: a code sent to a number an attacker can port is
+                weaker than the passkey it would stand in for.
+              */}
+              <Field invalid={problem?.field === 'mobile'}>
+                <FieldLabel>Mobile number</FieldLabel>
+                <FieldControl>
+                  <PhoneField
+                    label="Mobile number"
+                    value={draft.mobile}
+                    autoComplete="tel"
+                    onValueChange={(value) => {
+                      setProblem(null);
+                      setDraft((current) => ({ ...current, mobile: value }));
+                    }}
+                  />
+                </FieldControl>
+                {problem?.field === 'mobile' ? (
+                  <FieldError>{problem.message}</FieldError>
+                ) : (
+                  <FieldDescription>
+                    Optional. Used only so your HR team can check it is you if you lose your
+                    device — never to sign you in.
+                  </FieldDescription>
+                )}
+              </Field>
+
               <Button
                 variant="primary"
                 onClick={() => {
                   const checked = checkPersonName(draft);
                   if (!checked.ok) {
                     setProblem(checked.problem);
+                    return;
+                  }
+                  // The same definition identity parses with, so this cannot
+                  // block a value the server would take or promise one it
+                  // would refuse.
+                  const profile = checkPersonProfile(draft);
+                  if (!profile.ok) {
+                    setProblem(profile.problem);
                     return;
                   }
                   setProblem(null);
@@ -586,6 +778,26 @@ export default function Enrol(): JSX.Element {
                 <Detail label="Goes by">{asStored(draft).goesBy}</Detail>
                 <Detail label="Work email">{account ?? 'Not given'}</Detail>
                 <Detail label="Company">{company ?? 'Not given'}</Detail>
+                {/*
+                  The zone as a place and a current time, not as an identifier.
+
+                  `Europe/Madrid` is a string somebody has to translate before
+                  it means anything; "Madrid · 18:42 right now" is the check
+                  they can actually perform, and a wrong zone is obvious the
+                  moment the clock disagrees with the one on their wall.
+                */}
+                <Detail label="Where you work">{describeZone(draft.timeZone)}</Detail>
+                <Detail label="Mobile">
+                  {draft.mobile.trim() === '' ? 'Not given' : draft.mobile.trim()}
+                </Detail>
+                {/*
+                  Shown, never asked. Set by HR, and it is the date the passkey
+                  step refuses before — so somebody arriving early is told why
+                  here rather than after the ceremony has spent their link.
+                */}
+                {employmentStart === null ? null : (
+                  <Detail label="Start date">{formatStartDate(employmentStart)}</Detail>
+                )}
               </dl>
 
               <div className="flex gap-2">
@@ -615,6 +827,12 @@ export default function Enrol(): JSX.Element {
                     const checked = checkPersonName(draft);
                     if (!checked.ok) {
                       setProblem(checked.problem);
+                      setStep(0);
+                      return;
+                    }
+                    const profile = checkPersonProfile(draft);
+                    if (!profile.ok) {
+                      setProblem(profile.problem);
                       setStep(0);
                       return;
                     }
@@ -716,4 +934,105 @@ function asStored(draft: Draft): { legal: string; goesBy: string } {
 
   const { given, family, preferred } = checked.value;
   return { legal: `${given} ${family}`, goesBy: preferred ?? given };
+}
+
+/**
+ * The zone this device is in, or UTC when it will not say.
+ *
+ * `resolvedOptions()` is the only thing that knows, and it is right far more
+ * often than the `Etc/UTC` every invitation path writes when HR types nothing.
+ * It is a default for a field somebody confirms, not a value written behind
+ * their back — the form is what turns a good guess into a fact.
+ */
+function browserTimeZone(): string {
+  try {
+    const found = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return found === '' ? 'Etc/UTC' : found;
+  } catch {
+    return 'Etc/UTC';
+  }
+}
+
+/**
+ * Every zone the runtime knows, with the detected one guaranteed present.
+ *
+ * `supportedValuesOf` returns canonical names only, so a device reporting
+ * `Asia/Calcutta` — a legal zone and a real alias — would not find itself in
+ * the list, and the control would render blank over a value that was in fact
+ * selected. Prepending it is cheaper than canonicalising, and it keeps the name
+ * the device gave us.
+ *
+ * The label is the city with its underscores removed and the region as the
+ * second line. `America/Argentina/Buenos_Aires` is three segments and the last
+ * is the one anybody searches for.
+ */
+function timeZoneOptions(
+  detected: string,
+): readonly { value: string; label: string; description: string }[] {
+  const canonical = (() => {
+    try {
+      return Intl.supportedValuesOf('timeZone');
+    } catch {
+      // A runtime without it. The detected zone alone is a usable list: it is
+      // the right answer for almost everybody, and a form with one correct
+      // option beats a form with none.
+      return [] as readonly string[];
+    }
+  })();
+
+  const all = canonical.includes(detected) ? canonical : [detected, ...canonical];
+
+  return all.map((zone) => {
+    const parts = zone.split('/');
+    const city = parts.at(-1) ?? zone;
+    return {
+      value: zone,
+      label: city.replaceAll('_', ' '),
+      description: parts.length > 1 ? `${parts[0] ?? ''} · ${zone}` : zone,
+    };
+  });
+}
+
+/**
+ * A zone as a place and the time there, for somebody to check.
+ *
+ * The identifier is not the useful part on a review screen. The clock is: a
+ * wrong zone is invisible as a string and obvious the moment the number
+ * disagrees with the one on the wall behind them.
+ */
+function describeZone(zone: string): string {
+  const city = (zone.split('/').at(-1) ?? zone).replaceAll('_', ' ');
+  try {
+    const now = new Date().toLocaleTimeString('en-GB', {
+      timeZone: zone,
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${city} · ${now} right now`;
+  } catch {
+    return city;
+  }
+}
+
+/**
+ * A calendar date, said in words.
+ *
+ * `2026-09-21` is ambiguous to half the world the moment it is reformatted with
+ * slashes, and this is the date somebody checks against the one in their offer
+ * letter. The month is spelled out so there is nothing to misread.
+ *
+ * No zone conversion: `employment_start` is a `date` and not an instant —
+ * `CLAUDE.md` is explicit that hire, leave and birthday are calendar dates —
+ * so parsing it into a `Date` and formatting it back would shift the day for
+ * anybody west of Greenwich.
+ */
+function formatStartDate(date: string): string {
+  const [year, month, day] = date.split('-');
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const name = months[Number(month) - 1];
+  if (year === undefined || day === undefined || name === undefined) return date;
+  return `${String(Number(day))} ${name} ${year}`;
 }

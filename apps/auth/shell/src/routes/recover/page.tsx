@@ -1,6 +1,7 @@
 import { Alert, Spinner } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
+import { useBrandRamp } from '../../lib/brand';
 import { resolveTenant } from '../../lib/tenant';
 
 /**
@@ -49,6 +50,17 @@ const STUCK: Record<Why, { title: string; body: string }> = {
 
 export default function Recover(): JSX.Element {
   const [state, setState] = useState<State>({ kind: 'forwarding' });
+  /*
+   * Branded too, short as its life is.
+   *
+   * This page forwards as soon as the registry answers, so the colour is on
+   * screen for a moment — but the moment is somebody's spinner, and a company
+   * that changed its theme in the back office should not have one screen on
+   * the way in that missed the memo. It already resolves the tenant; using the
+   * answer costs a line.
+   */
+  const [themeId, setThemeId] = useState<string | null>(null);
+  useBrandRamp(themeId);
 
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get('tenant') ?? '';
@@ -64,6 +76,7 @@ export default function Recover(): JSX.Element {
     let current = true;
     void resolveTenant(slug).then((found) => {
       if (!current) return;
+      setThemeId(found?.branding.themeId ?? null);
       if (found === null) {
         // One answer for a malformed label, a suspended customer and a slug
         // nobody registered. Distinguishing them tells whoever is probing slugs

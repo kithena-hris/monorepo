@@ -41,6 +41,14 @@ export interface SendInvitationRequest {
    * to remember to check a flag is a template that leaks.
    */
   readonly logoUrl?: string | null | undefined;
+  /**
+   * The theme the company chose, as a preset id.
+   *
+   * Carried, not decided. The same reasoning as `logoUrl`: whether a company
+   * may be shown is `brandingFor`'s answer in the identity service, and this
+   * service renders what it is handed.
+   */
+  readonly themeId?: string | null | undefined;
 }
 
 export type SendRefusal = 'address' | 'untrusted_link' | 'unrenderable' | 'provider';
@@ -98,6 +106,7 @@ export function sendInvitation(deps: SendInvitationDeps): SendInvitation {
       enrolUrl: request.enrolUrl,
       expiresAt: request.expiresAt,
       logoUrl: request.logoUrl ?? null,
+      themeId: request.themeId ?? null,
     });
     if (!message.ok) return refuse('unrenderable');
 

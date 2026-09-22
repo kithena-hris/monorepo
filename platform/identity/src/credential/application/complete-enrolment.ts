@@ -1,6 +1,7 @@
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
 import type { PersonName } from '../../shared/person-name.js';
+import type { PersonProfile } from '../../shared/person-profile.js';
 import { isAcceptableOrigin, type OriginPolicy } from '../../shared/origin.js';
 import { tokenStillValid } from '../domain/enrolment-token.js';
 import type { EnrolmentTokenStore } from './enrolment-token-store.js';
@@ -51,6 +52,16 @@ export interface CompleteEnrolmentDeps {
    * is gone.
    */
   readonly recordName: (accountId: string, name: PersonName) => Promise<void>;
+  /**
+   * The time zone they confirmed, and a number to reach them on.
+   *
+   * Written beside the name and for the same reason: this is the last moment
+   * anybody is asked. The zone in particular is why this exists — every
+   * invitation path defaults it to `Etc/UTC` when HR does not type one, so a
+   * clock built from the account read UTC for everybody. The person enrolling
+   * is standing in front of the only device that knows the answer.
+   */
+  readonly recordProfile: (accountId: string, profile: PersonProfile) => Promise<void>;
   readonly origins: OriginPolicy;
   readonly clock: Clock;
   readonly onRefusal?: (reason: string) => void;
@@ -70,6 +81,12 @@ export interface CompleteEnrolmentRequest {
    * to disagree with the row that is already there.
    */
   readonly name?: PersonName;
+  /**
+   * Already checked by `checkProfile` at the boundary. Optional for the same
+   * reason `name` is: a recovery link belongs to somebody whose row already has
+   * these, and the form does not ask again.
+   */
+  readonly profile?: PersonProfile;
 }
 
 /**
@@ -138,6 +155,7 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
     }
 
     if (request.name !== undefined) await deps.recordName(spent.accountId, request.name);
+    if (request.profile !== undefined) await deps.recordProfile(spent.accountId, request.profile);
 
     const credentialId = await deps.storeCredential(identityId, registered);
 

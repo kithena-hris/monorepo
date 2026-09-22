@@ -12,3 +12,22 @@
 
 /* And this app's own screens, which sit beside this file rather than under it. */
 @source '../';
+
+/*
+ * Smooth programmatic scrolling, on the document.
+ *
+ * The back-office has no `PageLayout`, so the scroll container is the page
+ * itself rather than a `<main>` — which is where the tenant app sets the same
+ * property. Anchors, `scrollIntoView` and "back to top" glide; a wheel, a
+ * trackpad and a finger are untouched and stay the browser's to animate.
+ *
+ * `scroll-padding-top` is the sticky header's 3.5rem, so a target scrolled to
+ * lands below the bar instead of under it.
+ *
+ * `base.css` forces `scroll-behavior: auto` under `prefers-reduced-motion`,
+ * which is why this needs no media query of its own.
+ */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: --spacing(14);
+}

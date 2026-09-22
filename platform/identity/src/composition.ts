@@ -716,9 +716,14 @@ export async function compose(config: Config): Promise<RequestHandler> {
    */
   const tenantById = async (
     tenantId: string,
-  ): Promise<{ slug: string; displayName: string; logoUrl: string | null } | null> => {
+  ): Promise<{
+    slug: string;
+    displayName: string;
+    logoUrl: string | null;
+    themeId: string | null;
+  } | null> => {
     const rows = await db.execute(sql`
-      SELECT slug, display_name, logo_url, accent_color, branding_public
+      SELECT slug, display_name, logo_url, theme_id, accent_color, branding_public
         FROM platform.tenant
        WHERE id = ${tenantId}::uuid
     `);
@@ -749,6 +754,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
       slug: text(row['slug']),
       displayName: text(row['display_name']),
       logoUrl: branding.logoUrl,
+      // Straight off the row, not through `brandingFor`. The flag hides the
+      // customer list; an accent is one of six and names nobody, which is the
+      // same call the tenant registry route makes for the login page.
+      themeId: textOrNull(row['theme_id']),
     };
   };
 
@@ -870,6 +879,28 @@ export async function compose(config: Config): Promise<RequestHandler> {
                  SET given_name = ${name.given},
                      family_name = ${name.family},
                      preferred_name = ${name.preferred}
+               WHERE id = ${accountId}::uuid
+            `);
+          },
+          /*
+           * The zone they confirmed, and a number to reach them on.
+           *
+           * The zone is the point. Every invitation path writes `Etc/UTC` when
+           * HR types nothing — `checkEmployment` defaults it there, and so does
+           * the first-administrator path in `inviteAdmin` above — so a clock
+           * rendered from the account said UTC for everybody. The person
+           * enrolling is standing in front of the one device that knows the
+           * answer, so this is where it is asked.
+           *
+           * `employment_start` is deliberately not written here. `Account.enrol`
+           * refuses a passkey before that date, and a person who could set it
+           * on the way in could walk past their own start-date check.
+           */
+          recordProfile: async (accountId, profile) => {
+            await tx.execute(sql`
+              UPDATE platform.account
+                 SET time_zone = ${profile.timeZone},
+                     mobile = ${profile.mobile}
                WHERE id = ${accountId}::uuid
             `);
           },

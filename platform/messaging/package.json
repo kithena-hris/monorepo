@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@kithena/auth-kit": "workspace:*",
+    "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",

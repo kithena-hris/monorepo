@@ -23,7 +23,7 @@ import { renderInvitation } from '../src/message/domain/invitation.js';
  * `platform/identity/scripts/seed-auth.ts` lives where it does.
  *
  * Usage:
- *   npx tsx platform/messaging/scripts/preview.ts [--logo <url>] [--out <path>]
+ *   npx tsx platform/messaging/scripts/preview.ts [--logo <url>] [--theme <id>] [--out <path>]
  */
 function flag(name: string): string | undefined {
   const at = process.argv.indexOf(`--${name}`);
@@ -50,6 +50,10 @@ const rendered = renderInvitation({
   // Only an `https:` URL renders; a `data:` URI is dropped, because Gmail will
   // not show one. Pass `--logo` to see the co-branded version.
   logoUrl: flag('logo') ?? null,
+  // The theme an operator picks in the back office. Pass `--theme forest` to
+  // see what a company on that preset receives; omitted, the button is
+  // Kithena's own accent, which is what a company that chose nothing gets.
+  themeId: flag('theme') ?? null,
 });
 
 if (!rendered.ok) throw new Error(`the message could not be rendered: ${rendered.error.code}`);
