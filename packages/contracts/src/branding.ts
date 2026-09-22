@@ -150,3 +150,75 @@ export type ThemeId = z.infer<typeof ThemeId>;
 
 /** The default for a company that never opened the theme step. */
 export const DEFAULT_THEME_ID = 'indigo';
+
+/**
+ * A preset's accent as sRGB hex, for a medium that cannot resolve `oklch()`.
+ *
+ * The one such medium is email. Outlook renders through Word, Gmail rewrites
+ * what it does not understand, and the clients that do support `oklch()` are
+ * the minority — so the invitation carries literal values, and this is what
+ * produces them. `platform/messaging` calls it with the tenant's `themeId` so
+ * the button in the message is the colour the company chose in the back office.
+ *
+ * Computed rather than stored beside each preset. A second copy of the colour
+ * is a second thing to retune, and `docs/messaging.md` already pays for two of
+ * those with drift checks — this one is avoidable, so it is avoided.
+ *
+ * The conversion is Björn Ottosson's, the same one `tools/email/oklch.mjs`
+ * performs on the token ramp: OKLCH to OKLab by polar coordinates, cubed to
+ * cone responses, through the linear-sRGB matrix, then gamma encoded.
+ */
+const OKLCH = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/;
+
+export function oklchToHex(colour: string): string | null {
+  const match = OKLCH.exec(colour.trim());
+  if (!match) return null;
+
+  const lightness = Number(match[1]);
+  const chroma = Number(match[2]);
+  const hue = (Number(match[3]) * Math.PI) / 180;
+
+  const a = chroma * Math.cos(hue);
+  const b = chroma * Math.sin(hue);
+
+  const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+
+  const linear = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ];
+
+  return `#${linear.map(encodeChannel).join('')}`;
+}
+
+/**
+ * Gamma encode one linear channel, then quantise to a byte.
+ *
+ * Clamped rather than scaled. A colour outside the sRGB gamut has no faithful
+ * hex, and the nearest one on the face of the cube is what a browser does with
+ * it too — so the email matches the screen rather than being independently
+ * wrong.
+ */
+function encodeChannel(channel: number): string {
+  const encoded =
+    channel <= 0.0031308 ? 12.92 * channel : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
+  return Math.round(Math.min(1, Math.max(0, encoded)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+}
+
+/**
+ * The accent a company chose, as hex, or null when they chose nothing.
+ *
+ * Null rather than the default preset: the caller is a template that already
+ * has a Kithena colour to fall back on, and returning Indigo here would make
+ * "no theme" and "the Indigo theme" indistinguishable to it.
+ */
+export function accentHex(themeId: string | null | undefined): string | null {
+  if (themeId === null || themeId === undefined) return null;
+  const preset = themePreset(themeId);
+  return preset === undefined ? null : oklchToHex(preset.accent);
+}

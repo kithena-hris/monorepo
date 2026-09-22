@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_THEME_ID, THEME_PRESETS, ThemeId, themePreset } from './branding.js';
+import {
+  DEFAULT_THEME_ID,
+  THEME_PRESETS,
+  ThemeId,
+  accentHex,
+  oklchToHex,
+  themePreset,
+} from './branding.js';
 
 /**
  * The accent goes behind white text on every filled button on a customer's
@@ -119,5 +126,52 @@ describe('theme presets', () => {
   it('refuses an id that is not on the list', () => {
     expect(ThemeId.safeParse('hotpink').success).toBe(false);
     expect(ThemeId.safeParse(DEFAULT_THEME_ID).success).toBe(true);
+  });
+});
+
+/**
+ * The hex the invitation email is painted with.
+ *
+ * An email cannot resolve `oklch()` — Outlook renders through Word and Gmail
+ * rewrites what it does not understand — so `platform/messaging` asks for this
+ * instead. A conversion that drifted would repaint every button in the wrong
+ * colour silently, which is exactly the failure nobody reports.
+ */
+describe('accentHex', () => {
+  it.each([
+    ['indigo', '#3969d9'],
+    ['teal', '#007c7c'],
+    ['forest', '#047745'],
+    ['plum', '#8a3d9a'],
+    ['clay', '#a94620'],
+    ['slate', '#495766'],
+  ])('%s resolves to %s', (id, hex) => {
+    expect(accentHex(id)).toBe(hex);
+  });
+
+  it('answers null for no theme and for a preset that does not exist', () => {
+    // Null rather than the default, so a caller can tell "chose nothing" from
+    // "chose Indigo" and apply its own fallback once.
+    expect(accentHex(null)).toBeNull();
+    expect(accentHex(undefined)).toBeNull();
+    expect(accentHex('heliotrope')).toBeNull();
+  });
+
+  it('resolves every preset to a six-digit hex', () => {
+    for (const preset of THEME_PRESETS) {
+      expect(accentHex(preset.id)).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  it('refuses a value that is not an oklch triple rather than guessing', () => {
+    expect(oklchToHex('#3969d9')).toBeNull();
+    expect(oklchToHex('rgb(57 105 217)')).toBeNull();
+  });
+
+  it('clamps a colour outside the sRGB gamut instead of wrapping it', () => {
+    // A channel over 1.0 has no faithful hex. The nearest one on the face of
+    // the cube is what a browser does with it too, and wrapping would produce
+    // a colour from the opposite side of the space.
+    expect(oklchToHex('oklch(0.99 0.4 140)')).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
