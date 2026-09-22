@@ -1,8 +1,8 @@
-import { themePreset } from '@kithena/contracts';
-import { Alert, Spinner, brandRamp } from '@reach/ui';
+import { Alert, Spinner } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
 import { CompanyPanel } from '../../components/company-panel';
+import { useBrandRamp } from '../../lib/brand';
 import { resolveTenant, type Tenant } from '../../lib/tenant';
 
 /**
@@ -78,31 +78,7 @@ export default function Login(): JSX.Element {
     });
   }, []);
 
-  const themeId = tenant?.branding.themeId ?? null;
-
-  /*
-   * The company's ramp on `<html>`, written imperatively.
-   *
-   * `brandRamp` documents why it cannot go on a wrapper: the accent tokens are
-   * declared on `:root` and a `var()` is substituted where the declaration
-   * lives, so a ramp set on a descendant changes a variable nothing consults
-   * again. This app resolves its tenant in the browser, so there is no server
-   * render that knows the company — which leaves the document element.
-   */
-  useEffect(() => {
-    const preset = themeId === null ? undefined : themePreset(themeId);
-    if (!preset) return;
-
-    const root = document.documentElement;
-    const ramp = brandRamp(preset.hue) as Record<string, string>;
-    for (const [name, value] of Object.entries(ramp)) root.style.setProperty(name, value);
-
-    // Removed on the way out. This origin serves more than one company, and a
-    // ramp left behind is the previous customer's colour on the next one's page.
-    return () => {
-      for (const name of Object.keys(ramp)) root.style.removeProperty(name);
-    };
-  }, [themeId]);
+  useBrandRamp(tenant?.branding.themeId ?? null);
 
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
