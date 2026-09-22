@@ -121,6 +121,7 @@ async function enrol(
     token?: string;
     clockAt?: string;
     origin?: string;
+    name?: { given: string; family: string; preferred: string | null };
     profile?: { timeZone: string; mobile: string | null };
   } = {},
 ): Promise<{ result: Result<{ accountId: string; credentialId: string }>; refusals: string[] }> {
@@ -187,18 +188,22 @@ async function enrol(
         `);
         return id;
       },
-      enrolAccount: async (accountId, credentialId) => {
+      enrolAccount: async (accountId, credentialId, captured) => {
         const accounts = drizzleAccountRepository();
         const snapshot = await accounts.load(tx, accountId);
         if (!snapshot) throw new Error('account vanished');
         const account = Account.rehydrate(snapshot);
-        const enrolled = account.enrol(credentialId, {
-          clock: options.clockAt === undefined ? systemClock : fixedClock(options.clockAt),
-          newEventId: () => uuidv7(),
-          actor: { kind: 'system', process: 'integration-test' },
-          correlationId: '00000000-0000-4000-8000-0000000000c1',
-          causationId: null,
-        });
+        const enrolled = account.enrol(
+          credentialId,
+          {
+            clock: options.clockAt === undefined ? systemClock : fixedClock(options.clockAt),
+            newEventId: () => uuidv7(),
+            actor: { kind: 'system', process: 'integration-test' },
+            correlationId: '00000000-0000-4000-8000-0000000000c1',
+            causationId: null,
+          },
+          captured,
+        );
         if (!enrolled.ok) return enrolled;
         await accounts.save(tx, account);
         return ok(undefined);
@@ -212,6 +217,7 @@ async function enrol(
       response,
       origin,
       challenge,
+      ...(options.name === undefined ? {} : { name: options.name }),
       ...(options.profile === undefined ? {} : { profile: options.profile }),
     });
 
@@ -387,6 +393,73 @@ describe('what onboarding collects', () => {
       timeZone: 'Europe/Berlin',
       mobile: '+49 151 1234567',
     });
+  });
+});
+
+/**
+ * What the rest of the platform is told about an enrolment.
+ *
+ * Until `identity.account.profile_captured` existed, identity collected a name
+ * and a zone and published nothing, so the People module's only route to a
+ * name typed twenty seconds earlier was to read `platform.account` across a
+ * service boundary. The event closes that; this asserts it is actually in the
+ * outbox, in the same transaction as the account row, and that the number the
+ * same form collected stayed behind.
+ */
+describe('the outbox after an enrolment', () => {
+  async function capturedEvents(): Promise<{ eventName: string; payload: Record<string, unknown> }[]> {
+    const rows = await admin.execute(
+      sql`SELECT event_name, envelope FROM platform.outbox ORDER BY event_id`,
+    );
+    return [...rows].map((row) => ({
+      eventName: String(row['event_name']),
+      payload: (row['envelope'] as { payload: Record<string, unknown> }).payload,
+    }));
+  }
+
+  it('carries the name and the zone, and says only whether a number exists', async () => {
+    await invitedAccount();
+    await admin.execute(sql`DELETE FROM platform.outbox`);
+    await admin.execute(sql`
+      UPDATE platform.account
+         SET time_zone = 'Etc/UTC', mobile = NULL
+       WHERE id = ${ACCOUNT}::uuid
+    `);
+
+    const { result } = await enrol(softwareAuthenticator('new-passkey'), {
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+      profile: { timeZone: 'Europe/Madrid', mobile: '+34 600 123 456' },
+    });
+    expect(result.ok).toBe(true);
+
+    const events = await capturedEvents();
+    expect(events.map((e) => e.eventName)).toEqual([
+      'identity.account.enrolled',
+      'identity.account.profile_captured',
+    ]);
+
+    const captured = events[1]?.payload ?? {};
+    expect(captured['name']).toEqual({ given: 'Ada', family: 'Lovelace', preferred: null });
+    // The zone the person just confirmed, not the `Etc/UTC` the invitation
+    // defaulted to — the row is written before the event is raised.
+    expect(captured['timeZone']).toBe('Europe/Madrid');
+    expect(captured['mobilePresent']).toBe(true);
+    expect(captured).not.toHaveProperty('mobile');
+    expect(JSON.stringify(captured)).not.toContain('600');
+  });
+
+  it('says nothing was captured when the form asked for nothing', async () => {
+    // A recovery link belongs to somebody the registry already knows, so the
+    // page never shows the form. An event announcing a capture that did not
+    // happen is a claim the People module would act on.
+    await invitedAccount();
+    await admin.execute(sql`DELETE FROM platform.outbox`);
+
+    const { result } = await enrol(softwareAuthenticator('new-passkey'));
+    expect(result.ok).toBe(true);
+
+    const events = await capturedEvents();
+    expect(events.map((e) => e.eventName)).toEqual(['identity.account.enrolled']);
   });
 });
 

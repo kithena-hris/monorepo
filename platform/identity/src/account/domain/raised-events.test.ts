@@ -137,6 +137,19 @@ const transitions: readonly [string, () => readonly Record<string, unknown>[]][]
       ),
   ],
   [
+    'enrol carrying what onboarding captured',
+    () =>
+      raisedBy(
+        (a, c) =>
+          void a.enrol('00000000-0000-4000-8000-0000000000f1', c, {
+            name: { given: 'Ada', family: 'Lovelace', preferred: null },
+            mobilePresent: true,
+          }),
+        '2026-04-01T09:00:00.000Z',
+        { status: 'invited' },
+      ),
+  ],
+  [
     'startSession',
     () =>
       raisedBy(

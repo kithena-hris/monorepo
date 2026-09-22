@@ -10,7 +10,11 @@ import {
 } from '@kithena/domain-kit';
 import { TenantId, type Actor } from '@kithena/contracts';
 
+import type { CapturedProfile } from '../../shared/captured-profile.js';
+
 import { allocateSlot, type Session, type SessionDevice, type SlotAllocation } from './session.js';
+
+export type { CapturedProfile };
 
 /**
  * One human at one company, and the devices they are signed in on.
@@ -51,6 +55,7 @@ export type ProvisioningRoute = 'people_module' | 'admin_api' | 'scim';
  * actually share.
  */
 export type SecondChannel = 'in_person' | 'known_value';
+
 
 export interface AccountSnapshot {
   readonly id: string;
@@ -268,7 +273,20 @@ export class Account extends AggregateRoot<string> {
     return ok(undefined);
   }
 
-  enrol(credentialId: string, ctx: EventContext): Result<void> {
+  /**
+   * `captured` is what the onboarding form asked for, when it asked.
+   *
+   * Optional because a recovery link belongs to somebody the registry already
+   * knows and the form does not ask them to retype their own name — and an
+   * event announcing a profile was captured when nothing was is a claim a
+   * consumer would act on.
+   *
+   * Raised here rather than written quietly beside the row, because a name
+   * captured and published to nobody is the gap `docs/people-prd.md` §5.1
+   * names: People needs it, and reading `platform.account` across a service
+   * boundary is not how this system answers that.
+   */
+  enrol(credentialId: string, ctx: EventContext, captured?: CapturedProfile): Result<void> {
     if (this.#status !== 'invited') return err(InvalidTransition(this.#status, 'enrolled'));
 
     if (ctx.clock.date(this.#timeZone) < this.#employmentStart) {
@@ -281,6 +299,22 @@ export class Account extends AggregateRoot<string> {
 
     this.#status = 'active';
     this.#raise('identity.account.enrolled', { accountId: this.id, credentialId }, ctx);
+
+    if (captured) {
+      this.#raise(
+        'identity.account.profile_captured',
+        {
+          accountId: this.id,
+          identityId: this.#identityId,
+          name: captured.name,
+          timeZone: this.#timeZone,
+          mobilePresent: captured.mobilePresent,
+          capturedAt: ctx.clock.instant(),
+        },
+        ctx,
+      );
+    }
+
     return ok(undefined);
   }
 

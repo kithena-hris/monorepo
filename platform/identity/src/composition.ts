@@ -904,7 +904,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
                WHERE id = ${accountId}::uuid
             `);
           },
-          enrolAccount: async (accountId, credentialId) => {
+          enrolAccount: async (accountId, credentialId, captured) => {
             const snapshot = await accounts.load(tx, accountId);
             if (!snapshot) throw new Error('account vanished mid-enrolment');
             const account = Account.rehydrate(snapshot);
@@ -922,9 +922,20 @@ export async function compose(config: Config): Promise<RequestHandler> {
              * colleague out by typing their address.
              */
             const recovering = account.status === 'active';
+            /*
+             * `captured` goes only to `enrol`, and the snapshot above is why it
+             * needs no time zone: `recordProfile` has already written the row,
+             * so the aggregate holds the zone this person confirmed a moment
+             * ago rather than the `Etc/UTC` their invitation defaulted to.
+             *
+             * A recovery carries nothing. The form does not ask somebody the
+             * registry already knows to retype their own name, and an event
+             * announcing a capture that did not happen is a claim the People
+             * module would act on.
+             */
             const applied = recovering
               ? account.recover(credentialId, context(accountId))
-              : account.enrol(credentialId, context(accountId));
+              : account.enrol(credentialId, context(accountId), captured);
             if (!applied.ok) return applied;
 
             await accounts.save(tx, account);
