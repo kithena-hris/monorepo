@@ -3,16 +3,14 @@
 import { icons } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
-const Sun = icons.theme;
-const Moon = icons.themeDark;
-
 /**
- * The time where this person works, and whether it is light there.
+ * The time where this person works, and what the sky is doing there.
  *
  * Their zone, not the browser's. Somebody travelling, or working for a company
  * in another country, has two answers to "what time is it" and only one of them
  * is the one their colleagues are working to. The zone is on their account —
- * HR sets it when they are invited — so it is the honest one to render.
+ * they confirm it when they enrol, and HR can set it when they are invited — so
+ * it is the honest one to render.
  *
  * `initial` is computed on the server and used as the first state, so the
  * hydrated markup matches what was sent. The interval then takes over: a clock
@@ -50,19 +48,16 @@ export function LocalTime({
     };
   }, [timeZone]);
 
-  const daytime = isDaytime(hour);
-  const Glyph = daytime ? Sun : Moon;
+  const band = BANDS[bandFor(hour)];
+  const Glyph = band.glyph;
 
   return (
     <span className="text-fg-muted inline-flex items-center gap-1.5 text-sm">
-      <Glyph
-        aria-hidden
-        className={daytime ? 'size-4 text-amber-500' : 'size-4 text-indigo-400'}
-      />
+      <Glyph aria-hidden className={`size-4 ${band.tint}`} />
       <time className="tabular-nums">{now}</time>
       {/*
         Said in words, not as a zone abbreviation.
-        
+
         `UTC` or `Europe/Madrid` is a label somebody has to translate before it
         means anything, and beside a clock that disagrees with the one in the
         corner of their screen it reads as a bug. "Workplace time" is the whole
@@ -74,13 +69,45 @@ export function LocalTime({
 }
 
 /**
- * Daylight, roughly.
+ * Which part of the day an hour falls in.
  *
- * 07:00 to 18:59, and deliberately not a sunrise calculation: that needs a
- * latitude this app does not have and would be wrong in a different way at the
- * poles. The glyph answers "are your colleagues likely at their desks", and an
- * hour of the clock is the right resolution for that question.
+ * Five bands rather than the two this had, and the two extra ones are the
+ * point: `dawn` and `dusk` are the hours where "are my colleagues at their
+ * desks" has a different answer at each end, and a light-or-dark split reported
+ * both as whichever side of 19:00 they landed on. 18:30 in Madrid is people
+ * finishing; 18:30 rendered as a bright sun said the working day was in full
+ * swing.
+ *
+ * Still the clock, still not a sunrise calculation. That needs a latitude this
+ * app does not have and is wrong in a different way at the poles. The glyph
+ * answers a question about a working day, and an hour is the right resolution
+ * for it.
  */
-function isDaytime(hour: number): boolean {
-  return hour >= 7 && hour < 19;
+export type Band = 'lateNight' | 'dawn' | 'daytime' | 'dusk' | 'night';
+
+export function bandFor(hour: number): Band {
+  // Anything a clock could not have produced reads as night rather than
+  // throwing: a glyph is not worth a crashed page.
+  if (!Number.isFinite(hour)) return 'night';
+  if (hour < 5) return 'lateNight';
+  if (hour < 8) return 'dawn';
+  if (hour < 17) return 'daytime';
+  if (hour < 20) return 'dusk';
+  return 'night';
 }
+
+/**
+ * The glyph and its tint, per band.
+ *
+ * Tints are literal palette steps rather than Reach tokens on purpose: this is
+ * a sky, not a state. `text-accent` here would re-point with the company's
+ * brand and make a customer on Plum have a purple midday, which is the one
+ * thing the colour is meant not to say.
+ */
+const BANDS: Record<Band, { glyph: typeof icons.daytime; tint: string }> = {
+  lateNight: { glyph: icons.lateNight, tint: 'text-indigo-300' },
+  dawn: { glyph: icons.dawn, tint: 'text-orange-400' },
+  daytime: { glyph: icons.daytime, tint: 'text-amber-500' },
+  dusk: { glyph: icons.dusk, tint: 'text-rose-400' },
+  night: { glyph: icons.night, tint: 'text-indigo-400' },
+};
