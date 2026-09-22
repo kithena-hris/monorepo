@@ -103,6 +103,24 @@ export class Person extends AggregateRoot<string> {
     return this.#status;
   }
 
+  /**
+   * The row this aggregate describes, for a repository writing it.
+   *
+   * Only the columns the state machine owns. Everything else a write may set
+   * arrives as `PersonFields` from the application layer, which is what stops
+   * a caller putting a record into a state no transition allows.
+   */
+  get snapshot(): PersonSnapshot {
+    return {
+      id: this.id,
+      tenantId: this.#tenantId,
+      status: this.#status,
+      identityAccountId: this.#identityAccountId,
+      hireDate: this.#hireDate,
+      lastWorkingDay: this.#lastWorkingDay,
+    };
+  }
+
   get hireDate(): string | null {
     return this.#hireDate;
   }

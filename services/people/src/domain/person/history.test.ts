@@ -12,12 +12,16 @@ import { correct, record, timelineOf, valueAsOf, type HistoryEntry } from './his
  * back-pay run.
  */
 
+const actor = { kind: 'system', process: 'test' } as const;
+
 const entry = (over: Partial<HistoryEntry> & { id: string }): HistoryEntry => ({
   attributeKey: 'base_salary',
   value: 50_000_00,
   effectiveFrom: '2026-01-01',
   recordedAt: '2026-01-01T09:00:00.000Z',
+  actor,
   supersedes: null,
+  eventId: null,
   ...over,
 });
 
@@ -56,6 +60,7 @@ describe('recording a change', () => {
       value: 55_000_00,
       effectiveFrom: '2026-06-01',
       recordedAt: '2026-05-20T09:00:00.000Z',
+      actor,
     });
 
     expect(next).toHaveLength(2);
@@ -72,6 +77,7 @@ describe('recording a change', () => {
       value: 'Staff Engineer',
       effectiveFrom: '2026-05-01',
       recordedAt: '2026-05-15T09:00:00.000Z',
+      actor,
     });
 
     expect(written).toMatchObject({
@@ -91,6 +97,7 @@ describe('a correction', () => {
       supersedes: 'h1',
       value: 50_000_00,
       recordedAt: '2026-04-01T09:00:00.000Z',
+      actor,
     });
 
     expect(corrected.ok).toBe(true);
@@ -112,6 +119,7 @@ describe('a correction', () => {
       supersedes: 'h1',
       value: 50_000_00,
       recordedAt: '2026-04-01T09:00:00.000Z',
+      actor,
     });
     if (!corrected.ok) return;
     expect(corrected.value[0]).toBe(typo);
@@ -123,6 +131,7 @@ describe('a correction', () => {
       supersedes: 'nope',
       value: 50_000_00,
       recordedAt: '2026-04-01T09:00:00.000Z',
+      actor,
     });
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
@@ -137,6 +146,7 @@ describe('a correction', () => {
       supersedes: 'h1',
       value: 50_000_00,
       recordedAt: '2026-04-01T09:00:00.000Z',
+      actor,
     });
     if (!once.ok) return;
 
@@ -145,6 +155,7 @@ describe('a correction', () => {
       supersedes: 'h1',
       value: 51_000_00,
       recordedAt: '2026-04-02T09:00:00.000Z',
+      actor,
     });
     expect(twice.ok).toBe(false);
     if (twice.ok) return;
@@ -177,6 +188,7 @@ describe('the timeline a correction produces', () => {
     supersedes: 'h1',
     value: 50_000_00,
     recordedAt: '2026-04-01T09:00:00.000Z',
+    actor,
   });
 
   it('does not read as a pay cut followed by a raise', () => {
