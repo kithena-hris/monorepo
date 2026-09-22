@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { accentHex } from '@kithena/contracts';
+
 import { toAddress, type EmailAddress } from './address.js';
 import { formatDeadline, linkIsTrusted, renderInvitation } from './invitation.js';
 import { dark, light, scale } from './palette.js';
@@ -16,6 +18,7 @@ const invitation: {
   enrolUrl: string;
   expiresAt: string;
   logoUrl: string | null;
+  themeId?: string | null | undefined;
 } = {
   companyName: 'Acme Corp',
   recipient: ada,
@@ -289,5 +292,51 @@ describe('the parts that make it read as ours', () => {
     expect(button).toBeGreaterThan(-1);
     expect(fallback).toBeGreaterThan(button);
     expect(message).toContain('<a href="https://auth.app.kithena.com/enrol?tenant=acme&amp;');
+  });
+});
+
+describe("the company's own colour", () => {
+  /**
+   * The theme an operator picks in the back office reaches the button here.
+   *
+   * It is the same accent the sign-in page the button leads to is filled with,
+   * so nobody changes colour on the way through. `accentHex` is what resolves
+   * it, because no mail client resolves `oklch()`.
+   */
+  const forest = accentHex('forest');
+  if (forest === null) throw new Error('forest is a preset and must resolve');
+
+  it('fills the button with the accent the company chose', () => {
+    const message = rendered({ themeId: 'forest' }).html;
+    // Both buttons: the VML one Outlook renders and the anchor every other
+    // client does. Only one is ever visible, and a change that moved one of
+    // them would be invisible in whichever client the author happened to open.
+    expect(message).toContain(`fillcolor="${forest}"`);
+    expect(message).toContain(`background:${forest};color:${light['fg-on-accent']}`);
+  });
+
+  it('carries the same colour in the rule across the top', () => {
+    expect(rendered({ themeId: 'forest' }).html).toContain(`background:${forest};">&nbsp;`);
+  });
+
+  it('leaves the wordmark alone', () => {
+    // Kithena's mark stays Kithena's colour. The company owns the button and
+    // the rule; it does not own the name of the product sending the message.
+    expect(rendered({ themeId: 'forest' }).html).toContain(`color:${light.accent};">Kithena`);
+  });
+
+  it('falls back to our own accent when the company chose no theme', () => {
+    for (const themeId of [null, undefined]) {
+      expect(rendered({ themeId }).html).toContain(`fillcolor="${light['accent-solid']}"`);
+    }
+  });
+
+  it('falls back rather than refusing when the preset is one this service cannot resolve', () => {
+    // A seventh preset ships and this service has not been redeployed. An
+    // invitation that refused to render would be an employee who cannot be
+    // onboarded; a message in the default colour is not.
+    expect(rendered({ themeId: 'heliotrope' }).html).toContain(
+      `fillcolor="${light['accent-solid']}"`,
+    );
   });
 });

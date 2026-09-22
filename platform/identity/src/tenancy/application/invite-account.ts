@@ -120,6 +120,8 @@ export interface InviteAccountDeps {
     displayName: string;
     /** Already through `brandingFor`. Null means "do not show a mark". */
     logoUrl: string | null;
+    /** The preset the company chose, which the message's button is filled with. */
+    themeId: string | null;
   } | null>;
   readonly inTenantTransaction: <T>(
     tenantId: string,
@@ -227,6 +229,7 @@ export function inviteAccount(deps: InviteAccountDeps): InviteAccount {
             // through `brandingFor`. Null here means the company asked not to
             // be shown, which the messaging service never has to know.
             logoUrl: tenant.logoUrl,
+            themeId: tenant.themeId,
           });
 
     return ok({

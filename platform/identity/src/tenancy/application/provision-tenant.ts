@@ -235,6 +235,10 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
                  * `checkProvisionable` refuses anything off the blob host.
                  */
                 logoUrl: checked.value.logoUrl,
+                // The theme chosen in the same wizard step, so the first
+                // administrator's invitation is already the company's colour
+                // rather than turning into it on their second message.
+                themeId: checked.value.themeId,
               }),
       });
     }

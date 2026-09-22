@@ -651,6 +651,9 @@ importers:
       '@kithena/auth-kit':
         specifier: workspace:*
         version: link:../../packages/auth-kit
+      '@kithena/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@kithena/db-kit':
         specifier: workspace:*
         version: link:../../packages/db-kit

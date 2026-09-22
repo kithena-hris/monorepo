@@ -1,3 +1,4 @@
+import { accentHex } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import type { EmailAddress } from './address.js';
@@ -46,6 +47,20 @@ export interface InvitationMessage {
    * adds a header. Null arrives here already meaning "do not show one".
    */
   readonly logoUrl?: string | null | undefined;
+  /**
+   * The theme the company chose in the back office, as a preset id.
+   *
+   * The button in this message is the one the login page it leads to is
+   * filled with, so a person clicking through does not change colour on the
+   * way. Null or unknown falls back to Kithena's own accent, which is what
+   * every message carried before a company could choose.
+   *
+   * An id rather than a colour, for the reason `ThemeId` gives: a stored
+   * `oklch(...)` pins a customer to whatever the preset was on the afternoon
+   * they signed up. Resolving it here means a retuned preset reaches every
+   * message that has not been sent yet.
+   */
+  readonly themeId?: string | null | undefined;
 }
 
 export interface RenderedMessage {
@@ -162,6 +177,10 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
       plainUrl: escapeHtml(message.enrolUrl),
       deadline: escapeHtml(deadline),
       logo: safeImageSrc(message.logoUrl ?? null),
+      // Kithena's own when the company chose nothing, or named a preset that
+      // no longer exists. `accentHex` returns null for both, which is why it
+      // does not simply default to Indigo itself.
+      accent: accentHex(message.themeId) ?? light['accent-solid'],
     }),
     text: text({
       copy,
@@ -241,6 +260,13 @@ interface View {
   readonly plainUrl: string;
   readonly deadline: string;
   readonly logo: string | null;
+  /**
+   * The company's accent, resolved to sRGB, already defaulted.
+   *
+   * A hex and not a preset id: the template renders colours, and a template
+   * that looked one up would be the second place a fallback had to be decided.
+   */
+  readonly accent: string;
 }
 
 /**
@@ -344,9 +370,12 @@ function html(view: View): string {
 
                   <!-- A 3px accent rule across the top. The one piece of
                        ornament, and it earns its place: it is what makes the
-                       card read as ours at a glance in a crowded inbox. -->
+                       card read as somebody's at a glance in a crowded inbox.
+                       The company's colour when they chose one, so it is the
+                       same rule their sign-in page opens with; Kithena's when
+                       they did not. -->
                   <tr>
-                    <td style="height:3px;line-height:3px;font-size:0;background:${light['accent-solid']};">&nbsp;</td>
+                    <td style="height:3px;line-height:3px;font-size:0;background:${view.accent};">&nbsp;</td>
                   </tr>
 
 ${logoRow(view, pad)}
@@ -496,13 +525,13 @@ function logoRow(view: View, pad: string): string {
  */
 function button(view: View): string {
   return `                      <!--[if mso]>
-                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${view.href}" style="height:${scale.controlHeight};v-text-anchor:middle;width:220px;" arcsize="18%" stroke="f" fillcolor="${light['accent-solid']}">
+                      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${view.href}" style="height:${scale.controlHeight};v-text-anchor:middle;width:220px;" arcsize="18%" stroke="f" fillcolor="${view.accent}">
                         <w:anchorlock/>
                         <center style="color:${light['fg-on-accent']};font-family:'Segoe UI',Arial,sans-serif;font-size:${scale.body.size};font-weight:500;">${view.copy.action}</center>
                       </v:roundrect>
                       <![endif]-->
                       <!--[if !mso]><!-- -->
-                      <a href="${view.href}" class="k-button" style="display:inline-block;box-sizing:border-box;height:${scale.controlHeight};line-height:${scale.controlHeight};padding:0 20px;background:${light['accent-solid']};color:${light['fg-on-accent']};font-size:${scale.body.size};font-weight:500;text-align:center;text-decoration:none;border-radius:${scale.radiusControl};mso-hide:all;">${view.copy.action}</a>
+                      <a href="${view.href}" class="k-button" style="display:inline-block;box-sizing:border-box;height:${scale.controlHeight};line-height:${scale.controlHeight};padding:0 20px;background:${view.accent};color:${light['fg-on-accent']};font-size:${scale.body.size};font-weight:500;text-align:center;text-decoration:none;border-radius:${scale.radiusControl};mso-hide:all;">${view.copy.action}</a>
                       <!--<![endif]-->`;
 }
 

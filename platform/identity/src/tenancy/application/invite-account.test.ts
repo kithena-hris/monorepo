@@ -53,7 +53,7 @@ function deps(
   return {
     written,
     sent: mail.sent,
-    tenantById: () => Promise.resolve({ slug: 'acme', displayName: 'Acme Corp', logoUrl: LOGO }),
+    tenantById: () => Promise.resolve({ slug: 'acme', displayName: 'Acme Corp', logoUrl: LOGO, themeId: null }),
     inTenantTransaction: (_tenantId, fn) => fn(scope),
     authOrigin: AUTH_ORIGIN,
     clock: fixedClock(TODAY),
@@ -292,7 +292,7 @@ describe('what the message is told about the company', () => {
       {},
       {
         tenantById: () =>
-          Promise.resolve({ slug: 'acme', displayName: 'Acme Corp', logoUrl: null }),
+          Promise.resolve({ slug: 'acme', displayName: 'Acme Corp', logoUrl: null, themeId: null }),
       },
     );
     await inviteAccount(d)(request);

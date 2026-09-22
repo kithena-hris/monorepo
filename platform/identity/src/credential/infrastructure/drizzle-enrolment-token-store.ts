@@ -40,6 +40,25 @@ function instantOf(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * A `date` column, as the calendar date it is.
+ *
+ * `employment_start` is a calendar date and not a timestamp — `CLAUDE.md` is
+ * explicit that hire, leave and birthday are `date` — but the driver hands one
+ * back as either a string or a `Date` depending on how it was written. Taking
+ * the first ten characters of an ISO string is the conversion that does not
+ * shift the day: `toISOString()` on a midnight-local `Date` west of Greenwich
+ * reports the day before.
+ */
+function calendarDate(value: unknown): string | null {
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (!(value instanceof Date)) return null;
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${String(year)}-${month}-${day}`;
+}
+
 export function drizzleEnrolmentTokenStore(
   tx: PostgresJsDatabase,
   tenantId: string,
@@ -100,14 +119,23 @@ export function drizzleEnrolmentTokenStore(
     async inspect(token) {
       const rows = await tx.execute(sql`
         SELECT e.purpose, e.expires_at, e.consumed_at, a.status AS account_status,
-               a.given_name, a.family_name, a.preferred_name
+               a.given_name, a.family_name, a.preferred_name,
+               a.employment_start, a.time_zone
           FROM platform.enrolment_token e
           JOIN platform.account a ON a.id = e.account_id
          WHERE e.token_hash = ${hashEnrolmentToken(token)}
       `);
 
       const row = [...rows][0];
-      if (!row) return { state: 'unknown', purpose: 'invitation', name: null };
+      if (!row) {
+        return {
+          state: 'unknown',
+          purpose: 'invitation',
+          name: null,
+          employmentStart: null,
+          timeZone: null,
+        };
+      }
 
       // The purpose travels alongside the state rather than being collapsed
       // into it. `enrolmentState` folds both into one word, which is what the
@@ -128,8 +156,21 @@ export function drizzleEnrolmentTokenStore(
       const family = row['family_name'];
       const preferred = row['preferred_name'];
 
+      /*
+       * The employment record the form shows back.
+       *
+       * `employment_start` is a `date` column, so the driver hands back either
+       * a string or a `Date` depending on how it was written — normalised here
+       * to the calendar date the form renders, rather than at three call sites
+       * that would each get it slightly wrong.
+       */
+      const employmentStart = row['employment_start'];
+      const timeZone = row['time_zone'];
+
       return {
         purpose,
+        employmentStart: calendarDate(employmentStart),
+        timeZone: typeof timeZone === 'string' ? timeZone : null,
         name:
           typeof given === 'string' && typeof family === 'string'
             ? {

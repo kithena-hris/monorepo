@@ -1,3 +1,4 @@
+import { isTimeZone } from '@kithena/contracts';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
 /**
@@ -263,27 +264,4 @@ function isCalendarDate(value: string): boolean {
   // Round-tripped, because `Date` rolls `2026-02-30` forward to 2 March
   // rather than refusing it.
   return !Number.isNaN(at.getTime()) && at.toISOString().startsWith(value);
-}
-
-/**
- * Whether the runtime recognises this zone.
- *
- * Asked of `Intl` rather than checked against a list, because the list is the
- * IANA database and it changes: zones are added, and a hard-coded copy is a
- * copy that refuses a real employee's real location. `Intl` throws a
- * `RangeError` for an unknown zone, which is the only reliable way to ask.
- */
-function isTimeZone(value: string): boolean {
-  if (value === '') return false;
-  try {
-    // Constructed for its side effect, which is throwing. There is no predicate
-    // to call: `Intl.supportedValuesOf('timeZone')` exists but returns the
-    // canonical list only, so it refuses `Asia/Calcutta` and every other alias
-    // a real employee's device reports.
-    // oxlint-disable-next-line no-new
-    new Intl.DateTimeFormat('en-CA', { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
 }

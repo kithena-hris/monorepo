@@ -58,6 +58,8 @@ beforeAll(async () => {
     '20260830100000_enrolment_token_purpose.sql',
     // The name columns, which completing an enrolment writes.
     '20260919160000_account_name.sql',
+    // And the number beside them, written by the same step.
+    '20260921230000_account_mobile.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
@@ -115,7 +117,12 @@ const rp = simpleWebAuthnRelyingParty({ rpId: RP_ID, rpName: 'Kithena' });
 /** Run enrolment the way the route would, and report what it did. */
 async function enrol(
   authenticator: ReturnType<typeof softwareAuthenticator>,
-  options: { token?: string; clockAt?: string; origin?: string } = {},
+  options: {
+    token?: string;
+    clockAt?: string;
+    origin?: string;
+    profile?: { timeZone: string; mobile: string | null };
+  } = {},
 ): Promise<{ result: Result<{ accountId: string; credentialId: string }>; refusals: string[] }> {
   const refusals: string[] = [];
 
@@ -161,6 +168,14 @@ async function enrol(
            WHERE id = ${accountId}::uuid
         `);
       },
+      recordProfile: async (accountId, profile) => {
+        await tx.execute(sql`
+          UPDATE platform.account
+             SET time_zone = ${profile.timeZone},
+                 mobile = ${profile.mobile}
+           WHERE id = ${accountId}::uuid
+        `);
+      },
       storeCredential: async (identityId, credential) => {
         const id = uuidv7();
         await tx.execute(sql`
@@ -191,7 +206,14 @@ async function enrol(
       origins: { rpId: RP_ID, authOrigin: 'https://auth.app.kithena.com' },
       clock: systemClock,
       onRefusal: (reason) => refusals.push(reason),
-    })({ tenantId: TENANT, token, response, origin, challenge });
+    })({
+      tenantId: TENANT,
+      token,
+      response,
+      origin,
+      challenge,
+      ...(options.profile === undefined ? {} : { profile: options.profile }),
+    });
 
     return { result, refusals };
   });
@@ -311,3 +333,70 @@ describe('re-issuing a link', () => {
     expect(Buffer.from(stored as Uint8Array)).toHaveLength(32);
   });
 });
+
+describe('what onboarding collects', () => {
+  /**
+   * The zone is the whole reason this is asked at enrolment.
+   *
+   * Every invitation path writes `Etc/UTC` when HR types nothing —
+   * `checkEmployment` defaults it there, and so does the first-administrator
+   * path — so a clock rendered from the account said UTC for everybody. The
+   * person enrolling is in front of the one device that knows the answer.
+   */
+  it('writes the zone and the number the person confirmed', async () => {
+    await invitedAccount();
+    // The state every invitation path leaves behind, set explicitly rather
+    // than assumed: `invitedAccount` reuses one row across this file, so a
+    // test that trusted the previous one's leftovers would pass or fail on
+    // the order they happen to run in.
+    await admin.execute(sql`
+      UPDATE platform.account
+         SET time_zone = 'Etc/UTC', mobile = NULL
+       WHERE id = ${ACCOUNT}::uuid
+    `);
+
+    const { result } = await enrol(softwareAuthenticator('new-passkey'), {
+      profile: { timeZone: 'Europe/Madrid', mobile: '+34 600 123 456' },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(await profileOfAccount()).toEqual({
+      timeZone: 'Europe/Madrid',
+      mobile: '+34 600 123 456',
+    });
+  });
+
+  /**
+   * A recovery link never shows the form, so the page sends no profile — and
+   * this is what makes that safe. Writing the draft anyway would move a
+   * returning employee to wherever they happened to be sitting and delete the
+   * number their HR team had just used to verify them.
+   */
+  it('leaves both columns alone when no profile is sent', async () => {
+    await invitedAccount();
+    await admin.execute(sql`
+      UPDATE platform.account
+         SET time_zone = 'Europe/Berlin', mobile = '+49 151 1234567'
+       WHERE id = ${ACCOUNT}::uuid
+    `);
+
+    const { result } = await enrol(softwareAuthenticator('new-passkey'));
+
+    expect(result.ok).toBe(true);
+    expect(await profileOfAccount()).toEqual({
+      timeZone: 'Europe/Berlin',
+      mobile: '+49 151 1234567',
+    });
+  });
+});
+
+async function profileOfAccount(): Promise<{ timeZone: string; mobile: string | null }> {
+  const rows = await admin.execute(
+    sql`SELECT time_zone, mobile FROM platform.account WHERE id = ${ACCOUNT}::uuid`,
+  );
+  const row = [...rows][0];
+  return {
+    timeZone: String(row?.['time_zone']),
+    mobile: typeof row?.['mobile'] === 'string' ? row['mobile'] : null,
+  };
+}
