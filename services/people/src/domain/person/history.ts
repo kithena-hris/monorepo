@@ -1,4 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import type { Actor } from '@kithena/contracts';
 
 /**
  * Effective-dated values, and corrections that are not overwrites.
@@ -23,8 +24,24 @@ export interface HistoryEntry {
   readonly effectiveFrom: string;
   /** When we recorded it. */
   readonly recordedAt: string;
+  /**
+   * Who did it: a person, an integration or a system process.
+   *
+   * On the entry rather than looked up later, because "who changed this" is
+   * the first question asked about a value somebody disputes, and an
+   * after-the-fact join to a session that has since expired does not answer
+   * it.
+   */
+  readonly actor: Actor;
   /** The entry this one replaces. Null for an ordinary change. */
   readonly supersedes: string | null;
+  /**
+   * The outbox event this change produced.
+   *
+   * Null until the write that publishes it, so a row and its event can be
+   * tied together when somebody is reading an incident backwards.
+   */
+  readonly eventId: string | null;
 }
 
 export interface RecordedChange {
@@ -33,6 +50,8 @@ export interface RecordedChange {
   readonly value: unknown;
   readonly effectiveFrom: string;
   readonly recordedAt: string;
+  readonly actor: Actor;
+  readonly eventId?: string | null;
 }
 
 export interface Correction {
@@ -40,6 +59,8 @@ export interface Correction {
   readonly supersedes: string;
   readonly value: unknown;
   readonly recordedAt: string;
+  readonly actor: Actor;
+  readonly eventId?: string | null;
 }
 
 /**
@@ -53,7 +74,7 @@ export function record(
   history: readonly HistoryEntry[],
   change: RecordedChange,
 ): readonly HistoryEntry[] {
-  return [...history, { ...change, supersedes: null }];
+  return [...history, { ...change, supersedes: null, eventId: change.eventId ?? null }];
 }
 
 /**
@@ -98,7 +119,9 @@ export function correct(
       value: correction.value,
       effectiveFrom: target.effectiveFrom,
       recordedAt: correction.recordedAt,
+      actor: correction.actor,
       supersedes: correction.supersedes,
+      eventId: correction.eventId ?? null,
     },
   ]);
 }

@@ -305,7 +305,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Storage
 
-### [ ] PEO-018 — Registry tables
+### [x] PEO-018 — Registry tables
 
 - **Spec** PRD §11.1
 - **Files** `migrations/<ts>_people_registry.sql`
@@ -317,7 +317,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test proves a definition row cannot be inserted
   without a policy, and that a second tenant's connection sees none of it.
 
-### [ ] PEO-019 — Person tables
+### [x] PEO-019 — Person tables
 
 - **Spec** PRD §11.1, §11.2
 - **Files** `migrations/<ts>_people_person.sql`
@@ -330,7 +330,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** RLS is proven per table, and a test asserts
   `people.person_secret` has no plaintext column.
 
-### [ ] PEO-020 — Repositories and the outbox
+### [x] PEO-020 — Repositories and the outbox
 
 - **Spec** PRD §7, rule 2
 - **Files** `services/people/src/infrastructure/`
