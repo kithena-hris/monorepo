@@ -12,3 +12,8 @@ export * from './address.js';
 export * from './branding.js';
 export * from './person-name.js';
 export * from './person-profile.js';
+export * from './people/primitives.js';
+export * from './people/data-type.js';
+export * from './people/requiredness.js';
+export * from './people/policy.js';
+export * from './people/attribute-definition.js';

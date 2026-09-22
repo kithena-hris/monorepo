@@ -19,8 +19,16 @@ export type PiiKind = 'identity' | 'financial' | 'contact' | 'health' | 'biometr
 export interface RetentionPolicy {
   /** Months after the employment relationship ends. */
   readonly monthsAfterTermination: number;
-  /** Some categories are held longer by statute regardless of tenant policy. */
-  readonly statutoryFloor?: 'es-labour' | 'de-labour' | 'eu-payroll';
+  /**
+   * Some categories are held longer by statute regardless of tenant policy.
+   *
+   * `| undefined` is spelled out because `exactOptionalPropertyTypes` is on and
+   * a tenant-defined attribute's policy is *parsed* rather than written by
+   * hand: Zod's `.optional()` produces `T | undefined`, and without this the
+   * runtime registry in `people/policy.ts` would be a near-mirror that the
+   * compiler refuses to call the same shape. One vocabulary is the point.
+   */
+  readonly statutoryFloor?: 'es-labour' | 'de-labour' | 'eu-payroll' | undefined;
 }
 
 export interface FieldPolicy {
@@ -30,7 +38,8 @@ export interface FieldPolicy {
   readonly exportable: boolean;
   /** May be sent to a model. Never true for special-category data. */
   readonly aiEligible: boolean;
-  readonly retention?: RetentionPolicy;
+  /** `| undefined` for the reason given on `statutoryFloor` above. */
+  readonly retention?: RetentionPolicy | undefined;
 }
 
 export const policy = z.registry<FieldPolicy>();
