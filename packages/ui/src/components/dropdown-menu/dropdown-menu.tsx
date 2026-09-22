@@ -34,6 +34,16 @@ interface HoverState {
   readonly open: () => void;
   readonly close: () => void;
   readonly hold: () => void;
+  /**
+   * Whether the pointer is what opened this, rather than a click or a key.
+   *
+   * The content reads it to decide whether to take focus. A menu the pointer
+   * opened must not — moving the pointer past somebody's name should not steal
+   * the caret out of whatever they were typing. A menu a key opened must, or
+   * the arrow keys have nothing to move through and the items cannot be
+   * reached at all.
+   */
+  readonly openedByPointer: () => boolean;
 }
 
 const HoverContext = createContext<HoverState | null>(null);
@@ -68,9 +78,19 @@ export function DropdownMenu({
   open,
   defaultOpen,
   onOpenChange,
+  modal,
   ...props
 }: DropdownMenuProps): JSX.Element {
-  const [hoverOpen, setHoverOpen] = useState(false);
+  /*
+   * Seeded from `defaultOpen`, which hover mode used to drop on the floor.
+   *
+   * The hover branch below is controlled — `open: open ?? hoverOpen` — so an
+   * uncontrolled `defaultOpen` never reached Radix and a menu asked to start
+   * open started closed. Seeding the state is the whole fix, and it keeps
+   * `defaultOpen` meaning the same thing in both modes.
+   */
+  const [hoverOpen, setHoverOpen] = useState(defaultOpen ?? false);
+  const pointerOpened = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hold = useCallback(() => {
@@ -83,6 +103,7 @@ export function DropdownMenu({
       enabled: openOnHover,
       open: () => {
         hold();
+        pointerOpened.current = true;
         setHoverOpen(true);
         onOpenChange?.(true);
       },
@@ -94,9 +115,36 @@ export function DropdownMenu({
         }, hoverCloseDelay);
       },
       hold,
+      openedByPointer: () => pointerOpened.current,
     }),
     [openOnHover, hoverCloseDelay, hold, onOpenChange],
   );
+
+  /*
+   * A hover menu is not modal, and that is what makes hover work at all.
+   *
+   * Radix defaults `modal` to true, which puts `pointer-events: none` on the
+   * body while the menu is open. The trigger is not inside the content, so it
+   * stops receiving pointer events the instant the menu appears —
+   * `pointerleave` fires on a pointer that has not moved, the close timer runs,
+   * the body is restored, the pointer is found over the trigger again, and it
+   * reopens. Measured on the sidebar profile menu: every open and close paired
+   * exactly with `pointer-events` going `none` and back, for as long as the
+   * pointer stayed there.
+   *
+   * Resolved here rather than spread before `...props`, which is where this
+   * first went and where it did nothing. `DropdownMenuProps` extends Radix's
+   * root props, so `modal` is a prop a caller may name — and any caller that
+   * spreads an object carrying `modal: undefined` (Storybook's args do, for
+   * every documented prop) puts the default back. `undefined` has to mean
+   * "not asked", not "asked for the default".
+   *
+   * Losing modality costs nothing here. It is what stops the rest of the page
+   * being marked inert for a menu a stray pointer movement is meant to
+   * dismiss, and dismissal still works either way: `DismissableLayer` handles
+   * outside clicks and Escape.
+   */
+  const resolvedModal = modal ?? !openOnHover;
 
   // Uncontrolled unless hover is on. Taking control otherwise would break
   // every existing caller that passes neither `open` nor `onOpenChange`.
@@ -105,6 +153,11 @@ export function DropdownMenu({
         open: open ?? hoverOpen,
         onOpenChange: (next: boolean) => {
           hold();
+          // Radix is the one reporting this, so it was a click, a key or a
+          // dismissal — never the pointer, which goes through `hover.open`
+          // above. A click on a trigger the pointer is already over arrives
+          // here after `pointerenter` and correctly overwrites it.
+          if (next) pointerOpened.current = false;
           setHoverOpen(next);
           onOpenChange?.(next);
         },
@@ -117,7 +170,7 @@ export function DropdownMenu({
 
   return (
     <HoverContext value={hover}>
-      <DropdownMenuPrimitive.Root {...rootProps} {...props} />
+      <DropdownMenuPrimitive.Root modal={resolvedModal} {...rootProps} {...props} />
     </HoverContext>
   );
 }
@@ -170,10 +223,27 @@ export function DropdownMenuContent({
           ? {
               onPointerEnter: hover.hold,
               onPointerLeave: hover.close,
-              // The pointer never reaches content that steals focus on open
-              // and then closes when the trigger loses hover.
+              /*
+               * Focus follows the key, never the pointer.
+               *
+               * A menu the pointer merely passed over must not take focus:
+               * moving toward somebody's name at the bottom of a sidebar
+               * should not pull the caret out of whatever they were typing.
+               *
+               * A menu opened with Enter or Space must, and this is where that
+               * was lost. It used to prevent the focus unconditionally, which
+               * made a keyboard-opened menu one you could open and never enter
+               * — arrow keys had nothing to move through and sign-out could not
+               * be reached at all, in the one component whose own
+               * documentation says hover is "in addition, never instead".
+               *
+               * The reason it was unconditional has since been fixed: content
+               * that took focus used to close the menu, because a modal menu
+               * had disabled pointer events on the body and the trigger was
+               * already losing hover. See `resolvedModal` above.
+               */
               onOpenAutoFocus: (event: Event) => {
-                event.preventDefault();
+                if (hover.openedByPointer()) event.preventDefault();
               },
             }
           : {})}
