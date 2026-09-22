@@ -69,7 +69,7 @@ Phase 1 is done when every box down to PEO-060 is ticked and
 
 Three small things that other tickets wait on. None takes a day.
 
-### [ ] PEO-001 — Export the four missing charts from Reach
+### [x] PEO-001 — Export the four missing charts from Reach
 
 **Goal** `HorizontalBarChart`, `StackedBarChart`, `HeatmapChart` and
 `FunnelChart` are implemented in
@@ -84,7 +84,7 @@ from the package's public API. Analytics needs all four.
 - **Done when** `pnpm --filter @reach/ui typecheck` passes, the four are
   importable from `@reach/ui`, and `pnpm test:stories` is green.
 
-### [ ] PEO-002 — `identity.account.profile_captured`
+### [x] PEO-002 — `identity.account.profile_captured`
 
 **Goal** Identity captures a name, time zone and mobile at enrolment and
 publishes nothing. People cannot see any of it, and polling another service's
@@ -104,7 +104,7 @@ table is not a thing this system does.
   no `mobile` field, and an integration test sees the event in the outbox after
   an enrolment.
 
-### [ ] PEO-003 — `svc_people` and the schema bootstrap
+### [x] PEO-003 — `svc_people` and the schema bootstrap
 
 **Goal** A database role and an empty `people` schema with the RLS pattern the
 rest of the tickets build on.
@@ -129,7 +129,7 @@ rest of the tickets build on.
 Nothing below writes to a database. Get the vocabulary right first; every other
 track reads it.
 
-### [ ] PEO-004 — Registry primitives
+### [x] PEO-004 — Registry primitives
 
 - **Spec** PRD §6.2, Appendix B
 - **Files** `packages/contracts/src/people/primitives.ts`
@@ -140,7 +140,7 @@ track reads it.
 - **Done when** `just codegen` passes and a test proves a key with a hyphen,
   a leading digit or an uppercase letter is refused.
 
-### [ ] PEO-005 — Data types and their configuration
+### [x] PEO-005 — Data types and their configuration
 
 - **Spec** PRD §6.4
 - **Files** `packages/contracts/src/people/data-type.ts`
@@ -153,7 +153,7 @@ track reads it.
 - **Done when** a test proves a `select` without options fails to parse, and a
   `money` config cannot express a float.
 
-### [ ] PEO-006 — Requiredness and its predicate
+### [x] PEO-006 — Requiredness and its predicate
 
 - **Spec** PRD §6.5
 - **Files** `packages/contracts/src/people/requiredness.ts`
@@ -166,7 +166,7 @@ track reads it.
 - **Done when** a test proves an unknown operand is refused at parse time, not
   at evaluation time.
 
-### [ ] PEO-007 — `AttributeDefinition`
+### [x] PEO-007 — `AttributeDefinition`
 
 - **Spec** PRD §6.2, Appendix B
 - **Files** `packages/contracts/src/people/attribute-definition.ts`
@@ -177,7 +177,7 @@ track reads it.
 - **Done when** tests prove both refinements refuse, and that `includeInEvents`
   defaults to false for anything `confidential` or above.
 
-### [ ] PEO-008 — `FieldPolicySchema` and the runtime registry type
+### [x] PEO-008 — `FieldPolicySchema` and the runtime registry type
 
 - **Spec** PRD §12.2
 - **Files** `packages/contracts/src/people/policy.ts`
@@ -188,7 +188,7 @@ track reads it.
 - **Done when** a type-level test asserts `z.infer<typeof FieldPolicySchema>`
   is assignable to `FieldPolicy` and back.
 
-### [ ] PEO-009 — Schema events
+### [x] PEO-009 — Schema events
 
 - **Spec** PRD §10.1
 - **Files** `packages/contracts/src/events/people.ts`
@@ -200,7 +200,7 @@ track reads it.
 - **Done when** a contract test asserts no schema event payload can hold a
   person id or a value.
 
-### [ ] PEO-010 — Person events
+### [x] PEO-010 — Person events
 
 - **Spec** PRD §10.2, §10.3
 - **Files** `packages/contracts/src/events/people.ts`
@@ -218,7 +218,7 @@ track reads it.
 
 Test-first, all of it. No drivers, no I/O.
 
-### [ ] PEO-011 — Section and attribute aggregates
+### [x] PEO-011 — Section and attribute aggregates
 
 - **Spec** PRD §6.2, §6.3
 - **Files** `services/people/src/domain/schema/`
@@ -231,7 +231,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** every invariant has a failing-first test and `just test` is
   green with no database running.
 
-### [ ] PEO-012 — Publishing a schema version
+### [x] PEO-012 — Publishing a schema version
 
 - **Spec** PRD §6.1, §9.3
 - **Files** `services/people/src/domain/schema/publish.ts`
@@ -243,7 +243,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test proves a published version cannot be mutated, and that a
   rollback produces version n+1 rather than editing n−1.
 
-### [ ] PEO-013 — Requiredness evaluation
+### [x] PEO-013 — Requiredness evaluation
 
 - **Spec** PRD §6.5
 - **Files** `services/people/src/domain/schema/requiredness.ts`
@@ -256,7 +256,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test covers each operand, `requiredFrom` in the past and
   future, and the unevaluable case.
 
-### [ ] PEO-014 — Completeness
+### [x] PEO-014 — Completeness
 
 - **Spec** PRD §8.4
 - **Files** `services/people/src/domain/person/completeness.ts`
@@ -267,7 +267,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** tests cover a provisional record, a newly-required field with a
   future `requiredFrom`, and a field required only in one country.
 
-### [ ] PEO-015 — The person aggregate and its state machine
+### [x] PEO-015 — The person aggregate and its state machine
 
 - **Spec** PRD §8.1
 - **Files** `services/people/src/domain/person/`
@@ -278,7 +278,7 @@ Test-first, all of it. No drivers, no I/O.
   state permitting a hard delete.
 - **Done when** every illegal transition has a test proving it is refused.
 
-### [ ] PEO-016 — Effective-dated values and corrections
+### [x] PEO-016 — Effective-dated values and corrections
 
 - **Spec** PRD §8.5
 - **Files** `services/people/src/domain/person/history.ts`
@@ -290,7 +290,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test proves a salary typo corrected three months later does
   not read as a pay cut followed by a raise.
 
-### [ ] PEO-017 — Field-level authorization
+### [x] PEO-017 — Field-level authorization
 
 - **Spec** PRD §6.6
 - **Files** `services/people/src/domain/access/`
