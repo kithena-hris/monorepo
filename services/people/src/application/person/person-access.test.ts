@@ -777,3 +777,67 @@ describe('filtering the directory', () => {
     expect(page.ok ? 'allowed' : page.error.code).toBe('FILTER_WITH_AS_OF');
   });
 });
+
+describe('searching the directory (PEO-117)', () => {
+  const given = define({ key: 'given_name', visibility: ['directory'], ownership: ['hr'] });
+  const family = define({ key: 'family_name', visibility: ['directory'], ownership: ['hr'] });
+  const email = define({ key: 'work_email', visibility: ['self', 'hr'], ownership: ['hr'] });
+
+  function directory(names = given, surnames = family) {
+    const store = inMemoryPeople([versionOf(4, [names, surnames, email])]);
+    store.seed(MARCO, {
+      account: MARCO_ACCOUNT,
+      fields: { givenName: 'Marco', familyName: 'Rossi', workEmail: 'marco@acme.example' },
+    });
+    store.seed(ADA, {
+      account: ADA_ACCOUNT,
+      fields: { givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.example' },
+    });
+    return personAccess(store.deps);
+  }
+  const found = async (
+    people: ReturnType<typeof directory>,
+    who: typeof hr,
+    search: string,
+  ): Promise<unknown> => {
+    const page = await people.list(tx, { ...asking(who), limit: 50, search });
+    return page.ok ? page.value.items.map((p) => p.id) : page.error.code;
+  };
+
+  it('matches a full name, case-insensitively, and counts what it matched', async () => {
+    const people = directory();
+    expect(await found(people, ada, 'ada LOVE')).toEqual([ADA]);
+    expect(await people.count(tx, { ...asking(ada), search: 'o' })).toEqual(
+      ok({ all: 2, active: 2 }),
+    );
+  });
+
+  it('matches an email only for a viewer who reads everybody’s', async () => {
+    const people = directory();
+    // HR reads every work email; Ada reads only her own, so for her an email
+    // is not searched at all, rather than answered for the people she can see.
+    expect(await found(people, hr, 'marco@')).toEqual([MARCO]);
+    expect(await found(people, ada, 'marco@')).toEqual([]);
+  });
+
+  it('searches only the names readable on everybody, and refuses when there is none', async () => {
+    const hidden = (key: string) =>
+      define({ key, visibility: ['self', 'manager', 'hr'], ownership: ['hr'] });
+    const surnamesOnly = directory(hidden('given_name'));
+    expect(await found(surnamesOnly, ada, 'Rossi')).toEqual([MARCO]);
+    expect(await found(surnamesOnly, ada, 'Marco')).toEqual([]);
+    const noNames = directory(hidden('given_name'), hidden('family_name'));
+    expect(await found(noNames, ada, 'Marco')).toBe('FIELD_NOT_FILTERABLE');
+    expect(await found(noNames, hr, 'Marco')).toEqual([MARCO]);
+  });
+
+  it('refuses a search combined with asOf, which it cannot honour', async () => {
+    const page = await directory().list(tx, {
+      ...asking(hr),
+      limit: 50,
+      asOf: '2026-01-01',
+      search: 'Ada',
+    });
+    expect(page.ok ? 'allowed' : page.error.code).toBe('FILTER_WITH_AS_OF');
+  });
+});

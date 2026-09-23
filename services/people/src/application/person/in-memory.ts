@@ -13,7 +13,7 @@ import type { Attribute, Section } from '../../domain/schema/draft.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
-import type { PersonRecord } from './ports.js';
+import type { PersonRecord, PersonSearch } from './ports.js';
 import { utcCalendars } from '../org/org.js';
 
 /**
@@ -155,6 +155,26 @@ export function inMemoryPeople(
       ),
   };
 
+  /** What the Drizzle reader's predicate answers, over the rows in memory. */
+  const matches = (
+    r: Row,
+    where: Readonly<Record<string, string>>,
+    search: PersonSearch | undefined,
+  ): boolean => {
+    if (!Object.entries(where).every(([k, v]) => r.fields.custom[k] === v)) return false;
+    const text = search?.text.trim().toLocaleLowerCase('en') ?? '';
+    if (text === '') return true;
+    const values = toRecord(r).values;
+    const keys = new Set<string>(search?.keys ?? []);
+    const texts = [...keys].map((k) => values[k]);
+    for (const given of ['given_name', 'preferred_name']) {
+      if (keys.has(given) && keys.has('family_name')) {
+        texts.push([values[given], values['family_name']].filter((v) => v != null).join(' '));
+      }
+    }
+    return texts.some((t) => typeof t === 'string' && t.toLocaleLowerCase('en').includes(text));
+  };
+
   const deps: PersonAccessDeps = {
     calendars: utcCalendars,
     people,
@@ -163,15 +183,22 @@ export function inMemoryPeople(
         const row = rows.get(id);
         return Promise.resolve(row ? toRecord(row) : null);
       },
-      page: (_tx, _tenant, after, limit, where = {}) =>
+      page: (_tx, _tenant, after, limit, where = {}, search) =>
         Promise.resolve(
           [...rows.values()]
             .filter((r) => after === null || r.snapshot.id > after)
-            .filter((r) => Object.entries(where).every(([k, v]) => r.fields.custom[k] === v))
+            .filter((r) => matches(r, where, search))
             .toSorted((a, b) => a.snapshot.id.localeCompare(b.snapshot.id))
             .slice(0, limit)
             .map(toRecord),
         ),
+      count: (_tx, _tenant, where = {}, search) => {
+        const found = [...rows.values()].filter((r) => matches(r, where, search));
+        return Promise.resolve({
+          all: found.length,
+          active: found.filter((r) => r.snapshot.status === 'active').length,
+        });
+      },
       personOf: (_tx, _tenant, accountId) =>
         Promise.resolve(
           [...rows.values()].find((r) => r.snapshot.identityAccountId === accountId)?.snapshot.id ??

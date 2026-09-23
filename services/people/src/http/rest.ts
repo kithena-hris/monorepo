@@ -125,6 +125,13 @@ export const ListQuery = z.object({
     .describe(
       'Equality on tenant-defined attributes, `key:value` pairs joined by commas, e.g. `cost_centre:ENG-204`. Only keys you can read on everybody; not with asOf.',
     ),
+  search: z
+    .string()
+    .max(200)
+    .optional()
+    .describe(
+      'A case-insensitive substring of a name or work email, matched only against those you can read on everybody; not with asOf.',
+    ),
 });
 
 /** `cost_centre:ENG-204,location:BCN` as a record. */
@@ -775,6 +782,7 @@ export function restHandler(
               after: cursorIn(q.value.cursor),
               ...(q.value.asOf ? { asOf: q.value.asOf } : {}),
               where: filterIn(q.value.filter),
+              ...(q.value.search === undefined ? {} : { search: q.value.search }),
             }),
           ),
           200,

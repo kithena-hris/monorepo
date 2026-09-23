@@ -188,7 +188,10 @@ export { saveSection };
 /* ---------------------------------------------------------- directory -- */
 
 export interface DirectoryView {
+  /** Active people among everybody the search and filters match, not only this page. */
   readonly active: number;
+  /** Everybody the search and filters match. */
+  readonly matching: number;
   readonly incomplete: number | null;
   readonly columns: readonly { readonly key: string; readonly label: string }[];
   readonly filterable: readonly {
@@ -204,6 +207,8 @@ export interface DirectoryView {
     readonly values: Readonly<Record<string, string>>;
     readonly missing: number | null;
   }[];
+  /** The cursor for the page after this one; null on the last page. */
+  readonly next: string | null;
   /** Which of the screen's two buttons this viewer gets (§13.1). */
   readonly can: { readonly import: boolean; readonly export: boolean };
 }
@@ -211,10 +216,25 @@ export interface DirectoryView {
 /** Shown as columns: in the directory, and readable on everybody. */
 const COLUMN_SKIP = new Set(['given_name', 'family_name', 'preferred_name', 'work_email']);
 
+/** A directory page. Keyset, so the last page of 50,000 costs what the first does. */
+export const DIRECTORY_PAGE = 50;
+
+/**
+ * One page of the directory (PEO-117).
+ *
+ * Search, filters and paging all run in Postgres through `PersonAccess.list`,
+ * so they reach everybody rather than a first page, and are authorized as
+ * every list is: a filter on a key the viewer cannot read on everybody, or a
+ * search when no name is, is refused rather than answered.
+ */
 export async function directoryView(
   deps: ScreenDeps,
   asking: Asking,
-  query: { readonly search: string; readonly filters: Readonly<Record<string, string>> },
+  query: {
+    readonly search: string;
+    readonly filters: Readonly<Record<string, string>>;
+    readonly after?: string | null;
+  },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const version = await deps.service.schemas.current(tx, asking.tenantId);
@@ -222,13 +242,20 @@ export async function directoryView(
     const definitions = version.document.attributes.filter((d) => d.deprecatedAt === null);
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
 
-    const filters = Object.keys(query.filters);
-    const allowed = filterable(definitions, filters, everyone);
-    if (!allowed.ok) return allowed;
-
-    const listed = await everybody(deps, tx, asking, query.filters);
+    const narrowed = {
+      ...asking,
+      where: query.filters,
+      ...(query.search.trim() === '' ? {} : { search: query.search }),
+    };
+    const listed = await deps.service.access.list(tx, {
+      ...narrowed,
+      after: query.after ?? null,
+      limit: DIRECTORY_PAGE,
+    });
     if (!listed.ok) return listed;
-    const names = new Map(pickable(listed.value).map((p) => [p.value, p.label]));
+    const counted = await deps.service.access.count(tx, narrowed);
+    if (!counted.ok) return counted;
+    const page = listed.value.items;
 
     const columns = definitions.filter(
       (d) => d.includeInDirectory && !COLUMN_SKIP.has(d.key) && visibleTo(d, everyone),
@@ -236,12 +263,38 @@ export async function directoryView(
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
     );
-    const search = query.search.trim().toLocaleLowerCase('en');
 
-    // ponytail: search runs over the first `PAGE` people this viewer can list.
-    // A tenant past that needs the search index the PRD's directory projection describes.
-    const people = listed.value
-      .map((p) => {
+    // A person column (a manager) names somebody who may be on another page:
+    // each one this page mentions is read, as this viewer may read them.
+    const names = new Map(pickable(page).map((p) => [p.value, p.label]));
+    const refs = new Set(
+      columns
+        .filter((c) => c.typeConfig.kind === 'person_ref')
+        .flatMap((c) => page.map((p) => p.attributes[c.key]))
+        .filter((v): v is string => typeof v === 'string' && !names.has(v)),
+    );
+    for (const personId of refs) {
+      const read = await deps.service.access.read(tx, { ...asking, personId });
+      const name = read.ok ? nameOf(read.value.attributes) : null;
+      if (name !== null) names.set(personId, name);
+    }
+
+    return ok({
+      active: counted.value.active,
+      matching: counted.value.all,
+      incomplete: null,
+      columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
+      filterable: selects.map((d) => ({
+        key: d.key,
+        label: d.label.default,
+        options:
+          d.typeConfig.kind === 'select'
+            ? d.typeConfig.options
+                .filter((o) => o.retiredAt === null)
+                .map((o) => ({ value: o.value, label: o.label.default }))
+            : [],
+      })),
+      people: page.map((p) => {
         const email = p.attributes['work_email'];
         return {
           id: p.id,
@@ -262,38 +315,9 @@ export async function directoryView(
             }),
           ),
           missing: null,
-          status: p.status,
         };
-      })
-      .filter(
-        (p) =>
-          search === '' ||
-          p.name.toLocaleLowerCase('en').includes(search) ||
-          (p.email ?? '').toLocaleLowerCase('en').includes(search),
-      );
-
-    return ok({
-      active: people.filter((p) => p.status === 'active').length,
-      incomplete: null,
-      columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
-      filterable: selects.map((d) => ({
-        key: d.key,
-        label: d.label.default,
-        options:
-          d.typeConfig.kind === 'select'
-            ? d.typeConfig.options
-                .filter((o) => o.retiredAt === null)
-                .map((o) => ({ value: o.value, label: o.label.default }))
-            : [],
-      })),
-      people: people.map((p) => ({
-        id: p.id,
-        name: p.name,
-        email: p.email,
-        avatarUrl: p.avatarUrl,
-        values: p.values,
-        missing: p.missing,
-      })),
+      }),
+      next: listed.value.next,
       // An export is a read, so everybody may build one of what they can see.
       can: { import: everyone.isHr, export: true },
     });
