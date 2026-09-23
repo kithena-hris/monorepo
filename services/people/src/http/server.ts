@@ -36,7 +36,17 @@ import { openFgaFrom } from '../infrastructure/openfga.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
-import { webhooks } from '../infrastructure/webhooks/webhooks.js';
+import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
+import { listEndpoints } from '../infrastructure/webhooks/list.js';
+import { drizzleImportLedger, drizzleRowScope } from '../application/import/ledger.js';
+import { publishSchema } from '../application/schema/publish-schema.js';
+import {
+  drizzleDraftWriter,
+  drizzlePeopleFacts,
+  drizzleSchemaRepository,
+} from '../infrastructure/drizzle-schema-repository.js';
+import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
+import { bodyLimit, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { callerFromHeaders } from './caller.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
@@ -63,7 +73,10 @@ export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
   return openFgaFrom(env)?.relations ?? drizzleRelations();
 }
 
-export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
+export function peopleService(
+  databaseUrl: string,
+  secretKeys: string | undefined,
+): PeopleService & { readonly webhooks: WebhookService } {
   const db = drizzle(postgres(databaseUrl));
   const ring = staticKeyRing(keysFrom(secretKeys));
   const raw = tenantTransaction(db);
@@ -163,6 +176,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       kick(tenantId);
       return result;
     },
+    webhooks: hooks,
   };
 }
 
@@ -279,15 +293,13 @@ async function download(
   }
 }
 
-const MAX_BODY = 256 * 1024;
-
-async function bodyOf(request: IncomingMessage): Promise<string | null> {
+async function bodyOf(request: IncomingMessage, limit: number): Promise<string | null> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
     const buffer = chunk as Buffer;
     size += buffer.length;
-    if (size > MAX_BODY) return null;
+    if (size > limit) return null;
     chunks.push(buffer);
   }
   return Buffer.concat(chunks).toString('utf8');
@@ -296,6 +308,36 @@ async function bodyOf(request: IncomingMessage): Promise<string | null> {
 function send(response: ServerResponse, answer: RestResponse): void {
   response.writeHead(answer.status, { 'content-type': 'application/json', ...answer.headers });
   response.end(JSON.stringify(answer.body));
+}
+
+/** What the screens' transports need beyond the person use cases (PEO-098). */
+function screenDeps(service: ReturnType<typeof peopleService>): ScreenRouteDeps {
+  const schema = drizzleSchemaRepository();
+  const reader = drizzlePersonReader();
+  const base = (process.env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
+  return {
+    service,
+    relations: relationsFrom(process.env),
+    clock: systemClock,
+    personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
+    schema,
+    draft: drizzleDraftWriter(),
+    publisher: publishSchema({
+      schema,
+      people: drizzlePeopleFacts(),
+      clock: systemClock,
+      newEventId: uuidv7,
+    }),
+    artifactUrl: (version) => `${base}/v1/schema/versions/${String(version)}`,
+    webhooks: service.webhooks,
+    listEndpoints,
+    advisor: typesafeAttributeAdvisorFromEnv(process.env),
+    commit: {
+      ledger: drizzleImportLedger(),
+      rowScope: drizzleRowScope,
+      newId: uuidv7,
+    },
+  };
 }
 
 /**
@@ -324,6 +366,7 @@ export function wirePeople(server: Server): void {
     idempotency: drizzleIdempotency(),
     exports,
     fullValues: exports.fullValues,
+    screens: screenRoutes(screenDeps(service)),
   });
   const document = JSON.stringify(openApiDocument());
   const [graphql] = server.listeners('request') as ((
@@ -351,7 +394,7 @@ export function wirePeople(server: Server): void {
     }
     void (async () => {
       try {
-        const body = await bodyOf(request);
+        const body = await bodyOf(request, bodyLimit(path));
         if (body === null) {
           send(response, {
             status: 413,

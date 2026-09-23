@@ -19,7 +19,7 @@ const schema = drizzleSchemaRepository();
 export async function seedCountryPack(
   tx: PostgresJsDatabase,
   tenantId: string,
-  pack: CountryPack,
+  pack: Pick<CountryPack, 'sections' | 'attributes'>,
 ): Promise<ReturnType<typeof applyPack>> {
   const current = await schema.loadDraft(tx, tenantId);
   const applied = applyPack(SchemaDraft.rehydrate(current.sections, current.attributes), pack);

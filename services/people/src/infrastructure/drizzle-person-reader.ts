@@ -98,6 +98,15 @@ export function drizzlePersonReader(): PersonReader {
         .limit(limit);
       return rows.map(toRecord);
     },
+
+    async personOf(tx, tenantId, accountId) {
+      const rows = await tx
+        .select({ id: person.id })
+        .from(person)
+        .where(and(eq(person.tenantId, tenantId), eq(person.identityAccountId, accountId)))
+        .limit(1);
+      return rows[0]?.id ?? null;
+    },
   };
 }
 

@@ -206,7 +206,7 @@ const STATUS: Record<string, number> = {
   UNAVAILABLE: 503,
 };
 
-function refused(error: DomainFailure): RestResponse {
+export function refused(error: DomainFailure): RestResponse {
   return {
     status: STATUS[error.code] ?? 422,
     body: {
@@ -219,7 +219,7 @@ function refused(error: DomainFailure): RestResponse {
   };
 }
 
-function parse<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
+export function parse<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
   const parsed = schema.safeParse(value);
   if (parsed.success) return ok(parsed.data);
   const issue = parsed.error.issues[0];
@@ -232,7 +232,7 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
   );
 }
 
-function json(body: string): Result<unknown> {
+export function json(body: string): Result<unknown> {
   try {
     return ok(body === '' ? {} : (JSON.parse(body) as unknown));
   } catch {
@@ -260,22 +260,24 @@ export interface RestDeps {
     started(tenantId: string, requestId: string, correlationId: string): Promise<void>;
     decided(tenantId: string, requestId: string, correlationId: string): Promise<void>;
   };
+  /** The routes the tenant app's screens read and act through (PEO-098, `screens.ts`). */
+  readonly screens?: readonly Route[];
 }
 
-type Handler = (
+export type Handler = (
   asking: Asking,
   request: RestRequest,
   params: Record<string, string>,
   query: URLSearchParams,
 ) => Promise<RestResponse>;
 
-interface Route {
+export interface Route {
   readonly method: string;
   readonly pattern: RegExp;
   readonly handle: Handler;
 }
 
-const UUID = '([0-9a-fA-F-]{36})';
+export const UUID = '([0-9a-fA-F-]{36})';
 
 export function restHandler(
   deps: RestDeps,
@@ -739,6 +741,7 @@ export function restHandler(
           (verdict) => ({ state: verdict.state, missing: verdict.missing }),
         ),
     },
+    ...(deps.screens ?? []),
   ];
 
   return async (request) => {

@@ -65,3 +65,22 @@ export interface PeopleFactsReader {
     pageSize?: number,
   ): AsyncIterable<EvaluablePerson>;
 }
+
+/**
+ * The draft's rows, written after `SchemaDraft` has accepted a change.
+ *
+ * Upserts keyed by `(tenant, key)`: the draft decided whether the change is
+ * allowed, and this only stores what it decided. `order` is presentation and
+ * has no rule in the domain, so reordering is written directly.
+ */
+export interface DraftWriter {
+  saveSection(tx: PostgresJsDatabase, tenantId: string, section: Section): Promise<void>;
+  saveAttribute(tx: PostgresJsDatabase, tenantId: string, attribute: Attribute): Promise<void>;
+  orderSections(tx: PostgresJsDatabase, tenantId: string, keys: readonly string[]): Promise<void>;
+  orderAttributes(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    sectionKey: string,
+    keys: readonly string[],
+  ): Promise<void>;
+}

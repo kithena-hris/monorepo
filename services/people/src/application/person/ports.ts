@@ -63,6 +63,9 @@ export interface PersonReader {
     limit: number,
     where?: Readonly<Record<string, string>>,
   ): Promise<readonly PersonRecord[]>;
+
+  /** Which person signs in as this account, if any: "my profile" starts here. */
+  personOf(tx: PostgresJsDatabase, tenantId: string, accountId: string): Promise<string | null>;
 }
 
 export interface SchemaVersions {

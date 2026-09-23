@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt } from 'drizzle-orm';
 import { outboxTable, publish as publishEvents } from '@kithena/db-kit';
 
 import type {
+  DraftWriter,
   PeopleFactsReader,
   SchemaRepository,
 } from '../application/schema/schema-repository.js';
@@ -80,6 +81,84 @@ export function drizzleSchemaRepository(): SchemaRepository {
 
       // Same transaction as the row, which is the whole mechanism.
       await publishEvents(tx, outbox, events);
+    },
+  };
+}
+
+export function drizzleDraftWriter(): DraftWriter {
+  return {
+    async saveSection(tx, tenantId, s) {
+      const row = {
+        labels: s.label,
+        ord: s.order,
+        visibility: [...s.defaultVisibility],
+        origin: s.origin,
+        archivedAt: s.archivedAt === null ? null : new Date(s.archivedAt),
+      };
+      await tx
+        .insert(section)
+        .values({ tenantId, key: s.key, ...row })
+        .onConflictDoUpdate({
+          target: [section.tenantId, section.key],
+          set: { ...row, updatedAt: new Date() },
+        });
+    },
+
+    async saveAttribute(tx, tenantId, a) {
+      const row = {
+        sectionKey: a.sectionKey,
+        labels: a.label,
+        description: a.description,
+        ord: a.order,
+        dataType: a.dataType,
+        typeConfig: a.typeConfig,
+        cardinality: a.cardinality,
+        requiredness: a.requiredness,
+        ownership: [...a.ownership],
+        visibility: [...a.visibility],
+        collectAt: a.collectAt,
+        classification: a.classification,
+        classificationSource: a.classificationSource,
+        effectiveDated: a.effectiveDated,
+        uniqueScope: a.uniqueScope,
+        encrypted: a.encrypted,
+        indexed: a.indexed,
+        includeInDirectory: a.includeInDirectory,
+        includeInEvents: a.includeInEvents,
+        origin: a.origin,
+        deprecatedAt: a.deprecatedAt === null ? null : new Date(a.deprecatedAt),
+      };
+      await tx
+        .insert(attributeDefinition)
+        .values({ tenantId, key: a.key, ...row })
+        .onConflictDoUpdate({
+          target: [attributeDefinition.tenantId, attributeDefinition.key],
+          set: { ...row, updatedAt: new Date() },
+        });
+    },
+
+    async orderSections(tx, tenantId, keys) {
+      for (const [ord, key] of keys.entries()) {
+        await tx
+          .update(section)
+          .set({ ord, updatedAt: new Date() })
+          .where(and(eq(section.tenantId, tenantId), eq(section.key, key)));
+      }
+    },
+
+    async orderAttributes(tx, tenantId, sectionKey, keys) {
+      for (const [ord, key] of keys.entries()) {
+        await tx
+          .update(attributeDefinition)
+          .set({ ord, updatedAt: new Date() })
+          .where(
+            and(
+              eq(attributeDefinition.tenantId, tenantId),
+              eq(attributeDefinition.sectionKey, sectionKey),
+              eq(attributeDefinition.key, key),
+            ),
+          );
+      }
     },
   };
 }
