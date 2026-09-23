@@ -289,7 +289,6 @@ export function drizzleUniqueClaims(ring: KeyRing): UniqueClaims {
       for (const row of rows) {
         // In sequence, as `secret-store.ts` rotates: a background job with
         // nobody waiting has no business firing every row at the pool.
-        // eslint-disable-next-line no-await-in-loop -- see above
         const text = await valueOf(row.personId, row.attributeKey);
         const normalised = text === null ? '' : normalise(text);
         // Still stale: a writer that re-claimed since the read above wrote
@@ -300,7 +299,6 @@ export function drizzleUniqueClaims(ring: KeyRing): UniqueClaims {
           eq(attributeUnique.attributeKey, row.attributeKey),
           stale,
         );
-        // eslint-disable-next-line no-await-in-loop -- see above
         await (normalised === ''
           ? tx.delete(attributeUnique).where(where)
           : tx
@@ -338,7 +336,6 @@ export function claimRotation(
 
   return async (tenantId) => {
     for (;;) {
-      // eslint-disable-next-line no-await-in-loop -- one bounded batch per transaction
       const touched = await inTenant(tenantId, async ({ tx }) => {
         const version = await schemas.current(tx, tenantId);
         const definitions = new Map(
@@ -349,7 +346,7 @@ export function claimRotation(
           const value =
             record?.values[attributeKey] ??
             (await secrets.reveal(tx, { tenantId, personId, attributeKey }));
-          if (value === null || value === undefined) return null;
+          if (value === null) return null;
           const definition = definitions.get(attributeKey);
           if (definition) return claimText(definition, value);
           // ponytail: an attribute gone from the published schema is keyed as

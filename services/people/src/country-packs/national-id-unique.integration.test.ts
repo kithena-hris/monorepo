@@ -22,7 +22,7 @@ import {
 } from '../infrastructure/drizzle-schema-repository.js';
 import { staticKeyRing } from '../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
-import { drizzleUniqueClaims } from '../infrastructure/unique.js';
+import { claimRotation, drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { COUNTRY_PACKS } from './packs.js';
 import { seedCountryPack } from './seed.js';
@@ -37,7 +37,9 @@ const ACME = '00000000-0000-4000-8000-00000000000a';
 const ADA = '00000000-0000-4000-8000-0000000000a1';
 const GRACE = '00000000-0000-4000-8000-0000000000a2';
 const clock = fixedClock('2026-09-23T09:00:00.000Z');
-const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
+const K1 = { id: 'k1', key: randomBytes(32) };
+const K2 = { id: 'k2', key: randomBytes(32) };
+const ring = staticKeyRing([K1]);
 
 /**
  * The identifier, as Ada gives it and as Grace later types the same one. Not
@@ -200,5 +202,36 @@ describe('a national identifier from a country pack', () => {
     expect((await write(ADA, { es_nif: '87654321X' })).ok).toBe(true);
     expect((await write(GRACE, { es_nif: '12345678 Z' })).ok).toBe(true);
     expect((await write(ADA, { es_nif: '12345678z' })).ok).toBe(false);
+  });
+
+  it('stays unique through a rotation that reads each value back from the vault', async () => {
+    // `PEOPLE_SECRET_KEYS` after the rollout's second step: k2 current, k1 still held.
+    const keys = [K2, K1].map((k) => `${k.id}:${k.key.toString('base64')}`).join(',');
+    await claimRotation(inTenant, keys)(ACME);
+
+    const rows = await admin.execute(sql`SELECT DISTINCT key_id FROM people.attribute_unique`);
+    expect([...rows].map((r) => r['key_id'])).toEqual(['k2']);
+
+    // k1 dropped: the re-keyed claims are still found, in either spelling.
+    const after = personAccess({
+      people: drizzlePersonRepository(),
+      reader: drizzlePersonReader(),
+      schemas: drizzleSchemaVersions(),
+      relations: drizzleRelations(),
+      secrets: drizzleSecretStore(staticKeyRing([K2, K1])),
+      uniques: drizzleUniqueClaims(staticKeyRing([K2])),
+      clock,
+      newId,
+    });
+    const taken = await inTenantResult(inTenant, ACME, (tx) =>
+      after.update(tx, {
+        tenantId: ACME,
+        viewer: hr,
+        correlationId: '00000000-0000-4000-8000-0000000000c1',
+        personId: GRACE,
+        changes: { gb_ni_number: 'JG 103759 a' },
+      }),
+    );
+    expect(!taken.ok && taken.error.code).toBe('UNIQUE_VALUE_TAKEN');
   });
 });
