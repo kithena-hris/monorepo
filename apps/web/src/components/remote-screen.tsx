@@ -35,13 +35,17 @@ function runtime(): ModuleFederation {
   return federation;
 }
 
-async function loadScreen(name: string, entry: string, component: string): Promise<ComponentType> {
+async function loadScreen(
+  name: string,
+  entry: string,
+  component: string,
+): Promise<ComponentType<Record<string, unknown>>> {
   const mf = runtime();
   mf.registerRemotes([{ name, entry, type: 'module' }]);
   const exports = await mf.loadRemote<Record<string, unknown>>(name);
   const screen = exports?.[component];
   if (typeof screen !== 'function') throw new Error(`${name} does not export ${component}`);
-  return screen as ComponentType;
+  return screen as ComponentType<Record<string, unknown>>;
 }
 
 function Unavailable({ area }: { readonly area: string }): JSX.Element {
@@ -75,19 +79,24 @@ export interface RemoteScreenProps {
   readonly area: string;
   /** Where to load it from, or null when the shell already knows it is down. */
   readonly route: { readonly entry: string; readonly component: string } | null;
+  /** What the screen is drawn from and what its buttons do, from the shell (PEO-098). */
+  readonly props?: Readonly<Record<string, unknown>>;
 }
 
-type Loaded = { status: 'loading' } | { status: 'ready'; Screen: ComponentType } | { status: 'failed' };
+type Loaded =
+  | { status: 'loading' }
+  | { status: 'ready'; Screen: ComponentType<Record<string, unknown>> }
+  | { status: 'failed' };
 
 /**
  * A remote's screen, loaded in the browser at runtime.
  *
  * Client-only. The server and the first client render both show the spinner,
- * so there is nothing to mismatch on hydration; the remote arrives after. It
- * gets no props yet because it has no data yet — when it does, the shell
- * fetches and passes them, and the remote still never fetches.
+ * so there is nothing to mismatch on hydration; the remote arrives after. Its
+ * props are the shell's: the data the server fetched and the actions that
+ * call People (`people-screen.tsx`). The remote still never fetches.
  */
-export function RemoteScreen({ name, area, route }: RemoteScreenProps): JSX.Element {
+export function RemoteScreen({ name, area, route, props = {} }: RemoteScreenProps): JSX.Element {
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' });
   const entry = route?.entry;
   const component = route?.component;
@@ -113,7 +122,7 @@ export function RemoteScreen({ name, area, route }: RemoteScreenProps): JSX.Elem
   if (loaded.status === 'loading') return <Spinner label={`Loading ${area}`} />;
   return (
     <RemoteBoundary area={area}>
-      <loaded.Screen />
+      <loaded.Screen {...props} />
     </RemoteBoundary>
   );
 }

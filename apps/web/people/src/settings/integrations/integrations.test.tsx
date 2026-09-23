@@ -144,6 +144,28 @@ describe('Integrations', () => {
     expect(await within(section).findByText('hooks.example is not public')).toBeInTheDocument();
   });
 
+  it('will not add an endpoint without an address to alert, and sends the one given (PEO-093)', async () => {
+    const user = fast();
+    const onCreate = vi.fn(() => Promise.resolve({ ok: true as const, secret: 'whsec_once' }));
+    render(<Integrations {...props({ onCreate })} />);
+    await user.click(screen.getByRole('button', { name: 'Add endpoint' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: /URL/ }), 'https://hooks.example.com/in');
+    await user.type(within(dialog).getByRole('textbox', { name: /Events/ }), 'people.person.hired{Enter}');
+    await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('An email address to tell.')).toBeVisible();
+
+    await user.type(within(dialog).getByRole('textbox', { name: /Alert email/ }), 'ops@acme.example');
+    await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));
+    expect(onCreate).toHaveBeenCalledWith({
+      url: 'https://hooks.example.com/in',
+      events: ['people.person.hired'],
+      allowlist: [],
+      alertEmail: 'ops@acme.example',
+    });
+  });
+
   it('has loading, error and empty states', async () => {
     const { container, rerender } = render(
       <Integrations {...props({ load: { status: 'loading' } })} />,

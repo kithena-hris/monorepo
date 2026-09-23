@@ -203,6 +203,8 @@ export interface DirectoryView {
     readonly values: Readonly<Record<string, string>>;
     readonly missing: number | null;
   }[];
+  /** Which of the screen's two buttons this viewer gets (§13.1). */
+  readonly can: { readonly import: boolean; readonly export: boolean };
 }
 
 /** Shown as columns: in the directory, and readable on everybody. */
@@ -279,6 +281,8 @@ export async function directoryView(
             : [],
       })),
       people: people.map(({ status: _status, ...p }) => p),
+      // An export is a read, so everybody may build one of what they can see.
+      can: { import: everyone.isHr, export: true },
     });
   });
 }
