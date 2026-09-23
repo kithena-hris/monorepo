@@ -11,7 +11,8 @@ const TOKEN = 'people-token-for-tests';
 const body = {
   tenantId: '00000000-0000-4000-8000-000000000001',
   email: 'ada@acme.example',
-  url: 'https://app.kithena.com/people',
+  url: 'https://acme.app.kithena.com/people',
+  companyName: 'Acme Corp',
   dedupeKey: 'p/2026-09-23T09:00:00.000Z',
   notice: { kind: 'profile_reminder', missing: 2 },
 };
@@ -67,6 +68,13 @@ describe('the notice route', () => {
       ...body,
       notice: { kind: 'marketing' },
     });
+    await handle(request, response);
+    expect(recorded.status).toBe(422);
+  });
+
+  it('refuses a notice with no company to name', async () => {
+    const { handle } = routes();
+    const { request, response, recorded } = exchange(TOKEN, { ...body, companyName: undefined });
     await handle(request, response);
     expect(recorded.status).toBe(422);
   });

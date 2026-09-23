@@ -48,7 +48,7 @@ function routes(): RequestHandler {
     allowLogTransport: process.env['VERCEL_ENV'] !== 'production',
     // Both optional: without them notices are refused and compose says so.
     noticeToken: process.env['MESSAGING_PEOPLE_TOKEN'],
-    appOrigin: process.env['APP_ORIGIN'],
+    tenantAppBase: process.env['TENANT_APP_BASE'],
     // Neon's *pooled* host, and `svc_messaging` rather than the owner — an
     // owner bypasses row-level security on its own tables whatever the policy
     // says, and `messaging.delivery` is scoped by one.

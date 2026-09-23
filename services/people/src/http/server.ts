@@ -4,6 +4,7 @@ import postgres from 'postgres';
 import { systemClock, type DomainFailure } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
+import { recomputePerson } from '../application/completeness/recompute.js';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
 import {
   claimDownload,
@@ -21,6 +22,12 @@ import { personAccess } from '../application/person/person-access.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
+import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
+import { drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
+import {
+  drizzlePeopleFacts,
+  drizzleSchemaRepository,
+} from '../infrastructure/drizzle-schema-repository.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
   drizzlePersonReader,
@@ -35,6 +42,11 @@ import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
+import {
+  NO_TENANT_APP_BASE,
+  tenantAppBase,
+  tenantCompanies,
+} from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
@@ -66,7 +78,12 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     allowHttp:
       process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
   };
-  const alerts = webhookAlertMailerFrom(process.env);
+  // No base (production without a safe `TENANT_APP_BASE`): no alert email,
+  // the event alone — never a link to localhost.
+  const base = tenantAppBase(process.env);
+  if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
+  const alerts = base === null ? undefined : webhookAlertMailerFrom(process.env);
+  const companyOf = tenantCompanies(base ?? '', drizzleOrgStore());
   const hooks = webhooks({
     inTenant: raw,
     ring,
@@ -81,7 +98,13 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
         'webhook endpoint disabled',
       );
       if (alerts === undefined || disabled.alertEmail === null) return;
-      await alerts.send(tenantId, disabled).catch((cause: unknown) => {
+      // From the company, to its own origin — or not at all: the event stands.
+      const company = await raw(tenantId, ({ tx }) => companyOf(tx, tenantId));
+      if (company === null) {
+        logger.info({ tenantId }, 'company not known yet; webhook alert not emailed');
+        return;
+      }
+      await alerts.send(tenantId, company, disabled).catch((cause: unknown) => {
         logger.warn({ err: cause, tenantId, endpointId: disabled.endpointId }, 'alert not sent');
       });
     },
@@ -151,6 +174,14 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       newId: uuidv7,
       calendars: org,
       numbering: numbers,
+      completeness: recomputePerson({
+        schema: drizzleSchemaRepository(),
+        people: drizzlePeopleFacts(),
+        store: drizzleCompletenessStore(),
+        clock: systemClock,
+        newEventId: uuidv7,
+        calendars: org,
+      }),
     }),
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),

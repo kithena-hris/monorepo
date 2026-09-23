@@ -928,10 +928,15 @@ it is written down here rather than left in a PR description.
       Found in PEO-045. *(PRD §16.1)* *Decided as a monthly publication,
       republished only after N changes, rounded to 5; landed as
       `people.published_breakdown`.*
-- [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
+- [x] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
-      under the cap; confirm that is intended. *(PRD §8.4)*
+      under the cap; confirm that is intended. *(PRD §8.4)* — Confirmed: day 1,
+      then weekly. Messaging serves `POST /api/internal/messaging/notice`;
+      People's mailer is configured by `MESSAGING_URL` and
+      `MESSAGING_PEOPLE_TOKEN`, and the hourly sweep runs only when it is. The
+      email names the company and links to its own origin (`TENANT_APP_BASE`,
+      from PEO-099's slug and name); a tenant without both waits.
 - [x] **PEO-085** Retention does not fully erase. `anonymise` clears current
       plain values only: encrypted values stay because `svc_people` has no
       DELETE on `people.person_secret`, and history keeps every past value
@@ -1048,6 +1053,28 @@ it is written down here rather than left in a PR description.
       /v1/legal-entities/{id}/numbering`; a hire takes the next number under
       the entity's row lock, gap-free; a typed or imported number is held to
       the format, claimed tenant-wide and moves the sequence past it.*
+      off. *(PRD §7, §9.4, Appendix A)*
+- [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
+      state, the gap rows and the reminder went stale on every write. Each
+      write now re-judges its one person in its transaction, through the
+      publish recompute's own reader and `settle`, raising
+      `profile_incomplete`/`profile_completed` only on a real transition; the
+      reader counts a sealed value as present. *(PRD §8.4)*
+- [x] **PEO-103** `assessCompleteness` asked a pre-hire for everything, where
+      §8.1 asks only for fields collected at signup, enrolment or onboarding.
+      Applied in the one function, and the import dry run judges a hired row
+      in the state the commit leaves it in. *(PRD §8.1)*
+- [x] **PEO-105** `secret-store.rotate` was never called, so no encrypted value
+      ever moved off an old master key and step 4 of the rollout could never
+      happen. An hourly, bounded, idempotent re-wrap job beside PEO-082's,
+      refusing when a secret sits under a key the ring lacks. *(PRD §11.2)*
+- [x] **PEO-106** Two concurrent imports claiming the same unique attributes
+      in different orders deadlocked (40P01). `commitImportRetrying` retries
+      the commit three times with backoff, idempotent by checksum, and refuses
+      clearly when it still loses. *(PRD §14.5)*
+- [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
+      retried decision got 409 rather than a replay. Now keyed like every
+      other People REST write. *(PRD §13.2)*
 
 ## Blocked, and by what
 

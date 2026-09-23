@@ -213,7 +213,7 @@ export function openApiDocument(): Record<string, unknown> {
       '/v1/exports/full-values/{id}/decision': {
         post: {
           summary: 'HR approves or rejects; an approval issues one download',
-          parameters: [id],
+          parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('FullValuesDecision') },
           responses: { 200: { description: 'The request', ...json('FullValues') }, ...failure },
         },

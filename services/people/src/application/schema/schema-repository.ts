@@ -69,5 +69,7 @@ export interface PeopleFactsReader {
     tx: PostgresJsDatabase,
     tenantId: string,
     pageSize?: number,
+    /** One person only: the recompute after a change to their record (PEO-102). */
+    personId?: string,
   ): AsyncIterable<EvaluablePerson>;
 }

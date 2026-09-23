@@ -623,17 +623,27 @@ export function restHandler(
         const input = body.ok ? parse(FullValuesDecisionBody, body.value) : body;
         if (!input.ok) return refused(input.error);
         const requestId = params['id'] ?? '';
-        const decided = await run(service, asking.tenantId, (tx) =>
-          decideFullValues(tx, full.deps, {
-            ...asking,
-            requestId,
-            approve: input.value.approve,
-            note: input.value.note ?? null,
-          }),
+        // Idempotent like every other write (PEO-107): a retried decision is
+        // answered with the request as it now stands, not a 409 for deciding
+        // twice. The wake-up is sent on a replay too; settling is idempotent,
+        // and it covers a first attempt whose wake-up was lost.
+        const answer = await idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const decided = await decideFullValues(tx, full.deps, {
+              ...asking,
+              requestId,
+              approve: input.value.approve,
+              note: input.value.note ?? null,
+            });
+            return decided.ok ? ok(requestId) : decided;
+          },
+          (id) => readFullValues(asking, id),
         );
-        if (!decided.ok) return refused(decided.error);
-        await full.decided(asking.tenantId, requestId, asking.correlationId);
-        return readFullValues(asking, requestId);
+        if (answer.status < 300) await full.decided(asking.tenantId, requestId, asking.correlationId);
+        return answer;
       },
     },
     {
