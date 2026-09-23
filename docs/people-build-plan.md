@@ -922,7 +922,7 @@ it is written down here rather than left in a PR description.
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
       under the cap; confirm that is intended. *(PRD §8.4)*
-- [ ] **PEO-085** Retention does not fully erase. `anonymise` clears current
+- [x] **PEO-085** Retention does not fully erase. `anonymise` clears current
       plain values only: encrypted values stay because `svc_people` has no
       DELETE on `people.person_secret`, and history keeps every past value
       because `person_attribute_history` is append-only by trigger. Needs a
