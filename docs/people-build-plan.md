@@ -395,7 +395,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test publishes a version and asserts the preview
   count matches the count after the recompute in PEO-026.
 
-### [ ] PEO-025 — Reading and writing a person
+### [x] PEO-025 — Reading and writing a person
 
 - **Spec** PRD §6.6, §8.5
 - **Files** `services/people/src/application/person/`
