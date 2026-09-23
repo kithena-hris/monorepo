@@ -8,7 +8,7 @@
     "build": "storybook build --output-dir storybook-static --stats-json",
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
-    "test:stories": "vitest run --project storybook",
+    "test:stories": "vitest run --project storybook --project storybook-phone",
     "preview": "http-server storybook-static -p 6007 --silent"
   },
   "dependencies": {

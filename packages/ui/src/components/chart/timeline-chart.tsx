@@ -14,6 +14,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { useCoarsePointer } from '../../lib/use-media-query';
 import { addMonths, formatIsoDate, parseIsoDate, type IsoDate } from '../calendar/calendar';
 import { Tooltip } from '../tooltip/tooltip';
 import {
@@ -427,7 +428,7 @@ export function TimelineChart({
   today,
   separator = 'line',
   labelWidth = 148,
-  rowHeight = 40,
+  rowHeight: rowHeightProp = 40,
   formatTick = defaultTickFormat,
   formatDate = defaultDateFormat,
   onSelect,
@@ -446,6 +447,12 @@ export function TimelineChart({
   menuItems,
   className,
 }: TimelineChartProps): JSX.Element {
+  /*
+   * A bar is its lane less 12px. Under a finger a lane is at least 56px, so a
+   * bar reaches the 44px tap floor whatever height the screen asked for. The
+   * pointer, not the window: a phone and a touchscreen laptop both get it.
+   */
+  const rowHeight = Math.max(rowHeightProp, useCoarsePointer() ? 56 : 0);
   /**
    * Where a dragged item has been put, until the caller's data says otherwise.
    *
@@ -904,7 +911,7 @@ export function TimelineChart({
                         onSelect?.(item, row);
                       }}
                       className={cn(
-                        'absolute size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-xs',
+                        'tap-target absolute size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-xs',
                         'motion-safe:animate-pop-in',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                         solidTone[tone],

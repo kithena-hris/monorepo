@@ -11,7 +11,8 @@ afterEach(() => {
 /*
  * What jsdom does not implement and Reach's primitives reach for. Stubs, not
  * behaviour: nothing here is under test, it only lets a component mount.
- * `matches: false` is a fine pointer, which is the desk layout.
+ * The answers describe a desk: every `min-width` query matches and nothing
+ * else does, so a fine pointer. The phone is `*.phone.test.tsx`, in Chromium.
  */
 Object.assign(globalThis, {
   ResizeObserver: class {
@@ -22,7 +23,7 @@ Object.assign(globalThis, {
 });
 Object.assign(window, {
   matchMedia: (query: string) => ({
-    matches: false,
+    matches: query.includes('min-width'),
     media: query,
     onchange: null,
     addEventListener: () => undefined,

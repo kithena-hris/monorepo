@@ -242,7 +242,7 @@ export function Combobox({
                   onChange(multiple ? [] : null);
                 }
               }}
-              className="grid size-5 place-items-center rounded-xs text-fg-subtle hover:bg-surface-hover hover:text-fg"
+              className="tap-target relative grid size-5 place-items-center rounded-xs text-fg-subtle hover:bg-surface-hover hover:text-fg"
             >
               <X className="size-3.5" aria-hidden />
             </span>

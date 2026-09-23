@@ -2,8 +2,10 @@ import {
   Avatar,
   Badge,
   Button,
+  Card,
   DataTable,
   EmptyState,
+  ListDetail,
   PageHeader,
   SearchField,
   Select,
@@ -13,9 +15,10 @@ import {
   SelectValue,
   Stack,
   Toolbar,
+  useBreakpoint,
   type DataColumn,
 } from '@reach/ui';
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 
@@ -114,6 +117,7 @@ function Table({
   onFiltersChange,
   onOpen,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
+  const wide = useBreakpoint('md');
   const columns: DataColumn<DirectoryPerson>[] = [
     {
       id: 'person',
@@ -180,23 +184,123 @@ function Table({
           </Select>
         ))}
       />
-      <DataTable
-        label="People"
-        rows={state.people}
-        columns={columns}
-        rowId={(p) => p.id}
-        describeRow={(p) => p.name}
-        onRowClick={(p) => {
-          onOpen(p.id);
-        }}
-        stickyHeader
-        empty={
-          <EmptyState
-            title="Nobody matches"
-            description="Clear a filter or the search to see more people."
-          />
-        }
-      />
+      {wide ? (
+        <DataTable
+          label="People"
+          rows={state.people}
+          columns={columns}
+          rowId={(p) => p.id}
+          describeRow={(p) => p.name}
+          onRowClick={(p) => {
+            onOpen(p.id);
+          }}
+          stickyHeader
+          empty={
+            <EmptyState
+              title="Nobody matches"
+              description="Clear a filter or the search to see more people."
+            />
+          }
+        />
+      ) : (
+        <Cards state={state} onOpen={onOpen} />
+      )}
     </Stack>
+  );
+}
+
+/**
+ * The directory on a phone (§17.2): a card per person carrying the two
+ * columns that matter, the rest one tap away in the detail pane. The same
+ * people, the same filters; only the layout differs, and `useBreakpoint`
+ * decides — nothing asks what device this is.
+ */
+function Cards({
+  state,
+  onOpen,
+}: {
+  readonly state: DirectoryState;
+  readonly onOpen: (personId: string) => void;
+}): JSX.Element {
+  const [chosen, setChosen] = useState<string | null>(null);
+  const person = state.people.find((p) => p.id === chosen) ?? null;
+  const [first, second] = state.columns;
+
+  if (state.people.length === 0) {
+    return (
+      <EmptyState
+        title="Nobody matches"
+        description="Clear a filter or the search to see more people."
+      />
+    );
+  }
+  return (
+    <ListDetail
+      listLabel="People"
+      detailLabel={person?.name ?? 'Person'}
+      selected={person !== null}
+      onBack={() => {
+        setChosen(null);
+      }}
+      backLabel="All people"
+      list={
+        <ul className="flex flex-col gap-2">
+          {state.people.map((p) => (
+            <li key={p.id}>
+              <Card className="flex items-center gap-3 p-3">
+                <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{p.name}</span>
+                  <span className="block truncate text-xs text-fg-muted">
+                    {[first, second]
+                      .map((c) => (c === undefined ? undefined : p.values[c.key]))
+                      .filter((v) => v !== undefined && v !== '')
+                      .join(' · ')}
+                  </span>
+                </span>
+                {p.missing === null || p.missing === 0 ? null : (
+                  <Badge tone="warning" size="sm">
+                    {p.missing} missing
+                  </Badge>
+                )}
+                <Button
+                  size="sm"
+                  aria-label={`Details for ${p.name}`}
+                  onClick={() => {
+                    setChosen(p.id);
+                  }}
+                >
+                  Details
+                </Button>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      }
+      detail={
+        person === null ? null : (
+          <Stack gap={4} className="p-4">
+            <dl className="grid gap-3">
+              {state.columns.map((c) => (
+                <div key={c.key}>
+                  <dt className="text-xs text-fg-muted">{c.label}</dt>
+                  <dd className="text-sm">{person.values[c.key] ?? ''}</dd>
+                </div>
+              ))}
+            </dl>
+            <div>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  onOpen(person.id);
+                }}
+              >
+                Open profile
+              </Button>
+            </div>
+          </Stack>
+        )
+      }
+    />
   );
 }

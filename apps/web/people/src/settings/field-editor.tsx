@@ -28,6 +28,7 @@ import {
   Switch,
   TagsInput,
   Textarea,
+  useBreakpoint,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
@@ -199,6 +200,7 @@ export function FieldEditor({
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const asked = useRef(0);
+  const wide = useBreakpoint('sm');
 
   // A fresh draft every time the sheet opens, so a cancelled edit leaves nothing behind.
   useEffect(() => {
@@ -300,7 +302,8 @@ export function FieldEditor({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" size="lg">
+      {/* From the side at a desk, from the bottom on a phone (§17.2). */}
+      <SheetContent side={wide ? 'right' : 'bottom'} size="lg">
         <SheetHeader>
           <SheetTitle>{editing ? `Edit ${field.label}` : 'New field'}</SheetTitle>
           <SheetDescription>

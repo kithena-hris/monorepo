@@ -161,7 +161,7 @@ export function Stepper({
                 onStepChange(index, step);
               }}
               className={cn(
-                'flex min-w-0 items-center gap-2 rounded-sm text-start',
+                'flex min-w-0 touch:min-h-tap items-center gap-2 rounded-sm text-start',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 'hover:[&_span:first-child]:brightness-110',
               )}
