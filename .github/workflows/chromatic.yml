@@ -11,10 +11,13 @@ on:
     branches: [main]
   pull_request:
     paths:
-      # `packages/**` already covers `packages/ui/**`; listing both only makes
-      # the filter look narrower than it is.
+      # Only what a story can render: Reach itself and Storybook's own config.
+      # `packages/**` used to be here, which snapshotted every contract, telemetry
+      # or db-kit change for nothing — Storybook imports none of them (Reach may
+      # not, by the dependency rules). The lockfile and workspace stay, because a
+      # dependency bump can change what a story draws.
       - 'apps/storybook/**'
-      - 'packages/**'
+      - 'packages/ui/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
