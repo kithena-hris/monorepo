@@ -3,6 +3,7 @@ import type { CalendarDate } from '@kithena/contracts';
 
 import {
   COHORT_FLOOR,
+  dayEnd,
   checkCohortMinimum,
   checkLegalEntity,
   checkLocation,
@@ -242,5 +243,25 @@ describe('the cohort minimum', () => {
 
   it('is a whole number', () => {
     expect(checkCohortMinimum(10, 12.5).ok).toBe(false);
+  });
+});
+
+describe('when a calendar day ends (PEO-109)', () => {
+  it('is the next midnight in the zone, not in UTC', () => {
+    // Auckland is UTC+13 by the end of September; Los Angeles is UTC-7.
+    expect(dayEnd('2026-09-30', 'Pacific/Auckland')).toBe('2026-09-30T11:00:00.000Z');
+    expect(dayEnd('2026-09-30', 'America/Los_Angeles')).toBe('2026-10-01T07:00:00.000Z');
+    expect(dayEnd('2026-09-30', 'Etc/UTC')).toBe('2026-10-01T00:00:00.000Z');
+  });
+
+  it('follows a daylight change inside the day, and a year end', () => {
+    // Madrid's clocks go back at 03:00 on 25 October 2026, so the 26th begins at UTC+1.
+    expect(dayEnd('2026-10-25', 'Europe/Madrid')).toBe('2026-10-25T23:00:00.000Z');
+    expect(dayEnd('2026-12-31', 'Asia/Kolkata')).toBe('2026-12-31T18:30:00.000Z');
+  });
+
+  it('is the first instant of the next day where its midnight does not exist', () => {
+    // Santiago springs forward at 00:00 on 6 September 2026: that day begins at 01:00, UTC-3.
+    expect(dayEnd('2026-09-05', 'America/Santiago')).toBe('2026-09-06T04:00:00.000Z');
   });
 });

@@ -459,6 +459,31 @@ export const PersonTerminated = defineEvent(
 );
 
 /**
+ * A leaver's access ended (PEO-109; PRD §5, §8.1). Identity suspends their
+ * account on it: no sign-in, every session revoked, enrolment links spent,
+ * passkeys kept for a rehire.
+ *
+ * Raised once per leaving: by People's hourly job at the end of the last
+ * working day on the person's own calendar, on notice or terminated, whether
+ * or not HR has confirmed the termination — `endedAt` is that midnight, not
+ * whenever the job ran — or at once by HR for a dismissal for cause. The
+ * envelope's `effectiveFrom` is the first day without access, on their
+ * calendar. `identityAccountId` is null for a person with no account, whom
+ * identity has nothing to suspend for.
+ */
+export const PersonAccessEnded = defineEvent(
+  'people.person.access_ended',
+  1,
+  z.object({
+    personId: PersonId,
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
+    lastWorkingDay: CalendarDate.nullable(),
+    endedAt: Instant,
+    trigger: z.enum(['last_working_day_ended', 'ended_by_hr']).register(policy, asInternal()),
+  }),
+);
+
+/**
  * A record is missing something, with the keys and who owns each.
  *
  * The owners are in the payload because that is what decides what happens
@@ -870,6 +895,7 @@ export const peopleEvents = [
   PersonCompensationChanged,
   PersonStatusChanged,
   PersonTerminated,
+  PersonAccessEnded,
   PersonProfileIncomplete,
   PersonProfileCompleted,
   PersonMerged,

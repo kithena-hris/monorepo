@@ -198,8 +198,20 @@ export interface PersonAccess {
       /** HR's free text, carried as `terminated.reason`. */
       readonly note?: string | null;
       readonly eligibleForRehire?: boolean | null;
+      /**
+       * End their access at once rather than at the end of the last working
+       * day (PEO-109): a dismissal for cause. Same as `endAccess` after.
+       */
+      readonly endAccessNow?: boolean;
     }>,
   ): Promise<Result<PersonView>>;
+  /**
+   * End a leaver's access now rather than at the end of their last working
+   * day (PEO-109), HR only. Raises `access_ended` with the acting user on the
+   * envelope, which is the audit record; answered with the record and no
+   * second event once access has ended, whoever ended it.
+   */
+  endAccess(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   startLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   endLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   /** A provisional record that was never a person (§8.1); the one state a hard delete may follow. */
@@ -819,19 +831,40 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     terminate: (tx, asking) => {
       const day = lastDayOf(asking);
       if (!day.ok) return Promise.resolve(day);
+      const ended = (s: PersonSnapshot) =>
+        s.status === 'terminated' && s.lastWorkingDay === day.value;
+      const now = asking.endAccessNow === true;
       return lifecycle(
         tx,
         asking,
         'terminates a person',
-        (s) => s.status === 'terminated' && s.lastWorkingDay === day.value,
-        (p, zone, ctx) =>
-          p.terminate(day.value, ctx, zone, {
-            reason: asking.reason,
-            note: asking.note ?? null,
-            eligibleForRehire: asking.eligibleForRehire ?? null,
-          }),
+        (s) => ended(s) && (!now || (s.accessEndedAt ?? null) !== null),
+        (p, zone, ctx) => {
+          // A retry that now also asks for access to end: the termination
+          // already stands, so only the second half is new.
+          if (!ended(p.snapshot)) {
+            const terminated = p.terminate(day.value, ctx, zone, {
+              reason: asking.reason,
+              note: asking.note ?? null,
+              eligibleForRehire: asking.eligibleForRehire ?? null,
+            });
+            if (!terminated.ok) return terminated;
+          }
+          // Access may already have ended at the end of the last day, before
+          // HR confirmed the termination (PEO-109); nothing more to end then.
+          return now && p.accessEndedAt === null ? p.endAccess(ctx, zone, 'now') : ok(undefined);
+        },
       );
     },
+
+    endAccess: (tx, asking) =>
+      lifecycle(
+        tx,
+        asking,
+        'ends a person’s access',
+        (s) => s.status === 'terminated' && (s.accessEndedAt ?? null) !== null,
+        (p, zone, ctx) => p.endAccess(ctx, zone, 'now'),
+      ),
 
     startLeave: (tx, asking) =>
       lifecycle(

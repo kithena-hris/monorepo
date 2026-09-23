@@ -32,6 +32,12 @@ export const TerminateBody = z.strictObject({
   /** HR's own words, confidential; published as `terminated.reason`. */
   note: z.string().max(500).nullable().optional(),
   eligibleForRehire: z.boolean().nullable().optional(),
+  endAccessNow: z
+    .boolean()
+    .optional()
+    .describe(
+      'End their access now, for a dismissal for cause. Otherwise it ends at the end of the last working day on their calendar.',
+    ),
 });
 
 export const NoBody = z.strictObject({});
@@ -89,7 +95,16 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
         reason: input.reason,
         note: input.note ?? null,
         eligibleForRehire: input.eligibleForRehire ?? null,
+        ...(input.endAccessNow === undefined ? {} : { endAccessNow: input.endAccessNow }),
       }),
+  }),
+  action({
+    path: 'access/end',
+    name: 'endPersonAccess',
+    summary:
+      'End a terminated person’s access now rather than at the end of their last working day; HR only',
+    body: NoBody,
+    run: (access, tx, on) => access.endAccess(tx, on),
   }),
   action({
     path: 'leave/start',

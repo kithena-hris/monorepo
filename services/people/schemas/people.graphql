@@ -152,7 +152,21 @@ type Mutation {
   giveNotice(personId: ID!, lastWorkingDay: String!, reason: LeavingReason): Person
 
   """End the employment once its last working day has come; HR only."""
-  terminatePerson(personId: ID!, lastWorkingDay: String!, reason: LeavingReason!, note: String, eligibleForRehire: Boolean): Person
+  terminatePerson(
+    personId: ID!
+    lastWorkingDay: String!
+    reason: LeavingReason!
+    note: String
+    eligibleForRehire: Boolean
+
+    """End their access now, for a dismissal for cause."""
+    endAccessNow: Boolean
+  ): Person
+
+  """
+  End a terminated person’s access now rather than at the end of their last working day; HR only.
+  """
+  endPersonAccess(personId: ID!): Person
 
   """An active person goes on leave from today, on their calendar; HR only."""
   startLeave(personId: ID!): Person

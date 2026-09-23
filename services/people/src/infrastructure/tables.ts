@@ -134,6 +134,8 @@ export const person = people.table('person', {
   hireDate: date('hire_date'),
   seniorityDate: date('seniority_date'),
   lastWorkingDay: date('last_working_day'),
+  /** When access ended with this employment (PEO-109, 20260924220000). */
+  accessEndedAt: timestamp('access_ended_at', { withTimezone: true }),
 
   managerId: uuid('manager_id'),
   orgUnitId: uuid('org_unit_id'),

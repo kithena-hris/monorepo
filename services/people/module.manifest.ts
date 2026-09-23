@@ -25,6 +25,7 @@ export default ModuleManifest.parse({
     'people.person.compensation_changed',
     'people.person.status_changed',
     'people.person.terminated',
+    'people.person.access_ended',
     'people.person.profile_incomplete',
     'people.person.profile_completed',
     'people.person.merged',

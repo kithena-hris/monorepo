@@ -222,7 +222,15 @@ export const AccountSuspended = defineEvent(
     /** An enum, not free text. A reason someone types is a reason that ends up
      *  holding a diagnosis, and this event is not special-category storage. */
     reason: z
-      .enum(['garden_leave', 'investigation', 'billing', 'tenant_suspended', 'security'])
+      .enum([
+        'garden_leave',
+        'investigation',
+        'billing',
+        'tenant_suspended',
+        'security',
+        // People said the employment ended (PEO-109). Lifted by a rehire.
+        'employment_ended',
+      ])
       .register(policy, asInternal()),
     /** How many live sessions were destroyed. Useful when reading an incident. */
     sessionsRevoked: z.int().nonnegative().register(policy, asInternal()),
