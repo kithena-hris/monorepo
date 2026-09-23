@@ -152,8 +152,8 @@ export function webhooks(deps: WebhookDeps): WebhookService {
 
   return {
     async createEndpoint(tenantId, input) {
-      // Checked here as well as by `validate`, which lets a patch omit it.
-      const valid = await validate({ ...input, alertEmail: input.alertEmail ?? '' });
+      // Required by the type here; `validate` checks it is an address.
+      const valid = await validate(input);
       if (!valid.ok) return valid;
       const id = deps.newId();
       const plaintext = secret();
