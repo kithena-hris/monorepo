@@ -966,6 +966,19 @@ it is written down here rather than left in a PR description.
       sidebar item is still disabled, and the remote's host needs `no-cache`
       and CORS for `remoteEntry.js` and `routes.json`. Settle the CSS question
       before PEO-047. Found in PEO-046.
+- [ ] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
+      exists and the name paths call it, but no hire path does, so a new
+      person's start date never reaches identity. The import commit (PEO-041)
+      hires through `Person.hire`; it and any later hire path must call
+      `shareIdentityFacts` and raise `people.person.hired`. Found in PEO-029.
+- [ ] **PEO-096** Correcting `last_working_day` writes into `custom` while
+      every reader uses the typed column, the same bug PEO-029 fixed for
+      `hire_date`. A hire-date correction also does not re-evaluate status.
+      Found in PEO-029. *(PRD §8.5)*
+- [ ] **PEO-097** Name drift at enrolment. Identity writes the name typed at
+      enrolment onto the account even after People has set one, and People
+      only fills its own name when empty, so the two can differ until People's
+      next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
 
 ## Blocked, and by what
 
