@@ -99,7 +99,9 @@ const definitions = [
   define({ key: 'work_location', visibility: ['hr'] }),
   define({ key: 'status' }),
   define({ key: 'employment_type' }),
-  define({ key: 'hire_date' }),
+  // Required and on every record: a core column, so it must count zero missing
+  // (PEO-079), not "missing for everybody" because it is not in `custom`.
+  define({ key: 'hire_date', requiredness: { mode: 'always' } }),
   define({ key: 'manager' }),
   define({ key: 'work_permit_expiry' }),
   define({ key: 'probation_end', visibility: ['hr'] }),
@@ -200,9 +202,22 @@ beforeAll(async () => {
     // holds today's value.
     { id: REPORT, hire: '2025-06-01', manager: MANAGER, orgUnit: OPS, custom: {} },
     // Hired on the day no snapshot was taken.
-    { id: JOINER, hire: D2, manager: MANAGER, orgUnit: OPS, custom: { work_permit_expiry: '2026-04-15' } },
+    {
+      id: JOINER,
+      hire: D2,
+      manager: MANAGER,
+      orgUnit: OPS,
+      custom: { work_permit_expiry: '2026-04-15' },
+    },
     // Last working day D1: here on D1, gone by D3.
-    { id: LEAVER, hire: '2024-01-01', lastDay: D1, status: 'terminated', manager: BOSS, orgUnit: OPS },
+    {
+      id: LEAVER,
+      hire: '2024-01-01',
+      lastDay: D1,
+      status: 'terminated',
+      manager: BOSS,
+      orgUnit: OPS,
+    },
     { id: FUTURE, hire: '2026-04-01', status: 'pre_hire', manager: BOSS },
     { id: DISCARDED, hire: '2025-01-01', status: 'discarded' },
     { id: OUTSIDER, tenantId: GLOBEX, hire: '2020-01-01' },
@@ -271,14 +286,24 @@ describe('the snapshot', () => {
   it('counts by dated facts: hired by the day, not past the last one, never discarded', async () => {
     const d1 = await chart(ACME, hr, (ctx) => composition(ctx, { asOf: D1, by: ['status'] }));
     // Boss, manager, report and the leaver on their last day.
-    expect(d1).toMatchObject({ ok: true, value: { source: 'snapshot', cells: [{ keys: ['active'], count: 4 }] } });
+    expect(d1).toMatchObject({
+      ok: true,
+      value: { source: 'snapshot', cells: [{ keys: ['active'], count: 4 }] },
+    });
   });
 
   it('carries movements across a day nobody snapshotted, so the waterfall reconciles', async () => {
     const waterfall = await chart(ACME, hr, (ctx) => movementWaterfall(ctx, { from: D1, to: D3 }));
     expect(waterfall).toEqual({
       ok: true,
-      value: { opening: 4, joiners: 1, internalMoves: 0, leavers: 1, closing: 4, source: 'snapshot' },
+      value: {
+        opening: 4,
+        joiners: 1,
+        internalMoves: 0,
+        leavers: 1,
+        closing: 4,
+        source: 'snapshot',
+      },
     });
   });
 
@@ -289,7 +314,14 @@ describe('the snapshot', () => {
     // Opening: the leaver. Closing: the joiner and the report who moved in.
     expect(ops).toEqual({
       ok: true,
-      value: { opening: 1, joiners: 1, internalMoves: 1, leavers: 1, closing: 2, source: 'snapshot' },
+      value: {
+        opening: 1,
+        joiners: 1,
+        internalMoves: 1,
+        leavers: 1,
+        closing: 2,
+        source: 'snapshot',
+      },
     });
   });
 
@@ -309,7 +341,9 @@ describe('the snapshot', () => {
   });
 
   it("counts a manager's whole chain and nobody else", async () => {
-    const boss = await chart(ACME, managerOf(BOSS), (ctx) => composition(ctx, { asOf: D3, by: ['status'] }));
+    const boss = await chart(ACME, managerOf(BOSS), (ctx) =>
+      composition(ctx, { asOf: D3, by: ['status'] }),
+    );
     const manager = await chart(ACME, managerOf(MANAGER), (ctx) =>
       composition(ctx, { asOf: D3, by: ['status'] }),
     );
@@ -336,7 +370,9 @@ describe('the snapshot', () => {
 
   it('agrees with itself: the history path for a snapshot day gives the snapshot', async () => {
     const onGrid = await chart(ACME, hr, (ctx) => movementWaterfall(ctx, { from: D1, to: D3 }));
-    const offGrid = await chart(ACME, hr, (ctx) => movementWaterfall(ctx, { from: D1, to: '2026-03-04' }));
+    const offGrid = await chart(ACME, hr, (ctx) =>
+      movementWaterfall(ctx, { from: D1, to: '2026-03-04' }),
+    );
     expect(offGrid).toEqual({
       ok: true,
       value: { ...(onGrid.ok ? onGrid.value : {}), source: 'history' },
@@ -358,13 +394,22 @@ describe('the snapshot', () => {
     // The boss manages the manager; the manager manages two.
     expect(span).toEqual({
       ok: true,
-      value: { source: 'snapshot', spans: [{ reports: 1, managers: 1 }, { reports: 2, managers: 1 }] },
+      value: {
+        source: 'snapshot',
+        spans: [
+          { reports: 1, managers: 1 },
+          { reports: 2, managers: 1 },
+        ],
+      },
     });
 
     const soon = await chart(ACME, hr, (ctx) => expiries(ctx, { asOf: D3 }));
     expect(soon).toEqual({
       ok: true,
-      value: { source: 'snapshot', expiries: [{ kind: 'work_permit', day: '2026-04-15', count: 1 }] },
+      value: {
+        source: 'snapshot',
+        expiries: [{ kind: 'work_permit', day: '2026-04-15', count: 1 }],
+      },
     });
   });
 
@@ -374,7 +419,9 @@ describe('the snapshot', () => {
     expect(result).toMatchObject({
       ok: true,
       value: {
-        points: [{ month: '2026-03', leavers: 1, averageHeadcount: 4, rate: 0.25, monthsCovered: 1 }],
+        points: [
+          { month: '2026-03', leavers: 1, averageHeadcount: 4, rate: 0.25, monthsCovered: 1 },
+        ],
       },
     });
   });
@@ -393,7 +440,9 @@ describe('the snapshot', () => {
       ok: true,
       value: { byField: [{ key: 'cost_centre', sectionKey: 'hr_information', missing: 2 }] },
     });
-    const forManager = await chart(ACME, managerOf(MANAGER), (ctx) => completeness(ctx, { asOf: D3 }));
+    const forManager = await chart(ACME, managerOf(MANAGER), (ctx) =>
+      completeness(ctx, { asOf: D3 }),
+    );
     expect(forManager).toMatchObject({ ok: true, value: { byField: null } });
   });
 });
@@ -415,7 +464,9 @@ describe('a chart is a read', () => {
 
   it('refuses a dimension the snapshot does not hold, rather than throwing', async () => {
     const filters = JSON.parse('{"constructor":["x"]}') as Filters;
-    const result = await chart(ACME, hr, (ctx) => headcountTrend(ctx, { from: D1, to: D3, filters }));
+    const result = await chart(ACME, hr, (ctx) =>
+      headcountTrend(ctx, { from: D1, to: D3, filters }),
+    );
     expect(result).toMatchObject({ ok: false, error: { code: 'UNKNOWN_DIMENSION' } });
   });
 
@@ -442,24 +493,31 @@ describe('the cohort minimum', () => {
     await seed(...answered(9, 'a', 1000));
     await snapshotOn(SELF_ID, '2026-03-01');
 
-    const result = await chart(SELF_ID, hr, (ctx) => selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }));
+    const result = await chart(SELF_ID, hr, (ctx) =>
+      selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
+    );
     expect(result).toEqual({
       ok: true,
       value: { asOf: '2026-03-01', status: 'insufficient_data', minimum: 10 },
     });
     if (!result.ok) return;
     expect(chartTooltip(result.value, 'a')).toEqual({ bucket: 'a', value: 'insufficient data' });
-    expect(chartExport(result.value)).toEqual([['bucket', 'count'], ['insufficient data', '']]);
-    expect(JSON.stringify([result, chartTooltip(result.value, 'a'), chartExport(result.value)])).not.toMatch(
-      /\b9\b/,
-    );
+    expect(chartExport(result.value)).toEqual([
+      ['bucket', 'count'],
+      ['insufficient data', ''],
+    ]);
+    expect(
+      JSON.stringify([result, chartTooltip(result.value, 'a'), chartExport(result.value)]),
+    ).not.toMatch(/\b9\b/);
   });
 
   it('serves it once every answer, prefer-not-to-say included, reaches the minimum', async () => {
     await seed(...answered(1, 'a', 1100), ...answered(10, 'prefer_not_to_say', 1200));
     await snapshotOn(SELF_ID, '2026-03-02');
 
-    const result = await chart(SELF_ID, hr, (ctx) => selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }));
+    const result = await chart(SELF_ID, hr, (ctx) =>
+      selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
+    );
     expect(result).toEqual({
       ok: true,
       value: {
@@ -476,19 +534,30 @@ describe('the cohort minimum', () => {
   it('counts the unanswered as a cell, so one blank withholds the lot', async () => {
     await seed(...answered(1, undefined, 1300));
     await snapshotOn(SELF_ID, '2026-03-03');
-    const result = await chart(SELF_ID, hr, (ctx) => selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }));
+    const result = await chart(SELF_ID, hr, (ctx) =>
+      selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
+    );
     expect(result).toMatchObject({ ok: true, value: { status: 'insufficient_data' } });
   });
 
   it('honours a raised minimum and ignores a lowered one', async () => {
     const raised = await inTenant(SELF_ID, (scope) =>
-      selfIdBreakdown({ ...scope, viewer: hr, definitions, cohortMinimum: 50 }, { attributeKey: 'ethnicity' }),
+      selfIdBreakdown(
+        { ...scope, viewer: hr, definitions, cohortMinimum: 50 },
+        { attributeKey: 'ethnicity' },
+      ),
     );
     expect(raised).toMatchObject({ ok: true, value: { status: 'insufficient_data', minimum: 50 } });
     const lowered = await inTenant(SELF_ID, (scope) =>
-      selfIdBreakdown({ ...scope, viewer: hr, definitions, cohortMinimum: 1 }, { attributeKey: 'ethnicity' }),
+      selfIdBreakdown(
+        { ...scope, viewer: hr, definitions, cohortMinimum: 1 },
+        { attributeKey: 'ethnicity' },
+      ),
     );
-    expect(lowered).toMatchObject({ ok: true, value: { status: 'insufficient_data', minimum: 10 } });
+    expect(lowered).toMatchObject({
+      ok: true,
+      value: { status: 'insufficient_data', minimum: 10 },
+    });
   });
 
   it('never answers a manager, and never answers for a field that is not special-category', async () => {
@@ -496,18 +565,35 @@ describe('the cohort minimum', () => {
       selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
     );
     expect(asManager).toMatchObject({ ok: false, error: { code: 'SPECIAL_CATEGORY_HR_ONLY' } });
-    const notSpecial = await chart(SELF_ID, hr, (ctx) => selfIdBreakdown(ctx, { attributeKey: 'org_unit' }));
+    const notSpecial = await chart(SELF_ID, hr, (ctx) =>
+      selfIdBreakdown(ctx, { attributeKey: 'org_unit' }),
+    );
     expect(notSpecial).toMatchObject({ ok: false, error: { code: 'NOT_A_SELF_ID_FIELD' } });
   });
 
   describe('a core field a tenant tightened to special-category', () => {
     const tightened = definitions.map((d) =>
-      d.key === 'work_location' ? define({ key: 'work_location', visibility: ['hr'], classification: SPECIAL, includeInEvents: false }) : d,
+      d.key === 'work_location'
+        ? define({
+            key: 'work_location',
+            visibility: ['hr'],
+            classification: SPECIAL,
+            includeInEvents: false,
+          })
+        : d,
     );
 
     it('is withheld whole below the minimum', async () => {
-      const result = await chart(ACME, hr, (ctx) => composition(ctx, { by: ['location'] }), tightened);
-      expect(result).toMatchObject({ ok: true, value: { status: 'insufficient_data', minimum: 10 } });
+      const result = await chart(
+        ACME,
+        hr,
+        (ctx) => composition(ctx, { by: ['location'] }),
+        tightened,
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        value: { status: 'insufficient_data', minimum: 10 },
+      });
     });
 
     it('cannot be filtered, which would difference a cell out of two queries', async () => {
@@ -521,7 +607,12 @@ describe('the cohort minimum', () => {
     });
 
     it('cannot be read at an earlier snapshot, which would difference it across time', async () => {
-      const result = await chart(ACME, hr, (ctx) => composition(ctx, { asOf: D1, by: ['location'] }), tightened);
+      const result = await chart(
+        ACME,
+        hr,
+        (ctx) => composition(ctx, { asOf: D1, by: ['location'] }),
+        tightened,
+      );
       expect(result).toMatchObject({ ok: false, error: { code: 'SPECIAL_CATEGORY_LATEST_ONLY' } });
     });
 
@@ -532,7 +623,10 @@ describe('the cohort minimum', () => {
         (ctx) => headcountTrend(ctx, { from: D1, to: D3, filters: { location: [MADRID] } }),
         tightened,
       );
-      expect(result).toMatchObject({ ok: false, error: { code: 'SPECIAL_CATEGORY_POINT_IN_TIME' } });
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: 'SPECIAL_CATEGORY_POINT_IN_TIME' },
+      });
     });
   });
 });
@@ -557,7 +651,9 @@ describe('at 50,000 people', () => {
 
     const start = performance.now();
     expect((await snapshotOn(PERF, '2026-03-31')).ok).toBe(true);
-    console.info(`snapshot of 50,000 people took ${String(Math.round(performance.now() - start))} ms`);
+    console.info(
+      `snapshot of 50,000 people took ${String(Math.round(performance.now() - start))} ms`,
+    );
 
     // A year of month-end runs behind it, copied rather than recomputed.
     await admin.execute(sql`
@@ -584,7 +680,9 @@ describe('at 50,000 people', () => {
 
   it('answers a composition chart in under 400 ms', async () => {
     const { ms, result } = await timed(() =>
-      chart(PERF, hr, (ctx) => composition(ctx, { asOf: '2026-03-31', by: ['department', 'employment_type'] })),
+      chart(PERF, hr, (ctx) =>
+        composition(ctx, { asOf: '2026-03-31', by: ['department', 'employment_type'] }),
+      ),
     );
     expect(result.ok).toBe(true);
     if (result.ok && result.value.status === 'ok') {

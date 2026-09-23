@@ -195,3 +195,9 @@ export const attributeUnique = people.table(
     index('attribute_unique_person_lookup').on(t.tenantId, t.personId),
   ],
 );
+
+/** Every tenant People has work for. Readable unscoped, by design: see the migration. */
+export const tenant = people.table('tenant', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+});

@@ -27,21 +27,25 @@ import { drizzleProvisionalPeople } from './identity.js';
 export function wireConsumers(env = process.env): void {
   // A consumer that failed to connect is a process that should be restarted,
   // not a subgraph quietly serving while nothing is provisioned.
-  start(env).catch((error: unknown) => {
+  startConsumers(env).catch((error: unknown) => {
     logger.error({ err: error }, 'people consumers failed');
     process.exit(1);
   });
 }
 
-async function start(env: NodeJS.ProcessEnv): Promise<void> {
+/** `wireConsumers` without the exit, for a test to boot and stop. Null when not configured. */
+export async function startConsumers(
+  env: NodeJS.ProcessEnv,
+): Promise<{ stop(): Promise<void> } | null> {
   const databaseUrl = env['PEOPLE_DATABASE_URL'];
   const brokers = env['KAFKA_BROKERS'];
   if (databaseUrl === undefined || brokers === undefined) {
     logger.info('PEOPLE_DATABASE_URL or KAFKA_BROKERS unset; not consuming');
-    return;
+    return null;
   }
 
-  const inTenant = tenantTransaction(drizzle(postgres(databaseUrl, { max: 5 })));
+  const client = postgres(databaseUrl, { max: 5 });
+  const inTenant = tenantTransaction(drizzle(client));
   const handle = peopleConsumer({
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
@@ -58,7 +62,13 @@ async function start(env: NodeJS.ProcessEnv): Promise<void> {
     groupId: 'people',
   });
   await consumer.connect();
-  await consumer.subscribe({ topics: [AccountProvisioned.topic, SchemaPublished.topic] });
+  // From the beginning, which only matters the first time the group exists:
+  // every handler is idempotent, and an account provisioned before People was
+  // first deployed is an account People should still know about.
+  await consumer.subscribe({
+    topics: [AccountProvisioned.topic, SchemaPublished.topic],
+    fromBeginning: true,
+  });
   await consumer.run({
     eachMessage: async ({ message }) => {
       if (message.value === null) return;
@@ -72,6 +82,13 @@ async function start(env: NodeJS.ProcessEnv): Promise<void> {
       await handle(envelope);
     },
   });
+
+  return {
+    async stop() {
+      await consumer.disconnect();
+      await client.end();
+    },
+  };
 }
 
 /**
@@ -82,7 +99,7 @@ async function start(env: NodeJS.ProcessEnv): Promise<void> {
  * recompute batch may share a millisecond and sort by coin flip; nothing reads
  * this outbox in id order within a millisecond yet.`
  */
-function uuidv7(): string {
+export function uuidv7(): string {
   const bytes = randomBytes(16);
   bytes.writeUIntBE(Date.now(), 0, 6);
   bytes[6] = 0x70 | ((bytes[6] ?? 0) & 0x0f);

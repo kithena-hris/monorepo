@@ -895,15 +895,16 @@ Ordered, but none of it blocks Phase 1 shipping.
 Gaps the Phase 1 lanes surfaced. Each is outside the ticket that found it, so
 it is written down here rather than left in a PR description.
 
-- [ ] **PEO-079** `drizzlePeopleFacts().forImpact` exposes custom attributes
+- [x] **PEO-079** `drizzlePeopleFacts().forImpact` exposes custom attributes
       only, so a required **core** field such as `hire_date` counts as missing
       for everybody. The publish-impact preview (PEO-024) and the analytics
       missing-field counts (PEO-045) both overstate. Found in PEO-045.
-- [ ] **PEO-080** Background work has no list of tenants to run for. RLS
+- [x] **PEO-080** Background work has no list of tenants to run for. RLS
       correctly stops `svc_people` enumerating them, so the snapshot job
       (PEO-044), the policy registry's boot load (PEO-034) and the reminder
       sweep (PEO-026) are built but nothing calls them. Needs a tenant source
-      and the wiring in `main.ts`.
+      and the wiring in `main.ts`. *Landed as `people.tenant`, filled by the
+      consumer; the sweep is scheduled only once PEO-084 supplies a mailer.*
 - [ ] **PEO-081** Identity has no endpoint listing a tenant's accounts.
       Reconciliation (PEO-028) is written against an assumed
       `GET /api/internal/tenants/<id>/accounts` returning
@@ -930,7 +931,7 @@ it is written down here rather than left in a PR description.
       trigger widened to allow exactly one redaction shape) and `anonymise`
       then erasing all three places. **Do not schedule retention before this
       lands.** Found in PEO-037. *(PRD §8.1, §12)*
-- [ ] **PEO-086** Wire governance at runtime. The policy registry, the AI
+- [x] **PEO-086** Wire governance at runtime. The policy registry, the AI
       gateway's deny list and the refresh on `people.schema.published` are
       exported but nothing calls them. Needs the Kafka consumer PEO-027 added
       and the tenant source in PEO-080. Found in PEO-034.

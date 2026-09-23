@@ -1,5 +1,6 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer } from 'testcontainers';
+import { createServer } from 'node:net';
+import { GenericContainer, Wait } from 'testcontainers';
 
 /**
  * Real Postgres in integration tests, not a mock. Mocked infrastructure hides
@@ -40,4 +41,55 @@ export async function startValkey(): Promise<{ url: string; stop: () => Promise<
       await container.stop();
     },
   };
+}
+
+/**
+ * Redpanda, for a test that has to see a real consumer consume.
+ *
+ * A Kafka client connects to whatever address the broker advertises, and that
+ * has to be the host's mapped port — which a container does not know until it
+ * has one. So the port is chosen first and bound fixed.
+ *
+ * `ponytail: a free port can be taken between choosing and binding it. Retry
+ * the file if that ever happens in CI.`
+ */
+export async function startRedpanda(): Promise<{ brokers: string; stop: () => Promise<void> }> {
+  const port = await freePort();
+  const container = await new GenericContainer('redpandadata/redpanda:latest')
+    .withExposedPorts({ container: 9092, host: port })
+    .withCommand([
+      'redpanda',
+      'start',
+      '--mode',
+      'dev-container',
+      '--smp',
+      '1',
+      '--kafka-addr',
+      '0.0.0.0:9092',
+      '--advertise-kafka-addr',
+      `localhost:${String(port)}`,
+    ])
+    .withWaitStrategy(Wait.forLogMessage(/Successfully started Redpanda/))
+    .start();
+
+  return {
+    brokers: `localhost:${String(port)}`,
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, () => {
+      const address = server.address();
+      server.close(() => {
+        if (typeof address === 'object' && address !== null) resolve(address.port);
+        else reject(new Error('no port was assigned'));
+      });
+    });
+  });
 }
