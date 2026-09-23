@@ -115,6 +115,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
+    '20260923140000_people_retention.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -219,5 +220,28 @@ describe('a subject access export', () => {
       dsar(tx, { tenantId: ACME, personId: ADA, requester: { ...subject, isSelf: false, isHr: true } }),
     );
     expect(result).toMatchObject({ ok: false, error: { code: 'DSAR_NOT_SUBJECT' } });
+  });
+
+  // Last, because it redacts a row the tests above read.
+  it('still exports once retention has redacted part of the history', async () => {
+    await admin.execute(sql`
+      UPDATE people.person_attribute_history
+         SET value = NULL, redacted_at = now(), redaction_reason = 'retention'
+       WHERE attribute_key = 'shoe_size'
+    `);
+
+    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    if (!result.ok) throw new Error(result.error.message);
+
+    // The fact of the change survives; what it was does not.
+    expect(result.value.history).toMatchObject([
+      { attributeKey: 'shoe_size', value: null, effectiveFrom: '2026-01-01' },
+    ]);
+    expect(result.value.attributes.map((a) => a.key).toSorted()).toEqual([
+      'bank_account',
+      'given_name',
+      'religion',
+      'shoe_size',
+    ]);
   });
 });
