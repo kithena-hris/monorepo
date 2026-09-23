@@ -206,13 +206,13 @@ describe('starting on the start date (§8.1)', () => {
   it('takes effect on the start date, whenever it is recorded', () => {
     const p = preHire();
     expect(p.start(context('2026-10-03T09:00:00.000Z'), 'Etc/UTC').ok).toBe(true);
-    expect(p.drainEvents()).toEqual([
-      expect.objectContaining({
-        eventName: 'people.person.status_changed',
-        effectiveFrom: '2026-10-01',
-        payload: expect.objectContaining({ previous: 'pre_hire', next: 'active', reason: 'started' }),
-      }),
-    ]);
+    const raised = p.drainEvents();
+    expect(raised).toHaveLength(1);
+    expect(raised[0]).toMatchObject({
+      eventName: 'people.person.status_changed',
+      effectiveFrom: '2026-10-01',
+      payload: { previous: 'pre_hire', next: 'active', reason: 'started' },
+    });
   });
 
   it('refuses before the start date has begun on the person’s own calendar', () => {

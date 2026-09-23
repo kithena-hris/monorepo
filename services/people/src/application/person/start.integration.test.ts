@@ -108,11 +108,11 @@ afterAll(async () => {
   await stopPg?.();
 });
 
-const statuses = async () =>
+const statuses = async (): Promise<Record<string, string>> =>
   Object.fromEntries(
     [...(await admin.execute(sql`SELECT id, status FROM people.person ORDER BY id`))].map((r) => [
-      r['id'],
-      r['status'],
+      String(r['id']),
+      String(r['status']),
     ]),
   );
 
@@ -135,19 +135,18 @@ describe('starting pre-hires on their own day', () => {
 
     // The same events a start raises by hand: the move, effective from the
     // start date, and identity's copy of the start date for a linked person.
-    expect(await events(KIRI)).toEqual([
+    const raised = await events(KIRI);
+    expect(raised).toHaveLength(2);
+    expect(raised).toMatchObject([
       {
         name: 'people.person.status_changed',
         effectiveFrom: '2026-10-01',
-        payload: expect.objectContaining({ previous: 'pre_hire', next: 'active', reason: 'started' }),
+        payload: { previous: 'pre_hire', next: 'active', reason: 'started' },
       },
       {
         name: 'people.person.identity_facts_changed',
         effectiveFrom: '2026-10-01',
-        payload: expect.objectContaining({
-          identityAccountId: KIRI_ACCOUNT,
-          employmentStart: '2026-10-01',
-        }),
+        payload: { identityAccountId: KIRI_ACCOUNT, employmentStart: '2026-10-01' },
       },
     ]);
   });
