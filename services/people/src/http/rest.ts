@@ -166,6 +166,9 @@ const STATUS: Record<string, number> = {
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
+  // A request missing what every webhook endpoint must carry. No route
+  // creates endpoints yet; this is the answer when one does (PEO-093).
+  BAD_WEBHOOK_ALERT_EMAIL: 400,
   UNAVAILABLE: 503,
 };
 
