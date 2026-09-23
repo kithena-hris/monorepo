@@ -601,7 +601,14 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
   row in the state the commit will leave it in) and an export's grey
   not-applicable cells all agree. Analytics counts missing fields for active,
   on-leave and notice records only.
-- **active** — started. All applicable required fields apply.
+- **active** — started. All applicable required fields apply. A pre-hire
+  becomes active on their start date without anybody pressing anything: an
+  hourly job starts every pre-hire whose start date has begun on their own
+  calendar (§6.8) — Auckland's 1st at its midnight, Los Angeles's at its own —
+  raising `status_changed` (reason `started`, effective from the start date)
+  and, for a linked person, `identity_facts_changed`, and re-judging their
+  completeness. Bounded per run, one transaction per person, and idempotent:
+  a second replica or a re-run finds nobody left to start.
 - **on_leave**, **notice** — active variants; relevant because requiredness
   predicates can name them.
 - **terminated** — a tombstone. The record survives; employment records outlive
