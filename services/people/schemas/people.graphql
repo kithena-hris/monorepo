@@ -67,6 +67,12 @@ type HistoryEntry {
   supersedes: ID
 }
 
+enum LeavingReason {
+  resigned
+  dismissed
+  end_of_contract
+}
+
 type LegalEntity {
   id: ID
   name: String
@@ -124,6 +130,23 @@ type Mutation {
   """
   changeLocationZone(id: ID!, timeZone: String!, effectiveFrom: String!): Location
   correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String): HistoryEntry
+
+  """
+  Put an active or on-leave person on notice until a last working day; HR only.
+  """
+  giveNotice(personId: ID!, lastWorkingDay: String!, reason: LeavingReason): Person
+
+  """End the employment once its last working day has come; HR only."""
+  terminatePerson(personId: ID!, lastWorkingDay: String!, reason: LeavingReason!, note: String, eligibleForRehire: Boolean): Person
+
+  """An active person goes on leave from today, on their calendar; HR only."""
+  startLeave(personId: ID!): Person
+
+  """A person on leave is back from today, on their calendar; HR only."""
+  endLeave(personId: ID!): Person
+
+  """Withdraw a provisional record that was never a person; HR only."""
+  discardPerson(personId: ID!): Person
 }
 
 type NumberAttribute {

@@ -17,6 +17,7 @@ import type { Asking } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
+import { LIFECYCLE_ACTIONS } from './lifecycle.js';
 import { schemaArtifact } from './schema-artifact.js';
 
 /**
@@ -888,6 +889,28 @@ export function restHandler(
           (verdict) => ({ state: verdict.state, missing: verdict.missing }),
         ),
     },
+    // Notice, termination, leave and discarding (PEO-108): one route each.
+    ...LIFECYCLE_ACTIONS.map(
+      (a): Route => ({
+        method: 'POST',
+        pattern: new RegExp(`^/v1/people/${UUID}/${a.path}$`),
+        handle: async (asking, request, params) => {
+          const input = bodyAs(a.body, request);
+          if (!input.ok) return refused(input.error);
+          const personId = params['id'] ?? '';
+          return idempotent(
+            asking,
+            request,
+            200,
+            async (tx) => {
+              const moved = await a.run(service.access, tx, { ...asking, personId }, input.value);
+              return moved.ok ? ok(personId) : moved;
+            },
+            (id) => readPerson(asking, id),
+          );
+        },
+      }),
+    ),
     {
       method: 'GET',
       pattern: /^\/v1\/settings$/,
