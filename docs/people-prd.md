@@ -634,9 +634,13 @@ On publishing a schema version that adds or tightens a requirement:
    the missing attribute keys and, for each, who owns it.
 3. Missing **employee-owned** attributes become a task for the employee: a
    banner on their profile, an item in their task list, and a reminder email
-   through `platform/messaging` on a decaying schedule (day 1, day 3, day 7,
-   then weekly, capped). Never more than one reminder email per person per
-   week regardless of how many fields are missing.
+   through `platform/messaging`: on day 1 (the first sweep after the gap
+   opens), then weekly until the profile is complete. Never more than one
+   reminder email per person per week regardless of how many fields are
+   missing — the cap is the rule, and it replaced an earlier day 1 / 3 / 7
+   schedule whose day 3 would have been a second email in the same week. The
+   email counts the missing details and names none of them; it links to the
+   person's own profile, where they read the list signed in.
 4. Missing **HR-owned** attributes become a task for HR, aggregated: "88 people
    are missing a cost centre" with a bulk-edit grid, not 88 separate tasks.
 5. The settings screen shows the impact **before** publishing: "This makes 88 of

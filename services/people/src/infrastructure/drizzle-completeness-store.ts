@@ -4,6 +4,7 @@ import { CalendarDate } from '@kithena/contracts';
 
 import type { CompletenessStore, GridRow, Reminder } from '../application/completeness/store.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
+import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
 import { outbox, person, schemaVersion } from './tables.js';
 
 /**
@@ -70,12 +71,14 @@ export function drizzleCompletenessStore(): CompletenessStore {
       await publish(tx, outbox, events);
     },
 
-    async claimReminders(tx, tenantId, now) {
+    async claimReminders(tx, tenantId, now, limit) {
       /*
        * One statement, so the cap is a property of the row lock rather than of
-       * this process. A second sweep blocked on the same row re-reads it after
-       * the first commits, finds `reminded_at` is now, and claims nothing.
+       * this process. The inner SELECT locks at most `limit` due rows and skips
+       * any another sweep holds; a row that sweep has since committed is
+       * re-checked against its new `reminded_at` under the lock and dropped.
        */
+      const dueBefore = reminderDueBefore(now).toISOString();
       const rows = await tx.execute(sql`
         UPDATE people.completeness_gap g
            SET reminded_at = ${now.toISOString()}::timestamptz,
@@ -84,16 +87,25 @@ export function drizzleCompletenessStore(): CompletenessStore {
          WHERE g.tenant_id = ${tenantId}::uuid
            AND p.tenant_id = g.tenant_id
            AND p.id = g.person_id
-           AND p.work_email IS NOT NULL
-           AND cardinality(g.employee_keys) > 0
-           AND (g.reminded_at IS NULL
-                OR g.reminded_at <= ${now.toISOString()}::timestamptz - interval '168 hours')
+           AND g.person_id IN (
+             SELECT d.person_id
+               FROM people.completeness_gap d
+               JOIN people.person dp ON dp.tenant_id = d.tenant_id AND dp.id = d.person_id
+              WHERE d.tenant_id = ${tenantId}::uuid
+                AND dp.work_email IS NOT NULL
+                AND cardinality(d.employee_keys) > 0
+                AND (d.reminded_at IS NULL OR d.reminded_at <= ${dueBefore}::timestamptz)
+              ORDER BY d.person_id
+              LIMIT ${limit}
+                FOR UPDATE OF d SKIP LOCKED
+           )
         RETURNING g.person_id, p.work_email, g.employee_keys
       `);
       return [...rows].map((row): Reminder => ({
         personId: row['person_id'] as string,
         workEmail: row['work_email'] as string,
         keys: row['employee_keys'] as string[],
+        remindedAt: now,
       }));
     },
 

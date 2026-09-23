@@ -6,12 +6,12 @@ import type { CompletenessStore, Reminder } from './store.js';
 /**
  * The reminder email, and the cap on it.
  *
- * **Never more than one reminder email per person per week, regardless of how
- * many fields are missing.** §8.4 lists a decaying schedule — day 1, day 3,
- * day 7, then weekly — and the cap is the rule that wins where the two
- * disagree: day 1 and day 3 are two emails in one week, so under the cap the
- * schedule collapses to the first sweep after the gap opens and every 168
- * hours after that. The banner and the task list are what carry day 3.
+ * **Day 1, then weekly, and never more than one reminder email per person per
+ * week, regardless of how many fields are missing.** The product owner settled
+ * PEO-084 for the cap over §8.4's old day 1 / 3 / 7 list: the first sweep after
+ * the gap opens, then every 168 hours until the profile is complete. When a
+ * person is due is `reminderDueBefore`'s question and nobody else's. The
+ * banner and the task list are what carry the days in between.
  *
  * Claimed, committed, then sent. The claim is a conditional UPDATE, so two
  * sweeps racing cannot both send; and the send happens after the commit, so a
@@ -29,16 +29,31 @@ export interface SweepDeps {
   readonly store: CompletenessStore;
   readonly mailer: ReminderMailer;
   readonly clock: Clock;
+  /** How many reminders one transaction claims, and one burst sends. */
+  readonly batchSize?: number;
 }
 
-export function sweepReminders(deps: SweepDeps) {
-  return async (tenantId: string): Promise<{ sent: number; failed: number }> => {
-    const claimed = await deps.inTenant(tenantId, ({ tx }) =>
-      deps.store.claimReminders(tx, tenantId, deps.clock.now()),
-    );
+const BATCH = 100;
 
-    const outcomes = await Promise.allSettled(claimed.map((r) => deps.mailer.send(tenantId, r)));
-    const failed = outcomes.filter((o) => o.status === 'rejected').length;
-    return { sent: claimed.length - failed, failed };
+export function sweepReminders(deps: SweepDeps) {
+  const limit = deps.batchSize ?? BATCH;
+  return async (tenantId: string): Promise<{ sent: number; failed: number }> => {
+    const now = deps.clock.now();
+    let sent = 0;
+    let failed = 0;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop -- one bounded batch at a time is the point
+      const claimed = await deps.inTenant(tenantId, ({ tx }) =>
+        deps.store.claimReminders(tx, tenantId, now, limit),
+      );
+      // eslint-disable-next-line no-await-in-loop -- send this batch before claiming the next
+      const outcomes = await Promise.allSettled(
+        claimed.map((r) => deps.mailer.send(tenantId, r)),
+      );
+      const lost = outcomes.filter((o) => o.status === 'rejected').length;
+      failed += lost;
+      sent += claimed.length - lost;
+      if (claimed.length < limit) return { sent, failed };
+    }
   };
 }

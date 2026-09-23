@@ -15,6 +15,7 @@ import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
+import { reminderMailerFrom } from './reminder-mailer.js';
 import { knownTenants } from './tenants.js';
 import { tenantTransaction } from './unit-of-work.js';
 
@@ -31,9 +32,9 @@ import { tenantTransaction } from './unit-of-work.js';
  *   The same transaction then publishes whichever special-category
  *   breakdowns are due (PEO-083): the monthly check lives here, and a month
  *   holds one publication per breakdown whoever runs it.
- * - **The reminder sweep**, hourly, only when a mailer is given. There is no
- *   reminder endpoint yet (PEO-084), and a sweep without one would claim the
- *   week's reminder and send nothing.
+ * - **The reminder sweep**, hourly, only when a mailer is configured
+ *   (PEO-084: `MESSAGING_URL`, `MESSAGING_PEOPLE_TOKEN` and `APP_ORIGIN`). A
+ *   sweep without one would claim the week's reminder and send nothing.
  * - **Reconciliation** (§8.2, "People is bought later"), for a tenant within
  *   one tick of People first learning of it, then again once a day. It reads
  *   identity's account listing, so it runs only when `IDENTITY_URL` and a
@@ -162,13 +163,14 @@ export async function startBackground(
     ),
   ];
 
-  if (options.mailer === undefined) {
-    logger.info('no reminder mailer (PEO-084); reminder sweep not scheduled');
+  const mailer = options.mailer ?? reminderMailerFrom(env);
+  if (mailer === undefined) {
+    logger.info('no reminder mailer; reminder sweep not scheduled');
   } else {
     const sweep = sweepReminders({
       inTenant,
       store: drizzleCompletenessStore(),
-      mailer: options.mailer,
+      mailer,
       clock: systemClock,
     });
     jobs.push(

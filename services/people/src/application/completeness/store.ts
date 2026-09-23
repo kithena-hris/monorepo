@@ -51,14 +51,19 @@ export interface CompletenessStore {
   publish(tx: PostgresJsDatabase, events: readonly PendingEvent[]): Promise<void>;
 
   /**
-   * Claim every reminder that is due at `now`, and mark it sent.
+   * Claim up to `limit` reminders that are due at `now`, and mark them sent.
    *
    * Due means the person has an employee-owned gap, an address to send to, and
-   * has not been emailed in the last 168 hours. Hours, not `interval '7 days'`: a day in Postgres
-   * interval arithmetic follows the session time zone across a DST change and
-   * is 23 or 25 hours long, which would let two emails through 167 hours apart.
+   * was never reminded or was last reminded at or before `reminderDueBefore(now)`.
+   * Bounded so one transaction never holds a whole tenant's rows; the sweep
+   * claims batch after batch until one comes back short.
    */
-  claimReminders(tx: PostgresJsDatabase, tenantId: string, now: Date): Promise<readonly Reminder[]>;
+  claimReminders(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    now: Date,
+    limit: number,
+  ): Promise<readonly Reminder[]>;
 
   /** HR's gaps, one row per missing key — the grid, never a task per person. */
   staffGrid(tx: PostgresJsDatabase, tenantId: string): Promise<readonly GridRow[]>;
@@ -74,6 +79,8 @@ export interface Reminder {
   readonly personId: string;
   readonly workEmail: string;
   readonly keys: readonly string[];
+  /** When this reminder was claimed. Makes a resend of the same claim the same message. */
+  readonly remindedAt: Date;
 }
 
 export interface GridRow {
