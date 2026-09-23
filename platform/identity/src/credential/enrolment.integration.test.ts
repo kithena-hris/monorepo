@@ -8,7 +8,11 @@ import { fixedClock, ok, systemClock, type Result } from '@kithena/domain-kit';
 import { startPostgres, startValkey } from '@kithena/testing';
 
 import { Account } from '../account/domain/account.js';
-import { drizzleAccountRepository } from '../account/infrastructure/drizzle-account-repository.js';
+import {
+  drizzleAccountRepository,
+  recordCapturedName,
+} from '../account/infrastructure/drizzle-account-repository.js';
+import { peopleConsumer } from '../account/consumers/people.js';
 import { completeEnrolment } from './application/complete-enrolment.js';
 import { drizzleEnrolmentTokenStore } from './infrastructure/drizzle-enrolment-token-store.js';
 import { simpleWebAuthnRelyingParty } from '../credential/infrastructure/simplewebauthn-relying-party.js';
@@ -133,8 +137,14 @@ async function enrol(
     const tokens = drizzleEnrolmentTokenStore(tx, TENANT);
     const token =
       options.token ??
-      (await tokens.issue({ accountId: ACCOUNT, purpose: 'invitation', secondChannel: 'in_person', issuedBy: null }))
-        .token;
+      (
+        await tokens.issue({
+          accountId: ACCOUNT,
+          purpose: 'invitation',
+          secondChannel: 'in_person',
+          issuedBy: null,
+        })
+      ).token;
 
     const { challenge } = await rp.beginRegistration({
       identityId: IDENTITY,
@@ -163,13 +173,7 @@ async function enrol(
       // asserting the account afterwards sees what a real enrolment would have
       // left behind.
       recordName: async (accountId, name) => {
-        await tx.execute(sql`
-          UPDATE platform.account
-             SET given_name = ${name.given},
-                 family_name = ${name.family},
-                 preferred_name = ${name.preferred}
-           WHERE id = ${accountId}::uuid
-        `);
+        await recordCapturedName(tx, accountId, name);
       },
       recordProfile: async (accountId, profile) => {
         await tx.execute(sql`
@@ -254,7 +258,8 @@ describe('a first passkey', () => {
     const issued = await inTenant((tx) =>
       drizzleEnrolmentTokenStore(tx, TENANT).issue({
         accountId: ACCOUNT,
-        purpose: 'invitation', secondChannel: 'in_person',
+        purpose: 'invitation',
+        secondChannel: 'in_person',
         issuedBy: null,
       }),
     );
@@ -306,12 +311,14 @@ describe('re-issuing a link', () => {
       const store = drizzleEnrolmentTokenStore(tx, TENANT);
       const a = await store.issue({
         accountId: ACCOUNT,
-        purpose: 'invitation', secondChannel: 'in_person',
+        purpose: 'invitation',
+        secondChannel: 'in_person',
         issuedBy: null,
       });
       const b = await store.issue({
         accountId: ACCOUNT,
-        purpose: 'invitation', secondChannel: 'in_person',
+        purpose: 'invitation',
+        secondChannel: 'in_person',
         issuedBy: null,
       });
       return [a.token, b.token];
@@ -330,7 +337,8 @@ describe('re-issuing a link', () => {
     const issued = await inTenant((tx) =>
       drizzleEnrolmentTokenStore(tx, TENANT).issue({
         accountId: ACCOUNT,
-        purpose: 'invitation', secondChannel: 'in_person',
+        purpose: 'invitation',
+        secondChannel: 'in_person',
         issuedBy: null,
       }),
     );
@@ -409,7 +417,9 @@ describe('what onboarding collects', () => {
  * same form collected stayed behind.
  */
 describe('the outbox after an enrolment', () => {
-  async function capturedEvents(): Promise<{ eventName: string; payload: Record<string, unknown> }[]> {
+  async function capturedEvents(): Promise<
+    { eventName: string; payload: Record<string, unknown> }[]
+  > {
     /*
      * Ordered by the aggregate's own version, not by `event_id`.
      *
@@ -471,6 +481,93 @@ describe('the outbox after an enrolment', () => {
 
     const events = await capturedEvents();
     expect(events.map((e) => e.eventName)).toEqual(['identity.account.enrolled']);
+  });
+});
+
+/**
+ * Which name wins at enrolment (PRD §5, PEO-097).
+ *
+ * Identity owns a person's facts before People exists and People owns them
+ * after. So a name HR set in People before the person enrolled survives
+ * whatever they type on the way in; the typed name is still published, and a
+ * later correction from People still lands.
+ */
+describe('which name wins at enrolment', () => {
+  const consume = peopleConsumer((tenantId, fn) =>
+    db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+      return fn(tx);
+    }),
+  );
+
+  let n = 0;
+  const peopleNames = (given: string, family: string) => {
+    n += 1;
+    const at = new Date(Date.UTC(2026, 0, 2, 9, n)).toISOString();
+    return {
+      eventId: `01890000-0000-7000-8000-${String(900 + n).padStart(12, '0')}`,
+      eventName: 'people.person.identity_facts_changed',
+      eventVersion: 1,
+      tenantId: TENANT,
+      occurredAt: at,
+      recordedAt: at,
+      effectiveFrom: null,
+      aggregate: { type: 'Person', id: '00000000-0000-4000-8000-0000000000f1', version: 2 },
+      actor: { kind: 'system', process: 'test' },
+      correlationId: '00000000-0000-4000-8000-0000000000c1',
+      causationId: null,
+      payload: {
+        personId: '00000000-0000-4000-8000-0000000000f1',
+        identityAccountId: ACCOUNT,
+        name: { given, family, preferred: null },
+        employmentStart: null,
+      },
+    };
+  };
+
+  async function nameOfAccount() {
+    const rows = await admin.execute(sql`
+      SELECT given_name, family_name FROM platform.account WHERE id = ${ACCOUNT}::uuid`);
+    const row = [...rows][0];
+    return { given: row?.['given_name'], family: row?.['family_name'] };
+  }
+
+  it('keeps the name People set before the person enrolled, and still publishes the typed one', async () => {
+    await invitedAccount();
+    await admin.execute(sql`DELETE FROM platform.outbox`);
+    expect(await consume(peopleNames('Augusta Ada', 'King'))).toBe('applied');
+
+    const { result } = await enrol(softwareAuthenticator('new-passkey'), {
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+    });
+    expect(result.ok).toBe(true);
+
+    expect(await nameOfAccount()).toEqual({ given: 'Augusta Ada', family: 'King' });
+    const events = await admin.execute(sql`
+      SELECT envelope FROM platform.outbox WHERE event_name = 'identity.account.profile_captured'`);
+    const envelope = [...events][0]?.['envelope'] as { payload: { name: unknown } } | undefined;
+    expect(envelope?.payload.name).toEqual({ given: 'Ada', family: 'Lovelace', preferred: null });
+  });
+
+  it('stores the typed name when People has never named the account', async () => {
+    await invitedAccount();
+
+    const { result } = await enrol(softwareAuthenticator('new-passkey'), {
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+    });
+    expect(result.ok).toBe(true);
+
+    expect(await nameOfAccount()).toEqual({ given: 'Ada', family: 'Lovelace' });
+  });
+
+  it('still takes a later correction from People', async () => {
+    await invitedAccount();
+    await enrol(softwareAuthenticator('new-passkey'), {
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+    });
+
+    expect(await consume(peopleNames('Ada', 'King'))).toBe('applied');
+    expect(await nameOfAccount()).toEqual({ given: 'Ada', family: 'King' });
   });
 });
 

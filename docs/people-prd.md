@@ -235,6 +235,14 @@ The rule this produces:
 > afterwards. The copies are reconciled by events in one direction only —
 > People publishes, identity consumes.**
 
+**Which name wins at enrolment.** The person types a name on the enrolment
+form. If People has not yet written the account's name, identity stores what
+was typed. If it has — `platform.account.people_facts_at` is set once People's
+first correction is applied — identity keeps People's and does not overwrite
+it. Either way identity publishes `identity.account.profile_captured` with what
+was typed, and People fills its own name from it only when its own is empty.
+A later correction from People still applies as usual, so the two cannot drift.
+
 That direction matters. A tenant with no People module keeps identity's copies
 as the only truth, which is exactly what `requiresPeopleSource` is for. A tenant
 with People gets one editing surface and one source of record, and the two rows

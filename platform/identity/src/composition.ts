@@ -10,6 +10,7 @@ import { startSession } from './account/application/start-session.js';
 import {
   accountsPage,
   drizzleAccountRepository,
+  recordCapturedName,
   loadSession,
   profileOf,
 } from './account/infrastructure/drizzle-account-repository.js';
@@ -619,7 +620,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
     }),
   });
 
-
   /* ------------------------------------------------------------ back-office */
 
   const operators = drizzleOperatorRepository(db);
@@ -889,13 +889,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
            * and nothing else for exactly that reason.
            */
           recordName: async (accountId, name) => {
-            await tx.execute(sql`
-              UPDATE platform.account
-                 SET given_name = ${name.given},
-                     family_name = ${name.family},
-                     preferred_name = ${name.preferred}
-               WHERE id = ${accountId}::uuid
-            `);
+            // Not over a name People has set: `recordCapturedName` says why.
+            await recordCapturedName(tx, accountId, name);
           },
           /*
            * The zone they confirmed, and a number to reach them on.

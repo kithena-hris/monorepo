@@ -984,10 +984,12 @@ it is written down here rather than left in a PR description.
       every reader uses the typed column, the same bug PEO-029 fixed for
       `hire_date`. A hire-date correction also does not re-evaluate status.
       Found in PEO-029. *(PRD §8.5)*
-- [ ] **PEO-097** Name drift at enrolment. Identity writes the name typed at
+- [x] **PEO-097** Name drift at enrolment. Identity writes the name typed at
       enrolment onto the account even after People has set one, and People
       only fills its own name when empty, so the two can differ until People's
-      next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
+      next name change. Decide which wins. Found in PEO-029. *(PRD §5)* —
+      People's wins once it has written the account (`people_facts_at` set);
+      the typed name is still published on `profile_captured`.
 - [x] **PEO-100** Corrections that contradict the state. An active person whose
       start date is corrected into the future stays active, and a person on
       notice whose last working day is corrected into the past has nothing
