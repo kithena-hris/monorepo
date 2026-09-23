@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { createServer as netServer } from 'node:net';
@@ -337,8 +337,16 @@ export async function startStack(): Promise<Stack> {
       identity.listen(identityPort, '127.0.0.1', resolve);
     });
 
-    // The remote and the shell, as production builds.
+    // The remote and the shell, as production builds. The remote's server
+    // build signed as its deploy pipeline signs it, and the shell pinning the
+    // public half (PEO-115).
     await run('pnpm', ['--filter', '@kithena/web-people', 'build'], ROOT, 240_000);
+    const signing = generateKeyPairSync('ed25519');
+    await run('pnpm', ['--filter', '@kithena/web-people', 'sign'], ROOT, 30_000, {
+      PEOPLE_REMOTE_SSR_SIGNING_KEY: signing.privateKey
+        .export({ format: 'der', type: 'pkcs8' })
+        .toString('base64'),
+    });
     children.push(
       start(
         join(ROOT, 'apps/web/people/node_modules/.bin/vite'),
@@ -359,7 +367,12 @@ export async function startStack(): Promise<Stack> {
       PEOPLE_API_URL: peopleUrl,
       PEOPLE_API_TOKEN: TOKEN,
       KITHENA_ENTITLEMENTS: '["module.people"]',
+      PEOPLE_REMOTE_SSR_PUBLIC_KEY: signing.publicKey
+        .export({ format: 'der', type: 'spki' })
+        .toString('base64'),
     };
+    // The renderer process's bundle, which `next build` does not make.
+    await run('node', ['scripts/build-renderer.mjs'], join(ROOT, 'apps/web'), 60_000);
     if (process.env['ACCEPTANCE_SKIP_SHELL_BUILD'] !== '1') {
       // `next build` rewrites `next-env.d.ts` for a production build; a test
       // run leaves the checkout as it found it.

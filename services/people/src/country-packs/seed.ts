@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-import { SchemaDraft } from '../domain/schema/draft.js';
+import { SchemaDraft, type Attribute, type Section } from '../domain/schema/draft.js';
 import { drizzleSchemaRepository } from '../infrastructure/drizzle-schema-repository.js';
 import { attributeDefinition, section } from '../infrastructure/tables.js';
 import { applyPack, type CountryPack } from './packs.js';
@@ -31,7 +31,7 @@ export async function seedCountryPack(
     await tx
       .insert(section)
       .values(
-        sections.map((s) => ({
+        sections.map((s: Section) => ({
           tenantId,
           key: s.key,
           labels: s.label,
@@ -47,7 +47,7 @@ export async function seedCountryPack(
     await tx
       .insert(attributeDefinition)
       .values(
-        attributes.map((a) => ({
+        attributes.map((a: Attribute) => ({
           tenantId,
           key: a.key,
           sectionKey: a.sectionKey,

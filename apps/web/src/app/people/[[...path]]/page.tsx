@@ -5,7 +5,7 @@ import { AppShell } from '../../../components/app-shell';
 import { PeopleScreen } from '../../../components/people-screen';
 import { currentTenant } from '../../../lib/branding';
 import { loadScreen, today } from '../../../lib/people-screens';
-import { preloadRemoteCode } from '../../../lib/remote-code';
+import { prepareRemoteSsr } from '../../../lib/remote-code';
 import { peopleRoute } from '../../../lib/remotes';
 import { currentPerson, displayName } from '../../../lib/session';
 
@@ -38,17 +38,16 @@ export default async function People({
       typeof value === 'string' ? [[key, value]] : [],
     ),
   );
-  // Server rendering evaluates the remote's server build; `remote-screen.tsx`
-  // says what that trusts, and `PEOPLE_REMOTE_SSR=off` is the switch (PEO-094).
-  const ssr =
-    route === null || process.env['PEOPLE_REMOTE_SSR'] === 'off'
-      ? undefined
-      : `${route.base}/ssr/people.cjs`;
-  const [load] = await Promise.all([
+  // Server rendering: a build whose signed manifest verifies, rendered in a
+  // process of its own (`lib/remote-code.ts`, PEO-115). `PEOPLE_REMOTE_SSR=off`
+  // is still the switch.
+  const [load, ssr] = await Promise.all([
     route === null
       ? ({ status: 'none' } as const)
       : loadScreen(route.component, { params: route.params, search }),
-    ssr === undefined ? undefined : preloadRemoteCode(ssr),
+    route === null || process.env['PEOPLE_REMOTE_SSR'] === 'off'
+      ? undefined
+      : prepareRemoteSsr(route.base),
   ]);
 
   const tenant = await currentTenant();
@@ -69,8 +68,7 @@ export default async function People({
             : {
                 entry: route.entry,
                 component: route.component,
-                stylesheet: `${route.base}/ssr/people.css`,
-                ...(ssr === undefined ? {} : { ssr }),
+                ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
               }
         }
         load={load}
