@@ -890,6 +890,96 @@ Ordered, but none of it blocks Phase 1 shipping.
 
 ---
 
+## Found while building Phase 1
+
+Gaps the Phase 1 lanes surfaced. Each is outside the ticket that found it, so
+it is written down here rather than left in a PR description.
+
+- [ ] **PEO-079** `drizzlePeopleFacts().forImpact` exposes custom attributes
+      only, so a required **core** field such as `hire_date` counts as missing
+      for everybody. The publish-impact preview (PEO-024) and the analytics
+      missing-field counts (PEO-045) both overstate. Found in PEO-045.
+- [ ] **PEO-080** Background work has no list of tenants to run for. RLS
+      correctly stops `svc_people` enumerating them, so the snapshot job
+      (PEO-044), the policy registry's boot load (PEO-034) and the reminder
+      sweep (PEO-026) are built but nothing calls them. Needs a tenant source
+      and the wiring in `main.ts`.
+- [ ] **PEO-081** Identity has no endpoint listing a tenant's accounts.
+      Reconciliation (PEO-028) is written against an assumed
+      `GET /api/internal/tenants/<id>/accounts` returning
+      `{ accounts, nextCursor }`; identity must serve that shape or the
+      caller changes. *(PRD §8.2)*
+- [ ] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
+      encrypted attribute cannot be unique without its plaintext sitting next
+      to the ciphertext. Store a keyed hash instead; until then no national
+      identifier in a country pack is marked unique. Found in PEO-059.
+- [ ] **PEO-083** Differencing across snapshots. Reading the latest snapshot
+      on two days can reveal who changed in between, which is the attack the
+      cohort minimum exists to stop for special-category breakdowns. Needs
+      noise or a coarser publishing cadence; a product decision first.
+      Found in PEO-045. *(PRD §16.1)*
+- [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
+      (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
+      schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
+      under the cap; confirm that is intended. *(PRD §8.4)*
+- [ ] **PEO-085** Retention does not fully erase. `anonymise` clears current
+      plain values only: encrypted values stay because `svc_people` has no
+      DELETE on `people.person_secret`, and history keeps every past value
+      because `person_attribute_history` is append-only by trigger. Needs a
+      migration (DELETE grant, nullable `redacted_at` / `redaction_reason`, the
+      trigger widened to allow exactly one redaction shape) and `anonymise`
+      then erasing all three places. **Do not schedule retention before this
+      lands.** Found in PEO-037. *(PRD §8.1, §12)*
+- [ ] **PEO-086** Wire governance at runtime. The policy registry, the AI
+      gateway's deny list and the refresh on `people.schema.published` are
+      exported but nothing calls them. Needs the Kafka consumer PEO-027 added
+      and the tenant source in PEO-080. Found in PEO-034.
+- [ ] **PEO-087** Log redaction matches tenant fields four levels deep, and the
+      AI gateway checks structured `context` only, not free text in the
+      instruction. Decide whether either needs to go further. Found in PEO-034
+      and PEO-035.
+- [ ] **PEO-088** An audited way to read a secret for export. Encrypted fields
+      are always masked in an export, but §15.2 lets finance see the full value
+      with a stated reason. Found in PEO-042. *(PRD §15.2)*
+- [ ] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
+      queue to hand exports over 2,000 rows to. Today the port has one
+      in-memory implementation and nothing decides when to queue. Found in
+      PEO-043. *(PRD §15.1)*
+- [ ] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
+      imported, a row matching an existing person does not change their
+      `hire_date`, the import checksum is not on `people.import.started`, and a
+      re-upload cannot re-serve the blocked-row report because it is not
+      stored. Found in PEO-038 to PEO-041. *(PRD §14)*
+- [ ] **PEO-091** Export gaps: the Missing information sheet reflects today's
+      completeness even for an `asOf` export, and grey not-applicable cells are
+      not rendered. Found in PEO-042. *(PRD §15.4)*
+- [ ] **PEO-092** Authorization and transport setup. OpenFGA has no client
+      yet, so relations come from `people.person` and roles; the Cosmo Router
+      must be configured to forward the principal header with the internal
+      token. Found in PEO-025 and PEO-030.
+- [ ] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
+      telling the tenant (needs an event, a contract and a manifest change),
+      and a pending retry waits after a restart for that tenant's next
+      transaction. Found in PEO-032. *(PRD §13.3)*
+- [ ] **PEO-094** The People remote: no server-side rendering, Tailwind classes
+      used only by the remote may stay unstyled until the shell rebuilds, the
+      sidebar item is still disabled, and the remote's host needs `no-cache`
+      and CORS for `remoteEntry.js` and `routes.json`. Settle the CSS question
+      before PEO-047. Found in PEO-046.
+- [ ] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
+      exists and the name paths call it, but no hire path does, so a new
+      person's start date never reaches identity. The import commit (PEO-041)
+      hires through `Person.hire`; it and any later hire path must call
+      `shareIdentityFacts` and raise `people.person.hired`. Found in PEO-029.
+- [ ] **PEO-096** Correcting `last_working_day` writes into `custom` while
+      every reader uses the typed column, the same bug PEO-029 fixed for
+      `hire_date`. A hire-date correction also does not re-evaluate status.
+      Found in PEO-029. *(PRD §8.5)*
+- [ ] **PEO-097** Name drift at enrolment. Identity writes the name typed at
+      enrolment onto the account even after People has set one, and People
+      only fills its own name when empty, so the two can differ until People's
+      next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
+
 ## Blocked, and by what
 
 | Ticket | Blocked on | Note |
@@ -898,3 +988,4 @@ Ordered, but none of it blocks Phase 1 shipping.
 | PEO-057 | PEO-001 | Two of its charts are written but not exported |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked |
 | PEO-045 | nothing technical | The cohort minimum default of 10 is a product decision; confirm before shipping |
+| PEO-037 | legal review | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
