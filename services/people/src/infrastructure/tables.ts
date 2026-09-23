@@ -91,6 +91,8 @@ export const schemaVersion = people.table(
     checksum: char('checksum', { length: 64 }).notNull(),
     document: jsonb('document').notNull(),
     rolledBackFrom: integer('rolled_back_from'),
+    /** The tenant-local date the publish's preview evaluated `requiredFrom` on. */
+    evaluatedOn: date('evaluated_on'),
   },
   (t) => [uniqueIndex('schema_version_pk_idx').on(t.tenantId, t.version)],
 );

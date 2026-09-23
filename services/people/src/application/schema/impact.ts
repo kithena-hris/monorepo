@@ -1,5 +1,5 @@
 import type { Clock } from '@kithena/domain-kit';
-import type { AttributeDefinition, WriterRole } from '@kithena/contracts';
+import type { AttributeDefinition, CalendarDate, WriterRole } from '@kithena/contracts';
 
 import { assessCompleteness, gapsByOwner } from '../../domain/person/completeness.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
@@ -115,6 +115,18 @@ export function computeImpact(
     fieldsByOwner: { employee: employeeFields, staff: staffFields },
     people: affected,
   };
+}
+
+/**
+ * A clock that answers every "what day is it" with one fixed date.
+ *
+ * Requiredness reads the clock for one thing — the civil date `requiredFrom`
+ * is compared against — so pinning that date is what makes the preview and the
+ * recompute that runs later evaluate the same day, whichever time zone and
+ * whichever hour the recompute actually runs in.
+ */
+export function clockAsOf(clock: Clock, date: CalendarDate): Clock {
+  return { ...clock, today: () => date, date: () => date };
 }
 
 /**
