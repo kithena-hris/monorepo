@@ -214,7 +214,7 @@ describe('a write and its event', () => {
       if (!snapshot) return;
 
       const person = Person.rehydrate(snapshot);
-      person.giveNotice('2026-12-31', context('2026-10-01T09:00:00.000Z'));
+      person.giveNotice('2026-12-31', context('2026-10-01T09:00:00.000Z'), 'Etc/UTC');
 
       await repository.save(tx, person, {
         history: [
@@ -271,7 +271,7 @@ describe('the aggregate and the row', () => {
       const snapshot = await repository.load(tx, ACME, ADA);
       if (!snapshot) throw new Error('vanished');
       const person = Person.rehydrate(snapshot);
-      person.startLeave(context());
+      person.startLeave(context(), 'Etc/UTC');
       await repository.save(tx, person, {
         fields: { baseSalary: '55000.1234', salaryCurrency: 'EUR' },
       });
@@ -291,7 +291,7 @@ describe('the aggregate and the row', () => {
       const snapshot = await repository.load(tx, ACME, ADA);
       if (!snapshot) throw new Error('vanished');
       const person = Person.rehydrate(snapshot);
-      person.startLeave(context());
+      person.startLeave(context(), 'Etc/UTC');
       await repository.save(tx, person, { fields: { workEmail: 'ada@acme.example' } });
     });
 

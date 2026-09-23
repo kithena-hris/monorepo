@@ -59,12 +59,28 @@ type DateAttribute {
   value: String
 }
 
+"""An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`."""
+type EmployeeNumbering {
+  legalEntityId: ID
+  prefix: String
+  digits: Int
+
+  """The number the next hire in this entity is given."""
+  nextValue: Float
+}
+
 type HistoryEntry {
   id: ID
   attributeKey: String
   effectiveFrom: String
   recordedAt: String
   supersedes: ID
+}
+
+enum LeavingReason {
+  resigned
+  dismissed
+  end_of_contract
 }
 
 type LegalEntity {
@@ -124,6 +140,28 @@ type Mutation {
   """
   changeLocationZone(id: ID!, timeZone: String!, effectiveFrom: String!): Location
   correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String): HistoryEntry
+
+  """
+  Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
+  """
+  setEmployeeNumbering(legalEntityId: ID!, prefix: String!, digits: Int!, start: Float!): EmployeeNumbering
+
+  """
+  Put an active or on-leave person on notice until a last working day; HR only.
+  """
+  giveNotice(personId: ID!, lastWorkingDay: String!, reason: LeavingReason): Person
+
+  """End the employment once its last working day has come; HR only."""
+  terminatePerson(personId: ID!, lastWorkingDay: String!, reason: LeavingReason!, note: String, eligibleForRehire: Boolean): Person
+
+  """An active person goes on leave from today, on their calendar; HR only."""
+  startLeave(personId: ID!): Person
+
+  """A person on leave is back from today, on their calendar; HR only."""
+  endLeave(personId: ID!): Person
+
+  """Withdraw a provisional record that was never a person; HR only."""
+  discardPerson(personId: ID!): Person
 }
 
 type NumberAttribute {
@@ -168,6 +206,9 @@ type Query {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   peopleSchema(version: Int): PeopleSchema
+
+  """Null for an entity that does not number its people."""
+  employeeNumbering(legalEntityId: ID!): EmployeeNumbering
 }
 
 type RepeatingAttribute {
