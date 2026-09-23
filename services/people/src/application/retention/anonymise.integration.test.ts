@@ -197,8 +197,9 @@ describe('anonymising a leaver', () => {
     for (const gone of [IBAN, ciphertext, PHONE, PHONE_OLD, '"P-1"', '"Ada"']) {
       expect(everything).not.toContain(gone);
     }
-    // The last four of the account went with the row.
-    expect(everything).not.toContain('1332');
+    // The last four of the account went with the row. Matched as the end of a
+    // stored string: a bare `1332` also turns up in microsecond timestamps.
+    expect(everything).not.toContain('1332"');
 
     const rows = await admin.execute(sql`SELECT family_name, custom FROM people.person`);
     const row = [...rows][0];

@@ -30,6 +30,7 @@ async function exported(
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,
+    records: store.deps,
     clock: store.deps.clock,
   };
   const result = await buildExport(tx, deps, { ...asking(viewer), format: 'xlsx', ...over });
@@ -202,6 +203,7 @@ describe('who gets which columns', () => {
       access: personAccess(store.deps),
       schemas: store.deps.schemas,
       relations: store.deps.relations,
+      records: store.deps,
       clock: store.deps.clock,
     };
     for (const field of ['health_notes', 'no_such_field']) {

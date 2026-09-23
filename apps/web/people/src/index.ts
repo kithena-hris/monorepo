@@ -2,4 +2,8 @@
  * The only file federation exposes. Everything else in this remote is
  * internal; the names exported here are what `public/routes.json` may point at.
  */
+import './styles.css';
+
 export { PeopleHome } from './home/people-home';
+export { FieldRegistry } from './settings/field-registry';
+export { PeopleSetup } from './setup/people-setup';

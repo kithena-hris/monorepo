@@ -170,6 +170,7 @@ describe('the queue', () => {
       access: personAccess(people.deps),
       schemas: people.deps.schemas,
       relations: people.deps.relations,
+      records: people.deps,
       clock,
       // The first attempt fails where a bucket would, before anything is recorded.
       store: {

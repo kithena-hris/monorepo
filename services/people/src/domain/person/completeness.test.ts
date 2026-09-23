@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@kithena/domain-kit';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
-import { assessCompleteness } from './completeness.js';
+import { assessCompleteness, notApplicable } from './completeness.js';
 import type { PersonFacts } from '../schema/requiredness.js';
 
 /**
@@ -171,5 +171,42 @@ describe('a rule that cannot be evaluated', () => {
     const verdict = assessCompleteness([broken], facts(), clock);
     expect(verdict.state).toBe('complete');
     expect(verdict.unevaluable).toEqual([{ key: 'cost_centre', reads: ['retired_field'] }]);
+  });
+});
+
+describe('not applicable (PRD §15.4)', () => {
+  const nif = define({
+    key: 'nif',
+    requiredness: { mode: 'conditional', when: { clauses: [{ operand: 'country', in: ['ES'] }] } },
+  });
+  const bio = define({ key: 'bio', requiredness: { mode: 'never' } });
+  const scheduled = define({
+    key: 'cost_centre',
+    requiredness: { mode: 'always', requiredFrom: '2027-01-01' },
+  });
+
+  it('is a blank a rule could ask for but does not ask of this person', () => {
+    // Grey in the XLSX: distinguishable from missing (amber) and from an
+    // optional field nobody filled (no fill).
+    expect(notApplicable([nif, bio], facts({ country: 'DE' }), clock)).toEqual(['nif']);
+  });
+
+  it('is not a field that is required of them, or one that has a value', () => {
+    expect(notApplicable([nif], facts(), clock)).toEqual([]);
+    expect(notApplicable([nif], facts({ country: 'DE', values: { nif: 'X' } }), clock)).toEqual(
+      [],
+    );
+  });
+
+  it('includes a rule that has not started yet, on the day being asked about', () => {
+    expect(notApplicable([scheduled], facts(), clock)).toEqual(['cost_centre']);
+    const january = fixedClock('2027-01-02T09:00:00.000Z');
+    expect(notApplicable([scheduled], facts(), january)).toEqual([]);
+  });
+
+  it('is nothing at all for a record with nothing to be complete about', () => {
+    expect(
+      notApplicable([nif], facts({ country: 'DE', status: 'provisional' }), clock),
+    ).toEqual([]);
   });
 });

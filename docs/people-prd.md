@@ -1502,6 +1502,22 @@ empty string and from "not applicable at this company".
 | XLSX | Empty cell with an amber fill and a cell comment naming the field, plus a **Missing information** sheet listing person, field and who owns filling it | Empty cell, no fill | Cell shaded grey, comment "not required for this person" |
 | PDF | Prints **Not provided** in muted type, never a blank | Omitted entirely | Omitted entirely |
 
+**Which cells are which is judged on the export's day.** An export `asOf`
+March is a picture of March, gaps included: the values in force then — dated
+attributes replayed through history — against the schema version that was
+published then. Judged against today, a field made required in June would
+mark every March row as missing something nobody could have been asked for,
+and a gap closed in May would vanish from the March picture. The provenance
+sheet names the version the gaps were judged against, and a day before
+anything was published has no gaps at all. The Missing information sheet
+lists every gap on that day, including one in a field archived since, which
+therefore has no column.
+
+**Not applicable** is a blank that some rule could ask for but does not ask of
+this person on that day — a conditional rule that does not hold for them, or a
+requirement whose `requiredFrom` has not arrived. A field with no rule at all
+is optional, not "not applicable", and gets no fill.
+
 The PDF rule is the one that matters most. A blank line on a printed employee
 record is ambiguous between "we do not hold this", "the field did not exist"
 and "the printer cut it off", and the one place that ambiguity gets read is a

@@ -38,6 +38,7 @@ function setup() {
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,
+    records: store.deps,
     clock: store.deps.clock,
     store: objects,
     notifier: { notify: (m) => (sent.push(m), Promise.resolve()) },

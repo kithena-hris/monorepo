@@ -1,4 +1,5 @@
 import { federation } from '@module-federation/vite';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -27,6 +28,8 @@ export default defineConfig({
   base: './',
   plugins: [
     react(),
+    // This remote's own utilities, compiled and shipped with it. `src/styles.css`.
+    tailwindcss(),
     federation({
       name: 'people',
       filename: 'remoteEntry.js',
@@ -38,6 +41,9 @@ export default defineConfig({
       },
       dts: false,
       manifest: false,
+      // Inject the remote's stylesheet when the expose loads, and wait for it,
+      // so a screen never paints before its own utilities arrive.
+      bundleAllCSS: true,
     }),
   ],
   build: { target: 'es2022', rollupOptions: { input: {} } },

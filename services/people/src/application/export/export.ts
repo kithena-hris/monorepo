@@ -7,6 +7,7 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import { exponentOf, fromMinor, MASK } from '../import/cells.js';
 import { writeCsv } from '../import/csv.js';
+import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
 import { PERSON_ID_COLUMN } from '../import/parse.js';
 import type { Asking, PersonAccess, PersonView, SealedValue } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
@@ -66,10 +67,13 @@ export interface ExportDeps {
   readonly schemas: SchemaVersions;
   readonly relations: RelationsResolver;
   readonly clock: Clock;
+  /** The raw record and its history, for judging completeness on the export's day. */
+  readonly records: RecordDeps;
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const AMBER = 'FFFFC000';
+const GREY = 'FFD9D9D9';
 const PAGE = 500;
 
 /** The columns a standard export may ever carry, in profile order. */
@@ -91,7 +95,7 @@ export function exportableColumns(
 
 interface Row {
   readonly person: PersonView;
-  readonly missing: ReadonlySet<string>;
+  readonly judged: Judgement;
 }
 
 export async function buildExport(
@@ -113,6 +117,13 @@ export async function buildExport(
     }
   }
   const wanted = request.fields ? new Set(request.fields) : null;
+
+  // Completeness is judged on the export's day, against the version in force
+  // then: an `asOf` export is a picture of that day, its gaps included.
+  const day = request.asOf ?? deps.clock.date(request.timeZone ?? 'Etc/UTC');
+  const judgedBy = request.asOf
+    ? await versionInForce(tx, deps.schemas, request.tenantId, request.asOf)
+    : version;
   const requested = candidates.filter((d) => !wanted || wanted.has(d.key));
 
   // Every row through the read path, and the columns this viewer may read on
@@ -138,8 +149,21 @@ export async function buildExport(
         person.id,
       );
       for (const d of requested) if (visibleTo(d, relations)) readableKeys.add(d.key);
-      const gaps = await deps.access.completeness(tx, { ...request, personId: person.id });
-      rows.push({ person, missing: new Set(gaps.ok ? gaps.value.missing.map((m) => m.key) : []) });
+      const judged = judgedBy
+        ? await judge(
+            tx,
+            deps.records,
+            {
+              tenantId: request.tenantId,
+              personId: person.id,
+              day,
+              asOf: request.asOf !== undefined,
+            },
+            judgedBy,
+            relations,
+          )
+        : NOTHING_JUDGED;
+      rows.push({ person, judged });
     }
     after = page.value.next;
   } while (after !== null);
@@ -156,7 +180,16 @@ export async function buildExport(
           {
             name: `people-${stamp}.xlsx`,
             mediaType: XLSX_TYPE,
-            bytes: await workbook(flat, repeating, rows, version, request, deps.clock, columns),
+            bytes: await workbook(
+              flat,
+              repeating,
+              rows,
+              version,
+              judgedBy,
+              request,
+              deps.clock,
+              columns,
+            ),
           },
         ];
 
@@ -224,6 +257,12 @@ function xlsxCell(cell: ExcelJS.Cell, d: AttributeDefinition, value: unknown): v
   cell.value = text(value);
 }
 
+const isBlank = (v: unknown) =>
+  v === undefined ||
+  v === null ||
+  (typeof v === 'string' && v.trim() === '') ||
+  (Array.isArray(v) && v.length === 0);
+
 /* ------------------------------------------------------------------- csv -- */
 
 const MISSING_COLUMN = '__missing_required';
@@ -240,7 +279,7 @@ function csvFiles(
     ...rows.map((r) => [
       r.person.id,
       ...flat.map((d) => text(r.person.attributes[d.key])),
-      [...r.missing].filter((k) => flat.some((d) => d.key === k)).join(','),
+      [...r.judged.missing.keys()].filter((k) => flat.some((d) => d.key === k)).join(','),
     ]),
   ];
   const files: ExportFile[] = [
@@ -283,6 +322,7 @@ async function workbook(
   repeating: readonly AttributeDefinition[],
   rows: readonly Row[],
   version: PublishedVersion,
+  judgedBy: PublishedVersion | null,
   request: ExportRequest,
   clock: Clock,
   columns: readonly AttributeDefinition[],
@@ -319,18 +359,25 @@ async function workbook(
       xlsxCell(cell, d, r.person.attributes[d.key]);
       const formula = validation.get(d.key);
       if (formula) cell.dataValidation = { type: 'list', allowBlank: true, formulae: [formula] };
-      if (r.missing.has(d.key)) {
+      if (r.judged.missing.has(d.key)) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AMBER } };
         cell.note = `Missing: ${d.label.default} is required`;
-        missingSheet.push([
-          r.person.id,
-          r.person.attributes['employee_number'] ?? '',
-          d.label.default,
-          d.key,
-          d.ownership.join(', '),
-        ]);
+      } else if (r.judged.notApplicable.has(d.key) && isBlank(r.person.attributes[d.key])) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREY } };
+        cell.note = 'not required for this person';
       }
     });
+    // Every gap on the day, not only the ones with a column today: a field
+    // required in March and archived since is still a gap in March.
+    for (const d of r.judged.missing.values()) {
+      missingSheet.push([
+        r.person.id,
+        r.person.attributes['employee_number'] ?? '',
+        d.label.default,
+        d.key,
+        d.ownership.join(', '),
+      ]);
+    }
   }
 
   for (const d of repeating) {
@@ -359,6 +406,10 @@ async function workbook(
     ['Exported by', request.viewer.accountId],
     ['Exported at', clock.instant()],
     ['Rows', rows.length],
+    [
+      'Missing information judged against schema version',
+      judgedBy?.version ?? 'none published then',
+    ],
   ]) {
     about.addRow(line);
   }

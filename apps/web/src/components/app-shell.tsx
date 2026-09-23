@@ -25,6 +25,7 @@ import {
   TooltipProvider,
 } from '@reach/ui';
 import { icons } from '@reach/ui';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { THEME_KEY } from '../lib/theme';
@@ -66,17 +67,22 @@ export interface AppShellProps {
 /**
  * What a person can reach today, and what is coming.
  *
- * Only the dashboard is built. The rest are listed as disabled rather than
- * hidden, because a sidebar that grows an item per release teaches nobody where
- * anything lives — and each one maps to a module in `ModuleKey`, so this list is
- * the product's shape rather than a guess at one.
+ * The dashboard and People are built. The rest are listed as disabled rather
+ * than hidden, because a sidebar that grows an item per release teaches nobody
+ * where anything lives — and each one maps to a module in `ModuleKey`, so this
+ * list is the product's shape rather than a guess at one.
  */
 const AREAS = [
-  { label: 'Home', icon: <Home />, href: '/', current: true },
-  { label: 'Time off', icon: <Leave />, href: '/time-off', current: false },
-  { label: 'People', icon: <People />, href: '/people', current: false },
-  { label: 'Documents', icon: <Document />, href: '/documents', current: false },
+  { label: 'Home', icon: <Home />, href: '/', built: true },
+  { label: 'Time off', icon: <Leave />, href: '/time-off', built: false },
+  { label: 'People', icon: <People />, href: '/people', built: true },
+  { label: 'Documents', icon: <Document />, href: '/documents', built: false },
 ] as const;
+
+/** An area owns its whole subtree; home owns only itself. */
+function isCurrent(href: string, pathname: string): boolean {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /**
  * Light or dark, for whatever in this shell offers it.
@@ -116,6 +122,7 @@ export function AppShell({
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
+  const pathname = usePathname();
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
@@ -204,10 +211,10 @@ export function AppShell({
                     key={area.label}
                     href={area.href}
                     icon={area.icon}
-                    current={area.current}
+                    current={isCurrent(area.href, pathname)}
                     // Not yet built. Disabled rather than absent: a link that
                     // 404s is worse than one that says "not yet".
-                    {...(area.current ? {} : { 'aria-disabled': true, tabIndex: -1 })}
+                    {...(area.built ? {} : { 'aria-disabled': true, tabIndex: -1 })}
                   >
                     {area.label}
                   </NavItem>
@@ -374,18 +381,19 @@ function MobileTabs({
   readonly dark: boolean;
   readonly onTheme: (next: boolean) => void;
 }): JSX.Element {
+  const pathname = usePathname();
   return (
     <nav aria-label="Main, compact" className="flex">
       {AREAS.map((area) => (
         <a
           key={area.label}
           href={area.href}
-          aria-current={area.current ? 'page' : undefined}
+          aria-current={isCurrent(area.href, pathname) ? 'page' : undefined}
           // Not yet built, like the sidebar's copy of the same list.
-          {...(area.current ? {} : { 'aria-disabled': true, tabIndex: -1 })}
+          {...(area.built ? {} : { 'aria-disabled': true, tabIndex: -1 })}
           className={`focus-visible:outline-border-focus flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs focus-visible:outline-2 focus-visible:-outline-offset-2 ${
-            area.current ? 'text-accent-fg' : 'text-fg-muted'
-          } ${area.current ? '' : 'opacity-60'}`}
+            isCurrent(area.href, pathname) ? 'text-accent-fg' : 'text-fg-muted'
+          } ${area.built ? '' : 'opacity-60'}`}
         >
           <span aria-hidden className="[&_svg]:size-5">
             {area.icon}

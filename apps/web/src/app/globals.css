@@ -9,3 +9,10 @@
 /* Tailwind scans for class names it can see. The components live in the
    workspace package, outside this app's tree. */
 @source '../../../../packages/ui/src';
+
+/* Not the People remote, which sits inside this app's tree and would otherwise
+   be scanned too. It compiles and ships its own utilities (see
+   `apps/web/people/src/styles.css`); scanning it here as well would make a
+   class look styled in the shell's build and missing in the remote's deploy,
+   which is exactly the failure that should show up in development instead. */
+@source not '../../people';
