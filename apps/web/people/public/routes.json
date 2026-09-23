@@ -8,6 +8,7 @@
     { "path": "/people/completeness", "component": "CompletenessGrid" },
     { "path": "/people/settings/fields", "component": "FieldRegistry" },
     { "path": "/people/settings/integrations", "component": "Integrations" },
+    { "path": "/people/settings/roles", "component": "RoleSettings" },
     { "path": "/people/import", "component": "ImportFlow" },
     { "path": "/people/export", "component": "ExportBuilder" },
     { "path": "/people/analytics", "component": "Analytics" },

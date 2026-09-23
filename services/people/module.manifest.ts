@@ -47,6 +47,8 @@ export default ModuleManifest.parse({
     'people.export.full_values_issued',
     'people.export.full_values_downloaded',
     'people.webhook.endpoint_disabled',
+    'people.role.granted',
+    'people.role.revoked',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its
@@ -61,7 +63,10 @@ export default ModuleManifest.parse({
     'identity.tenant.provisioned',
     'identity.tenant.amended',
     'identity.tenant.entitlements_changed',
+    'identity.tenant.administrator_named',
     'people.schema.published',
+    'people.role.granted',
+    'people.role.revoked',
   ],
   entitlement: 'module.people',
   requiresPeopleSource: 'own',

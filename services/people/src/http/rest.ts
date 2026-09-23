@@ -7,6 +7,7 @@ import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.
 import { linksOf } from '../application/export/job.js';
 import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
 import type { OrgAdmin } from '../application/org/org.js';
+import type { TenantRoles } from '../application/roles/roles.js';
 import {
   decideFullValues,
   requestFullValues,
@@ -18,6 +19,7 @@ import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
+import { RoleChangeBody } from './roles.js';
 import { schemaArtifact } from './schema-artifact.js';
 
 /**
@@ -281,6 +283,9 @@ const STATUS: Record<string, number> = {
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
+  // PEO-112: a grant to oneself, and the last administrator.
+  SELF_GRANT: 403,
+  LAST_ADMIN: 409,
   APPROVAL_DECIDED: 409,
   APPROVAL_EXPIRED: 409,
   // Two imports contended past the retries (PEO-106): nothing was written; upload again.
@@ -466,6 +471,17 @@ export function restHandler(
     return org
       ? run(service, asking.tenantId, (tx) => fn(org, tx))
       : Promise.resolve(err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')));
+  };
+
+  /** A tenant-role use case in its own transaction (PEO-112). */
+  const inRoles = <T>(
+    asking: Asking,
+    fn: (roles: TenantRoles, tx: PostgresJsDatabase) => Promise<Result<T>>,
+  ) => {
+    const { roles } = service;
+    return roles
+      ? run(service, asking.tenantId, (tx) => fn(roles, tx))
+      : Promise.resolve(err(failure('UNAVAILABLE', 'Roles are not configured')));
   };
 
   /** Reads one back by id for a write's answer, and for its idempotent replay. */
@@ -1099,6 +1115,46 @@ export function restHandler(
         );
       },
     },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/roles$/,
+      handle: async (asking) =>
+        respond(
+          await inRoles(asking, (roles, tx) => roles.list(tx, asking)),
+          200,
+          (listed) => ({ items: listed.holders }),
+        ),
+    },
+    ...(['grants', 'revocations'] as const).map((path) => ({
+      method: 'POST',
+      pattern: new RegExp(`^/v1/roles/${path}$`),
+      handle: async (asking: Asking, request: RestRequest) => {
+        const input = bodyAs(RoleChangeBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.roles) return err(failure('UNAVAILABLE', 'Roles are not configured'));
+            const change = { ...asking, ...input.value };
+            const done =
+              path === 'grants'
+                ? await service.roles.grant(tx, change)
+                : await service.roles.revoke(tx, change);
+            return done.ok ? ok(input.value.accountId) : done;
+          },
+          async (accountId) =>
+            respond(
+              await inRoles(asking, (roles, tx) =>
+                roles.of(tx, asking.tenantId, accountId).then((holder) => ok(holder)),
+              ),
+              200,
+              (holder) => holder,
+            ),
+        );
+      },
+    })),
     ...(deps.screens ?? []),
   ];
 

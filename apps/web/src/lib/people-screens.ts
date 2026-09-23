@@ -57,6 +57,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('/v1/views/registry');
     case 'Integrations':
       return read('/v1/views/integrations');
+    case 'RoleSettings':
+      return read('/v1/views/roles');
     case 'ExportBuilder':
       return read('/v1/views/export');
     case 'Analytics':

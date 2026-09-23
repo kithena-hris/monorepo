@@ -188,6 +188,10 @@ export async function startStack(): Promise<Stack> {
     await sql`INSERT INTO people.person (id, tenant_id, identity_account_id, status, work_email, created_at)
               VALUES (${EMPLOYEE.person}, ${TENANT}, ${EMPLOYEE.account}, 'provisional', ${EMPLOYEE.email},
                       now() + interval '1 second')`;
+    // What the back office naming Priya People's administrator leaves behind
+    // (PEO-112): the ledger rows; the tuples are written below.
+    await sql`INSERT INTO people.role_grant (tenant_id, account_id, role)
+              VALUES (${TENANT}, ${ADMIN.account}, 'people_admin'), (${TENANT}, ${ADMIN.account}, 'hr')`;
 
     const service = new URL(pg.url);
     service.username = 'svc_people';

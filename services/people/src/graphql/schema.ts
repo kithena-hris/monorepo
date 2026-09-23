@@ -16,6 +16,8 @@ import type { Asking, PersonView } from '../application/person/person-access.js'
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from '../http/caller.js';
 import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
+import { RoleChangeBody } from '../http/roles.js';
+import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS } from '../domain/person/person.js';
 
 /**
@@ -793,6 +795,87 @@ builder.mutationFields((t) => ({
     resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}),
   }),
 }));
+
+/* -------------------------------------------------------------- roles -- */
+
+/**
+ * Tenant roles (PEO-112). The arguments are parsed by the same Zod body REST
+ * parses, and who may grant or revoke is `TenantRoles`' to decide.
+ */
+const TenantRoleRef = builder.enumType('TenantRole', {
+  values: ['hr', 'finance', 'people_admin'] as const,
+});
+
+const RoleHolderRef = builder.objectRef<RoleHolder>('RoleHolder').implement({
+  description: 'An account and the tenant roles it holds.',
+  fields: (t) => ({
+    accountId: t.exposeID('accountId'),
+    roles: t.field({ type: [TenantRoleRef], resolve: (h) => [...h.roles] }),
+  }),
+});
+
+async function inRoles<T>(
+  ctx: RequestContext,
+  fn: (roles: TenantRoles, tx: PostgresJsDatabase, asking: Asking) => Promise<Result<T>>,
+): Promise<T> {
+  const { service, asking } = await caller(ctx);
+  const { roles } = service;
+  if (!roles) return fail(failure('UNAVAILABLE', 'Roles are not configured'));
+  return unwrap(await run(service, asking.tenantId, (tx) => fn(roles, tx, asking)));
+}
+
+async function changeRole(
+  ctx: RequestContext,
+  kind: 'grant' | 'revoke',
+  input: Record<string, unknown>,
+): Promise<RoleHolder> {
+  const parsed = RoleChangeBody.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return fail(
+      failure(
+        'BAD_INPUT',
+        issue?.message ?? 'invalid input',
+        issue?.path.map((p) => String(p)),
+      ),
+    );
+  }
+  return inRoles(ctx, (roles, tx, asking) => roles[kind](tx, { ...asking, ...parsed.data }));
+}
+
+builder.queryFields((t) => ({
+  peopleRoles: t.field({
+    type: [RoleHolderRef],
+    description: 'Who holds a tenant role; HR and people_admin only.',
+    resolve: async (_root, _args, ctx) => [
+      ...(await inRoles(ctx, (roles, tx, asking) => roles.list(tx, asking))).holders,
+    ],
+  }),
+}));
+
+builder.mutationFields((t) => ({
+  grantRole: t.field({
+    type: RoleHolderRef,
+    description: 'people_admin only, never to oneself. A role already held changes nothing.',
+    args: {
+      accountId: t.arg.id({ required: true }),
+      role: t.arg({ type: TenantRoleRef, required: true }),
+      reason: t.arg.string({ required: true }),
+    },
+    resolve: (_root, input, ctx) => changeRole(ctx, 'grant', input),
+  }),
+  revokeRole: t.field({
+    type: RoleHolderRef,
+    description: 'people_admin only; never the last people_admin.',
+    args: {
+      accountId: t.arg.id({ required: true }),
+      role: t.arg({ type: TenantRoleRef, required: true }),
+      reason: t.arg.string({ required: true }),
+    },
+    resolve: (_root, input, ctx) => changeRole(ctx, 'revoke', input),
+  }),
+}));
+
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

@@ -40,6 +40,7 @@ interface Draft {
   themeId: string;
   timeZone: string;
   entitlements: string[];
+  administrators: Record<string, string>;
 }
 
 export default async function NewCompany(): Promise<JSX.Element> {
@@ -53,6 +54,9 @@ export default async function NewCompany(): Promise<JSX.Element> {
   > {
     'use server';
 
+    const operator = await currentOperator();
+    if (!operator) return { ok: false, message: 'Your session has expired.' };
+
     const { status, body } = await callIdentity('/api/internal/admin/tenants', {
       method: 'POST',
       body: {
@@ -65,8 +69,15 @@ export default async function NewCompany(): Promise<JSX.Element> {
         address: draft.address,
         // The company's zone: People's first legal entity and default (PEO-099).
         timeZone: draft.timeZone,
-        // The modules the company bought, recorded with it (PEO-114).
+        // The modules the company bought, recorded with it (PEO-114), and
+        // who first administers each that needs one (PEO-112).
         entitlements: draft.entitlements,
+        administrators: Object.fromEntries(
+          Object.entries(draft.administrators).filter(([module]) =>
+            draft.entitlements.includes(module),
+          ),
+        ),
+        operatorId: operator.operatorId,
       },
     });
 

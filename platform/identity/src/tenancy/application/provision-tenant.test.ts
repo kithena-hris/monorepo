@@ -28,6 +28,10 @@ function scope(written: string[], over: Partial<ProvisionScope> = {}): Provision
       written.push(`entitlements:${entitlements.join(',')}`);
       return Promise.resolve();
     },
+    nameAdministrator: (_t, a, by) => {
+      written.push(`administrator:${a.entitlement}:${a.accountId}:${String(by)}`);
+      return Promise.resolve();
+    },
     inviteAdmin: (_t, email) => {
       written.push(`account:${email}`);
       return Promise.resolve({
@@ -175,6 +179,7 @@ describe('the modules the company bought (PEO-114)', () => {
     const result = await provisionTenant(d)({
       ...request,
       entitlements: ['module.timeoff', 'module.people'],
+      administrators: { 'module.people': 'ada@acme.example' },
     });
     expect(result.ok).toBe(true);
     expect(d.written.slice(0, 3)).toEqual([
@@ -188,6 +193,31 @@ describe('the modules the company bought (PEO-114)', () => {
     const d = deps();
     await provisionTenant(d)(request);
     expect(d.written.some((w) => w.startsWith('entitlements:'))).toBe(false);
+  });
+
+  it('names the People administrator, one of those invited, after their account (PEO-112)', async () => {
+    const d = deps();
+    const result = await provisionTenant(d)({
+      ...request,
+      entitlements: ['module.people'],
+      administrators: { 'module.people': 'Grace@acme.example' },
+      namedBy: 'op-1',
+    });
+    expect(result.ok).toBe(true);
+    expect(d.written.at(-1)).toBe('administrator:module.people:acct-grace@acme.example:op-1');
+  });
+
+  it('will not switch People on without naming one of the administrators', async () => {
+    for (const administrators of [{}, { 'module.people': 'someone@else.example' }]) {
+      const d = deps();
+      const result = await provisionTenant(d)({
+        ...request,
+        entitlements: ['module.people'],
+        administrators,
+      });
+      expect(result.ok ? null : result.error.code).toBe('ADMINISTRATOR_REQUIRED');
+      expect(d.written).toEqual([]);
+    }
   });
 
   it('refuses a module that does not exist before writing anything', async () => {
