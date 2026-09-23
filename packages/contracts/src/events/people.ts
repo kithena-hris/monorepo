@@ -265,6 +265,8 @@ export const PersonHired = defineEvent(
   1,
   z.object({
     personId: PersonId,
+    /** The account this person signs in with, when they have one. */
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
     legalEntityId: LegalEntityId,
     name: PersonName,
     workEmail: z.email().register(policy, asContact()),
@@ -289,6 +291,8 @@ export const PersonProfileUpdated = defineEvent(
   1,
   z.object({
     personId: PersonId,
+    /** The account this person signs in with, when they have one. */
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
     /* Confidential as a whole, because what a tenant put in it is unknowable
      * at build time. That makes the array a redaction path and a deny-list
      * entry for every tenant, which is the right default for a field whose
@@ -303,6 +307,33 @@ export const PersonProfileUpdated = defineEvent(
         aiEligible: false,
       }),
     schemaVersion: SchemaVersion,
+  }),
+);
+
+/**
+ * The facts identity keeps a copy of changed, with their values.
+ *
+ * §5: People is the source of record for a linked person's name and start
+ * date, and identity caches both because the WebAuthn prompt and the
+ * enrolment gate cannot wait for a module the tenant may not have bought.
+ * `profile_updated` cannot carry them: a name is `confidential`, and §10.3
+ * keeps confidential values off that event. This is the one narrow exception,
+ * and it is narrow on purpose — two facts, one consumer, and raised only for a
+ * person who has an account to correct.
+ *
+ * Each fact is the whole current value, not a delta, so a consumer can apply
+ * the latest one it has seen and ignore the rest. Null means People holds no
+ * value yet, and identity keeps its own. When it took effect and when it was
+ * recorded are the envelope's `effectiveFrom` and `occurredAt`.
+ */
+export const PersonIdentityFactsChanged = defineEvent(
+  'people.person.identity_facts_changed',
+  1,
+  z.object({
+    personId: PersonId,
+    identityAccountId: z.uuid().register(policy, asPublic()),
+    name: PersonName.nullable(),
+    employmentStart: CalendarDate.nullable(),
   }),
 );
 
@@ -592,6 +623,7 @@ export const peopleEvents = [
   PersonIdentityLinked,
   PersonHired,
   PersonProfileUpdated,
+  PersonIdentityFactsChanged,
   PersonAttributeCorrected,
   PersonJobChanged,
   PersonOrgChanged,

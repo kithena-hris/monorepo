@@ -1,0 +1,113 @@
+import { and, eq, sql } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type * as z from 'zod';
+import { PersonIdentityFactsChanged, type EventEnvelope } from '@kithena/contracts';
+import { logger } from '@kithena/telemetry';
+
+import { account } from '../infrastructure/account-tables.js';
+
+/**
+ * People correcting identity's copies of a name and a start date (PRD §5).
+ *
+ * One direction. People publishes, identity consumes, and nothing here reads or
+ * writes a People table; `direction.test.ts` holds that. A tenant without the
+ * People module never publishes this event, so its accounts keep identity's own
+ * values as the only truth, and nothing here asks whether People exists.
+ *
+ * **What a corrected start date does.** It is written to the cached column and
+ * nothing else. An `invited` account is re-gated by it, because `Account.enrol`
+ * reads that column: a start moved three weeks later cannot enrol for three
+ * weeks. An `active` account keeps its enrolment. The gate is on enrolling, and
+ * a person who has been signing in for a month does not become somebody who
+ * has not started because HR corrected a typo.
+ *
+ * **Order and repeats.** Every `people.person.*` event is keyed
+ * `tenantId:personId`, so one person's events reach this partition in the order
+ * they committed, and a redelivery replays them in that order too. Each event
+ * carries the whole current value, not a change, so applying one twice writes
+ * what the first did, and the last one applied is the newest.
+ *
+ * ponytail: no durable `occurredAt` watermark. Partition order covers
+ * redelivery and a group reset; it does not cover an old event re-published
+ * out of band (a dead-letter replay). That needs a nullable
+ * `platform.account.people_facts_at timestamptz` and
+ * `AND (people_facts_at IS NULL OR people_facts_at < occurredAt)` on the
+ * update below. It is a migration, so it is not here.
+ */
+
+export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
+
+export type InTenant = <T>(
+  tenantId: string,
+  fn: (tx: PostgresJsDatabase) => Promise<T>,
+) => Promise<T>;
+
+/** `account_name_lengths`. A value past it would fail the update on every retry. */
+const NAME_LIMIT = 100;
+
+/** `defineEvent` erases the envelope's type on the way out; this names it again. */
+type Facts = EventEnvelope & { payload: z.infer<typeof PersonIdentityFactsChanged.payload> };
+
+export function peopleConsumer(inTenant: InTenant): (raw: unknown) => Promise<Outcome> {
+  return async (raw) => {
+    const name: unknown =
+      typeof raw === 'object' && raw !== null ? Reflect.get(raw, 'eventName') : undefined;
+    if (name !== PersonIdentityFactsChanged.name) return 'ignored';
+
+    const parsed = PersonIdentityFactsChanged.schema.safeParse(raw);
+    if (!parsed.success) {
+      // Paths, never values: this payload holds a legal name. Skipped rather
+      // than thrown, because a malformed event is as malformed on redelivery
+      // and throwing would stall the partition behind it.
+      logger.warn(
+        { eventName: name, paths: parsed.error.issues.map((i) => i.path.join('.')) },
+        'event did not match its contract; skipped',
+      );
+      return 'rejected';
+    }
+
+    const event = parsed.data as Facts;
+    const set = columnsFor(event);
+    if (set === null) return 'unchanged';
+
+    const touched = await inTenant(event.tenantId, (tx) =>
+      tx
+        .update(account)
+        .set({ ...set, updatedAt: sql`now()` })
+        .where(
+          and(
+            eq(account.tenantId, event.tenantId),
+            eq(account.id, event.payload.identityAccountId),
+          ),
+        )
+        .returning({ id: account.id }),
+    );
+    // No account: it was deleted, or lives in a tenant this event does not
+    // name. Either way there is no copy to correct.
+    return touched.length > 0 ? 'applied' : 'unchanged';
+  };
+}
+
+/** The columns an event corrects, or null when it corrects none. */
+function columnsFor(event: Facts): Partial<typeof account.$inferInsert> | null {
+  const set: Partial<typeof account.$inferInsert> = {};
+  const { name, employmentStart } = event.payload;
+
+  if (employmentStart !== null) set.employmentStart = employmentStart;
+
+  if (name !== null) {
+    const parts = [name.given, name.family, name.preferred ?? ''];
+    if (parts.every((part) => part.length <= NAME_LIMIT)) {
+      set.givenName = name.given;
+      set.familyName = name.family;
+      set.preferredName = name.preferred === '' ? null : name.preferred;
+    } else {
+      logger.warn(
+        { eventId: event.eventId },
+        'a name longer than identity stores; the cached name is left as it was',
+      );
+    }
+  }
+
+  return Object.keys(set).length > 0 ? set : null;
+}

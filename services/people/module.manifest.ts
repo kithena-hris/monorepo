@@ -17,6 +17,7 @@ export default ModuleManifest.parse({
     'people.person.identity_linked',
     'people.person.hired',
     'people.person.profile_updated',
+    'people.person.identity_facts_changed',
     'people.person.attribute_corrected',
     'people.person.job_changed',
     'people.person.org_changed',

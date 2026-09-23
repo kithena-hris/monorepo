@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { ChangedAttribute } from '@kithena/contracts';
 import { fixedClock } from '@kithena/domain-kit';
 
-import { Person, type EventContext, type PersonSnapshot } from './person.js';
+import { identityFactsOf, Person, type EventContext, type PersonSnapshot } from './person.js';
 
 /**
  * The record's own state machine, which starts before employment does.
@@ -217,5 +218,106 @@ describe('what each transition raises', () => {
     p.discard(ctx);
     expect(p.drainEvents()).toHaveLength(1);
     expect(p.drainEvents()).toHaveLength(0);
+  });
+});
+
+describe('the facts identity keeps a copy of', () => {
+  const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
+  const facts = {
+    name: { given: 'Ada', family: 'Lovelace', preferred: null },
+    employmentStart: '2026-10-01',
+  };
+
+  it('are told to identity for a linked person, with the account named', () => {
+    const p = person({ status: 'active', hireDate: '2026-10-01' });
+    expect(p.shareIdentityFacts(facts, ctx, '2026-10-01')).toBe(true);
+    const [event] = p.drainEvents();
+    expect(event).toMatchObject({
+      eventName: 'people.person.identity_facts_changed',
+      effectiveFrom: '2026-10-01',
+      payload: { personId: PERSON, identityAccountId: ACCOUNT, ...facts },
+    });
+  });
+
+  it('are told to nobody for a person with no account', () => {
+    // An import of four hundred people creates four hundred records and no
+    // logins. There is no cached copy to correct, so there is no event.
+    const p = person({ status: 'active', identityAccountId: null });
+    expect(p.shareIdentityFacts(facts, ctx, null)).toBe(false);
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('are not told when there is nothing to tell', () => {
+    const p = person({ status: 'active' });
+    expect(p.shareIdentityFacts({ name: null, employmentStart: null }, ctx, null)).toBe(false);
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('name the account on every profile update too', () => {
+    const p = person({ status: 'active' });
+    p.updateProfile(
+      [
+        ChangedAttribute.parse({
+          key: 'job_title',
+          sectionKey: 'job',
+          classification: 'internal',
+          encrypted: false,
+        }),
+      ],
+      1,
+      ctx,
+      null,
+    );
+    expect(p.drainEvents()[0]?.payload).toMatchObject({ identityAccountId: ACCOUNT });
+  });
+});
+
+describe('correcting the hire date', () => {
+  it('moves the date the record holds', () => {
+    const p = person({ status: 'pre_hire', hireDate: '2026-10-01' });
+    expect(p.correctHireDate('2026-11-01').ok).toBe(true);
+    expect(p.hireDate).toBe('2026-11-01');
+    // The correction's own event is `attribute_corrected`, raised by the caller.
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('refuses a hire date after the last working day', () => {
+    const p = person({ status: 'terminated', hireDate: '2026-01-01', lastWorkingDay: '2026-06-30' });
+    const late = p.correctHireDate('2026-07-01');
+    expect(!late.ok && late.error.code).toBe('LAST_DAY_BEFORE_HIRE');
+    expect(p.hireDate).toBe('2026-01-01');
+  });
+
+  it('refuses a discarded record, which holds nothing', () => {
+    expect(person({ status: 'discarded' }).correctHireDate('2026-10-01').ok).toBe(false);
+  });
+});
+
+describe('reading the facts off a record', () => {
+  it('takes a full legal name and the hire date', () => {
+    expect(
+      identityFactsOf({
+        given_name: 'Ada',
+        family_name: 'Lovelace',
+        preferred_name: 'Countess',
+        hire_date: '2026-10-01',
+        job_title: 'ignored',
+      }),
+    ).toEqual({
+      name: { given: 'Ada', family: 'Lovelace', preferred: 'Countess' },
+      employmentStart: '2026-10-01',
+    });
+  });
+
+  it('sends no name rather than half of one', () => {
+    // Identity's row refuses a given name without a family name, and a
+    // consumer that stalls on a check constraint stalls the whole partition.
+    expect(identityFactsOf({ given_name: 'Ada' })).toEqual({ name: null, employmentStart: null });
+  });
+
+  it('reads an empty preferred name as none', () => {
+    expect(
+      identityFactsOf({ given_name: 'Ada', family_name: 'Lovelace', preferred_name: '' }).name,
+    ).toEqual({ given: 'Ada', family: 'Lovelace', preferred: null });
   });
 });

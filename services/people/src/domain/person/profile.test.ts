@@ -116,7 +116,12 @@ describe('a profile update', () => {
     const [event] = p.drainEvents();
     expect(event?.eventName).toBe('people.person.profile_updated');
     expect(event?.effectiveFrom).toBe('2026-09-01');
-    expect(event?.payload).toEqual({ personId: p.id, changed, schemaVersion: 3 });
+    expect(event?.payload).toEqual({
+      personId: p.id,
+      identityAccountId: null,
+      changed,
+      schemaVersion: 3,
+    });
   });
 
   it('refuses an update that changes nothing', () => {

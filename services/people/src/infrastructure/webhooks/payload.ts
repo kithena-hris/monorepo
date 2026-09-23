@@ -47,6 +47,26 @@ export function filterFor(
     return kept.length === 0 ? null : { ...envelope, payload: { ...payload, changed: kept } };
   }
 
+  /*
+   * The one event with confidential values in it (a name), so it is held to
+   * the same allowlist as the attributes it stands for. A name goes whole or
+   * not at all, like on the event itself.
+   */
+  if (envelope.eventName === 'people.person.identity_facts_changed') {
+    const name = record(payload['name']);
+    const kept = {
+      ...payload,
+      name:
+        payload['name'] != null && allowed.has('given_name') && allowed.has('family_name')
+          ? { ...name, preferred: allowed.has('preferred_name') ? (name['preferred'] ?? null) : null }
+          : null,
+      employmentStart: allowed.has('hire_date') ? (payload['employmentStart'] ?? null) : null,
+    };
+    return kept.name === null && kept.employmentStart === null
+      ? null
+      : { ...envelope, payload: kept };
+  }
+
   if (envelope.eventName === 'people.person.attribute_corrected') {
     const attribute = record(payload['attribute']) as Partial<ChangedAttribute>;
     return typeof attribute.key === 'string' && allowed.has(attribute.key) ? envelope : null;

@@ -15,13 +15,19 @@ import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../../../../', import.meta.url));
 
-/** Identity's tables, which People holds no copy of and may not read. */
-const IDENTITY_TABLE =
-  /pgSchema\(\s*['"]platform['"]\s*\)|\bplatform\.(?:identity|account|credential|session|enrolment_token|handoff_code|webauthn_challenge)\b(?!\.)/;
+/*
+ * Any object in the schema, not a list of tables: a list is out of date the
+ * day somebody adds one, and People added four between this test being written
+ * and the consumers landing. The lookahead is so an event name like
+ * `people.person.hired` is not read as the table `people.person`, the
+ * lookbehind so an import of `./people.js` is not either.
+ */
 
-/** People's tables. `(?!\.)` so an event name like `people.person.hired` is not one. */
-const PEOPLE_TABLE =
-  /pgSchema\(\s*['"]people['"]\s*\)|\bpeople\.(?:person|person_attribute_history|person_secret|attribute_unique|section|attribute_definition|schema_version|outbox)\b(?!\.)/;
+/** Anything in identity's schema, which People holds no copy of and may not read. */
+const IDENTITY_TABLE = /pgSchema\(\s*['"]platform['"]\s*\)|(?<![\w./-])platform\.[a-z_]+\b(?![.(])/;
+
+/** Anything in People's schema. */
+const PEOPLE_TABLE = /pgSchema\(\s*['"]people['"]\s*\)|(?<![\w./-])people\.[a-z_]+\b(?![.(])/;
 
 /** Production source, comments removed: prose explaining the rule is not a breach of it. */
 function sourcesUnder(dir: string): Array<[string, string]> {
@@ -82,11 +88,17 @@ describe('the patterns catch what they are for', () => {
     [IDENTITY_TABLE, 'SELECT given_name FROM platform.account WHERE id = $1'],
     [PEOPLE_TABLE, "const people = pgSchema('people');"],
     [PEOPLE_TABLE, 'UPDATE people.person SET hire_date = $1'],
+    // A table added after this test was written, which a list would miss.
+    [PEOPLE_TABLE, 'SELECT * FROM people.completeness_gap'],
+    [IDENTITY_TABLE, 'INSERT INTO platform.outbox VALUES ($1)'],
   ])('%s refuses %s', (pattern, breach) => {
     expect(breach).toMatch(pattern);
   });
 
-  it('lets an event name through', () => {
-    expect("consumes: ['people.person.hired', 'people.person.profile_updated']").not.toMatch(PEOPLE_TABLE);
+  it('lets an event name and a module import through', () => {
+    expect("import { peopleConsumer } from './people.js';").not.toMatch(PEOPLE_TABLE);
+    expect(
+      "['people.person.hired', 'people.person.identity_facts_changed', 'people.schema.published']",
+    ).not.toMatch(PEOPLE_TABLE);
   });
 });

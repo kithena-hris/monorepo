@@ -333,6 +333,97 @@ describe('a correction', () => {
   });
 });
 
+describe('telling identity what it caches', () => {
+  const nameKeys = ['given_name', 'family_name', 'preferred_name'].map((key) =>
+    define({ key, ownership: ['hr'] }),
+  );
+  const hireDate = define({
+    key: 'hire_date',
+    dataType: 'date',
+    typeConfig: { kind: 'date' },
+    effectiveDated: true,
+  });
+
+  function linked(account: string | null = ADA_ACCOUNT) {
+    const store = inMemoryPeople([versionOf(3, [title, ...nameKeys, hireDate])]);
+    store.seed(ADA, {
+      account,
+      fields: { givenName: 'Ada', familyName: 'Byron', preferredName: null },
+    });
+    return { store, people: personAccess(store.deps) };
+  }
+
+  const factsEvents = (store: ReturnType<typeof inMemoryPeople>) =>
+    store.events.filter((e) => e.eventName === 'people.person.identity_facts_changed');
+
+  it('sends the whole current name when a part of it changes, in the same write', async () => {
+    const { store, people } = linked();
+    const result = await people.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { family_name: 'Lovelace' },
+    });
+    expect(result.ok).toBe(true);
+    const [facts] = factsEvents(store);
+    expect(facts?.payload).toEqual({
+      personId: ADA,
+      identityAccountId: ADA_ACCOUNT,
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+      employmentStart: '2026-01-01',
+    });
+    // Two events, two ids: the outbox's primary key would refuse one id twice.
+    const [updated] = store.events;
+    expect(updated?.payload).toMatchObject({ identityAccountId: ADA_ACCOUNT });
+    expect(new Set(store.events.map((e) => e.eventId)).size).toBe(store.events.length);
+  });
+
+  it('says nothing to identity when nothing it caches changed', async () => {
+    const { store, people } = linked();
+    await people.update(tx, { ...asking(hr), personId: ADA, changes: { job_title: 'Engineer' } });
+    expect(factsEvents(store)).toEqual([]);
+  });
+
+  it('says nothing about a person with no account', async () => {
+    const { store, people } = linked(null);
+    await people.update(tx, { ...asking(hr), personId: ADA, changes: { given_name: 'Augusta' } });
+    expect(factsEvents(store)).toEqual([]);
+    expect(store.events[0]?.payload).toMatchObject({ identityAccountId: null });
+  });
+
+  it('moves the hire date itself on a correction, and tells identity when it took effect', async () => {
+    const { store, people } = linked();
+    store.history.push({
+      id: '01890000-0000-7000-8000-00000000f001',
+      personId: ADA,
+      attributeKey: 'hire_date',
+      value: '2026-01-01',
+      effectiveFrom: '2026-01-01',
+      recordedAt: '2025-12-01T09:00:00.000Z',
+      actor: { kind: 'system', process: 'test' },
+      supersedes: null,
+      eventId: null,
+    });
+
+    const corrected = await people.correct(tx, {
+      ...asking(hr),
+      personId: ADA,
+      supersedes: '01890000-0000-7000-8000-00000000f001',
+      value: '2026-02-01',
+      reason: 'started a month later than entered',
+    });
+    expect(corrected.ok).toBe(true);
+    expect(store.rows.get(ADA)?.snapshot.hireDate).toBe('2026-02-01');
+    expect(store.rows.get(ADA)?.fields.custom).not.toHaveProperty('hire_date');
+
+    const [facts] = factsEvents(store);
+    expect(facts?.effectiveFrom).toBe('2026-01-01');
+    expect(facts?.payload).toMatchObject({
+      employmentStart: '2026-02-01',
+      name: { given: 'Ada', family: 'Byron', preferred: null },
+    });
+  });
+});
+
 describe('history and completeness', () => {
   it('shows a manager no history for a field they cannot read', async () => {
     const { people } = setup();
