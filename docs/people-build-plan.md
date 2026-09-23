@@ -1216,6 +1216,18 @@ it is written down here rather than left in a PR description.
       exits 0; a request that never finishes exits 1 at the deadline. The
       harness now fails a run whose server outlives SIGTERM by 15 s.
       *(PRD §18)*
+- [x] **PEO-117** Directory search covered only the first 200 people: the view
+      read one page and searched it in memory. Search, filters and paging now
+      run in Postgres through `PersonAccess.list` (and `count` for the
+      summary): keyset pages of 50 by `?after=`, a search over the names and
+      work email the viewer reads on everybody (refused when there is none,
+      as a filter on a key they cannot read on everybody already was, PEO-052),
+      `search` on `GET /v1/people` too. 57 ms for a filter page, 101 ms for a
+      search page with its count, at 50,000 people. The screen pages with
+      "Next page" / "First page"; each page is a URL. *(PRD §13.2, §17.2)*
+      *Still open:* the profile's person picker and the completeness grid
+      read only the first 200 people through `everybody()`; another lane
+      pages them.
 
 ## Blocked, and by what
 

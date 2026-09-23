@@ -65,6 +65,10 @@ export interface DirectoryProps {
   /** Present only when the viewer may do each. */
   readonly onExport?: () => void;
   readonly onImport?: () => void;
+  /** Present when People has a page after this one. */
+  readonly onNextPage?: () => void;
+  /** Present when this is not the first page. */
+  readonly onFirstPage?: () => void;
 }
 
 const ANY = '__any';
@@ -74,8 +78,9 @@ const ANY = '__any';
  *
  * Columns come from the published schema rather than from this file, so a
  * field a tenant invented on Tuesday is a column and a filter by Wednesday.
- * Filtering runs where the rows are — the shell passes `filters` to People —
- * because 50,000 rows do not travel to a browser to be searched. Completeness
+ * Search, filtering and paging run where the rows are — the shell passes
+ * them to People, a page of people at a time (PEO-117) — because 50,000 rows
+ * do not travel to a browser to be searched. Completeness
  * is a count, not a percentage: "2 missing" is actionable and "94%" is not.
  */
 export function Directory(props: DirectoryProps): JSX.Element {
@@ -116,6 +121,8 @@ function Table({
   filters,
   onFiltersChange,
   onOpen,
+  onNextPage,
+  onFirstPage,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const wide = useBreakpoint('md');
   const columns: DataColumn<DirectoryPerson>[] = [
@@ -204,6 +211,12 @@ function Table({
         />
       ) : (
         <Cards state={state} onOpen={onOpen} />
+      )}
+      {onNextPage === undefined && onFirstPage === undefined ? null : (
+        <nav aria-label="Pages of people" className="flex justify-end gap-2">
+          {onFirstPage === undefined ? null : <Button onClick={onFirstPage}>First page</Button>}
+          {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}
+        </nav>
       )}
     </Stack>
   );
