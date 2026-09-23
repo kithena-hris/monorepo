@@ -381,8 +381,25 @@ function event(
  */
 function report(input: DryRunInput, outcomes: readonly Outcome[]): Uint8Array {
   const failed = outcomes.filter((o) => o.written === 'blocked' || o.written === 'duplicate');
-  const rows: string[][] = [[...input.file.headers, '__source_row', '__reason']];
-  if (input.file.keys) rows.push([...input.file.keys, '__source_row', '__reason']);
-  for (const o of failed) rows.push([...o.row.cells, String(o.row.row), o.reason ?? o.written]);
+  return blockedReport(
+    input.file,
+    failed.map((o) => ({ row: o.row, reason: o.reason ?? o.written })),
+  );
+}
+
+/**
+ * That file, from any list of rows and reasons: the commit's report, and the
+ * dry run's blocked rows before anything is committed (PEO-055).
+ */
+export function blockedReport(
+  file: Pick<DryRunInput['file'], 'headers' | 'keys'>,
+  failed: readonly {
+    readonly row: Pick<ClassifiedRow, 'cells' | 'row'>;
+    readonly reason: string;
+  }[],
+): Uint8Array {
+  const rows: string[][] = [[...file.headers, '__source_row', '__reason']];
+  if (file.keys) rows.push([...file.keys, '__source_row', '__reason']);
+  for (const f of failed) rows.push([...f.row.cells, String(f.row.row), f.reason]);
   return writeCsv(rows);
 }

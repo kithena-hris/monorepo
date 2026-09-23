@@ -172,6 +172,11 @@ export function inMemoryPeople(
             .slice(0, limit)
             .map(toRecord),
         ),
+      personOf: (_tx, _tenant, accountId) =>
+        Promise.resolve(
+          [...rows.values()].find((r) => r.snapshot.identityAccountId === accountId)?.snapshot.id ??
+            null,
+        ),
     },
     schemas: {
       current: () => Promise.resolve(versions.at(-1) ?? null),

@@ -1041,6 +1041,36 @@ The same screen area, separate tabs:
   read-only generated list of every field and its policy. This screen is how a
   works council question gets answered in a meeting rather than in a fortnight.
 
+**Where they are, as built (PEO-098).** Every screen is a route in the People
+remote's `routes.json`, fetched and wired by the shell:
+
+| Route | Screen |
+| --- | --- |
+| `/people/setup` | setup wizard |
+| `/people/settings/fields` | field registry and publish |
+| `/people/settings/integrations` | integrations |
+| `/people/onboarding` | onboarding |
+| `/people/me` | my own profile |
+| `/people/{id}` | someone else's profile |
+| `/people/directory` | directory |
+| `/people/completeness` | completeness grid |
+| `/people/import` | import |
+| `/people/export` | export builder |
+| `/people/analytics` | analytics |
+
+The tabs above other than integrations have no screen yet.
+
+**The setup wizard publishes the core fields with the pack.** The core fields
+are `country-packs/core.ts`: legal first and family name, preferred name, work
+email, employee number and manager. Before this, a fresh tenant's version 1
+held only the pack's identifiers.
+
+**The legal entity the wizard confirms is the tenant's first
+`people.legal_entity` (PEO-099).** The back office's company wizard usually
+creates it. Confirming renames it. A different country creates a new entity
+on the tenant's default zone, because a country is not an edit. A tenant with
+no entity yet is offered the company as the tenant registry recorded it.
+
 ---
 
 ## 10. Events
@@ -1532,6 +1562,20 @@ and a foreign token are refused, and a principal a client sends is overwritten.
 Entitlements are one list per deployment until tenants carry their own;
 nothing in the platform stores a tenant's modules yet.
 
+**Through the router (PEO-092).** The Cosmo Router verifies the caller's
+token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
+without one. It then *sets* — never propagates — two headers on the request to
+People: `x-kithena-principal`, built from the token's `sub` and `tid` with no
+roles (roles are OpenFGA tuples) and the deployment's `KITHENA_ENTITLEMENTS`,
+and `x-internal-token`, People's `PEOPLE_API_TOKEN`. People trusts the first
+only beside the second. `apps/gateway/config.yaml` holds the rules, and
+`services/people/src/http/router.integration.test.ts` boots that file in the
+real router in front of the real subgraph: a verified token reads, no token
+and a foreign token are refused, and a principal a client sends is overwritten.
+
+Entitlements are one list per deployment until tenants carry their own;
+nothing in the platform stores a tenant's modules yet.
+
 ### 13.2 REST (Phase 1)
 
 Because a GraphQL-only API excludes every integration built by somebody who is
@@ -1568,6 +1612,56 @@ decision on a full-values request included, so a retried approval replays the
 request as it stands instead of refusing a second decision. Cursor
 pagination. Field-level authorization identical to GraphQL's, because both call
 the same application layer.
+
+**What the tenant app's screens use (PEO-098).** Everything that only the
+application layer could do before now has a route. Every route passes the same
+caller check, and every authorization decision is made in
+`application/screens/*`:
+
+```
+GET    /v1/views/{setup|onboarding|profile|directory|completeness|registry|integrations|export|analytics}
+GET    /v1/views/profile/{id}          one person, as the viewer may see them
+POST   /v1/views/me/sections           save one section of my own record
+POST   /v1/views/people/{id}/sections  save one section of somebody's record
+POST   /v1/views/completeness          HR's grid: one write, and one event, per person
+POST   /v1/views/setup/entity          confirm the legal entity: rename the first in that country, or create one
+POST   /v1/views/setup/publish         the core fields + a country pack, published as version 1
+POST   /v1/schema/draft/sections       add a section to the draft
+PUT    /v1/schema/draft/sections/order
+PUT    /v1/schema/draft/sections/{key}/order
+POST   /v1/schema/draft/attributes     add or change a field; the draft decides whether it may
+POST   /v1/schema/draft/advice         the classification suggestion (§12.3; rules for now, see below)
+POST   /v1/schema/draft/preview        what publishing would do, with requiredFrom, rolled back
+POST   /v1/schema/draft/publish        publish the draft
+POST   /v1/webhooks/endpoints          create; alertEmail required; the secret returned once
+PATCH  /v1/webhooks/endpoints/{id}     change, enable, disable
+POST   /v1/webhooks/endpoints/{id}/rotate
+POST   /v1/webhooks/deliveries/{id}/replay
+POST   /v1/imports/proposal            upload → the proposed mapping
+POST   /v1/imports/dry-run             the five counts, the incomplete warning, the blocked rows and their CSV
+POST   /v1/imports                     commit
+```
+
+`/v1/views/*` answers with a screen's view model. The model is built from reads
+that were already authorized, so a withheld field never reaches it. An import
+keeps nothing between steps: each step carries the file (base64, up to 100 MB)
+and the mapping. Three things are known gaps:
+
+- **No Idempotency-Key on these writes yet.** A retried publish is refused as
+  unchanged, and an import is keyed by its file. A section or an endpoint
+  created twice is not caught.
+- **Not yet in `/v1/openapi.json`.**
+- **The classification advice is a small rule set.** The TypeSafe judgment
+  §12.3 describes is not built, and the rules only ever err towards more
+  protection.
+
+**The shell calls People directly, not through the router.** The tenant app's
+server sends the internal token beside a principal it builds itself: the
+account from the session identity verified on this request, and the tenant
+from the host. It sends no roles, because People reads roles from OpenFGA.
+This is the same trust the router holds (§13.1), and it exists because nothing
+mints a token for the tenant app yet. When something does, one file in the
+shell changes.
 
 ### 13.3 Webhooks (Phase 1)
 
@@ -2091,6 +2185,20 @@ Every story renders at a phone viewport as well as a desk one, and
 `pnpm test:stories` runs axe over both. Tap targets are asserted against the
 44px floor rather than eyeballed. The onboarding flow has an acceptance test
 that completes it end to end at 390×844 with a software keyboard raised.
+
+**The running app has its own check (PEO-098).**
+`apps/web/acceptance/people.acceptance.test.ts` drives the shell, the remote
+and People as production builds. It completes the setup wizard at 390×844,
+with the keyboard raised for each section, and checks that Save is on screen
+above the keyboard.
+
+That test found a real defect. `PageLayout`'s `<main>` was `overflow-y: auto`
+in a row sized to its content. That made `<main>` a scroll container that
+never scrolls, so a `sticky bottom-0` Save stuck to the end of the content
+instead of the screen. `<main>` is now `overflow-x: clip`, which keeps a wide
+child from scrolling the page sideways and creates no scroll container. The
+remote's own phone test had not caught it, because it renders screens without
+the shell's layout.
 
 ---
 

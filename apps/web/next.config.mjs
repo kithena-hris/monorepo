@@ -24,6 +24,9 @@ const config = {
   outputFileTracingRoot: join(import.meta.dirname, '../..'),
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],
+    // An import sends its file through a server action (PEO-098), and People
+    // takes a spreadsheet of up to 100 MB (§14.1). The default is 1 MB.
+    serverActions: { bodySizeLimit: '101mb' },
   },
 };
 

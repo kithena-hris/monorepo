@@ -372,7 +372,16 @@ export function PageLayout({
         aria-label={contentLabel}
         className={cn(
           'row-start-3 min-w-0',
-          preset === 'canvas' ? 'overflow-hidden' : 'overflow-y-auto',
+          /*
+           * `clip`, not `auto`, outside the canvas preset. The grid sizes this
+           * row to its content, so the window is what scrolls; `overflow-y-auto`
+           * made this element a scroll container that never scrolled, and a
+           * `sticky bottom-0` inside it — a form's Save, kept above a phone's
+           * keyboard — stuck to the bottom of the content instead of the
+           * screen. `overflow-x: clip` still keeps a wide child from pushing
+           * the page sideways, and creates no scroll container.
+           */
+          preset === 'canvas' ? 'overflow-hidden' : 'overflow-x-clip',
           /*
            * Smooth only where smoothness is ours to give.
            *

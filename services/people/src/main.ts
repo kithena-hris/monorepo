@@ -19,6 +19,8 @@ const server = createServer((request, response) => {
   void yoga(request, response);
 });
 wirePeople(server);
-server.listen(4001, () => {
-  logger.info({ module: manifest.key, port: 4001 }, 'subgraph listening');
+// 4001 by convention (modules on 40xx); `PEOPLE_PORT` for a second copy, as an acceptance run starts.
+const port = Number(process.env['PEOPLE_PORT'] ?? 4001);
+server.listen(port, () => {
+  logger.info({ module: manifest.key, port }, 'subgraph listening');
 });

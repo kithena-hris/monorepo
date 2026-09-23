@@ -283,13 +283,16 @@ const STATUS: Record<string, number> = {
   IDEMPOTENCY_KEY_REUSED: 422,
   APPROVAL_DECIDED: 409,
   APPROVAL_EXPIRED: 409,
+  // Two imports contended past the retries (PEO-106): nothing was written; upload again.
+  IMPORT_CONTENDED: 409,
+  ALREADY_IMPORTED: 409,
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
   UNAVAILABLE: 503,
 };
 
-function refused(error: DomainFailure): RestResponse {
+export function refused(error: DomainFailure): RestResponse {
   return {
     status: STATUS[error.code] ?? 422,
     body: {
@@ -302,7 +305,7 @@ function refused(error: DomainFailure): RestResponse {
   };
 }
 
-function parse<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
+export function parse<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
   const parsed = schema.safeParse(value);
   if (parsed.success) return ok(parsed.data);
   const issue = parsed.error.issues[0];
@@ -315,7 +318,7 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): Result<T> {
   );
 }
 
-function json(body: string): Result<unknown> {
+export function json(body: string): Result<unknown> {
   try {
     return ok(body === '' ? {} : (JSON.parse(body) as unknown));
   } catch {
@@ -350,22 +353,24 @@ export interface RestDeps {
     started(tenantId: string, requestId: string, correlationId: string): Promise<void>;
     decided(tenantId: string, requestId: string, correlationId: string): Promise<void>;
   };
+  /** The routes the tenant app's screens read and act through (PEO-098, `screens.ts`). */
+  readonly screens?: readonly Route[];
 }
 
-type Handler = (
+export type Handler = (
   asking: Asking,
   request: RestRequest,
   params: Record<string, string>,
   query: URLSearchParams,
 ) => Promise<RestResponse>;
 
-interface Route {
+export interface Route {
   readonly method: string;
   readonly pattern: RegExp;
   readonly handle: Handler;
 }
 
-const UUID = '([0-9a-fA-F-]{36})';
+export const UUID = '([0-9a-fA-F-]{36})';
 
 export function restHandler(
   deps: RestDeps,
@@ -1094,6 +1099,7 @@ export function restHandler(
         );
       },
     },
+    ...(deps.screens ?? []),
   ];
 
   return async (request) => {

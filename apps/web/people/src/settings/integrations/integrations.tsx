@@ -13,6 +13,7 @@ import {
   EmptyState,
   Field,
   FieldControl,
+  FieldDescription,
   FieldError,
   FieldLabel,
   Input,
@@ -61,6 +62,8 @@ export interface EndpointInput {
   readonly url: string;
   readonly events: readonly string[];
   readonly allowlist: readonly string[];
+  /** Emailed if the endpoint is turned off after failing for a day (PEO-093). Required. */
+  readonly alertEmail: string;
 }
 
 /** A secret is shown once, here, and is never retrievable again. */
@@ -313,22 +316,25 @@ function AddEndpoint({
   const [url, setUrl] = useState('');
   const [events, setEvents] = useState<readonly string[]>([]);
   const [allowlist, setAllowlist] = useState<readonly string[]>([]);
+  const [alertEmail, setAlertEmail] = useState('');
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const knownEvents = new Set(state.events);
   const badUrl = !/^https:\/\/\S+$/.test(url);
+  const badEmail = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alertEmail);
 
   const create = async (): Promise<void> => {
     setShown(true);
-    if (badUrl || events.length === 0) return;
+    if (badUrl || badEmail || events.length === 0) return;
     setBusy(true);
-    const outcome = await onCreate({ url, events, allowlist });
+    const outcome = await onCreate({ url, events, allowlist, alertEmail });
     setBusy(false);
     if (outcome.ok) {
       setUrl('');
       setEvents([]);
       setAllowlist([]);
+      setAlertEmail('');
       setShown(false);
       setRefused(null);
       onOpenChange(false);
@@ -360,6 +366,23 @@ function AddEndpoint({
                 />
               </FieldControl>
               <FieldError>An https address, reachable from the internet.</FieldError>
+            </Field>
+            <Field required invalid={shown && badEmail}>
+              <FieldLabel>Alert email</FieldLabel>
+              <FieldControl>
+                <Input
+                  type="email"
+                  autoComplete="email"
+                  value={alertEmail}
+                  onChange={(e) => {
+                    setAlertEmail(e.target.value);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>
+                Who hears if deliveries keep failing and the endpoint is turned off.
+              </FieldDescription>
+              <FieldError>An email address to tell.</FieldError>
             </Field>
             <TagsInput
               label="Events"

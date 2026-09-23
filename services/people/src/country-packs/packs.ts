@@ -148,7 +148,7 @@ export const COUNTRY_PACKS: Readonly<Record<PackCountry, CountryPack>> = {
  */
 export function applyPack(
   draft: SchemaDraft,
-  pack: CountryPack,
+  pack: Pick<CountryPack, 'sections' | 'attributes'>,
 ): Result<{ sections: Section[]; attributes: Attribute[] }> {
   const sections: Section[] = [];
   const attributes: Attribute[] = [];

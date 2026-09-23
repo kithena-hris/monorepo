@@ -1,3 +1,16 @@
 {
-  "routes": [{ "path": "/people", "component": "PeopleHome" }]
+  "routes": [
+    { "path": "/people", "component": "PeopleHome" },
+    { "path": "/people/directory", "component": "Directory" },
+    { "path": "/people/setup", "component": "PeopleSetup" },
+    { "path": "/people/onboarding", "component": "Onboarding" },
+    { "path": "/people/me", "component": "Profile" },
+    { "path": "/people/completeness", "component": "CompletenessGrid" },
+    { "path": "/people/settings/fields", "component": "FieldRegistry" },
+    { "path": "/people/settings/integrations", "component": "Integrations" },
+    { "path": "/people/import", "component": "ImportFlow" },
+    { "path": "/people/export", "component": "ExportBuilder" },
+    { "path": "/people/analytics", "component": "Analytics" },
+    { "path": "/people/:id", "component": "Profile" }
+  ]
 }
