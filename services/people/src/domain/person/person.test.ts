@@ -444,13 +444,47 @@ describe('correcting the hire date', () => {
     expect(p.status).toBe('active');
   });
 
-  it('does not move an active record back to pre-hire', () => {
-    // §8.1 has no edge from active back to pre_hire, so a start date
-    // corrected into the future leaves the status alone.
-    const p = person({ status: 'active', hireDate: '2026-01-01' });
+  it('returns an active record to pre-hire when the corrected start is still to come', () => {
+    // §8.1: a start date corrected into the future says they have not started.
+    // The move takes effect from the start date it corrects, which is when the
+    // record wrongly became active (§8.5).
+    const p = person({ status: 'active', hireDate: '2026-09-01' });
     expect(p.correctHireDate('2026-12-01', ctx).ok).toBe(true);
+    expect(p.status).toBe('pre_hire');
+    expect(p.hireDate).toBe('2026-12-01');
+    const [moved, ...rest] = p.drainEvents();
+    expect(rest).toEqual([]);
+    expect(moved).toMatchObject({
+      eventName: 'people.person.status_changed',
+      effectiveFrom: '2026-09-01',
+      payload: { previous: 'active', next: 'pre_hire', reason: 'corrected' },
+    });
+  });
+
+  it('keeps an active record active when the corrected start is today, in the tenant’s calendar', () => {
+    const p = person({ status: 'active', hireDate: '2026-09-01' });
+    p.correctHireDate('2026-09-22', ctx, 'Europe/Madrid');
     expect(p.status).toBe('active');
     expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('names the correction as the cause, which is where its supersedes is', () => {
+    const p = person({ status: 'active', hireDate: '2026-09-01' });
+    p.correctHireDate('2026-12-01', { ...ctx, causationId: 'the-correction' });
+    expect(p.drainEvents()[0]?.causationId).toBe('the-correction');
+  });
+
+  it('leaves a record on leave or on notice alone, whatever the corrected start', () => {
+    for (const status of ['on_leave', 'notice'] as const) {
+      const p = person({
+        status,
+        hireDate: '2026-09-01',
+        lastWorkingDay: status === 'notice' ? '2027-06-30' : null,
+      });
+      expect(p.correctHireDate('2026-12-01', ctx).ok).toBe(true);
+      expect(p.status).toBe(status);
+      expect(p.drainEvents()).toEqual([]);
+    }
   });
 
   it('leaves a terminated record terminated', () => {
@@ -474,7 +508,8 @@ describe('correcting the hire date', () => {
 describe('correcting the last working day', () => {
   it('moves the date the record holds, and nothing else', () => {
     // §8.1 ends employment by an explicit transition, not by a date passing,
-    // so a notice period corrected to have ended does not terminate anybody.
+    // so a notice period corrected to have ended does not terminate anybody:
+    // the record stays on notice, and HR's grid asks for the termination.
     const p = person({ status: 'notice', hireDate: '2026-01-01', lastWorkingDay: '2026-12-31' });
     expect(p.correctLastWorkingDay('2026-09-01').ok).toBe(true);
     expect(p.lastWorkingDay).toBe('2026-09-01');

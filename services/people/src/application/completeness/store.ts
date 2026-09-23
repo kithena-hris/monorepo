@@ -60,8 +60,15 @@ export interface CompletenessStore {
    */
   claimReminders(tx: PostgresJsDatabase, tenantId: string, now: Date): Promise<readonly Reminder[]>;
 
-  /** HR's gaps, one row per missing key — the grid, never a task per person. */
-  staffGrid(tx: PostgresJsDatabase, tenantId: string): Promise<readonly GridRow[]>;
+  /**
+   * HR's work, one row per missing key — the grid, never a task per person.
+   *
+   * Also one `confirm_termination` row: people on notice whose last working
+   * day is before `today` (§8.1). Read off the record rather than stored, so
+   * it closes when HR terminates or corrects the date forward, with nothing
+   * to clear.
+   */
+  staffGrid(tx: PostgresJsDatabase, tenantId: string, today: string): Promise<readonly GridRow[]>;
 }
 
 export interface Gap {
@@ -77,6 +84,8 @@ export interface Reminder {
 }
 
 export interface GridRow {
+  /** `missing`: `key` has no value. `confirm_termination`: `key` is `last_working_day`, and it has passed. */
+  readonly task: 'missing' | 'confirm_termination';
   readonly key: string;
   readonly personIds: readonly string[];
 }
