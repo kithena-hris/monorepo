@@ -340,6 +340,49 @@ describe('hiring', () => {
   });
 });
 
+describe('the lifecycle dates, as history', () => {
+  // A correction supersedes a history row. Without one for the hire date and
+  // the last working day, neither could ever be corrected.
+
+  it('records the hire date, effective on it, tied to the hire', () => {
+    const p = person();
+    p.hire('2026-10-01', HIRED, ctx);
+    const hired = p.drainEvents().find((e) => e.eventName === 'people.person.hired');
+    const [row, ...rest] = p.drainHistory();
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      attributeKey: 'hire_date',
+      value: '2026-10-01',
+      effectiveFrom: '2026-10-01',
+      supersedes: null,
+      eventId: hired?.eventId,
+      actor: ctx.actor,
+    });
+    expect(p.drainHistory()).toEqual([]);
+  });
+
+  it('records the last working day when notice is given, and again only if termination moves it', () => {
+    const p = person({ status: 'active', hireDate: '2026-01-01' });
+    p.giveNotice('2026-12-31', ctx);
+    expect(p.drainHistory().map((e) => [e.attributeKey, e.value, e.effectiveFrom])).toEqual([
+      ['last_working_day', '2026-12-31', '2026-12-31'],
+    ]);
+    p.terminate('2026-12-31', ctx);
+    expect(p.drainHistory()).toEqual([]);
+
+    const early = person({ status: 'notice', hireDate: '2026-01-01', lastWorkingDay: '2026-12-31' });
+    early.terminate('2026-11-30', ctx);
+    expect(early.drainHistory().map((e) => e.value)).toEqual(['2026-11-30']);
+  });
+
+  it('records nothing when a transition is refused', () => {
+    const p = person({ status: 'active', hireDate: '2026-06-01' });
+    p.terminate('2026-01-01', ctx);
+    p.hire('2026-10-01', HIRED, ctx);
+    expect(p.drainHistory()).toEqual([]);
+  });
+});
+
 describe('what a hire has to know', () => {
   const values = {
     given_name: 'Ada',

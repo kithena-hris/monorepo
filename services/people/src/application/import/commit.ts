@@ -213,26 +213,26 @@ async function write(
 
   const done = await deps.rowScope(tx, async (sp) => {
     if (row.outcome === 'update' && row.personId !== null) {
-      if (Object.keys(row.changes).length > 0) {
-        const updated = await deps.access.update(sp, {
-          ...asking,
-          personId: row.personId,
-          changes: row.changes,
-          ...(row.effectiveFrom ? { effectiveFrom: row.effectiveFrom } : {}),
-        });
-        if (!updated.ok) return updated;
-      }
+      const dated = row.effectiveFrom ? { effectiveFrom: row.effectiveFrom } : {};
       // A provisional record — an account nobody has confirmed yet (§8.2) —
-      // is hired by a row that gives it a start date.
-      if (row.hires && row.hireDate !== null) {
-        const hired = await deps.access.hire(sp, {
-          ...asking,
-          personId: row.personId,
-          hireDate: row.hireDate,
-        });
-        if (!hired.ok) return hired;
-      }
-      return ok('updated' as const);
+      // is hired by a row that gives it a start date, its values written with
+      // the hire so identity hears the result once.
+      const written =
+        row.hires && row.hireDate !== null
+          ? await deps.access.hire(sp, {
+              ...asking,
+              ...dated,
+              personId: row.personId,
+              hireDate: row.hireDate,
+              changes: row.changes,
+            })
+          : await deps.access.update(sp, {
+              ...asking,
+              ...dated,
+              personId: row.personId,
+              changes: row.changes,
+            });
+      return written.ok ? ok('updated' as const) : written;
     }
     return create(sp, deps, asking, row);
   });

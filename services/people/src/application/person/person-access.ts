@@ -134,7 +134,15 @@ export interface PersonAccess {
    * Confirm a provisional record as an employee, from a start date. The one
    * hire path: every transport and the import come through here.
    */
-  hire(tx: Tx, asking: On<{ readonly hireDate: string }>): Promise<Result<PersonView>>;
+  hire(
+    tx: Tx,
+    asking: On<{
+      readonly hireDate: string;
+      /** Values written with the hire, as `update` writes them. */
+      readonly changes?: Readonly<Record<string, unknown>>;
+      readonly effectiveFrom?: string;
+    }>,
+  ): Promise<Result<PersonView>>;
 }
 
 const NotPublished = () =>
@@ -293,6 +301,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       /** When a dated change takes effect. Defaults to today. */
       readonly effectiveFrom?: string;
     },
+    /**
+     * False when the caller will tell identity itself, later in the same
+     * transaction: a hire that also renames somebody sends one event with the
+     * final name, not one per step.
+     */
+    tellIdentity = true,
   ): Promise<Result<PersonView>> {
     const version = await deps.schemas.current(tx, asking.tenantId);
     if (!version) return err(NotPublished());
@@ -408,7 +422,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     );
     if (!raised.ok) return raised;
 
-    if ([...projected.keys()].some((k) => IDENTITY_FACT_KEYS.has(k))) {
+    if (tellIdentity && [...projected.keys()].some((k) => IDENTITY_FACT_KEYS.has(k))) {
       shareIdentityFacts(
         aggregate,
         asking,
@@ -483,7 +497,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       return ok({ items, next });
     },
 
-    update,
+    update: (tx, asking) => update(tx, asking),
 
     /**
      * A new record, provisional, with its first values.
@@ -748,12 +762,24 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
      */
     async hire(
       tx: Tx,
-      asking: Asking & { readonly personId: string; readonly hireDate: string },
+      asking: Asking & {
+        readonly personId: string;
+        readonly hireDate: string;
+        readonly changes?: Readonly<Record<string, unknown>>;
+        readonly effectiveFrom?: string;
+      },
     ): Promise<Result<PersonView>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       if (!CALENDAR_DATE.test(asking.hireDate)) {
         return err(failure('VALUE_INVALID', 'hireDate is a calendar date', ['hireDate']));
+      }
+      // The values first, without telling identity: the hire below tells it
+      // once, with the name as it stands after both.
+      const { changes = {}, hireDate, ...rest } = asking;
+      if (Object.keys(changes).length > 0) {
+        const updated = await update(tx, { ...rest, changes }, false);
+        if (!updated.ok) return updated;
       }
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
       if (!person) return err(PersonNotFound());
@@ -770,13 +796,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
       const aggregate = Person.rehydrate(person.snapshot);
       const hired = aggregate.hire(
-        asking.hireDate,
+        hireDate,
         facts.value,
         contextFor(asking),
         asking.timeZone,
       );
       if (!hired.ok) return hired;
-      shareIdentityFacts(aggregate, asking, person.values, asking.hireDate);
+      shareIdentityFacts(aggregate, asking, person.values, hireDate);
 
       await deps.people.save(tx, aggregate);
 

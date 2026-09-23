@@ -230,6 +230,42 @@ describe('an import over Postgres', () => {
     expect(await events('people.person.identity_facts_changed')).toBe(1);
   });
 
+  it('tells identity once, with the final name, when a row renames and hires an account', async () => {
+    const RENAMED = '00000000-0000-4000-8000-0000000000d3';
+    const ACCOUNT = '00000000-0000-4000-8000-0000000000ba';
+    await inTenant(TENANT, async ({ tx }) => {
+      await drizzlePersonRepository().create(
+        tx,
+        Person.rehydrate({
+          id: RENAMED,
+          tenantId: TENANT,
+          status: 'provisional',
+          identityAccountId: ACCOUNT,
+          hireDate: '2026-11-01',
+          lastWorkingDay: null,
+        }),
+        { workEmail: 'renamed@acme.test', givenName: 'Kate', familyName: 'Jonson' },
+      );
+    });
+
+    const result = await upload(
+      csv(HEADERS, [['Katherine', 'Johnson', 'renamed@acme.test', '2026-10-01', '', '', '', '']]),
+    );
+    expect(result.ok && result.value.status === 'imported' && result.value.counts).toMatchObject({
+      updated: 1,
+    });
+    const facts = [
+      ...(await admin.execute(sql`
+        SELECT envelope->'payload' AS payload FROM people.outbox
+         WHERE event_name = 'people.person.identity_facts_changed' AND aggregate_id = ${RENAMED}`)),
+    ];
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.['payload']).toMatchObject({
+      name: { given: 'Katherine', family: 'Johnson' },
+      employmentStart: '2026-10-01',
+    });
+  });
+
   it('keeps one tenant’s ledger from another', async () => {
     const other = '00000000-0000-4000-8000-00000000000b';
     const seen = await inTenant(other, ({ tx }) => tx.execute(sql`SELECT id FROM people.import`));

@@ -543,6 +543,24 @@ describe('hiring', () => {
     expect(new Set(store.events.map((e) => e.eventId)).size).toBe(3);
   });
 
+  it('tells identity once, with the final name, when the hire also renames them', async () => {
+    const { store, people } = provisional(ADA_ACCOUNT);
+    const hired = await people.hire(tx, {
+      ...asking(hr),
+      personId: ADA,
+      hireDate: '2026-10-01',
+      changes: { family_name: 'Byron' },
+    });
+    expect(hired.ok).toBe(true);
+    const facts = store.events.filter((e) => e.eventName === 'people.person.identity_facts_changed');
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.payload).toMatchObject({
+      name: { given: 'Ada', family: 'Byron', preferred: null },
+      employmentStart: '2026-10-01',
+    });
+    expect(store.events.map((e) => e.eventName)).toContain('people.person.profile_updated');
+  });
+
   it('tells identity nothing about a person with no account', async () => {
     const { store, people } = provisional(null);
     await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });

@@ -9,6 +9,8 @@ import {
 } from '@kithena/domain-kit';
 import { TenantId, type Actor, type ChangedAttribute } from '@kithena/contracts';
 
+import { record, type HistoryEntry } from './history.js';
+
 /**
  * One employment record, and the states it may be in.
  *
@@ -170,6 +172,9 @@ export class Person extends AggregateRoot<string> {
   #lastWorkingDay: string | null;
   readonly #tenantId: TenantId;
   readonly #identityAccountId: string | null;
+  /** Lifecycle dates as history rows, drained by the repository with the events. */
+  #history: readonly HistoryEntry[] = [];
+  #lastEventId: string | null = null;
 
   private constructor(snapshot: PersonSnapshot) {
     super(snapshot.id);
@@ -275,6 +280,7 @@ export class Person extends AggregateRoot<string> {
       ctx,
       hireDate,
     );
+    this.#recordDate('hire_date', hireDate, ctx);
     return ok(undefined);
   }
 
@@ -310,7 +316,9 @@ export class Person extends AggregateRoot<string> {
     if (!ordered.ok) return ordered;
 
     this.#lastWorkingDay = lastWorkingDay;
-    return this.#moveTo('notice', 'resigned', ctx);
+    const moved = this.#moveTo('notice', 'resigned', ctx);
+    this.#recordDate('last_working_day', lastWorkingDay, ctx);
+    return moved;
   }
 
   /**
@@ -331,6 +339,7 @@ export class Person extends AggregateRoot<string> {
     const ordered = this.#checkLastDay(lastWorkingDay);
     if (!ordered.ok) return ordered;
 
+    const moves = this.#lastWorkingDay !== lastWorkingDay;
     this.#lastWorkingDay = lastWorkingDay;
     this.#status = 'terminated';
     this.#raise(
@@ -344,6 +353,8 @@ export class Person extends AggregateRoot<string> {
       ctx,
       lastWorkingDay,
     );
+    // Notice already recorded this date; a termination that moves it records the new one.
+    if (moves) this.#recordDate('last_working_day', lastWorkingDay, ctx);
     return ok(undefined);
   }
 
@@ -500,6 +511,32 @@ export class Person extends AggregateRoot<string> {
     return true;
   }
 
+  /**
+   * The lifecycle dates written since the last drain, as history rows.
+   *
+   * A correction supersedes a history row, so a hire date or a last working
+   * day with no row could never be corrected. The repository writes these in
+   * the same transaction as the row and its events, like `drainEvents`.
+   */
+  drainHistory(): readonly HistoryEntry[] {
+    const drained = this.#history;
+    this.#history = [];
+    return drained;
+  }
+
+  /** A dated row for a lifecycle date, effective on the date itself, tied to the event just raised. */
+  #recordDate(attributeKey: string, value: string, ctx: EventContext): void {
+    this.#history = record(this.#history, {
+      id: ctx.newEventId(),
+      attributeKey,
+      value,
+      effectiveFrom: value,
+      recordedAt: ctx.clock.instant(),
+      actor: ctx.actor,
+      eventId: this.#lastEventId,
+    });
+  }
+
   /** A last working day before the hire date describes an employment nobody had. */
   #checkLastDay(lastWorkingDay: string): Result<void> {
     if (this.#hireDate !== null && lastWorkingDay < this.#hireDate) {
@@ -551,5 +588,6 @@ export class Person extends AggregateRoot<string> {
       payload,
     };
     this.raise(event);
+    this.#lastEventId = event.eventId;
   }
 }

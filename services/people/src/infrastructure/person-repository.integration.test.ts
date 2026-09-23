@@ -226,7 +226,16 @@ describe('a write and its event', () => {
       });
     });
 
-    expect(await counts()).toMatchObject({ people: 1, history: 1 });
+    // The salary row, and the lifecycle's own: the hire date and the last working day.
+    expect(await counts()).toMatchObject({ people: 1, history: 3 });
+    const keys = await admin.execute(
+      sql`SELECT attribute_key FROM people.person_attribute_history ORDER BY attribute_key`,
+    );
+    expect([...keys].map((r) => r['attribute_key'])).toEqual([
+      'base_salary',
+      'hire_date',
+      'last_working_day',
+    ]);
   });
 });
 
