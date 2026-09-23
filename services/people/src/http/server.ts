@@ -73,6 +73,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     notify: (tenantId, endpointId, reason) => {
       logger.warn({ tenantId, endpointId, reason }, 'webhook endpoint disabled');
     },
+    schemas,
   });
 
   /*

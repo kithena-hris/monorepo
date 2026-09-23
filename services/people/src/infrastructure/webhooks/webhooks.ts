@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm';
+import type { AttributeDefinition } from '@kithena/contracts';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
+import type { SchemaVersions } from '../../application/person/ports.js';
 import type { InTenant } from '../../application/person/service.js';
 import { open, seal, type KeyRing } from '../envelope.js';
 import { vet, type EgressPolicy, type Poster } from './egress.js';
@@ -36,6 +38,8 @@ export interface WebhookDeps {
   readonly newId: () => string;
   /** The tenant is told an endpoint was disabled. */
   readonly notify: (tenantId: string, endpointId: string, reason: string) => void;
+  /** The version in force, which is what an allowlist may name. */
+  readonly schemas: SchemaVersions;
 }
 
 const FIRST_RETRY_MS = 30_000;
@@ -90,10 +94,58 @@ export interface WebhookService {
   nextDue(tenantId: string): Promise<Date | null>;
 }
 
+/**
+ * Whether every key may be named in an allowlist (§13.3).
+ *
+ * A key must exist in the version in force, so an allowlist cannot promise a
+ * field nobody defined. Special-category and encrypted attributes are refused
+ * outright: the first never travels on an event and the second never leaves
+ * the secret store, so naming either would be a promise the payload breaks —
+ * or, worse, one a later change quietly keeps. Checked here, in the one place
+ * every caller goes through, so the settings screen and any API get the same
+ * answer.
+ */
+export function allowable(
+  definitions: readonly AttributeDefinition[],
+  keys: readonly string[],
+): Result<void> {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  for (const key of keys) {
+    const definition = byKey.get(key);
+    if (definition === undefined) {
+      return err(
+        failure('FIELD_NOT_ALLOWED', `${key} is not a field in the published schema`, [
+          'allowlist',
+        ]),
+      );
+    }
+    if (definition.classification.classification === 'special-category') {
+      return err(
+        failure(
+          'FIELD_NOT_ALLOWED',
+          `${key} is special-category data and never leaves in a webhook`,
+          ['allowlist'],
+        ),
+      );
+    }
+    if (definition.encrypted) {
+      return err(
+        failure('FIELD_NOT_ALLOWED', `${key} is encrypted and never leaves in a webhook`, [
+          'allowlist',
+        ]),
+      );
+    }
+  }
+  return ok(undefined);
+}
+
 export function webhooks(deps: WebhookDeps): WebhookService {
   // An early answer for the settings screen. Not the defence: DNS can change
   // its mind, so `post` vets and pins again on every delivery.
-  const validate = async (input: Partial<EndpointInput>): Promise<Result<void>> => {
+  const validate = async (
+    tenantId: string,
+    input: Partial<EndpointInput>,
+  ): Promise<Result<void>> => {
     if (input.url !== undefined) {
       const target = await vet(input.url, deps.egress);
       if (!target.ok) return target;
@@ -101,12 +153,17 @@ export function webhooks(deps: WebhookDeps): WebhookService {
     if (input.events?.length === 0) {
       return err(failure('BAD_WEBHOOK_EVENTS', 'Subscribe to at least one event', ['events']));
     }
+    if (input.allowlist !== undefined && input.allowlist.length > 0) {
+      const version = await deps.inTenant(tenantId, ({ tx }) => deps.schemas.current(tx, tenantId));
+      const allowed = allowable(version?.document.attributes ?? [], input.allowlist);
+      if (!allowed.ok) return allowed;
+    }
     return ok(undefined);
   };
 
   return {
     async createEndpoint(tenantId, input) {
-      const valid = await validate(input);
+      const valid = await validate(tenantId, input);
       if (!valid.ok) return valid;
       const id = deps.newId();
       const plaintext = secret();
@@ -126,7 +183,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
     },
 
     async updateEndpoint(tenantId, id, patch) {
-      const valid = await validate(patch);
+      const valid = await validate(tenantId, patch);
       if (!valid.ok) return valid;
       const updated = await deps.inTenant(tenantId, ({ tx }) =>
         tx

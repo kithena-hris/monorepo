@@ -81,6 +81,7 @@ const hooks = () =>
     clock,
     newId,
     notify: (_t, id) => notified.push(id),
+    schemas: drizzleSchemaVersions(),
   });
 
 const people = () =>
@@ -155,7 +156,31 @@ beforeAll(async () => {
     drizzleSchemaRepository().appendVersion(
       tx,
       ACME,
-      versionOf(1, [define({ key: 'job_title' }), define({ key: 'department' })]),
+      versionOf(1, [
+        define({ key: 'job_title' }),
+        define({ key: 'department' }),
+        define({
+          key: 'accommodation_notes',
+          classification: {
+            classification: 'special-category',
+            piiKind: 'health',
+            exportable: false,
+            aiEligible: false,
+          },
+        }),
+        define({
+          key: 'bank_account',
+          dataType: 'bank_account',
+          typeConfig: { kind: 'bank_account', country: 'ES' },
+          encrypted: true,
+          classification: {
+            classification: 'confidential',
+            piiKind: 'financial',
+            exportable: true,
+            aiEligible: false,
+          },
+        }),
+      ]),
       [],
       '2026-09-01',
     ),
@@ -307,5 +332,28 @@ describe('delivery', () => {
     expect(verifySignature(after?.body ?? '', after?.headers['kithena-signature'] ?? '', old)).toBe(
       false,
     );
+  });
+});
+
+describe('an allowlist', () => {
+  it('cannot name a special-category field, on creation or later', async () => {
+    const created = await hooks().createEndpoint(ACME, {
+      url: 'https://hooks.example.com/people',
+      events: ['people.person.profile_updated'],
+      allowlist: ['job_title', 'accommodation_notes'],
+    });
+    expect(created).toMatchObject({ ok: false, error: { code: 'FIELD_NOT_ALLOWED' } });
+
+    const { id } = await endpoint(['job_title']);
+    const updated = await hooks().updateEndpoint(ACME, id, { allowlist: ['accommodation_notes'] });
+    expect(updated).toMatchObject({ ok: false, error: { code: 'FIELD_NOT_ALLOWED' } });
+  });
+
+  it('cannot name an encrypted field, nor one the schema does not have', async () => {
+    const { id } = await endpoint(['job_title']);
+    for (const key of ['bank_account', 'shoe_size']) {
+      const updated = await hooks().updateEndpoint(ACME, id, { allowlist: [key] });
+      expect(updated).toMatchObject({ ok: false, error: { code: 'FIELD_NOT_ALLOWED' } });
+    }
   });
 });
