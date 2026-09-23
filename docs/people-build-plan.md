@@ -946,10 +946,14 @@ it is written down here rather than left in a PR description.
 - [ ] **PEO-088** An audited way to read a secret for export. Encrypted fields
       are always masked in an export, but §15.2 lets finance see the full value
       with a stated reason. Found in PEO-042. *(PRD §15.2)*
-- [ ] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
+- [x] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
       queue to hand exports over 2,000 rows to. Today the port has one
       in-memory implementation and nothing decides when to queue. Found in
-      PEO-043. *(PRD §15.1)*
+      PEO-043. *(PRD §15.1)* *Landed as an S3 adapter (SSE under the
+      service's own AES-GCM), BullMQ on Valkey keyed by export id, the
+      `people.export` ledger, an hourly bounded sweep, and `POST
+      /v1/exports` / `GET /v1/exports/{id}`. The export-ready email waits on
+      platform/messaging, as PEO-084's reminders do.*
 - [ ] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
       imported, a row matching an existing person does not change their
       `hire_date`, the import checksum is not on `people.import.started`, and a

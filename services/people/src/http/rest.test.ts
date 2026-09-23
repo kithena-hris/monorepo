@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { ok } from '@kithena/domain-kit';
+import { randomBytes } from 'node:crypto';
 
+import { describe, expect, it } from 'vitest';
+import { fixedClock, ok } from '@kithena/domain-kit';
+
+import { inMemoryExportLedger } from '../application/export/ledger.js';
+import { localObjectStore } from '../application/export/object-store.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
 import { inMemoryIdempotency } from './idempotency.js';
@@ -127,5 +131,99 @@ describe('the OpenAPI document', () => {
     expect(Object.keys(doc.paths)).toEqual(
       expect.arrayContaining(['/v1/people', '/v1/people/{id}', '/v1/people/{id}/corrections']),
     );
+    expect(Object.keys(doc.paths)).toEqual(
+      expect.arrayContaining(['/v1/exports', '/v1/exports/{id}']),
+    );
+  });
+});
+
+describe('exports', () => {
+  function exportsSetup() {
+    const store = inMemoryPeople([versionOf(1, [title])]);
+    store.seed(ADA);
+    const clock = fixedClock('2026-09-22T09:00:00.000Z');
+    const enqueued: string[] = [];
+    let ids = 0;
+    const service = {
+      access: personAccess(store.deps),
+      schemas: store.deps.schemas,
+      inTenant: <R>(_tenant: string, fn: (scope: { tx: never }) => Promise<R>) =>
+        fn({ tx: {} as never }),
+    };
+    const rest = restHandler({
+      service,
+      callerFrom: (request) =>
+        ok({
+          tenantId: TENANT,
+          viewer: { accountId: String(request.headers['x-as'] ?? HR), roles: new Set(['hr']) },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        }),
+      idempotency: inMemoryIdempotency(),
+      exports: {
+        deps: {
+          access: service.access,
+          schemas: service.schemas,
+          relations: store.deps.relations,
+          clock,
+          store: localObjectStore({
+            encryptionKey: randomBytes(32),
+            signingKey: randomBytes(32),
+            clock,
+            baseUrl: 'https://people.test/v1/exports/files',
+          }),
+          notifier: { notify: () => Promise.resolve() },
+          audit: { publish: () => Promise.resolve() },
+          ledger: inMemoryExportLedger(),
+          newId: () => `00000000-0000-4000-9000-${String((ids += 1)).padStart(12, '0')}`,
+        },
+        queue: {
+          enqueue: (job) => {
+            enqueued.push(job.exportId);
+            return Promise.resolve();
+          },
+        },
+      },
+    });
+    const call = async (over: Partial<RestRequest>) => {
+      const answer = await rest({ method: 'GET', url: '/v1/people', headers: {}, body: '', ...over });
+      if (!answer) throw new Error('not a REST route');
+      return answer;
+    };
+    return { call, enqueued };
+  }
+
+  it('completes a small export, and only the requester can fetch its links again', async () => {
+    const { call } = exportsSetup();
+    const created = await call({
+      method: 'POST',
+      url: '/v1/exports',
+      headers: { 'idempotency-key': 'e1' },
+      body: JSON.stringify({ format: 'csv' }),
+    });
+    expect(created.status).toBe(201);
+    const body = created.body as { id: string; status: string; links: { url: string }[] };
+    expect(body.status).toBe('completed');
+    expect(body.links[0]?.url).toMatch(/^https:\/\/people\.test\/v1\/exports\/files\//u);
+
+    const mine = await call({ url: `/v1/exports/${body.id}` });
+    expect(mine.body).toEqual(body);
+    const theirs = await call({ url: `/v1/exports/${body.id}`, headers: { 'x-as': BEA } });
+    expect(theirs.status).toBe(404);
+  });
+
+  it('queues a large export once, however often the request is retried', async () => {
+    const { call, enqueued } = exportsSetup();
+    const request = {
+      method: 'POST',
+      url: '/v1/exports',
+      headers: { 'idempotency-key': 'e2' },
+      body: JSON.stringify({ format: 'xlsx', personIds: Array.from({ length: 2001 }, () => ADA) }),
+    };
+    const first = await call(request);
+    const again = await call(request);
+    expect(first.status).toBe(202);
+    expect(first.body).toMatchObject({ status: 'queued', links: [] });
+    expect(again.body).toEqual(first.body);
+    expect(enqueued).toHaveLength(1);
   });
 });

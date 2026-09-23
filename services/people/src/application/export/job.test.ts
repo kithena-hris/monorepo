@@ -7,6 +7,7 @@ import { noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import { asking, FINANCE, financeTenant, HR } from './fixture.js';
 import { runExportJob, type ExportJobDeps, type ExportNotifier } from './job.js';
+import { inMemoryExportLedger } from './ledger.js';
 import { localObjectStore } from './object-store.js';
 
 /** A clock the test can move, as a day passes between the link and the click. */
@@ -41,6 +42,7 @@ function setup() {
     store: objects,
     notifier: { notify: (m) => (sent.push(m), Promise.resolve()) },
     audit: { publish: (_tx, e) => (events.push(...e), Promise.resolve()) },
+    ledger: inMemoryExportLedger(),
     newId: () => `00000000-0000-4000-9000-${String((ids += 1)).padStart(12, '0')}`,
   };
   return { deps, objects, clock, events, sent };

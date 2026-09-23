@@ -75,14 +75,32 @@ services:
     ports: ['8108:8108']
     volumes: [typesense:/data]
 
+  # `quay.io`, because MinIO stopped publishing `minio/minio` to Docker Hub
+  # and a pull of it now fails as a repository that does not exist.
+  #
+  # The KMS key lets the bucket take server-side encryption (SSE-S3), which
+  # People asks for on every export file; MinIO refuses the request without
+  # one. A dev-only static key, like the passwords beside it.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
+      MINIO_KMS_SECRET_KEY: kithena-dev:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
     ports: ['9000:9000', '9001:9001']
     volumes: [minio:/data]
+
+  # Valkey: identity's session cache and People's export queue (BullMQ). The
+  # recipes have always pointed `VALKEY_URL` at localhost:6379; this is the
+  # thing listening there. Same image the integration tests start.
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports: ['6379:6379']
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      retries: 10
 
   mailpit:
     image: axllent/mailpit:latest
