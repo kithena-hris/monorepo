@@ -4,6 +4,7 @@ import { startTelemetry, logger } from '@kithena/telemetry';
 import { schema } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
+import { wirePeople } from './http/server.js';
 
 startTelemetry(`kithena-${manifest.key}`);
 wireConsumers();
@@ -15,6 +16,7 @@ const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 const server = createServer((request, response) => {
   void yoga(request, response);
 });
+wirePeople();
 server.listen(4001, () => {
   logger.info({ module: manifest.key, port: 4001 }, 'subgraph listening');
 });
