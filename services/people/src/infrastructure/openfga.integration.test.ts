@@ -260,6 +260,9 @@ describe('OpenFGA relations for People', () => {
       isFinance: false,
       isInManagerChain: false,
     });
+    // The roles every other check reads come from the same tuples.
+    expect([...(await fga.roles(ACME, BOSS.account))].toSorted()).toEqual(['hr', 'people_admin']);
+    expect(await fga.roles(GLOBEX, BOSS.account)).toEqual(new Set());
     // And the second person in a tenant is not its administrator.
     expect(await relations(ACME, MANAGER.account, OTHER.person)).toMatchObject({
       isHr: false,

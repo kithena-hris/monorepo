@@ -111,6 +111,8 @@ export interface OpenFga {
     tenantId: string,
     personId: string,
   ): Promise<'applied' | 'unchanged'>;
+  /** The tenant roles this account holds: `hr`, `finance`, `people_admin`. */
+  roles(tenantId: string, accountId: string): Promise<ReadonlySet<string>>;
   /** Grant or revoke a tenant role. Idempotent. */
   role(
     tenantId: string,
@@ -265,6 +267,23 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
         ...(deletes.length > 0 ? { deletes } : {}),
       });
       return 'applied';
+    },
+
+    async roles(tenantId, accountId) {
+      const fga = await client();
+      const user = `user:${accountId}`;
+      const object = `tenant:${tenantId}`;
+      const { result } = await fga.batchCheck({
+        checks: TENANT_ROLES.map((relation) => ({
+          user,
+          relation,
+          object,
+          correlationId: relation,
+        })),
+      });
+      return new Set(
+        result.filter((r) => r.allowed && r.error === undefined).map((r) => r.correlationId),
+      );
     },
 
     async role(tenantId, accountId, role, held) {
