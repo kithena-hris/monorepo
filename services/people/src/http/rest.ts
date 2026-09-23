@@ -441,16 +441,11 @@ export function restHandler(
     );
 
   /** A legal entity, location or settings use case, in its own transaction. */
-  const inOrg = <T>(
-    asking: Asking,
-    fn: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<T>>,
-  ) => {
+  const inOrg = <T>(asking: Asking, fn: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<T>>) => {
     const { org } = service;
     return org
       ? run(service, asking.tenantId, (tx) => fn(org, tx))
-      : Promise.resolve(
-          err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')),
-        );
+      : Promise.resolve(err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')));
   };
 
   /** Reads one back by id for a write's answer, and for its idempotent replay. */
@@ -873,14 +868,10 @@ export function restHandler(
           200,
           async (tx) => {
             if (!service.org) return err(failure('UNAVAILABLE', 'Settings are not configured'));
-            const saved = await service.org.updateSettings(tx, {
-              ...asking,
-              ...present(input.value),
-            });
+            const saved = await service.org.updateSettings(tx, { ...asking, ...present(input.value) });
             return saved.ok ? ok(asking.tenantId) : saved;
           },
-          async () =>
-            respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
+          async () => respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
         );
       },
     },
@@ -903,8 +894,7 @@ export function restHandler(
           request,
           201,
           async (tx) => {
-            if (!service.org)
-              return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
             const created = await service.org.createLegalEntity(tx, { ...asking, ...input.value });
             return created.ok ? ok(created.value.id) : created;
           },
@@ -924,8 +914,7 @@ export function restHandler(
           request,
           200,
           async (tx) => {
-            if (!service.org)
-              return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
             const updated = await service.org.updateLegalEntity(tx, {
               ...asking,
               id,
