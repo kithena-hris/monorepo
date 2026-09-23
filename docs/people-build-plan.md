@@ -962,10 +962,13 @@ it is written down here rather than left in a PR description.
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal
       token. Found in PEO-025 and PEO-030.
-- [ ] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
+- [x] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next
-      transaction. Found in PEO-032. *(PRD §13.3)*
+      transaction. Found in PEO-032. *(PRD §13.3)* — `people.webhook.endpoint_disabled`,
+      an alert email to the endpoint's `alert_email` (migration
+      20260924120100), a boot-and-every-minute poller, and a lease claim per
+      delivery.
 - [ ] **PEO-094** The People remote: no server-side rendering, Tailwind classes
       used only by the remote may stay unstyled until the shell rebuilds, the
       sidebar item is still disabled, and the remote's host needs `no-cache`
