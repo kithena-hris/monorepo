@@ -21,9 +21,19 @@ import { person, schemaVersion } from './tables.js';
 
 type Row = typeof person.$inferSelect;
 
-function toRecord(row: Row): PersonRecord {
-  const custom = (row.custom ?? {}) as Record<string, unknown>;
-  const values: Record<string, unknown> = { ...custom };
+/** The columns a person's attribute values come from. */
+export type ValueColumns = Pick<
+  Row,
+  (typeof CORE_COLUMNS)[keyof typeof CORE_COLUMNS] | 'hireDate' | 'lastWorkingDay' | 'custom'
+>;
+
+/**
+ * A row's values by registry key: `custom`, plus the core columns and the
+ * lifecycle dates, which hold theirs outside it. Every reader that asks "is
+ * this field filled in" goes through here, or a core field reads as missing.
+ */
+export function valuesOf(row: ValueColumns): Record<string, unknown> {
+  const values: Record<string, unknown> = { ...((row.custom ?? {}) as Record<string, unknown>) };
 
   for (const [key, column] of Object.entries(CORE_COLUMNS)) {
     const value = row[column];
@@ -31,6 +41,12 @@ function toRecord(row: Row): PersonRecord {
   }
   if (row.hireDate !== null) values['hire_date'] = row.hireDate;
   if (row.lastWorkingDay !== null) values['last_working_day'] = row.lastWorkingDay;
+  return values;
+}
+
+function toRecord(row: Row): PersonRecord {
+  const custom = (row.custom ?? {}) as Record<string, unknown>;
+  const values = valuesOf(row);
 
   return {
     snapshot: {

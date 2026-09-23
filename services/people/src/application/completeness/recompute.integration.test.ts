@@ -317,6 +317,22 @@ describe('a tightening publish over 400 people', () => {
   });
 });
 
+describe('a required core field', () => {
+  it('is missing for nobody who has it, in the preview and in the recompute', async () => {
+    // PEO-079: `hire_date` and `work_email` are columns, not `custom` keys.
+    await defineAttribute('hire_date', 'hr', true);
+    await defineAttribute('work_email', 'hr', true);
+    await seed(40, 0, {});
+    await admin.execute(sql`UPDATE people.person SET hire_date = '2024-01-01'`);
+
+    const { preview, summary } = await publishAndRecompute(at(0));
+
+    expect(preview.impact).toMatchObject({ evaluated: 40, becomingIncomplete: 0 });
+    expect(summary).toMatchObject({ evaluated: 40, becameIncomplete: 0 });
+    expect(await outbox('people.person.profile_incomplete')).toHaveLength(0);
+  });
+});
+
 describe('a tenant whose calendar is not UTC', () => {
   it('counts a requiredFrom on the local date the preview used, not the UTC one', async () => {
     // 13:00 UTC on the 23rd is 01:00 on the 24th in Auckland (NZST, UTC+12).
