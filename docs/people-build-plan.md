@@ -1049,6 +1049,16 @@ it is written down here rather than left in a PR description.
 - [ ] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
       sequence start. Found in PEO-099, which added the legal entity it hangs
       off. *(PRD §7, §9.4, Appendix A)*
+- [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
+      state, the gap rows and the reminder went stale on every write. Each
+      write now re-judges its one person in its transaction, through the
+      publish recompute's own reader and `settle`, raising
+      `profile_incomplete`/`profile_completed` only on a real transition; the
+      reader counts a sealed value as present. *(PRD §8.4)*
+- [x] **PEO-103** `assessCompleteness` asked a pre-hire for everything, where
+      §8.1 asks only for fields collected at signup, enrolment or onboarding.
+      Applied in the one function, and the import dry run judges a hired row
+      in the state the commit leaves it in. *(PRD §8.1)*
 - [x] **PEO-105** `secret-store.rotate` was never called, so no encrypted value
       ever moved off an old master key and step 4 of the rollout could never
       happen. An hourly, bounded, idempotent re-wrap job beside PEO-082's,
