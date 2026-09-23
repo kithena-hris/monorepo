@@ -695,7 +695,8 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   setEmployeeNumbering: t.field({
     type: EmployeeNumberingRef,
-    description: 'Set or change an entity’s scheme; people_admin only. Never moves the sequence back.',
+    description:
+      'Set or change an entity’s scheme; people_admin only. Never moves the sequence back.',
     args: {
       legalEntityId: t.arg.id({ required: true }),
       prefix: t.arg.string({ required: true }),
@@ -728,7 +729,11 @@ async function move(
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return fail(
-      failure('BAD_INPUT', issue?.message ?? 'invalid input', issue?.path.map((p) => String(p))),
+      failure(
+        'BAD_INPUT',
+        issue?.message ?? 'invalid input',
+        issue?.path.map((p) => String(p)),
+      ),
     );
   }
   const { service, asking } = caller(ctx);
@@ -751,7 +756,12 @@ builder.mutationFields((t) => ({
       reason: t.arg({ type: LeavingReasonRef }),
     },
     resolve: (_root, args, ctx) =>
-      move(ctx, 'giveNotice', args.personId, sent({ lastWorkingDay: args.lastWorkingDay, reason: args.reason })),
+      move(
+        ctx,
+        'giveNotice',
+        args.personId,
+        sent({ lastWorkingDay: args.lastWorkingDay, reason: args.reason }),
+      ),
   }),
   terminatePerson: t.field({
     type: Person,

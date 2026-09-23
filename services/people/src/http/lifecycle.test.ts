@@ -61,7 +61,8 @@ function setup() {
 }
 
 const status = (answer: { body: unknown }) => (answer.body as { status?: string }).status;
-const code = (answer: { body: unknown }) => (answer.body as { error?: { code: string } }).error?.code;
+const code = (answer: { body: unknown }) =>
+  (answer.body as { error?: { code: string } }).error?.code;
 
 describe('the lifecycle routes', () => {
   it('puts somebody on leave and back, answering with the person after', async () => {

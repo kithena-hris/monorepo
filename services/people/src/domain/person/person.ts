@@ -77,7 +77,11 @@ type StatusReason =
 
 /** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
 export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
-export const LEAVING_REASONS = ['resigned', 'dismissed', 'end_of_contract'] as const satisfies readonly LeavingReason[];
+export const LEAVING_REASONS = [
+  'resigned',
+  'dismissed',
+  'end_of_contract',
+] as const satisfies readonly LeavingReason[];
 
 /** What identity caches about a person, as `identity_facts_changed` carries it. */
 export interface IdentityFacts {

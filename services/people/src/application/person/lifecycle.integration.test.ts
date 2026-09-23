@@ -134,7 +134,10 @@ const events = async (personId: string, name?: string) =>
        ORDER BY created_at, event_id`)),
   ]
     .filter((row) => name === undefined || row['event_name'] === name)
-    .map((row) => row['envelope'] as { effectiveFrom: string | null; payload: Record<string, unknown> });
+    .map(
+      (row) =>
+        row['envelope'] as { effectiveFrom: string | null; payload: Record<string, unknown> },
+    );
 
 const lastDayRows = async (personId: string) => [
   ...(await admin.execute(sql`
@@ -221,14 +224,19 @@ describe('who may move a person', () => {
         people.giveNotice(tx, { ...on(viewer(LUCY_ACCOUNT), LUCY), lastWorkingDay: '2026-12-31' }),
       ),
       inTenantResult(inTenant, ACME, (tx) =>
-        people.startLeave(tx, on(viewer('00000000-0000-4000-8000-0000000000fa', 'people_admin'), LUCY)),
+        people.startLeave(
+          tx,
+          on(viewer('00000000-0000-4000-8000-0000000000fa', 'people_admin'), LUCY),
+        ),
       ),
     ];
     for (const attempt of await Promise.all(attempts)) {
       expect(!attempt.ok && attempt.error.code).toBe('FORBIDDEN');
     }
     expect(await events(LUCY)).toHaveLength(before);
-    const [row] = await admin.execute(sql`SELECT status FROM people.person WHERE id = ${LUCY}::uuid`);
+    const [row] = await admin.execute(
+      sql`SELECT status FROM people.person WHERE id = ${LUCY}::uuid`,
+    );
     expect(row?.['status']).toBe('active');
   });
 });
@@ -259,9 +267,9 @@ describe('leave, on the person’s own day', () => {
     expect((await events(LUCY, 'people.person.status_changed')).at(-1)?.effectiveFrom).toBe(
       '2026-09-30',
     );
-    expect((await inTenantResult(inTenant, ACME, (tx) => people.endLeave(tx, on(hr, LUCY)))).ok).toBe(
-      true,
-    );
+    expect(
+      (await inTenantResult(inTenant, ACME, (tx) => people.endLeave(tx, on(hr, LUCY)))).ok,
+    ).toBe(true);
   });
 
   it('refuses to bring back somebody who was never away', async () => {
@@ -287,12 +295,12 @@ describe('notice, then termination', () => {
     expect((await notice()).ok).toBe(true);
 
     const moves = await events(LUCY, 'people.person.status_changed');
-    expect(moves.filter((e) => e.payload['next'] === 'notice')).toEqual([
-      expect.objectContaining({
-        effectiveFrom: '2026-09-30',
-        payload: expect.objectContaining({ previous: 'active', reason: 'dismissed' }),
-      }),
-    ]);
+    const onNotice = moves.filter((e) => e.payload['next'] === 'notice');
+    expect(onNotice).toHaveLength(1);
+    expect(onNotice[0]).toMatchObject({
+      effectiveFrom: '2026-09-30',
+      payload: { previous: 'active', reason: 'dismissed' },
+    });
     expect(await lastDayRows(LUCY)).toEqual([
       { value: '2026-09-29', effective_from: '2026-09-29' },
     ]);
@@ -378,15 +386,17 @@ describe('notice, then termination', () => {
   it('starts the retention clock from the last working day, on their calendar (§12)', async () => {
     const anonymiseAt = (at: string) =>
       as((tx) =>
-        anonymiseDue({ calendars, store: drizzleRetentionStore(), clock: fixedClock(at), newEventId: newId })(
-          tx,
-          {
-            tenantId: ACME,
-            personId: KIRI,
-            actor: { kind: 'system', process: 'retention' },
-            correlationId: '00000000-0000-4000-8000-0000000000c1',
-          },
-        ),
+        anonymiseDue({
+          calendars,
+          store: drizzleRetentionStore(),
+          clock: fixedClock(at),
+          newEventId: newId,
+        })(tx, {
+          tenantId: ACME,
+          personId: KIRI,
+          actor: { kind: 'system', process: 'retention' },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        }),
       );
     // Six months after 1 October is 1 April: it has not begun in Auckland at
     // 10:00 UTC on 31 March, and has at 12:00.
@@ -399,11 +409,13 @@ describe('notice, then termination', () => {
 
 describe('discarding', () => {
   it('discards a provisional record, and a retry is answered with no second event', async () => {
-    const discarded = await inTenantResult(inTenant, ACME, (tx) => people.discard(tx, on(hr, DRAFT)));
-    expect(discarded.ok && discarded.value.status).toBe('discarded');
-    expect((await inTenantResult(inTenant, ACME, (tx) => people.discard(tx, on(hr, DRAFT)))).ok).toBe(
-      true,
+    const discarded = await inTenantResult(inTenant, ACME, (tx) =>
+      people.discard(tx, on(hr, DRAFT)),
     );
+    expect(discarded.ok && discarded.value.status).toBe('discarded');
+    expect(
+      (await inTenantResult(inTenant, ACME, (tx) => people.discard(tx, on(hr, DRAFT)))).ok,
+    ).toBe(true);
     expect(
       (await events(DRAFT, 'people.person.status_changed')).map((e) => e.payload['next']),
     ).toEqual(['discarded']);

@@ -120,7 +120,12 @@ describe('PUT /v1/legal-entities/{id}/numbering', () => {
     const { call, entity } = setup();
     const id = await entity();
     const url = `/v1/legal-entities/${id}/numbering`;
-    const asHr = await call('PUT', url, { prefix: 'ES-', digits: 5, start: 1 }, { 'x-roles': 'hr' });
+    const asHr = await call(
+      'PUT',
+      url,
+      { prefix: 'ES-', digits: 5, start: 1 },
+      { 'x-roles': 'hr' },
+    );
     expect(asHr).toMatchObject({ status: 403, body: { error: { code: 'FORBIDDEN' } } });
 
     const tooWide = await call('PUT', url, { prefix: 'ES-', digits: 2, start: 100 });
