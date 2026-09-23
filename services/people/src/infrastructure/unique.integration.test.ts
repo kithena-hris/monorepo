@@ -7,7 +7,14 @@ import postgres from 'postgres';
 import { startPostgres } from '@kithena/testing';
 
 import { staticKeyRing, type MasterKey } from './envelope.js';
-import { claimHash, drizzleUniqueClaims, normalise, type UniqueClaims } from './unique.js';
+import {
+  claimHash,
+  claimRotation,
+  drizzleUniqueClaims,
+  normalise,
+  rolloutSkipped,
+  type UniqueClaims,
+} from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
 
 /**
@@ -346,7 +353,7 @@ describe('rotating the key', () => {
   const valueOf = (personId: string) => Promise.resolve(values.get(personId) ?? null);
   const rotating = drizzleUniqueClaims(staticKeyRing([K2, K1]));
   const rotate = (limit?: number) =>
-    inTenant(ACME, ({ tx }) => rotating.rotate(tx, ACME, valueOf, limit));
+    inTenant(ACME, async ({ tx }) => (await rotating.rotate(tx, ACME, valueOf, { limit })).seen);
 
   beforeEach(async () => {
     await claim(ADA, 'E-1');
@@ -440,5 +447,103 @@ describe('rotating the key', () => {
     expect([...rows].map((r) => ({ ...r }))).toEqual([{ normalised_value: null, key_id: 'k2' }]);
     expect((await claim(ADA, 'WC-9', ACME, 'works_council_id', rotating)).ok).toBe(false);
     expect(await everythingStored()).not.toContain('wc-9');
+  });
+});
+
+describe('two writers claiming the same two rules in opposite orders', () => {
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const a = { attributeKey: 'employee_number', scopeId: ACME };
+  const b = { attributeKey: 'works_council_id', scopeId: ACME };
+  /** Claim `first`, hold the transaction open a moment, then claim `second`. */
+  const write = (personId: string, first: typeof a, second: typeof a, lockFirst: boolean) =>
+    inTenant(ACME, async ({ tx }) => {
+      if (lockFirst) await claims.lock(tx, ACME, [first, second]);
+      const one = await claims.claim(tx, ACME, { ...first, value: `${personId}-1`, personId });
+      await pause(300);
+      const two = await claims.claim(tx, ACME, { ...second, value: `${personId}-2`, personId });
+      return one.ok && two.ok;
+    });
+  // The second starts while the first sits between its two claims.
+  const race = async (lockFirst: boolean) => {
+    const first = write(ADA, a, b, lockFirst);
+    await pause(100);
+    const second = write(GRACE, b, a, lockFirst);
+    return Promise.allSettled([first, second]);
+  };
+
+  it('deadlock when each rule is locked only as it is claimed', async () => {
+    const results = await race(false);
+    // Postgres breaks the cycle by failing one of them: 40P01.
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+  });
+
+  it('both complete when every rule is locked first, in one order', async () => {
+    const results = await race(true);
+    expect(results.map((r) => (r.status === 'fulfilled' ? r.value : 'threw'))).toEqual([true, true]);
+  });
+});
+
+describe('a duplicate the rotation finds', () => {
+  // Ada's claim is under k1; Grace took the same value under k2 from a ring
+  // that never held k1 — a duplicate that predates the rotation.
+  const values = new Map([[ADA, 'E-1']]);
+  const valueOf = (personId: string) => Promise.resolve(values.get(personId) ?? null);
+  const rotating = drizzleUniqueClaims(staticKeyRing([K2, K1]));
+  const rotate = () =>
+    inTenant(ACME, async ({ tx }) => rotating.rotate(tx, ACME, valueOf, { limit: 1 }));
+
+  beforeEach(async () => {
+    await claim(ADA, 'E-1');
+    await claim(GRACE, 'E-1', ACME, 'employee_number', drizzleUniqueClaims(staticKeyRing([K2])));
+  });
+
+  it('is skipped, left under the old key, reported once, and never fails the batch', async () => {
+    const first = await rotate();
+    expect(first.conflicts).toEqual([
+      { attributeKey: 'employee_number', heldBy: GRACE, staleClaimBy: ADA },
+    ]);
+
+    const rows = await admin.execute(sql`
+      SELECT person_id, key_id, conflict_with FROM people.attribute_unique ORDER BY person_id
+    `);
+    expect([...rows].map((r) => ({ ...r }))).toEqual([
+      { person_id: ADA, key_id: 'k1', conflict_with: GRACE },
+      { person_id: GRACE, key_id: 'k2', conflict_with: null },
+    ]);
+    // Still unique under k1: a third person is refused.
+    expect((await claim(LIN, 'E-1', ACME, 'employee_number', rotating)).ok).toBe(false);
+
+    // The next run says nothing more, and the cursor walks past it.
+    expect((await rotate()).conflicts).toEqual([]);
+  });
+
+  it('is re-keyed, and the mark cleared, once the other holder changes', async () => {
+    await rotate();
+    await claim(GRACE, 'E-7', ACME, 'employee_number', rotating);
+    expect((await rotate()).conflicts).toEqual([]);
+    expect(await keyIds()).toEqual(['k2', 'k2']);
+    const marks = await admin.execute(sql`
+      SELECT count(*)::int AS n FROM people.attribute_unique WHERE conflict_with IS NOT NULL
+    `);
+    expect(Number([...marks][0]?.['n'])).toBe(0);
+  });
+});
+
+describe('a key rollout that skipped its first step', () => {
+  const env = (...keys: MasterKey[]) => keys.map((k) => `${k.id}:${k.key.toString('base64')}`).join(',');
+
+  it('is recognised: claims under a key the ring lacks, none under the current one', async () => {
+    await claim(ADA, 'E-1');
+    const skipped = (keys: MasterKey[]) =>
+      inTenant(ACME, ({ tx }) => rolloutSkipped(tx, ACME, staticKeyRing(keys)));
+    expect(await skipped([K2])).toEqual(['k1']);
+    expect(await skipped([K2, K1])).toBeNull();
+    expect(await skipped([K1])).toBeNull();
+  });
+
+  it('stops the rotation job, and leaves the claims as they were', async () => {
+    await claim(ADA, 'E-1');
+    await claimRotation(inTenant, env(K2))(ACME);
+    expect(await keyIds()).toEqual(['k1']);
   });
 });

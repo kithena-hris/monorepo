@@ -95,6 +95,12 @@ export interface Secrets {
 
 /** `drizzleUniqueClaims` satisfies this. */
 export interface Uniques {
+  /** Lock these rules in one global order, before any claim; see `unique.ts`. */
+  lock(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    rules: readonly { attributeKey: string; scopeId: string }[],
+  ): Promise<void>;
   claim(
     tx: PostgresJsDatabase,
     tenantId: string,

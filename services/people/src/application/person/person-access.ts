@@ -368,6 +368,19 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       (accepted.find(([d]) => d.key === 'legal_entity_id')?.[1] as string | null | undefined) ??
       person.legalEntityId;
 
+    // Every rule this write claims under, locked in one order before the
+    // first claim, so two writes naming the same attributes in opposite
+    // orders queue rather than deadlock.
+    await deps.uniques.lock(
+      tx,
+      asking.tenantId,
+      accepted.flatMap(([d, v]) => {
+        if (d.uniqueScope === 'none' || v === null) return [];
+        const scopeId = d.uniqueScope === 'tenant' ? asking.tenantId : legalEntityId;
+        return scopeId === null ? [] : [{ attributeKey: d.key, scopeId }];
+      }),
+    );
+
     const eventId = deps.newId();
     const custom = new Map(Object.entries(person.custom));
     const fields: Record<string, unknown> = {};

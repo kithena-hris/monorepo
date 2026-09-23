@@ -47,8 +47,13 @@
 -- is still what decides between two writers under the same key.
 
 ALTER TABLE people.attribute_unique
-  ADD COLUMN value_hash bytea,
-  ADD COLUMN key_id     text;
+  ADD COLUMN value_hash    bytea,
+  ADD COLUMN key_id        text,
+  -- Set by the rotation when this claim's value, re-keyed, is already held by
+  -- somebody else under the current key: a duplicate that predates the
+  -- rotation. The claim stays under the retiring key, so the value is still
+  -- unique there, and HR's grid lists the pair until one of them changes.
+  ADD COLUMN conflict_with uuid;
 
 ALTER TABLE people.attribute_unique DROP CONSTRAINT attribute_unique_pkey;
 ALTER TABLE people.attribute_unique ALTER COLUMN normalised_value DROP NOT NULL;
@@ -60,7 +65,15 @@ ALTER TABLE people.attribute_unique
   -- what this migration exists to stop.
   ADD CONSTRAINT attribute_unique_one_form CHECK ((value_hash IS NULL) <> (normalised_value IS NULL)),
   ADD CONSTRAINT attribute_unique_hash_has_key CHECK ((value_hash IS NULL) = (key_id IS NULL)),
-  ADD CONSTRAINT attribute_unique_hash_is_sha256 CHECK (value_hash IS NULL OR octet_length(value_hash) = 32);
+  ADD CONSTRAINT attribute_unique_hash_is_sha256 CHECK (value_hash IS NULL OR octet_length(value_hash) = 32),
+  -- Whoever the conflict is with can be deleted without taking this claim.
+  ADD CONSTRAINT attribute_unique_conflict_with_person
+    FOREIGN KEY (tenant_id, conflict_with) REFERENCES people.person (tenant_id, id)
+    ON DELETE SET NULL (conflict_with);
+
+-- HR's grid lists conflicts; almost every row has none.
+CREATE INDEX attribute_unique_conflict_idx
+  ON people.attribute_unique (tenant_id) WHERE conflict_with IS NOT NULL;
 
 -- Claims not yet backfilled stay unique on what they hold. Dropped with the column.
 CREATE UNIQUE INDEX attribute_unique_legacy_value_idx
@@ -73,6 +86,6 @@ CREATE UNIQUE INDEX attribute_unique_legacy_value_idx
 ALTER TABLE people.attribute_unique ENABLE ROW LEVEL SECURITY;
 ALTER TABLE people.attribute_unique FORCE  ROW LEVEL SECURITY;
 
--- UPDATE for the rotation, on the three columns it rewrites and nothing else:
--- a claim's tenant, attribute, scope and holder are never edited in place.
-GRANT UPDATE (value_hash, key_id, normalised_value) ON people.attribute_unique TO svc_people;
+-- UPDATE for the rotation, on the columns it rewrites and nothing else: a
+-- claim's tenant, attribute, scope and holder are never edited in place.
+GRANT UPDATE (value_hash, key_id, normalised_value, conflict_with) ON people.attribute_unique TO svc_people;

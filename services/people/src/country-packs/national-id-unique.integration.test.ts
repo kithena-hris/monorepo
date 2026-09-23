@@ -10,6 +10,7 @@ import { startPostgres } from '@kithena/testing';
 import { inTenantResult, personAccess } from '../application/person/person-access.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import { Person } from '../domain/person/person.js';
+import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
   drizzlePersonReader,
@@ -39,6 +40,7 @@ const GRACE = '00000000-0000-4000-8000-0000000000a2';
 const clock = fixedClock('2026-09-23T09:00:00.000Z');
 const K1 = { id: 'k1', key: randomBytes(32) };
 const K2 = { id: 'k2', key: randomBytes(32) };
+const K3 = { id: 'k3', key: randomBytes(32) };
 const ring = staticKeyRing([K1]);
 
 /**
@@ -233,5 +235,41 @@ describe('a national identifier from a country pack', () => {
       }),
     );
     expect(!taken.ok && taken.error.code).toBe('UNIQUE_VALUE_TAKEN');
+  });
+
+  it('turns a duplicate it finds into one event and one row on HR’s grid, never the value', async () => {
+    // Grace holds 12345678Z under k2. Ada is given the same NIF past the claim
+    // path — a claim made under a ring holding only k3, and the secret written
+    // directly — which is the duplicate a rotation can meet.
+    await inTenant(ACME, async ({ tx }) => {
+      const claimed = await drizzleUniqueClaims(staticKeyRing([K3])).claim(tx, ACME, {
+        attributeKey: 'es_nif',
+        scopeId: ACME,
+        value: '12345678Z',
+        personId: ADA,
+      });
+      expect(claimed.ok).toBe(true);
+      await drizzleSecretStore(ring).put(tx, { tenantId: ACME, personId: ADA, attributeKey: 'es_nif' }, '12345678Z');
+    });
+    // k1 as well: the secrets in this file were sealed under it.
+    const keys = [K2, K3, K1].map((k) => `${k.id}:${k.key.toString('base64')}`).join(',');
+    const rotateAll = claimRotation(inTenant, keys, { clock, newEventId: newId });
+    await rotateAll(ACME);
+    await rotateAll(ACME);
+
+    const events = await admin.execute(sql`
+      SELECT envelope FROM people.outbox WHERE event_name = 'people.unique_claim.conflict'
+    `);
+    expect([...events].map((e) => (e['envelope'] as { payload: unknown }).payload)).toEqual([
+      { attributeKey: 'es_nif', heldBy: GRACE, staleClaimBy: ADA },
+    ]);
+    expect(JSON.stringify([...events]).toUpperCase()).not.toContain('12345678');
+
+    const grid = await inTenant(ACME, ({ tx }) =>
+      drizzleCompletenessStore().staffGrid(tx, ACME, '2026-09-23'),
+    );
+    expect(grid.filter((row) => row.task === 'unique_conflict')).toEqual([
+      { task: 'unique_conflict', key: 'es_nif', personIds: [ADA, GRACE] },
+    ]);
   });
 });

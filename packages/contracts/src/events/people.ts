@@ -557,6 +557,27 @@ export const PersonSyncedFromExternal = defineEvent(
   }),
 );
 
+/**
+ * A unique value turned out to be held by two people, found while re-keying
+ * unique claims under a new key (PEO-082).
+ *
+ * Which attribute and which two people, never the value: the claim store
+ * holds only a keyed hash, and this event must not become the place the value
+ * finally appears. The stale claim is left under the retiring key, so the
+ * value stays unique there until HR resolves it; the HR grid shows it too.
+ */
+export const UniqueClaimConflict = defineEvent(
+  'people.unique_claim.conflict',
+  1,
+  z.object({
+    attributeKey: AttributeKey,
+    /** Holds the value under the current key. */
+    heldBy: PersonId,
+    /** Holds the same value under the retiring key; not re-keyed. */
+    staleClaimBy: PersonId,
+  }),
+);
+
 /* ---------------------------------------------------------- import events -- */
 
 /**
@@ -641,6 +662,7 @@ export const peopleEvents = [
   PersonMerged,
   PersonAnonymised,
   PersonSyncedFromExternal,
+  UniqueClaimConflict,
   ImportStarted,
   ImportCompleted,
   ExportCompleted,

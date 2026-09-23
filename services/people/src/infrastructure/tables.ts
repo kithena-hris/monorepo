@@ -190,6 +190,8 @@ export const attributeUnique = people.table(
     valueHash: encrypted('value_hash'),
     /** The master key the claim key was derived from. Null with `valueHash`. */
     keyId: text('key_id'),
+    /** Who holds this value under the current key, when the rotation could not re-key it. */
+    conflictWith: uuid('conflict_with'),
     personId: uuid('person_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
