@@ -195,7 +195,8 @@ production tenant. The classification audit runs quarterly regardless of volume.
 
 ### Secondary: Ines — CX operator, back office
 
-- **Role**: creates customers, invites the first administrator, fixes things.
+- **Role**: creates customers, invites the first administrator, switches
+  modules on and names who administers People, fixes things.
 - **Goals**: get a new customer to a usable state; never see employee personal
   data while doing it.
 - **Pain points**: the first employee is a chicken-and-egg problem in every HRIS
@@ -471,13 +472,37 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   `manager_id`, or any of `org_unit_id`, `cost_centre`, `legal_entity_id`,
   `location_id`: `profile_updated` names keys and never values, so the tuples
   could not be written from it.
-- **Tenant roles.** The first person in a tenant — the administrator the
-  operator invites (§8.2, step 2) — is granted `people_admin` and `hr`. Every
-  later grant waits for a role-management transport, which does not exist yet.
+- **Tenant roles (PEO-112).** Nobody holds a role for having arrived first.
+  The back office names the first People administrator — an existing account
+  — when it switches People on, or later for a company that has lost every
+  one (`identity.tenant.administrator_named`, §8.2); People then grants that
+  account `people_admin` and `hr`. Every other grant and revocation is a
+  People administrator's, through `TenantRoles` in the application layer:
+  - only a `people_admin` grants or revokes;
+  - nobody grants a role to themselves;
+  - the last `people_admin` is never revoked — not even by themselves — and
+    a trigger on `people.role_grant` refuses it for any path that skips the
+    application;
+  - each needs a reason, up to 500 characters;
+  - a role already held, or not held, changes nothing and raises nothing.
+
+  The ledger is `people.role_grant` (20260924230200): a grant is a row and a
+  `people.role.granted` event (`revoked` for the reverse) in one
+  transaction, carrying who (`by`, and the envelope's actor), whom, which role,
+  `via` (`people` or `back_office`) and the reason, classified free text. The
+  consumer brings that account's tenant tuples in line with the rows
+  (`OpenFga.syncRoles`) — the row is the truth, as `people.person` is for the
+  person tuples, so nothing is written to OpenFGA beside the database. The
+  rules are asked of the rows under a per-tenant advisory lock, so two
+  administrators revoking each other at once cannot leave none. Tenants that
+  relied on the old first-person rule keep what it granted: the migration
+  carries it over.
+
   With OpenFGA, every transport resolves the caller's tenant roles from these
-  tuples once per request (`withTenantRoles`). A role claimed in the forwarded
-  principal is ignored. The code that reads `viewer.roles` (settings, legal
-  entities, finance's full values) therefore sees OpenFGA's answer.
+  tuples once per request (`withTenantRoles`), so a grant takes effect once the
+  event is consumed. A role claimed in the forwarded principal is ignored. The
+  code that reads `viewer.roles` (settings, legal entities, finance's full
+  values) therefore sees OpenFGA's answer.
 - **The manager chain is the reporting line.** Org units have no heads in the
   data yet, so an org unit grants nothing; `org_changed` re-syncs the person and
   is where that would start.
@@ -592,6 +617,7 @@ database the bytes end up in.
 | Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
 | Provisional person record | People, from `identity.account.provisioned` | Automatically, within the second | `people.person` |
 | Schema: sections, attributes, requiredness | HR admin (`people_admin`) | Settings, any time | `people.section`, `people.attribute_definition`, `people.schema_version` |
+| Tenant roles: `hr`, `finance`, `people_admin` (§6.6) | The back office names the first People administrator; after that, a People administrator | Switching People on; then settings, any time | `people.role_grant`, and OpenFGA's tenant tuples from `people.role.*` |
 | Employee numbering schemes: prefix, width, next number (§9.4) | HR admin (`people_admin`) | Settings, any time | `people.employee_numbering` |
 | Legal entities, locations and their time zones (§6.8) | HR admin (`people_admin`); the first entity from the back office's company wizard | Tenant creation, then settings, any time | `people.legal_entity`, `people.location`, `people.location_zone` |
 | Tenant default time zone, cohort minimum | HR admin (`people_admin`); the default zone first from the company wizard | Tenant creation, then settings | `people.tenant_settings` |
@@ -742,10 +768,14 @@ The chicken-and-egg case the brief asked about specifically, in sequence:
      ──▶ identity.tenant.entitlements_changed { entitlements }
      People keeps the list; the tenant app shows only what is on it.
 
-2. Ines invites the first administrator by work email.
+2. Ines invites the first administrator by work email, and — when People is
+   ticked — names which of them administers People (PEO-112).
      POST /accounts on identity
      platform.account row + enrolment token (hash only)
      ──▶ identity.account.provisioned { via: 'admin_api' }
+     ──▶ identity.tenant.administrator_named { entitlement: 'module.people', accountId }
+     People grants that account `people_admin` and `hr`, with an event each.
+     Being invited first grants nothing.
 
 3. People consumes that event.
      Creates people.person in state `provisional`, holding only:
@@ -792,6 +822,12 @@ Two cases this has to survive, and does:
   `MESSAGING_API_TOKEN` is: the listing is every work email and name in a
   company, and the token every front end holds should not be enough to read
   it. It falls back to `INTERNAL_API_TOKEN` until a deployment splits them.
+
+  **Switching People on names its administrator (PEO-112).** The back office
+  refuses to switch People on without naming one of the company's accounts
+  that can still sign in, and that is the only way anybody first becomes a
+  People administrator. A company whose People was on before this was
+  required is given one the same way, on its page.
 
   **A terminated account is not listed.** It belongs to somebody who has left,
   and its work email may already be held by a new account. A leaver who never
@@ -1039,6 +1075,12 @@ The same screen area, separate tabs:
   10 and can be raised, never lowered: the domain refuses a lower number and a
   trigger on `people.tenant_settings` refuses it again for any path that skips
   the domain.
+- **Roles** — who holds `hr`, `finance` and `people_admin` (§6.6), and
+  granting or revoking one with a reason; a People administrator's, HR reads
+  it. Nobody can tick a role for themselves or untick the last administrator,
+  and People refuses both whatever the screen does. `GET /v1/roles`,
+  `POST /v1/roles/grants`, `POST /v1/roles/revocations` (Idempotency-Key),
+  and in GraphQL `peopleRoles`, `grantRole` and `revokeRole`.
 - **Integrations** — webhook endpoints, subscribed events, per-endpoint field
   allowlists, signing secret rotation, delivery log and replay. See §13.
 - **Data protection** — retention per classification, DSAR export format, the
@@ -1053,6 +1095,7 @@ remote's `routes.json`, fetched and wired by the shell:
 | `/people/setup` | setup wizard |
 | `/people/settings/fields` | field registry and publish |
 | `/people/settings/integrations` | integrations |
+| `/people/settings/roles` | roles (PEO-112) |
 | `/people/onboarding` | onboarding |
 | `/people/me` | my own profile |
 | `/people/{id}` | someone else's profile |
@@ -1131,6 +1174,8 @@ New:
 | `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
+| `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
+| `people.role.revoked` v1 | The reverse, with the same fields |
 
 ### 10.2a Calendar events
 
@@ -1550,7 +1595,9 @@ a stringly-typed bag, generated per tenant from the published schema version.
 Extends federated types rather than owning what People does not own. The
 lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`,
 `startLeave`, `endLeave`, `discardPerson` — each answering with the person
-after, their arguments parsed by the same Zod body REST parses.
+after, their arguments parsed by the same Zod body REST parses. Tenant roles
+(PEO-112) are the `peopleRoles` query and the `grantRole` and `revokeRole`
+mutations, each answering with the account's roles after.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
 token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
@@ -1616,6 +1663,9 @@ GET    /v1/exports/files/{key}         a signed link, 24 hours; carries its own 
 POST   /v1/exports/full-values         finance asks for sealed fields in full, with a reason
 GET    /v1/exports/full-values/{id}    the requester or HR; the one-use link to the requester only
 POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
+GET    /v1/roles                       who holds a tenant role; HR and people_admin (PEO-112)
+POST   /v1/roles/grants                people_admin: grant a role, with a reason; never to oneself
+POST   /v1/roles/revocations           people_admin: revoke one; never the last people_admin (409)
 ```
 
 OpenAPI generated from the same Zod definitions, per the rule that a derived
@@ -1631,7 +1681,7 @@ caller check, and every authorization decision is made in
 `application/screens/*`:
 
 ```
-GET    /v1/views/{setup|onboarding|profile|directory|completeness|registry|integrations|export|analytics}
+GET    /v1/views/{setup|onboarding|profile|directory|completeness|registry|integrations|roles|export|analytics}
 GET    /v1/views/profile/{id}          one person, as the viewer may see them
 POST   /v1/views/me/sections           save one section of my own record
 POST   /v1/views/people/{id}/sections  save one section of somebody's record
@@ -2403,6 +2453,8 @@ how People stops being sellable alone.
 - [ ] I never see employee personal data in the back office.
 - [ ] Enabling People on a tenant with existing accounts reconciles them, and
       running it twice changes nothing.
+- [x] Enabling People names its first administrator from the company's
+      accounts; I cannot enable it without one (PEO-112).
 
 ### Story 5 — An integrator builds against People with no Kithena UI
 

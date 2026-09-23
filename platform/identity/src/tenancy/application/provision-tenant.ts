@@ -100,6 +100,15 @@ export interface ProvisionScope {
     entitlements: readonly ModuleEntitlement[],
   ) => Promise<void>;
   /**
+   * Raises `identity.tenant.administrator_named` (PEO-112), in this
+   * transaction: the module grants its administrator role from it.
+   */
+  nameAdministrator: (
+    tenantId: string,
+    administrator: { entitlement: ModuleEntitlement; accountId: string },
+    namedBy: string | null,
+  ) => Promise<void>;
+  /**
    * Creates an invited account and returns its ids.
    *
    * Both of them. The identity id is what the enrolment page presents to the
@@ -197,14 +206,26 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
         token: string;
         expiresAt: string;
         identityId: string;
+        accountId: string;
       }[] = [];
       for (const email of checked.value.admins) {
-        const { token, expiresAt, identityId } = await scope.inviteAdmin(
+        const { token, expiresAt, identityId, accountId } = await scope.inviteAdmin(
           tenantId,
           email,
           checked.value.timeZone,
         );
-        issued.push({ email, token, expiresAt, identityId });
+        issued.push({ email, token, expiresAt, identityId, accountId });
+      }
+
+      // After the accounts exist: the administrator is one of them.
+      for (const { entitlement, email } of checked.value.administrators) {
+        const account = issued.find((i) => i.email === email);
+        if (account === undefined) throw new Error(`administrator ${email} was not invited`);
+        await scope.nameAdministrator(
+          tenantId,
+          { entitlement, accountId: account.accountId },
+          checked.value.namedBy ?? null,
+        );
       }
 
       return ok({ tenantId, slug: checked.value.slug, issued });

@@ -8,6 +8,8 @@ import { logger } from '@kithena/telemetry';
 
 import { recomputeCompleteness } from '../../application/completeness/recompute.js';
 import { orgAdmin } from '../../application/org/org.js';
+import { tenantRoles } from '../../application/roles/roles.js';
+import { drizzleRoleStore } from '../drizzle-role-store.js';
 import { drizzleCompletenessStore } from '../drizzle-completeness-store.js';
 import { drizzleOrgStore } from '../drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
@@ -63,6 +65,7 @@ export async function startConsumers(
       calendars: drizzleOrgStore(),
     }),
     org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
+    roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
   });
 
   const consumer = new Kafka({ clientId: 'people', brokers: brokers.split(',') }).consumer({

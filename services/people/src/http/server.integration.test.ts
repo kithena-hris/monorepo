@@ -64,6 +64,7 @@ beforeAll(async () => {
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924230100_people_entitlements.sql',
+    '20260924230200_people_role_grant.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -193,9 +194,70 @@ describe('the booted service', () => {
     expect(await refused.json()).toMatchObject({ error: { code: 'NOT_ENTITLED' } });
   });
 
+  it('grants and revokes roles over REST and GraphQL, idempotently, by the rules (PEO-112)', async () => {
+    await clients[0]?.unsafe(
+      `INSERT INTO people.role_grant (tenant_id, account_id, role) VALUES ('${ACME}', '${HR_ACCOUNT}', 'people_admin')`,
+    );
+    const post = (path: string, body: unknown, key: string | null, as = HR_ACCOUNT) =>
+      fetch(`${base}/v1/roles/${path}`, {
+        method: 'POST',
+        headers: { ...headers(as), ...(key === null ? {} : { 'idempotency-key': key }) },
+        body: JSON.stringify(body),
+      });
+    const finance = { accountId: MARCO_ACCOUNT, role: 'finance', reason: 'Runs payroll' };
+
+    expect((await post('grants', finance, null)).status).toBe(422);
+    const granted = await post('grants', finance, 'grant-1');
+    expect(granted.status).toBe(200);
+    expect(await granted.json()).toEqual({ accountId: MARCO_ACCOUNT, roles: ['finance'] });
+    expect(await (await post('grants', finance, 'grant-1')).json()).toEqual({
+      accountId: MARCO_ACCOUNT,
+      roles: ['finance'],
+    });
+
+    const self = await post('grants', { ...finance, accountId: HR_ACCOUNT }, 'self-1');
+    expect(self.status).toBe(403);
+    expect(await self.json()).toMatchObject({ error: { code: 'SELF_GRANT' } });
+    const byMarco = await post('grants', { ...finance, role: 'hr' }, 'marco-1', MARCO_ACCOUNT);
+    expect(byMarco.status).toBe(403);
+    const last = await post(
+      'revocations',
+      { accountId: HR_ACCOUNT, role: 'people_admin', reason: 'Leaving' },
+      'last-1',
+    );
+    expect(last.status).toBe(409);
+    expect(await last.json()).toMatchObject({ error: { code: 'LAST_ADMIN' } });
+
+    const graph = await fetch(`${base}/graphql`, {
+      method: 'POST',
+      headers: headers(HR_ACCOUNT),
+      body: JSON.stringify({
+        query: `mutation { revokeRole(accountId: "${MARCO_ACCOUNT}", role: finance, reason: "Moved team") { accountId roles } }`,
+      }),
+    });
+    expect(await graph.json()).toEqual({
+      data: { revokeRole: { accountId: MARCO_ACCOUNT, roles: [] } },
+    });
+    const listed = await fetch(`${base}/v1/roles`, { headers: headers(HR_ACCOUNT) });
+    expect(await listed.json()).toEqual({
+      items: [{ accountId: HR_ACCOUNT, roles: ['people_admin'] }],
+    });
+    const events = await clients[0]?.unsafe<{ event_name: string; reason: string }[]>(
+      `SELECT event_name, envelope -> 'payload' ->> 'reason' AS reason FROM people.outbox
+        WHERE event_name LIKE 'people.role.%' ORDER BY created_at, event_id`,
+    );
+    expect(events?.map((e) => [e.event_name, e.reason])).toEqual([
+      ['people.role.granted', 'Runs payroll'],
+      ['people.role.revoked', 'Moved team'],
+    ]);
+  });
+
   it('serves its OpenAPI document', async () => {
     const response = await fetch(`${base}/v1/openapi.json`);
-    const doc = (await response.json()) as { openapi: string };
+    const doc = (await response.json()) as { openapi: string; paths: Record<string, unknown> };
     expect(doc.openapi).toBe('3.1.0');
+    expect(Object.keys(doc.paths)).toEqual(
+      expect.arrayContaining(['/v1/roles', '/v1/roles/grants', '/v1/roles/revocations']),
+    );
   });
 });

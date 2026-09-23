@@ -1136,7 +1136,7 @@ it is written down here rather than left in a PR description.
       `employeeNumbering`/`setEmployeeNumbering` for PEO-101, and REST tests
       for its routes. Not built, and written into §8.1: rehire and
       withdrawing notice.*
-- [ ] **PEO-112** Roles, properly. The first person in a tenant became
+- [x] **PEO-112** Roles, properly. The first person in a tenant became
       `people_admin` and `hr`, which is wrong when People is switched on after
       accounts exist, and nothing could grant a role after that. Needs the back
       office naming the first People administrator when it switches People on
@@ -1145,6 +1145,20 @@ it is written down here rather than left in a PR description.
       oneself — written to OpenFGA, idempotent, each an audited event; REST
       with Idempotency-Key, GraphQL, and a settings screen. Found in PEO-092.
       *(PRD §4, §6.6, §7, §8.2, §9.4, §13)*
+      *Landed as `people.role_grant` (20260924230200), the ledger OpenFGA's
+      tenant tuples are synced from (`OpenFga.syncRoles`, off
+      `people.role.granted`/`revoked`, which carry who, whom, the role, `via`
+      and the reason); `domain/access/roles.ts` for the rules, asked of the
+      rows under a per-tenant advisory lock, and a trigger refusing the last
+      `people_admin` on any path. `GET /v1/roles`, `POST /v1/roles/grants`,
+      `POST /v1/roles/revocations` with Idempotency-Key, `peopleRoles`,
+      `grantRole`, `revokeRole`, OpenAPI from `http/roles.ts`, and the roles
+      screen at `/people/settings/roles`. Identity refuses to switch People
+      on without naming an account (`identity.tenant.administrator_named`),
+      in the company wizard or on the company page, which can also name
+      another later. The first-person rule is gone; the migration carries
+      over what it granted. Not done: a leaver keeps their tenant roles until
+      somebody revokes them — lane X's access-end work is where that belongs.*
 - [ ] **PEO-113** The shell goes through the router. Identity can mint a token
       but nothing issues one, so the shell calls People directly with the
       internal token and a principal it builds itself. Needs identity issuing a

@@ -424,6 +424,26 @@ export const TenantEntitlementsChanged = defineEvent(
   }),
 );
 
+/**
+ * The back office named who administers a module the company has (PEO-112).
+ *
+ * The only way anybody first becomes a module's administrator: an operator
+ * names an existing account, when the module is switched on or afterwards —
+ * the recovery path when a company has lost every administrator. The module
+ * decides what administering means; People grants `people_admin` and `hr`.
+ * Nobody is an administrator because they happened to arrive first.
+ */
+export const TenantAdministratorNamed = defineEvent(
+  'identity.tenant.administrator_named',
+  1,
+  z.object({
+    entitlement: ModuleEntitlement,
+    accountId: AccountId,
+    /** The back-office operator who named them; not an account at the company. */
+    namedBy: z.uuid().nullable().register(policy, asInternal()),
+  }),
+);
+
 export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
@@ -442,4 +462,5 @@ export const identityEvents = [
   TenantProvisioned,
   TenantAmended,
   TenantEntitlementsChanged,
+  TenantAdministratorNamed,
 ] as const;

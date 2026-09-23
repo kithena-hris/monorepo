@@ -7,7 +7,7 @@ import { presentsInternalToken, readJsonBody } from '../../shared/internal-token
 import type { InviteAccount } from '../application/invite-account.js';
 import type { AmendTenant } from '../application/amend-tenant.js';
 import type { ProvisionTenant } from '../application/provision-tenant.js';
-import type { SetEntitlements } from '../application/set-entitlements.js';
+import type { NameAdministrator, SetEntitlements } from '../application/set-entitlements.js';
 
 /**
  * What the back-office needs from the registry.
@@ -47,6 +47,27 @@ const INVITATIONS =
  */
 const ENTITLEMENTS =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/entitlements$/i;
+
+/**
+ * `/api/internal/admin/tenants/<uuid>/administrators`, posted: name who
+ * administers a module the company has (PEO-112).
+ */
+const ADMINISTRATORS =
+  /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/administrators$/i;
+
+/** A string-to-string map from a body, or empty. */
+function stringMap(value: unknown): Record<string, string> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((e): e is [string, string] => typeof e[1] === 'string'),
+  );
+}
+
+/** The operator acting, when the back office says. */
+function operatorOf(body: Record<string, unknown> | null): string | null {
+  const id = body?.['operatorId'];
+  return typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+}
 
 /**
  * `/api/internal/admin/tenants/<uuid>/accounts/<uuid>/invitation`, deleted.
@@ -132,6 +153,7 @@ export interface AdminRoutesDeps {
   readonly amend: AmendTenant;
   readonly invite: InviteAccount;
   readonly setEntitlements: SetEntitlements;
+  readonly nameAdministrator: NameAdministrator;
   /**
    * Withdraws an outstanding invitation: the links stop working and the
    * never-used account goes with them.
@@ -155,6 +177,7 @@ export function adminRoutes({
   amend,
   invite,
   setEntitlements,
+  nameAdministrator,
   withdrawInvitation,
   internalToken,
 }: AdminRoutesDeps) {
@@ -164,7 +187,15 @@ export function adminRoutes({
     const invitations = INVITATIONS.exec(path);
     const accountInvitation = ACCOUNT_INVITATION.exec(path);
     const entitlements = ENTITLEMENTS.exec(path);
-    if (path !== LIST && !detail && !invitations && !accountInvitation && !entitlements) {
+    const administrators = ADMINISTRATORS.exec(path);
+    if (
+      path !== LIST &&
+      !detail &&
+      !invitations &&
+      !accountInvitation &&
+      !entitlements &&
+      !administrators
+    ) {
       return false;
     }
 
@@ -195,7 +226,12 @@ export function adminRoutes({
         });
       }
       const tenantId = entitlements[1] ?? '';
-      const set = await setEntitlements(tenantId, list as string[]);
+      // Who administers each administered module switched on (PEO-112).
+      const set = await setEntitlements(tenantId, {
+        entitlements: list as string[],
+        administrators: stringMap(asked?.['administrators']),
+        namedBy: operatorOf(asked),
+      });
       if (!set.ok) {
         return json(set.error.code === 'TENANT_UNKNOWN' ? 404 : 422, {
           code: set.error.code,
@@ -205,6 +241,36 @@ export function adminRoutes({
       }
       const found = await tenantDetail(tenantId);
       return found ? json(200, found) : json(404, {});
+    }
+
+    if (administrators) {
+      if (request.method !== 'POST') {
+        response.writeHead(405, { allow: 'POST' }).end();
+        return true;
+      }
+      const asked = (await readJsonBody(request)) as Record<string, unknown> | null;
+      const entitlement = asked?.['entitlement'];
+      const accountId = asked?.['accountId'];
+      if (typeof entitlement !== 'string' || typeof accountId !== 'string') {
+        return json(400, {
+          code: 'ADMINISTRATOR_MALFORMED',
+          message: 'Send the module and the account',
+          path: [],
+        });
+      }
+      const named = await nameAdministrator(administrators[1] ?? '', {
+        entitlement,
+        accountId,
+        namedBy: operatorOf(asked),
+      });
+      if (!named.ok) {
+        return json(named.error.code === 'TENANT_UNKNOWN' ? 404 : 422, {
+          code: named.error.code,
+          message: named.error.message,
+          path: named.error.path ?? [],
+        });
+      }
+      return json(201, named.value);
     }
 
     if (accountInvitation) {
@@ -455,6 +521,10 @@ export function adminRoutes({
             entitlements: body['entitlements'].filter((e): e is string => typeof e === 'string'),
           }
         : {}),
+      // Who administers each administered module switched on (PEO-112), by
+      // the email of one of `admins`.
+      administrators: stringMap(body['administrators']),
+      namedBy: operatorOf(body),
       address: {
         country: typeof address['country'] === 'string' ? address['country'] : '',
         line1: typeof address['line1'] === 'string' ? address['line1'] : '',

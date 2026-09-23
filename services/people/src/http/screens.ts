@@ -24,6 +24,7 @@ import {
   saveSection,
 } from '../application/screens/people.js';
 import { personOfViewer } from '../application/screens/record.js';
+import { rolesView } from '../application/screens/roles.js';
 import {
   addSection,
   adviseClassification,
@@ -207,6 +208,13 @@ export function screenRoutes(deps: ScreenRouteDeps): Route[] {
       method: 'POST',
       pattern: /^\/v1\/views\/completeness$/,
       handle: write(Grid, (asking, input) => saveGrid(deps, asking, input.changes)),
+    },
+
+    /* roles (PEO-112): the view here, the writes at /v1/roles/* */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/roles$/,
+      handle: async (asking) => answer(await rolesView(deps, asking)),
     },
 
     /* the registry and setup */

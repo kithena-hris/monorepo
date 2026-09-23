@@ -162,6 +162,14 @@ type Mutation {
 
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(personId: ID!): Person
+
+  """
+  people_admin only, never to oneself. A role already held changes nothing.
+  """
+  grantRole(accountId: ID!, role: TenantRole!, reason: String!): RoleHolder
+
+  """people_admin only; never the last people_admin."""
+  revokeRole(accountId: ID!, role: TenantRole!, reason: String!): RoleHolder
 }
 
 type NumberAttribute {
@@ -209,6 +217,9 @@ type Query {
 
   """Null for an entity that does not number its people."""
   employeeNumbering(legalEntityId: ID!): EmployeeNumbering
+
+  """Who holds a tenant role; HR and people_admin only."""
+  peopleRoles: [RoleHolder!]
 }
 
 type RepeatingAttribute {
@@ -216,10 +227,22 @@ type RepeatingAttribute {
   items: [PersonAttribute!]
 }
 
+"""An account and the tenant roles it holds."""
+type RoleHolder {
+  accountId: ID
+  roles: [TenantRole!]
+}
+
 """An encrypted value. Only its last four characters are ever served."""
 type SealedAttribute {
   key: String
   last4: String
+}
+
+enum TenantRole {
+  hr
+  finance
+  people_admin
 }
 
 type TextAttribute {
