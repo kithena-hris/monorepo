@@ -2,8 +2,7 @@ import { createHash } from 'node:crypto';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { toAddress } from '../domain/address.js';
-import { linkIsTrusted } from '../domain/invitation.js';
-import { renderNotice, type Notice } from '../domain/notice.js';
+import { linkIsOnTenantApp, renderNotice, type Notice } from '../domain/notice.js';
 import type { DeliveryLog } from './delivery-log.js';
 import type { EmailTransport } from './email-transport.js';
 import type { SendRefusal } from './send-invitation.js';
@@ -13,14 +12,16 @@ import type { SendRefusal } from './send-invitation.js';
  *
  * The invitation's use case with the invitation taken out: the same four
  * refusals, the same send, the same outcome-only record. The link is checked
- * against the app's origin rather than the auth origin, because a notice
- * points into the product.
+ * against the tenant app's origin pattern rather than the auth origin, because
+ * a notice points into the company's own product.
  */
 export interface SendNoticeRequest {
   readonly tenantId: string;
   readonly email: string;
-  /** Where the button goes. Built by the caller, checked here. */
+  /** Where the button goes: the company's own origin. Built by the caller, checked here. */
   readonly url: string;
+  /** The company the notice is from, by name. */
+  readonly companyName: string;
   readonly notice: Notice;
   /**
    * What makes a retry the same message, chosen by the caller — for a
@@ -37,7 +38,8 @@ export type SendNotice = (
 export interface SendNoticeDeps {
   readonly transport: EmailTransport;
   readonly deliveries: DeliveryLog;
-  readonly trustedLinkOrigin: string;
+  /** `https://{slug}.app.kithena.com`: the only shape of origin a notice may link to. */
+  readonly tenantAppBase: string;
   readonly onRefusal?: (reason: SendRefusal, detail: Record<string, string>) => void;
 }
 
@@ -50,9 +52,9 @@ export function sendNotice(deps: SendNoticeDeps): SendNotice {
   return async (request) => {
     const recipient = toAddress(request.email);
     if (!recipient.ok) return refuse('address');
-    if (!linkIsTrusted(request.url, deps.trustedLinkOrigin)) return refuse('untrusted_link');
+    if (!linkIsOnTenantApp(request.url, deps.tenantAppBase)) return refuse('untrusted_link');
 
-    const message = renderNotice(request.notice, request.url);
+    const message = renderNotice(request.notice, request.url, request.companyName);
     if (!message.ok) return refuse('unrenderable');
 
     const kind = request.notice.kind;

@@ -6,6 +6,7 @@ import { define, noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import { buildExport, type ExportRequest } from './export.js';
 import { asking, attributes, financeTenant, HR, MARCO, register } from './fixture.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * PEO-091: the Missing information sheet is a picture of the export's day,
@@ -45,6 +46,7 @@ async function workbook(
   const built = await buildExport(
     tx,
     {
+      calendars: utcCalendars,
       access: personAccess(store.deps),
       schemas: store.deps.schemas,
       relations: store.deps.relations,

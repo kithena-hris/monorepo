@@ -12,6 +12,7 @@ import { define, versionOf } from '../application/person/in-memory.js';
 import { personAccess, type PersonAccess } from '../application/person/person-access.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { recomputeCompleteness } from '../application/completeness/recompute.js';
+import { utcCalendars } from '../application/org/org.js';
 import { Person } from '../domain/person/person.js';
 import { peopleConsumer } from './consumers/handle.js';
 import { drizzleProvisionalPeople } from './consumers/identity.js';
@@ -108,6 +109,7 @@ beforeAll(async () => {
       store: drizzleCompletenessStore(),
       clock: systemClock,
       newEventId: uuidv7,
+      calendars: utcCalendars,
     }),
     authz: fga,
   });
@@ -125,6 +127,7 @@ beforeAll(async () => {
     ),
     clock: systemClock,
     newId: uuidv7,
+    calendars: utcCalendars,
   });
 
   const repo = drizzlePersonRepository();

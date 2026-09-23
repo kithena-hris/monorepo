@@ -14,12 +14,14 @@ import { drizzleFullValuesStore } from '../application/export/full-values-store.
 import { drizzleExportLedger } from '../application/export/ledger.js';
 import { keyOf } from '../application/export/object-store.js';
 import type { ExportQueue } from '../application/export/queue.js';
+import { orgAdmin } from '../application/org/org.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { RelationsResolver } from '../application/person/ports.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
   drizzlePersonReader,
@@ -35,6 +37,11 @@ import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
+import {
+  NO_TENANT_APP_BASE,
+  tenantAppBase,
+  tenantCompanies,
+} from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
 import { listEndpoints } from '../infrastructure/webhooks/list.js';
@@ -88,7 +95,12 @@ export function peopleService(
     allowHttp:
       process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
   };
-  const alerts = webhookAlertMailerFrom(process.env);
+  // No base (production without a safe `TENANT_APP_BASE`): no alert email,
+  // the event alone — never a link to localhost.
+  const base = tenantAppBase(process.env);
+  if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
+  const alerts = base === null ? undefined : webhookAlertMailerFrom(process.env);
+  const companyOf = tenantCompanies(base ?? '', drizzleOrgStore());
   const hooks = webhooks({
     inTenant: raw,
     ring,
@@ -103,7 +115,13 @@ export function peopleService(
         'webhook endpoint disabled',
       );
       if (alerts === undefined || disabled.alertEmail === null) return;
-      await alerts.send(tenantId, disabled).catch((cause: unknown) => {
+      // From the company, to its own origin — or not at all: the event stands.
+      const company = await raw(tenantId, ({ tx }) => companyOf(tx, tenantId));
+      if (company === null) {
+        logger.info({ tenantId }, 'company not known yet; webhook alert not emailed');
+        return;
+      }
+      await alerts.send(tenantId, company, disabled).catch((cause: unknown) => {
         logger.warn({ err: cause, tenantId, endpointId: disabled.endpointId }, 'alert not sent');
       });
     },
@@ -159,6 +177,7 @@ export function peopleService(
   void poll();
   setInterval(() => void poll(), POLL_MS).unref();
 
+  const org = drizzleOrgStore();
   return {
     access: personAccess({
       people: drizzlePersonRepository(),
@@ -169,8 +188,10 @@ export function peopleService(
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,
+      calendars: org,
     }),
     schemas,
+    org: orgAdmin({ store: org, clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       kick(tenantId);
@@ -191,6 +212,8 @@ function wireExports(service: PeopleService): {
     logger,
   );
   const deps: ExportJobDeps = {
+    // The export's day is the tenant's (PRD §6.8).
+    calendars: drizzleOrgStore(),
     access: service.access,
     schemas: service.schemas,
     relations: relationsFrom(process.env),
@@ -315,10 +338,12 @@ function screenDeps(service: ReturnType<typeof peopleService>): ScreenRouteDeps 
   const schema = drizzleSchemaRepository();
   const reader = drizzlePersonReader();
   const base = (process.env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
+  const calendars = drizzleOrgStore();
   return {
     service,
     relations: relationsFrom(process.env),
     clock: systemClock,
+    calendars,
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     schema,
     draft: drizzleDraftWriter(),
@@ -327,6 +352,7 @@ function screenDeps(service: ReturnType<typeof peopleService>): ScreenRouteDeps 
       people: drizzlePeopleFacts(),
       clock: systemClock,
       newEventId: uuidv7,
+      calendars,
     }),
     artifactUrl: (version) => `${base}/v1/schema/versions/${String(version)}`,
     webhooks: service.webhooks,
@@ -336,6 +362,7 @@ function screenDeps(service: ReturnType<typeof peopleService>): ScreenRouteDeps 
       ledger: drizzleImportLedger(),
       rowScope: drizzleRowScope,
       newId: uuidv7,
+      calendars,
     },
   };
 }

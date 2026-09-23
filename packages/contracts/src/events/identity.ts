@@ -359,6 +359,52 @@ export const RecoveryApproved = defineEvent(
   }),
 );
 
+/* ---------------------------------------------------------------- tenant -- */
+
+/*
+ * A company, as the back office created and changes it. Carried to People so
+ * that "whose day is it" (PRD §6.8) has an answer before anybody configures
+ * People, and so that a reminder can link to the company's own origin and name
+ * the company — without People reading `platform.tenant`, which it has no
+ * grant on and must not need. The tenant id is the envelope's.
+ *
+ * Company facts, not personal data. The slug is in every URL the company's
+ * people open; the display name is on its login page.
+ */
+
+/** `<slug>.app.kithena.com`: the label the web app serves this tenant on. */
+const Slug = z.string().min(1).max(63).register(policy, asPublic());
+const CompanyName = z.string().min(1).max(200).register(policy, asPublic());
+
+export const TenantProvisioned = defineEvent(
+  'identity.tenant.provisioned',
+  1,
+  z.object({
+    slug: Slug,
+    displayName: CompanyName,
+    /** ISO 3166-1 alpha-2: the registered office's, and the first legal entity's. */
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/u)
+      .register(policy, asPublic()),
+    /** IANA. The company's default zone, and its first legal entity's. */
+    timeZone: z.string().min(1).register(policy, asPublic()),
+  }),
+);
+
+/**
+ * The back office changed a company's name or branding. `occurredAt` orders
+ * these: a consumer applies one only if it is newer than the last it applied.
+ */
+export const TenantAmended = defineEvent(
+  'identity.tenant.amended',
+  1,
+  z.object({
+    slug: Slug,
+    displayName: CompanyName,
+  }),
+);
+
 export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
@@ -374,4 +420,6 @@ export const identityEvents = [
   CredentialRemoved,
   RecoveryRequested,
   RecoveryApproved,
+  TenantProvisioned,
+  TenantAmended,
 ] as const;

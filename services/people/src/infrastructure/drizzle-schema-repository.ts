@@ -11,7 +11,13 @@ import type { Attribute, Section } from '../domain/schema/draft.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
 import { SectionKey, type PersonStatus } from '@kithena/contracts';
 import { valuesOf, type ValueColumns } from './drizzle-person-reader.js';
-import { attributeDefinition, person, schemaVersion, section } from './tables.js';
+import {
+  attributeDefinition,
+  person,
+  schemaVersion,
+  schemaVersionEvaluated,
+  section,
+} from './tables.js';
 
 /**
  * The registry, as Drizzle.
@@ -67,8 +73,8 @@ export function drizzleSchemaRepository(): SchemaRepository {
       };
     },
 
-    async appendVersion(tx, tenantId, version, events, evaluatedOn) {
-      await tx.insert(schemaVersion).values({
+    async appendVersion(tx, tenantId, version, events, evaluatedOn, evaluatedAt) {
+      const row = {
         tenantId,
         version: version.version,
         publishedAt: new Date(version.publishedAt),
@@ -77,7 +83,10 @@ export function drizzleSchemaRepository(): SchemaRepository {
         document: version.document,
         rolledBackFrom: version.rolledBackFrom,
         evaluatedOn,
-      });
+      };
+      await (evaluatedAt === undefined
+        ? tx.insert(schemaVersion).values(row)
+        : tx.insert(schemaVersionEvaluated).values({ ...row, evaluatedAt: new Date(evaluatedAt) }));
 
       // Same transaction as the row, which is the whole mechanism.
       await publishEvents(tx, outbox, events);
@@ -246,6 +255,7 @@ function toEvaluable(
     id: string;
     status: string;
     legalEntityId: string | null;
+    locationId: string | null;
     employmentType: string | null;
     workModel: string | null;
   },
@@ -253,8 +263,14 @@ function toEvaluable(
   const custom = (row.custom ?? {}) as Record<string, unknown>;
   const values = valuesOf(row);
 
+  const ownZone = custom['time_zone'];
   return {
     personId: row.id,
+    placement: {
+      legalEntityId: row.legalEntityId,
+      locationId: row.locationId,
+      ownZone: typeof ownZone === 'string' ? ownZone : null,
+    },
     facts: {
       legalEntityId: row.legalEntityId,
       country: countryOf(custom),

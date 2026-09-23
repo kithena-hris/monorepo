@@ -39,7 +39,7 @@ import { parseUpload, type ParsedFile } from '../import/parse.js';
 import { exportableColumns } from '../export/export.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { NOBODY, personOfViewer, type ScreenDeps, type Tx } from './record.js';
+import { NOBODY, personOfViewer, tenantToday, type ScreenDeps, type Tx } from './record.js';
 
 /**
  * The screens that act on many people at once: integrations, import, the
@@ -459,7 +459,7 @@ export async function exportBuilderView(
     }
     const columns = exportableColumns(version).filter((d) => readable.has(d.key));
     return ok({
-      today: deps.clock.date(asking.timeZone ?? 'Etc/UTC'),
+      today: await tenantToday(deps, tx, asking.tenantId),
       who: [
         {
           value: 'everyone',
@@ -540,7 +540,7 @@ export async function analyticsView(
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const ctx = { tx, tenantId: asking.tenantId, viewer, definitions: version.document.attributes };
-    const today = deps.clock.date(asking.timeZone ?? 'Etc/UTC') as string;
+    const today = await tenantToday(deps, tx, asking.tenantId);
 
     const trend = await headcountTrend(ctx, { from: minusMonths(today, 12), to: today });
     if (!trend.ok) return trend;

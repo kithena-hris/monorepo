@@ -208,7 +208,6 @@ async function write(
     tenantId: input.tenantId,
     viewer: input.viewer,
     correlationId: input.correlationId,
-    ...(input.timeZone ? { timeZone: input.timeZone } : {}),
   };
 
   const done = await deps.rowScope(tx, async (sp) => {
