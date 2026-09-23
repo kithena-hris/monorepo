@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { logger, startTelemetry } from '@kithena/telemetry';
 
+import { wirePeopleConsumer } from './account/consumers/wire.js';
 import { compose } from './composition.js';
 
 /**
@@ -68,11 +69,13 @@ if (authOrigin === undefined || authOrigin === '') {
   );
 }
 
+const databaseUrl = required('IDENTITY_DATABASE_URL');
+
 const routes = await compose({
   // Deliberately not `DATABASE_URL`. That one is the owner's, used by
   // migrations, and an owner bypasses row-level security on its own tables
   // regardless of any policy. Identity connects as `svc_identity`, which cannot.
-  databaseUrl: required('IDENTITY_DATABASE_URL'),
+  databaseUrl,
   // Optional now: challenges live in Postgres. Passed through so a deployment
   // with a real always-on Redis can still choose the Valkey store.
   ...(process.env['VALKEY_URL'] ? { valkeyUrl: process.env['VALKEY_URL'] } : {}),
@@ -119,6 +122,9 @@ const server = createServer((request, response) => {
       if (!response.headersSent) response.writeHead(500).end();
     });
 });
+
+// People's corrections to the cached name and start date (PRD §5).
+wirePeopleConsumer(databaseUrl);
 
 server.listen(PORT, () => {
   logger.info({ service: 'identity', port: PORT }, 'identity listening');

@@ -204,3 +204,32 @@ describe('an import or an export', () => {
     }
   });
 });
+
+describe('what identity is told', () => {
+  it('names the account on a hire and on a profile update, so identity needs no lookup', () => {
+    expect(payloadKeys('people.person.hired')).toContain('identityAccountId');
+    expect(payloadKeys('people.person.profile_updated')).toContain('identityAccountId');
+  });
+
+  it('carries the two cached facts and nothing else', () => {
+    // The one event a confidential value rides on outside §10.3. Anything
+    // added here reaches identity's consumer and every backup of the topic.
+    expect(payloadKeys('people.person.identity_facts_changed').toSorted()).toEqual([
+      'employmentStart',
+      'identityAccountId',
+      'name',
+      'personId',
+    ]);
+  });
+
+  it('is only for a person who has an account to correct', () => {
+    const facts = peopleEvents.find((e) => e.name === 'people.person.identity_facts_changed');
+    const unlinked = facts?.payload.safeParse({
+      personId: '00000000-0000-4000-8000-0000000000a1',
+      identityAccountId: null,
+      name: null,
+      employmentStart: '2026-10-01',
+    });
+    expect(unlinked?.success).toBe(false);
+  });
+});

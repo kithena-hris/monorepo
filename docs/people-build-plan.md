@@ -442,7 +442,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** running it twice over the same tenant changes nothing the
   second time.
 
-### [ ] PEO-029 — People corrects identity's copies
+### [x] PEO-029 — People corrects identity's copies
 
 - **Spec** PRD §5, the direction rule
 - **Files** `platform/identity/src/.../consumers/`

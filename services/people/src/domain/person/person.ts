@@ -73,6 +73,41 @@ type StatusReason =
   | 'discarded'
   | 'corrected';
 
+/** What identity caches about a person, as `identity_facts_changed` carries it. */
+export interface IdentityFacts {
+  readonly name: { readonly given: string; readonly family: string; readonly preferred: string | null } | null;
+  readonly employmentStart: string | null;
+}
+
+/** The attribute keys whose change identity has to hear about. */
+export const IDENTITY_FACT_KEYS: ReadonlySet<string> = new Set([
+  'given_name',
+  'family_name',
+  'preferred_name',
+  'hire_date',
+]);
+
+const text = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() !== '' ? value : null;
+
+/**
+ * The facts, read off a record's values.
+ *
+ * A name is both halves or none: identity's row refuses one without the other,
+ * and a consumer stuck on a check constraint stalls every event behind it.
+ */
+export function identityFactsOf(values: Readonly<Record<string, unknown>>): IdentityFacts {
+  const given = text(values['given_name']);
+  const family = text(values['family_name']);
+  return {
+    name:
+      given !== null && family !== null
+        ? { given, family, preferred: text(values['preferred_name']) }
+        : null,
+    employmentStart: text(values['hire_date']),
+  };
+}
+
 const InvalidTransition = (from: PersonState, action: string) =>
   failure('INVALID_TRANSITION', `A record that is ${from} cannot be ${action}`);
 
@@ -272,7 +307,7 @@ export class Person extends AggregateRoot<string> {
 
     this.#raise(
       'people.person.profile_updated',
-      { personId: this.id, changed, schemaVersion },
+      { personId: this.id, identityAccountId: this.#identityAccountId, changed, schemaVersion },
       ctx,
       effectiveFrom,
     );
@@ -301,6 +336,59 @@ export class Person extends AggregateRoot<string> {
       effectiveFrom,
     );
     return ok(undefined);
+  }
+
+  /**
+   * The hire date was recorded wrongly. The caller raises `attribute_corrected`.
+   *
+   * Here rather than projected like any attribute, because `hireDate` is the
+   * aggregate's: a correction written into `custom` would leave the column —
+   * and every reader of it — on the wrong date. The status is left alone; a
+   * correction says what was always true, and does not re-run the hire.
+   */
+  correctHireDate(hireDate: string): Result<void> {
+    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
+    if (this.#lastWorkingDay !== null && this.#lastWorkingDay < hireDate) {
+      return err(
+        failure(
+          'LAST_DAY_BEFORE_HIRE',
+          `A hire date of ${hireDate} follows the last working day of ${this.#lastWorkingDay}`,
+          ['hireDate'],
+        ),
+      );
+    }
+    this.#hireDate = hireDate;
+    return ok(undefined);
+  }
+
+  /**
+   * Tell identity the current name and start date, when it holds a copy.
+   *
+   * §5: People is the source of record for both once a person exists, and
+   * identity caches them for the WebAuthn prompt and the enrolment gate. Only a
+   * linked person has a copy to correct, so an unlinked one raises nothing —
+   * and neither does a call with nothing to say. Returns whether it raised.
+   */
+  shareIdentityFacts(
+    facts: IdentityFacts,
+    ctx: EventContext,
+    effectiveFrom: string | null,
+  ): boolean {
+    if (this.#identityAccountId === null) return false;
+    if (facts.name === null && facts.employmentStart === null) return false;
+
+    this.#raise(
+      'people.person.identity_facts_changed',
+      {
+        personId: this.id,
+        identityAccountId: this.#identityAccountId,
+        name: facts.name,
+        employmentStart: facts.employmentStart,
+      },
+      ctx,
+      effectiveFrom,
+    );
+    return true;
   }
 
   /** A last working day before the hire date describes an employment nobody had. */

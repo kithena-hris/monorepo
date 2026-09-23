@@ -19,7 +19,12 @@ import {
   valueAsOf,
   type HistoryEntry,
 } from '../../domain/person/history.js';
-import { Person, type EventContext } from '../../domain/person/person.js';
+import {
+  IDENTITY_FACT_KEYS,
+  identityFactsOf,
+  Person,
+  type EventContext,
+} from '../../domain/person/person.js';
 import { changedAttribute } from '../../domain/person/profile.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
@@ -206,6 +211,27 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return ok(parsed.data);
   }
 
+  /**
+   * Tell identity, in the same transaction, when a fact it caches moved.
+   *
+   * Read off the record as it will be after this write, with the hire date
+   * from the aggregate because that is the column's owner. Its own event id:
+   * the context a use case builds hands out one id, and the transition's event
+   * already has it.
+   */
+  function shareIdentityFacts(
+    aggregate: Person,
+    asking: Asking,
+    values: Readonly<Record<string, unknown>>,
+    effectiveFrom: string | null,
+  ): void {
+    aggregate.shareIdentityFacts(
+      identityFactsOf({ ...values, hire_date: aggregate.hireDate }),
+      contextFor(asking, deps.newId()),
+      effectiveFrom,
+    );
+  }
+
   /** Put a value into the projection: a typed column, or `custom`. */
   function project(
     fields: Record<string, unknown>,
@@ -319,6 +345,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const eventId = deps.newId();
     const custom = new Map(Object.entries(person.custom));
     const fields: Record<string, unknown> = {};
+    const projected = new Map<string, unknown>();
     let history: readonly HistoryEntry[] = [];
 
     // Loaded only when something is dated: a backdated change must not
@@ -359,7 +386,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const inForce = definition.effectiveDated
         ? valueAsOf([...existing, ...history], definition.key, day)
         : currentValue(history, definition.key);
-      if (inForce?.id === id) project(fields, custom, definition.key, value);
+      if (inForce?.id === id) {
+        project(fields, custom, definition.key, value);
+        projected.set(definition.key, value);
+      }
     }
 
     const aggregate = Person.rehydrate(person.snapshot);
@@ -370,6 +400,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       effectiveFrom,
     );
     if (!raised.ok) return raised;
+
+    if ([...projected.keys()].some((k) => IDENTITY_FACT_KEYS.has(k))) {
+      shareIdentityFacts(
+        aggregate,
+        asking,
+        { ...person.values, ...Object.fromEntries(projected) },
+        effectiveFrom,
+      );
+    }
 
     await deps.people.save(tx, aggregate, {
       fields: {
@@ -582,9 +621,17 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const custom = new Map(Object.entries(person.custom));
       const fields: Record<string, unknown> = {};
       const moves = inForce?.id === entry.id;
-      if (moves) project(fields, custom, definition.key, valid.value);
-
       const aggregate = Person.rehydrate(person.snapshot);
+
+      // The hire date is the aggregate's column, not a projection: written
+      // into `custom` it would leave the date every reader uses unchanged.
+      if (moves && definition.key === 'hire_date') {
+        const moved = aggregate.correctHireDate(valid.value as string);
+        if (!moved.ok) return moved;
+      } else if (moves) {
+        project(fields, custom, definition.key, valid.value);
+      }
+
       const raised = aggregate.correctAttribute(
         changedAttribute(definition, valid.value),
         asking.supersedes,
@@ -594,14 +641,24 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       );
       if (!raised.ok) return raised;
 
+      if (moves && IDENTITY_FACT_KEYS.has(definition.key)) {
+        shareIdentityFacts(
+          aggregate,
+          asking,
+          { ...person.values, [definition.key]: valid.value },
+          target.effectiveFrom,
+        );
+      }
+
       await deps.people.save(tx, aggregate, {
-        fields: moves
-          ? {
-              ...(fields as PersonFields),
-              custom: Object.fromEntries(custom),
-              schemaVersion: version.version,
-            }
-          : {},
+        fields:
+          moves && definition.key !== 'hire_date'
+            ? {
+                ...(fields as PersonFields),
+                custom: Object.fromEntries(custom),
+                schemaVersion: version.version,
+              }
+            : {},
         history: [entry],
       });
       return ok(entry);

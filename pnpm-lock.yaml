@@ -655,6 +655,9 @@ importers:
       jose:
         specifier: ^6.0.0
         version: 6.2.8
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
       postgres:
         specifier: ^3.4.5
         version: 3.4.9

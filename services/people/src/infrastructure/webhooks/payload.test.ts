@@ -17,6 +17,36 @@ const updated = (keys: string[]): StoredEnvelope => ({
   },
 });
 
+describe('the facts identity caches, sent to an endpoint', () => {
+  const facts: StoredEnvelope = {
+    eventId: '01890000-0000-7000-8000-000000000003',
+    eventName: 'people.person.identity_facts_changed',
+    payload: {
+      personId: '00000000-0000-4000-8000-0000000000a1',
+      identityAccountId: '00000000-0000-4000-8000-0000000000b1',
+      name: { given: 'Ada', family: 'Lovelace', preferred: 'Countess' },
+      employmentStart: '2026-10-01',
+    },
+  };
+
+  it('withholds a name the endpoint may not see, and sends the start date it may', () => {
+    const out = filterFor(facts, ['hire_date']);
+    expect(out?.payload).toMatchObject({ name: null, employmentStart: '2026-10-01' });
+  });
+
+  it('withholds a preferred name on its own', () => {
+    const out = filterFor(facts, ['given_name', 'family_name']);
+    expect(out?.payload).toMatchObject({
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+      employmentStart: null,
+    });
+  });
+
+  it('sends nothing when the endpoint may see neither fact', () => {
+    expect(filterFor(facts, ['job_title'])).toBeNull();
+  });
+});
+
 describe('filtering for an endpoint', () => {
   it('keeps only allowlisted attributes of an update', () => {
     const out = filterFor(updated(['start_date', 'department', 'phone']), [
