@@ -953,12 +953,36 @@ derived artifact computed from the union of both.**
 - `people.attribute_definition.classification` stores a `FieldPolicy` — the
   exact interface in `packages/contracts/src/classification.ts`. Not a parallel
   vocabulary.
-- The logging adapter builds its redaction paths from the static generated set
-  **plus** a per-tenant set loaded at boot and refreshed on
-  `people.schema.published`.
+- The logging adapter redacts the static generated set **plus** a per-tenant
+  set loaded at boot and refreshed on `people.schema.published`. The static
+  paths are fixed and Pino compiles them; a tenant's keys are matched **by key,
+  at any depth and inside arrays**, on every line and in every child logger's
+  bindings, by one copy-on-write walk. A log line is not a fixed shape, and a
+  field logged one level deeper than someone anticipated must not go out in
+  clear. The walk is bounded (depth 32, 10,000 objects) and closed at the
+  bound: what it did not look at is censored, never written. Its cost is a
+  budget, not a hope — a typical line costs under 1 µs more than one with no
+  tenant redaction at all.
 - The AI gateway's deny list is computed the same way. A prompt that would carry
   an attribute where `aiEligible: false` is refused by the gateway, not filtered
   by a caller.
+- **The gateway checks free text for values, not only context for keys.** A
+  value pasted into the instruction, or into a string under an innocent key,
+  is invisible to a key match. The caller names the people a prompt is about;
+  the gateway asks People for the current values of their denied attributes,
+  with the caller's field access applied, and refuses when any of them appears
+  in the text however it is cased, spaced, accented or punctuated —
+  `DE89 3704 0044…`, `123-45-6789` and `ab 12 34 56 c` all match their stored
+  form. It refuses, it never filters, and it never forwards. The values are
+  held in memory for the comparison only: never logged, never in the refusal.
+  - Field access applies because the alternative is an oracle: if every value
+    were checked, "is she Catholic?" could be answered by whether the prompt
+    was refused. A value the caller cannot read did not come from us.
+  - A person who cannot be resolved refuses the prompt. Not knowing the values
+    is not evidence the text is clean.
+  - **A caller that names nobody** cannot have values checked, so any mention
+    of a denied field's key or label, in any locale, is refused, and the
+    refusal says so and says to name the subjects instead.
 - The DSAR manifest is generated per tenant, per request, from the published
   schema version the record was written under — which is why the version is
   stored on the person row.
