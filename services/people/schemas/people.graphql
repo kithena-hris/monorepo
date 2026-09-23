@@ -69,6 +69,17 @@ type EmployeeNumbering {
   nextValue: Float
 }
 
+type EmploymentPeriod {
+  period: Int
+  legalEntityId: ID
+  startedOn: String
+  lastWorkingDay: String
+  leavingReason: LeavingReason
+  eligibleForRehire: Boolean
+  noticeFrom: String
+  rehireOverrideReason: String
+}
+
 type HistoryEntry {
   id: ID
   attributeKey: String
@@ -164,6 +175,11 @@ type Mutation {
   ): Person
 
   """
+  Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.
+  """
+  rehirePerson(personId: ID!, startDate: String!, legalEntityId: ID, overrideReason: String): Person
+
+  """
   End a terminated person’s access now rather than at the end of their last working day; HR only.
   """
   endPersonAccess(personId: ID!): Person
@@ -223,6 +239,9 @@ type Query {
 
   """Null for an entity that does not number its people."""
   employeeNumbering(legalEntityId: ID!): EmployeeNumbering
+
+  """Every employment on a person, first first; HR only."""
+  employmentPeriods(personId: ID!): [EmploymentPeriod!]
 }
 
 type RepeatingAttribute {
