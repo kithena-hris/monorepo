@@ -2,6 +2,9 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
+import { COHORT_FLOOR } from '../../domain/org/calendar.js';
+
+export { COHORT_FLOOR };
 
 /**
  * Who may draw which chart, and the cohort minimum. Pure.
@@ -101,9 +104,6 @@ export function authorizeFields(
 
   return ok({ special });
 }
-
-/** Tenant-raisable, never lowerable (§6.7). */
-export const COHORT_FLOOR = 10;
 
 /**
  * The minimum in force, whatever the tenant's setting says.
