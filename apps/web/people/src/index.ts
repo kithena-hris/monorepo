@@ -7,3 +7,7 @@ import './styles.css';
 export { PeopleHome } from './home/people-home';
 export { FieldRegistry } from './settings/field-registry';
 export { PeopleSetup } from './setup/people-setup';
+export { Onboarding } from './onboarding/onboarding';
+export { Profile } from './profile/profile';
+export { Directory } from './directory/directory';
+export { CompletenessGrid } from './completeness/completeness-grid';
