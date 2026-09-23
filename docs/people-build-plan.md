@@ -869,7 +869,9 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
       carries a link, not the data. *(PRD §16.3)*
 - [ ] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
-      enforced in the query. *(PRD §6.7)*
+      enforced in the query. Its design follows PEO-083: served from the
+      monthly publication, rounded to 5, never from the live snapshot.
+      *(PRD §6.7, §16.1)*
 - [ ] **PEO-071** Bulk edit beyond the completeness grid. *(PRD §8.4)*
 
 ## Phase 3
@@ -914,11 +916,13 @@ it is written down here rather than left in a PR description.
       encrypted attribute cannot be unique without its plaintext sitting next
       to the ciphertext. Store a keyed hash instead; until then no national
       identifier in a country pack is marked unique. Found in PEO-059.
-- [ ] **PEO-083** Differencing across snapshots. Reading the latest snapshot
+- [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs
       noise or a coarser publishing cadence; a product decision first.
-      Found in PEO-045. *(PRD §16.1)*
+      Found in PEO-045. *(PRD §16.1)* *Decided as a monthly publication,
+      republished only after N changes, rounded to 5; landed as
+      `people.published_breakdown`.*
 - [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly

@@ -6,6 +6,7 @@ import { SchemaPublished, type EventEnvelope } from '@kithena/contracts';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry';
 
+import { publishBreakdowns } from '../application/analytics/publish.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
 import { reconcile } from '../application/reconcile.js';
@@ -27,6 +28,9 @@ import { tenantTransaction } from './unit-of-work.js';
  *   hands each event to one replica, and every replica holds a registry.
  * - **The headcount snapshot**, daily. Idempotent per day, so a restart or a
  *   second replica re-running it replaces the day rather than doubling it.
+ *   The same transaction then publishes whichever special-category
+ *   breakdowns are due (PEO-083): the monthly check lives here, and a month
+ *   holds one publication per breakdown whoever runs it.
  * - **The reminder sweep**, hourly, only when a mailer is given. There is no
  *   reminder endpoint yet (PEO-084), and a sweep without one would claim the
  *   week's reminder and send nothing.
@@ -132,12 +136,27 @@ export async function startBackground(
           if (version === null) return;
           // `ponytail: UTC day. People does not hold a tenant's calendar yet;
           // the publish request carries one, the snapshot has nowhere to read it.`
+          const definitions = version.document.attributes;
           const result = await takeSnapshot(
             { facts: drizzlePeopleFacts(), clock: systemClock },
             scope,
-            { definitions: version.document.attributes },
+            { definitions },
           );
-          if (!result.ok) logger.warn({ tenantId, code: result.error.code }, 'snapshot refused');
+          if (!result.ok) {
+            logger.warn({ tenantId, code: result.error.code }, 'snapshot refused');
+            return;
+          }
+          // `ponytail: default cohort minimum. No tenant setting is stored yet;
+          // when one is, pass it here — it is the change threshold too.`
+          const published = await publishBreakdowns({ clock: systemClock }, scope, { definitions });
+          if (!published.ok) {
+            logger.warn({ tenantId, code: published.error.code }, 'publication refused');
+          } else if (published.value.published.length > 0) {
+            logger.info(
+              { tenantId, count: published.value.published.length },
+              'breakdowns published',
+            );
+          }
         }),
       ),
     ),
