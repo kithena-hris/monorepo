@@ -554,7 +554,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Import and export
 
-### [ ] PEO-038 — Upload, detect, parse
+### [x] PEO-038 — Upload, detect, parse
 
 - **Spec** PRD §14.1, §14.2
 - **Files** `services/people/src/application/import/`
@@ -564,7 +564,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** fixtures for UTF-8-BOM, semicolon-delimited and multi-sheet
   files all parse to the same intermediate shape.
 
-### [ ] PEO-039 — Column mapping
+### [x] PEO-039 — Column mapping
 
 - **Spec** PRD §14.3, §12.4
 - **Files** `services/people/src/application/import/mapping.ts`,
@@ -579,7 +579,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** the module's tests pass with the advisor absent, and a test
   proves an unmatched column cannot become an attribute without a policy.
 
-### [ ] PEO-040 — The dry run
+### [x] PEO-040 — The dry run
 
 - **Spec** PRD §14.4
 - **Files** `services/people/src/application/import/dry-run.ts`
@@ -593,7 +593,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a fixture file covering all three produces exactly the counts
   in PRD §14.4, and nothing is written.
 
-### [ ] PEO-041 — Commit, idempotency, report
+### [x] PEO-041 — Commit, idempotency, report
 
 - **Spec** PRD §14.5
 - **Files** `services/people/src/application/import/commit.ts`
