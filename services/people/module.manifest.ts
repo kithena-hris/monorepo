@@ -33,7 +33,18 @@ export default ModuleManifest.parse({
     'people.import.completed',
     'people.export.completed',
   ],
-  consumes: [],
+  /*
+   * Identity is a platform service rather than a module, so consuming its
+   * events adds nothing to `dependsOn` — every tenant has identity, whether or
+   * not they bought People. The one People event here is its own: the publish
+   * transaction raises it, and the completeness recompute runs off it rather
+   * than inside that transaction.
+   */
+  consumes: [
+    'identity.account.provisioned',
+    'identity.account.profile_captured',
+    'people.schema.published',
+  ],
   entitlement: 'module.people',
   requiresPeopleSource: 'own',
 });
