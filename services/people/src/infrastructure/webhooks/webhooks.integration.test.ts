@@ -122,6 +122,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
+    '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
@@ -156,6 +157,7 @@ beforeAll(async () => {
       ACME,
       versionOf(1, [define({ key: 'job_title' }), define({ key: 'department' })]),
       [],
+      '2026-09-01',
     ),
   );
 });
