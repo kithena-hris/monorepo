@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_TENANT_APP_BASE, tenantCompanies, tenantOrigin } from './tenant-origin.js';
+import {
+  DEFAULT_TENANT_APP_BASE,
+  tenantAppBase,
+  tenantCompanies,
+  tenantOrigin,
+} from './tenant-origin.js';
 import { DEFAULT_SETTINGS } from '../application/org/org.js';
 
 describe('tenantOrigin', () => {
@@ -19,6 +24,27 @@ describe('tenantOrigin', () => {
 
   it('refuses a base with nowhere to put the slug', () => {
     expect(tenantOrigin('https://app.kithena.com', 'acme')).toBeNull();
+  });
+});
+
+describe('tenantAppBase', () => {
+  it('defaults to the local app off production', () => {
+    expect(tenantAppBase({})).toBe(DEFAULT_TENANT_APP_BASE);
+    expect(tenantAppBase({ NODE_ENV: 'test', TENANT_APP_BASE: '' })).toBe(DEFAULT_TENANT_APP_BASE);
+  });
+
+  it('fails closed in production: unset, plain http or slugless is no base at all', () => {
+    for (const TENANT_APP_BASE of [
+      undefined,
+      '',
+      'http://{slug}.app.kithena.com',
+      'https://app.kithena.com',
+    ]) {
+      expect(tenantAppBase({ NODE_ENV: 'production', TENANT_APP_BASE })).toBeNull();
+    }
+    expect(
+      tenantAppBase({ NODE_ENV: 'production', TENANT_APP_BASE: 'https://{slug}.app.kithena.com' }),
+    ).toBe('https://{slug}.app.kithena.com');
   });
 });
 

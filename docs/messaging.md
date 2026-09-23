@@ -328,7 +328,7 @@ waiting to happen; the mark and the name carry their identity instead.
 | `RESEND_FROM`        | messaging | `Name <address@verified-domain>`.                                                      |
 | `RESEND_REPLY_TO`    | messaging | Optional, and worth setting. People answer these.                                      |
 | `MESSAGING_PEOPLE_TOKEN` | both (People) | Guards `/notice`. Absent on messaging: every notice is refused. Absent on People: no sweep. |
-| `TENANT_APP_BASE`    | both (People) | `https://{slug}.app.kithena.com`. The only shape of origin a notice may link to, and how People builds a company's. Defaults to `http://{slug}.app.localhost:3000`. |
+| `TENANT_APP_BASE`    | both (People) | `https://{slug}.app.kithena.com`. The only shape of origin a notice may link to, and how People builds a company's. Defaults to `http://{slug}.app.localhost:3000` in development only. In production it must be set and `https:`; otherwise both services log an error at boot and send no reminder or webhook alert (the events still go out). Deployed from the `TENANT_APP_BASE_STAGING` / `TENANT_APP_BASE_PRODUCTION` repository variables. |
 | `MESSAGING_URL`      | People    | Absent means reminders are not emailed and the sweep is not scheduled.                 |
 
 ### Before the first real send

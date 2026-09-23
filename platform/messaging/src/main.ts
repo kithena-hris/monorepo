@@ -82,7 +82,8 @@ const routes = compose({
    * `just local` serves.
    */
   noticeToken: process.env['MESSAGING_PEOPLE_TOKEN'],
-  tenantAppBase: process.env['TENANT_APP_BASE'] ?? 'http://{slug}.app.localhost:3000',
+  // Defaulted to the local app only in development; see `selectTenantAppBase`.
+  tenantAppBase: process.env['TENANT_APP_BASE'],
   allowLogTransport: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, nothing is recorded and the outcome lives in the response
   // and the structured log — a supported deployment, and the one `just

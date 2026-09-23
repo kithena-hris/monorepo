@@ -14,9 +14,32 @@ import type { OrgStore } from '../application/org/org.js';
  */
 export const DEFAULT_TENANT_APP_BASE = 'http://{slug}.app.localhost:3000';
 
-export function tenantAppBase(env: NodeJS.ProcessEnv): string {
+/**
+ * The base, or null when none may be used.
+ *
+ * **Fails closed in production** (`NODE_ENV=production`, the flag this service
+ * already gates plain-http webhooks on): unset, not `https:`, or with no
+ * `{slug}` is null, and the caller sends no email rather than a link to
+ * localhost. The development default exists only off production.
+ */
+export function tenantAppBase(env: NodeJS.ProcessEnv): string | null {
   const base = env['TENANT_APP_BASE'];
-  return base === undefined || base === '' ? DEFAULT_TENANT_APP_BASE : base;
+  if (env['NODE_ENV'] !== 'production') {
+    return base === undefined || base === '' ? DEFAULT_TENANT_APP_BASE : base;
+  }
+  return base?.startsWith('https://') === true && base.includes('{slug}') ? base : null;
+}
+
+/** `tenantAppBase`, said once at boot when it refuses: an error, because email is off. */
+export function tenantAppBaseOrLog(
+  env: NodeJS.ProcessEnv,
+  log: (message: string) => void,
+): string | null {
+  const base = tenantAppBase(env);
+  if (base === null) {
+    log('TENANT_APP_BASE is unset or not https in production; notice emails are off, events only');
+  }
+  return base;
 }
 
 /** One DNS label: what a slug must be before it goes in front of a host. */

@@ -17,7 +17,7 @@ import { drizzleOrgStore } from './drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
-import { tenantAppBase, tenantCompanies } from './tenant-origin.js';
+import { tenantAppBaseOrLog, tenantCompanies } from './tenant-origin.js';
 import { knownTenants } from './tenants.js';
 import { claimRotation } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
@@ -178,8 +178,11 @@ export async function startBackground(
   );
 
   const mailer = options.mailer ?? reminderMailerFrom(env);
-  if (mailer === undefined) {
-    logger.info('no reminder mailer; reminder sweep not scheduled');
+  const base = tenantAppBaseOrLog(env, (message) => {
+    logger.error(message);
+  });
+  if (mailer === undefined || base === null) {
+    logger.info('no reminder mailer or no tenant app base; reminder sweep not scheduled');
   } else {
     const sweep = sweepReminders({
       inTenant,
@@ -187,7 +190,7 @@ export async function startBackground(
       mailer,
       clock: systemClock,
       calendars: org,
-      company: tenantCompanies(tenantAppBase(env), org),
+      company: tenantCompanies(base, org),
     });
     jobs.push(
       every(HOUR, () =>
