@@ -90,7 +90,7 @@ const people = () =>
     schemas: drizzleSchemaVersions(),
     relations: drizzleRelations(),
     secrets: drizzleSecretStore(ring),
-    uniques: drizzleUniqueClaims(),
+    uniques: drizzleUniqueClaims(ring),
     clock,
     newId,
   });
