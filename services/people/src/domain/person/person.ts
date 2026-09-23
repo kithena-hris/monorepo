@@ -75,6 +75,10 @@ type StatusReason =
   | 'discarded'
   | 'corrected';
 
+/** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
+export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
+export const LEAVING_REASONS = ['resigned', 'dismissed', 'end_of_contract'] as const satisfies readonly LeavingReason[];
+
 /** What identity caches about a person, as `identity_facts_changed` carries it. */
 export interface IdentityFacts {
   readonly name: { readonly given: string; readonly family: string; readonly preferred: string | null } | null;
@@ -303,24 +307,32 @@ export class Person extends AggregateRoot<string> {
     return this.#moveTo('active', 'started', ctx, hireDate);
   }
 
-  startLeave(ctx: EventContext): Result<void> {
+  /** Leave began today on the person's own calendar (§8.5), which is what it is effective from. */
+  startLeave(ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status !== 'active') return err(InvalidTransition(this.#status, 'put on leave'));
-    return this.#moveTo('on_leave', 'leave_started', ctx);
+    return this.#moveTo('on_leave', 'leave_started', ctx, ctx.clock.date(timeZone));
   }
 
-  endLeave(ctx: EventContext): Result<void> {
+  endLeave(ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status !== 'on_leave') return err(InvalidTransition(this.#status, 'brought back'));
-    return this.#moveTo('active', 'leave_ended', ctx);
+    return this.#moveTo('active', 'leave_ended', ctx, ctx.clock.date(timeZone));
   }
 
   /**
-   * Notice was given, from either side.
+   * Notice was given, from either side: `resigned` by the person, `dismissed`
+   * or `end_of_contract` by the employer. Effective from the day it was given,
+   * on the person's calendar.
    *
    * Reachable from `on_leave` as well as `active`: somebody resigns while on
    * parental leave, and requiring them to come back first would be a fiction
    * the record has to carry afterwards.
    */
-  giveNotice(lastWorkingDay: string, ctx: EventContext): Result<void> {
+  giveNotice(
+    lastWorkingDay: string,
+    ctx: EventContext,
+    timeZone: string,
+    reason: LeavingReason = 'resigned',
+  ): Result<void> {
     if (this.#status !== 'active' && this.#status !== 'on_leave') {
       return err(InvalidTransition(this.#status, 'put on notice'));
     }
@@ -329,7 +341,7 @@ export class Person extends AggregateRoot<string> {
     if (!ordered.ok) return ordered;
 
     this.#lastWorkingDay = lastWorkingDay;
-    const moved = this.#moveTo('notice', 'resigned', ctx);
+    const moved = this.#moveTo('notice', reason, ctx, ctx.clock.date(timeZone));
     this.#recordDate('last_working_day', lastWorkingDay, ctx);
     return moved;
   }
@@ -339,11 +351,26 @@ export class Person extends AggregateRoot<string> {
    *
    * Somebody hired who never started still has a record and it still has to be
    * closed; requiring `active` first would leave those open forever.
+   *
+   * **Only once the last working day has come**, on the person's own calendar:
+   * a termination is HR confirming an end (§8.1), and somebody whose last day
+   * is still ahead is on notice, still working and still on the headcount. A
+   * pre-hire is the exception — they never started, so there is no working day
+   * behind them to name, and their record closes on the start date that never
+   * came.
+   *
+   * Raises `status_changed` with the typed reason a report counts, then
+   * `terminated` with HR's free-text note, both effective from the last day.
    */
   terminate(
     lastWorkingDay: string,
     ctx: EventContext,
-    detail: { reason?: string | null; eligibleForRehire?: boolean | null } = {},
+    timeZone: string,
+    detail: {
+      readonly reason: LeavingReason;
+      readonly note?: string | null;
+      readonly eligibleForRehire?: boolean | null;
+    },
   ): Result<void> {
     if (this.#status === 'terminated' || this.#status === 'discarded' || this.#status === 'provisional') {
       return err(InvalidTransition(this.#status, 'terminated'));
@@ -352,15 +379,25 @@ export class Person extends AggregateRoot<string> {
     const ordered = this.#checkLastDay(lastWorkingDay);
     if (!ordered.ok) return ordered;
 
+    if (this.#status !== 'pre_hire' && lastWorkingDay > ctx.clock.date(timeZone)) {
+      return err(
+        failure(
+          'LAST_DAY_NOT_REACHED',
+          `The last working day ${lastWorkingDay} has not come yet; give notice until then`,
+          ['lastWorkingDay'],
+        ),
+      );
+    }
+
     const moves = this.#lastWorkingDay !== lastWorkingDay;
     this.#lastWorkingDay = lastWorkingDay;
-    this.#status = 'terminated';
+    this.#moveTo('terminated', detail.reason, ctx, lastWorkingDay);
     this.#raise(
       'people.person.terminated',
       {
         personId: this.id,
         lastWorkingDay,
-        reason: detail.reason ?? null,
+        reason: detail.note ?? null,
         eligibleForRehire: detail.eligibleForRehire ?? null,
       },
       ctx,
