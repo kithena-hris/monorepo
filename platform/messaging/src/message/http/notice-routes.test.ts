@@ -74,8 +74,7 @@ describe('the notice route', () => {
 
   it('refuses a notice with no company to name', async () => {
     const { handle } = routes();
-    const { companyName: _omitted, ...nameless } = body;
-    const { request, response, recorded } = exchange(TOKEN, nameless);
+    const { request, response, recorded } = exchange(TOKEN, { ...body, companyName: undefined });
     await handle(request, response);
     expect(recorded.status).toBe(422);
   });
