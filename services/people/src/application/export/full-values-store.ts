@@ -4,7 +4,7 @@ import type { FullValuesRequest, FullValuesStore } from './full-values.js';
 
 /**
  * `people.full_values_request`, hand-written against
- * `migrations/20260923220000_people_full_values.sql`. Beside the use case, as
+ * `migrations/20260924160000_people_full_values.sql`. Beside the use case, as
  * the export and import ledgers are: nothing else reads this table.
  */
 
