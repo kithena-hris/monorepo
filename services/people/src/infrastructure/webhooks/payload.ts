@@ -58,7 +58,10 @@ export function filterFor(
       ...payload,
       name:
         payload['name'] != null && allowed.has('given_name') && allowed.has('family_name')
-          ? { ...name, preferred: allowed.has('preferred_name') ? (name['preferred'] ?? null) : null }
+          ? {
+              ...name,
+              preferred: allowed.has('preferred_name') ? (name['preferred'] ?? null) : null,
+            }
           : null,
       employmentStart: allowed.has('hire_date') ? (payload['employmentStart'] ?? null) : null,
     };
@@ -74,14 +77,18 @@ export function filterFor(
    */
   if (envelope.eventName === 'people.person.hired') {
     const name = record(payload['name']);
-    const only = (key: string, field: string) => (allowed.has(key) ? (payload[field] ?? null) : null);
+    const only = (key: string, field: string) =>
+      allowed.has(key) ? (payload[field] ?? null) : null;
     return {
       ...envelope,
       payload: {
         ...payload,
         name:
           payload['name'] != null && allowed.has('given_name') && allowed.has('family_name')
-            ? { ...name, preferred: allowed.has('preferred_name') ? (name['preferred'] ?? null) : null }
+            ? {
+                ...name,
+                preferred: allowed.has('preferred_name') ? (name['preferred'] ?? null) : null,
+              }
             : null,
         workEmail: only('work_email', 'workEmail'),
         employment: only('hire_date', 'employment'),

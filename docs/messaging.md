@@ -1,7 +1,8 @@
 # Messaging
 
-How a person is told something. Today there is exactly one thing to tell them:
-that an account is waiting for them at a company, and here is how to set it up.
+How a person is told something: that an account is waiting for them at a
+company and here is how to set it up (the invitation), or that something needs
+their attention and here is where to deal with it (a notice).
 
 ---
 
@@ -71,9 +72,12 @@ prompt rather than guessed at inside it.
 | ------ | ------------------------------------------------ | ---------------------------- |
 | `POST` | `/api/internal/admin/tenants/<uuid>/invitations` | the back-office, on identity |
 | `POST` | `/api/internal/messaging/invitation`             | identity, on messaging       |
+| `POST` | `/api/internal/messaging/notice`                 | People, on messaging         |
 | `GET`  | `/healthz`                                       | a deploy, on messaging       |
 
-Both `POST`s are guarded by `INTERNAL_API_TOKEN`, compared in constant time by
+The invitation `POST`s are guarded by `INTERNAL_API_TOKEN` (messaging accepts
+`MESSAGING_API_TOKEN` in its place); the notice by `MESSAGING_PEOPLE_TOKEN`, a
+secret of the People–messaging pair alone. All are compared in constant time by
 `presentsInternalToken` in `@kithena/auth-kit`. `/healthz` is not, and returns
 nothing worth having — a status and which transport is composed. Putting the
 shared secret into a smoke test is how the shared secret reaches a workflow log.
@@ -122,6 +126,54 @@ The enrolment token is not in either event. `account.invited` carries its expiry
 and its second channel, and nothing else — which is why messaging cannot be a
 consumer of the topic and has to be handed the link by the service that minted
 it.
+
+---
+
+## Notices
+
+A notice is one thing a person should know and one link to act on it. They
+share one template (`src/message/domain/notice.ts`, the invitation's card cut
+down to a heading, a sentence and a button, Reach-resolved through the same
+`palette.ts`) and differ only in their copy. Each is recorded in
+`messaging.delivery` under its own `kind`, outcome only, exactly as an
+invitation is.
+
+```json
+{
+  "tenantId": "…",
+  "email": "ada@acme.example",
+  "url": "https://app.kithena.com/people",
+  "dedupeKey": "<person id>/<claimed at>",
+  "notice": { "kind": "profile_reminder", "missing": 3 }
+}
+```
+
+The link must be on `APP_ORIGIN` — the tenant app, not the auth origin — or the
+notice is refused as `untrusted_link`, for the same open-redirect reason as the
+invitation's. `dedupeKey` is the caller's, hashed with the tenant before it
+becomes the provider's idempotency key, so a retry of one claim is one message.
+
+### `profile_reminder` (PEO-084)
+
+People's completeness sweep sends it: on day 1, the first sweep after a
+person's profile gains a gap they own, then weekly until it closes, and never
+more than one a week however many fields are missing (PRD §8.4). The cap is
+People's, enforced by a conditional claim on `people.completeness_gap`, not
+this service's.
+
+It says how many details are missing and names none of them. The keys are the
+tenant's schema and a value is personal data; an email is forwarded, and the
+person reads the list signed in on the page the button opens. The link is the
+person's own People area and carries no id.
+
+### `webhook_disabled` (PEO-093)
+
+People sends it once, after the transaction that disables a webhook endpoint
+at its 24-hour ceiling commits, to the alert address the endpoint was
+registered with. It names the receiver's host and nothing after it — a path or
+a query can carry the receiver's own token — and links to People. The durable
+notice is `people.webhook.endpoint_disabled`; this email is best effort beside
+it, keyed on the endpoint so a retry is one message.
 
 ---
 
@@ -259,6 +311,9 @@ waiting to happen; the mark and the name carry their identity instead.
 | `RESEND_API_KEY`     | messaging | Absent locally. Required in production, where the service refuses to start without it. |
 | `RESEND_FROM`        | messaging | `Name <address@verified-domain>`.                                                      |
 | `RESEND_REPLY_TO`    | messaging | Optional, and worth setting. People answer these.                                      |
+| `MESSAGING_PEOPLE_TOKEN` | both (People) | Guards `/notice`. Absent on messaging: every notice is refused. Absent on People: no sweep. |
+| `APP_ORIGIN`         | both (People) | The tenant app. The only origin a notice may link to, and where People builds it.     |
+| `MESSAGING_URL`      | People    | Absent means reminders are not emailed and the sweep is not scheduled.                 |
 
 ### Before the first real send
 

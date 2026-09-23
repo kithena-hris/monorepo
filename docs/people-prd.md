@@ -317,7 +317,7 @@ Every field on a definition, and why it exists:
 | `collectAt` | enum | `signup`, `enrolment`, `onboarding`, `hr_only`, `anytime` — which moment asks for it |
 | `classification` | `FieldPolicy` | The existing contract shape: classification, piiKind, exportable, aiEligible, retention |
 | `effectiveDated` | boolean | Whether a change to this value is a dated fact (salary, job title) or a correction (a typo in a phone number) |
-| `unique` | `none` \| `tenant` \| `legal_entity` | Employee number, national identifier, work email |
+| `unique` | `none` \| `tenant` \| `legal_entity` | Employee number (per legal entity), national identifier (per tenant: it names one human, and a tenant holds one record per human), work email. Enforced on a keyed hash of the normalised value, never the value, so an encrypted attribute may be unique too (§11.2) |
 | `encrypted` | boolean | Forced true for `piiKind: 'financial'` and for national identifiers. Value lives in `people.person_secret`, never in JSONB and never in an event |
 | `indexed` | boolean | Promotes the attribute to a generated column so it can be filtered and sorted at directory scale |
 | `includeInDirectory` | boolean | Appears in the searchable employee directory |
@@ -926,9 +926,9 @@ people.person_secret          (tenant_id, person_id, attribute_key,
                                created_at)                        -- separate RLS
 
 people.attribute_unique       (tenant_id, attribute_key, scope_id,
-                               normalised_value, person_id)
+                               value_hash bytea, key_id, person_id)
                                UNIQUE (tenant_id, attribute_key, scope_id,
-                                       normalised_value)
+                                       value_hash)      -- HMAC, never the value
 
 people.outbox                 -- same shape as platform.outbox
 ```
@@ -955,12 +955,35 @@ shape is done without touching what was recorded.
 
 **No runtime DDL, ever.** A uniqueness rule on a tenant-defined attribute is
 enforced by a row in `people.attribute_unique` with a real unique index over
-`(tenant_id, attribute_key, scope_id, normalised_value)`, written in the same
+`(tenant_id, attribute_key, scope_id, value_hash)`, written in the same
 transaction as the value. This is the point in the design most likely to be
 implemented as `CREATE INDEX` at runtime, and the reason not to is the repository
 rule that migrations are expand-contract only. Runtime DDL against a
 multi-tenant production database is an outage with a configuration screen in
 front of it.
+
+**A unique claim holds a keyed hash, never the value.** `value_hash` is
+HMAC-SHA-256 of the normalised value — a national identifier as its country's
+rule normalises it, anything else trimmed and casefolded — under a key derived
+per tenant, by HKDF, from the master key that wraps secrets. The derived key is
+never stored; `key_id` names the master key it came from. Every attribute is
+claimed this way, not only encrypted ones: a plaintext index of employee
+numbers is needless, and a plaintext index of national identifiers would be the
+ciphertext's plaintext stored beside it. An unkeyed hash is not enough — a NIF
+is 10^8 guesses. Rotating the master key re-computes every claim from its value
+(the person row, or the secret) in bounded, idempotent batches, normalised by
+the attribute's definition in the version the record was written under; until a
+claim is re-keyed, a claim is looked for under every key the deployment holds,
+behind a per-rule lock, so no duplicate slips in between. A write locks every
+rule it claims under first, in one order, so two writes naming the same
+attributes queue rather than deadlock. A new key is rolled out known before it
+is current (`.env.example` has the four steps), so no writer ever claims under
+a key another writer cannot look under; the rotation refuses to run when that
+step was skipped. A duplicate the rotation finds — two people already holding
+one value — is not a failure: the stale claim keeps its old key, so the value
+stays unique, and HR sees one `people.unique_claim.conflict` event and a
+`unique_conflict` row on the grid naming both people, never the value, until one
+of them changes it.
 
 **Secrets are not in the row.** Bank accounts, national identifiers and tax
 identifiers live in `people.person_secret` under envelope encryption, with their
@@ -1062,7 +1085,9 @@ derived artifact computed from the union of both.**
 - The DSAR manifest is generated per tenant, per request, from the published
   schema version the record was written under — which is why the version is
   stored on the person row.
-- Retention jobs read the same source.
+- Retention jobs read the same source, and erase a value's unique claim with
+  the value: a keyed hash of an erased identifier is still that identifier to
+  whoever holds the key.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that
@@ -1228,7 +1253,9 @@ the same application layer.
 | Signing | HMAC over the raw body with a per-endpoint secret, rotatable with an overlap window |
 | Ordering | Per person, guaranteed. Across people, not |
 | Delivery | At least once. Every payload carries `eventId`; consumers deduplicate on it |
-| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told |
+| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address is emailed through `platform/messaging` |
+| Alert address | Required when an endpoint is registered: a request without a valid one is refused, 400, naming `alertEmail`. An endpoint registered before this rule may have none and is told through the event alone |
+| Durability | The retry schedule is `next_attempt_at` on each delivery row. A bounded poller passes every known tenant on boot and every minute, so a retry pending across a restart resumes when it falls due. A pass claims a delivery with a short lease before sending, so two replicas never send one twice and a crash mid-send is a resend |
 | Replay | Any delivery re-sendable from the settings screen for the retention window |
 | Filtering | Per endpoint: which events, and which attributes within them (§10.3) |
 | Payload | The event envelope, unchanged, minus what the allowlist excludes |
@@ -2062,7 +2089,7 @@ deleted and cannot have their classification loosened.
 
 ### Identification & right to work
 
-`national_id` (country-typed, encrypted), `tax_id` (encrypted), `passport_number`
+`national_id` (country-typed, encrypted, unique per tenant), `tax_id` (encrypted), `passport_number`
 (encrypted), `passport_country`, `passport_expiry`, `visa_type`,
 `work_permit_number` (encrypted), `work_permit_expiry`,
 `right_to_work_checked_on`, `right_to_work_checked_by`, `driving_licence_number`

@@ -119,8 +119,10 @@ and its prompts are refused.
 The DSAR export manifest is computed and printed by `pnpm codegen` but not
 written to a file; the People DSAR export reads the tenant's published schema
 version instead, which covers every attribute a person record can hold.
-Retention erases a due value from the person row, `people.person_secret` and
-every history row for that key. History rows are redacted (value NULL,
+Retention erases a due value from the person row, `people.person_secret`,
+its unique claim and every history row for that key. A unique claim never held
+the value: `people.attribute_unique` stores an HMAC under a per-tenant key
+derived from the secrets' master key, so a dump of it yields no identifier. History rows are redacted (value NULL,
 `redacted_at` and `redaction_reason` stamped) rather than deleted; the history
 trigger permits that one change and nothing else.
 

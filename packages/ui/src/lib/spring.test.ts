@@ -14,7 +14,7 @@ import {
 } from './spring';
 
 /*
- * The physics is the source of truth and `preset.css` is a copy of it. A copy
+ * The physics is the source of truth and `theme.css` is a copy of it. A copy
  * with no test is a copy that drifts, so the last block here re-derives every
  * easing and asserts the stylesheet still holds what the solver produces.
  */
@@ -182,8 +182,8 @@ describe('rubberband', () => {
   });
 });
 
-describe('preset.css', () => {
-  const css = readFileSync(join(import.meta.dirname, '../styles/preset.css'), 'utf8');
+describe('theme.css', () => {
+  const css = readFileSync(join(import.meta.dirname, '../styles/theme.css'), 'utf8');
 
   it.each(Object.entries(springs))(
     'holds the solved curve for --ease-spring-%s',

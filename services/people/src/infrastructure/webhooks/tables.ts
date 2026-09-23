@@ -18,6 +18,8 @@ export const webhookEndpoint = people.table('webhook_endpoint', {
   previousSecretExpiresAt: timestamp('previous_secret_expires_at', { withTimezone: true }),
   disabledAt: timestamp('disabled_at', { withTimezone: true }),
   disabledReason: text('disabled_reason'),
+  /** `20260924120100`: who is emailed when the endpoint is disabled. */
+  alertEmail: text('alert_email'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

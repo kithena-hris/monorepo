@@ -12,7 +12,8 @@
     "./tokens": "./src/tokens/index.ts",
     "./brand/mark-data-uri": "./src/brand/mark-data-uri.ts",
     "./brand/kithena-mark-data-uri": "./src/brand/kithena-mark-data-uri.ts",
-    "./tailwind-preset.css": "./src/styles/preset.css"
+    "./tailwind-preset.css": "./src/styles/preset.css",
+    "./theme.css": "./src/styles/theme.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -102,6 +102,17 @@ describe('reading', () => {
     expect((second.body as { items: { id: string }[] }).items.map((p) => p.id)).toEqual([BEA]);
   });
 
+  it('filters on a tenant-defined attribute, and refuses one the caller cannot', async () => {
+    const { call, store } = setup();
+    const bea = store.rows.get(BEA);
+    if (bea) bea.fields.custom['job_title'] = 'Engineer';
+    const found = await call({ url: '/v1/people?filter=job_title:Engineer' });
+    expect((found.body as { items: { id: string }[] }).items.map((p) => p.id)).toEqual([BEA]);
+
+    expect((await call({ url: '/v1/people?filter=nope' })).status).toBe(422);
+    expect((await call({ url: '/v1/people?filter=salary:1' })).status).toBe(403);
+  });
+
   it('refuses a malformed asOf rather than guessing', async () => {
     const { call } = setup();
     const answer = await call({ url: `/v1/people/${ADA}?asOf=March` });
