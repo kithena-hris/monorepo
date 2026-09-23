@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as z from 'zod';
-import { EVENT_NAMESPACE, peopleEvents, type DefinedEvent } from '@kithena/contracts';
+import {
+  EVENT_NAMESPACE,
+  identityEvents,
+  peopleEvents,
+  type DefinedEvent,
+} from '@kithena/contracts';
 import { classifiedFieldsOf } from '@kithena/testing';
 
 import manifest from '../../module.manifest.js';
@@ -28,10 +33,19 @@ describe('what the manifest declares matches the registry', () => {
     }
   });
 
-  it('consumes nothing', () => {
-    // People is upstream of everything. The day it consumes another module's
-    // event, it has a dependency, and `dependsOn: []` stops being true.
-    expect(manifest.consumes).toEqual([]);
+  it('consumes no other module', () => {
+    // People is upstream of every module. The day it consumes another
+    // module's event, it has a dependency, and `dependsOn: []` stops being
+    // true. Identity is a platform service every tenant has, and its own
+    // events are its own.
+    for (const name of manifest.consumes) {
+      expect(name.startsWith('identity.') || name.startsWith(`${manifest.key}.`), name).toBe(true);
+    }
+  });
+
+  it('consumes only events that exist', () => {
+    const known = [...OWN, ...(identityEvents as readonly DefinedEvent[])].map(nameOf);
+    for (const name of manifest.consumes) expect(known, name).toContain(name);
   });
 });
 

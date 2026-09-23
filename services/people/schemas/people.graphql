@@ -3,15 +3,140 @@
 extend schema
   @link(url: "https://specs.apollo.dev/federation/v2.6", import: ["@key"])
 
+type AddressAttribute {
+  key: String
+  country: String
+  line1: String
+  line2: String
+  city: String
+  subdivision: String
+  postcode: String
+}
+
+input AddressInput {
+  country: String!
+  line1: String!
+  line2: String
+  city: String!
+  subdivision: String
+  postcode: String
+}
+
+"""
+One attribute the viewer may read. A withheld attribute is absent from the list.
+"""
+union Attribute = TextAttribute | NumberAttribute | BooleanAttribute | DateAttribute | MoneyAttribute | ListAttribute | AddressAttribute | SealedAttribute | RepeatingAttribute
+
+type AttributeDescriptor {
+  key: String
+  sectionKey: String
+  dataType: String
+  cardinality: String
+  label: String
+}
+
+input AttributeValueInput {
+  key: String!
+  text: String
+  number: Float
+  boolean: Boolean
+  money: MoneyInput
+  list: [String!]
+  address: AddressInput
+  clear: Boolean
+}
+
+type BooleanAttribute {
+  key: String
+  value: Boolean
+}
+
+"""
+A calendar date (YYYY-MM-DD) or an ISO 8601 instant, per the attribute.
+"""
+type DateAttribute {
+  key: String
+  value: String
+}
+
+type HistoryEntry {
+  id: ID
+  attributeKey: String
+  effectiveFrom: String
+  recordedAt: String
+  supersedes: ID
+}
+
+type ListAttribute {
+  key: String
+  values: [String!]
+}
+
+"""
+Minor units as a string: an Int is 32 bits, and money is never a float.
+"""
+type MoneyAttribute {
+  key: String
+  amountMinor: String
+  currency: String
+}
+
+input MoneyInput {
+  amountMinor: String!
+  currency: String!
+}
+
+type Mutation {
+  updatePerson(id: ID!, changes: [AttributeValueInput!]!, effectiveFrom: String): Person
+  correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String): HistoryEntry
+}
+
+type NumberAttribute {
+  key: String
+  value: Float
+}
+
+type PeopleSchema {
+  version: Int
+  checksum: String
+  publishedAt: String
+  attributes: [AttributeDescriptor!]
+}
+
 type Person
   @key(fields: "id")
 {
   id: ID
-  givenName: String
-  familyName: String
-  workEmail: String
+  status: String
+  schemaVersion: Int
+  attributes: [Attribute!]
+}
+
+union PersonAttribute = TextAttribute | NumberAttribute | BooleanAttribute | DateAttribute | MoneyAttribute | ListAttribute | AddressAttribute | SealedAttribute
+
+type PersonPage {
+  nodes: [Person!]
+  nextCursor: String
 }
 
 type Query {
-  person(id: ID!): Person
+  person(id: ID!, asOf: String): Person
+  people(first: Int, after: String, asOf: String): PersonPage
+  peopleSchema(version: Int): PeopleSchema
+}
+
+type RepeatingAttribute {
+  key: String
+  items: [PersonAttribute!]
+}
+
+"""An encrypted value. Only its last four characters are ever served."""
+type SealedAttribute {
+  key: String
+  last4: String
+}
+
+type TextAttribute {
+  key: String
+  value: String
 }

@@ -47,6 +47,9 @@ export default tseslint.config(
       // ESLint does not read `.gitignore`.
       '**/.vercel/**',
       '**/.output/**',
+      // Agent worktrees are full checkouts nested inside this one. Linting from
+      // the root walked every copy of the repository and ran out of heap.
+      '.claude/**',
     ],
   },
   ...tseslint.configs.strictTypeChecked,
