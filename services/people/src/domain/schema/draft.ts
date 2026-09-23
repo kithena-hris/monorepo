@@ -39,7 +39,17 @@ export interface Section extends z.infer<typeof SectionInput> {
   readonly archivedAt: string | null;
 }
 
-export type Attribute = AttributeDefinition & { readonly archivedAt: string | null };
+/**
+ * An attribute as the draft holds it.
+ *
+ * The same shape the contract defines, with no extra "archived" flag beside
+ * `deprecatedAt`. There was one, and it was a second column for one fact:
+ * `people.attribute_definition` has `deprecated_at` and nothing else, so a
+ * draft carrying both would have had to decide which one storage meant.
+ * Deprecated is the word the contract uses and the honest one — hidden from
+ * forms, still exported, still in history.
+ */
+export type Attribute = AttributeDefinition;
 
 /**
  * How strict a requiredness rule is, as an order.
@@ -120,7 +130,7 @@ export class SchemaDraft {
 
   liveAttributes(): readonly Attribute[] {
     return [...this.#attributes.values()]
-      .filter((a) => a.archivedAt === null && a.deprecatedAt === null)
+      .filter((a) => a.deprecatedAt === null)
       .toSorted((a, b) => a.order - b.order);
   }
 
@@ -197,9 +207,8 @@ export class SchemaDraft {
     const readable = this.#checkReadableByOwner(definition);
     if (!readable.ok) return readable;
 
-    const attribute: Attribute = { ...definition, archivedAt: null };
-    this.#attributes.set(attribute.key, attribute);
-    return ok(attribute);
+    this.#attributes.set(definition.key, definition);
+    return ok(definition);
   }
 
   /**
@@ -240,7 +249,7 @@ export class SchemaDraft {
     const readable = this.#checkReadableByOwner(next);
     if (!readable.ok) return readable;
 
-    const attribute: Attribute = { ...next, archivedAt: current.archivedAt };
+    const attribute: Attribute = { ...next, deprecatedAt: current.deprecatedAt };
     this.#attributes.set(key, attribute);
     return ok(attribute);
   }
@@ -260,9 +269,9 @@ export class SchemaDraft {
     if (current.origin === 'core') {
       return err(failure('CORE_ATTRIBUTE', `${key} is shipped by Kithena and cannot be archived`, ['key']));
     }
-    if (current.archivedAt !== null) return ok(current);
+    if (current.deprecatedAt !== null) return ok(current);
 
-    const archived: Attribute = { ...current, archivedAt: clock.instant() };
+    const archived: Attribute = { ...current, deprecatedAt: clock.instant() };
     this.#attributes.set(key, archived);
     return ok(archived);
   }

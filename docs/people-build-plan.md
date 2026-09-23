@@ -382,7 +382,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Application
 
-### [ ] PEO-024 — Configure and publish the schema
+### [x] PEO-024 — Configure and publish the schema
 
 - **Spec** PRD §9.3
 - **Files** `services/people/src/application/schema/`
