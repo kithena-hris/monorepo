@@ -1140,6 +1140,24 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
+- [x] **PEO-118** People never exited on SIGTERM: `startTelemetry` caught the
+      signal to flush spans and nothing else, so the database pool, the Kafka
+      consumers and the pollers kept the process alive until it was SIGKILLed,
+      mid-request and mid-job. The acceptance harness SIGKILLed it after 3 s
+      and said so in a comment. *Landed:* `@kithena/telemetry` owns the stop —
+      `onShutdown(name, step)` registers a step, `drain(server)` stops
+      accepting and waits for requests in flight; on SIGTERM or SIGINT every
+      step runs, spans are flushed within 2 s, and the process exits 0, or 1
+      when a step failed or `SHUTDOWN_DEADLINE_MS` (10 s) passed, naming the
+      steps still running. People drains HTTP then closes the export queue,
+      the Temporal worker, the webhook poller and its pool; its consumers and
+      background jobs finish the one in hand and close theirs. Time Off,
+      identity (and its consumer) and messaging drain the same way. Proven by
+      `shutdown.integration.test.ts`: the real `main.ts` with Postgres and
+      Redpanda answers a half-sent request after SIGTERM, refuses a new one,
+      exits 0; a request that never finishes exits 1 at the deadline. The
+      harness now fails a run whose server outlives SIGTERM by 15 s.
+      *(PRD §18)*
 
 ## Blocked, and by what
 
