@@ -295,3 +295,93 @@ describe('writes over Postgres', () => {
     expect([...events][0]?.['n']).toBe(1);
   });
 });
+
+describe('the lifecycle dates, hired and corrected over Postgres', () => {
+  const INITECH = '00000000-0000-4000-8000-00000000000c';
+  const LIN = '00000000-0000-4000-8000-0000000000a4';
+  const dates = ['hire_date', 'last_working_day'].map((key) =>
+    define({ key, dataType: 'date', typeConfig: { kind: 'date' } }),
+  );
+  const names = ['given_name', 'family_name', 'work_email'].map((key) => define({ key }));
+  const lifecycleRows = async () => [
+    ...(await admin.execute(sql`
+      SELECT id, attribute_key, value #>> '{}' AS value, supersedes
+        FROM people.person_attribute_history
+       WHERE person_id = ${LIN}::uuid
+       ORDER BY recorded_at, id`)),
+  ];
+
+  it('hires through PersonAccess.hire, and both dates correct against the rows the lifecycle wrote', async () => {
+    await inTenant(INITECH, async ({ tx }) => {
+      await drizzleSchemaRepository().appendVersion(
+        tx,
+        INITECH,
+        versionOf(1, [...names, ...dates]),
+        [],
+        '2026-09-01',
+      );
+      await drizzlePersonRepository().create(
+        tx,
+        Person.rehydrate({
+          id: LIN,
+          tenantId: INITECH,
+          status: 'provisional',
+          identityAccountId: null,
+          hireDate: null,
+          lastWorkingDay: null,
+        }),
+        { givenName: 'Lin', familyName: 'Chen', workEmail: 'lin@initech.test' },
+      );
+    });
+
+    const hired = await inTenantResult(inTenant, INITECH, (tx) =>
+      people.hire(tx, { ...asking(hr, INITECH), personId: LIN, hireDate: '2026-03-01' }),
+    );
+    expect(hired.ok && hired.value.status).toBe('active');
+    const [hireRow] = await lifecycleRows();
+    expect(hireRow).toMatchObject({ attribute_key: 'hire_date', value: '2026-03-01' });
+
+    // Notice through the aggregate and the repository: no transport gives notice yet.
+    await inTenant(INITECH, async ({ tx }) => {
+      const snapshot = await drizzlePersonRepository().load(tx, INITECH, LIN);
+      if (!snapshot) throw new Error('Lin is missing');
+      const lin = Person.rehydrate(snapshot);
+      const given = lin.giveNotice('2026-12-31', {
+        clock: fixedClock('2026-09-22T09:00:00.000Z'),
+        newEventId: () => {
+          ids += 1;
+          return `01890000-0000-7000-8000-${String(ids).padStart(12, '0')}`;
+        },
+        actor: { kind: 'system', process: 'integration-test' },
+        correlationId: '00000000-0000-4000-8000-0000000000c1',
+        causationId: null,
+      });
+      if (!given.ok) throw new Error(given.error.message);
+      await drizzlePersonRepository().save(tx, lin);
+    });
+    const noticeRow = (await lifecycleRows()).find((r) => r['attribute_key'] === 'last_working_day');
+    expect(noticeRow).toMatchObject({ value: '2026-12-31' });
+
+    const correct = (supersedes: unknown, value: string) =>
+      inTenantResult(inTenant, INITECH, (tx) =>
+        people.correct(tx, {
+          ...asking(hr, INITECH),
+          personId: LIN,
+          supersedes: String(supersedes),
+          value,
+          reason: 'entered wrongly',
+        }),
+      );
+    expect((await correct(hireRow?.['id'], '2026-02-01')).ok).toBe(true);
+    expect((await correct(noticeRow?.['id'], '2026-11-30')).ok).toBe(true);
+
+    const [row] = [
+      ...(await admin.execute(sql`
+        SELECT hire_date::text AS hire_date, last_working_day::text AS last_working_day, custom
+          FROM people.person WHERE id = ${LIN}::uuid`)),
+    ];
+    expect(row).toMatchObject({ hire_date: '2026-02-01', last_working_day: '2026-11-30', custom: {} });
+    const corrections = (await lifecycleRows()).filter((r) => r['supersedes'] !== null);
+    expect(corrections.map((r) => r['supersedes'])).toEqual([hireRow?.['id'], noticeRow?.['id']]);
+  });
+});

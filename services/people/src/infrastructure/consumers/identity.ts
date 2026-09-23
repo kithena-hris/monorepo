@@ -1,7 +1,6 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import * as z from 'zod';
 import { publish } from '@kithena/db-kit';
-import { CalendarDate, type Actor } from '@kithena/contracts';
+import { AccountsPage, type Actor } from '@kithena/contracts';
 import type { Clock, PendingEvent } from '@kithena/domain-kit';
 
 import type {
@@ -140,25 +139,6 @@ export async function captureProfile(
 
 /* ------------------------------------------------------------ directory -- */
 
-const AccountsPage = z.object({
-  accounts: z.array(
-    z.object({
-      accountId: z.uuid(),
-      workEmail: z.email(),
-      timeZone: z.string().min(1),
-      employmentStart: CalendarDate,
-      name: z
-        .object({
-          given: z.string().min(1),
-          family: z.string().min(1),
-          preferred: z.string().nullable(),
-        })
-        .nullable(),
-    }),
-  ),
-  nextCursor: z.string().nullable(),
-});
-
 export interface HttpDirectoryConfig {
   /** Identity's base URL. */
   readonly baseUrl: string;
@@ -168,7 +148,8 @@ export interface HttpDirectoryConfig {
 }
 
 /**
- * Identity's accounts, over the wire: `GET /api/internal/tenants/<id>/accounts`.
+ * Identity's accounts, over the wire: `GET /api/internal/tenants/<id>/accounts`,
+ * in the shape `AccountsPage` in `@kithena/contracts` fixes for both ends.
  *
  * Throws on anything but a well-formed page. `reconcile` turns that into a
  * failure, and because a run is idempotent the remedy for a half-finished one

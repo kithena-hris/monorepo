@@ -9,6 +9,9 @@ import { logger, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry'
 import { publishBreakdowns } from '../application/analytics/publish.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
+import { reconcile } from '../application/reconcile.js';
+import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
+import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
@@ -31,6 +34,12 @@ import { tenantTransaction } from './unit-of-work.js';
  * - **The reminder sweep**, hourly, only when a mailer is given. There is no
  *   reminder endpoint yet (PEO-084), and a sweep without one would claim the
  *   week's reminder and send nothing.
+ * - **Reconciliation** (§8.2, "People is bought later"), for a tenant within
+ *   one tick of People first learning of it, then again once a day. It reads
+ *   identity's account listing, so it runs only when `IDENTITY_URL` and a
+ *   token (`PEOPLE_IDENTITY_TOKEN`, else `INTERNAL_API_TOKEN`) are set.
+ *   Idempotent on the account, so a re-run or a second replica creates
+ *   nothing twice.
  *
  * Tenants come from `people.tenant`, which the consumer fills. One tenant at a
  * time, each in its own transaction; one tenant failing is logged and the rest
@@ -41,6 +50,9 @@ import { tenantTransaction } from './unit-of-work.js';
  */
 
 const HOUR = 3_600_000;
+
+const RECONCILE_TICK = 5 * 60_000;
+const RECONCILE_AGAIN = 24 * HOUR;
 
 export interface BackgroundOptions {
   readonly registry?: PolicyRegistry;
@@ -164,6 +176,46 @@ export async function startBackground(
         forEachTenant('reminders', async (tenantId) => {
           const { failed } = await sweep(tenantId);
           if (failed > 0) logger.warn({ tenantId, failed }, 'reminders failed to send');
+        }),
+      ),
+    );
+  }
+
+  const identityUrl = env['IDENTITY_URL'];
+  const identityToken = env['PEOPLE_IDENTITY_TOKEN'] ?? env['INTERNAL_API_TOKEN'];
+  if (!identityUrl || !identityToken) {
+    logger.info('IDENTITY_URL or PEOPLE_IDENTITY_TOKEN unset; reconciliation not scheduled');
+  } else {
+    const run = reconcile({
+      directory: httpAccountDirectory({ baseUrl: identityUrl, internalToken: identityToken }),
+      people: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
+      inTenant,
+    });
+    /*
+     * When each tenant was last reconciled by this process. A tenant not in
+     * here — new since the last tick, or since boot — runs on the next tick.
+     *
+     * `ponytail: per process, so a restart re-runs every tenant once. That is
+     * one listing per tenant, and idempotent.`
+     */
+    const reconciledAt = new Map<string, number>();
+    jobs.push(
+      every(RECONCILE_TICK, () =>
+        forEachTenant('reconcile', async (tenantId) => {
+          const at = reconciledAt.get(tenantId);
+          if (at !== undefined && Date.now() - at < RECONCILE_AGAIN) return;
+          const result = await run(tenantId, {
+            actor: { kind: 'system', process: 'people-reconcile' },
+            correlationId: randomUUID(),
+            causationId: null,
+          });
+          // A failure is retried next tick rather than in a day.
+          if (!result.ok) {
+            logger.warn({ tenantId, code: result.error.code }, 'reconciliation failed');
+            return;
+          }
+          reconciledAt.set(tenantId, Date.now());
+          if (result.value.created > 0) logger.info({ tenantId, ...result.value }, 'reconciled');
         }),
       ),
     );

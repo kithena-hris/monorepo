@@ -907,7 +907,7 @@ it is written down here rather than left in a PR description.
       sweep (PEO-026) are built but nothing calls them. Needs a tenant source
       and the wiring in `main.ts`. *Landed as `people.tenant`, filled by the
       consumer; the sweep is scheduled only once PEO-084 supplies a mailer.*
-- [ ] **PEO-081** Identity has no endpoint listing a tenant's accounts.
+- [x] **PEO-081** Identity has no endpoint listing a tenant's accounts.
       Reconciliation (PEO-028) is written against an assumed
       `GET /api/internal/tenants/<id>/accounts` returning
       `{ accounts, nextCursor }`; identity must serve that shape or the
@@ -971,12 +971,12 @@ it is written down here rather than left in a PR description.
       sidebar item is still disabled, and the remote's host needs `no-cache`
       and CORS for `remoteEntry.js` and `routes.json`. Settle the CSS question
       before PEO-047. Found in PEO-046.
-- [ ] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
+- [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
       hires through `Person.hire`; it and any later hire path must call
       `shareIdentityFacts` and raise `people.person.hired`. Found in PEO-029.
-- [ ] **PEO-096** Correcting `last_working_day` writes into `custom` while
+- [x] **PEO-096** Correcting `last_working_day` writes into `custom` while
       every reader uses the typed column, the same bug PEO-029 fixed for
       `hire_date`. A hire-date correction also does not re-evaluate status.
       Found in PEO-029. *(PRD §8.5)*

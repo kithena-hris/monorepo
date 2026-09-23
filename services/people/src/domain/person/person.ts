@@ -9,6 +9,8 @@ import {
 } from '@kithena/domain-kit';
 import { TenantId, type Actor, type ChangedAttribute } from '@kithena/contracts';
 
+import { record, type HistoryEntry } from './history.js';
+
 /**
  * One employment record, and the states it may be in.
  *
@@ -108,6 +110,59 @@ export function identityFactsOf(values: Readonly<Record<string, unknown>>): Iden
   };
 }
 
+/**
+ * What `people.person.hired` carries beyond the aggregate's own columns.
+ *
+ * `legalEntityId` may be null: a tenant whose published schema has no legal
+ * entity attribute has nothing to put there, and the import does not demand
+ * one it does not define.
+ */
+export interface HireFacts {
+  readonly legalEntityId: string | null;
+  readonly name: { readonly given: string; readonly family: string; readonly preferred: string | null };
+  readonly workEmail: string;
+  readonly managerId: string | null;
+  readonly orgUnitId: string | null;
+  readonly schemaVersion: number;
+  readonly sourceOfRecord: 'own' | 'external';
+}
+
+/**
+ * The hire's facts, read off a record's values, or which ones are missing.
+ *
+ * §14.4: a person with no legal name or work email is a record nobody can
+ * find, match or invite, so a hire without them is refused rather than
+ * published half-empty. `sourceOfRecord` is `own` because a hire through
+ * People is People's own record; a mirrored one arrives as
+ * `synced_from_external` instead.
+ */
+export function hireFactsOf(
+  values: Readonly<Record<string, unknown>>,
+  legalEntityId: string | null,
+  schemaVersion: number,
+): Result<HireFacts> {
+  const given = text(values['given_name']);
+  const family = text(values['family_name']);
+  const workEmail = text(values['work_email']);
+  if (given === null || family === null || workEmail === null) {
+    const missing = [
+      ...(given === null ? ['given_name'] : []),
+      ...(family === null ? ['family_name'] : []),
+      ...(workEmail === null ? ['work_email'] : []),
+    ];
+    return err(failure('HIRE_INCOMPLETE', `A hire needs ${missing.join(', ')}`, missing));
+  }
+  return ok({
+    legalEntityId,
+    name: { given, family, preferred: text(values['preferred_name']) },
+    workEmail,
+    managerId: text(values['manager_id']),
+    orgUnitId: text(values['org_unit_id']),
+    schemaVersion,
+    sourceOfRecord: 'own',
+  });
+}
+
 const InvalidTransition = (from: PersonState, action: string) =>
   failure('INVALID_TRANSITION', `A record that is ${from} cannot be ${action}`);
 
@@ -117,6 +172,9 @@ export class Person extends AggregateRoot<string> {
   #lastWorkingDay: string | null;
   readonly #tenantId: TenantId;
   readonly #identityAccountId: string | null;
+  /** Lifecycle dates as history rows, drained by the repository with the events. */
+  #history: readonly HistoryEntry[] = [];
+  #lastEventId: string | null = null;
 
   private constructor(snapshot: PersonSnapshot) {
     super(snapshot.id);
@@ -196,12 +254,34 @@ export class Person extends AggregateRoot<string> {
    * data-entry ritual, and the intermediate state would be false the moment it
    * was written.
    */
-  hire(hireDate: string, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
+  hire(hireDate: string, facts: HireFacts, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
     if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'hired'));
 
     this.#hireDate = hireDate;
     const started = hireDate <= ctx.clock.date(timeZone);
-    return this.#moveTo(started ? 'active' : 'pre_hire', 'hired', ctx);
+    const moved = this.#moveTo(started ? 'active' : 'pre_hire', 'hired', ctx);
+    if (!moved.ok) return moved;
+
+    this.#raise(
+      'people.person.hired',
+      {
+        personId: this.id,
+        identityAccountId: this.#identityAccountId,
+        legalEntityId: facts.legalEntityId,
+        name: facts.name,
+        workEmail: facts.workEmail,
+        employment: { from: hireDate, to: null },
+        status: started ? 'active' : 'pending',
+        managerId: facts.managerId,
+        orgUnitId: facts.orgUnitId,
+        schemaVersion: facts.schemaVersion,
+        sourceOfRecord: facts.sourceOfRecord,
+      },
+      ctx,
+      hireDate,
+    );
+    this.#recordDate('hire_date', hireDate, ctx);
+    return ok(undefined);
   }
 
   /** Their first day arrived. */
@@ -236,7 +316,9 @@ export class Person extends AggregateRoot<string> {
     if (!ordered.ok) return ordered;
 
     this.#lastWorkingDay = lastWorkingDay;
-    return this.#moveTo('notice', 'resigned', ctx);
+    const moved = this.#moveTo('notice', 'resigned', ctx);
+    this.#recordDate('last_working_day', lastWorkingDay, ctx);
+    return moved;
   }
 
   /**
@@ -257,6 +339,7 @@ export class Person extends AggregateRoot<string> {
     const ordered = this.#checkLastDay(lastWorkingDay);
     if (!ordered.ok) return ordered;
 
+    const moves = this.#lastWorkingDay !== lastWorkingDay;
     this.#lastWorkingDay = lastWorkingDay;
     this.#status = 'terminated';
     this.#raise(
@@ -270,6 +353,8 @@ export class Person extends AggregateRoot<string> {
       ctx,
       lastWorkingDay,
     );
+    // Notice already recorded this date; a termination that moves it records the new one.
+    if (moves) this.#recordDate('last_working_day', lastWorkingDay, ctx);
     return ok(undefined);
   }
 
@@ -343,10 +428,15 @@ export class Person extends AggregateRoot<string> {
    *
    * Here rather than projected like any attribute, because `hireDate` is the
    * aggregate's: a correction written into `custom` would leave the column —
-   * and every reader of it — on the wrong date. The status is left alone; a
-   * correction says what was always true, and does not re-run the hire.
+   * and every reader of it — on the wrong date.
+   *
+   * §8.1 defines `pre_hire` as a start date in the future and `active` as
+   * started, so a pre-hire whose corrected date has arrived is started, and
+   * says so with `status_changed` for reason `corrected`. Nothing else moves:
+   * §8.1 has no edge from `active` back to `pre_hire`, and a correction does
+   * not re-run the hire.
    */
-  correctHireDate(hireDate: string): Result<void> {
+  correctHireDate(hireDate: string, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay !== null && this.#lastWorkingDay < hireDate) {
       return err(
@@ -358,6 +448,36 @@ export class Person extends AggregateRoot<string> {
       );
     }
     this.#hireDate = hireDate;
+    if (this.#status === 'pre_hire' && hireDate <= ctx.clock.date(timeZone)) {
+      return this.#moveTo('active', 'corrected', ctx);
+    }
+    return ok(undefined);
+  }
+
+  /**
+   * The last working day was recorded wrongly. The caller raises
+   * `attribute_corrected`.
+   *
+   * The aggregate's column, for the same reason as `hireDate`. The status is
+   * left alone: §8.1 ends employment by an explicit transition to
+   * `terminated`, not by a date passing, so correcting a notice period to one
+   * that has ended terminates nobody. A record with no last working day has
+   * none to correct; giving one is `giveNotice`.
+   */
+  correctLastWorkingDay(lastWorkingDay: string): Result<void> {
+    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
+    if (this.#lastWorkingDay === null) {
+      return err(
+        failure(
+          'NO_LAST_WORKING_DAY',
+          'This record has no last working day to correct; notice is given, not corrected',
+          ['lastWorkingDay'],
+        ),
+      );
+    }
+    const ordered = this.#checkLastDay(lastWorkingDay);
+    if (!ordered.ok) return ordered;
+    this.#lastWorkingDay = lastWorkingDay;
     return ok(undefined);
   }
 
@@ -391,6 +511,32 @@ export class Person extends AggregateRoot<string> {
     return true;
   }
 
+  /**
+   * The lifecycle dates written since the last drain, as history rows.
+   *
+   * A correction supersedes a history row, so a hire date or a last working
+   * day with no row could never be corrected. The repository writes these in
+   * the same transaction as the row and its events, like `drainEvents`.
+   */
+  drainHistory(): readonly HistoryEntry[] {
+    const drained = this.#history;
+    this.#history = [];
+    return drained;
+  }
+
+  /** A dated row for a lifecycle date, effective on the date itself, tied to the event just raised. */
+  #recordDate(attributeKey: string, value: string, ctx: EventContext): void {
+    this.#history = record(this.#history, {
+      id: ctx.newEventId(),
+      attributeKey,
+      value,
+      effectiveFrom: value,
+      recordedAt: ctx.clock.instant(),
+      actor: ctx.actor,
+      eventId: this.#lastEventId,
+    });
+  }
+
   /** A last working day before the hire date describes an employment nobody had. */
   #checkLastDay(lastWorkingDay: string): Result<void> {
     if (this.#hireDate !== null && lastWorkingDay < this.#hireDate) {
@@ -413,9 +559,10 @@ export class Person extends AggregateRoot<string> {
       { personId: this.id, previous, next, reason },
       ctx,
       // A status change takes effect on the date the employment says, not on
-      // the day somebody typed it. `hireDate` is the one that matters here;
+      // the day somebody typed it. `hireDate` is the one that matters here —
+      // for a hire, and for a correction that started somebody — and
       // everything else takes effect when recorded.
-      reason === 'hired' ? this.#hireDate : null,
+      reason === 'hired' || reason === 'corrected' ? this.#hireDate : null,
     );
     return ok(undefined);
   }
@@ -441,5 +588,6 @@ export class Person extends AggregateRoot<string> {
       payload,
     };
     this.raise(event);
+    this.#lastEventId = event.eventId;
   }
 }

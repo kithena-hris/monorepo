@@ -2,8 +2,6 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
 import { ImportCompleted, ImportStarted, type Actor } from '@kithena/contracts';
 
-import { Person } from '../../domain/person/person.js';
-import type { PersonRepository } from '../person-repository.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
 import { writeCsv } from './csv.js';
 import {
@@ -70,8 +68,6 @@ export type RowScope = <T>(
 
 export interface CommitDeps extends DryRunDeps {
   readonly access: PersonAccess;
-  /** For the one lifecycle step an import takes: hiring a person it just created. */
-  readonly people: PersonRepository;
   readonly ledger: ImportLedger;
   readonly rowScope: RowScope;
   readonly clock: Clock;
@@ -150,7 +146,7 @@ export async function commitImport(
   ]);
 
   const outcomes: Outcome[] = [];
-  for (const row of plan.rows) outcomes.push(await write(tx, deps, input, actor, row));
+  for (const row of plan.rows) outcomes.push(await write(tx, deps, input, row));
 
   const tally = (w: Outcome['written']) => outcomes.filter((o) => o.written === w).length;
   const counts: ImportCounts = {
@@ -190,7 +186,6 @@ async function write(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
   input: DryRunInput,
-  actor: Actor,
   row: ClassifiedRow,
 ): Promise<Outcome> {
   if (row.outcome === 'blocked') {
@@ -218,15 +213,28 @@ async function write(
 
   const done = await deps.rowScope(tx, async (sp) => {
     if (row.outcome === 'update' && row.personId !== null) {
-      const updated = await deps.access.update(sp, {
-        ...asking,
-        personId: row.personId,
-        changes: row.changes,
-        ...(row.effectiveFrom ? { effectiveFrom: row.effectiveFrom } : {}),
-      });
-      return updated.ok ? ok('updated' as const) : updated;
+      const dated = row.effectiveFrom ? { effectiveFrom: row.effectiveFrom } : {};
+      // A provisional record — an account nobody has confirmed yet (§8.2) —
+      // is hired by a row that gives it a start date, its values written with
+      // the hire so identity hears the result once.
+      const written =
+        row.hires && row.hireDate !== null
+          ? await deps.access.hire(sp, {
+              ...asking,
+              ...dated,
+              personId: row.personId,
+              hireDate: row.hireDate,
+              changes: row.changes,
+            })
+          : await deps.access.update(sp, {
+              ...asking,
+              ...dated,
+              personId: row.personId,
+              changes: row.changes,
+            });
+      return written.ok ? ok('updated' as const) : written;
     }
-    return create(sp, deps, asking, actor, row);
+    return create(sp, deps, asking, row);
   });
 
   return done.ok
@@ -242,7 +250,6 @@ async function create(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
   asking: Asking,
-  actor: Actor,
   row: ClassifiedRow,
 ): Promise<Result<'created'>> {
   const version = await deps.schemas.current(tx, asking.tenantId);
@@ -271,23 +278,8 @@ async function create(
   }
 
   if (row.hireDate !== null) {
-    const snapshot = await deps.people.load(tx, asking.tenantId, personId);
-    if (snapshot) {
-      const person = Person.rehydrate(snapshot);
-      const hired = person.hire(
-        row.hireDate,
-        {
-          clock: deps.clock,
-          newEventId: deps.newId,
-          actor,
-          correlationId: asking.correlationId,
-          causationId: null,
-        },
-        asking.timeZone,
-      );
-      if (!hired.ok) return hired;
-      await deps.people.save(tx, person);
-    }
+    const hired = await deps.access.hire(tx, { ...asking, personId, hireDate: row.hireDate });
+    if (!hired.ok) return hired;
   }
   return ok('created');
 }

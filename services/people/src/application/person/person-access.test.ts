@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { failure, err, ok } from '@kithena/domain-kit';
+import { PersonHired } from '@kithena/contracts';
 
 import { define, inMemoryPeople, noTransaction as tx, TENANT, versionOf } from './in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
@@ -421,6 +422,166 @@ describe('telling identity what it caches', () => {
       employmentStart: '2026-02-01',
       name: { given: 'Ada', family: 'Byron', preferred: null },
     });
+  });
+
+  const lastDay = define({ key: 'last_working_day', dataType: 'date', typeConfig: { kind: 'date' } });
+
+  /** A history row for a lifecycle date, as a correction needs one to supersede. */
+  function dated(store: ReturnType<typeof inMemoryPeople>, key: string, value: string): string {
+    const id = `01890000-0000-7000-8000-00000000f${String(store.history.length + 1).padStart(3, '0')}`;
+    store.history.push({
+      id,
+      personId: ADA,
+      attributeKey: key,
+      value,
+      effectiveFrom: value,
+      recordedAt: '2025-12-01T09:00:00.000Z',
+      actor: { kind: 'system', process: 'test' },
+      supersedes: null,
+      eventId: null,
+    });
+    return id;
+  }
+
+  it('moves the last working day itself on a correction, never into custom', async () => {
+    const store = inMemoryPeople([versionOf(3, [title, ...nameKeys, hireDate, lastDay])]);
+    store.seed(ADA, { account: ADA_ACCOUNT });
+    const row = store.rows.get(ADA);
+    if (row) row.snapshot = { ...row.snapshot, status: 'notice', lastWorkingDay: '2026-12-31' };
+    const people = personAccess(store.deps);
+
+    const corrected = await people.correct(tx, {
+      ...asking(hr),
+      personId: ADA,
+      supersedes: dated(store, 'last_working_day', '2026-12-31'),
+      value: '2026-11-30',
+      reason: 'the notice period was a month shorter',
+    });
+    expect(corrected.ok).toBe(true);
+    expect(store.rows.get(ADA)?.snapshot).toMatchObject({
+      lastWorkingDay: '2026-11-30',
+      status: 'notice',
+    });
+    expect(store.rows.get(ADA)?.fields.custom).not.toHaveProperty('last_working_day');
+  });
+
+  it('starts a pre-hire whose corrected start date has arrived, in its own event', async () => {
+    const { store, people } = linked();
+    const row = store.rows.get(ADA);
+    if (row) row.snapshot = { ...row.snapshot, status: 'pre_hire', hireDate: '2026-10-01' };
+
+    const corrected = await people.correct(tx, {
+      ...asking(hr),
+      personId: ADA,
+      supersedes: dated(store, 'hire_date', '2026-10-01'),
+      value: '2026-09-01',
+      reason: 'started a month earlier than entered',
+    });
+    expect(corrected.ok).toBe(true);
+    expect(store.rows.get(ADA)?.snapshot).toMatchObject({ status: 'active', hireDate: '2026-09-01' });
+    const moved = store.events.find((e) => e.eventName === 'people.person.status_changed');
+    expect(moved).toMatchObject({
+      effectiveFrom: '2026-09-01',
+      payload: { previous: 'pre_hire', next: 'active', reason: 'corrected' },
+    });
+    expect(new Set(store.events.map((e) => e.eventId)).size).toBe(store.events.length);
+  });
+
+  it('refuses to clear a lifecycle date through a correction', async () => {
+    const { store, people } = linked();
+    const refused = await people.correct(tx, {
+      ...asking(hr),
+      personId: ADA,
+      supersedes: dated(store, 'hire_date', '2026-01-01'),
+      value: null,
+      reason: null,
+    });
+    expect(!refused.ok && refused.error.code).toBe('VALUE_INVALID');
+  });
+});
+
+describe('hiring', () => {
+  const nameKeys = ['given_name', 'family_name', 'work_email'].map((key) =>
+    define({ key, ownership: ['hr'] }),
+  );
+
+  function provisional(account: string | null, fields: Record<string, string | null> = {}) {
+    const store = inMemoryPeople([versionOf(3, [title, ...nameKeys])]);
+    store.seed(ADA, {
+      account,
+      fields: { givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.test', ...fields },
+    });
+    const row = store.rows.get(ADA);
+    if (row) row.snapshot = { ...row.snapshot, status: 'provisional', hireDate: null };
+    return { store, people: personAccess(store.deps) };
+  }
+
+  it('raises status_changed, hired and the facts identity caches, once each', async () => {
+    const { store, people } = provisional(ADA_ACCOUNT);
+    const hired = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });
+    expect(hired.ok && hired.value.status).toBe('pre_hire');
+
+    expect(store.events.map((e) => e.eventName)).toEqual([
+      'people.person.status_changed',
+      'people.person.hired',
+      'people.person.identity_facts_changed',
+    ]);
+    const [, hire, facts] = store.events;
+    expect(hire?.payload).toMatchObject({
+      identityAccountId: ADA_ACCOUNT,
+      workEmail: 'ada@acme.test',
+      employment: { from: '2026-10-01', to: null },
+      schemaVersion: 3,
+      sourceOfRecord: 'own',
+    });
+    // What the contract accepts, with no legal entity in this schema.
+    expect(PersonHired.payload.safeParse(hire?.payload).success).toBe(true);
+    expect(facts).toMatchObject({
+      effectiveFrom: '2026-10-01',
+      payload: { identityAccountId: ADA_ACCOUNT, employmentStart: '2026-10-01' },
+    });
+    expect(new Set(store.events.map((e) => e.eventId)).size).toBe(3);
+  });
+
+  it('tells identity once, with the final name, when the hire also renames them', async () => {
+    const { store, people } = provisional(ADA_ACCOUNT);
+    const hired = await people.hire(tx, {
+      ...asking(hr),
+      personId: ADA,
+      hireDate: '2026-10-01',
+      changes: { family_name: 'Byron' },
+    });
+    expect(hired.ok).toBe(true);
+    const facts = store.events.filter((e) => e.eventName === 'people.person.identity_facts_changed');
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.payload).toMatchObject({
+      name: { given: 'Ada', family: 'Byron', preferred: null },
+      employmentStart: '2026-10-01',
+    });
+    expect(store.events.map((e) => e.eventName)).toContain('people.person.profile_updated');
+  });
+
+  it('tells identity nothing about a person with no account', async () => {
+    const { store, people } = provisional(null);
+    await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });
+    expect(store.events.map((e) => e.eventName)).toEqual([
+      'people.person.status_changed',
+      'people.person.hired',
+    ]);
+  });
+
+  it('is HR’s to do', async () => {
+    const { store, people } = provisional(ADA_ACCOUNT);
+    const refused = await people.hire(tx, { ...asking(ada), personId: ADA, hireDate: '2026-10-01' });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+    expect(store.events).toEqual([]);
+  });
+
+  it('refuses a hire nobody could find or invite', async () => {
+    const { store, people } = provisional(ADA_ACCOUNT, { workEmail: null });
+    const refused = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });
+    expect(!refused.ok && refused.error.code).toBe('HIRE_INCOMPLETE');
+    expect(store.events).toEqual([]);
   });
 });
 
