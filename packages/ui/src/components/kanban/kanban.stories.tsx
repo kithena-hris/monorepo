@@ -28,6 +28,7 @@ import {
 } from '../dialog/dialog';
 import { Field, FieldControl, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
+import { Slider } from '../slider/slider';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Money } from '../money/money';
@@ -852,22 +853,18 @@ export const ScrollSpeed: Story = {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <label htmlFor="edge-size" className="text-sm text-fg-muted">
-              Edge size
-            </label>
-            <input
-              id="edge-size"
-              type="range"
+          <div className="w-56">
+            <Slider
+              label="Edge size"
               min={0.05}
               max={0.45}
               step={0.05}
-              value={edgeSize}
-              onChange={(event) => {
-                setEdgeSize(Number(event.target.value));
+              value={[edgeSize]}
+              valueDisplay={edgeSize.toFixed(2)}
+              onValueChange={([next]) => {
+                if (next !== undefined) setEdgeSize(next);
               }}
             />
-            <span className="w-10 text-sm tabular-nums text-fg">{edgeSize.toFixed(2)}</span>
           </div>
 
           <div className="flex items-center gap-2">

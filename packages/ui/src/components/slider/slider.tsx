@@ -87,7 +87,7 @@ export function Slider({
               thumbLabels?.[index] ?? (values.length > 1 ? `${label} ${String(index + 1)}` : label)
             }
             className={cn(
-              'relative block size-5 rounded-full border-2 border-accent bg-surface shadow-sm',
+              'tap-target relative block size-5 rounded-full border-2 border-accent bg-surface shadow-sm',
               'transition-[box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
               'hover:scale-110 active:scale-95',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',

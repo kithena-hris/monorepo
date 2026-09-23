@@ -98,10 +98,24 @@ interface Row {
   readonly judged: Judgement;
 }
 
+/**
+ * Sealed values to put in the file in full, for an approved request only
+ * (`full-values.ts`). Read cell by cell while the file is built and dropped
+ * with it: never cached, never logged, never returned anywhere but the file.
+ */
+export interface Reveal {
+  readonly keys: ReadonlySet<string>;
+  readonly value: (
+    tx: PostgresJsDatabase,
+    where: { tenantId: string; personId: string; attributeKey: string },
+  ) => Promise<string | null>;
+}
+
 export async function buildExport(
   tx: PostgresJsDatabase,
   deps: ExportDeps,
   request: ExportRequest,
+  reveal?: Reveal,
 ): Promise<Result<BuiltExport>> {
   const version = await deps.schemas.current(tx, request.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published to export'));
@@ -169,6 +183,21 @@ export async function buildExport(
   } while (after !== null);
 
   const columns = requested.filter((d) => readableKeys.has(d.key));
+  if (reveal) {
+    const unsealed = columns.filter((d) => d.encrypted && reveal.keys.has(d.key));
+    for (const [i, r] of rows.entries()) {
+      const attributes = { ...r.person.attributes };
+      for (const d of unsealed) {
+        if (!isSealed(attributes[d.key])) continue;
+        attributes[d.key] = await reveal.value(tx, {
+          tenantId: request.tenantId,
+          personId: r.person.id,
+          attributeKey: d.key,
+        });
+      }
+      rows[i] = { ...r, person: { ...r.person, attributes } };
+    }
+  }
   const flat = columns.filter((d) => d.cardinality !== 'repeating');
   const repeating = columns.filter((d) => d.cardinality === 'repeating');
   const stamp = deps.clock.instant().slice(0, 10);

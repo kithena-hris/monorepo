@@ -126,7 +126,9 @@ export function SortableList<T extends SortableItem>({
 
   const nameOf = (index: number): string => {
     const item = items[index];
-    return item !== undefined && itemLabel !== undefined ? itemLabel(item) : `item ${String(index + 1)}`;
+    return item !== undefined && itemLabel !== undefined
+      ? itemLabel(item)
+      : `item ${String(index + 1)}`;
   };
 
   const announcements: Announcements = {
@@ -253,7 +255,7 @@ function SortableRow({
           // Named, because "grip icon" is not a thing anyone can act on.
           aria-label={`Reorder ${name}`}
           className={cn(
-            'shrink-0 rounded-sm p-1 text-fg-subtle',
+            'relative shrink-0 rounded-sm p-1 text-fg-subtle tap-target',
             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
             locked ? 'cursor-not-allowed opacity-40' : 'cursor-grab touch-none hover:text-fg',
           )}

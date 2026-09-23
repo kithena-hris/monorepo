@@ -7,6 +7,12 @@ import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.
 import { linksOf } from '../application/export/job.js';
 import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
 import type { OrgAdmin } from '../application/org/org.js';
+import {
+  decideFullValues,
+  requestFullValues,
+  viewFullValues,
+  type FullValuesDeps,
+} from '../application/export/full-values.js';
 import type { Asking } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
@@ -144,6 +150,32 @@ export const CreateExportBody = z.strictObject({
   reason: z.string().max(500).optional(),
 });
 
+export const CreateFullValuesBody = z.strictObject({
+  /** Must include at least one sealed field; never a special-category one. */
+  fields: z.array(z.string()).min(1).max(500),
+  reason: z.string().max(500),
+  asOf: z.iso.date().optional(),
+  personIds: z.array(z.uuid()).max(50_000).optional(),
+  filter: z.string().max(500).optional(),
+});
+
+export const FullValuesDecisionBody = z.strictObject({
+  approve: z.boolean(),
+  note: z.string().max(500).optional(),
+});
+
+export const FullValuesBody = z.object({
+  id: z.uuid(),
+  state: z.enum(['pending', 'approved', 'rejected', 'expired', 'issued', 'downloaded']),
+  requestedBy: z.uuid(),
+  reason: z.string(),
+  attributeKeys: z.array(z.string()),
+  expiresAt: z.string(),
+  decidedBy: z.uuid().nullable(),
+  /** The one download: for the requester only, until used or 24 hours pass. */
+  link: z.url().nullable(),
+});
+
 export const ExportBody = z.object({
   id: z.uuid(),
   /** Queued exports (over 2,000 rows) complete later; ask again for the links. */
@@ -229,6 +261,8 @@ const STATUS: Record<string, number> = {
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
+  APPROVAL_DECIDED: 409,
+  APPROVAL_EXPIRED: 409,
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
@@ -290,6 +324,12 @@ export interface RestDeps {
   readonly idempotency: IdempotencyStore;
   /** Absent where nothing is wired to store a file; the routes then answer UNAVAILABLE. */
   readonly exports?: { readonly deps: ExportJobDeps; readonly queue: ExportQueue };
+  /** Finance's full-values requests; the hooks wake the workflow after each commit. */
+  readonly fullValues?: {
+    readonly deps: FullValuesDeps;
+    started(tenantId: string, requestId: string, correlationId: string): Promise<void>;
+    decided(tenantId: string, requestId: string, correlationId: string): Promise<void>;
+  };
 }
 
 type Handler = (
@@ -474,7 +514,95 @@ export function restHandler(
     };
   };
 
+  const readFullValues = async (asking: Asking, requestId: string): Promise<RestResponse> => {
+    const full = deps.fullValues;
+    if (!full) return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+    return respond(
+      await run(service, asking.tenantId, (tx) =>
+        viewFullValues(tx, full.deps, { ...asking, requestId }),
+      ),
+      200,
+      ({ request, state, link }) => ({
+        id: request.approval.id,
+        state,
+        requestedBy: request.approval.requestedBy,
+        reason: request.approval.reason,
+        attributeKeys: request.attributeKeys,
+        expiresAt: request.approval.expiresAt,
+        decidedBy: request.approval.decidedBy,
+        link,
+      }),
+    );
+  };
+
   const routes: Route[] = [
+    {
+      method: 'POST',
+      pattern: /^\/v1\/exports\/full-values$/,
+      handle: async (asking, request) => {
+        const full = deps.fullValues;
+        if (!full)
+          return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+        const body = json(request.body);
+        const input = body.ok ? parse(CreateFullValuesBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        const v = input.value;
+        const created: { id: string | null } = { id: null };
+        const answer = await idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            const made = await requestFullValues(tx, full.deps, {
+              ...asking,
+              fields: v.fields,
+              reason: v.reason,
+              ...(v.asOf ? { asOf: v.asOf } : {}),
+              ...(v.personIds ? { personIds: v.personIds } : {}),
+              ...(v.filter !== undefined ? { filter: v.filter } : {}),
+            });
+            if (!made.ok) return made;
+            created.id = made.value.approval.id;
+            return ok(made.value.approval.id);
+          },
+          (id) => readFullValues(asking, id),
+        );
+        const id = created.id;
+        if (id !== null && (answer.body as { id?: string } | null)?.id === id) {
+          await full.started(asking.tenantId, id, asking.correlationId);
+        }
+        return answer;
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/exports/full-values/${UUID}$`),
+      handle: (asking, _request, params) => readFullValues(asking, params['id'] ?? ''),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/exports/full-values/${UUID}/decision$`),
+      handle: async (asking, request, params) => {
+        const full = deps.fullValues;
+        if (!full)
+          return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+        const body = json(request.body);
+        const input = body.ok ? parse(FullValuesDecisionBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        const requestId = params['id'] ?? '';
+        const decided = await run(service, asking.tenantId, (tx) =>
+          decideFullValues(tx, full.deps, {
+            ...asking,
+            requestId,
+            approve: input.value.approve,
+            note: input.value.note ?? null,
+          }),
+        );
+        if (!decided.ok) return refused(decided.error);
+        await full.decided(asking.tenantId, requestId, asking.correlationId);
+        return readFullValues(asking, requestId);
+      },
+    },
     {
       method: 'POST',
       pattern: /^\/v1\/exports$/,
