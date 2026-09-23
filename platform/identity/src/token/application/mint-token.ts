@@ -37,7 +37,15 @@ export interface MintTokenDeps {
   readonly lifetimeSeconds?: number;
 }
 
-export type MintToken = (claims: PrincipalClaims) => Promise<string>;
+/**
+ * `entitlements`, when given, is the company's modules as the back office
+ * recorded them (PEO-114), claimed as `ent` so a verifier can refuse a module
+ * the company did not buy without asking anybody.
+ */
+export type MintToken = (
+  claims: PrincipalClaims,
+  context?: { readonly entitlements?: readonly string[] },
+) => Promise<string>;
 
 export function mintToken({
   signer,
@@ -46,7 +54,7 @@ export function mintToken({
   audience,
   lifetimeSeconds = 15 * 60,
 }: MintTokenDeps): MintToken {
-  return async (claims) => {
+  return async (claims, context = {}) => {
     const now = clock.now();
     const expiresAt = new Date(now.getTime() + lifetimeSeconds * 1000);
 
@@ -67,6 +75,7 @@ export function mintToken({
         // subgraph can refuse a write it would allow from the person
         // themselves, and absent rather than null so its presence is the signal.
         ...(claims.impersonatedBy === null ? {} : { act: { sub: claims.impersonatedBy } }),
+        ...(context.entitlements === undefined ? {} : { ent: [...context.entitlements] }),
         iat: Math.floor(now.getTime() / 1000),
       },
       expiresAt,

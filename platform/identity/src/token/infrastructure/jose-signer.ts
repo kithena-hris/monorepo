@@ -29,7 +29,18 @@ export interface Signer extends TokenSigner {
   jwks(): { keys: JWK[] };
 }
 
-export async function joseSigner(privateJwk: JWK): Promise<Signer> {
+/**
+ * `verification` are keys published beside the signing key and never used to
+ * sign (PEO-113): the next key, published before identity switches to it, and
+ * the previous one, kept until every token it signed has expired. That is the
+ * whole rotation — verifiers pick by `kid`, and the router refetches the JWKS
+ * when it meets a `kid` it does not know. Only their public halves are ever
+ * published, whatever is passed.
+ */
+export async function joseSigner(
+  privateJwk: JWK,
+  verification: readonly JWK[] = [],
+): Promise<Signer> {
   const key = await importJWK(privateJwk, ALG);
 
   // `importJWK` hands back a `Uint8Array` for a symmetric key and a `CryptoKey`
@@ -44,7 +55,21 @@ export async function joseSigner(privateJwk: JWK): Promise<Signer> {
 
   const publicJwk = publicHalf(privateJwk);
   const kid = await calculateJwkThumbprint(publicJwk);
-  const published: { keys: JWK[] } = { keys: [{ ...publicJwk, kid, alg: ALG, use: 'sig' }] };
+  const others = await Promise.all(
+    verification.map(async (jwk) => {
+      const half = publicHalf(jwk);
+      return { ...half, kid: await calculateJwkThumbprint(half), alg: ALG, use: 'sig' };
+    }),
+  );
+  const published: { keys: JWK[] } = {
+    keys: [
+      { ...publicJwk, kid, alg: ALG, use: 'sig' },
+      // Each key once, the signing key included, however a deployment lists them.
+      ...others.filter(
+        (other, at) => other.kid !== kid && others.findIndex((o) => o.kid === other.kid) === at,
+      ),
+    ],
+  };
 
   return {
     async sign(claims, expiresAt) {

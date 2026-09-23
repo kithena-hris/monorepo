@@ -24,7 +24,7 @@ import { compose } from './composition.js';
  */
 startTelemetry('kithena-identity');
 
-const PORT = 4100;
+const PORT = Number(process.env['IDENTITY_PORT'] ?? 4100);
 
 function required(name: string): string {
   const value = process.env[name];
@@ -98,7 +98,8 @@ const routes = await compose({
     : {}),
   adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',
   adminOrigin: process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001',
-  authOrigin: authOrigin === undefined || authOrigin === '' ? 'http://auth.app.localhost:3100' : authOrigin,
+  authOrigin:
+    authOrigin === undefined || authOrigin === '' ? 'http://auth.app.localhost:3100' : authOrigin,
   signingKey,
   allowInsecureOrigins: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, invitations are not emailed and the enrolment link comes
@@ -109,9 +110,24 @@ const routes = await compose({
     ? { messagingToken: process.env['MESSAGING_API_TOKEN'] }
     : {}),
   // The same, for People reading a tenant's accounts. See `Config.peopleToken`.
-  ...(process.env['PEOPLE_IDENTITY_TOKEN'] ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] } : {}),
+  ...(process.env['PEOPLE_IDENTITY_TOKEN']
+    ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] }
+    : {}),
   // What a company with no modules recorded holds (PEO-114): a default only.
   defaultEntitlements: deploymentEntitlements(process.env['KITHENA_ENTITLEMENTS']),
+  // Access tokens for the router (PEO-113): rotation keys, issuer, audience.
+  ...(process.env['AUTH_VERIFICATION_KEYS']
+    ? {
+        verificationKeys: JSON.parse(process.env['AUTH_VERIFICATION_KEYS']) as Record<
+          string,
+          unknown
+        >[],
+      }
+    : {}),
+  ...(process.env['AUTH_ISSUER'] ? { tokenIssuer: process.env['AUTH_ISSUER'] } : {}),
+  ...(process.env['AUTH_TOKEN_AUDIENCE']
+    ? { tokenAudience: process.env['AUTH_TOKEN_AUDIENCE'] }
+    : {}),
 });
 
 const server = createServer((request, response) => {

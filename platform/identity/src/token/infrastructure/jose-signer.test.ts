@@ -137,6 +137,36 @@ describe('the published JWKS', () => {
   });
 });
 
+describe('rotating the signing key (PEO-113)', () => {
+  it('keeps verifying a token the previous key signed, and publishes no private half', async () => {
+    const previous = await developmentKey();
+    const before = mintToken({
+      signer: await joseSigner(previous),
+      clock,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+    });
+    const old = await before(principalFrom(session));
+
+    const rotated = await joseSigner(await developmentKey(), [previous, previous]);
+    expect(rotated.jwks().keys).toHaveLength(2);
+    expect(JSON.stringify(rotated.jwks())).not.toContain('"d"');
+    const { payload } = await jwtVerify(old, createLocalJWKSet(rotated.jwks()), {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      currentDate: clock.now(),
+    });
+    expect(payload['sub']).toBe(session.accountId);
+  });
+
+  it('claims the company’s modules when told them', async () => {
+    const { mint } = await subject();
+    const token = await mint(principalFrom(session), { entitlements: ['module.people'] });
+    expect(claimsOf(token)['ent']).toEqual(['module.people']);
+    expect(claimsOf(await mint(principalFrom(session)))).not.toHaveProperty('ent');
+  });
+});
+
 function claimsOf(token: string): Record<string, unknown> {
   const [, body] = token.split('.');
   return JSON.parse(Buffer.from(body ?? '', 'base64url').toString()) as Record<string, unknown>;
