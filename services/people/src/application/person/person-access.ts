@@ -31,6 +31,8 @@ import {
   identityFactsOf,
   Person,
   type EventContext,
+  type LeavingReason,
+  type PersonSnapshot,
 } from '../../domain/person/person.js';
 import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
@@ -168,6 +170,29 @@ export interface PersonAccess {
       readonly effectiveFrom?: string;
     }>,
   ): Promise<Result<PersonView>>;
+  /**
+   * The rest of §8.1, HR only, each a no-op answered with the record when it
+   * already stands where it would move to (a retry, not a second event).
+   * "Today" is the person's own (§6.8).
+   */
+  giveNotice(
+    tx: Tx,
+    asking: On<{ readonly lastWorkingDay: string; readonly reason?: LeavingReason }>,
+  ): Promise<Result<PersonView>>;
+  terminate(
+    tx: Tx,
+    asking: On<{
+      readonly lastWorkingDay: string;
+      readonly reason: LeavingReason;
+      /** HR's free text, carried as `terminated.reason`. */
+      readonly note?: string | null;
+      readonly eligibleForRehire?: boolean | null;
+    }>,
+  ): Promise<Result<PersonView>>;
+  startLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  endLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  /** A provisional record that was never a person (§8.1); the one state a hard delete may follow. */
+  discard(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
 }
 
 /** An id no person has, for asking what the viewer may see tenant-wide. */
@@ -659,7 +684,117 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return ok(await view(tx, asking, after, version, now));
   }
 
+  /**
+   * One lifecycle move, as HR (PEO-108): §7 gives termination facts to HR,
+   * and `people_admin` is the schema's owner, not a key to the lifecycle. A
+   * manager moves nobody.
+   *
+   * `settled` says the record already stands where the move would leave it —
+   * a retried request — and is answered with the record and no second event.
+   * Otherwise the aggregate moves on the person's own calendar, its events and
+   * dated rows are drained through the outbox in this transaction, and their
+   * completeness is judged again (PEO-102), since a requiredness predicate may
+   * name the state. The grid's `confirm_termination` row is read off the
+   * status, so a termination closes it with nothing to clear.
+   */
+  async function lifecycle(
+    tx: Tx,
+    asking: On<object>,
+    action: string,
+    settled: (snapshot: PersonSnapshot) => boolean,
+    move: (aggregate: Person, zone: string, ctx: EventContext) => Result<void>,
+  ): Promise<Result<PersonView>> {
+    const version = await deps.schemas.current(tx, asking.tenantId);
+    if (!version) return err(NotPublished());
+    const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+    if (!person) return err(PersonNotFound());
+    const relations = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      asking.personId,
+    );
+    if (!relations.isHr) return err(failure('FORBIDDEN', `Only HR ${action}`));
+
+    if (!settled(person.snapshot)) {
+      const aggregate = Person.rehydrate(person.snapshot);
+      const { zone } = await calendarOf(tx, asking.tenantId, person.values);
+      const moved = move(aggregate, zone, contextFor(asking));
+      if (!moved.ok) return moved;
+      await deps.people.save(tx, aggregate);
+      await rejudge(tx, asking, asking.personId, null);
+    }
+
+    const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
+    if (!after) return err(PersonNotFound());
+    return ok(await view(tx, asking, after, version, relations));
+  }
+
+  const lastDayOf = (asking: { readonly lastWorkingDay: string }): Result<string> =>
+    CALENDAR_DATE.test(asking.lastWorkingDay)
+      ? ok(asking.lastWorkingDay)
+      : err(failure('VALUE_INVALID', 'lastWorkingDay is a calendar date', ['lastWorkingDay']));
+
   return {
+    giveNotice: (tx, asking) => {
+      const day = lastDayOf(asking);
+      if (!day.ok) return Promise.resolve(day);
+      return lifecycle(
+        tx,
+        asking,
+        'puts a person on notice',
+        (s) => s.status === 'notice' && s.lastWorkingDay === day.value,
+        (p, zone, ctx) => p.giveNotice(day.value, ctx, zone, asking.reason),
+      );
+    },
+
+    terminate: (tx, asking) => {
+      const day = lastDayOf(asking);
+      if (!day.ok) return Promise.resolve(day);
+      return lifecycle(
+        tx,
+        asking,
+        'terminates a person',
+        (s) => s.status === 'terminated' && s.lastWorkingDay === day.value,
+        (p, zone, ctx) =>
+          p.terminate(day.value, ctx, zone, {
+            reason: asking.reason,
+            note: asking.note ?? null,
+            eligibleForRehire: asking.eligibleForRehire ?? null,
+          }),
+      );
+    },
+
+    startLeave: (tx, asking) =>
+      lifecycle(
+        tx,
+        asking,
+        'puts a person on leave',
+        (s) => s.status === 'on_leave',
+        (p, zone, ctx) => p.startLeave(ctx, zone),
+      ),
+
+    endLeave: (tx, asking) =>
+      lifecycle(
+        tx,
+        asking,
+        'brings a person back from leave',
+        // Never settled: `active` does not say whether they were ever away, and
+        // somebody who was not must be refused, not told they are back. A REST
+        // retry is answered by its Idempotency-Key instead.
+        () => false,
+        (p, zone, ctx) => p.endLeave(ctx, zone),
+      ),
+
+    discard: (tx, asking) =>
+      lifecycle(
+        tx,
+        asking,
+        'discards a record',
+        (s) => s.status === 'discarded',
+        (p, _zone, ctx) => p.discard(ctx),
+      ),
+
     async read(
       tx: Tx,
       asking: Asking & { readonly personId: string; readonly asOf?: string },

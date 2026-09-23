@@ -1096,7 +1096,6 @@ it is written down here rather than left in a PR description.
       /v1/legal-entities/{id}/numbering`; a hire takes the next number under
       the entity's row lock, gap-free; a typed or imported number is held to
       the format, claimed tenant-wide and moves the sequence past it.*
-      off. *(PRD §7, §9.4, Appendix A)*
 - [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
       state, the gap rows and the reminder went stale on every write. Each
       write now re-judges its one person in its transaction, through the
@@ -1122,6 +1121,21 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
+- [x] **PEO-108** Lifecycle actions through the application layer and
+      transports. The domain could give notice, terminate, start and end
+      leave and discard, but `PersonAccess` exposed none of them, so no
+      transport could, and PEO-102's re-judge ran only for what it did
+      expose. Found in PEO-100 and PEO-102. *(PRD §8.1, §8.5, §10.2, §12,
+      §13)* *Landed as five HR-only use cases on the person's own calendar,
+      each idempotent on a retry, each raising `status_changed` (termination
+      now too, with a typed reason, beside `terminated`) with its dated row
+      and a completeness re-judge; a termination waits for the last working
+      day except for a pre-hire. `POST /v1/people/{id}/notice`,
+      `/termination`, `/leave/start`, `/leave/end`, `/discard` and the
+      matching mutations, both parsed by one Zod body each. Also the GraphQL
+      `employeeNumbering`/`setEmployeeNumbering` for PEO-101, and REST tests
+      for its routes. Not built, and written into §8.1: rehire and
+      withdrawing notice.*
 
 ## Blocked, and by what
 

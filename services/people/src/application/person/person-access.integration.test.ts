@@ -347,24 +347,10 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
     const [hireRow] = await lifecycleRows();
     expect(hireRow).toMatchObject({ attribute_key: 'hire_date', value: '2026-03-01' });
 
-    // Notice through the aggregate and the repository: no transport gives notice yet.
-    await inTenant(INITECH, async ({ tx }) => {
-      const snapshot = await drizzlePersonRepository().load(tx, INITECH, LIN);
-      if (!snapshot) throw new Error('Lin is missing');
-      const lin = Person.rehydrate(snapshot);
-      const given = lin.giveNotice('2026-12-31', {
-        clock: fixedClock('2026-09-22T09:00:00.000Z'),
-        newEventId: () => {
-          ids += 1;
-          return `01890000-0000-7000-8000-${String(ids).padStart(12, '0')}`;
-        },
-        actor: { kind: 'system', process: 'integration-test' },
-        correlationId: '00000000-0000-4000-8000-0000000000c1',
-        causationId: null,
-      });
-      if (!given.ok) throw new Error(given.error.message);
-      await drizzlePersonRepository().save(tx, lin);
-    });
+    const given = await inTenantResult(inTenant, INITECH, (tx) =>
+      people.giveNotice(tx, { ...asking(hr, INITECH), personId: LIN, lastWorkingDay: '2026-12-31' }),
+    );
+    expect(given.ok && given.value.status).toBe('notice');
     const noticeRow = (await lifecycleRows()).find((r) => r['attribute_key'] === 'last_working_day');
     expect(noticeRow).toMatchObject({ value: '2026-12-31' });
 
@@ -467,14 +453,10 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
   it('keeps a person on notice whose last day is corrected into the past, and asks HR to confirm', async () => {
     const KIM = '00000000-0000-4000-8000-0000000000a6';
     await hired(KIM, null, '2026-01-01');
-    await inTenant(INITECH, async ({ tx }) => {
-      const snapshot = await drizzlePersonRepository().load(tx, INITECH, KIM);
-      if (!snapshot) throw new Error('Kim is missing');
-      const kim = Person.rehydrate(snapshot);
-      const given = kim.giveNotice('2026-12-31', systemContext());
-      if (!given.ok) throw new Error(given.error.message);
-      await drizzlePersonRepository().save(tx, kim);
-    });
+    const given = await inTenantResult(inTenant, INITECH, (tx) =>
+      people.giveNotice(tx, { ...asking(hr, INITECH), personId: KIM, lastWorkingDay: '2026-12-31' }),
+    );
+    if (!given.ok) throw new Error(given.error.message);
     const lastDayRow = async () => {
       const [row] = await admin.execute(sql`
         SELECT id FROM people.person_attribute_history
@@ -503,31 +485,19 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
     expect(await grid()).toEqual([]);
     expect((await correctOn(KIM, await lastDayRow(), '2026-09-15')).ok).toBe(true);
     expect(await grid()).toHaveLength(1);
-    await inTenant(INITECH, async ({ tx }) => {
-      const snapshot = await drizzlePersonRepository().load(tx, INITECH, KIM);
-      if (!snapshot) throw new Error('Kim is missing');
-      const kim = Person.rehydrate(snapshot);
-      const ended = kim.terminate('2026-09-15', systemContext());
-      if (!ended.ok) throw new Error(ended.error.message);
-      await drizzlePersonRepository().save(tx, kim);
-    });
+    const ended = await inTenantResult(inTenant, INITECH, (tx) =>
+      people.terminate(tx, {
+        ...asking(hr, INITECH),
+        personId: KIM,
+        lastWorkingDay: '2026-09-15',
+        reason: 'resigned',
+      }),
+    );
+    expect(ended.ok && ended.value.status).toBe('terminated');
     expect(await grid()).toEqual([]);
   });
 });
 
-/** The context for a transition no transport offers yet, driven through the aggregate. */
-function systemContext() {
-  return {
-    clock: fixedClock('2026-09-22T09:00:00.000Z'),
-    newEventId: () => {
-      ids += 1;
-      return `01890000-0000-7000-8000-${String(ids).padStart(12, '0')}`;
-    },
-    actor: { kind: 'system' as const, process: 'integration-test' },
-    correlationId: '00000000-0000-4000-8000-0000000000c1',
-    causationId: null,
-  };
-}
 describe('the directory at 50,000 people', () => {
   const PERF = '00000000-0000-4000-8000-0000000000fe';
   // A field the tenant invented and marked indexed, the case §11.2 promises
