@@ -99,6 +99,15 @@ export interface TenantRoles {
    * the authority here, and the event says so with `via: back_office`.
    */
   administratorNamed(tx: Tx, named: Named): Promise<'applied' | 'unchanged'>;
+  /**
+   * The account's access ended (PEO-109): every tenant role it holds is
+   * revoked, in the transaction that ended it, by the system with the reason
+   * `access_ended` — the last `people_admin` included, since a leaver
+   * administers nothing. Nothing restores them: a rehire, a withdrawn notice
+   * or a corrected last day gets its roles only from an administrator
+   * granting them again. The roles revoked; none when it held none.
+   */
+  accessEnded(tx: Tx, ended: Named): Promise<readonly TenantRole[]>;
 }
 
 const NotAllowedToList = failure(
@@ -130,7 +139,7 @@ export function tenantRoles(deps: {
       accountId: string;
       role: TenantRole;
       by: string | null;
-      via: 'people' | 'back_office';
+      via: 'people' | 'back_office' | 'system';
       reason: string;
     },
   ): PendingEvent => ({
@@ -243,6 +252,32 @@ export function tenantRoles(deps: {
       if (events.length === 0) return 'unchanged';
       await store.publish(tx, events);
       return 'applied';
+    },
+
+    async accessEnded(tx, ended) {
+      await store.lock(tx, ended.tenantId);
+      const held = holderOf(await store.holdings(tx, ended.tenantId), ended.accountId).roles;
+      for (const role of held) {
+        await store.revoke(tx, ended.tenantId, ended.accountId, role);
+      }
+      if (held.length > 0) {
+        await store.publish(
+          tx,
+          held.map((role) =>
+            event(
+              'people.role.revoked',
+              {
+                tenantId: ended.tenantId,
+                correlationId: ended.correlationId,
+                causationId: ended.causationId,
+                actor: { kind: 'system', process: PROCESS },
+              },
+              { accountId: ended.accountId, role, by: null, via: 'system', reason: 'access_ended' },
+            ),
+          ),
+        );
+      }
+      return held;
     },
   };
 }

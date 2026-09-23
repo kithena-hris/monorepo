@@ -42,6 +42,7 @@ import { formatNumber, sequenceOf } from '../../domain/org/numbering.js';
 import type { EmployeeNumbers } from '../org/numbering.js';
 import type { RecomputePerson } from '../completeness/recompute.js';
 import type { Calendars } from '../org/org.js';
+import type { TenantRoles } from '../roles/roles.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
 import type {
@@ -96,6 +97,11 @@ export interface PersonAccessDeps {
    * writes people passes it.
    */
   readonly completeness?: RecomputePerson;
+  /**
+   * Revokes a leaver's tenant roles when their access ends, in the same
+   * transaction (PEO-109 × PEO-112). Every wiring with roles passes it.
+   */
+  readonly roles?: Pick<TenantRoles, 'accessEnded'>;
 }
 
 export interface Asking {
@@ -802,6 +808,18 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const moved = move(aggregate, zone, contextFor(asking));
       if (!moved.ok) return moved;
       await deps.people.save(tx, aggregate);
+      // Access ended by this move: the leaver's tenant roles end with it.
+      const account = aggregate.identityAccountId;
+      const endedNow =
+        (person.snapshot.accessEndedAt ?? null) === null && aggregate.accessEndedAt !== null;
+      if (endedNow && account !== null) {
+        await deps.roles?.accessEnded(tx, {
+          tenantId: asking.tenantId,
+          accountId: account,
+          correlationId: asking.correlationId,
+          causationId: null,
+        });
+      }
       await rejudge(tx, asking, asking.personId, null);
     }
 

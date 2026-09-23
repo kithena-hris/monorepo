@@ -1173,6 +1173,7 @@ export function restRoutes(deps: RestDeps): Route[] {
         const input = bodyAs(RoleChangeBody, request);
         if (!input.ok) return refused(input.error);
         return idempotent(
+          deps,
           asking,
           request,
           200,

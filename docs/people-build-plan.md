@@ -1213,8 +1213,9 @@ it is written down here rather than left in a PR description.
       on without naming an account (`identity.tenant.administrator_named`),
       in the company wizard or on the company page, which can also name
       another later. The first-person rule is gone; the migration carries
-      over what it granted. Not done: a leaver keeps their tenant roles until
-      somebody revokes them — lane X's access-end work is where that belongs.*
+      over what it granted. A leaver's roles are revoked when their access
+      ends, and not restored with it — closed in PEO-113's lane
+      (20260924260000).*
 - [ ] **PEO-113** The shell goes through the router. Identity can mint a token
       but nothing issues one, so the shell calls People directly with the
       internal token and a principal it builds itself. Needs identity issuing a

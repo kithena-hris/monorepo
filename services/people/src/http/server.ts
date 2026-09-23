@@ -207,6 +207,8 @@ export function peopleService(
       newId: uuidv7,
       calendars: org,
       numbering: numbers,
+      // A leaver's tenant roles go when their access does (PEO-113's lane).
+      roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
       completeness: recomputePerson({
         schema: drizzleSchemaRepository(),
         people: drizzlePeopleFacts(),

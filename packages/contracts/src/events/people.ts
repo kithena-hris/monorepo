@@ -858,8 +858,9 @@ export const WebhookEndpointDisabled = defineEvent(
  * OpenFGA tuple is written from it — never beside it.
  *
  * `by` is the account that decided, or null when the back office named the
- * first administrator (`via: back_office`); the envelope's actor says the
- * same. `reason` is what they typed, so it is free text.
+ * first administrator (`via: back_office`) or People revoked a leaver's roles
+ * when their access ended (`via: system`, reason `access_ended`); the
+ * envelope's actor says the same. `reason` is what they typed, so it is free text.
  */
 export const TenantRole = z.enum(['hr', 'finance', 'people_admin']);
 export type TenantRole = z.infer<typeof TenantRole>;
@@ -868,7 +869,7 @@ const RoleChange = z.object({
   accountId: z.uuid().register(policy, asPublic()),
   role: TenantRole.register(policy, asPublic()),
   by: z.uuid().nullable().register(policy, asPublic()),
-  via: z.enum(['people', 'back_office']).register(policy, asPublic()),
+  via: z.enum(['people', 'back_office', 'system']).register(policy, asPublic()),
   reason: z.string().min(1).max(500).register(policy, asFreeText()),
 });
 

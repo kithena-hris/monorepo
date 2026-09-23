@@ -509,7 +509,9 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   - nobody grants a role to themselves;
   - the last `people_admin` is never revoked — not even by themselves — and
     a trigger on `people.role_grant` refuses it for any path that skips the
-    application;
+    application; the one exception is a leaver, whose roles all end with
+    their access (§8.1; the trigger lets a grant go once its account's
+    person has `access_ended_at`, 20260924260000);
   - each needs a reason, up to 500 characters;
   - a role already held, or not held, changes nothing and raises nothing.
 
@@ -793,6 +795,18 @@ stays on notice — termination is HR's act — but **loses access at the end of
 that day** all the same (§5): confirming the termination is paperwork, and the
 `confirm_termination` row is what asks for it. Terminating afterwards raises
 no second `access_ended`.
+
+**A leaver's tenant roles end with their access.** When access ends, by
+either path, People revokes every tenant role the leaver's account holds
+(`hr`, `finance`, `people_admin`, §6.6) in the same transaction: one
+`people.role.revoked` each, with the system as the actor (`via: system`, `by`
+null) and the reason `access_ended`, and OpenFGA's tuples follow from the
+events as they do for any revocation. The last `people_admin` goes too — a
+leaver administers nothing — and the company's next administrator is named in
+the back office, as for a company that lost every one (§8.2). **Restored access
+does not restore roles.** A rehire, a withdrawn notice or a last working day
+corrected forward gives the account back, and nothing else: a People
+administrator grants each role again, with a reason, like any other grant.
 
 ### 8.2 The first employee
 
@@ -1120,7 +1134,9 @@ The same screen area, separate tabs:
 - **Roles** — who holds `hr`, `finance` and `people_admin` (§6.6), and
   granting or revoking one with a reason; a People administrator's, HR reads
   it. Nobody can tick a role for themselves or untick the last administrator,
-  and People refuses both whatever the screen does. `GET /v1/roles`,
+  and People refuses both whatever the screen does. A leaver's roles are
+  revoked by People when their access ends, and are not given back when access
+  is restored — an administrator grants them again (§8.1). `GET /v1/roles`,
   `POST /v1/roles/grants`, `POST /v1/roles/revocations` (Idempotency-Key),
   and in GraphQL `peopleRoles`, `grantRole` and `revokeRole`.
 - **Integrations** — webhook endpoints, subscribed events, per-endpoint field
@@ -1218,7 +1234,7 @@ New:
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
-| `people.role.revoked` v1 | The reverse, with the same fields |
+| `people.role.revoked` v1 | The reverse, with the same fields; also `via: system`, `by` null and reason `access_ended` for each role a leaver held when their access ended (§8.1) |
 
 ### 10.2a Calendar events
 
