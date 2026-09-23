@@ -169,7 +169,11 @@ export function inMemoryPeople(
     const texts = [...keys].map((k) => values[k]);
     for (const given of ['given_name', 'preferred_name']) {
       if (keys.has(given) && keys.has('family_name')) {
-        texts.push([values[given], values['family_name']].filter((v) => v != null).join(' '));
+        texts.push(
+          [values[given], values['family_name']]
+            .filter((v): v is string => typeof v === 'string')
+            .join(' '),
+        );
       }
     }
     return texts.some((t) => typeof t === 'string' && t.toLocaleLowerCase('en').includes(text));
