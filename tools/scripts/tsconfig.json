@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "noEmit": true
+  },
+  "include": ["src/**/*", "vitest.integration.ts"],
+  "references": [{ "path": "../../packages/contracts" }, { "path": "../../packages/testing" }]
+}

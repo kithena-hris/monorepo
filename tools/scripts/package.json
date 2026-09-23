@@ -1,0 +1,24 @@
+{
+  "name": "@kithena/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "One-off operational scripts that emit reviewable artifacts. Nothing here touches a database.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "promote-attribute": "tsx src/promote-attribute.ts",
+    "test:integration": "vitest run --config vitest.integration.ts"
+  },
+  "dependencies": {
+    "@kithena/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@kithena/testing": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.5",
+    "tsx": "^4.20.3",
+    "vitest": "^4.1.11"
+  }
+}

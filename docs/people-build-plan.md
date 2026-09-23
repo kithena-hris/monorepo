@@ -343,7 +343,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test proves a rolled-back write leaves neither
   the row nor the event.
 
-### [ ] PEO-021 — The secret store
+### [x] PEO-021 — The secret store
 
 - **Spec** PRD §11.2
 - **Files** `services/people/src/infrastructure/secret-store.ts`
@@ -354,7 +354,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test asserts the plaintext appears in no other table, no log
   line and no event payload.
 
-### [ ] PEO-022 — Uniqueness without runtime DDL
+### [x] PEO-022 — Uniqueness without runtime DDL
 
 - **Spec** PRD §11.2
 - **Files** `services/people/src/infrastructure/unique.ts`
@@ -368,7 +368,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a concurrency test fires simultaneous writes of the same
   employee number and proves exactly one wins.
 
-### [ ] PEO-023 — Promoting an indexed attribute
+### [x] PEO-023 — Promoting an indexed attribute
 
 - **Spec** PRD §11.2
 - **Files** `tools/scripts/promote-attribute.ts`, a migration template
@@ -382,7 +382,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Application
 
-### [ ] PEO-024 — Configure and publish the schema
+### [x] PEO-024 — Configure and publish the schema
 
 - **Spec** PRD §9.3
 - **Files** `services/people/src/application/schema/`

@@ -26,6 +26,33 @@ describe('uuidv7', () => {
     expect(early < late).toBe(true);
   });
 
+  it('sorts in minting order within one millisecond', () => {
+    /*
+     * The property that was missing, and the bug it caused.
+     *
+     * Two events raised by one transition are minted microseconds apart and
+     * land in the same millisecond every time. With random bits in `rand_a`
+     * they sorted against each other by coin flip, so an outbox read
+     * `ORDER BY event_id` returned an evicted session after the one that
+     * replaced it — about half the time, which is how it survived review and
+     * then failed one integration run in three.
+     */
+    const ids = Array.from({ length: 5000 }, () => uuidv7());
+    expect(ids).toEqual([...ids].toSorted());
+  });
+
+  it('keeps counting when the clock stands still', () => {
+    // 5000 in a row is more than one millisecond's worth on any machine, so
+    // the run above already crossed a boundary. This asserts the narrower
+    // case: consecutive ids are strictly increasing, never equal.
+    let previous = uuidv7();
+    for (let i = 0; i < 2000; i += 1) {
+      const next = uuidv7();
+      expect(next > previous, `${next} should follow ${previous}`).toBe(true);
+      previous = next;
+    }
+  });
+
   it('does not collide within a millisecond', () => {
     // 74 random bits per id. A thousand at the same timestamp should be
     // distinct, and if they are not, the randomness is not being applied.

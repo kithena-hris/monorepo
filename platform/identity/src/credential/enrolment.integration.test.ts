@@ -408,9 +408,18 @@ describe('what onboarding collects', () => {
  */
 describe('the outbox after an enrolment', () => {
   async function capturedEvents(): Promise<{ eventName: string; payload: Record<string, unknown> }[]> {
-    const rows = await admin.execute(
-      sql`SELECT event_name, envelope FROM platform.outbox ORDER BY event_id`,
-    );
+    /*
+     * Ordered by the aggregate's own version, not by `event_id`.
+     *
+     * `uuidv7` now counts within a millisecond, so ids do order correctly —
+     * but that is a property of one process, and this assertion is about what
+     * the domain raised rather than about how ids are minted. The version is
+     * the aggregate's sequence, and it is right whatever generates the id.
+     */
+    const rows = await admin.execute(sql`
+      SELECT event_name, envelope FROM platform.outbox
+       ORDER BY (envelope -> 'aggregate' ->> 'version')::int
+    `);
     return [...rows].map((row) => ({
       eventName: String(row['event_name']),
       payload: (row['envelope'] as { payload: Record<string, unknown> }).payload,
