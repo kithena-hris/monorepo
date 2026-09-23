@@ -7,6 +7,7 @@ import type { Asking } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
+import { schemaArtifact } from './schema-artifact.js';
 
 /**
  * REST v1, per §13.2. The same application layer as GraphQL, so the same
@@ -324,6 +325,28 @@ export function restHandler(
             })),
           }),
         ),
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/schema\/versions\/(\d{1,9})$/,
+      handle: async (asking, _request, params) => {
+        const number = Number(params['id']);
+        const version = await run(service, asking.tenantId, async (tx) => {
+          const found = await service.schemas.byNumber(tx, asking.tenantId, number);
+          return found ? ok(found) : err(failure('NOT_FOUND', `No version ${String(number)}`));
+        });
+        if (!version.ok) return refused(version.error);
+        // A published version never changes, so a cache may keep it forever.
+        return {
+          status: 200,
+          body: schemaArtifact(version.value),
+          headers: {
+            'content-type': 'application/schema+json',
+            'cache-control': 'private, max-age=31536000, immutable',
+            etag: `"${version.value.checksum}"`,
+          },
+        };
+      },
     },
     {
       method: 'GET',
