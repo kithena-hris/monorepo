@@ -1184,7 +1184,8 @@ the same application layer.
 | Signing | HMAC over the raw body with a per-endpoint secret, rotatable with an overlap window |
 | Ordering | Per person, guaranteed. Across people, not |
 | Delivery | At least once. Every payload carries `eventId`; consumers deduplicate on it |
-| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address (named when it is registered) is emailed through `platform/messaging` |
+| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address is emailed through `platform/messaging` |
+| Alert address | Required when an endpoint is registered: a request without a valid one is refused, 400, naming `alertEmail`. An endpoint registered before this rule may have none and is told through the event alone |
 | Durability | The retry schedule is `next_attempt_at` on each delivery row. A bounded poller passes every known tenant on boot and every minute, so a retry pending across a restart resumes when it falls due. A pass claims a delivery with a short lease before sending, so two replicas never send one twice and a crash mid-send is a resend |
 | Replay | Any delivery re-sendable from the settings screen for the retention window |
 | Filtering | Per endpoint: which events, and which attributes within them (§10.3) |

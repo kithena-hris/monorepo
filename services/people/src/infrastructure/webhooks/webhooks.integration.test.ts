@@ -184,7 +184,7 @@ beforeEach(async () => {
   await admin.execute(sql`DELETE FROM people.outbox`);
 });
 
-async function endpoint(allowlist: string[], alertEmail: string | null = null) {
+async function endpoint(allowlist: string[], alertEmail = 'integrations@acme.example') {
   const created = await hooks().createEndpoint(ACME, {
     url: 'https://hooks.example.com/people',
     events: ['people.person.profile_updated'],
@@ -235,6 +235,7 @@ describe('delivery', () => {
       url: 'https://elsewhere.example.com/',
       events: ['people.person.terminated'],
       allowlist: [],
+      alertEmail: 'integrations@acme.example',
     });
     await write(ADA, { job_title: 'Engineer' });
     const rows = await admin.execute(sql`SELECT count(*)::int AS n FROM people.webhook_delivery`);
@@ -413,5 +414,42 @@ describe('an endpoint disabled at the 24-hour ceiling', () => {
       lastResponse: 503,
     });
     expect(JSON.stringify(events[0])).not.toContain('hooks.example.com');
+  });
+});
+
+describe('the alert address', () => {
+  it('is required for a new endpoint, and named as the field at fault', async () => {
+    for (const alertEmail of ['', 'not-an-address']) {
+      const created = await hooks().createEndpoint(ACME, {
+        url: 'https://hooks.example.com/people',
+        events: ['people.person.profile_updated'],
+        allowlist: [],
+        alertEmail,
+      });
+      expect(created.ok ? null : created.error).toMatchObject({
+        code: 'BAD_WEBHOOK_ALERT_EMAIL',
+        path: ['alertEmail'],
+      });
+    }
+    const rows = await admin.execute(sql`SELECT count(*)::int AS n FROM people.webhook_endpoint`);
+    expect([...rows][0]?.['n']).toBe(0);
+  });
+
+  it('may be missing on an endpoint from before the rule, which is then told by event alone', async () => {
+    const { id } = await endpoint(['job_title']);
+    await admin.execute(sql`UPDATE people.webhook_endpoint SET alert_email = NULL`);
+    await write(ADA, { job_title: 'Engineer' });
+    answer = 503;
+
+    await hooks().deliverDue(ACME);
+    for (let step = 0; step < 30 && notified.length === 0; step += 1) {
+      advance(6 * 60 * 60 * 1000);
+      await hooks().deliverDue(ACME);
+    }
+
+    expect(notified).toEqual([{ endpointId: id, alertEmail: null }]);
+    const events = await admin.execute(sql`
+      SELECT count(*)::int AS n FROM people.outbox WHERE event_name = 'people.webhook.endpoint_disabled'`);
+    expect([...events][0]?.['n']).toBe(1);
   });
 });

@@ -7,7 +7,9 @@
 -- address the admin who registers the endpoint names for exactly that —
 -- People holds no list of a tenant's administrators (roles arrive on each
 -- request and are never stored), so the endpoint carries its own contact.
--- Nullable: an endpoint without one is told through the event alone.
+-- Required for every new endpoint (the service refuses one without it).
+-- Nullable only for endpoints created before this, which are told through the
+-- event alone; there are no live customers, so none is expected.
 --
 -- Expand only. `webhook_endpoint` already has ENABLE and FORCE row level
 -- security and its tenant policy from 20260923120000, which cover a new

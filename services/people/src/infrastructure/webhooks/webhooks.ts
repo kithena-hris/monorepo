@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import * as z from 'zod';
 import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm';
 import { publish } from '@kithena/db-kit';
 import { TenantId } from '@kithena/contracts';
@@ -83,12 +84,19 @@ export function nextAttempt(firstAttempt: Date, attempts: number, now: Date): Da
 
 const secret = () => randomBytes(32).toString('base64url');
 
+/** `people.webhook_endpoint.alert_email` holds 3 to 320 characters. */
+const AlertEmail = z.email().max(320);
+
 export interface EndpointInput {
   readonly url: string;
   readonly events: readonly string[];
   readonly allowlist: readonly string[];
-  /** Emailed if the endpoint is disabled. Null: the event is the only notice. */
-  readonly alertEmail?: string | null;
+  /**
+   * Emailed if the endpoint is disabled. Required for every new endpoint: the
+   * admin who registers a receiver names who hears when it stops. Endpoints
+   * created before this rule may hold null and are told through the event alone.
+   */
+  readonly alertEmail: string;
 }
 
 export interface WebhookService {
@@ -130,12 +138,22 @@ export function webhooks(deps: WebhookDeps): WebhookService {
     if (input.events?.length === 0) {
       return err(failure('BAD_WEBHOOK_EVENTS', 'Subscribe to at least one event', ['events']));
     }
+    if (input.alertEmail !== undefined && !AlertEmail.safeParse(input.alertEmail).success) {
+      return err(
+        failure(
+          'BAD_WEBHOOK_ALERT_EMAIL',
+          'Give an address to email if this endpoint is turned off',
+          ['alertEmail'],
+        ),
+      );
+    }
     return ok(undefined);
   };
 
   return {
     async createEndpoint(tenantId, input) {
-      const valid = await validate(input);
+      // Checked here as well as by `validate`, which lets a patch omit it.
+      const valid = await validate({ ...input, alertEmail: input.alertEmail ?? '' });
       if (!valid.ok) return valid;
       const id = deps.newId();
       const plaintext = secret();
@@ -147,7 +165,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
           url: input.url,
           events: [...input.events],
           allowlist: [...input.allowlist],
-          alertEmail: input.alertEmail ?? null,
+          alertEmail: input.alertEmail,
           secretCiphertext: sealed.ciphertext,
           secretKeyId: sealed.keyId,
         }),
