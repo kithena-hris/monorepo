@@ -3,6 +3,9 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
+import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.js';
+import { linksOf } from '../application/export/job.js';
+import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
 import type { Asking } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
@@ -107,6 +110,26 @@ export const ListQuery = z.object({
 
 export const AsOfQuery = z.object({ asOf: z.iso.date().optional() });
 
+export const CreateExportBody = z.strictObject({
+  format: z.enum(['csv', 'xlsx']),
+  fields: z.array(z.string()).max(500).optional(),
+  asOf: z.iso.date().optional(),
+  includeArchived: z.boolean().optional(),
+  personIds: z.array(z.uuid()).max(50_000).optional(),
+  filter: z.string().max(500).optional(),
+  /** Required when a financial field is in the file; recorded with the export. */
+  reason: z.string().max(500).optional(),
+});
+
+export const ExportBody = z.object({
+  id: z.uuid(),
+  /** Queued exports (over 2,000 rows) complete later; ask again for the links. */
+  status: z.enum(['queued', 'completed', 'expired']),
+  rowCount: z.int().nullable(),
+  expiresAt: z.string().nullable(),
+  links: z.array(z.object({ name: z.string(), url: z.url() })),
+});
+
 /* ------------------------------------------------------------- errors -- */
 
 const STATUS: Record<string, number> = {
@@ -169,6 +192,8 @@ export interface RestDeps {
   readonly service: PeopleService;
   readonly callerFrom: CallerFrom;
   readonly idempotency: IdempotencyStore;
+  /** Absent where nothing is wired to store a file; the routes then answer UNAVAILABLE. */
+  readonly exports?: { readonly deps: ExportJobDeps; readonly queue: ExportQueue };
 }
 
 type Handler = (
@@ -286,7 +311,86 @@ export function restHandler(
       (entry) => entry,
     );
 
+  /** The requester's own export, with its links signed again. Anyone else gets NOT_FOUND. */
+  const readExport = async (asking: Asking, exportId: string): Promise<RestResponse> => {
+    const exports = deps.exports;
+    if (!exports) return refused(failure('UNAVAILABLE', 'Exports are not configured'));
+    const entry = await run(service, asking.tenantId, async (tx) => {
+      const found = await exports.deps.ledger.find(tx, asking.tenantId, exportId);
+      return found?.requestedBy === asking.viewer.accountId
+        ? ok(found)
+        : err(failure('NOT_FOUND', 'No such export'));
+    });
+    if (!entry.ok) return refused(entry.error);
+    const e = entry.value;
+    if (e.status === 'queued') {
+      return {
+        status: 200,
+        body: { id: exportId, status: 'queued', rowCount: null, expiresAt: null, links: [] },
+      };
+    }
+    const expired = Date.parse(exports.deps.clock.instant()) >= Date.parse(e.expiresAt);
+    return {
+      status: 200,
+      body: {
+        id: exportId,
+        status: expired ? 'expired' : 'completed',
+        rowCount: e.rowCount,
+        expiresAt: e.expiresAt,
+        links: expired ? [] : await linksOf(exports.deps.store, e),
+      },
+    };
+  };
+
   const routes: Route[] = [
+    {
+      method: 'POST',
+      pattern: /^\/v1\/exports$/,
+      handle: async (asking, request) => {
+        const exports = deps.exports;
+        if (!exports) return refused(failure('UNAVAILABLE', 'Exports are not configured'));
+        const body = json(request.body);
+        const input = body.ok ? parse(CreateExportBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        // Handed to the queue only after the request's transaction commits, and
+        // only if this request's write is the one that won.
+        const pending: { job: QueuedExport | null } = { job: null };
+        const v = input.value;
+        const asked: ExportJobRequest = {
+          ...asking,
+          format: v.format,
+          ...(v.fields ? { fields: v.fields } : {}),
+          ...(v.asOf ? { asOf: v.asOf } : {}),
+          ...(v.includeArchived !== undefined ? { includeArchived: v.includeArchived } : {}),
+          ...(v.personIds ? { personIds: v.personIds } : {}),
+          ...(v.filter !== undefined ? { filter: v.filter } : {}),
+          ...(v.reason !== undefined ? { reason: v.reason } : {}),
+        };
+        const answer = await idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            const requested = await requestExport(tx, exports.deps, asked);
+            if (!requested.ok) return requested;
+            if (requested.value.status === 'queued') pending.job = requested.value.job;
+            return ok(requested.value.exportId);
+          },
+          (exportId) => readExport(asking, exportId),
+        );
+        const job = pending.job;
+        if (job !== null && (answer.body as { id?: string } | null)?.id === job.exportId) {
+          await exports.queue.enqueue(job);
+          return { ...answer, status: 202 };
+        }
+        return answer;
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/exports/${UUID}$`),
+      handle: (asking, _request, params) => readExport(asking, params['id'] ?? ''),
+    },
     {
       method: 'GET',
       pattern: /^\/v1\/schema$/,
