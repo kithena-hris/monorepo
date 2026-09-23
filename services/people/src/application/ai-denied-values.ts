@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { DeniedValueLookup } from '@kithena/telemetry';
+import type { DeniedValue, DeniedValueLookup } from '@kithena/telemetry';
 
 import { visibleTo } from '../domain/access/field-access.js';
 import { inTenantResult } from './person/person-access.js';
@@ -49,10 +49,10 @@ export interface AiDeniedValuesDeps {
 }
 
 /** Every string and number in a stored value, as text: a repeating group or money has several. */
-function texts(value: unknown, out: string[]): void {
-  if (typeof value === 'string') out.push(value);
-  else if (typeof value === 'number' || typeof value === 'bigint') out.push(String(value));
-  else if (value !== null && typeof value === 'object') for (const v of Object.values(value)) texts(v, out);
+function texts(key: string, value: unknown, out: DeniedValue[]): void {
+  if (typeof value === 'string') out.push({ key, value });
+  else if (typeof value === 'number' || typeof value === 'bigint') out.push({ key, value: String(value) });
+  else if (value !== null && typeof value === 'object') for (const v of Object.values(value)) texts(key, v, out);
 }
 
 export function aiDeniedValues(deps: AiDeniedValuesDeps) {
@@ -64,13 +64,13 @@ export function aiDeniedValues(deps: AiDeniedValuesDeps) {
       readonly subjects: readonly string[];
       readonly keys: ReadonlySet<string>;
     },
-  ): Promise<Result<readonly string[]>> {
+  ): Promise<Result<readonly DeniedValue[]>> {
     const version = await deps.schemas.current(tx, asking.tenantId);
     if (!version) {
       return err(failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet'));
     }
     const definitions = version.document.attributes.filter((d) => asking.keys.has(d.key));
-    const found: string[] = [];
+    const found: DeniedValue[] = [];
 
     for (const personId of asking.subjects) {
       // One person at a time, in the caller's transaction: a prompt names a
@@ -87,7 +87,7 @@ export function aiDeniedValues(deps: AiDeniedValuesDeps) {
           ? // eslint-disable-next-line no-await-in-loop -- see above
             await deps.secrets.reveal(tx, { tenantId: asking.tenantId, personId, attributeKey: definition.key })
           : person.values[definition.key];
-        texts(value, found);
+        texts(definition.key, value, found);
       }
     }
     return ok(found);

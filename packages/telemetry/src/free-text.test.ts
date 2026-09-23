@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { contains, haystack, needle } from './free-text.js';
+import { contains, haystack, valueNeedle } from './free-text.js';
 
-const carries = (text: string, value: string): boolean => {
-  const n = needle(value);
+const carries = (text: string, value: string, names: readonly string[] = []): boolean => {
+  const n = valueNeedle(value, names);
   return n !== undefined && contains(haystack([text]), n);
 };
 
@@ -35,6 +35,71 @@ describe('free text carrying a value', () => {
   });
 
   it('ignores a value with nothing to match', () => {
-    expect(needle(' -- ')).toBeUndefined();
+    expect(valueNeedle(' -- ')).toBeUndefined();
+  });
+});
+
+describe('a short value', () => {
+  const bloodGroup = ['blood_type', 'Blood group', 'Grupo sanguíneo', 'Blutgruppe'];
+
+  it('is ignored in ordinary prose', () => {
+    expect(carries('Write a short note to a colleague about a party', 'A', bloodGroup)).toBe(false);
+    expect(carries('The AB testing results are in', 'AB', bloodGroup)).toBe(false);
+    expect(carries('Temperature is 20 F today', 'F', ['sex', 'Sex marker'])).toBe(false);
+  });
+
+  it('is found next to its own field’s name, in any locale', () => {
+    expect(carries('blood group: A', 'A', bloodGroup)).toBe(true);
+    expect(carries('Her blood type is AB, please note', 'AB', bloodGroup)).toBe(true);
+    expect(carries('grupo sanguíneo AB', 'AB', bloodGroup)).toBe(true);
+    expect(carries('Blutgruppe: A', 'A', bloodGroup)).toBe(true);
+    expect(carries('sex marker F', 'F', ['sex', 'Sex marker'])).toBe(true);
+  });
+
+  it('is not found beyond the window, or next to another field’s name', () => {
+    expect(carries('blood group was discussed at length and then a decision', 'A', bloodGroup)).toBe(false);
+    expect(carries('department: A', 'A', bloodGroup)).toBe(false);
+  });
+
+  it('is ignored when its field has no names to anchor on', () => {
+    expect(valueNeedle('A')).toBeUndefined();
+  });
+});
+
+describe('a date', () => {
+  const DOB = '1990-01-02';
+
+  it.each([
+    ['ISO', 'born 1990-01-02'],
+    ['ISO, basic', 'born 19900102'],
+    ['d/m/y', 'born 02/01/1990'],
+    ['d-m-y, no leading zeros', 'born 2-1-1990'],
+    ['d.m.y, two-digit year', 'born 2.1.90'],
+    ['m/d/y', 'born 01/02/1990'],
+    ['m-d-y, two-digit year', 'born 1-2-90'],
+    ['glued d m y', 'born 02011990'],
+    ['English, day first', 'born 2 January 1990'],
+    ['English, month first', 'born Jan 2, 1990'],
+    ['English, ordinal', 'born on the 2nd of January 1990'],
+    ['Spanish', 'nació el 2 de enero de 1990'],
+    ['Spanish, abbreviated', 'nacimiento: 2 ene 1990'],
+    ['German', 'geboren am 2. Januar 1990'],
+    ['German, Austrian', 'geboren am 2. Jänner 1990'],
+    ['Catalan', 'nascut el 2 de gener de 1990'],
+    ['Hindi', 'जन्म 2 जनवरी 1990'],
+  ])('is found written as %s', (_form, text) => {
+    expect(carries(text, DOB)).toBe(true);
+  });
+
+  it('matches both readings of an ambiguous numeric date', () => {
+    expect(carries('01/02/1990', '1990-01-02')).toBe(true);
+    expect(carries('01/02/1990', '1990-02-01')).toBe(true);
+  });
+
+  it('is not found in an unrelated date, or in digits that only look close', () => {
+    expect(carries('hired 2 January 2019', DOB)).toBe(false);
+    expect(carries('review due 03/01/1990', DOB)).toBe(false);
+    expect(carries('invoice 21 1990', DOB)).toBe(false);
+    expect(carries('born 2 February 1990', DOB)).toBe(false);
   });
 });

@@ -975,9 +975,31 @@ derived artifact computed from the union of both.**
   `DE89 3704 0044…`, `123-45-6789` and `ab 12 34 56 c` all match their stored
   form. It refuses, it never filters, and it never forwards. The values are
   held in memory for the comparison only: never logged, never in the refusal.
-  - Field access applies because the alternative is an oracle: if every value
-    were checked, "is she Catholic?" could be answered by whether the prompt
-    was refused. A value the caller cannot read did not come from us.
+  - **The rule: only values the caller may read are checked.** People applies
+    the same field-level visibility (`visibleTo`) it applies to a profile
+    read, and a value the caller cannot see is never looked up. The reason is
+    the oracle: if every value were checked, "is she Catholic?" could be
+    answered by whether the prompt was refused, one guess at a time. A value
+    the caller cannot read did not come from us, so leaving it out costs the
+    check nothing the caller could have got here.
+  - **Short values are matched only next to their field's name.** A value
+    under 4 normalised characters with no digit — blood group `A`, `AB`, a
+    sex marker `F` — is an ordinary word, and refusing every prompt with "a"
+    in it would make the gateway useless without making anyone safer. Such a
+    value refuses a prompt only as a whole word within 3 words of one of its
+    own attribute's names, key or label in any locale: `blood group: A`,
+    `grupo sanguíneo AB`. Anywhere else it is ignored. (`SHORT_BELOW` and
+    `NAME_WINDOW` in `free-text.ts`.)
+  - **Dates are matched however they are written.** A stored calendar date
+    matches ISO (`1990-01-02`, `19900102`), day/month/year and
+    month/day/year with `/`, `-` or `.`, two- or four-digit years, with or
+    without leading zeros and ordinal suffixes, and with the month spelled
+    out or abbreviated in the country packs' languages — English, Spanish,
+    Catalan, German and Hindi (`2 January 1990`, `Jan 2, 1990`,
+    `2 de enero de 1990`, `2. Januar 1990`). A numeric date is read both ways
+    round: `01/02/1990` matches the 1st of February and the 2nd of January,
+    because which one the writer meant cannot be known and refusing both is
+    the safe side.
   - A person who cannot be resolved refuses the prompt. Not knowing the values
     is not evidence the text is clean.
   - **A caller that names nobody** cannot have values checked, so any mention

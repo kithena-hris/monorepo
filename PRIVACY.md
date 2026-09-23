@@ -102,7 +102,11 @@ bound, or with a cycle in it, has that part censored rather than written.
 key with `aiEligible: false`. It also refuses one whose **free text** carries a
 denied value: the caller names the people the prompt is about, People returns
 the current values of their denied attributes that the caller may read, and a
-match however it is spaced, cased or punctuated refuses the prompt. The values
+match however it is spaced, cased or punctuated refuses the prompt. A date
+matches in any common written form, and an ambiguous numeric date both ways
+round; a value of one to three letters matches only next to its own field's
+name. Values the caller may not read are not checked, so a refusal cannot be
+used to guess them. The values
 are held in memory for the comparison and never logged or returned. A caller
 that names nobody gets the stricter rule instead: any mention of a denied
 field's key or label is refused.

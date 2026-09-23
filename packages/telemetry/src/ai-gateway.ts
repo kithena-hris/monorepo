@@ -1,4 +1,4 @@
-import { contains, haystack, needle, type Haystack } from './free-text.js';
+import { contains, haystack, nameNeedle, valueNeedle, type Haystack } from './free-text.js';
 import type { PolicyRegistry } from './policy-registry.js';
 
 /**
@@ -22,7 +22,9 @@ import type { PolicyRegistry } from './policy-registry.js';
  * names the people the prompt is about, and the gateway asks the owning
  * module for the current values of their denied attributes (with the
  * caller's authorization applied), and refuses when any of them appears in
- * the text, however it was spaced, cased or punctuated (`free-text.ts`). The
+ * the text, however it was spaced, cased or punctuated, a date however it was
+ * written, and a one- to three-letter value only next to its field's name
+ * (`free-text.ts`). The
  * values live in this function's memory for the length of the check: never
  * logged, never in a refusal, never sent.
  *
@@ -55,15 +57,20 @@ export interface Subjects {
 
 /**
  * The owning module's answer: every current value of `keys` that `caller`
- * may read, for each subject, as text. A subject it cannot resolve is a
- * failure, not an empty list.
+ * may read, for each subject, as text, with the key it belongs to. A subject
+ * it cannot resolve is a failure, not an empty list.
  */
+export interface DeniedValue {
+  readonly key: string;
+  readonly value: string;
+}
+
 export type DeniedValueLookup = (
   tenantId: string,
   subjects: Subjects,
   keys: ReadonlySet<string>,
 ) => Promise<
-  | { readonly ok: true; readonly value: readonly string[] }
+  | { readonly ok: true; readonly value: readonly DeniedValue[] }
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } }
 >;
 
@@ -146,7 +153,11 @@ export function aiGateway(deps: {
   async function checkFreeText(
     tenantId: string,
     prompt: Prompt,
-    denied: { readonly keys: ReadonlySet<string>; readonly names: readonly string[] },
+    denied: {
+      readonly keys: ReadonlySet<string>;
+      readonly names: readonly string[];
+      readonly namesByKey: ReadonlyMap<string, readonly string[]>;
+    },
     subjects: Subjects | undefined,
   ): Promise<Refusal | undefined> {
     if (denied.keys.size === 0) return undefined;
@@ -154,7 +165,7 @@ export function aiGateway(deps: {
 
     if (!subjects || subjects.ids.length === 0) {
       const named = denied.names.find((name) => {
-        const n = needle(name);
+        const n = nameNeedle(name);
         return n !== undefined && contains(text, n);
       });
       return named === undefined
@@ -179,8 +190,8 @@ export function aiGateway(deps: {
     }
     // Deliberately says nothing about which value or which person: the
     // refusal is returned to the caller and may well be logged by them.
-    const carried = values.value.some((value) => {
-      const n = needle(value);
+    const carried = values.value.some(({ key, value }) => {
+      const n = valueNeedle(value, denied.namesByKey.get(key));
       return n !== undefined && contains(text, n);
     });
     return carried

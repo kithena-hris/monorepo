@@ -49,7 +49,15 @@ describe('the values the AI gateway checks free text against', () => {
   it('are every readable denied value, sealed ones revealed, repeating ones flattened, booleans left out', async () => {
     const { deps } = setup();
     const result = await aiDeniedValues(deps)(noTransaction, { tenantId: TENANT, viewer: hr, subjects: [ADA], keys });
-    expect(result).toEqual({ ok: true, value: ['Roman Catholic', IBAN, 'Basque', 'Occitan'] });
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        { key: 'religion', value: 'Roman Catholic' },
+        { key: 'iban', value: IBAN },
+        { key: 'languages', value: 'Basque' },
+        { key: 'languages', value: 'Occitan' },
+      ],
+    });
   });
 
   it('leave out what the caller may not read, so a refusal cannot answer a question about it', async () => {

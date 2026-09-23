@@ -43,7 +43,7 @@ export interface TenantField {
 interface TenantSet {
   readonly redact: ReadonlySet<string>;
   readonly denyAi: ReadonlySet<string>;
-  readonly denyAiNames: readonly string[];
+  readonly denyAiNames: ReadonlyMap<string, readonly string[]>;
 }
 
 /** What the AI gateway checks a prompt against. */
@@ -54,6 +54,8 @@ export interface AiDenied {
   readonly keys: ReadonlySet<string>;
   /** Those keys and their labels, for the free-text check when no subject is named. */
   readonly names: readonly string[];
+  /** Each denied key's own names: itself and its labels. A short value is matched only next to one. */
+  readonly namesByKey: ReadonlyMap<string, readonly string[]>;
 }
 
 export interface PolicyRegistryOptions {
@@ -111,7 +113,7 @@ export function createPolicyRegistry(options: PolicyRegistryOptions): PolicyRegi
     replace(tenantId, fields) {
       const redact = new Set<string>();
       const denyAi = new Set<string>();
-      const denyAiNames = new Set<string>();
+      const denyAiNames = new Map<string, readonly string[]>();
 
       for (const field of fields) {
         // Throwing is for bugs, and this is one: the owning module validates
@@ -125,12 +127,11 @@ export function createPolicyRegistry(options: PolicyRegistryOptions): PolicyRegi
         if (sensitive) redact.add(field.key);
         if (!field.policy.aiEligible) {
           denyAi.add(field.key);
-          denyAiNames.add(field.key);
-          for (const label of field.labels ?? []) denyAiNames.add(label);
+          denyAiNames.set(field.key, [field.key, ...(field.labels ?? [])]);
         }
       }
 
-      tenants.set(tenantId, { redact, denyAi, denyAiNames: [...denyAiNames] });
+      tenants.set(tenantId, { redact, denyAi, denyAiNames });
       loggers.delete(tenantId);
     },
 
@@ -142,7 +143,14 @@ export function createPolicyRegistry(options: PolicyRegistryOptions): PolicyRegi
 
     aiDenied(tenantId) {
       const tenant = tenants.get(tenantId);
-      return tenant ? { paths: staticDeny, keys: tenant.denyAi, names: tenant.denyAiNames } : undefined;
+      return tenant
+        ? {
+            paths: staticDeny,
+            keys: tenant.denyAi,
+            names: [...new Set([...tenant.denyAiNames.values()].flat())],
+            namesByKey: tenant.denyAiNames,
+          }
+        : undefined;
     },
 
     loggerFor(base, tenantId) {
