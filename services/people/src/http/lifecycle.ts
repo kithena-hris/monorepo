@@ -110,6 +110,14 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
       }),
   }),
   action({
+    path: 'notice/withdraw',
+    name: 'withdrawNotice',
+    summary:
+      'Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only',
+    body: NoBody,
+    run: (access, tx, on) => access.withdrawNotice(tx, on),
+  }),
+  action({
     path: 'termination',
     name: 'terminatePerson',
     summary: 'End the employment once its last working day has come; HR only',

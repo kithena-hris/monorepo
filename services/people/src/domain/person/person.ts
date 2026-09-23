@@ -110,7 +110,8 @@ type StatusReason =
   | 'end_of_contract'
   | 'discarded'
   | 'corrected'
-  | 'rehired';
+  | 'rehired'
+  | 'notice_withdrawn';
 
 /** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
 export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
@@ -452,7 +453,11 @@ export class Person extends AggregateRoot<string> {
   }
 
   /** Access ended with an earlier employment comes back with this one (PEO-110). */
-  #restoreAccess(ctx: EventContext, effectiveFrom: string): void {
+  #restoreAccess(
+    ctx: EventContext,
+    effectiveFrom: string,
+    reason: 'rehired' | 'last_working_day_corrected' = 'rehired',
+  ): void {
     if (this.#accessEndedAt === null) return;
     this.#accessEndedAt = null;
     this.#raise(
@@ -461,7 +466,7 @@ export class Person extends AggregateRoot<string> {
         personId: this.id,
         identityAccountId: this.#identityAccountId,
         restoredAt: ctx.clock.instant(),
-        reason: 'rehired',
+        reason,
       },
       ctx,
       effectiveFrom,
@@ -527,6 +532,61 @@ export class Person extends AggregateRoot<string> {
     this.#period({ noticeFrom: this.#status });
     const moved = this.#moveTo('notice', reason, ctx, ctx.clock.date(timeZone));
     this.#recordDate('last_working_day', lastWorkingDay, ctx);
+    return moved;
+  }
+
+  /**
+   * Notice withdrawn (PEO-111): the person stays. Back to the status they
+   * gave notice from — active, or on leave — dated today on their calendar,
+   * with `status_changed` for reason `notice_withdrawn`.
+   *
+   * Only until the last working day has ended on their calendar; after that
+   * the employment has run its course and the answer is termination or a
+   * rehire. The notice's `last_working_day` row is superseded by a null one
+   * from the date it was effective (§8.5), so an "as of" read after it no
+   * longer shows an end, and with no last working day nothing is left for
+   * access to end on.
+   */
+  withdrawNotice(
+    ctx: EventContext,
+    timeZone: string,
+    /** The standing `last_working_day` history row, when there is one to supersede. */
+    lastDayRow: { readonly id: string; readonly effectiveFrom: string } | null,
+  ): Result<void> {
+    if (this.#status !== 'notice') {
+      return err(InvalidTransition(this.#status, 'have notice withdrawn'));
+    }
+    const today = ctx.clock.date(timeZone);
+    const lastDay = this.#lastWorkingDay;
+    if (lastDay !== null && today > lastDay) {
+      return err(
+        failure(
+          'LAST_DAY_ENDED',
+          `The last working day ${lastDay} has ended; terminate, or rehire later`,
+          ['lastWorkingDay'],
+        ),
+      );
+    }
+
+    const back = this.#employment?.noticeFrom ?? 'active';
+    this.#lastWorkingDay = null;
+    this.#period({ noticeFrom: null, leavingReason: null });
+    const moved = this.#moveTo(back, 'notice_withdrawn', ctx, today);
+    if (lastDayRow !== null) {
+      this.#history = [
+        ...this.#history,
+        {
+          id: ctx.newEventId(),
+          attributeKey: 'last_working_day',
+          value: null,
+          effectiveFrom: lastDayRow.effectiveFrom,
+          recordedAt: ctx.clock.instant(),
+          actor: ctx.actor,
+          supersedes: lastDayRow.id,
+          eventId: this.#lastEventId,
+        },
+      ];
+    }
     return moved;
   }
 
@@ -781,8 +841,19 @@ export class Person extends AggregateRoot<string> {
    * status and this date, so it clears itself when HR terminates or corrects
    * the date forward. A record with no last working day has none to correct;
    * giving one is `giveNotice`.
+   *
+   * **Access follows the corrected date (PEO-111).** Somebody on notice whose
+   * access the job ended at the end of the old last day, corrected to a day
+   * that has not ended on their calendar, is still working: `access_restored`
+   * (reason `last_working_day_corrected`), in the correction's transaction,
+   * and the job ends it again when the new day ends. A corrected day that has
+   * already ended leaves it ended; a terminated record keeps it ended.
    */
-  correctLastWorkingDay(lastWorkingDay: string): Result<void> {
+  correctLastWorkingDay(
+    lastWorkingDay: string,
+    ctx?: EventContext,
+    timeZone?: string,
+  ): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay === null) {
       return err(
@@ -797,6 +868,14 @@ export class Person extends AggregateRoot<string> {
     if (!ordered.ok) return ordered;
     this.#lastWorkingDay = lastWorkingDay;
     this.#period({});
+    if (
+      ctx !== undefined &&
+      timeZone !== undefined &&
+      this.#status === 'notice' &&
+      ctx.clock.date(timeZone) <= lastWorkingDay
+    ) {
+      this.#restoreAccess(ctx, ctx.clock.date(timeZone), 'last_working_day_corrected');
+    }
     return ok(undefined);
   }
 

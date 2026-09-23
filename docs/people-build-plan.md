@@ -1193,10 +1193,21 @@ it is written down here rather than left in a PR description.
       it. Retention reads the record locked. `POST
       /v1/people/{id}/rehire`, `GET /v1/people/{id}/employment-periods`,
       `rehirePerson`, `employmentPeriods`.*
-- [ ] **PEO-111** Withdraw notice: HR returns a person on notice to the
+- [x] **PEO-111** Withdraw notice: HR returns a person on notice to the
       status they held before it, until their last working day has ended on
       their calendar, superseding the notice's last-working-day row.
-      *(PRD §8.1, §8.5, §10.2, §13)*
+      *(PRD §8.1, §8.5, §10.2, §13)* *Landed as `Person.withdrawNotice`
+      reading `notice_from` off the current employment period (PEO-110),
+      `status_changed` with reason `notice_withdrawn`, a null
+      `last_working_day` row superseding the notice's, the period's end and
+      notice cleared so no access end is pending, and a completeness
+      re-judge. `POST /v1/people/{id}/notice/withdraw` and
+      `withdrawNotice`. No migration. Also closes the gap PEO-109 left: a
+      notice's last working day corrected forward, after the job ended
+      access, to a day not yet ended on the person's calendar raises
+      `access_restored` (reason `last_working_day_corrected`) in the
+      correction's transaction, and the job ends access again when the new
+      day ends; a corrected day already ended keeps it ended.*
 - [x] **PEO-115** Server rendering without trusting the remote's host.
       PEO-094 evaluated the remote's server build in the shell's own process,
       beside the internal token. *Decided (option A):* integrity and
