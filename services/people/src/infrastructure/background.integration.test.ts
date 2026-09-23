@@ -226,6 +226,13 @@ describe('the running process', () => {
     // fresh process as far as governance is concerned.
     const registry = createPolicyRegistry({ unknownTenantRedaction: [] });
     const sent: Reminder[] = [];
+    // Reminders land in working hours on the person's own clock (PRD §6.8),
+    // and this runs on the real clock: put ACME where it is midday now.
+    const offset = 12 - new Date().getUTCHours();
+    const noon = offset === 0 ? 'Etc/UTC' : `Etc/GMT${offset > 0 ? '-' : '+'}${String(Math.abs(offset))}`;
+    await admin.execute(sql`
+      INSERT INTO people.tenant_settings (tenant_id, default_time_zone) VALUES (${ACME}::uuid, ${noon})
+      ON CONFLICT (tenant_id) DO UPDATE SET default_time_zone = EXCLUDED.default_time_zone`);
     const background = await startBackground(env, {
       registry,
       mailer: {

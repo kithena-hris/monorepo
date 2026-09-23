@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { failure, err, ok } from '@kithena/domain-kit';
 import { PersonHired } from '@kithena/contracts';
 
+import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
+import { fixedCalendars } from '../org/org.js';
 import { define, inMemoryPeople, noTransaction as tx, TENANT, versionOf } from './in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
 import type { Viewer } from './ports.js';
@@ -542,6 +544,31 @@ describe('hiring', () => {
     if (row) row.snapshot = { ...row.snapshot, status: 'provisional', hireDate: null };
     return { store, people: personAccess(store.deps) };
   }
+
+  it("starts somebody on their own day, not the server's (PRD §6.8)", async () => {
+    // 13:00 UTC on the 22nd is 01:00 on the 23rd in Auckland (NZST, UTC+12).
+    const at = '2026-09-22T13:00:00.000Z';
+    const hireOn = async (calendar: TenantCalendar, custom: Record<string, unknown>) => {
+      const store = inMemoryPeople([versionOf(3, [title, ...nameKeys])], at);
+      store.seed(ADA, {
+        account: ADA_ACCOUNT,
+        fields: { givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.test' },
+        custom,
+      });
+      const row = store.rows.get(ADA);
+      if (row) row.snapshot = { ...row.snapshot, status: 'provisional', hireDate: null };
+      const people = personAccess({ ...store.deps, calendars: fixedCalendars(calendar) });
+      const hired = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-09-23' });
+      return hired.ok ? hired.value.status : hired.error.code;
+    };
+    // Their own zone decides when nothing more specific does.
+    expect(await hireOn(UTC_CALENDAR, { time_zone: 'Pacific/Auckland' })).toBe('active');
+    expect(await hireOn(UTC_CALENDAR, {})).toBe('pre_hire');
+    // The tenant default is the last resort.
+    expect(await hireOn({ ...UTC_CALENDAR, defaultZone: 'Pacific/Auckland' }, {})).toBe('active');
+    // Los Angeles (UTC-7) is still on the 22nd.
+    expect(await hireOn(UTC_CALENDAR, { time_zone: 'America/Los_Angeles' })).toBe('pre_hire');
+  });
 
   it('raises status_changed, hired and the facts identity caches, once each', async () => {
     const { store, people } = provisional(ADA_ACCOUNT);

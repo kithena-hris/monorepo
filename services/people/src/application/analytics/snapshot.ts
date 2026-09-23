@@ -3,7 +3,9 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
+import { entityDays, entityZone, type TenantCalendar } from '../../domain/org/calendar.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
+import { utcCalendars, type Calendars } from '../org/org.js';
 import type { PeopleFactsReader } from '../schema/schema-repository.js';
 import { snapshot, snapshotMeasure, snapshotRun } from './tables.js';
 
@@ -66,13 +68,36 @@ export function selfIdFields(definitions: readonly AttributeDefinition[]): reado
     .map((d) => d.key as string);
 }
 
-/** Replay one attribute from history as of D; `found` separates "cleared" from "never recorded". */
-const replay = (key: string, day: string) => sql`
+/**
+ * Which day each person is counted on (PRD §6.8).
+ *
+ * A plain date for an `asOf` somebody asked for — a date is a date. For a
+ * snapshot, each legal entity's own day at the moment of the run, and the
+ * tenant's for anybody without one: a tenant-wide figure is then the sum of
+ * per-entity figures, each on its own day.
+ */
+export type Days =
+  | string
+  | { readonly byEntity: ReadonlyMap<string, string>; readonly fallback: string };
+
+/** `Days` as a per-person SQL date over `p`, the person row. */
+export function dayOf(days: Days): SQL {
+  if (typeof days === 'string') return sql`${days}::date`;
+  if (days.byEntity.size === 0) return sql`${days.fallback}::date`;
+  const cases = sql.join(
+    [...days.byEntity].map(([id, day]) => sql`WHEN ${id} THEN ${day}::date`),
+    sql` `,
+  );
+  return sql`(CASE p.legal_entity_id::text ${cases} ELSE ${days.fallback}::date END)`;
+}
+
+/** Replay one attribute from history as of the person's day; `found` separates "cleared" from "never recorded". */
+const replay = (key: string) => sql`
   LEFT JOIN LATERAL (
     SELECT true AS found, h.value #>> '{}' AS v
       FROM people.person_attribute_history h
      WHERE h.tenant_id = p.tenant_id AND h.person_id = p.id
-       AND h.attribute_key = ${key} AND h.effective_from <= ${day}::date
+       AND h.attribute_key = ${key} AND h.effective_from <= d.day
      -- A correction shares its target's effective date and was recorded
      -- later, so it wins the tie without a separate supersedes filter.
      ORDER BY h.effective_from DESC, h.recorded_at DESC
@@ -90,7 +115,7 @@ const replayed = (key: string, fallback: SQL) =>
  * pair already seen is not produced again. The tenant scope is the tenant id,
  * and a manager's scope is their whole chain.
  */
-function scopedFacts(tenantId: string, day: string, flowsFrom: SQL): SQL {
+function scopedFacts(tenantId: string, day: string, flowsFrom: SQL, days: Days = day): SQL {
   return sql`
 WITH RECURSIVE chain (ancestor, person_id) AS (
   SELECT manager_id, id FROM people.person
@@ -102,22 +127,28 @@ WITH RECURSIVE chain (ancestor, person_id) AS (
    WHERE p.manager_id IS NOT NULL
 ),
 facts AS (
-  SELECT p.id, p.manager_id, p.custom, p.completeness, p.status,
+  SELECT p.id, p.manager_id, p.custom, p.completeness, p.status, d.day,
          ${replayed('org_unit', sql`p.org_unit_id::text`)} AS department,
          ${replayed('work_location', sql`p.location_id::text`)} AS location,
          ${replayed('employment_type', sql`p.employment_type`)} AS employment_type,
-         p.hire_date <= ${day}::date
-           AND (p.last_working_day IS NULL OR p.last_working_day >= ${day}::date) AS present,
-         p.hire_date > ${flowsFrom} AND p.hire_date <= ${day}::date AS joined,
-         COALESCE(p.last_working_day >= ${flowsFrom} AND p.last_working_day < ${day}::date, false) AS gone,
+         p.hire_date <= d.day
+           AND (p.last_working_day IS NULL OR p.last_working_day >= d.day) AS present,
+         p.hire_date > d.flows_from AND p.hire_date <= d.day AS joined,
+         COALESCE(p.last_working_day >= d.flows_from AND p.last_working_day < d.day, false) AS gone,
          -- Tenure on D for somebody here, and at leaving for somebody who left.
          (SELECT extract(year FROM a) * 12 + extract(month FROM a)
-            FROM age(CASE WHEN p.last_working_day < ${day}::date THEN p.last_working_day ELSE ${day}::date END,
+            FROM age(CASE WHEN p.last_working_day < d.day THEN p.last_working_day ELSE d.day END,
                      p.hire_date) AS a) AS tenure_months
     FROM people.person p
-    ${replay('org_unit', day)}
-    ${replay('work_location', day)}
-    ${replay('employment_type', day)}
+    -- The person's day, and the start of their flow interval: the run's
+    -- interval, anchored on their entity's day rather than the tenant's.
+    CROSS JOIN LATERAL (
+      SELECT ${dayOf(days)} AS day,
+             ${dayOf(days)} - (${day}::date - ${flowsFrom}) AS flows_from
+    ) AS d
+    ${replay('org_unit')}
+    ${replay('work_location')}
+    ${replay('employment_type')}
    WHERE p.tenant_id = ${tenantId}::uuid
      AND p.status NOT IN ('provisional', 'discarded')
      AND p.hire_date IS NOT NULL
@@ -135,9 +166,14 @@ scoped AS (
  *
  * `flowsFrom` null means the day before D.
  */
-export function cubeAt(tenantId: string, day: string, flowsFrom: string | null): SQL {
+export function cubeAt(
+  tenantId: string,
+  day: string,
+  flowsFrom: string | null,
+  days: Days = day,
+): SQL {
   const from = sql`COALESCE(${flowsFrom}::date, ${day}::date - 1)`;
-  return sql`${scopedFacts(tenantId, day, from)}
+  return sql`${scopedFacts(tenantId, day, from, days)}
 SELECT scope_id, department, location,
        CASE WHEN NOT present THEN 'terminated'
             WHEN status IN ('active', 'on_leave', 'notice') THEN status
@@ -165,7 +201,12 @@ SELECT scope_id, department, location,
  * only — self-identification answers, for D. Columns match
  * `people.headcount_snapshot_measure` from `scope_id` on.
  */
-export function measuresAt(tenantId: string, day: string, selfIdKeys: readonly string[]): SQL {
+export function measuresAt(
+  tenantId: string,
+  day: string,
+  selfIdKeys: readonly string[],
+  days: Days = day,
+): SQL {
   const span = sql`
 SELECT scope_id, 'span' AS measure, reports::text AS bucket, count(*)::int AS count
   FROM (SELECT scope_id, manager_id, count(*) AS reports
@@ -186,8 +227,8 @@ SELECT f.scope_id, 'expiry:' || e.kind AS measure, e.on_day AS bucket, count(*):
        ) AS e
  WHERE f.present
    AND e.on_day ~ '^\\d{4}-\\d{2}-\\d{2}$'
-   AND e.on_day::date > ${day}::date
-   AND e.on_day::date <= ${day}::date + ${EXPIRY_HORIZON_DAYS}::int
+   AND e.on_day::date > f.day
+   AND e.on_day::date <= f.day + ${EXPIRY_HORIZON_DAYS}::int
  GROUP BY 1, 2, 3`;
 
   const parts = [span, expiries];
@@ -217,7 +258,7 @@ SELECT f.scope_id, 'self_id:' || k.key AS measure, COALESCE(a.answer, '(unanswer
  GROUP BY 1, 2, 3`);
   }
 
-  return sql`${scopedFacts(tenantId, day, sql`${day}::date - 1`)}
+  return sql`${scopedFacts(tenantId, day, sql`${day}::date - 1`, days)}
 ${sql.join(parts, sql`\nUNION ALL\n`)}`;
 }
 
@@ -225,13 +266,21 @@ export interface SnapshotDeps {
   /** Streams every person's facts, for the missing-field counts. */
   readonly facts: PeopleFactsReader;
   readonly clock: Clock;
+  /** Each legal entity's calendar (PRD §6.8). UTC when absent. */
+  readonly calendars?: Calendars;
 }
 
 export interface SnapshotRequest {
   /** The published definitions, for self-identification fields and requiredness. */
   readonly definitions: readonly AttributeDefinition[];
-  /** The tenant's calendar: "today" is the tenant's today. */
-  readonly timeZone?: string;
+}
+
+/** What a run counted on: its label, and each entity's own day at the run's instant. */
+export interface SnapshotRun {
+  /** The run's `day`: the tenant default's date at the run's instant. */
+  readonly day: string;
+  readonly flowsFrom: string;
+  readonly days: Exclude<Days, string>;
 }
 
 /**
@@ -247,9 +296,19 @@ export async function takeSnapshot(
   deps: SnapshotDeps,
   { tx, tenantId }: TenantScope,
   request: SnapshotRequest,
-): Promise<Result<{ readonly day: string; readonly flowsFrom: string }>> {
-  const timeZone = request.timeZone ?? 'Etc/UTC';
-  const day = deps.clock.date(timeZone) as string;
+): Promise<Result<SnapshotRun>> {
+  /*
+   * One instant, read on every entity's calendar. The run is filed under the
+   * tenant's day; each person is counted on their legal entity's day at the
+   * same instant, so a tenant with entities in Madrid and Bangalore counts
+   * each on its own day and the tenant figure is their sum (PRD §6.8, §16).
+   * Runs are daily at about the same hour, so each entity's flow interval
+   * stays contiguous: it is the run's interval, anchored on its own day.
+   */
+  const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+  const at = deps.clock.instant();
+  const days = entityDays(calendar, at);
+  const day = days.fallback as string;
 
   const later = await tx
     .select({ day: snapshotRun.day })
@@ -288,16 +347,16 @@ RETURNING flows_from::text`,
 INSERT INTO people.headcount_snapshot
   (tenant_id, day, scope_id, department, location, status, employment_type, tenure_band,
    completeness, headcount, joiners, leavers)
-SELECT ${tenantId}::uuid, ${day}::date, c.* FROM (${cubeAt(tenantId, day, flowsFrom)}) AS c`);
+SELECT ${tenantId}::uuid, ${day}::date, c.* FROM (${cubeAt(tenantId, day, flowsFrom, days)}) AS c`);
 
   await tx.execute(sql`
 INSERT INTO people.headcount_snapshot_measure (tenant_id, day, scope_id, measure, bucket, count)
 SELECT ${tenantId}::uuid, ${day}::date, m.*
-  FROM (${measuresAt(tenantId, day, selfIdFields(request.definitions))}) AS m`);
+  FROM (${measuresAt(tenantId, day, selfIdFields(request.definitions), days)}) AS m`);
 
-  await writeMissing(deps, { tx, tenantId }, day, request.definitions, timeZone);
+  await writeMissing(deps, { tx, tenantId }, day, request.definitions, calendar);
 
-  return ok({ day, flowsFrom });
+  return ok({ day, flowsFrom, days });
 }
 
 /**
@@ -313,12 +372,14 @@ async function writeMissing(
   { tx, tenantId }: TenantScope,
   day: string,
   definitions: readonly AttributeDefinition[],
-  timeZone: string,
+  calendar: TenantCalendar,
 ): Promise<void> {
   const counts = new Map<string, number>();
   for await (const { facts } of deps.facts.forImpact(tx, tenantId)) {
     if (!['active', 'on_leave', 'notice'].includes(facts.status)) continue;
-    for (const gap of assessCompleteness(definitions, facts, deps.clock, timeZone).missing) {
+    // An aggregate, so the entity's day, like every other count in the run.
+    const zone = entityZone(calendar, facts.legalEntityId);
+    for (const gap of assessCompleteness(definitions, facts, deps.clock, zone).missing) {
       counts.set(gap.key, (counts.get(gap.key) ?? 0) + 1);
     }
   }

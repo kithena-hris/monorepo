@@ -113,6 +113,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     })();
   };
 
+  const org = drizzleOrgStore();
   return {
     access: personAccess({
       people: drizzlePersonRepository(),
@@ -123,9 +124,10 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       uniques: drizzleUniqueClaims(),
       clock: systemClock,
       newId: uuidv7,
+      calendars: org,
     }),
     schemas,
-    org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
+    org: orgAdmin({ store: org, clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       kick(tenantId);

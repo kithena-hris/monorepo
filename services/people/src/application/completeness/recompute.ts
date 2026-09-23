@@ -1,5 +1,13 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  fixedClock,
+  ok,
+  type Clock,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
 import type { Actor } from '@kithena/contracts';
 
 import {
@@ -8,6 +16,8 @@ import {
   type CompletenessState,
   type MissingAttribute,
 } from '../../domain/person/completeness.js';
+import { personZone } from '../../domain/org/calendar.js';
+import { utcCalendars, type Calendars } from '../org/org.js';
 import { clockAsOf, computeImpact, type EvaluablePerson } from '../schema/impact.js';
 import type { PeopleFactsReader, SchemaRepository } from '../schema/schema-repository.js';
 import type { CompletenessStore, Gap } from './store.js';
@@ -39,8 +49,6 @@ export interface RecomputeRequest {
   readonly correlationId: string;
   /** The `schema.published` event this run answers. */
   readonly causationId: string | null;
-  /** The tenant's calendar, for `requiredFrom`. Must match what the preview used. */
-  readonly timeZone?: string;
 }
 
 export interface RecomputeSummary {
@@ -58,6 +66,8 @@ export interface RecomputeDeps {
   readonly clock: Clock;
   readonly newEventId: () => string;
   readonly batchSize?: number;
+  /** Whose day each person is on; must be what the preview read. UTC when absent. */
+  readonly calendars?: Calendars;
 }
 
 export type RecomputeCompleteness = (
@@ -94,16 +104,22 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
         : [];
 
     /*
-     * Evaluate the day the preview evaluated, as recorded on the version —
-     * not today in UTC. The event that starts this run carries no time zone,
-     * and at 01:00 in Auckland "today in UTC" is yesterday: a field required
-     * from today would be in the preview's count and missing from this one,
-     * and the admin would have been shown a number that did not happen. A
-     * version written before the date was recorded falls back to the clock.
+     * Evaluate at the instant the preview evaluated at, as recorded on the
+     * version, and each person on their own calendar (PRD §6.8) — not today
+     * in UTC. The event that starts this run arrives whenever it arrives, and
+     * at 01:00 in Auckland "today in UTC" is yesterday: a field required from
+     * today would be in the preview's count and missing from this one. A
+     * version from before the instant was recorded replays its one date; one
+     * from before either falls back to the clock.
      */
     const clock =
-      published.evaluatedOn === null ? deps.clock : clockAsOf(deps.clock, published.evaluatedOn);
-    const timeZone = request.timeZone ?? 'Etc/UTC';
+      published.evaluatedAt !== null
+        ? fixedClock(published.evaluatedAt)
+        : published.evaluatedOn !== null
+          ? clockAsOf(deps.clock, published.evaluatedOn)
+          : deps.clock;
+    const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+    const at = clock.instant();
     let evaluated = 0;
     let becameIncomplete = 0;
     let becameComplete = 0;
@@ -120,8 +136,13 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
 
       for (const person of batch) {
         // The preview's own classification, asked about one person.
-        const impact = computeImpact(before, after, [person], clock, timeZone);
-        const verdict = assessCompleteness(after, person.facts, clock, timeZone);
+        const impact = computeImpact(before, after, [person], clock, calendar);
+        const verdict = assessCompleteness(
+          after,
+          person.facts,
+          clock,
+          personZone(calendar, person.placement, at),
+        );
 
         byState[verdict.state].push(person.personId);
         const owners = gapsByOwner(verdict);

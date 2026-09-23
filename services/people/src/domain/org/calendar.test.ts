@@ -10,8 +10,10 @@ import {
   effectiveZones,
   entityDays,
   entityZone,
+  inReminderWindow,
   locationZoneAt,
   personZone,
+  placementOf,
   UTC_CALENDAR,
   type TenantCalendar,
 } from './calendar.js';
@@ -159,6 +161,37 @@ describe('a tenant with entities in Madrid and Bangalore', () => {
     expect(entityDays(calendar, '2026-03-28T23:30:00.000Z').byEntity.get(MADRID)).toBe('2026-03-29');
     expect(entityZone(calendar, MADRID)).toBe('Europe/Madrid');
     expect(entityZone(calendar, null)).toBe('Europe/Madrid');
+  });
+});
+
+describe("a person's placement, read off their values", () => {
+  it('takes the location, the entity and their own zone by attribute key', () => {
+    expect(
+      placementOf({ location_id: CANARIES, legal_entity_id: MADRID, time_zone: 'Asia/Tokyo', x: 1 }),
+    ).toEqual({ locationId: CANARIES, legalEntityId: MADRID, ownZone: 'Asia/Tokyo' });
+    expect(placementOf({ location_id: 7 })).toEqual({
+      locationId: null,
+      legalEntityId: null,
+      ownZone: null,
+    });
+  });
+});
+
+describe('the reminder window: working hours on the person’s own clock', () => {
+  it('is open from 09:00 to before 18:00 local, whatever UTC says', () => {
+    // 20:00 UTC: 09:00 next morning in Auckland (UTC+13), 13:00 in Los Angeles (UTC-7).
+    expect(inReminderWindow('2026-03-31T20:00:00.000Z', 'Pacific/Auckland')).toBe(true);
+    expect(inReminderWindow('2026-06-30T20:00:00.000Z', 'America/Los_Angeles')).toBe(true);
+    // The same instant is 01:30 in Kolkata and 22:00 in Madrid (CEST).
+    expect(inReminderWindow('2026-06-30T20:00:00.000Z', 'Asia/Kolkata')).toBe(false);
+    expect(inReminderWindow('2026-06-30T20:00:00.000Z', 'Europe/Madrid')).toBe(false);
+  });
+
+  it('opens at 09:00 in Madrid on the spring-forward day, an hour earlier in UTC', () => {
+    expect(inReminderWindow('2026-03-28T07:59:00.000Z', 'Europe/Madrid')).toBe(false); // 08:59 CET
+    expect(inReminderWindow('2026-03-28T08:00:00.000Z', 'Europe/Madrid')).toBe(true); // 09:00 CET
+    expect(inReminderWindow('2026-03-29T06:59:00.000Z', 'Europe/Madrid')).toBe(false); // 08:59 CEST
+    expect(inReminderWindow('2026-03-29T07:00:00.000Z', 'Europe/Madrid')).toBe(true); // 09:00 CEST
   });
 });
 

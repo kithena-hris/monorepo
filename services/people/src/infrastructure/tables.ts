@@ -97,6 +97,25 @@ export const schemaVersion = people.table(
   (t) => [uniqueIndex('schema_version_pk_idx').on(t.tenantId, t.version)],
 );
 
+/**
+ * The same table with `evaluated_at` (20260924170000). Separate so that every
+ * read and write that does not need the instant keeps working against a
+ * database one migration behind; only the publish writes it and only the
+ * recompute reads it.
+ */
+export const schemaVersionEvaluated = people.table('schema_version', {
+  tenantId: uuid('tenant_id').notNull(),
+  version: integer('version').notNull(),
+  publishedAt: timestamp('published_at', { withTimezone: true }).notNull().defaultNow(),
+  publishedBy: uuid('published_by'),
+  checksum: char('checksum', { length: 64 }).notNull(),
+  document: jsonb('document').notNull(),
+  rolledBackFrom: integer('rolled_back_from'),
+  evaluatedOn: date('evaluated_on'),
+  /** The instant the preview read every person's own day off (PEO-099). */
+  evaluatedAt: timestamp('evaluated_at', { withTimezone: true }),
+});
+
 export const person = people.table('person', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull(),

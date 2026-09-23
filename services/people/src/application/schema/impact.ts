@@ -1,6 +1,12 @@
 import type { Clock } from '@kithena/domain-kit';
 import type { AttributeDefinition, CalendarDate, WriterRole } from '@kithena/contracts';
 
+import {
+  personZone,
+  UTC_CALENDAR,
+  type Placement,
+  type TenantCalendar,
+} from '../../domain/org/calendar.js';
 import { assessCompleteness, gapsByOwner } from '../../domain/person/completeness.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 
@@ -60,6 +66,8 @@ export interface PublishImpact {
 export interface EvaluablePerson {
   readonly personId: string;
   readonly facts: PersonFacts;
+  /** Which calendar the person's `requiredFrom` is read on (PRD §6.8). */
+  readonly placement: Placement;
 }
 
 export function computeImpact(
@@ -67,7 +75,8 @@ export function computeImpact(
   after: readonly AttributeDefinition[],
   people: Iterable<EvaluablePerson>,
   clock: Clock,
-  timeZone = 'Etc/UTC',
+  /** Whose day each person is on. Each is evaluated on their own. */
+  calendar: TenantCalendar = UTC_CALENDAR,
 ): PublishImpact {
   let evaluated = 0;
   let becomingIncomplete = 0;
@@ -77,8 +86,10 @@ export function computeImpact(
   let staffFields = 0;
   const affected: PersonImpact[] = [];
 
-  for (const { personId, facts } of people) {
+  const at = clock.instant();
+  for (const { personId, facts, placement } of people) {
     evaluated += 1;
+    const timeZone = personZone(calendar, placement, at);
 
     const was = assessCompleteness(before, facts, clock, timeZone);
     const will = assessCompleteness(after, facts, clock, timeZone);

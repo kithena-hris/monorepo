@@ -8,8 +8,10 @@ import { fixedClock } from '@kithena/domain-kit';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 import { startPostgres } from '@kithena/testing';
 
+import type { TenantCalendar } from '../../domain/org/calendar.js';
 import { drizzlePeopleFacts } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
+import { fixedCalendars } from '../org/org.js';
 import { chartExport, chartTooltip, type ChartViewer } from './access.js';
 import {
   attritionTrend,
@@ -143,7 +145,11 @@ async function snapshotOn(tenantId: string, day: string, defs = definitions) {
 /** The job's second step: publish whatever special-category breakdown is due. */
 async function publishOn(tenantId: string, day: string, defs = definitions) {
   return inTenant(tenantId, (scope) =>
-    publishBreakdowns({ clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, { definitions: defs }),
+    publishBreakdowns({ clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
+      definitions: defs,
+      // A tenant with no legal entity: everybody on the tenant's day.
+      run: { day, days: { byEntity: new Map(), fallback: day } },
+    }),
   );
 }
 
@@ -250,7 +256,7 @@ beforeAll(async () => {
 
   expect((await snapshotOn(ACME, D1)).ok).toBe(true);
   expect((await snapshotOn(GLOBEX, D1)).ok).toBe(true);
-  expect(await snapshotOn(ACME, D3)).toEqual({ ok: true, value: { day: D3, flowsFrom: D1 } });
+  expect(await snapshotOn(ACME, D3)).toMatchObject({ ok: true, value: { day: D3, flowsFrom: D1 } });
 });
 
 afterAll(async () => {
@@ -348,7 +354,7 @@ describe('the snapshot', () => {
   });
 
   it('is idempotent: a second run on one day replaces the first', async () => {
-    expect(await snapshotOn(ACME, D3)).toEqual({ ok: true, value: { day: D3, flowsFrom: D1 } });
+    expect(await snapshotOn(ACME, D3)).toMatchObject({ ok: true, value: { day: D3, flowsFrom: D1 } });
     const trend = await chart(ACME, hr, (ctx) => headcountTrend(ctx, { from: D1, to: D3 }));
     expect(trend).toEqual({
       ok: true,
@@ -799,6 +805,54 @@ describe('the cohort minimum', () => {
         error: { code: 'SPECIAL_CATEGORY_POINT_IN_TIME' },
       });
     });
+  });
+});
+
+describe('a tenant with entities in Madrid and Bangalore (PRD §6.8, §16)', () => {
+  const TENANT = '00000000-0000-4000-8000-00000000000e';
+  const SL = '00000000-0000-4000-8000-000000000201';
+  const INDIA = '00000000-0000-4000-8000-000000000202';
+  const calendar: TenantCalendar = {
+    defaultZone: 'Europe/Madrid',
+    entities: new Map([
+      [SL, { id: SL, name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' }],
+      [INDIA, { id: INDIA, name: 'Acme India', country: 'IN', timeZone: 'Asia/Kolkata' }],
+    ]),
+    locations: new Map(),
+  };
+
+  it('counts each entity on its own day and files the run under the tenant’s', async () => {
+    // Both start on 1 April. At 20:00 UTC on 31 March it is already the 1st in
+    // Bangalore (01:30) and still the 31st in Madrid (22:00).
+    for (const [id, entity] of [
+      ['00000000-0000-4000-8000-000000000211', SL],
+      ['00000000-0000-4000-8000-000000000212', INDIA],
+    ] as const) {
+      // eslint-disable-next-line no-await-in-loop -- two rows
+      await admin.execute(sql`
+        INSERT INTO people.person (id, tenant_id, status, hire_date, legal_entity_id, completeness)
+        VALUES (${id}, ${TENANT}, 'active', '2026-04-01', ${entity}, 'complete')`);
+    }
+    const run = await inTenant(TENANT, (scope) =>
+      takeSnapshot(
+        {
+          facts,
+          clock: fixedClock('2026-03-31T20:00:00.000Z'),
+          calendars: fixedCalendars(calendar),
+        },
+        scope,
+        { definitions },
+      ),
+    );
+    expect(run).toMatchObject({ ok: true, value: { day: '2026-03-31' } });
+    const [row] = [
+      ...(await admin.execute(sql`
+        SELECT sum(headcount)::int AS headcount, sum(joiners)::int AS joiners
+          FROM people.headcount_snapshot
+         WHERE tenant_id = ${TENANT}::uuid AND scope_id = ${TENANT}::uuid AND day = '2026-03-31'`)),
+    ];
+    // The tenant's figure is the sum of the entities' own-day figures: 0 + 1.
+    expect(row).toEqual({ headcount: 1, joiners: 1 });
   });
 });
 

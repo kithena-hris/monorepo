@@ -4,6 +4,7 @@ import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/con
 
 import { computeImpact, ownersOf, type EvaluablePerson } from './impact.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
+import type { Placement, TenantCalendar } from '../../domain/org/calendar.js';
 
 /**
  * The number that stops a Friday afternoon becoming four hundred emails.
@@ -50,11 +51,14 @@ const facts = (over: Partial<PersonFacts> = {}): PersonFacts => ({
   ...over,
 });
 
+const NOWHERE: Placement = { legalEntityId: null, locationId: null, ownZone: null };
+
 /** `n` people, all alike, so a count is about the rule and not about the data. */
 const crowd = (n: number, over: Partial<PersonFacts> = {}): EvaluablePerson[] =>
   Array.from({ length: n }, (_, i) => ({
     personId: `person-${String(i)}`,
     facts: facts(over),
+    placement: NOWHERE,
   }));
 
 describe('tightening a requirement', () => {
@@ -163,6 +167,7 @@ describe('a requirement that only applies to some people', () => {
     const people = [...crowd(3), ...crowd(7, { country: 'DE' }).map((p, i) => ({
       personId: `german-${String(i)}`,
       facts: p.facts,
+      placement: NOWHERE,
     }))];
 
     const impact = computeImpact(before, after, people, clock);
@@ -195,5 +200,53 @@ describe('who owns the fields a publish requires', () => {
 
   it('names nobody for keys nothing defines', () => {
     expect(ownersOf([define({ key: 'cost_centre' })], ['gone'])).toEqual([]);
+  });
+});
+
+describe('each person on their own day (PRD §6.8)', () => {
+  const MADRID = '00000000-0000-4000-8000-0000000000e1';
+  const BANGALORE = '00000000-0000-4000-8000-0000000000e2';
+  const calendar: TenantCalendar = {
+    defaultZone: 'Europe/Madrid',
+    entities: new Map([
+      [MADRID, { id: MADRID, name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' }],
+      [BANGALORE, { id: BANGALORE, name: 'Acme India', country: 'IN', timeZone: 'Asia/Kolkata' }],
+    ]),
+    locations: new Map(),
+  };
+  const before = [define({ key: 'cost_centre' })];
+  const after = [
+    define({
+      key: 'cost_centre',
+      requiredness: { mode: 'always', requiredFrom: '2026-09-24', appliesTo: 'all_records' },
+    }),
+  ];
+  const at = (entity: string, n: number): EvaluablePerson[] =>
+    Array.from({ length: n }, (_, i) => ({
+      personId: `${entity}-${String(i)}`,
+      facts: facts({ legalEntityId: entity }),
+      placement: { legalEntityId: entity, locationId: null, ownZone: null },
+    }));
+
+  it('requires the field in Bangalore, where the 24th has begun, and not yet in Madrid', () => {
+    // 20:00 UTC on the 23rd: 01:30 on the 24th in Kolkata, 22:00 on the 23rd in Madrid.
+    const impact = computeImpact(
+      before,
+      after,
+      [...at(MADRID, 4), ...at(BANGALORE, 3)],
+      fixedClock('2026-09-23T20:00:00.000Z'),
+      calendar,
+    );
+    expect(impact).toMatchObject({ evaluated: 7, becomingIncomplete: 3 });
+  });
+
+  it('is UTC for everybody when no calendar is given', () => {
+    const impact = computeImpact(
+      before,
+      after,
+      [...at(MADRID, 4), ...at(BANGALORE, 3)],
+      fixedClock('2026-09-23T20:00:00.000Z'),
+    );
+    expect(impact).toMatchObject({ becomingIncomplete: 0 });
   });
 });

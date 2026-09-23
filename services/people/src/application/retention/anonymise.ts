@@ -1,7 +1,17 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  localDate,
+  ok,
+  type Clock,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
 import { TenantId, type Actor, type FieldPolicy } from '@kithena/contracts';
 
+import { personZone, type Placement } from '../../domain/org/calendar.js';
+import { utcCalendars, type Calendars } from '../org/org.js';
 import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
 
 /**
@@ -34,6 +44,8 @@ export interface RetentionStore {
   ): Promise<{
     readonly status: string;
     readonly lastWorkingDay: string | null;
+    /** Whose calendar the due date is read on (PRD §6.8). */
+    readonly placement: Placement;
     /**
      * Keys that still hold a value anywhere: `custom`, a typed column, a
      * secret, or an unredacted history row.
@@ -57,14 +69,14 @@ export interface AnonymiseRequest {
   readonly personId: string;
   readonly actor: Actor;
   readonly correlationId: string;
-  /** The tenant's calendar, for "today". */
-  readonly timeZone?: string;
 }
 
 export function anonymiseDue(deps: {
   readonly store: RetentionStore;
   readonly clock: Clock;
   readonly newEventId: () => string;
+  /** UTC when absent. */
+  readonly calendars?: Calendars;
 }): (tx: PostgresJsDatabase, request: AnonymiseRequest) => Promise<Result<{ cleared: readonly string[] }>> {
   return async (tx, request) => {
     const { tenantId, personId } = request;
@@ -73,11 +85,14 @@ export function anonymiseDue(deps: {
     if (leaver.status !== 'terminated' || leaver.lastWorkingDay === null) return ok({ cleared: [] });
 
     const attributes = await deps.store.policies(tx, tenantId);
-    const due = dueForAnonymisation(
-      attributes,
-      leaver.lastWorkingDay,
-      deps.clock.date(request.timeZone ?? 'Etc/UTC'),
-    ).filter((d) => leaver.held.has(d.key));
+    // Due on the leaver's own calendar: "48 months after the last day" ends
+    // at midnight where they worked, not where the server is (PRD §6.8).
+    const at = deps.clock.instant();
+    const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+    const today = localDate(at, personZone(calendar, leaver.placement, at));
+    const due = dueForAnonymisation(attributes, leaver.lastWorkingDay, today).filter((d) =>
+      leaver.held.has(d.key),
+    );
 
     if (due.length === 0) return ok({ cleared: [] });
 

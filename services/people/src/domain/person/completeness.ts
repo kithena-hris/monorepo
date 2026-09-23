@@ -67,7 +67,8 @@ export function assessCompleteness(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
   clock: Clock,
-  timeZone = 'Etc/UTC',
+  /** Whose calendar "today" is read on (PRD §6.8). Required: there is no safe default. */
+  timeZone: string,
 ): CompletenessVerdict {
   if (NOT_APPLICABLE.has(facts.status)) {
     return { state: 'not_applicable', missing: [], unevaluable: [] };
@@ -116,7 +117,8 @@ export function notApplicable(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
   clock: Clock,
-  timeZone = 'Etc/UTC',
+  /** Whose calendar "today" is read on (PRD §6.8). Required: there is no safe default. */
+  timeZone: string,
 ): readonly string[] {
   if (NOT_APPLICABLE.has(facts.status)) return [];
   return definitions

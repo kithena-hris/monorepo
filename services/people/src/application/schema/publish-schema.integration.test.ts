@@ -72,6 +72,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
+    '20260924170000_people_calendar.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -200,6 +201,7 @@ async function recountIncomplete(): Promise<number> {
         knownAttributes: new Set(Object.keys(values)),
       },
       clock,
+      'Etc/UTC',
     );
     if (verdict.state === 'incomplete') incomplete += 1;
   }

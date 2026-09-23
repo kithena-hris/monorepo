@@ -66,7 +66,17 @@ export function drizzleRetentionStore(): RetentionStore {
       ]);
       for (const s of secrets) held.add(s.key);
       for (const h of history) held.add(String(h['key']));
-      return { status: row.status, lastWorkingDay: row.lastWorkingDay, held };
+      const ownZone = (row.custom as Record<string, unknown> | null)?.['time_zone'];
+      return {
+        status: row.status,
+        lastWorkingDay: row.lastWorkingDay,
+        held,
+        placement: {
+          legalEntityId: row.legalEntityId,
+          locationId: row.locationId,
+          ownZone: typeof ownZone === 'string' ? ownZone : null,
+        },
+      };
     },
 
     async policies(tx, tenantId) {

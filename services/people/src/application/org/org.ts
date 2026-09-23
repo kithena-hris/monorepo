@@ -24,7 +24,7 @@ import {
   type PlaceInput,
   type TenantCalendar,
 } from '../../domain/org/calendar.js';
-import type { Asking } from '../person/person-access.js';
+import type { Viewer } from '../person/ports.js';
 
 /**
  * Legal entities, locations and the tenant's People settings (PEO-099).
@@ -121,7 +121,12 @@ export interface OrgDeps {
   readonly newId: () => string;
 }
 
-type Asked<T = object> = Pick<Asking, 'tenantId' | 'viewer' | 'correlationId'> & T;
+/** Who is asking; `Asking` in person-access is the same shape. */
+type Asked<T = object> = {
+  readonly tenantId: string;
+  readonly viewer: Viewer;
+  readonly correlationId: string;
+} & T;
 
 /** Who is writing, and what the events say caused it. */
 export interface Writer {

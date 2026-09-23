@@ -1,7 +1,15 @@
 import { createHash } from 'node:crypto';
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type DomainFailure, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  localDate,
+  ok,
+  type Clock,
+  type DomainFailure,
+  type Result,
+} from '@kithena/domain-kit';
 import type { Actor, AttributeDefinition, EmploymentType, WorkModel } from '@kithena/contracts';
 
 import {
@@ -27,7 +35,9 @@ import {
   type EventContext,
 } from '../../domain/person/person.js';
 import { changedAttribute } from '../../domain/person/profile.js';
+import { placementOf, personZone } from '../../domain/org/calendar.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import { utcCalendars, type Calendars } from '../org/org.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
 import type {
@@ -68,14 +78,14 @@ export interface PersonAccessDeps {
   readonly clock: Clock;
   /** UUIDv7, for history rows, events and new records. */
   readonly newId: () => string;
+  /** Whose day "today" is for each person (PRD §6.8). UTC when absent. */
+  readonly calendars?: Calendars;
 }
 
 export interface Asking {
   readonly tenantId: string;
   readonly viewer: Viewer;
   readonly correlationId: string;
-  /** The tenant's calendar, for "today". */
-  readonly timeZone?: string;
 }
 
 export interface PersonView {
@@ -158,7 +168,23 @@ function digest(value: string): string {
 }
 
 export function personAccess(deps: PersonAccessDeps): PersonAccess {
-  const today = (asking: Asking) => deps.clock.date(asking.timeZone ?? 'Etc/UTC') as string;
+  const calendars = deps.calendars ?? utcCalendars;
+
+  /**
+   * The person's zone and today on it: their location's, else their legal
+   * entity's, else their own, else the tenant's (PRD §6.8). Read off the
+   * values the person will have, so a write that moves somebody to another
+   * office is judged on the calendar it moves them to.
+   */
+  async function calendarOf(
+    tx: Tx,
+    tenantId: string,
+    values: Readonly<Record<string, unknown>>,
+  ): Promise<{ readonly zone: string; readonly day: string }> {
+    const at = deps.clock.instant();
+    const zone = personZone(await calendars.load(tx, tenantId), placementOf(values), at);
+    return { zone, day: localDate(at, zone) };
+  }
   const actorOf = (viewer: Viewer): Actor => ({ kind: 'user', userId: viewer.accountId });
 
   /** One event id when a history row names the event; a fresh one per event otherwise. */
@@ -345,7 +371,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     }
 
     const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-    const day = today(asking);
+    const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...allowed });
     const effectiveFrom = asking.effectiveFrom ?? day;
 
     // Every value checked before anything is written, so a bad sixth field
@@ -619,7 +645,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         );
       }
 
-      const day = today(asking);
+      const { zone, day } = await calendarOf(tx, asking.tenantId, person.values);
       const lifecycle = LIFECYCLE_KEYS.has(definition.key);
       if (lifecycle && asking.value === null) {
         return err(
@@ -665,7 +691,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         const moved = aggregate.correctHireDate(
           valid.value as string,
           { ...contextFor(asking), causationId: eventId },
-          asking.timeZone,
+          zone,
         );
         if (!moved.ok) return moved;
       } else if (moves && definition.key === 'last_working_day') {
@@ -742,7 +768,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           knownAttributes: new Set(definitions.map((d) => d.key as string)),
         },
         deps.clock,
-        asking.timeZone,
+        (await calendarOf(tx, asking.tenantId, person.values)).zone,
       );
 
       const byKey = new Map(definitions.map((d) => [d.key as string, d]));
@@ -796,12 +822,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
-      const hired = aggregate.hire(
-        hireDate,
-        facts.value,
-        contextFor(asking),
-        asking.timeZone,
-      );
+      const { zone } = await calendarOf(tx, asking.tenantId, person.values);
+      const hired = aggregate.hire(hireDate, facts.value, contextFor(asking), zone);
       if (!hired.ok) return hired;
       shareIdentityFacts(aggregate, asking, person.values, hireDate);
 

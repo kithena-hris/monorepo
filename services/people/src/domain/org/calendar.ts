@@ -63,6 +63,19 @@ export interface Placement {
   readonly ownZone: string | null;
 }
 
+/** Where a person sits, read off their values by attribute key. */
+export function placementOf(values: Readonly<Record<string, unknown>>): Placement {
+  const text = (key: string): string | null => {
+    const value = values[key];
+    return typeof value === 'string' ? value : null;
+  };
+  return {
+    locationId: text('location_id'),
+    legalEntityId: text('legal_entity_id'),
+    ownZone: text('time_zone'),
+  };
+}
+
 /** A tenant nobody has configured: UTC, and nothing else. */
 export const UTC_CALENDAR: TenantCalendar = {
   defaultZone: 'Etc/UTC',
@@ -106,6 +119,25 @@ export function entityZone(calendar: TenantCalendar, legalEntityId: string | nul
     (legalEntityId === null ? undefined : calendar.entities.get(legalEntityId))?.timeZone ??
     calendar.defaultZone
   );
+}
+
+/** When a reminder may land: working hours, on the person's own clock. */
+export const REMINDER_HOURS = { from: 9, until: 18 } as const;
+
+/**
+ * Whether it is working hours for somebody in `zone` at `at`.
+ *
+ * The sweep runs hourly for every tenant at once, so without this a reminder
+ * reaches Auckland at 03:00 because Europe had its morning. Hours rather than
+ * days: the one-per-week cap is already 168 hours and needs no calendar.
+ */
+export function inReminderWindow(at: string, zone: string): boolean {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hourCycle: 'h23' }).format(
+      new Date(at),
+    ),
+  );
+  return hour >= REMINDER_HOURS.from && hour < REMINDER_HOURS.until;
 }
 
 /** Each legal entity's day at an instant, and the tenant's for everybody else. */
