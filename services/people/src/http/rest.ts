@@ -339,6 +339,79 @@ const cursorOut = (id: string | null) =>
 const cursorIn = (cursor: string | undefined) =>
   cursor === undefined ? null : Buffer.from(cursor, 'base64url').toString('utf8');
 
+/**
+ * A write, made safe to retry.
+ *
+ * The key, the request's hash and the resource it produced are stored in
+ * the same transaction as the write, so the write and the record of it
+ * commit together or not at all. A retry with the same key and body answers
+ * with the resource as it is now, read again through the same
+ * authorization; the same key with a different body is refused.
+ *
+ * The body of the first response is not stored: it is a copy of somebody's
+ * record in a table with no reason to keep one. `replay` is told whether it
+ * answers the write this request made or one an earlier request made.
+ */
+export async function idempotent(
+  deps: Pick<RestDeps, 'service' | 'idempotency'>,
+  asking: Asking,
+  request: RestRequest,
+  status: number,
+  write: (tx: PostgresJsDatabase) => Promise<Result<string>>,
+  replay: (resourceId: string, replayed: boolean) => Promise<RestResponse>,
+): Promise<RestResponse> {
+  const { service } = deps;
+  const key = request.headers['idempotency-key'];
+  if (typeof key !== 'string' || key.length === 0 || key.length > 255) {
+    return refused(
+      failure('IDEMPOTENCY_KEY_REQUIRED', 'Every write carries an Idempotency-Key header'),
+    );
+  }
+  const hash = createHash('sha256')
+    // The caller is part of the request: one key reused by two people is
+    // two requests, and the second is refused rather than answered.
+    .update(`${asking.viewer.accountId}\n${request.method} ${request.url}\n${request.body}`)
+    .digest('hex');
+
+  let replayed = false;
+  const outcome = await run<string>(service, asking.tenantId, async (tx) => {
+    const prior = await deps.idempotency.find(tx, asking.tenantId, key);
+    if (prior) {
+      replayed = true;
+      return prior.requestHash === hash
+        ? ok(prior.resourceId)
+        : err(failure('IDEMPOTENCY_KEY_REUSED', 'This key was used for a different request'));
+    }
+    const written = await write(tx);
+    if (!written.ok) return written;
+    const saved = await deps.idempotency.save(tx, asking.tenantId, key, {
+      requestHash: hash,
+      status,
+      resourceId: written.value,
+    });
+    // Somebody else committed this key first; roll ours back and answer as they did.
+    return saved ? ok(written.value) : err(failure('IDEMPOTENCY_RACE', 'raced'));
+  });
+
+  if (!outcome.ok && outcome.error.code === 'IDEMPOTENCY_RACE') {
+    const prior = await service.inTenant(asking.tenantId, ({ tx }) =>
+      deps.idempotency.find(tx, asking.tenantId, key),
+    );
+    if (prior?.requestHash !== hash) {
+      return refused(
+        failure('IDEMPOTENCY_KEY_REUSED', 'This key was used for a different request'),
+      );
+    }
+    return withStatus(await replay(prior.resourceId, true), prior.status);
+  }
+  if (!outcome.ok) return refused(outcome.error);
+
+  return withStatus(await replay(outcome.value, replayed), status);
+}
+
+const withStatus = (response: RestResponse, status: number): RestResponse =>
+  response.status < 300 ? { ...response, status } : response;
+
 /* ------------------------------------------------------------ handler -- */
 
 export interface RestDeps {
@@ -368,13 +441,14 @@ export interface Route {
   readonly method: string;
   readonly pattern: RegExp;
   readonly handle: Handler;
+  /** A POST that changes nothing — a preview, a dry run, advice — and so takes no Idempotency-Key. */
+  readonly safe?: true;
 }
 
 export const UUID = '([0-9a-fA-F-]{36})';
 
-export function restHandler(
-  deps: RestDeps,
-): (request: RestRequest) => Promise<RestResponse | null> {
+/** Every route, for the dispatcher and for the contract test that checks each write (PEO-116). */
+export function restRoutes(deps: RestDeps): Route[] {
   const { service } = deps;
 
   const respond = <T>(
@@ -382,74 +456,6 @@ export function restHandler(
     status: number,
     shape: (value: T) => unknown,
   ): RestResponse => (result.ok ? { status, body: shape(result.value) } : refused(result.error));
-
-  /**
-   * A write, made safe to retry.
-   *
-   * The key, the request's hash and the resource it produced are stored in
-   * the same transaction as the write, so the write and the record of it
-   * commit together or not at all. A retry with the same key and body answers
-   * with the resource as it is now, read again through the same
-   * authorization; the same key with a different body is refused.
-   *
-   * The body of the first response is not stored: it is a copy of somebody's
-   * record in a table with no reason to keep one.
-   */
-  async function idempotent(
-    asking: Asking,
-    request: RestRequest,
-    status: number,
-    write: (tx: PostgresJsDatabase) => Promise<Result<string>>,
-    replay: (resourceId: string) => Promise<RestResponse>,
-  ): Promise<RestResponse> {
-    const key = request.headers['idempotency-key'];
-    if (typeof key !== 'string' || key.length === 0 || key.length > 255) {
-      return refused(
-        failure('IDEMPOTENCY_KEY_REQUIRED', 'Every write carries an Idempotency-Key header'),
-      );
-    }
-    const hash = createHash('sha256')
-      // The caller is part of the request: one key reused by two people is
-      // two requests, and the second is refused rather than answered.
-      .update(`${asking.viewer.accountId}\n${request.method} ${request.url}\n${request.body}`)
-      .digest('hex');
-
-    const outcome = await run<string>(service, asking.tenantId, async (tx) => {
-      const prior = await deps.idempotency.find(tx, asking.tenantId, key);
-      if (prior) {
-        return prior.requestHash === hash
-          ? ok(prior.resourceId)
-          : err(failure('IDEMPOTENCY_KEY_REUSED', 'This key was used for a different request'));
-      }
-      const written = await write(tx);
-      if (!written.ok) return written;
-      const saved = await deps.idempotency.save(tx, asking.tenantId, key, {
-        requestHash: hash,
-        status,
-        resourceId: written.value,
-      });
-      // Somebody else committed this key first; roll ours back and answer as they did.
-      return saved ? ok(written.value) : err(failure('IDEMPOTENCY_RACE', 'raced'));
-    });
-
-    if (!outcome.ok && outcome.error.code === 'IDEMPOTENCY_RACE') {
-      const prior = await service.inTenant(asking.tenantId, ({ tx }) =>
-        deps.idempotency.find(tx, asking.tenantId, key),
-      );
-      if (prior?.requestHash !== hash) {
-        return refused(
-          failure('IDEMPOTENCY_KEY_REUSED', 'This key was used for a different request'),
-        );
-      }
-      return withStatus(await replay(prior.resourceId), prior.status);
-    }
-    if (!outcome.ok) return refused(outcome.error);
-
-    return withStatus(await replay(outcome.value), status);
-  }
-
-  const withStatus = (response: RestResponse, status: number): RestResponse =>
-    response.status < 300 ? { ...response, status } : response;
 
   const readPerson = async (asking: Asking, personId: string, asOf?: string) =>
     respond(
@@ -461,11 +467,16 @@ export function restHandler(
     );
 
   /** A legal entity, location or settings use case, in its own transaction. */
-  const inOrg = <T>(asking: Asking, fn: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<T>>) => {
+  const inOrg = <T>(
+    asking: Asking,
+    fn: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<T>>,
+  ) => {
     const { org } = service;
     return org
       ? run(service, asking.tenantId, (tx) => fn(org, tx))
-      : Promise.resolve(err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')));
+      : Promise.resolve(
+          err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')),
+        );
   };
 
   /** Reads one back by id for a write's answer, and for its idempotent replay. */
@@ -574,7 +585,7 @@ export function restHandler(
     );
   };
 
-  const routes: Route[] = [
+  return [
     {
       method: 'POST',
       pattern: /^\/v1\/exports\/full-values$/,
@@ -588,6 +599,7 @@ export function restHandler(
         const v = input.value;
         const created: { id: string | null } = { id: null };
         const answer = await idempotent(
+          deps,
           asking,
           request,
           201,
@@ -634,6 +646,7 @@ export function restHandler(
         // twice. The wake-up is sent on a replay too; settling is idempotent,
         // and it covers a first attempt whose wake-up was lost.
         const answer = await idempotent(
+          deps,
           asking,
           request,
           200,
@@ -648,7 +661,8 @@ export function restHandler(
           },
           (id) => readFullValues(asking, id),
         );
-        if (answer.status < 300) await full.decided(asking.tenantId, requestId, asking.correlationId);
+        if (answer.status < 300)
+          await full.decided(asking.tenantId, requestId, asking.correlationId);
         return answer;
       },
     },
@@ -676,6 +690,7 @@ export function restHandler(
           ...(v.reason !== undefined ? { reason: v.reason } : {}),
         };
         const answer = await idempotent(
+          deps,
           asking,
           request,
           201,
@@ -790,6 +805,7 @@ export function restHandler(
         const input = body.ok ? parse(CreatePersonBody, body.value) : body;
         if (!input.ok) return refused(input.error);
         return idempotent(
+          deps,
           asking,
           request,
           201,
@@ -822,6 +838,7 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const personId = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           200,
@@ -865,6 +882,7 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const personId = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           201,
@@ -903,6 +921,7 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const personId = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           200,
@@ -927,15 +946,20 @@ export function restHandler(
         const input = bodyAs(PatchSettingsBody, request);
         if (!input.ok) return refused(input.error);
         return idempotent(
+          deps,
           asking,
           request,
           200,
           async (tx) => {
             if (!service.org) return err(failure('UNAVAILABLE', 'Settings are not configured'));
-            const saved = await service.org.updateSettings(tx, { ...asking, ...present(input.value) });
+            const saved = await service.org.updateSettings(tx, {
+              ...asking,
+              ...present(input.value),
+            });
             return saved.ok ? ok(asking.tenantId) : saved;
           },
-          async () => respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
+          async () =>
+            respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
         );
       },
     },
@@ -954,11 +978,13 @@ export function restHandler(
         const input = bodyAs(CreateLegalEntityBody, request);
         if (!input.ok) return refused(input.error);
         return idempotent(
+          deps,
           asking,
           request,
           201,
           async (tx) => {
-            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            if (!service.org)
+              return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
             const created = await service.org.createLegalEntity(tx, { ...asking, ...input.value });
             return created.ok ? ok(created.value.id) : created;
           },
@@ -974,11 +1000,13 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const id = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           200,
           async (tx) => {
-            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            if (!service.org)
+              return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
             const updated = await service.org.updateLegalEntity(tx, {
               ...asking,
               id,
@@ -1003,11 +1031,13 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const legalEntityId = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           200,
           async (tx) => {
-            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            if (!service.org)
+              return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
             const saved = await service.org.setNumbering(tx, {
               ...asking,
               legalEntityId,
@@ -1034,6 +1064,7 @@ export function restHandler(
         const input = bodyAs(CreateLocationBody, request);
         if (!input.ok) return refused(input.error);
         return idempotent(
+          deps,
           asking,
           request,
           201,
@@ -1059,6 +1090,7 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const id = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           200,
@@ -1083,6 +1115,7 @@ export function restHandler(
         if (!input.ok) return refused(input.error);
         const id = params['id'] ?? '';
         return idempotent(
+          deps,
           asking,
           request,
           201,
@@ -1101,7 +1134,12 @@ export function restHandler(
     },
     ...(deps.screens ?? []),
   ];
+}
 
+export function restHandler(
+  deps: RestDeps,
+): (request: RestRequest) => Promise<RestResponse | null> {
+  const routes = restRoutes(deps);
   return async (request) => {
     const url = new URL(request.url, 'http://people.internal');
     if (!url.pathname.startsWith('/v1/')) return null;
@@ -1117,6 +1155,18 @@ export function restHandler(
 
     const asking = await deps.callerFrom(request);
     if (!asking.ok) return refused(asking.error);
+    // Every write is keyed (PEO-116), checked here so that no route can
+    // forget it; `idempotent` is what makes the key mean something.
+    const key = request.headers['idempotency-key'];
+    if (
+      request.method !== 'GET' &&
+      route.safe !== true &&
+      (typeof key !== 'string' || key.length === 0 || key.length > 255)
+    ) {
+      return refused(
+        failure('IDEMPOTENCY_KEY_REQUIRED', 'Every write carries an Idempotency-Key header'),
+      );
+    }
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];
     return route.handle(asking.value, request, id === undefined ? {} : { id }, url.searchParams);

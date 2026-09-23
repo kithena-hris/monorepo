@@ -404,13 +404,14 @@ export function wirePeople(server: Server): void {
   configureGraphQL({ service, callerFrom });
 
   const exports = wireExports(service);
+  const idempotency = drizzleIdempotency();
   const rest = restHandler({
     service,
     callerFrom,
-    idempotency: drizzleIdempotency(),
+    idempotency,
     exports,
     fullValues: exports.fullValues,
-    screens: screenRoutes(screenDeps(service)),
+    screens: screenRoutes(screenDeps(service), idempotency),
   });
   const document = JSON.stringify(openApiDocument());
   const [graphql] = server.listeners('request') as ((
