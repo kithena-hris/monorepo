@@ -17,6 +17,7 @@ import { drizzleOrgStore } from './drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { knownTenants } from './tenants.js';
+import { secretRotation } from './secret-store.js';
 import { claimRotation } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
 
@@ -169,6 +170,15 @@ export async function startBackground(
   ];
 
   jobs.push(every(HOUR, () => forEachTenant('unique-claims', claimRotation(inTenant, env['PEOPLE_SECRET_KEYS']))));
+  // The same rollout, for the encrypted values themselves (PEO-105).
+  const rewrap = secretRotation(inTenant, env['PEOPLE_SECRET_KEYS']);
+  jobs.push(
+    every(HOUR, () =>
+      forEachTenant('secret-rotation', async (tenantId) => {
+        await rewrap(tenantId);
+      }),
+    ),
+  );
 
   if (options.mailer === undefined) {
     logger.info('no reminder mailer (PEO-084); reminder sweep not scheduled');

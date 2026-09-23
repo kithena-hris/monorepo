@@ -1140,7 +1140,14 @@ of them changes it.
 **Secrets are not in the row.** Bank accounts, national identifiers and tax
 identifiers live in `people.person_secret` under envelope encryption, with their
 own RLS policy and their own grant. The person row keeps `last4` for display.
-Nothing in `custom` and nothing in an event ever holds the plaintext.
+Nothing in `custom` and nothing in an event ever holds the plaintext. Rotating
+the master key re-wraps each secret's data key under the new one — the value
+is never decrypted — in the same hourly, bounded, idempotent job shape as the
+claims, a batch of people per transaction, logging counts and key ids only;
+once no secret and no claim names the old key it can be dropped
+(`.env.example`). A secret under a key the deployment no longer holds cannot
+be opened by anybody, so the job refuses and says which key rather than
+failing half a batch.
 
 **RLS with FORCE on every table**, `svc_people` created `NOBYPASSRLS`, using the
 same `NULLIF(current_setting('app.tenant_id', true), '')::uuid` form the identity
@@ -1397,7 +1404,9 @@ POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
 ```
 
 OpenAPI generated from the same Zod definitions, per the rule that a derived
-artifact is never hand-written. Idempotency keys on every write. Cursor
+artifact is never hand-written. Idempotency keys on every write — an HR
+decision on a full-values request included, so a retried approval replays the
+request as it stands instead of refusing a second decision. Cursor
 pagination. Field-level authorization identical to GraphQL's, because both call
 the same application layer.
 
@@ -1547,6 +1556,12 @@ rather than a failure.
 - **Idempotency.** An import carries a key derived from the file's checksum.
   Re-uploading the same file reports "already imported" rather than
   duplicating 400 people, which is the mistake every importer makes once.
+- **Concurrent imports.** An import is one transaction, and two of them
+  claiming the same unique attributes in different orders can deadlock;
+  Postgres then aborts one whole. The commit is retried on a deadlock or
+  serialization failure, three attempts with backoff, idempotent by the
+  checksum key; one that still loses is refused with "nothing from this file
+  was imported, upload it again", never half-applied.
 - **Partial commit.** Blocked rows never prevent good rows. The report is
   downloadable as a CSV with the original row number, the original values and
   the reason, so it can be fixed and re-imported as a smaller file.
