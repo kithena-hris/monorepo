@@ -330,10 +330,10 @@ describe('full-values requests', () => {
     const id = (created.body as { id: string }).id;
     expect(hooks).toEqual([`started ${id}`]);
 
-    const decision = (who: string) => ({
+    const decision = (who: string, key = 'd1') => ({
       method: 'POST',
       url: `/v1/exports/full-values/${id}/decision`,
-      headers: { 'x-as': who },
+      headers: { 'x-as': who, 'idempotency-key': key },
       body: JSON.stringify({ approve: true }),
     });
     expect((await call(decision('finance'))).status).toBe(403);
@@ -341,7 +341,15 @@ describe('full-values requests', () => {
     expect(decided.status).toBe(200);
     expect(decided.body).toMatchObject({ state: 'approved' });
     expect(hooks).toEqual([`started ${id}`, `decided ${id}`]);
-    expect((await call(decision('hr'))).status).toBe(409);
+
+    // A retried decision, same key and body, replays rather than refusing (PEO-107).
+    const replayed = await call(decision('hr'));
+    expect(replayed.status).toBe(200);
+    expect(replayed.body).toEqual(decided.body);
+    // A second decision is a new request, and deciding twice is still refused.
+    expect((await call(decision('hr', 'd2'))).status).toBe(409);
+    const unkeyed = await call({ ...decision('hr'), headers: { 'x-as': 'hr' } });
+    expect(unkeyed.body).toMatchObject({ error: { code: 'IDEMPOTENCY_KEY_REQUIRED' } });
 
     const stranger = await call({
       url: `/v1/exports/full-values/${id}`,
