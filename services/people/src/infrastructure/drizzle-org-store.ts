@@ -1,10 +1,19 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import { publish } from '@kithena/db-kit';
 import { CalendarDate } from '@kithena/contracts';
 
 import { effectiveZones, type TenantCalendar } from '../domain/org/calendar.js';
 import { DEFAULT_SETTINGS, type OrgStore, type ZoneRow } from '../application/org/org.js';
-import { legalEntity, location, locationZone, outbox, tenantSettings } from './tables.js';
+import type { EmployeeNumbers, NumberingView } from '../application/org/numbering.js';
+import {
+  employeeNumbering,
+  legalEntity,
+  location,
+  locationZone,
+  outbox,
+  person,
+  tenantSettings,
+} from './tables.js';
 
 /** Every location's zone rows, by location. */
 async function zonesOf(
@@ -192,4 +201,90 @@ export function drizzleOrgStore(): OrgStore {
     },
   };
   return store;
+}
+
+/**
+ * Employee numbering in Postgres (PEO-101). `allocate` is one UPDATE: the row
+ * lock it takes queues every other hire in the entity until this transaction
+ * ends, and a rollback returns the number, so the register has no holes.
+ *
+ * `ponytail: one row lock per entity, held to commit, so hires in one entity
+ * serialise. Fine at hiring rates; a bulk import holds it for its length.`
+ */
+export function drizzleEmployeeNumbers(): EmployeeNumbers {
+  const view = (row: typeof employeeNumbering.$inferSelect): NumberingView => ({
+    legalEntityId: row.legalEntityId,
+    prefix: row.prefix,
+    digits: row.digits,
+    nextValue: row.nextValue,
+  });
+  const at = (tenantId: string, legalEntityId: string) =>
+    and(
+      eq(employeeNumbering.tenantId, tenantId),
+      eq(employeeNumbering.legalEntityId, legalEntityId),
+    );
+
+  return {
+    async list(tx, tenantId) {
+      const rows = await tx
+        .select()
+        .from(employeeNumbering)
+        .where(eq(employeeNumbering.tenantId, tenantId))
+        .orderBy(asc(employeeNumbering.legalEntityId));
+      return rows.map(view);
+    },
+
+    async scheme(tx, tenantId, legalEntityId) {
+      const [row] = await tx.select().from(employeeNumbering).where(at(tenantId, legalEntityId));
+      return row ? view(row) : null;
+    },
+
+    async save(tx, tenantId, legalEntityId, scheme) {
+      const [row] = await tx
+        .insert(employeeNumbering)
+        .values({
+          tenantId,
+          legalEntityId,
+          prefix: scheme.prefix,
+          digits: scheme.digits,
+          nextValue: scheme.start,
+        })
+        .onConflictDoUpdate({
+          target: [employeeNumbering.tenantId, employeeNumbering.legalEntityId],
+          set: {
+            prefix: scheme.prefix,
+            digits: scheme.digits,
+            nextValue: sql`GREATEST(${employeeNumbering.nextValue}, ${scheme.start})`,
+          },
+        })
+        .returning();
+      if (!row) throw new Error('the numbering upsert returned nothing');
+      return view(row);
+    },
+
+    async allocate(tx, tenantId, legalEntityId) {
+      const [row] = await tx
+        .update(employeeNumbering)
+        .set({ nextValue: sql`${employeeNumbering.nextValue} + 1` })
+        .where(at(tenantId, legalEntityId))
+        .returning({ prefix: employeeNumbering.prefix, digits: employeeNumbering.digits, next: employeeNumbering.nextValue });
+      return row ? { prefix: row.prefix, digits: row.digits, sequence: row.next - 1 } : null;
+    },
+
+    async taken(tx, tenantId, employeeNumber) {
+      const rows = await tx
+        .select({ id: person.id })
+        .from(person)
+        .where(and(eq(person.tenantId, tenantId), eq(person.employeeNumber, employeeNumber)))
+        .limit(1);
+      return rows.length > 0;
+    },
+
+    async observe(tx, tenantId, legalEntityId, sequence) {
+      await tx
+        .update(employeeNumbering)
+        .set({ nextValue: sequence + 1 })
+        .where(and(at(tenantId, legalEntityId), lte(employeeNumbering.nextValue, sequence)));
+    },
+  };
 }

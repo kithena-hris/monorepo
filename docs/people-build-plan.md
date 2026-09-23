@@ -1046,8 +1046,13 @@ it is written down here rather than left in a PR description.
       People on `identity.tenant.provisioned`, with the slug and name that
       `identity.tenant.amended` keeps current. *(PRD §6.8, §8.4, §8.5, §9.4,
       §10.2a, §11, §12, §16)*
-- [ ] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
+- [x] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
       sequence start. Found in PEO-099, which added the legal entity it hangs
+      off. *(PRD §7, §9.4, Appendix A)* *Landed as `people.employee_numbering`
+      (20260924200000), set by `people_admin` over `PUT
+      /v1/legal-entities/{id}/numbering`; a hire takes the next number under
+      the entity's row lock, gap-free; a typed or imported number is held to
+      the format, claimed tenant-wide and moves the sequence past it.*
       off. *(PRD §7, §9.4, Appendix A)*
 - [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
       state, the gap rows and the reminder went stale on every write. Each
