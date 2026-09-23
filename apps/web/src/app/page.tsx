@@ -88,6 +88,7 @@ export default async function Home(): Promise<JSX.Element> {
       person={{ name, email: person.workEmail }}
       companyName={company}
       logoUrl={tenant?.branding.logoUrl ?? null}
+      entitlements={person.entitlements}
     >
       {/*
         Their zone, rendered beside the greeting rather than in a card.

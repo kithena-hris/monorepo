@@ -60,6 +60,7 @@ export default ModuleManifest.parse({
     'identity.account.profile_captured',
     'identity.tenant.provisioned',
     'identity.tenant.amended',
+    'identity.tenant.entitlements_changed',
     'people.schema.published',
   ],
   entitlement: 'module.people',

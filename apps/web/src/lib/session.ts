@@ -29,6 +29,12 @@ export interface SignedIn {
   /** The IANA zone they work in, which is what a local clock is rendered from. */
   readonly timeZone: string | null;
   readonly amr: readonly string[];
+  /**
+   * The modules the company bought (PEO-114), as identity answers: the
+   * company's own list, else the deployment's. What the navigation shows, and
+   * what a module is told in the principal.
+   */
+  readonly entitlements: readonly string[];
 }
 
 export async function currentPerson(): Promise<SignedIn | null> {
@@ -66,6 +72,7 @@ export async function currentPerson(): Promise<SignedIn | null> {
     if (accountId === null || identityId === null) return null;
 
     const amr: unknown = Reflect.get(body, 'amr');
+    const entitlements: unknown = Reflect.get(body, 'entitlements');
     const named: unknown = Reflect.get(body, 'name');
     const part = (key: string): string | null => {
       if (named === null || typeof named !== 'object') return null;
@@ -85,6 +92,10 @@ export async function currentPerson(): Promise<SignedIn | null> {
       name: given === null || family === null ? null : { given, family, preferred: part('preferred') },
       timeZone: read('timeZone'),
       amr: Array.isArray(amr) ? amr.filter((a): a is string => typeof a === 'string') : [],
+      // None when identity says nothing: fail closed, no module is shown.
+      entitlements: Array.isArray(entitlements)
+        ? entitlements.filter((e): e is string => typeof e === 'string')
+        : [],
     };
   } catch {
     return null;

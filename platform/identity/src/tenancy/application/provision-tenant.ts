@@ -1,5 +1,5 @@
 import { ok, type Result } from '@kithena/domain-kit';
-import type { PostalAddress } from '@kithena/contracts';
+import type { ModuleEntitlement, PostalAddress } from '@kithena/contracts';
 
 import { enrolmentLink } from '../domain/invitation.js';
 import type { ImageHostPolicy } from '../domain/image-host.js';
@@ -70,6 +70,8 @@ export interface ProvisionScope {
     logoUrl: string | null;
     coverImageUrl: string | null;
     address: PostalAddress;
+    /** Null: none recorded, the deployment's list applies (PEO-114). */
+    entitlements: readonly ModuleEntitlement[] | null;
   }) => Promise<string>;
   /**
    * Sets the row-level-security context for the rest of the transaction.
@@ -88,6 +90,14 @@ export interface ProvisionScope {
   announce: (
     tenantId: string,
     tenant: { slug: string; displayName: string; country: string; timeZone: string },
+  ) => Promise<void>;
+  /**
+   * Raises `identity.tenant.entitlements_changed` (PEO-114), in this
+   * transaction. Called only when the company was created with a list.
+   */
+  announceEntitlements: (
+    tenantId: string,
+    entitlements: readonly ModuleEntitlement[],
   ) => Promise<void>;
   /**
    * Creates an invited account and returns its ids.
@@ -167,6 +177,7 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
         logoUrl: checked.value.logoUrl,
         coverImageUrl: checked.value.coverImageUrl,
         address: checked.value.address,
+        entitlements: checked.value.entitlements,
       });
 
       // Before any row scoped to this tenant.
@@ -177,6 +188,9 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
         country: checked.value.address.country.toUpperCase(),
         timeZone: checked.value.timeZone,
       });
+      if (checked.value.entitlements !== null) {
+        await scope.announceEntitlements(tenantId, checked.value.entitlements);
+      }
 
       const issued: {
         email: string;

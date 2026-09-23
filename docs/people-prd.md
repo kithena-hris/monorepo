@@ -586,6 +586,7 @@ database the bytes end up in.
 | Fact group | Created by | At which moment | Lives in |
 | --- | --- | --- | --- |
 | Tenant, slug, branding, auth policy | CX operator | Back-office company creation | `platform.tenant`, `platform.tenant_auth_policy` |
+| Modules the company bought (entitlements) | CX operator | The company wizard, then the company page, any time | `platform.tenant.entitlements`; People's copy in `people.tenant_settings` from `identity.tenant.entitlements_changed` |
 | First account (work email, start date, time zone) | CX operator | Back-office invitation | `platform.account` |
 | Enrolment token | Identity | Invitation | `platform.enrolment_token` (hash only) |
 | Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
@@ -633,7 +634,7 @@ Three rules make that table safe rather than merely descriptive:
                    ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
-     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
+     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired, not built) ──▶ pre_hire
      │              │           │      │
      │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
@@ -688,6 +689,43 @@ definitions above are about dates, so a correction to one of those dates
 Each move raises `status_changed` with reason `corrected`; §8.5 says what it
 is effective from.
 
+**HR moves a person; nobody else does.** Notice, termination, leave and
+discarding are HR's (§7 gives termination facts to HR), through one use case
+each that every transport calls (§13). A manager, the person themselves and a
+`people_admin` who is not also HR are refused. Each raises `status_changed`
+through the outbox in the write's transaction, writes the lifecycle's dated
+row where a date moved, and re-judges the person's completeness, because a
+requiredness predicate may name the state. "Today" is the person's own (§6.8).
+A request whose move has already happened — the same leave started, the same
+notice or termination with the same last working day, the same discard — is
+answered with the record and raises nothing.
+
+- **Leave** — `active → on_leave → active`, effective from today. Bringing back
+  somebody who was never away is refused, not answered.
+- **Notice** — from `active`, and from `on_leave` (somebody resigns during
+  parental leave without coming back first). Carries the last working day and
+  why: `resigned` by the person, `dismissed` or `end_of_contract` by the
+  employer. Effective from the day it is given; the last working day gets its
+  own dated row, which is what a later correction supersedes.
+- **Termination** — from `notice`, and directly from `active` or `on_leave`
+  when the last day is already behind them (a leaver recorded late). Only once
+  the last working day has begun on the person's calendar: before that they are
+  on notice, still working and still counted. A `pre_hire` who never started
+  is the exception and closes on their start date. Raises `status_changed`
+  with the typed reason, then `terminated` with HR's free-text note and
+  whether they are eligible for rehire, both effective from the last working
+  day — which is also where retention's clock starts (§12). The `confirm
+  termination` row closes on its own, being read off the status.
+- **Discard** — `provisional` only, as the diagram says.
+
+Two edges of the diagram have no move yet. **Rehire** (`terminated → pre_hire`)
+is drawn and not built: the domain treats a terminated record as a tombstone,
+so a rehire needs a decision on whether it is a new record linked to the old
+or a new employment on the same one. **Withdrawing notice** is neither drawn
+nor built; today a resignation withdrawn is a correction of the last working
+day at best. Identity hears nothing from these moves: it caches a start date,
+not an end, and ending an account when employment ends is not specified.
+
 ### 8.2 The first employee
 
 The chicken-and-egg case the brief asked about specifically, in sequence:
@@ -700,6 +738,9 @@ The chicken-and-egg case the brief asked about specifically, in sequence:
      People takes the zone as the tenant default, a first legal entity in
      that country and zone (§6.8), and the slug and name for its reminders.
      The first administrators' accounts carry the same zone.
+     Ines ticks the modules the company bought (PEO-114).
+     ──▶ identity.tenant.entitlements_changed { entitlements }
+     People keeps the list; the tenant app shows only what is on it.
 
 2. Ines invites the first administrator by work email.
      POST /accounts on identity
@@ -977,7 +1018,9 @@ The same screen area, separate tabs:
   ten letters, digits or hyphens), a width the sequence is zero-padded to
   (1–12 digits) and where it starts, so `ES-` and 5 from 100 write `ES-00100`,
   and grow past the width rather than wrapping. `GET/PUT
-  /v1/legal-entities/{id}/numbering`; each change raises
+  /v1/legal-entities/{id}/numbering`, and in GraphQL the `employeeNumbering`
+  query and `setEmployeeNumbering` mutation (the sequence a Float there,
+  because twelve digits do not fit a 32-bit Int); each change raises
   `people.employee_numbering.set`. An entity with a scheme numbers every
   person hired into it who has no number yet, in the hire's transaction: the
   entity's row is locked and incremented, so racing hires queue, and a hire
@@ -1504,7 +1547,10 @@ usable by a customer who never loads a Kithena screen.**
 The federated subgraph, thin, mapping domain failures to GraphQL errors. Person
 and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
-Extends federated types rather than owning what People does not own.
+Extends federated types rather than owning what People does not own. The
+lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`,
+`startLeave`, `endLeave`, `discardPerson` — each answering with the person
+after, their arguments parsed by the same Zod body REST parses.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
 token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
@@ -1517,8 +1563,17 @@ only beside the second. `apps/gateway/config.yaml` holds the rules, and
 real router in front of the real subgraph: a verified token reads, no token
 and a foreign token are refused, and a principal a client sends is overwritten.
 
-Entitlements are one list per deployment until tenants carry their own;
-nothing in the platform stores a tenant's modules yet.
+**Entitlements are per company (PEO-114).** The back office records which
+modules a company bought on `platform.tenant.entitlements` and raises
+`identity.tenant.entitlements_changed` with the whole list; People keeps a copy
+in `people.tenant_settings` (newest `occurredAt` wins). Every transport's caller
+check reads that copy first, so a recorded list — empty included — beats any
+list a caller forwards, and a company that dropped People is refused with
+`NOT_ENTITLED` whatever the router says. Only a company with nothing recorded
+falls back to the forwarded list, which is the deployment's
+`KITHENA_ENTITLEMENTS`: a default, never an override. The tenant app reads the
+effective list from identity's session answer and shows a module's area only
+when it is on it.
 
 ### 13.2 REST (Phase 1)
 
@@ -1536,6 +1591,11 @@ PATCH  /v1/people/{id}                 partial, per-attribute authorization
 GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
+POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
+POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come
+POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
+POST   /v1/people/{id}/leave/end       HR: back from leave today
+POST   /v1/people/{id}/discard         HR: a provisional record that was never a person
 POST   /v1/imports                     dry run, then commit
 POST   /v1/exports                     run now, or queue over 2,000 rows (202)
 GET    /v1/exports/{id}                the requester's own, links signed again; a DSAR package for one person
@@ -1601,27 +1661,6 @@ from the host. It sends no roles, because People reads roles from OpenFGA.
 This is the same trust the router holds (§13.1), and it exists because nothing
 mints a token for the tenant app yet. When something does, one file in the
 shell changes.
-
-**The screens render on the server (PEO-094).** Module Federation cannot do
-this inside the Next App Router: `@module-federation/nextjs-mf` never supported
-the App Router and is being wound down. So the remote publishes a second build
-beside `remoteEntry.js`: `ssr/people.cjs`, whose only imports are React, its
-JSX runtime and Reach, plus `ssr/people.css`.
-
-- **How the page renders.** The page fetches the server build per request and
-  evaluates it with the shell's own copies of those three modules, which is
-  what federation's Node runtime does. The screen is sent in the same response.
-  Hydration keeps that HTML until the browser build arrives, and the screen
-  becomes interactive when it does.
-- **What it trusts.** The remote's host is inside the shell's trust boundary,
-  because its code runs with the shell server's privileges.
-  `PEOPLE_REMOTE_SSR=off` turns server rendering off, and the page is then
-  client-rendered as before.
-- **Hosting.** `apps/web/people/vercel.json` serves the files that are read
-  per load (`remoteEntry.js`, `routes.json` and the server build) with
-  `Cache-Control: no-cache`, so a redeploy is seen at once. The hashed chunks
-  are `immutable`. It echoes CORS for `https://*.app.kithena.com` and
-  `*.staging.app.kithena.com`.
 
 ### 13.3 Webhooks (Phase 1)
 

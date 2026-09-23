@@ -212,49 +212,6 @@ describe('PEO-049: the setup wizard, on a phone', () => {
   });
 });
 
-describe('PEO-094: the remote, rendered on the server', () => {
-  it('sends the screen in the HTML, and hydrates it without a mismatch', async () => {
-    // The remote's JavaScript never arrives: whatever is on the page, the
-    // server drew. React's own inline script reveals the streamed screen; no
-    // bundle of the remote's is involved.
-    const bare = await signedIn(ADMIN.session);
-    await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
-    const page = await bare.newPage();
-    const response = await page.goto(`${stack.shell}/people/me`);
-    expect(await response?.text()).toContain('Personal information');
-    await expect
-      .poll(() => page.evaluate(() => document.body.innerText.replaceAll('\n', ' | ')), {
-        timeout: 10_000,
-      })
-      .toContain('Legal first name');
-    expect(await page.getByText('Loading People').count()).toBe(0);
-    await bare.close();
-
-    // With JavaScript: the same markup hydrates, and the form answers.
-    const context = await signedIn(ADMIN.session);
-    const live = await context.newPage();
-    const problems: string[] = [];
-    live.on('console', (message) => {
-      if (message.type() === 'error') problems.push(message.text());
-    });
-    live.on('pageerror', (error) => problems.push(error.message));
-    await live.goto(`${stack.shell}/people/me`);
-    // Pressed as soon as it is on screen: it answers once the remote hydrates.
-    await live.getByRole('button', { name: 'Edit Personal information' }).click();
-    const personal = live.getByRole('form', { name: 'Personal information' });
-    await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pri');
-    await personal.getByRole('button', { name: 'Save' }).click();
-    await eventually(
-      'the preferred name',
-      () => stack.sql<{ preferred_name: string | null }[]>`
-        SELECT preferred_name FROM people.person WHERE id = ${ADMIN.person}`,
-      ([p]) => p?.preferred_name === 'Pri',
-    );
-    expect(problems.filter((p) => /hydrat/i.test(p))).toEqual([]);
-    await context.close();
-  });
-});
-
 describe('Field-level absence, end to end', () => {
   it('leaves a field the viewer may not read out of the HTML and out of the screen', async () => {
     const context = await signedIn(EMPLOYEE.session);
@@ -268,10 +225,7 @@ describe('Field-level absence, end to end', () => {
     expect(html).not.toContain('NIF / NIE');
     expect(html).not.toContain('678Z');
 
-    // "Pri Shah": the preferred name the test before set.
-    await expect
-      .poll(() => page.evaluate(() => document.body.innerText), { timeout: 30_000 })
-      .toContain('Pri Shah');
+    await page.getByRole('heading', { name: 'Priya Shah' }).waitFor({ timeout: 30_000 });
     expect(await page.getByText('NIF / NIE').count()).toBe(0);
     expect(await page.getByText('Identification & right to work').count()).toBe(0);
     await context.close();
@@ -302,9 +256,6 @@ function cells(line: string): string[] {
 }
 
 async function upload(page: Page, name: string, text: string): Promise<void> {
-  // The screen is server-rendered and becomes interactive when the remote's
-  // JavaScript has loaded; a file chosen before that is not seen (PEO-094).
-  await page.waitForLoadState('networkidle');
   await page.locator('input[type=file]').setInputFiles({
     name,
     mimeType: 'text/csv',

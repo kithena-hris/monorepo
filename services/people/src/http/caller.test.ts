@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { callerFromHeaders, withTenantRoles } from './caller.js';
+import { callerFromHeaders, callerWithEntitlements, withTenantRoles } from './caller.js';
 
 const callerFrom = callerFromHeaders('router-secret');
 const principal = (over: Record<string, unknown> = {}) =>
@@ -67,5 +67,40 @@ describe('who is calling', () => {
     const forged = await withRoles({ headers: { 'x-kithena-principal': principal() } });
     expect(forged.ok).toBe(false);
     expect(asked).toHaveLength(1);
+  });
+});
+
+describe('what the company bought (PEO-114)', () => {
+  const routed = (over: Record<string, unknown> = {}) => ({
+    headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal(over) },
+  });
+
+  it('takes the recorded list over the forwarded one, both ways', async () => {
+    const dropped = callerWithEntitlements('router-secret', () => Promise.resolve([]));
+    const refused = await dropped(routed());
+    expect(!refused.ok && refused.error.code).toBe('NOT_ENTITLED');
+
+    const bought = callerWithEntitlements('router-secret', () =>
+      Promise.resolve(['module.people']),
+    );
+    expect((await bought(routed({ entitlements: [] }))).ok).toBe(true);
+  });
+
+  it('uses the forwarded list, the deployment default, when nothing is recorded', async () => {
+    const unrecorded = callerWithEntitlements('router-secret', () => Promise.resolve(null));
+    expect((await unrecorded(routed())).ok).toBe(true);
+    const none = await unrecorded(routed({ entitlements: [] }));
+    expect(!none.ok && none.error.code).toBe('NOT_ENTITLED');
+  });
+
+  it('looks nothing up for a caller that is not the router', async () => {
+    let looked = false;
+    const caller = callerWithEntitlements('router-secret', () => {
+      looked = true;
+      return Promise.resolve(['module.people']);
+    });
+    const forged = await caller({ headers: { 'x-kithena-principal': principal() } });
+    expect(!forged.ok && forged.error.code).toBe('UNAUTHENTICATED');
+    expect(looked).toBe(false);
   });
 });

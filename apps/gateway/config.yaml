@@ -38,9 +38,11 @@ authorization:
 # a client that could choose its own principal could read anybody's record.
 #
 # `roles` is empty on purpose: tenant roles are OpenFGA tuples (PEO-092), not
-# token claims. `entitlements` is the deployment's list until tenants carry
-# their own (see `docs/people-prd.md` §13), as a JSON array, e.g.
-# `KITHENA_ENTITLEMENTS='["module.people"]'`.
+# token claims. `entitlements` is the deployment's list, the default for a
+# company the back office recorded none for (PEO-114), as a JSON array, e.g.
+# `KITHENA_ENTITLEMENTS='["module.people"]'`. A company with a recorded list
+# is judged by that list: People keeps a copy from
+# `identity.tenant.entitlements_changed` and prefers it to anything forwarded.
 headers:
   subgraphs:
     people:

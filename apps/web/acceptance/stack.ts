@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { createServer as netServer } from 'node:net';
 import { join } from 'node:path';
@@ -305,6 +305,8 @@ export async function startStack(): Promise<Stack> {
             name: { ...found.name, preferred: null },
             timeZone: 'Europe/Madrid',
             amr: ['hwk'],
+            // The company's modules, as identity answers them (PEO-114).
+            entitlements: ['module.people'],
           });
           return;
         }
@@ -347,24 +349,15 @@ export async function startStack(): Promise<Stack> {
       PEOPLE_REMOTE_URL: remote,
       PEOPLE_API_URL: peopleUrl,
       PEOPLE_API_TOKEN: TOKEN,
-      KITHENA_ENTITLEMENTS: '["module.people"]',
     };
     if (process.env['ACCEPTANCE_SKIP_SHELL_BUILD'] !== '1') {
-      // `next build` rewrites `next-env.d.ts` for a production build; a test
-      // run leaves the checkout as it found it.
-      const nextEnv = join(ROOT, 'apps/web/next-env.d.ts');
-      const committed = await readFile(nextEnv, 'utf8');
-      try {
-        await run(
-          join(ROOT, 'apps/web/node_modules/.bin/next'),
-          ['build'],
-          join(ROOT, 'apps/web'),
-          420_000,
-          env,
-        );
-      } finally {
-        await writeFile(nextEnv, committed);
-      }
+      await run(
+        join(ROOT, 'apps/web/node_modules/.bin/next'),
+        ['build'],
+        join(ROOT, 'apps/web'),
+        420_000,
+        env,
+      );
     }
     children.push(
       start(
@@ -389,15 +382,9 @@ export async function startStack(): Promise<Stack> {
       sql,
       asPeople,
       stop: async () => {
-        // A path: where to leave the servers' last output, for a failure to be read.
-        const keep = process.env['ACCEPTANCE_LOGS'];
-        if (keep !== undefined && keep !== '') {
-          await writeFile(
-            keep,
-            Object.entries(logs)
-              .map(([name, lines]) => `--- ${name}\n${lines.join('').slice(-20000)}`)
-              .join('\n'),
-          );
+        if (process.env['ACCEPTANCE_LOGS'] === '1') {
+          for (const [name, lines] of Object.entries(logs))
+            console.log(`--- ${name}\n${lines.join('').slice(-6000)}`);
         }
         await stop();
       },

@@ -39,6 +39,7 @@ interface Draft {
   admins: string[];
   themeId: string;
   timeZone: string;
+  entitlements: string[];
 }
 
 export default async function NewCompany(): Promise<JSX.Element> {
@@ -64,6 +65,8 @@ export default async function NewCompany(): Promise<JSX.Element> {
         address: draft.address,
         // The company's zone: People's first legal entity and default (PEO-099).
         timeZone: draft.timeZone,
+        // The modules the company bought, recorded with it (PEO-114).
+        entitlements: draft.entitlements,
       },
     });
 

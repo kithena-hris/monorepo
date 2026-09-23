@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { logger, startTelemetry } from '@kithena/telemetry';
+import { deploymentEntitlements } from '@kithena/contracts';
 
 import { wirePeopleConsumer } from './account/consumers/wire.js';
 import { compose } from './composition.js';
@@ -109,6 +110,8 @@ const routes = await compose({
     : {}),
   // The same, for People reading a tenant's accounts. See `Config.peopleToken`.
   ...(process.env['PEOPLE_IDENTITY_TOKEN'] ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] } : {}),
+  // What a company with no modules recorded holds (PEO-114): a default only.
+  defaultEntitlements: deploymentEntitlements(process.env['KITHENA_ENTITLEMENTS']),
 });
 
 const server = createServer((request, response) => {

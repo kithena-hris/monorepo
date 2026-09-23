@@ -1016,7 +1016,7 @@ it is written down here rather than left in a PR description.
       an alert email to the endpoint's `alert_email` (migration
       20260924120100), a boot-and-every-minute poller, and a lease claim per
       delivery.
-- [x] **PEO-094** The People remote: no server-side rendering, and the
+- [ ] **PEO-094** The People remote: no server-side rendering, and the
       remote's host needs `no-cache` and CORS for `remoteEntry.js` and
       `routes.json`. Found in PEO-046.
       *Settled in PEO-047:* the CSS. The remote compiles its own utilities
@@ -1029,24 +1029,6 @@ it is written down here rather than left in a PR description.
       stylesheet left it unstyled. The sidebar item is enabled.
       *Still open:* SSR (the screen is client-only behind a spinner; the shell
       is Next, not Modern.js) and the hosting headers.
-      *Landed:* the SSR and the hosting headers.
-      - **Server rendering by the remote's own server build.** Module
-        Federation does not support the App Router on the server.
-        `vite.ssr.config.ts` builds `ssr/people.cjs`, whose only imports are
-        React, JSX and Reach. The page fetches it per request and
-        `remote-screen.tsx` evaluates it against the shell's copies of those
-        three. The screen streams in the response, and hydration holds it
-        until federation has loaded the browser build.
-      - **The hosting headers** are in `apps/web/people/vercel.json`:
-        `no-cache` on `remoteEntry.js`, `routes.json` and the server build,
-        `immutable` on the hashed chunks, and CORS echoed for tenant origins.
-      - **Proven** by the acceptance test: with the remote's JavaScript
-        blocked, the profile is still on the page. With it, the same page
-        hydrates without a mismatch and saves.
-      - **The trade.** The remote's host now runs code on the shell's
-        server. `PEOPLE_REMOTE_SSR=off` turns server rendering off.
-      - **Not verified.** The CORS capture group in `vercel.json` has not
-        been checked on a real deployment, because nothing was deployed.
 - [x] **PEO-098** The shell hands People screens their data. The screens from
       PEO-047 on are presentational: each takes a `Loadable` and async
       callbacks as props, and `routes.json` lists none of them yet because the
@@ -1114,7 +1096,6 @@ it is written down here rather than left in a PR description.
       /v1/legal-entities/{id}/numbering`; a hire takes the next number under
       the entity's row lock, gap-free; a typed or imported number is held to
       the format, claimed tenant-wide and moves the sequence past it.*
-      off. *(PRD §7, §9.4, Appendix A)*
 - [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
       state, the gap rows and the reminder went stale on every write. Each
       write now re-judges its one person in its transaction, through the
@@ -1140,6 +1121,47 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
+- [x] **PEO-108** Lifecycle actions through the application layer and
+      transports. The domain could give notice, terminate, start and end
+      leave and discard, but `PersonAccess` exposed none of them, so no
+      transport could, and PEO-102's re-judge ran only for what it did
+      expose. Found in PEO-100 and PEO-102. *(PRD §8.1, §8.5, §10.2, §12,
+      §13)* *Landed as five HR-only use cases on the person's own calendar,
+      each idempotent on a retry, each raising `status_changed` (termination
+      now too, with a typed reason, beside `terminated`) with its dated row
+      and a completeness re-judge; a termination waits for the last working
+      day except for a pre-hire. `POST /v1/people/{id}/notice`,
+      `/termination`, `/leave/start`, `/leave/end`, `/discard` and the
+      matching mutations, both parsed by one Zod body each. Also the GraphQL
+      `employeeNumbering`/`setEmployeeNumbering` for PEO-101, and REST tests
+      for its routes. Not built, and written into §8.1: rehire and
+      withdrawing notice.*
+- [ ] **PEO-112** Roles, properly. The first person in a tenant became
+      `people_admin` and `hr`, which is wrong when People is switched on after
+      accounts exist, and nothing could grant a role after that. Needs the back
+      office naming the first People administrator when it switches People on
+      (the only bootstrap), and grant and revoke through People's application
+      layer — `people_admin` only, never the last `people_admin`, never
+      oneself — written to OpenFGA, idempotent, each an audited event; REST
+      with Idempotency-Key, GraphQL, and a settings screen. Found in PEO-092.
+      *(PRD §4, §6.6, §7, §8.2, §9.4, §13)*
+- [ ] **PEO-113** The shell goes through the router. Identity can mint a token
+      but nothing issues one, so the shell calls People directly with the
+      internal token and a principal it builds itself. Needs identity issuing a
+      short-lived access token to the shell's server for the signed-in session
+      (never the browser), key rotation through the JWKS, the shell calling the
+      router, and the direct path removed. Found in PEO-098. *(PRD §13)*
+- [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
+      one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
+      *Landed as `platform.tenant.entitlements` (20260924230000; null is
+      "nothing recorded", so the deployment's `KITHENA_ENTITLEMENTS` is a
+      default only), set in the company wizard's Modules step and on the
+      company page (`PUT /api/internal/admin/tenants/{id}/entitlements`), each
+      change `identity.tenant.entitlements_changed` with the whole list.
+      People keeps a copy in `people.tenant_settings` (20260924230100) and
+      every transport's caller check prefers it to the forwarded list. The
+      shell reads the effective list from the session answer and shows only
+      the areas the company bought.*
 
 ## Blocked, and by what
 

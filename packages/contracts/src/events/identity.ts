@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import { defineEvent } from '../event.js';
 import { CalendarDate, Instant } from '../primitives.js';
+import { ModuleEntitlement } from '../entitlements.js';
 import { policy, asContact, asIdentity, asInternal, asPublic } from '../classification.js';
 
 /**
@@ -405,6 +406,24 @@ export const TenantAmended = defineEvent(
   }),
 );
 
+/**
+ * The back office recorded which modules a company bought (PEO-114).
+ *
+ * The whole list after the change, never a delta: a consumer that missed one
+ * change still converges on the next, and `occurredAt` orders them — apply
+ * one only if it is newer than the last applied. Raised when a company is
+ * created with an explicit list and on every change to it. A company with no
+ * list recorded has the deployment's, raises nothing, and a module that has
+ * never received this event falls back to the list its caller carries.
+ */
+export const TenantEntitlementsChanged = defineEvent(
+  'identity.tenant.entitlements_changed',
+  1,
+  z.object({
+    entitlements: z.array(ModuleEntitlement).register(policy, asPublic()),
+  }),
+);
+
 export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
@@ -422,4 +441,5 @@ export const identityEvents = [
   RecoveryApproved,
   TenantProvisioned,
   TenantAmended,
+  TenantEntitlementsChanged,
 ] as const;

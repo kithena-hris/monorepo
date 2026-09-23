@@ -1,6 +1,8 @@
 import { err, failure, isTimeZone, ok, type Result } from '@kithena/domain-kit';
 import { imageIsOurs, type ImageHostPolicy } from './image-host.js';
+import { checkEntitlements } from './entitlements.js';
 import {
+  type ModuleEntitlement,
   PostalAddress,
   ThemeId,
   TenantSlug,
@@ -43,10 +45,18 @@ export interface ProvisionRequest {
    * as the first legal entity (PEO-099). Absent means UTC.
    */
   readonly timeZone?: string;
+  /**
+   * The modules the company bought (PEO-114). Absent: none recorded, so it
+   * has the deployment's list until somebody records one.
+   */
+  readonly entitlements?: readonly string[];
 }
 
-/** What `checkProvisionable` hands on: the zone decided. */
-export type CheckedProvision = ProvisionRequest & { readonly timeZone: string };
+/** What `checkProvisionable` hands on: the zone and the modules decided. */
+export type CheckedProvision = Omit<ProvisionRequest, 'entitlements'> & {
+  readonly timeZone: string;
+  readonly entitlements: readonly ModuleEntitlement[] | null;
+};
 
 export const TimeZoneUnknown = failure('TIME_ZONE_UNKNOWN', 'That is not a time zone', [
   'timeZone',
@@ -129,5 +139,12 @@ export function checkProvisionable(
     }
   }
 
-  return ok({ ...request, admins: unique, address: shape.data, timeZone });
+  let entitlements: ModuleEntitlement[] | null = null;
+  if (request.entitlements !== undefined) {
+    const modules = checkEntitlements(request.entitlements);
+    if (!modules.ok) return modules;
+    entitlements = modules.value;
+  }
+
+  return ok({ ...request, admins: unique, address: shape.data, timeZone, entitlements });
 }
