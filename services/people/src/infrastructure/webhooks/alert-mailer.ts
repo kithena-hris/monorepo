@@ -1,5 +1,6 @@
 import { logger } from '@kithena/telemetry';
 
+import type { ReminderCompany } from '../../application/completeness/reminders.js';
 import type { DisabledEndpoint } from './webhooks.js';
 
 /**
@@ -11,23 +12,20 @@ import type { DisabledEndpoint } from './webhooks.js';
  * path or query can carry the receiver's own token, and an email is forwarded.
  */
 export interface WebhookAlertMailer {
-  send(tenantId: string, disabled: DisabledEndpoint): Promise<void>;
+  send(tenantId: string, company: ReminderCompany, disabled: DisabledEndpoint): Promise<void>;
 }
 
 export interface WebhookAlertConfig {
   readonly baseUrl: string;
   readonly token: string;
-  /** The tenant app; the button opens People there. */
-  readonly appOrigin: string;
   readonly timeoutMs?: number;
 }
 
 export function httpWebhookAlertMailer(config: WebhookAlertConfig): WebhookAlertMailer {
   const endpoint = new URL('/api/internal/messaging/notice', config.baseUrl).toString();
-  const url = new URL('/people', config.appOrigin).toString();
 
   return {
-    async send(tenantId, disabled) {
+    async send(tenantId, company, disabled) {
       if (disabled.alertEmail === null) return;
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -35,7 +33,9 @@ export function httpWebhookAlertMailer(config: WebhookAlertConfig): WebhookAlert
         body: JSON.stringify({
           tenantId,
           email: disabled.alertEmail,
-          url,
+          // People on the company's own origin, and the company by name.
+          url: new URL('/people', company.origin).toString(),
+          companyName: company.name,
           // One disable is one email, however often this is retried.
           dedupeKey: `webhook-disabled/${disabled.endpointId}`,
           notice: { kind: 'webhook_disabled', host: new URL(disabled.url).hostname },
@@ -49,16 +49,13 @@ export function httpWebhookAlertMailer(config: WebhookAlertConfig): WebhookAlert
   };
 }
 
-/** Configured by `MESSAGING_URL`, `MESSAGING_PEOPLE_TOKEN` and `APP_ORIGIN`; otherwise the log is the only notice. */
+/** Configured by `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN`; otherwise the event is the only notice. */
 export function webhookAlertMailerFrom(env: NodeJS.ProcessEnv): WebhookAlertMailer | undefined {
   const baseUrl = env['MESSAGING_URL'];
   const token = env['MESSAGING_PEOPLE_TOKEN'];
-  const appOrigin = env['APP_ORIGIN'];
-  if (!baseUrl || !token || !appOrigin) {
-    logger.info(
-      'MESSAGING_URL, MESSAGING_PEOPLE_TOKEN or APP_ORIGIN unset; webhook alerts not emailed',
-    );
+  if (!baseUrl || !token) {
+    logger.info('MESSAGING_URL or MESSAGING_PEOPLE_TOKEN unset; webhook alerts not emailed');
     return undefined;
   }
-  return httpWebhookAlertMailer({ baseUrl, token, appOrigin });
+  return httpWebhookAlertMailer({ baseUrl, token });
 }

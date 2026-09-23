@@ -198,15 +198,31 @@ function recordingMailer(): ReminderMailer & { sent: Reminder[] } {
   const sent: Reminder[] = [];
   return {
     sent,
-    send(_tenantId, reminder) {
+    send(_tenantId, _company, reminder) {
       sent.push(reminder);
       return Promise.resolve();
     },
   };
 }
 
+async function seededIds(): Promise<string[]> {
+  const rows = await admin.execute(
+    sql`SELECT person_id FROM people.completeness_gap WHERE cardinality(employee_keys) > 0 ORDER BY person_id`,
+  );
+  return [...rows].map((r) => String(r['person_id']));
+}
+
+const ACME_CO = { name: 'Acme Corp', origin: 'https://acme.app.kithena.test' };
+
 const sweep = (clock: Clock, mailer: ReminderMailer, calendar: TenantCalendar = UTC_CALENDAR) =>
-  sweepReminders({ inTenant, store, mailer, clock, calendars: fixedCalendars(calendar) })(ACME);
+  sweepReminders({
+    inTenant,
+    store,
+    mailer,
+    clock,
+    calendars: fixedCalendars(calendar),
+    company: () => Promise.resolve(ACME_CO),
+  })(ACME);
 
 describe('a tightening publish over 400 people', () => {
   beforeEach(async () => {
@@ -376,7 +392,10 @@ describe('a tenant whose calendar is not UTC', () => {
       locations: new Map(),
     };
     await defineAttribute('cost_centre', 'hr', true, '2026-09-24');
-    for (const [entity, n] of [[MADRID, 20], [BANGALORE, 12]] as const) {
+    for (const [entity, n] of [
+      [MADRID, 20],
+      [BANGALORE, 12],
+    ] as const) {
       // eslint-disable-next-line no-await-in-loop -- two inserts
       await admin.execute(sql`
         INSERT INTO people.person (tenant_id, status, given_name, work_email, legal_entity_id)
@@ -415,7 +434,7 @@ describe('the reminder cap: one email per person per week', () => {
   it('sends one email per person however many fields are missing, then none for 168 hours', async () => {
     const mailer = recordingMailer();
 
-    expect(await sweep(at(0), mailer)).toEqual({ sent: 300, failed: 0 });
+    expect(await sweep(at(0), mailer)).toEqual({ sent: 300, failed: 0, waiting: false });
     // One per person, not one per field.
     expect(new Set(mailer.sent.map((r) => r.personId)).size).toBe(300);
 
@@ -471,6 +490,85 @@ describe('the reminder cap: one email per person per week', () => {
     const first = new Set(mailer.sent.map((r) => r.personId));
     expect((await sweep(at(48 * HOUR), mailer)).sent).toBe(100);
     expect(mailer.sent.slice(300).some((r) => first.has(r.personId))).toBe(false);
+  });
+
+  it('sends on day 1, then weekly: nothing on day 3, one on day 7, one on day 14', async () => {
+    const mailer = recordingMailer();
+    const DAY = 24 * HOUR;
+    const one = (await seededIds())[0] ?? '';
+    const heard = () => mailer.sent.filter((r) => r.personId === one).length;
+
+    await sweep(at(0), mailer);
+    expect(heard()).toBe(1);
+    await sweep(at(3 * DAY), mailer);
+    expect(heard()).toBe(1);
+    await sweep(at(7 * DAY), mailer);
+    expect(heard()).toBe(2);
+    await sweep(at(10 * DAY), mailer);
+    await sweep(at(14 * DAY), mailer);
+    expect(heard()).toBe(3);
+  });
+
+  it('stops emailing a person once their profile is complete', async () => {
+    const mailer = recordingMailer();
+    await sweep(at(0), mailer);
+
+    // Fifty of the three hundred fill everything in; their gap rows empty.
+    const done = mailer.sent.slice(0, 50).map((r) => r.personId);
+    await inTenant(ACME, ({ tx }) =>
+      store.saveGaps(
+        tx,
+        ACME,
+        1,
+        done.map((personId) => ({ personId, employeeKeys: [], staffKeys: [] })),
+      ),
+    );
+
+    expect((await sweep(at(168 * HOUR), mailer)).sent).toBe(250);
+    expect(mailer.sent.slice(300).some((r) => done.includes(r.personId))).toBe(false);
+  });
+
+  it('reads and claims in bounded pages and still reaches everyone once', async () => {
+    const page = await inTenant(ACME, ({ tx }) =>
+      store.dueReminders(tx, ACME, at(0).now(), { after: null, limit: 25 }),
+    );
+    expect(page).toHaveLength(25);
+
+    const mailer = recordingMailer();
+    const result = await sweepReminders({
+      inTenant,
+      store,
+      mailer,
+      clock: at(0),
+      calendars: fixedCalendars(UTC_CALENDAR),
+      company: () => Promise.resolve(ACME_CO),
+      batchSize: 7,
+    })(ACME);
+    expect(result).toEqual({ sent: 300, failed: 0, waiting: false });
+    expect(new Set(mailer.sent.map((r) => r.personId)).size).toBe(300);
+  });
+
+  it('waits, claiming nothing, until the company is known — then sends', async () => {
+    const mailer = recordingMailer();
+    let company: typeof ACME_CO | null = null;
+    const run = () =>
+      sweepReminders({
+        inTenant,
+        store,
+        mailer,
+        clock: at(0),
+        calendars: fixedCalendars(UTC_CALENDAR),
+        company: () => Promise.resolve(company),
+      })(ACME);
+
+    expect(await run()).toEqual({ sent: 0, failed: 0, waiting: true });
+    const claimed = await admin.execute(
+      sql`SELECT count(*)::int AS n FROM people.completeness_gap WHERE reminded_at IS NOT NULL`,
+    );
+    expect([...claimed][0]?.['n']).toBe(0);
+
+    company = ACME_CO;
+    expect((await run()).sent).toBe(300);
   });
 
   it('never emails about a field HR owns', async () => {

@@ -16,6 +16,8 @@ import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
 import { drizzleOrgStore } from './drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
+import { reminderMailerFrom } from './reminder-mailer.js';
+import { NO_TENANT_APP_BASE, tenantAppBase, tenantCompanies } from './tenant-origin.js';
 import { knownTenants } from './tenants.js';
 import { secretRotation } from './secret-store.js';
 import { claimRotation } from './unique.js';
@@ -34,9 +36,10 @@ import { tenantTransaction } from './unit-of-work.js';
  *   The same transaction then publishes whichever special-category
  *   breakdowns are due (PEO-083): the monthly check lives here, and a month
  *   holds one publication per breakdown whoever runs it.
- * - **The reminder sweep**, hourly, only when a mailer is given. There is no
- *   reminder endpoint yet (PEO-084), and a sweep without one would claim the
- *   week's reminder and send nothing.
+ * - **The reminder sweep**, hourly, only when a mailer is configured
+ *   (PEO-084: `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN`). A sweep without
+ *   one would claim the week's reminder and send nothing. Links go to the
+ *   tenant's own origin, from `TENANT_APP_BASE`.
  * - **Reconciliation** (§8.2, "People is bought later"), for a tenant within
  *   one tick of People first learning of it, then again once a day. It reads
  *   identity's account listing, so it runs only when `IDENTITY_URL` and a
@@ -151,11 +154,11 @@ export async function startBackground(
           }
           // The tenant's own minimum, which is the change threshold too.
           const { cohortMinimum } = await org.settings(scope.tx, tenantId);
-          const published = await publishBreakdowns(
-            { clock: systemClock, calendars: org },
-            scope,
-            { definitions, cohortMinimum, run: result.value },
-          );
+          const published = await publishBreakdowns({ clock: systemClock, calendars: org }, scope, {
+            definitions,
+            cohortMinimum,
+            run: result.value,
+          });
           if (!published.ok) {
             logger.warn({ tenantId, code: published.error.code }, 'publication refused');
           } else if (published.value.published.length > 0) {
@@ -169,7 +172,11 @@ export async function startBackground(
     ),
   ];
 
-  jobs.push(every(HOUR, () => forEachTenant('unique-claims', claimRotation(inTenant, env['PEOPLE_SECRET_KEYS']))));
+  jobs.push(
+    every(HOUR, () =>
+      forEachTenant('unique-claims', claimRotation(inTenant, env['PEOPLE_SECRET_KEYS'])),
+    ),
+  );
   // The same rollout, for the encrypted values themselves (PEO-105).
   const rewrap = secretRotation(inTenant, env['PEOPLE_SECRET_KEYS']);
   jobs.push(
@@ -180,20 +187,27 @@ export async function startBackground(
     ),
   );
 
-  if (options.mailer === undefined) {
-    logger.info('no reminder mailer (PEO-084); reminder sweep not scheduled');
+  const mailer = options.mailer ?? reminderMailerFrom(env);
+  const base = tenantAppBase(env);
+  if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
+  if (mailer === undefined || base === null) {
+    logger.info('no reminder mailer or no tenant app base; reminder sweep not scheduled');
   } else {
     const sweep = sweepReminders({
       inTenant,
       store: drizzleCompletenessStore(),
-      mailer: options.mailer,
+      mailer,
       clock: systemClock,
       calendars: org,
+      company: tenantCompanies(base, org),
     });
     jobs.push(
       every(HOUR, () =>
         forEachTenant('reminders', async (tenantId) => {
-          const { failed } = await sweep(tenantId);
+          const { failed, waiting } = await sweep(tenantId);
+          if (waiting) {
+            logger.info({ tenantId }, 'company not known yet; reminders wait for the next sweep');
+          }
           if (failed > 0) logger.warn({ tenantId, failed }, 'reminders failed to send');
         }),
       ),
