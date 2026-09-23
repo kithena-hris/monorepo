@@ -323,6 +323,8 @@ const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').im
   fields: (t) => ({
     defaultTimeZone: t.exposeString('defaultTimeZone'),
     cohortMinimum: t.exposeInt('cohortMinimum'),
+    slug: t.string({ nullable: true, resolve: (s) => s.slug }),
+    displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
   }),
 });
 

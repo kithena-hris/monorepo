@@ -141,6 +141,8 @@ type PeopleSchema {
 type PeopleSettings {
   defaultTimeZone: String
   cohortMinimum: Int
+  slug: String
+  displayName: String
 }
 
 type Person

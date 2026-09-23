@@ -57,6 +57,8 @@ export default ModuleManifest.parse({
   consumes: [
     'identity.account.provisioned',
     'identity.account.profile_captured',
+    'identity.tenant.provisioned',
+    'identity.tenant.amended',
     'people.schema.published',
   ],
   entitlement: 'module.people',

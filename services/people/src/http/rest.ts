@@ -190,6 +190,11 @@ export const ExportBody = z.object({
 export const SettingsBody = z.object({
   defaultTimeZone: z.string(),
   cohortMinimum: z.int().describe('Raisable, never lowerable; at least 10.'),
+  slug: z
+    .string()
+    .nullable()
+    .describe('Where the company signs in, <slug>.app…; the back office sets it, read-only here.'),
+  displayName: z.string().nullable().describe('The company name; the back office sets it.'),
 });
 
 export const PatchSettingsBody = z.strictObject({

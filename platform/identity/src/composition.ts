@@ -3,7 +3,15 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { err, failure, ok, systemClock, type Result } from '@kithena/domain-kit';
+import { outboxTable, publish as publishToOutbox } from '@kithena/db-kit';
+import {
+  err,
+  failure,
+  ok,
+  systemClock,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
 import { startSession } from './account/application/start-session.js';
@@ -49,6 +57,8 @@ import { provisionTenant } from './tenancy/application/provision-tenant.js';
 import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
 import { adminRoutes } from './tenancy/http/admin-routes.js';
+
+const platformOutbox = outboxTable('platform');
 
 /**
  * Where the slices are joined.
@@ -387,6 +397,37 @@ export async function compose(config: Config): Promise<RequestHandler> {
     correlationId: randomUUID(),
     causationId: null,
   });
+
+  /**
+   * A company event into the outbox, in `tx` — which must already be in that
+   * tenant, because `platform.outbox` isolates by tenant like everything else.
+   * People reads these (PEO-099); nothing about the company reaches it any
+   * other way.
+   */
+  const tenantEvent = async (
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    eventName: 'identity.tenant.provisioned' | 'identity.tenant.amended',
+    process: string,
+    payload: Record<string, string>,
+  ): Promise<void> => {
+    const ctx = systemContext(process);
+    await publishToOutbox(tx, platformOutbox, [
+      {
+        eventId: ctx.newEventId(),
+        eventName,
+        eventVersion: 1,
+        tenantId: tenantId as PendingEvent['tenantId'],
+        occurredAt: systemClock.instant(),
+        effectiveFrom: null,
+        aggregate: { type: 'Tenant', id: tenantId, version: 1 },
+        actor: ctx.actor,
+        correlationId: ctx.correlationId,
+        causationId: null,
+        payload,
+      },
+    ]);
+  };
 
   /*
    * The cookie check the tenant app makes on every request.
@@ -1188,8 +1229,13 @@ export async function compose(config: Config): Promise<RequestHandler> {
      */
     amend: amendTenant({
       images,
-      write: async (tenantId, change) => {
-        const rows = await db.execute(sql`
+      // In a tenant transaction now, only so the amended event can be written
+      // beside the change: the outbox is tenant-isolated even though
+      // `platform.tenant` is not.
+      write: (tenantId, change) =>
+        db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+        const rows = await tx.execute(sql`
           UPDATE platform.tenant
              SET display_name = ${change.displayName},
                  theme_id = ${change.themeId},
@@ -1204,10 +1250,16 @@ export async function compose(config: Config): Promise<RequestHandler> {
                  address_postcode = ${change.address.postcode},
                  updated_at = now()
            WHERE id = ${tenantId}::uuid
-    RETURNING id
+    RETURNING id, slug
         `);
-        return [...rows].length === 1;
-      },
+        const row = [...rows][0];
+        if (!row) return false;
+        await tenantEvent(tx, tenantId, 'identity.tenant.amended', 'amend-tenant', {
+          slug: text(row['slug']),
+          displayName: change.displayName,
+        });
+        return true;
+        }),
     }),
     provision: provisionTenant({
       images,
@@ -1244,7 +1296,9 @@ export async function compose(config: Config): Promise<RequestHandler> {
               // whatever the pooled connection served next.
               await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
             },
-            inviteAdmin: async (tenantId, email) => {
+            announce: (tenantId, tenant) =>
+              tenantEvent(tx, tenantId, 'identity.tenant.provisioned', 'provision-tenant', tenant),
+            inviteAdmin: async (tenantId, email, timeZone) => {
               const ctx = systemContext('provision-tenant');
               const commissioned = await commissionAccount(
                 tx,
@@ -1256,9 +1310,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
                   // does. There is no employment record to read yet — the
                   // People module does not exist for this tenant at the moment
                   // it is created — so today is the honest answer rather than a
-                  // default standing in for one.
-                  employmentStart: systemClock.date('Etc/UTC'),
-                  timeZone: 'Etc/UTC',
+                  // default standing in for one. Today in the company's zone,
+                  // which is the administrators' zone too (PEO-099).
+                  employmentStart: systemClock.date(timeZone),
+                  timeZone,
                   via: 'admin_api',
                 },
                 ctx,

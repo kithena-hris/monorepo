@@ -16,6 +16,7 @@ export function inMemoryOrg(): {
   settings: () => TenantSettings;
 } {
   let settings: TenantSettings = DEFAULT_SETTINGS;
+  let companyAsOf: string | null = null;
   const entities = new Map<string, LegalEntityView>();
   const locations = new Map<
     string,
@@ -34,8 +35,14 @@ export function inMemoryOrg(): {
       }),
     settings: () => Promise.resolve(settings),
     saveSettings: (_tx, _tenant, next) => {
-      settings = next;
+      settings = { ...settings, ...next };
       return Promise.resolve();
+    },
+    saveCompany: (_tx, _tenant, company) => {
+      if (companyAsOf !== null && companyAsOf >= company.asOf) return Promise.resolve(false);
+      companyAsOf = company.asOf;
+      settings = { ...settings, slug: company.slug, displayName: company.displayName };
+      return Promise.resolve(true);
     },
     legalEntities: () => Promise.resolve([...entities.values()]),
     insertLegalEntity: (_tx, _tenant, e) => {
