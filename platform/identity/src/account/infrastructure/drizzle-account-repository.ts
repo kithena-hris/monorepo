@@ -6,6 +6,7 @@ import type { AccountRepository } from '../application/account-repository.js';
 import type { CachedSession } from '../application/session-cache.js';
 import type { AccountSnapshot, AccountStatus } from '../domain/account.js';
 import type { Session } from '../domain/session.js';
+import type { PersonName } from '../../shared/person-name.js';
 import { account, identity, session } from './account-tables.js';
 
 const outbox = outboxTable('platform');
@@ -149,7 +150,6 @@ export function drizzleAccountRepository(): AccountRepository {
   };
 }
 
-
 /**
  * One session, from the durable side, for the cookie check.
  *
@@ -287,4 +287,37 @@ export async function expiredSessionIds(tx: PostgresJsDatabase): Promise<string[
     .from(session)
     .where(sql`${session.expiresAt} < now()`);
   return rows.map((r) => r.id);
+}
+
+/**
+ * The name typed at enrolment, written onto the account — unless People has
+ * already named it (PRD §5, PEO-097).
+ *
+ * Identity owns a person's facts until People exists and People owns them
+ * after. `people_facts_at` is how identity knows which side of that line an
+ * account is on: the People consumer sets it when it applies a correction, and
+ * it is null for every account People has never written, including every
+ * account in a tenant without the module. So the guard is one predicate, and
+ * a name HR set in People before the person enrolled is not overwritten by
+ * whatever they typed on the way in.
+ *
+ * The captured name is still published on `identity.account.profile_captured`
+ * either way — People fills its own name from it only when empty — so nothing
+ * is lost, only not written where it would be wrong. Returns whether it wrote.
+ */
+export async function recordCapturedName(
+  tx: PostgresJsDatabase,
+  accountId: string,
+  name: PersonName,
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    UPDATE platform.account
+       SET given_name = ${name.given},
+           family_name = ${name.family},
+           preferred_name = ${name.preferred}
+     WHERE id = ${accountId}::uuid
+       AND people_facts_at IS NULL
+    RETURNING id
+  `);
+  return [...rows].length > 0;
 }

@@ -12,11 +12,17 @@ import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
  * Where an export's file lands (PRD §15.1): object storage, encrypted, behind
  * a signed link that stops working after 24 hours.
  *
- * A port, because the repository has no object-storage adapter yet. The one
- * implementation here is local — in memory, AES-256-GCM at rest and an
- * HMAC-signed link — which is what the tests run and what a single-node dev
- * box can use. A production adapter (S3 or R2 with SSE-KMS and a presigned
- * GET) implements the same three methods and nothing above it changes.
+ * Two layers, and only the bottom one changes between a laptop and
+ * production. `sealedObjectStore` encrypts every object with AES-256-GCM
+ * before it leaves the process and signs the link with an HMAC; `Blobs` is
+ * where the ciphertext sits — memory for a test, an S3-compatible bucket
+ * (`infrastructure/s3-blobs.ts`, with server-side encryption on top) for
+ * anything shared.
+ *
+ * The link is this service's, not the bucket's. A presigned GET would hand
+ * the requester ciphertext, so the bucket is never reachable from outside and
+ * the link points at `GET /v1/exports/files/…`, which checks the signature and
+ * the expiry, reads the object and opens it.
  */
 export interface ObjectStore {
   /** Store the bytes, encrypted at rest. */
@@ -25,39 +31,51 @@ export interface ObjectStore {
   sign(key: string, expiresAt: string): Promise<string>;
   /** What a link opens, if it is genuine and has not expired. */
   open(link: string): Promise<Result<{ bytes: Uint8Array; mediaType: string }>>;
+  /**
+   * Delete up to `limit` objects stored before `before`, returning how many.
+   * Bounded so one sweep over a backlog cannot run for an hour; the next
+   * sweep takes the rest.
+   */
+  purge(before: string, limit: number): Promise<number>;
 }
 
-interface Sealed {
-  readonly iv: Buffer;
-  readonly tag: Buffer;
-  readonly body: Buffer;
-  readonly mediaType: string;
+/** Where ciphertext sits. Knows nothing about keys, links or expiry. */
+export interface Blobs {
+  put(key: string, body: Uint8Array, mediaType: string): Promise<void>;
+  get(key: string): Promise<{ body: Uint8Array; mediaType: string } | null>;
+  deleteOlderThan(before: string, limit: number): Promise<number>;
 }
 
-/**
- * ponytail: in-process and in-memory, so a restart loses every file. That is
- * the right lifetime for a test and a dev box; anything shared needs the
- * bucket adapter.
- */
-export function localObjectStore(config: {
+export interface SealingConfig {
   /** 32 bytes: the at-rest key. */
   readonly encryptionKey: Uint8Array;
   /** Signs links; separate from the at-rest key so neither does the other's job. */
   readonly signingKey: Uint8Array;
   readonly clock: Clock;
+  /** Where `GET /v1/exports/files` is reachable, without a trailing slash. */
   readonly baseUrl: string;
-}): ObjectStore & { readonly raw: (key: string) => Uint8Array | undefined } {
-  const objects = new Map<string, Sealed>();
+}
+
+/** The object key a link names, or null when it is not a URL. */
+export function keyOf(link: string): string | null {
+  try {
+    return decodeURIComponent(new URL(link).pathname.split('/').at(-1) ?? '') || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Each object is iv (12) ‖ tag (16) ‖ ciphertext. */
+export function sealedObjectStore(config: SealingConfig, blobs: Blobs): ObjectStore {
   const signature = (key: string, expiresAt: string) =>
     createHmac('sha256', config.signingKey).update(`${key}\n${expiresAt}`).digest('base64url');
 
   return {
-    put(key, bytes, mediaType) {
+    async put(key, bytes, mediaType) {
       const iv = randomBytes(12);
       const cipher = createCipheriv('aes-256-gcm', config.encryptionKey, iv);
       const body = Buffer.concat([cipher.update(bytes), cipher.final()]);
-      objects.set(key, { iv, tag: cipher.getAuthTag(), body, mediaType });
-      return Promise.resolve();
+      await blobs.put(key, Buffer.concat([iv, cipher.getAuthTag(), body]), mediaType);
     },
 
     sign(key, expiresAt) {
@@ -67,35 +85,68 @@ export function localObjectStore(config: {
       return Promise.resolve(url.toString());
     },
 
-    open(link) {
+    async open(link) {
       const refused = err(failure('LINK_INVALID', 'This link is not valid'));
-      let url: URL;
-      try {
-        url = new URL(link);
-      } catch {
-        return Promise.resolve(refused);
-      }
-      const key = decodeURIComponent(url.pathname.split('/').at(-1) ?? '');
+      const key = keyOf(link);
+      if (key === null) return refused;
+      const url = new URL(link);
       const expiresAt = url.searchParams.get('expires') ?? '';
       const given = Buffer.from(url.searchParams.get('sig') ?? '');
       const expected = Buffer.from(signature(key, expiresAt));
-      if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
-        return Promise.resolve(refused);
-      }
+      if (given.length !== expected.length || !timingSafeEqual(given, expected)) return refused;
       if (!(Date.parse(config.clock.instant()) < Date.parse(expiresAt))) {
-        return Promise.resolve(
-          err(failure('LINK_EXPIRED', 'This link has expired; run the export again')),
-        );
+        return err(failure('LINK_EXPIRED', 'This link has expired; run the export again'));
       }
-      const sealed = objects.get(key);
-      if (!sealed) return Promise.resolve(refused);
+      const sealed = await blobs.get(key);
+      if (!sealed) return refused;
 
-      const decipher = createDecipheriv('aes-256-gcm', config.encryptionKey, sealed.iv);
-      decipher.setAuthTag(sealed.tag);
-      const bytes = new Uint8Array(Buffer.concat([decipher.update(sealed.body), decipher.final()]));
-      return Promise.resolve(ok({ bytes, mediaType: sealed.mediaType }));
+      const raw = Buffer.from(sealed.body);
+      const decipher = createDecipheriv('aes-256-gcm', config.encryptionKey, raw.subarray(0, 12));
+      decipher.setAuthTag(raw.subarray(12, 28));
+      const bytes = new Uint8Array(
+        Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]),
+      );
+      return ok({ bytes, mediaType: sealed.mediaType });
     },
 
+    purge: (before, limit) => blobs.deleteOlderThan(before, limit),
+  };
+}
+
+/**
+ * ponytail: in-process and in-memory, so a restart loses every file. That is
+ * the right lifetime for a test and a dev box; anything shared needs the
+ * bucket adapter.
+ */
+export function memoryBlobs(
+  clock: Clock,
+): Blobs & { readonly raw: (key: string) => Uint8Array | undefined } {
+  const objects = new Map<string, { body: Uint8Array; mediaType: string; at: string }>();
+  return {
+    put(key, body, mediaType) {
+      objects.set(key, { body, mediaType, at: clock.instant() });
+      return Promise.resolve();
+    },
+    get: (key) => Promise.resolve(objects.get(key) ?? null),
+    deleteOlderThan(before, limit) {
+      let n = 0;
+      for (const [key, o] of objects) {
+        if (n >= limit) break;
+        if (Date.parse(o.at) < Date.parse(before)) {
+          objects.delete(key);
+          n += 1;
+        }
+      }
+      return Promise.resolve(n);
+    },
     raw: (key) => objects.get(key)?.body,
   };
+}
+
+/** The in-memory store, sealed: what the tests and a single-node dev box use. */
+export function localObjectStore(
+  config: SealingConfig,
+): ObjectStore & { readonly raw: (key: string) => Uint8Array | undefined } {
+  const blobs = memoryBlobs(config.clock);
+  return { ...sealedObjectStore(config, blobs), raw: blobs.raw };
 }

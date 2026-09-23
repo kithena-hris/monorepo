@@ -25,10 +25,14 @@ import type { ObjectStore } from './object-store.js';
  * special-category field never reaches here: `buildExport` refuses it by
  * name, reason or no reason, because §15.2 sends it through the DSAR path.
  *
- * This is the job's body. Whether a transport awaits it (a small export) or
- * queues it (over 2,000 rows) is the transport's decision, and no transport
- * or queue exists in this module yet; the delivery is the same link either
- * way.
+ * This is the job's body. `requestExport` (queue.ts) decides whether it runs
+ * while the requester waits or on the queue; the delivery is the same link
+ * either way.
+ *
+ * **Idempotent on the export id.** A queued job can be retried after it
+ * stored the files, or after it committed; the ledger's completion is guarded
+ * by `completed_at IS NULL`, so a second completion announces nothing and
+ * notifies nobody, and answers with the export as the first run left it.
  */
 
 export const LINK_LIFETIME_MS = 24 * 60 * 60 * 1000;
@@ -53,16 +57,41 @@ export const outboxExportAudit: ExportAudit = {
   publish: (tx, events) => publish(tx, outboxTable('people'), events),
 };
 
+/** One row per export, in the caller's transaction. Holds no value and no link. */
+export interface ExportLedger {
+  /** A queued export, recorded before the job is handed over. */
+  queue(tx: PostgresJsDatabase, run: { tenantId: string; exportId: string; requestedBy: string }): Promise<void>;
+  /** False when this export was already complete: the caller then does nothing more. */
+  complete(tx: PostgresJsDatabase, run: CompletedExport): Promise<boolean>;
+  find(tx: PostgresJsDatabase, tenantId: string, exportId: string): Promise<LedgerEntry | null>;
+}
+
+export interface CompletedExport {
+  readonly tenantId: string;
+  readonly exportId: string;
+  readonly requestedBy: string;
+  readonly rowCount: number;
+  readonly fileNames: readonly string[];
+  readonly expiresAt: string;
+}
+
+export type LedgerEntry =
+  | { readonly status: 'queued'; readonly exportId: string; readonly requestedBy: string }
+  | ({ readonly status: 'completed' } & CompletedExport);
+
 export interface ExportJobDeps extends ExportDeps {
   readonly store: ObjectStore;
   readonly notifier: ExportNotifier;
   readonly audit: ExportAudit;
+  readonly ledger: ExportLedger;
   readonly newId: () => string;
 }
 
 export interface ExportJobRequest extends ExportRequest {
   /** Required when the file would carry a financial attribute. */
   readonly reason?: string | null;
+  /** Given when the export was queued, so a retry is the same export. */
+  readonly exportId?: string;
 }
 
 export interface ExportJobResult {
@@ -78,19 +107,18 @@ export const isFinancial = (d: AttributeDefinition): boolean =>
   d.dataType === 'money' ||
   d.dataType === 'bank_account';
 
-export async function runExportJob(
+/** Refused when a financial key is in the file and no reason was given. */
+export async function checkReason(
   tx: PostgresJsDatabase,
-  deps: ExportJobDeps,
+  deps: Pick<ExportDeps, 'schemas'>,
   request: ExportJobRequest,
-): Promise<Result<ExportJobResult>> {
-  const built = await buildExport(tx, deps, request);
-  if (!built.ok) return built;
-
+  attributeKeys: readonly string[],
+): Promise<Result<string>> {
   const version = await deps.schemas.current(tx, request.tenantId);
   const byKey = new Map<string, AttributeDefinition>(
     version?.document.attributes.map((d) => [d.key, d]),
   );
-  const financial = built.value.attributeKeys.filter((k) => {
+  const financial = attributeKeys.filter((k) => {
     const d = byKey.get(k);
     return d !== undefined && isFinancial(d);
   });
@@ -107,17 +135,73 @@ export async function runExportJob(
   if (reason.length > 500) {
     return err(failure('VALUE_INVALID', 'A reason is at most 500 characters', ['reason']));
   }
+  return ok(reason);
+}
 
-  const exportId = deps.newId();
+const keyFor = (tenantId: string, exportId: string, name: string) =>
+  `${tenantId}/exports/${exportId}/${name}`;
+
+/** The links of a completed export, signed again: nothing stores a link. */
+export async function linksOf(
+  store: ObjectStore,
+  run: CompletedExport,
+): Promise<{ name: string; url: string }[]> {
+  return Promise.all(
+    run.fileNames.map(async (name) => ({
+      name,
+      url: await store.sign(keyFor(run.tenantId, run.exportId, name), run.expiresAt),
+    })),
+  );
+}
+
+export async function runExportJob(
+  tx: PostgresJsDatabase,
+  deps: ExportJobDeps,
+  request: ExportJobRequest,
+): Promise<Result<ExportJobResult>> {
+  const done = async (run: CompletedExport): Promise<Result<ExportJobResult>> =>
+    ok({
+      exportId: run.exportId,
+      links: await linksOf(deps.store, run),
+      expiresAt: run.expiresAt,
+      rowCount: run.rowCount,
+    });
+
+  if (request.exportId !== undefined) {
+    const prior = await deps.ledger.find(tx, request.tenantId, request.exportId);
+    if (prior?.status === 'completed') return done(prior);
+  }
+
+  const built = await buildExport(tx, deps, request);
+  if (!built.ok) return built;
+
+  const checked = await checkReason(tx, deps, request, built.value.attributeKeys);
+  if (!checked.ok) return checked;
+  const reason = checked.value;
+
+  const exportId = request.exportId ?? deps.newId();
   const now = deps.clock.instant();
   const expiresAt = new Date(Date.parse(now) + LINK_LIFETIME_MS).toISOString();
 
-  const links: { name: string; url: string }[] = [];
+  // Stored before the ledger row, so a crash between the two leaves a file
+  // the sweep deletes and a job that is retried, never a row naming nothing.
   for (const file of built.value.files) {
-    const key = `${request.tenantId}/exports/${exportId}/${file.name}`;
-    await deps.store.put(key, file.bytes, file.mediaType);
-    links.push({ name: file.name, url: await deps.store.sign(key, expiresAt) });
+    await deps.store.put(keyFor(request.tenantId, exportId, file.name), file.bytes, file.mediaType);
   }
+  const run: CompletedExport = {
+    tenantId: request.tenantId,
+    exportId,
+    requestedBy: request.viewer.accountId,
+    rowCount: built.value.rowCount,
+    fileNames: built.value.files.map((f) => f.name),
+    expiresAt,
+  };
+  if (!(await deps.ledger.complete(tx, run))) {
+    const prior = await deps.ledger.find(tx, request.tenantId, exportId);
+    if (prior?.status === 'completed') return done(prior);
+    throw new Error(`export ${exportId} would not complete and is not complete`);
+  }
+  const links = await linksOf(deps.store, run);
 
   await deps.audit.publish(tx, [
     {

@@ -4,7 +4,9 @@ import {
   AsOfQuery,
   CompletenessBody,
   CorrectionBody,
+  CreateExportBody,
   CreatePersonBody,
+  ExportBody,
   ErrorBody,
   HistoryEntryBody,
   ListQuery,
@@ -35,6 +37,8 @@ const components = {
   HistoryPage: z.object({ items: z.array(HistoryEntryBody) }),
   Completeness: CompletenessBody,
   SchemaVersions: z.object({ items: z.array(SchemaVersionSummary) }),
+  CreateExport: CreateExportBody,
+  Export: ExportBody,
   Error: ErrorBody,
 } as const;
 
@@ -142,6 +146,26 @@ export function openApiDocument(): Record<string, unknown> {
           summary: 'What is missing and who owns it',
           parameters: [id],
           responses: { 200: { description: 'The verdict', ...json('Completeness') }, ...failure },
+        },
+      },
+      '/v1/exports': {
+        post: {
+          summary:
+            'Export what this caller may read; over 2,000 rows it is queued (202) and completes later',
+          parameters: [idempotencyKey],
+          requestBody: { required: true, ...json('CreateExport') },
+          responses: {
+            201: { description: 'Completed, with links that expire in 24 hours', ...json('Export') },
+            202: { description: 'Queued; ask for it by id', ...json('Export') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/exports/{id}': {
+        get: {
+          summary: 'An export this caller asked for, with its links signed again',
+          parameters: [id],
+          responses: { 200: { description: 'The export', ...json('Export') }, ...failure },
         },
       },
     },
