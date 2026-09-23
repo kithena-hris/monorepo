@@ -487,6 +487,33 @@ describe('telling identity what it caches', () => {
     expect(new Set(store.events.map((e) => e.eventId)).size).toBe(store.events.length);
   });
 
+  it('returns an active record to pre-hire, caused by the correction, and tells identity the new start', async () => {
+    const { store, people } = linked();
+    const row = store.rows.get(ADA);
+    if (row) row.snapshot = { ...row.snapshot, status: 'active', hireDate: '2026-09-01' };
+
+    const corrected = await people.correct(tx, {
+      ...asking(hr),
+      personId: ADA,
+      supersedes: dated(store, 'hire_date', '2026-09-01'),
+      value: '2026-10-15',
+      reason: 'the start moved and nobody told us',
+    });
+    expect(corrected.ok).toBe(true);
+    expect(store.rows.get(ADA)?.snapshot).toMatchObject({ status: 'pre_hire', hireDate: '2026-10-15' });
+
+    const byName = (name: string) => store.events.find((e) => e.eventName === name);
+    const correction = byName('people.person.attribute_corrected');
+    expect(byName('people.person.status_changed')).toMatchObject({
+      effectiveFrom: '2026-09-01',
+      causationId: correction?.eventId,
+      payload: { previous: 'active', next: 'pre_hire', reason: 'corrected' },
+    });
+    expect(byName('people.person.identity_facts_changed')?.payload).toMatchObject({
+      employmentStart: '2026-10-15',
+    });
+  });
+
   it('refuses to clear a lifecycle date through a correction', async () => {
     const { store, people } = linked();
     const refused = await people.correct(tx, {

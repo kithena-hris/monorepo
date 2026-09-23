@@ -944,7 +944,7 @@ it is written down here rather than left in a PR description.
       gateway's deny list and the refresh on `people.schema.published` are
       exported but nothing calls them. Needs the Kafka consumer PEO-027 added
       and the tenant source in PEO-080. Found in PEO-034.
-- [ ] **PEO-087** Log redaction matches tenant fields four levels deep, and the
+- [x] **PEO-087** Log redaction matches tenant fields four levels deep, and the
       AI gateway checks structured `context` only, not free text in the
       instruction. Decide whether either needs to go further. Found in PEO-034
       and PEO-035.
@@ -989,6 +989,12 @@ it is written down here rather than left in a PR description.
       enrolment onto the account even after People has set one, and People
       only fills its own name when empty, so the two can differ until People's
       next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
+- [x] **PEO-100** Corrections that contradict the state. An active person whose
+      start date is corrected into the future stays active, and a person on
+      notice whose last working day is corrected into the past has nothing
+      asking HR to end the employment. *Decided: the first returns to
+      `pre_hire`; the second stays on notice and HR's grid gets a
+      `confirm_termination` row.* Found in PEO-096. *(PRD §8.1, §8.5)*
 
 ## Blocked, and by what
 

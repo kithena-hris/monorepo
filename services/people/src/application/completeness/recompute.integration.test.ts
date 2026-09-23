@@ -296,9 +296,9 @@ describe('a tightening publish over 400 people', () => {
     await defineAttribute('emergency_contact', 'employee', true);
     await publishAndRecompute(at(0));
 
-    const grid = await inTenant(ACME, ({ tx }) => store.staffGrid(tx, ACME));
+    const grid = await inTenant(ACME, ({ tx }) => store.staffGrid(tx, ACME, '2026-09-22'));
     expect(grid).toHaveLength(1);
-    expect(grid[0]?.key).toBe('cost_centre');
+    expect(grid[0]).toMatchObject({ task: 'missing', key: 'cost_centre' });
     expect(grid[0]?.personIds).toHaveLength(300);
   });
 
