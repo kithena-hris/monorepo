@@ -78,6 +78,23 @@ describe('the lifecycle mutations', () => {
     });
   });
 
+  it('ends a leaver’s access at once, as HR alone (PEO-109)', async () => {
+    const store = wire(MARCO_ACCOUNT);
+    const refused = await mutate(`mutation { endPersonAccess(personId: "${ADA}") { status } }`);
+    expect(refused.errors?.[0]?.extensions['code']).toBe('FORBIDDEN');
+
+    expect(store.events).toEqual([]);
+
+    const hr = wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
+    const dismissed = await mutate(
+      `mutation { terminatePerson(personId: "${ADA}", lastWorkingDay: "2026-09-22", reason: dismissed, endAccessNow: true) { status } }`,
+    );
+    expect(dismissed.errors).toBeUndefined();
+    const again = await mutate(`mutation { endPersonAccess(personId: "${ADA}") { status } }`);
+    expect(again.data?.['endPersonAccess']).toEqual({ status: 'terminated' });
+    expect(hr.events.filter((e) => e.eventName === 'people.person.access_ended')).toHaveLength(1);
+  });
+
   it('discards a provisional record', async () => {
     wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
     const answer = await mutate(`mutation { discardPerson(personId: "${NEW}") { id status } }`);

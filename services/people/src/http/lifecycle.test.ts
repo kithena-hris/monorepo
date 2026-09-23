@@ -97,6 +97,33 @@ describe('the lifecycle routes', () => {
     });
   });
 
+  it('ends a leaver’s access at once, with the termination or after it (PEO-109)', async () => {
+    const { post, store } = setup();
+    const onNotice = await post(`${ADA}/access/end`, undefined, 'a0');
+    expect([onNotice.status, code(onNotice)]).toEqual([409, 'INVALID_TRANSITION']);
+
+    const dismissed = await post(
+      `${ADA}/termination`,
+      { lastWorkingDay: '2026-09-22', reason: 'dismissed', endAccessNow: true },
+      'a1',
+    );
+    expect([dismissed.status, status(dismissed)]).toEqual([200, 'terminated']);
+    expect(store.events.at(-1)).toMatchObject({
+      eventName: 'people.person.access_ended',
+      actor: { kind: 'user', userId: HR },
+      payload: { trigger: 'ended_by_hr', endedAt: '2026-09-22T09:00:00.000Z' },
+    });
+
+    // Already ended: answered with the record, nothing raised.
+    const count = store.events.length;
+    const again = await post(`${ADA}/access/end`, undefined, 'a2');
+    expect([again.status, status(again)]).toEqual([200, 'terminated']);
+    expect(store.events).toHaveLength(count);
+
+    const notHr = await post(`${ADA}/access/end`, undefined, 'a3', { 'x-roles': 'people_admin' });
+    expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
+  });
+
   it('answers a retried key without moving twice', async () => {
     const { post, store } = setup();
     const first = await post(`${ADA}/notice`, { lastWorkingDay: '2026-12-31' }, 'k');
@@ -156,6 +183,7 @@ describe('the lifecycle routes', () => {
       'reason',
       'note',
       'eligibleForRehire',
+      'endAccessNow',
     ]);
   });
 });

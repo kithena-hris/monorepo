@@ -770,9 +770,19 @@ builder.mutationFields((t) => ({
       reason: t.arg({ type: LeavingReasonRef, required: true }),
       note: t.arg.string(),
       eligibleForRehire: t.arg.boolean(),
+      endAccessNow: t.arg.boolean({
+        description: 'End their access now, for a dismissal for cause.',
+      }),
     },
     resolve: (_root, { personId, ...rest }, ctx) =>
       move(ctx, 'terminatePerson', personId, sent(rest)),
+  }),
+  endPersonAccess: t.field({
+    type: Person,
+    description:
+      'End a terminated person’s access now rather than at the end of their last working day; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: (_root, args, ctx) => move(ctx, 'endPersonAccess', args.personId, {}),
   }),
   startLeave: t.field({
     type: Person,

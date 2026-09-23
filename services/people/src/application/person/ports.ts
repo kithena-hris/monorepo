@@ -40,6 +40,12 @@ export interface PersonRecord {
   readonly workModel: string | null;
 }
 
+/** A directory search: the text, and the core keys it may be matched against. */
+export interface PersonSearch {
+  readonly text: string;
+  readonly keys: readonly ('given_name' | 'family_name' | 'preferred_name' | 'work_email')[];
+}
+
 export interface PersonReader {
   /** `lock` takes the row for update, so two writers merging `custom` cannot lose one another's keys. */
   record(
@@ -55,6 +61,9 @@ export interface PersonReader {
    * `where` narrows to people whose tenant-defined value equals the one given,
    * per key. Only `custom` keys: the caller has already refused anything else,
    * and checked the viewer may read every key it filters on.
+   *
+   * `search` is a case-insensitive substring over the named core columns,
+   * which the caller has likewise checked the viewer reads on everybody.
    */
   page(
     tx: PostgresJsDatabase,
@@ -62,7 +71,16 @@ export interface PersonReader {
     after: string | null,
     limit: number,
     where?: Readonly<Record<string, string>>,
+    search?: PersonSearch,
   ): Promise<readonly PersonRecord[]>;
+
+  /** How many people `where` and `search` match, by status: the directory's summary. */
+  count(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    where?: Readonly<Record<string, string>>,
+    search?: PersonSearch,
+  ): Promise<{ readonly all: number; readonly active: number }>;
 
   /** Which person signs in as this account, if any: "my profile" starts here. */
   personOf(tx: PostgresJsDatabase, tenantId: string, accountId: string): Promise<string | null>;

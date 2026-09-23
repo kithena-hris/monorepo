@@ -66,6 +66,7 @@ beforeAll(async () => {
     '20260921230000_account_mobile.sql',
     // `people_facts_at`, which Drizzle selects whenever it loads an account.
     '20260923170000_identity_people_facts_at.sql',
+    '20260924220100_identity_access_end.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));

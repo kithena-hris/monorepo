@@ -4,7 +4,19 @@ import { createInstance, type ModuleFederation } from '@module-federation/runtim
 import * as Reach from '@reach/ui';
 import { Alert, Spinner } from '@reach/ui';
 import * as React from 'react';
-import { Component, Suspense, use, type ComponentType, type JSX, type ReactNode } from 'react';
+import {
+  Component,
+  Suspense,
+  use,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type JSX,
+  type ReactNode,
+} from 'react';
+import { hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
 /*
@@ -13,8 +25,9 @@ import * as jsxRuntime from 'react/jsx-runtime';
  * `React` here is the copy Next bundles for the App Router, not the one in
  * `node_modules`, so this is the only way a remote can render with the React
  * that is actually mounted. The remotes are built with `import: false` and
- * carry no copy of their own; this is the one on the page — in the browser
- * through federation's share scope, and on the server through `serverScreen`.
+ * carry no copy of their own; this is the one on the page, through
+ * federation's share scope. On the server a remote renders in a process of
+ * its own, with the same React (`lib/remote-renderer.ts`).
  *
  * Importing the whole of `@reach/ui` puts the barrel in this chunk. It is the
  * price of one copy — a remote may use any component, and the shell cannot
@@ -73,65 +86,160 @@ function browserScreenOf(name: string, route: RemoteRoute): Promise<Screen> {
 }
 
 /*
- * On the server: the remote's server build, evaluated against the shell's own
- * React, JSX runtime and Reach (PEO-094).
+ * On the server: the remote's server build, rendered to HTML by a process that
+ * holds nothing (PEO-094, PEO-115).
  *
  * Module Federation does not render remotes inside the Next App Router on the
- * server — `@module-federation/nextjs-mf` never supported it and is being
- * wound down — so the remote publishes `ssr/people.cjs` beside its browser
- * build (`apps/web/people/vite.ssr.config.ts`). The page fetches it before it
- * renders (`lib/remote-code.ts`) and this evaluates it. That is what
- * federation's own Node runtime does: fetch the remote's code and evaluate it
- * in-process, with the host's shared modules handed in.
+ * server, so the remote publishes `ssr/people.cjs` beside its browser build
+ * (`apps/web/people/vite.ssr.config.ts`). The page fetches it and checks it
+ * against the signed manifest before it renders (`lib/remote-code.ts`); this
+ * asks the renderer process for the screen's HTML (`lib/remote-render.ts`).
+ * The shell's own process never evaluates the remote's code, so on the server
+ * the remote's host is outside the shell's trust boundary.
+ * `PEOPLE_REMOTE_SSR=off` still turns server rendering off.
  *
- * **The trust this takes, stated plainly.** Evaluating the remote's code here
- * runs it with this server's privileges, which include the internal token. So
- * the remote's host is inside the shell's trust boundary, as a dependency
- * would be. The address is server configuration (`PEOPLE_REMOTE_URL`) and
- * never comes from a request, and the code is only ever what that host
- * serves. A deployment that does not accept that sets `PEOPLE_REMOTE_SSR=off`
- * and gets the client-rendered page (the spinner, then the screen).
+ * The props cross as JSON. A function cannot, and a render never calls one,
+ * so each becomes a marker the renderer turns back into a function that does
+ * nothing.
  *
- * The code is fetched per request, so a redeploy of the remote alone changes
- * the next page — the PEO-046 property, kept on the server. It is evaluated
- * again only when the file changed.
+ * The promise is kept for a few seconds so that React, retrying the component
+ * once it resolves, finds the same one rather than rendering again.
  */
-const SHARED: Readonly<Record<string, unknown>> = {
-  react: React,
-  'react/jsx-runtime': jsxRuntime,
-  '@reach/ui': Reach,
-};
-let evaluated: { code: string; exports: Record<string, unknown> } | undefined;
+const FN = '\u0000fn';
+type Render = (url: string, component: string, props: string, prefix: string) => Promise<string>;
+const rendering = new Map<string, Promise<string>>();
 
-/** The screen from the server build the page fetched; an error sends it to the browser. */
-function serverScreen(name: string, route: RemoteRoute): Screen {
+/** The identifiers of a remote's own React root, on the server and in the browser. */
+const idPrefix = (name: string): string => `${name}-`;
+
+function serverHtml(name: string, route: RemoteRoute, props: object): Promise<string> {
   if (route.ssr === undefined) throw new Error('server rendering is off; drawn in the browser');
-  const store = (globalThis as unknown as Record<symbol, Map<string, string> | undefined>)[
-    Symbol.for('kithena.remote-code')
+  const render = (globalThis as unknown as Record<symbol, Render | undefined>)[
+    Symbol.for('kithena.remote-render')
   ];
-  const code = store?.get(route.ssr);
-  if (code === undefined) {
-    throw new Error(`${name}'s server build is not available; drawn in the browser`);
-  }
-  if (evaluated?.code !== code) {
-    const module: { exports: Record<string, unknown> } = { exports: {} };
-    const require = (id: string): unknown => {
-      if (!Object.hasOwn(SHARED, id)) {
-        throw new Error(`${name} asked for ${id}, which the shell does not share`);
-      }
-      return SHARED[id];
+  if (render === undefined) throw new Error(`${name} has no renderer; drawn in the browser`);
+  const json = JSON.stringify(props, (_key, value: unknown) =>
+    typeof value === 'function' ? { [FN]: true } : value,
+  );
+  const key = `${route.ssr}\n${route.component}\n${json}`;
+  let html = rendering.get(key);
+  if (html === undefined) {
+    html = render(route.ssr, route.component, json, idPrefix(name));
+    rendering.set(key, html);
+    const forget = (): void => {
+      const timer = setTimeout(() => rendering.delete(key), 10_000) as unknown as {
+        unref?: () => void;
+      };
+      timer.unref?.();
     };
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- the remote's own build, by design; see above.
-    const evaluate = new Function('require', 'module', 'exports', code) as (
-      require: (id: string) => unknown,
-      module: { exports: Record<string, unknown> },
-      exports: Record<string, unknown>,
-    ) => void;
-    evaluate(require, module, module.exports);
-    evaluated = { code, exports: module.exports };
+    html.then(forget, forget);
   }
-  return pick(evaluated.exports, name, route.component);
+  return html;
 }
+
+/*
+ * In the browser: the server's HTML hydrated by a React root of the remote's
+ * own.
+ *
+ * The HTML came from a tree that is just the screen in a Suspense boundary, so
+ * only a root with that same tree hydrates it without a mismatch — `useId`
+ * counts from the root. The shell's tree holds the root's container as HTML
+ * it does not own, and hands the root its props through a store: an update
+ * never reaches a boundary still waiting for the remote's JavaScript, which
+ * React would answer by dropping the server's HTML. Until then the screen is
+ * on the page, and a press on it is replayed once it hydrates.
+ */
+interface Current {
+  readonly route: RemoteRoute;
+  readonly props: Readonly<Record<string, unknown>>;
+}
+
+function store(initial: Current) {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: (): Current => current,
+    set: (next: Current): void => {
+      current = next;
+      for (const listener of listeners) listener();
+    },
+    subscribe: (listener: () => void): (() => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+type Store = ReturnType<typeof store>;
+
+function Hydrated({
+  name,
+  current,
+}: {
+  readonly name: string;
+  readonly current: Store;
+}): JSX.Element {
+  const { route, props } = useSyncExternalStore(current.subscribe, current.get, current.get);
+  const Screen = use(browserScreenOf(name, route));
+  return <Screen {...props} />;
+}
+
+const islands = new WeakMap<Element, { root: Root; timer?: ReturnType<typeof setTimeout> }>();
+
+function Island({
+  name,
+  area,
+  route,
+  props,
+}: {
+  readonly name: string;
+  readonly area: string;
+  readonly route: RemoteRoute;
+  readonly props: Readonly<Record<string, unknown>>;
+}): JSX.Element {
+  const ref = useRef<HTMLDivElement>(null);
+  const [current] = useState(() => store({ route, props }));
+  useLayoutEffect(() => {
+    current.set({ route, props });
+  });
+  useLayoutEffect(() => {
+    const container = ref.current;
+    if (container === null) return;
+    // Development mounts twice; one root per container, whatever React does.
+    let island = islands.get(container);
+    if (island === undefined) {
+      island = {
+        root: hydrateRoot(
+          container,
+          <RemoteBoundary area={area}>
+            <Suspense fallback={null}>
+              <Hydrated name={name} current={current} />
+            </Suspense>
+          </RemoteBoundary>,
+          { identifierPrefix: idPrefix(name) },
+        ),
+      };
+      islands.set(container, island);
+    }
+    clearTimeout(island.timer);
+    const held = island;
+    return () => {
+      held.timer = setTimeout(() => {
+        islands.delete(container);
+        held.root.unmount();
+      }, 0);
+    };
+  }, [area, name, current]);
+  return (
+    <div
+      ref={ref}
+      data-remote={name}
+      suppressHydrationWarning
+      dangerouslySetInnerHTML={{ __html: '' }}
+    />
+  );
+}
+
+const subscribeNever = (): (() => void) => () => undefined;
 
 function Unavailable({ area }: { readonly area: string }): JSX.Element {
   return (
@@ -160,10 +268,10 @@ class RemoteBoundary extends Component<
 export interface RemoteRoute {
   readonly entry: string;
   readonly component: string;
-  /** The remote's server build, when the shell may render it (`ssr/people.cjs`). */
+  /** The remote's server build, when it verified and the shell may render it. */
   readonly ssr?: string;
-  /** Its stylesheet, linked so the server's HTML paints styled. */
-  readonly stylesheet?: string;
+  /** Its stylesheet, held to the signed manifest's hash, so the server's HTML paints styled. */
+  readonly stylesheet?: { readonly href: string; readonly integrity: string };
 }
 
 export interface RemoteScreenProps {
@@ -179,34 +287,47 @@ export interface RemoteScreenProps {
 
 function Drawn({
   name,
+  area,
   route,
   props,
 }: {
   readonly name: string;
+  readonly area: string;
   readonly route: RemoteRoute;
   readonly props: Readonly<Record<string, unknown>>;
 }): JSX.Element {
-  // On the server, synchronously from the code the page fetched. In the
-  // browser, `use()` holds the server's HTML until federation has loaded.
-  const Screen =
-    typeof window === 'undefined' ? serverScreen(name, route) : use(browserScreenOf(name, route));
+  // Hydrating means the server sent the screen's HTML; a server that could
+  // not left this boundary for the browser to render from nothing.
+  const hydrating = useSyncExternalStore(
+    subscribeNever,
+    () => false,
+    () => true,
+  );
+  const [fromServer] = useState(hydrating);
+  if (typeof window === 'undefined') {
+    const html = use(serverHtml(name, route, props));
+    return <div data-remote={name} dangerouslySetInnerHTML={{ __html: html }} />;
+  }
+  if (fromServer) return <Island name={name} area={area} route={route} props={props} />;
+  const Screen = use(browserScreenOf(name, route));
   return <Screen {...props} />;
 }
 
 /**
  * A remote's screen, rendered on the server and hydrated in the browser.
  *
- * On the server the screen is drawn from the remote's server build and sent in
- * the same response — streamed after the chrome, as Next streams, and
- * revealed by React's inline script before any bundle loads. In the browser, hydration reaches `use()` with
- * federation still loading, so React keeps the server's HTML in place — a
- * Suspense boundary that is not yet hydrated — until the browser build
- * arrives, then hydrates it. The person sees the screen at first paint; it
- * becomes interactive when the remote's JavaScript lands.
+ * On the server the screen is drawn by the renderer process from the verified
+ * server build and sent in the same response — streamed after the chrome, as
+ * Next streams, and revealed by React's inline script before any bundle
+ * loads. In the browser the remote's own root keeps that HTML in place until
+ * the browser build arrives, then hydrates it (`Island`). The person sees the
+ * screen at first paint; it becomes interactive when the remote's JavaScript
+ * lands.
  *
- * If the server build is missing, the error on the server makes React send
- * the spinner for this boundary and render it in the browser instead — the
- * client-only behaviour this replaced, and nothing worse. The props are the
+ * If the build is missing, unsigned, altered, or fails in the renderer, the
+ * error on the server makes React send the spinner for this boundary and
+ * render it in the browser instead — the client-only behaviour PEO-094
+ * replaced, and nothing worse. The props are the
  * shell's: the data the server fetched and the actions that call People
  * (`people-screen.tsx`). The remote still never fetches.
  */
@@ -215,10 +336,16 @@ export function RemoteScreen({ name, area, route, props = {} }: RemoteScreenProp
   return (
     <RemoteBoundary area={area}>
       {route.stylesheet === undefined ? null : (
-        <link rel="stylesheet" href={route.stylesheet} precedence="default" />
+        <link
+          rel="stylesheet"
+          href={route.stylesheet.href}
+          integrity={route.stylesheet.integrity}
+          crossOrigin="anonymous"
+          precedence="default"
+        />
       )}
       <Suspense fallback={<Spinner label={`Loading ${area}`} />}>
-        <Drawn name={name} route={route} props={props} />
+        <Drawn name={name} area={area} route={route} props={props} />
       </Suspense>
     </RemoteBoundary>
   );

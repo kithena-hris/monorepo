@@ -1029,19 +1029,26 @@ it is written down here rather than left in a PR description.
       stylesheet left it unstyled. The sidebar item is enabled.
       _Still open:_ SSR (the screen is client-only behind a spinner; the shell
       is Next, not Modern.js) and the hosting headers.
-      _Landed:_ the SSR and the hosting headers. - **Server rendering by the remote's own server build.** Module
-      Federation does not support the App Router on the server.
-      `vite.ssr.config.ts` builds `ssr/people.cjs`, whose only imports are
-      React, JSX and Reach. The page fetches it per request and
-      `remote-screen.tsx` evaluates it against the shell's copies of those
-      three. The screen streams in the response, and hydration holds it
-      until federation has loaded the browser build. - **The hosting headers** are in `apps/web/people/vercel.json`:
-      `no-cache` on `remoteEntry.js`, `routes.json` and the server build,
-      `immutable` on the hashed chunks, and CORS echoed for tenant origins. - **Proven** by the acceptance test: with the remote's JavaScript
-      blocked, the profile is still on the page. With it, the same page
-      hydrates without a mismatch and saves. - **The trade.** The remote's host now runs code on the shell's
-      server. `PEOPLE_REMOTE_SSR=off` turns server rendering off. - **Not verified.** The CORS capture group in `vercel.json` has not
-      been checked on a real deployment, because nothing was deployed.
+      *Landed:* the SSR and the hosting headers.
+      - **Server rendering by the remote's own server build.** Module
+        Federation does not support the App Router on the server.
+        `vite.ssr.config.ts` builds `ssr/people.cjs`, whose only imports are
+        React, JSX and Reach. The page fetches it per request and
+        `remote-screen.tsx` evaluates it against the shell's copies of those
+        three. The screen streams in the response, and hydration holds it
+        until federation has loaded the browser build.
+      - **The hosting headers** are in `apps/web/people/vercel.json`:
+        `no-cache` on `remoteEntry.js`, `routes.json` and the server build,
+        `immutable` on the hashed chunks, and CORS echoed for tenant origins.
+      - **Proven** by the acceptance test: with the remote's JavaScript
+        blocked, the profile is still on the page. With it, the same page
+        hydrates without a mismatch and saves.
+      - **The trade.** The remote's host now runs code on the shell's
+        server. `PEOPLE_REMOTE_SSR=off` turns server rendering off.
+        *Closed by PEO-115:* a signed build, rendered in a process that holds
+        nothing.
+      - **Not verified.** The CORS capture group in `vercel.json` has not
+        been checked on a real deployment, because nothing was deployed.
 - [x] **PEO-098** The shell hands People screens their data. The screens from
       PEO-047 on are presentational: each takes a `Loadable` and async
       callbacks as props, and `routes.json` lists none of them yet because the
@@ -1132,7 +1139,93 @@ it is written down here rather than left in a PR description.
       clearly when it still loses. _(PRD §14.5)_
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
-      other People REST write. _(PRD §13.2)_
+      other People REST write. *(PRD §13.2)*
+- [x] **PEO-108** Lifecycle actions through the application layer and
+      transports. The domain could give notice, terminate, start and end
+      leave and discard, but `PersonAccess` exposed none of them, so no
+      transport could, and PEO-102's re-judge ran only for what it did
+      expose. Found in PEO-100 and PEO-102. *(PRD §8.1, §8.5, §10.2, §12,
+      §13)* *Landed as five HR-only use cases on the person's own calendar,
+      each idempotent on a retry, each raising `status_changed` (termination
+      now too, with a typed reason, beside `terminated`) with its dated row
+      and a completeness re-judge; a termination waits for the last working
+      day except for a pre-hire. `POST /v1/people/{id}/notice`,
+      `/termination`, `/leave/start`, `/leave/end`, `/discard` and the
+      matching mutations, both parsed by one Zod body each. Also the GraphQL
+      `employeeNumbering`/`setEmployeeNumbering` for PEO-101, and REST tests
+      for its routes. Not built, and written into §8.1: rehire and
+      withdrawing notice.*
+- [x] **PEO-109** Access ends with employment. A terminated person could sign
+      in for as long as identity had their account, because nothing told
+      identity employment had ended. *Decided: at the end of the last working
+      day on the person's own calendar, identity suspends the account — no
+      sign-in, every session revoked, enrolment links spent, passkeys kept for
+      a rehire; suspended, never deleted.* *(PRD §5, §8.1, §10.2, §13)*
+      *Landed as `people.person.access_ended`, raised once by the hourly
+      lifecycle job for anybody on notice or terminated whose last working
+      day has ended — HR's confirmation of the termination is not awaited;
+      the `confirm_termination` row stays the paperwork prompt —
+      (`access_ended_at`, 20260924220000) or at once
+      by HR (`endAccessNow` on termination, `POST
+      /v1/people/{id}/access/end`, `endPersonAccess`), and identity's consumer
+      suspending with reason `employment_ended`, idempotent and blind to a
+      stale event through `people_access_at`, remembering the status it
+      suspended from in `access_ended_from` (20260924220100). A tenant
+      without People is untouched.*
+- [ ] **PEO-110** Rehire: a new employment period on the same person record,
+      HR only, from `terminated`, refused when not eligible for rehire unless
+      HR overrides with a reason. Identity reactivates the suspended account
+      at the new start; retention runs from the latest period's end and a
+      rehire cancels it. *(PRD §5, §7, §8.1, §8.5, §10.2, §12, §13)*
+- [ ] **PEO-111** Withdraw notice: HR returns a person on notice to the
+      status they held before it, until their last working day has ended on
+      their calendar, superseding the notice's last-working-day row.
+      *(PRD §8.1, §8.5, §10.2, §13)*
+- [x] **PEO-115** Server rendering without trusting the remote's host.
+      PEO-094 evaluated the remote's server build in the shell's own process,
+      beside the internal token. *Decided (option A):* integrity and
+      isolation. The remote's deploy pipeline signs a manifest of SHA-384
+      hashes (`sign-ssr.mjs`); the shell pins the Ed25519 public key
+      (`PEOPLE_REMOTE_SSR_PUBLIC_KEY`) and renders only a build that matches,
+      so a remote release is still a remote deploy alone. The build renders in
+      a child process with an empty environment, the permission model, no
+      code generation from strings and a `vm` context holding React, JSX and
+      Reach only (`remote-render.ts`, `remote-renderer.ts`); in the browser
+      the remote's own root hydrates it. Refused, altered or failing builds
+      render in the browser. `PEOPLE_REMOTE_SSR=off` is still the switch.
+      *Residual risk* in PRD §13.2: sockets in Node 22, any signed build is
+      trusted, the browser build is not covered, and nothing signs a
+      production build yet. *(PRD §13.2, §17.3)*
+- [x] **PEO-118** People never exited on SIGTERM: `startTelemetry` caught the
+      signal to flush spans and nothing else, so the database pool, the Kafka
+      consumers and the pollers kept the process alive until it was SIGKILLed,
+      mid-request and mid-job. The acceptance harness SIGKILLed it after 3 s
+      and said so in a comment. *Landed:* `@kithena/telemetry` owns the stop —
+      `onShutdown(name, step)` registers a step, `drain(server)` stops
+      accepting and waits for requests in flight; on SIGTERM or SIGINT every
+      step runs, spans are flushed within 2 s, and the process exits 0, or 1
+      when a step failed or `SHUTDOWN_DEADLINE_MS` (10 s) passed, naming the
+      steps still running. People drains HTTP then closes the export queue,
+      the Temporal worker, the webhook poller and its pool; its consumers and
+      background jobs finish the one in hand and close theirs. Time Off,
+      identity (and its consumer) and messaging drain the same way. Proven by
+      `shutdown.integration.test.ts`: the real `main.ts` with Postgres and
+      Redpanda answers a half-sent request after SIGTERM, refuses a new one,
+      exits 0; a request that never finishes exits 1 at the deadline. The
+      harness now fails a run whose server outlives SIGTERM by 15 s.
+      *(PRD §18)*
+- [x] **PEO-117** Directory search covered only the first 200 people: the view
+      read one page and searched it in memory. Search, filters and paging now
+      run in Postgres through `PersonAccess.list` (and `count` for the
+      summary): keyset pages of 50 by `?after=`, a search over the names and
+      work email the viewer reads on everybody (refused when there is none,
+      as a filter on a key they cannot read on everybody already was, PEO-052),
+      `search` on `GET /v1/people` too. 57 ms for a filter page, 101 ms for a
+      search page with its count, at 50,000 people. The screen pages with
+      "Next page" / "First page"; each page is a URL. *(PRD §13.2, §17.2)*
+      *Still open:* the profile's person picker and the completeness grid
+      read only the first 200 people through `everybody()`; another lane
+      pages them.
 - [x] **PEO-116** PEO-098's screen writes took no Idempotency-Key and were
       missing from OpenAPI. The router now refuses any write without a key
       before its handler runs (four compute-only POSTs are `safe`); each

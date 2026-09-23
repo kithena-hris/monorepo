@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { logger, startTelemetry } from '@kithena/telemetry';
+import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { wirePeopleConsumer } from './account/consumers/wire.js';
 import { compose } from './composition.js';
@@ -97,7 +97,8 @@ const routes = await compose({
     : {}),
   adminRpId: process.env['ADMIN_RP_ID'] ?? 'localhost',
   adminOrigin: process.env['ADMIN_ORIGIN'] ?? 'http://localhost:3001',
-  authOrigin: authOrigin === undefined || authOrigin === '' ? 'http://auth.app.localhost:3100' : authOrigin,
+  authOrigin:
+    authOrigin === undefined || authOrigin === '' ? 'http://auth.app.localhost:3100' : authOrigin,
   signingKey,
   allowInsecureOrigins: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, invitations are not emailed and the enrolment link comes
@@ -108,7 +109,9 @@ const routes = await compose({
     ? { messagingToken: process.env['MESSAGING_API_TOKEN'] }
     : {}),
   // The same, for People reading a tenant's accounts. See `Config.peopleToken`.
-  ...(process.env['PEOPLE_IDENTITY_TOKEN'] ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] } : {}),
+  ...(process.env['PEOPLE_IDENTITY_TOKEN']
+    ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] }
+    : {}),
 });
 
 const server = createServer((request, response) => {
@@ -127,6 +130,10 @@ const server = createServer((request, response) => {
 
 // People's corrections to the cached name and start date (PRD §5).
 wirePeopleConsumer(databaseUrl);
+
+// SIGTERM drains it, then the process exits (PEO-118). The composition's
+// one-connection pool is idle once the requests are done.
+onShutdown('http server', () => drain(server));
 
 server.listen(PORT, () => {
   logger.info({ service: 'identity', port: PORT }, 'identity listening');

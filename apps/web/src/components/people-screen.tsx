@@ -117,7 +117,13 @@ export function PeopleScreen({
           const at = pair.indexOf(':');
           if (at > 0) filters[pair.slice(0, at)] = pair.slice(at + 1);
         }
-        const query = (next: { search?: string; filters?: Record<string, string> }) => {
+        // A new search or filter starts at the first page; a page is a
+        // history entry, so Back returns to the one before (PEO-117).
+        const query = (next: {
+          search?: string;
+          filters?: Record<string, string>;
+          after?: string;
+        }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
           const f = next.filters ?? filters;
@@ -126,13 +132,21 @@ export function PeopleScreen({
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
           if (joined !== '') q.set('filter', joined);
+          if (next.after !== undefined) q.set('after', next.after);
           const qs = q.toString();
-          router.replace(`/people/directory${qs === '' ? '' : `?${qs}`}` as Route);
+          const to = `/people/directory${qs === '' ? '' : `?${qs}`}` as Route;
+          if (next.after === undefined) router.replace(to);
+          else router.push(to);
         };
-        const can =
+        const data =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-            ? ((load.data as { can?: { import?: boolean; export?: boolean } }).can ?? {})
+            ? (load.data as {
+                can?: { import?: boolean; export?: boolean };
+                next?: string | null;
+              })
             : {};
+        const can = data.can ?? {};
+        const next = data.next ?? null;
         return {
           load: loadable,
           search: search['search'] ?? '',
@@ -160,6 +174,20 @@ export function PeopleScreen({
                 },
               }
             : {}),
+          ...(next === null
+            ? {}
+            : {
+                onNextPage: () => {
+                  query({ after: next });
+                },
+              }),
+          ...(search['after'] === undefined
+            ? {}
+            : {
+                onFirstPage: () => {
+                  query({});
+                },
+              }),
         };
       }
       case 'CompletenessGrid':

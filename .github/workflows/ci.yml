@@ -34,6 +34,48 @@ env:
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
+  # Which of the slow, narrow gates this change can reach. The gates below keep
+  # running as jobs (their required checks are matrix jobs, and a skipped matrix
+  # job reports without its shard, which would leave `design-system (1)` pending
+  # forever), but their expensive steps are skipped when nothing they cover
+  # changed. Pull requests only: on `main` and in the merge queue both outputs
+  # are always true, so a detector that guessed wrong costs a red build after
+  # merge, never an unmeasured regression.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ui: ${{ steps.diff.outputs.ui }}
+      contracts: ${{ steps.diff.outputs.contracts }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - name: what changed
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "ui=true" >> "$GITHUB_OUTPUT"
+            echo "contracts=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+          # Anything every job depends on: a dependency, the workspace, the
+          # build graph, a patch, a shared tsconfig, or this workflow itself.
+          shared='^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json|tsconfig[^/]*\.json|patches/|\.github/workflows/ci\.yml)'
+          # What Storybook, axe, the contrast sweep and the docs site render.
+          ui='^(packages/ui/|apps/storybook/|apps/docs/|tools/a11y/|tools/storybook/)'
+          # What codegen, the contract tests and supergraph composition read.
+          contracts='^(packages/contracts/|packages/graphql-kit/|services/|platform/|apps/gateway/|tools/codegen/)'
+          any() { printf '%s\n' "$changed" | grep -Eq "$1"; }
+          if any "$shared" || any "$ui"; then echo "ui=true" >> "$GITHUB_OUTPUT"; else echo "ui=false" >> "$GITHUB_OUTPUT"; fi
+          if any "$shared" || any "$contracts"; then echo "contracts=true" >> "$GITHUB_OUTPUT"; else echo "contracts=false" >> "$GITHUB_OUTPUT"; fi
+          echo "changed files:"; printf '%s\n' "$changed" | head -50
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -125,25 +167,38 @@ jobs:
           echo "migration ledger matches the directory"
 
   contracts:
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: checkout
+        if: needs.changes.outputs.contracts == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: pnpm
+        if: needs.changes.outputs.contracts == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
+        if: needs.changes.outputs.contracts == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 22, cache: pnpm }
       - name: install
+        if: needs.changes.outputs.contracts == 'true'
         run: pnpm install --frozen-lockfile
       - name: regenerate from contracts
+        if: needs.changes.outputs.contracts == 'true'
         run: pnpm codegen
       - name: contract tests
+        if: needs.changes.outputs.contracts == 'true'
         run: pnpm test:contract
       - name: compose the supergraph
+        if: needs.changes.outputs.contracts == 'true'
         working-directory: apps/gateway
         run: pnpm check
+
+      - name: nothing to check
+        if: needs.changes.outputs.contracts != 'true'
+        run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). It runs in full on main."
+
 
   integration:
     runs-on: ubuntu-latest
@@ -185,6 +240,7 @@ jobs:
         run: pnpm turbo run test:standalone --filter @kithena/${{ matrix.module }}
 
   design-system:
+    needs: changes
     # Every story renders in a real browser and axe runs over the result. An
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
@@ -202,23 +258,28 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - name: checkout
+        if: needs.changes.outputs.ui == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
       - name: pnpm
+        if: needs.changes.outputs.ui == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
+        if: needs.changes.outputs.ui == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 22, cache: pnpm }
       - name: install
+        if: needs.changes.outputs.ui == 'true'
         run: pnpm install --frozen-lockfile
       - name: chromium
+        if: needs.changes.outputs.ui == 'true'
         run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
 
       # Unconditional, and only on the first shard because it covers every story
       # by itself. Narrowing an accessibility pass by what a diff appears to
       # touch is how such a gate quietly stops being one.
       - name: axe over every story
-        if: matrix.shard == 1
+        if: needs.changes.outputs.ui == 'true' && (matrix.shard == 1)
         run: pnpm test:stories
 
       # Narrows the *contrast sweep* and nothing else, and only on a pull
@@ -226,13 +287,14 @@ jobs:
       # chooses how much of one of them to run, never whether the job runs.
       - name: pick affected stories
         id: scope
-        if: github.event_name == 'pull_request'
+        if: needs.changes.outputs.ui == 'true' && (github.event_name == 'pull_request')
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: node tools/a11y/affected-stories.mjs
 
       - name: contrast
+        if: needs.changes.outputs.ui == 'true'
         # It measures focus rings, which means it cannot be replaced by anything
         # static: the ring colour only exists while an element is focused.
         timeout-minutes: 25
@@ -292,12 +354,17 @@ jobs:
           fi
 
       - name: build storybook
-        if: matrix.shard == 1
+        if: needs.changes.outputs.ui == 'true' && (matrix.shard == 1)
         run: pnpm storybook:build
       - name: keep the storybook build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: matrix.shard == 1
+        if: needs.changes.outputs.ui == 'true' && (matrix.shard == 1)
         with:
           name: storybook
           path: apps/storybook/storybook-static
           retention-days: 14
+
+      - name: nothing to check
+        if: needs.changes.outputs.ui != 'true'
+        run: echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). It runs in full on main."
+

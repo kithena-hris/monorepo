@@ -3,6 +3,8 @@ dist/
 # Rspack writes the client bundle here alongside `dist`.
 static/
 .next/
+# The renderer process's bundle (apps/web/scripts/build-renderer.mjs).
+.renderer/
 .turbo/
 coverage/
 *.tsbuildinfo

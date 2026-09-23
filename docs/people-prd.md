@@ -248,6 +248,33 @@ as the only truth, which is exactly what `requiresPeopleSource` is for. A tenant
 with People gets one editing surface and one source of record, and the two rows
 cannot drift because only one of them is ever written by a human.
 
+**Access ends with employment (PEO-109).** Who may sign in is identity's
+question, but *when employment ends* is People's fact, so People decides the
+moment and identity acts on it — the same one direction:
+
+- At the end of a leaver's last working day **on their own calendar** (§6.8)
+  — Auckland's 30th at 11:00 UTC on the 30th, Los Angeles's at 07:00 UTC on
+  the 1st — People's hourly lifecycle job raises `people.person.access_ended`,
+  once, effective from the first day without access, carrying that midnight
+  as `endedAt`. **Whether or not HR has confirmed the termination**: a person
+  on `notice` whose last day has ended loses access exactly as a terminated
+  one does. Confirming the termination is paperwork, which the
+  `confirm_termination` row still asks HR for (§8.1, §8.4); ending access is
+  security, and it does not wait for paperwork.
+- For a dismissal for cause HR ends it at once instead: `endAccessNow` on the
+  termination, or `POST /v1/people/{id}/access/end` after it. HR only, and the
+  event names who did it.
+- Identity consumes it and **suspends** the account (reason
+  `employment_ended`): no sign-in, every live session revoked so a cookie is
+  refused on its next request, every live enrolment link spent. Suspended,
+  never terminated or deleted, and the passkeys are kept, so a rehire (§8.1)
+  signs in with the one they already have. Idempotent on the event and blind
+  to a stale one (`people_access_at`, the `people_facts_at` guard for access).
+  An account identity had already suspended for its own reason keeps it.
+
+A tenant without People never raises the event, and its accounts end the way
+they always have — an admin suspends or terminates them in identity.
+
 Everything else about a person — job, org, contract, pay, addresses, emergency
 contacts, documents, every tenant-defined attribute — is People's alone, and
 identity never sees it.
@@ -633,8 +660,11 @@ Three rules make that table safe rather than merely descriptive:
                    ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
-     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
-     │              │           │      │
+     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired, not built) ──▶ pre_hire
+     │              │           │      │            │
+     │              │           │      │            └ end of last working day, own calendar:
+     │              │           │      │              access ends, on notice or terminated
+     │              │           │      │              (identity suspends; PEO-109)
      │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
@@ -687,6 +717,55 @@ definitions above are about dates, so a correction to one of those dates
 
 Each move raises `status_changed` with reason `corrected`; §8.5 says what it
 is effective from.
+
+**HR moves a person; nobody else does.** Notice, termination, leave and
+discarding are HR's (§7 gives termination facts to HR), through one use case
+each that every transport calls (§13). A manager, the person themselves and a
+`people_admin` who is not also HR are refused. Each raises `status_changed`
+through the outbox in the write's transaction, writes the lifecycle's dated
+row where a date moved, and re-judges the person's completeness, because a
+requiredness predicate may name the state. "Today" is the person's own (§6.8).
+A request whose move has already happened — the same leave started, the same
+notice or termination with the same last working day, the same discard — is
+answered with the record and raises nothing.
+
+- **Leave** — `active → on_leave → active`, effective from today. Bringing back
+  somebody who was never away is refused, not answered.
+- **Notice** — from `active`, and from `on_leave` (somebody resigns during
+  parental leave without coming back first). Carries the last working day and
+  why: `resigned` by the person, `dismissed` or `end_of_contract` by the
+  employer. Effective from the day it is given; the last working day gets its
+  own dated row, which is what a later correction supersedes.
+- **Termination** — from `notice`, and directly from `active` or `on_leave`
+  when the last day is already behind them (a leaver recorded late). Only once
+  the last working day has begun on the person's calendar: before that they are
+  on notice, still working and still counted. A `pre_hire` who never started
+  is the exception and closes on their start date. Raises `status_changed`
+  with the typed reason, then `terminated` with HR's free-text note and
+  whether they are eligible for rehire, both effective from the last working
+  day — which is also where retention's clock starts (§12). The `confirm
+  termination` row closes on its own, being read off the status. Access
+  ended at the end of that day on their calendar whether or not this has
+  happened yet, or ends at once with `endAccessNow` (§5, PEO-109).
+- **End access now** — `terminated` only, HR only: a dismissal for cause
+  ends access this instant rather than at the end of the last working day.
+  Raises `access_ended` (trigger `ended_by_hr`); once access has ended, by
+  either path, a repeat is answered with the record.
+- **Discard** — `provisional` only, as the diagram says.
+
+Two edges of the diagram have no move yet. **Rehire** (`terminated → pre_hire`)
+is drawn and not built: the domain treats a terminated record as a tombstone,
+so a rehire needs a decision on whether it is a new record linked to the old
+or a new employment on the same one. **Withdrawing notice** is neither drawn
+nor built; today a resignation withdrawn is a correction of the last working
+day at best. Of these moves identity hears only the end of access (§5): it
+caches a start date, not an end, and suspends on `access_ended`.
+
+A person on notice whose last working day has passed without HR terminating
+stays on notice — termination is HR's act — but **loses access at the end of
+that day** all the same (§5): confirming the termination is paperwork, and the
+`confirm_termination` row is what asks for it. Terminating afterwards raises
+no second `access_ended`.
 
 ### 8.2 The first employee
 
@@ -1075,20 +1154,21 @@ Existing, kept, extended where noted:
 
 New:
 
-| Event                                   | Purpose                                                              |
-| --------------------------------------- | -------------------------------------------------------------------- |
-| `people.person.provisioned` v1          | A provisional record was created from an account                     |
-| `people.person.identity_linked` v1      | A person and an identity account were connected, in either direction |
-| `people.person.profile_updated` v1      | One or more attributes changed. See §10.3 for what travels           |
-| `people.person.attribute_corrected` v1  | A correction carrying `supersedes`                                   |
-| `people.person.job_changed` v1          | Title, level, job family — effective-dated                           |
-| `people.person.org_changed` v1          | Org unit, cost centre, legal entity, location                        |
-| `people.person.compensation_changed` v1 | Amount as `Money`, effective-dated, `includeInEvents`-gated          |
-| `people.person.status_changed` v1       | Previous and next state, reason                                      |
-| `people.person.profile_incomplete` v1   | Missing attribute keys and their owners                              |
-| `people.person.profile_completed` v1    | The inverse. Both exist so a consumer can drive a task list          |
-| `people.person.merged` v1               | Two records became one. Carries the surviving and absorbed ids       |
-| `people.person.anonymised` v1           | Retention executed. Carries which classes were cleared               |
+| Event | Purpose |
+| --- | --- |
+| `people.person.provisioned` v1 | A provisional record was created from an account |
+| `people.person.identity_linked` v1 | A person and an identity account were connected, in either direction |
+| `people.person.profile_updated` v1 | One or more attributes changed. See §10.3 for what travels |
+| `people.person.attribute_corrected` v1 | A correction carrying `supersedes` |
+| `people.person.job_changed` v1 | Title, level, job family — effective-dated |
+| `people.person.org_changed` v1 | Org unit, cost centre, legal entity, location |
+| `people.person.compensation_changed` v1 | Amount as `Money`, effective-dated, `includeInEvents`-gated |
+| `people.person.status_changed` v1 | Previous and next state, reason |
+| `people.person.profile_incomplete` v1 | Missing attribute keys and their owners |
+| `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
+| `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
+| `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
+| `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 
 ### 10.2a Calendar events
 
@@ -1506,7 +1586,25 @@ usable by a customer who never loads a Kithena screen.**
 The federated subgraph, thin, mapping domain failures to GraphQL errors. Person
 and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
-Extends federated types rather than owning what People does not own.
+Extends federated types rather than owning what People does not own. The
+lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`
+(with `endAccessNow`), `endPersonAccess`, `startLeave`, `endLeave`,
+`discardPerson` — each answering with the person
+after, their arguments parsed by the same Zod body REST parses.
+
+**Through the router (PEO-092).** The Cosmo Router verifies the caller's
+token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
+without one. It then *sets* — never propagates — two headers on the request to
+People: `x-kithena-principal`, built from the token's `sub` and `tid` with no
+roles (roles are OpenFGA tuples) and the deployment's `KITHENA_ENTITLEMENTS`,
+and `x-internal-token`, People's `PEOPLE_API_TOKEN`. People trusts the first
+only beside the second. `apps/gateway/config.yaml` holds the rules, and
+`services/people/src/http/router.integration.test.ts` boots that file in the
+real router in front of the real subgraph: a verified token reads, no token
+and a foreign token are refused, and a principal a client sends is overwritten.
+
+Entitlements are one list per deployment until tenants carry their own;
+nothing in the platform stores a tenant's modules yet.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
 token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
@@ -1538,6 +1636,12 @@ PATCH  /v1/people/{id}                 partial, per-attribute authorization
 GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
+POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
+POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
+POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
+POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
+POST   /v1/people/{id}/leave/end       HR: back from leave today
+POST   /v1/people/{id}/discard         HR: a provisional record that was never a person
 POST   /v1/imports                     dry run, then commit
 POST   /v1/exports                     run now, or queue over 2,000 rows (202)
 GET    /v1/exports/{id}                the requester's own, links signed again; a DSAR package for one person
@@ -1583,6 +1687,27 @@ POST   /v1/imports/dry-run             the five counts, the incomplete warning, 
 POST   /v1/imports                     commit
 ```
 
+**The directory is searched, filtered and paged in People (PEO-117).**
+`GET /v1/views/directory?search=&filter=key:value,…&after=<person id>` answers
+one keyset page of 50 in id order, the cursor for the next (`next`, null on
+the last), and `active`, counted over everybody the search and filters match
+rather than over the page. Before this the view read the first 200 people and
+searched those in memory, so nobody past the 200th could be found. `GET
+/v1/people` takes the same `search`. Both authorize it as a filter is
+authorized, in `PersonAccess.list` and so for every transport: a filter key
+the viewer cannot read on **everybody** is refused (`FIELD_NOT_FILTERABLE`,
+as PEO-052 already did), and a search matches only the names and work email
+the viewer can read on everybody — none of them, and it is refused rather
+than quietly matching nothing. Neither combines with `asOf`. The search is a
+case-insensitive substring (`%` and `_` are literal) over given, family and
+preferred name, work email, and the two full names. A person column such as
+the manager is named by reading that person as the viewer, so a manager on
+another page is still named. Measured at 50,000 people
+(`person-access.integration.test.ts`): a filter page 57 ms, a search page
+with its count 101 ms, a search with a filter 27 ms, against 300 ms. There is
+no trigram index: the search is a scan of one tenant's rows, which fits the
+budget at 50,000; a `pg_trgm` index is the next step when it does not.
+
 `/v1/views/*` answers with a screen's view model. The model is built from reads
 that were already authorized, so a withheld field never reaches it. An import
 keeps nothing between steps: each step carries the file (base64, up to 100 MB)
@@ -1627,20 +1752,71 @@ the App Router and is being wound down. So the remote publishes a second build
 beside `remoteEntry.js`: `ssr/people.cjs`, whose only imports are React, its
 JSX runtime and Reach, plus `ssr/people.css`.
 
-- **How the page renders.** The page fetches the server build per request and
-  evaluates it with the shell's own copies of those three modules, which is
-  what federation's Node runtime does. The screen is sent in the same response.
-  Hydration keeps that HTML until the browser build arrives, and the screen
-  becomes interactive when it does.
-- **What it trusts.** The remote's host is inside the shell's trust boundary,
-  because its code runs with the shell server's privileges.
-  `PEOPLE_REMOTE_SSR=off` turns server rendering off, and the page is then
-  client-rendered as before.
+- **How the page renders (PEO-115).** The page fetches the server build per
+  request, checks it (below), and asks a renderer process for the screen's
+  HTML. The shell's own process never evaluates the remote's code. The screen
+  is sent in the same response. In the browser a React root of the remote's
+  own holds that HTML until the browser build arrives, then hydrates it, and
+  a press made before then is replayed.
+- **Integrity.** The remote's deploy pipeline signs `ssr/manifest.json`, the
+  SHA-384 of `people.cjs` and `people.css` in SRI form, with an Ed25519 key
+  only the pipeline holds (`pnpm --filter @kithena/web-people sign`,
+  `PEOPLE_REMOTE_SSR_SIGNING_KEY`). The shell pins the public half in its own
+  configuration, `PEOPLE_REMOTE_SSR_PUBLIC_KEY`, and renders only a build
+  whose bytes match a manifest that key signed. The stylesheet is linked with
+  the signed hash as its `integrity`. Anything else — no key, no signature, a
+  different byte — and the page renders in the browser, as before PEO-094,
+  logging once per build the expected and actual hash and never the code.
+- **Why a signed manifest, not a pinned hash.** A hash in the shell's
+  environment is exact, but on the platform the shell runs on an environment
+  change only takes effect in a new deployment of the shell, so every remote
+  release would redeploy it. The signature keeps a remote release a remote
+  deploy alone; the shell's configuration changes only when the key rotates.
+  The trade: the host may serve any build that was ever signed, not only the
+  latest, until the key is rotated.
+- **Isolation.** The renderer is a child process started with an empty
+  environment, Node's permission model reading only its own bundle (no other
+  file, no child process, no worker, no addon), code generation from strings
+  disallowed, a 256 MB heap, and one process per build. Inside it the build is
+  evaluated in a `node:vm` context whose global has only the language —
+  `require` answers React, its JSX runtime and Reach and nothing else, and
+  there is no `process`, no timer and no `fetch` — under a one-second CPU
+  timeout for evaluation and for each render. The shell gives up on a render
+  after five seconds and kills a renderer that has gone quiet. A `vm` context
+  alone is not a security boundary: the objects handed into it belong to the
+  renderer's realm. The process is the boundary; the context is a first wall.
+  `apps/web/src/lib/remote-render.test.ts` proves a build reading
+  `process.env`, requiring a module, climbing out through a shared object, or
+  looping is refused or stopped, and that the next build still renders.
+- **The switch.** `PEOPLE_REMOTE_SSR=off` still turns server rendering off.
+- **Residual risk.** What remains, stated plainly:
+  - *Network.* The permission model in Node 22 does not cover sockets. The
+    renderer removes `fetch` and refuses the network modules, but code that
+    escaped the context and the renderer's own lockdown could open a
+    connection from the shell's network position — with nothing to
+    authenticate with, since the process holds no secret. Deploy the shell
+    where that position grants nothing by itself, or move to Node's
+    `--allow-net` when the runtime has it.
+  - *A signed build is trusted.* A malicious or buggy build that was signed
+    by the pipeline renders; so does an older signed one a host chooses to
+    serve. The key and the pipeline are the trust anchor.
+  - *Shared state within a build.* One renderer serves every request for a
+    build, so a hostile build could carry one request's props into another
+    request's HTML. It could equally do that from the browser build, which
+    runs on the page with every viewer's data.
+  - *The browser build is not covered.* `remoteEntry.js` and its chunks run in
+    the tenant's origin and are still trusted as they were; the signature
+    covers the server build and its stylesheet only.
+  - *The signing pipeline does not exist yet.* No workflow deploys the
+    remote, so no production build is signed and production renders these
+    screens in the browser until one does.
 - **Hosting.** `apps/web/people/vercel.json` serves the files that are read
-  per load (`remoteEntry.js`, `routes.json` and the server build) with
-  `Cache-Control: no-cache`, so a redeploy is seen at once. The hashed chunks
-  are `immutable`. It echoes CORS for `https://*.app.kithena.com` and
-  `*.staging.app.kithena.com`.
+  per load (`remoteEntry.js`, `routes.json`, the server build, its stylesheet
+  and signed manifest) with `Cache-Control: no-cache`, so a redeploy is seen
+  at once. The hashed chunks are `immutable`. It echoes CORS for
+  `https://*.app.kithena.com` and `*.staging.app.kithena.com`, which the
+  stylesheet now needs, being fetched with `crossorigin` for its integrity
+  check.
 
 ### 13.3 Webhooks (Phase 1)
 
@@ -2141,6 +2317,11 @@ rule that gets broken in a car park by somebody who needed it now.
   `ListDetail` cards carrying the two or three columns that matter, with the
   rest behind a tap. Reach's `useBreakpoint` decides; the screen does not sniff
   a user agent.
+- **Long lists page on the server.** The directory shows 50 people and a
+  "Next page" / "First page" pair of Reach `Button`s below the list or cards,
+  the same on a phone as at a desk (PEO-117). Each page is a URL, so the
+  phone's Back gesture returns to the page before; nothing loads 50,000 rows
+  into a browser to scroll or search them.
 - **Dialogs become sheets.** `Sheet` from the bottom, not `Dialog` in the
   middle — a centred modal on a phone puts its actions under the keyboard.
 - **Actions stick.** A form's primary action sits in a sticky bar above the
@@ -2167,6 +2348,12 @@ Every story renders at a phone viewport as well as a desk one, and
 `pnpm test:stories` runs axe over both. Tap targets are asserted against the
 44px floor rather than eyeballed. The onboarding flow has an acceptance test
 that completes it end to end at 390×844 with a software keyboard raised.
+
+**On a slow network the screen arrives with the page (PEO-094, PEO-115).**
+A phone waiting on the remote's JavaScript still shows the screen the server
+drew, and a tap made before it loads is replayed once it does. When the
+server build is refused, the phone gets the spinner, as before server
+rendering.
 
 **The running app has its own check (PEO-098).**
 `apps/web/acceptance/people.acceptance.test.ts` drives the shell, the remote
@@ -2200,6 +2387,17 @@ characters, beyond which it should have been a document.
 **Availability.** The module boots and serves reads with Redpanda unavailable;
 writes queue in the outbox and drain on recovery. No dual writes, ever. TypeSafe
 being unavailable degrades a suggestion, never a save.
+
+**Stopping.** A deploy or a scale-down ends the process with SIGTERM, and the
+process ends itself: it stops accepting connections, answers every request
+already in flight, lets the background job in hand finish, leaves its Kafka
+consumer groups, closes its database pools, flushes its spans (at most 2 s)
+and exits 0. The whole stop is bounded by `SHUTDOWN_DEADLINE_MS` (10 s by
+default, inside an orchestrator's 30 s grace); past it the process logs which
+steps had not finished and exits 1. A step that fails also exits 1. A
+write interrupted by the deadline rolls back with its transaction, and its
+event with it, because the outbox row is in the same transaction. Every
+service started through `@kithena/telemetry` stops this way (PEO-118).
 
 **Security.** RLS on every table with `FORCE`. Envelope encryption for financial
 and identifier attributes. Field-level authorization in the application layer.
@@ -2454,23 +2652,23 @@ how People stops being sellable alone.
 
 ## 21. Risks
 
-| Risk                                                                                                   | Probability | Impact   | Mitigation                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------ | ----------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Runtime classification is skipped or defaulted carelessly, and personal data reaches a log or a prompt | Medium      | **High** | No default that means "later"; `NOT NULL` policy; downgrades never automated; quarterly audit; an integration test asserting the invariant                         |
-| JSONB custom attributes make directory queries slow at 50k people                                      | Medium      | Medium   | `indexed` promotes to a generated column; GIN for containment; the directory reads a projection, not the person table                                              |
-| The predicate language grows into a programming language                                               | Medium      | Medium   | Closed grammar, fixed operand set, no user-authored expressions. Every extension is a product decision with a migration                                            |
-| An HR admin marks six fields required and mails four hundred people                                    | High        | Medium   | Impact preview before publish; `requiredFrom`; one reminder per person per week regardless of field count                                                          |
-| Identity and People name copies drift                                                                  | Medium      | Medium   | One direction only — People publishes, identity consumes. A contract test asserts the direction                                                                    |
-| A tenant-defined attribute holds a national identifier without being marked as one                     | Medium      | High     | Type catalogue makes the right type easy; free-text risk judgment floors at confidential; the safety screen flags it                                               |
-| TypeSafe unavailable or miscalibrated                                                                  | Medium      | Low      | Every judgment is advisory with a code fallback; the module functions with no key configured; confidence distributions are monitored                               |
-| Merging two person records loses history                                                               | Low         | High     | Merge is additive — both histories survive, the absorbed record becomes a tombstone pointing at the survivor. Never a delete                                       |
-| Webhook replay leaks a field an endpoint's allowlist later removed                                     | Low         | Medium   | Replay re-filters against the **current** allowlist, not the one in force at delivery                                                                              |
-| An export becomes the hole in the permission model                                                     | Medium      | **High** | An export is a read and runs the same field-level check; no "export all" path exists; every export is an event with actor, fields and row count                    |
-| A migration imports a "Notes" column as internal free text                                             | High        | High     | An unmatched column cannot be imported without going through the field editor, classification step included; the free-text risk judgment floors it at confidential |
-| An admin blocks their own migration by requiring a field their old system never held                   | High        | Medium   | Only core identity fields block a row. Everything else imports incomplete, which is the same answer §8.4 gives                                                     |
-| Analytics quietly re-identifies someone through a small cohort                                         | Medium      | **High** | Cohort minimum enforced in the query, the tooltip and the export — not in the chart component                                                                      |
-| Charts drift from the data because someone exports a PNG                                               | Medium      | Low      | There is no PNG export. Chart data exports as CSV/XLSX; the chart itself only appears inside a generated PDF that carries its own provenance                       |
-| Scope creep into payroll, performance or documents                                                     | High        | Medium   | §19 out-of-scope list; `dependsOn: []` stays empty and any pressure on it is a boundary discussion, not a code change                                              |
+| Risk | Probability | Impact | Mitigation |
+| --- | --- | --- | --- |
+| Runtime classification is skipped or defaulted carelessly, and personal data reaches a log or a prompt | Medium | **High** | No default that means "later"; `NOT NULL` policy; downgrades never automated; quarterly audit; an integration test asserting the invariant |
+| JSONB custom attributes make directory queries slow at 50k people | Medium | Medium | `indexed` promotes to a generated column; GIN for containment; the directory reads a projection, not the person table. *As built (PEO-117): the person table, GIN containment for filters and a scan for search, measured inside budget at 50,000 (§13.2)* |
+| The predicate language grows into a programming language | Medium | Medium | Closed grammar, fixed operand set, no user-authored expressions. Every extension is a product decision with a migration |
+| An HR admin marks six fields required and mails four hundred people | High | Medium | Impact preview before publish; `requiredFrom`; one reminder per person per week regardless of field count |
+| Identity and People name copies drift | Medium | Medium | One direction only — People publishes, identity consumes. A contract test asserts the direction |
+| A tenant-defined attribute holds a national identifier without being marked as one | Medium | High | Type catalogue makes the right type easy; free-text risk judgment floors at confidential; the safety screen flags it |
+| TypeSafe unavailable or miscalibrated | Medium | Low | Every judgment is advisory with a code fallback; the module functions with no key configured; confidence distributions are monitored |
+| Merging two person records loses history | Low | High | Merge is additive — both histories survive, the absorbed record becomes a tombstone pointing at the survivor. Never a delete |
+| Webhook replay leaks a field an endpoint's allowlist later removed | Low | Medium | Replay re-filters against the **current** allowlist, not the one in force at delivery |
+| An export becomes the hole in the permission model | Medium | **High** | An export is a read and runs the same field-level check; no "export all" path exists; every export is an event with actor, fields and row count |
+| A migration imports a "Notes" column as internal free text | High | High | An unmatched column cannot be imported without going through the field editor, classification step included; the free-text risk judgment floors it at confidential |
+| An admin blocks their own migration by requiring a field their old system never held | High | Medium | Only core identity fields block a row. Everything else imports incomplete, which is the same answer §8.4 gives |
+| Analytics quietly re-identifies someone through a small cohort | Medium | **High** | Cohort minimum enforced in the query, the tooltip and the export — not in the chart component |
+| Charts drift from the data because someone exports a PNG | Medium | Low | There is no PNG export. Chart data exports as CSV/XLSX; the chart itself only appears inside a generated PDF that carries its own provenance |
+| Scope creep into payroll, performance or documents | High | Medium | §19 out-of-scope list; `dependsOn: []` stays empty and any pressure on it is a boundary discussion, not a code change |
 
 ---
 

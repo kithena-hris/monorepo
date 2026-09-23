@@ -1,14 +1,15 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
-import { PersonIdentityFactsChanged } from '@kithena/contracts';
+import { PersonAccessEnded, PersonIdentityFactsChanged } from '@kithena/contracts';
 import { withTenant } from '@kithena/db-kit';
-import { logger } from '@kithena/telemetry';
+import { logger, onShutdown } from '@kithena/telemetry';
 
 import { peopleConsumer } from './people.js';
 
 /**
- * Consume People's corrections, when there is a broker to consume from.
+ * Consume People's corrections and access events, when there is a broker to
+ * consume from.
  *
  * Optional the way `MESSAGING_URL` is: without `KAFKA_BROKERS` identity serves
  * sign-in exactly as before, which is also every tenant's situation when no
@@ -24,21 +25,28 @@ export function wirePeopleConsumer(databaseUrl: string, env = process.env): void
 
   // A consumer that failed to connect is a process to restart, not a service
   // quietly serving stale names.
-  start(databaseUrl, brokers).catch((error: unknown) => {
+  const started = start(databaseUrl, brokers);
+  started.catch((error: unknown) => {
     logger.error({ err: error }, 'identity consumer failed');
     process.exit(1);
   });
+  // Leave the group after the message in hand, then close the pool (PEO-118).
+  onShutdown('people corrections consumer', async () => (await started)());
 }
 
-async function start(databaseUrl: string, brokers: string): Promise<void> {
-  const db = drizzle(postgres(databaseUrl, { max: 2 }));
+async function start(databaseUrl: string, brokers: string): Promise<() => Promise<void>> {
+  const client = postgres(databaseUrl, { max: 2 });
+  const db = drizzle(client);
   const handle = peopleConsumer((tenantId, fn) => withTenant(db, tenantId, fn));
 
   const consumer = new Kafka({ clientId: 'identity', brokers: brokers.split(',') }).consumer({
     groupId: 'identity',
   });
   await consumer.connect();
-  await consumer.subscribe({ topics: [PersonIdentityFactsChanged.topic] });
+  // One topic per module today, so this is one subscription; a set, so it stays right if not.
+  await consumer.subscribe({
+    topics: [...new Set([PersonIdentityFactsChanged.topic, PersonAccessEnded.topic])],
+  });
   await consumer.run({
     eachMessage: async ({ message }) => {
       if (message.value === null) return;
@@ -52,4 +60,8 @@ async function start(databaseUrl: string, brokers: string): Promise<void> {
       await handle(envelope);
     },
   });
+  return async () => {
+    await consumer.disconnect();
+    await client.end();
+  };
 }

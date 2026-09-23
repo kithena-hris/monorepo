@@ -260,10 +260,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         ) {
           return refused(failure('BAD_REQUEST', 'filter is key:value pairs', ['filter']));
         }
+        const after = query.get('after') ?? undefined;
+        if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        }
         return answer(
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
+            after: after ?? null,
           }),
         );
       },

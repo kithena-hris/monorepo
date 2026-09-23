@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { fixedClock } from '@kithena/domain-kit';
+import { fixedClock, ok } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { Person } from '../../domain/person/person.js';
@@ -126,6 +126,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
+    '20260924220000_people_access_end.sql',
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
     '20260924170000_people_calendar.sql',
@@ -508,42 +509,121 @@ describe('the directory at 50,000 people', () => {
     ownership: ['hr'],
     indexed: true,
   });
+  // Names everybody reads, so a search is authorized for anybody (PEO-117).
+  const given = define({ key: 'given_name', visibility: ['directory'], ownership: ['hr'] });
+  const family = define({ key: 'family_name', visibility: ['directory'], ownership: ['hr'] });
+  const email = define({ key: 'work_email', visibility: ['self', 'hr'], ownership: ['hr'] });
 
   beforeAll(async () => {
     await inTenant(PERF, ({ tx }) =>
       drizzleSchemaRepository().appendVersion(
         tx,
         PERF,
-        versionOf(1, [costCentre]),
+        versionOf(1, [costCentre, given, family, email]),
         [],
         '2026-09-01',
       ),
     );
     await admin.execute(sql`
-      INSERT INTO people.person (id, tenant_id, status, hire_date, custom)
-      SELECT md5('dir' || i)::uuid, ${PERF}::uuid, 'active', DATE '2015-01-01' + (i % 4000),
+      INSERT INTO people.person (id, tenant_id, status, hire_date, given_name, family_name,
+                                 work_email, custom)
+      SELECT md5('dir' || i)::uuid, ${PERF}::uuid,
+             CASE WHEN i % 7 = 0 THEN 'terminated' ELSE 'active' END,
+             DATE '2015-01-01' + (i % 4000),
+             'Given' || i, 'Family' || (i % 1000), 'person' || i || '@perf.example',
              jsonb_build_object('cost_centre', 'CC-' || (i % 500))
         FROM generate_series(1, 50000) AS i`);
     await admin.execute(sql`ANALYZE people.person`);
   });
 
+  /** One timed run after a warm-up, so the timing is the query rather than the first connection. */
+  async function timed<T>(what: string, act: () => Promise<T>): Promise<T> {
+    await act();
+    const start = performance.now();
+    const result = await act();
+    const ms = performance.now() - start;
+    console.info(`${what} over 50,000 people took ${String(Math.round(ms))} ms`);
+    expect(ms).toBeLessThan(300);
+    return result;
+  }
+
   it('filters on a tenant-defined indexed attribute within the 300 ms budget', async () => {
-    const filtered = () =>
+    const page = await timed('directory filter', () =>
       inTenantResult(inTenant, PERF, (tx) =>
         people.list(tx, { ...asking(hr, PERF), limit: 50, where: { cost_centre: 'CC-204' } }),
-      );
-    await filtered(); // one warm-up, so the timing is the query rather than the first connection
-    const start = performance.now();
-    const page = await filtered();
-    const ms = performance.now() - start;
-
+      ),
+    );
     expect(page.ok).toBe(true);
     if (!page.ok) return;
     expect(page.value.items).toHaveLength(50);
     expect(new Set(page.value.items.map((p) => p.attributes['cost_centre']))).toEqual(
       new Set(['CC-204']),
     );
-    console.info(`directory filter over 50,000 people took ${String(Math.round(ms))} ms`);
-    expect(ms).toBeLessThan(300);
+  });
+
+  it('searches every person, with its count, a page at a time, within the budget', async () => {
+    // `Family204` is 50 people spread over the whole id range: a search over
+    // a first page of people, as the directory once did, finds almost none.
+    const pageOf = (after: string | null) =>
+      inTenantResult(inTenant, PERF, async (tx) => {
+        const narrowing = { ...asking(viewer(ADA_ACCOUNT), PERF), search: 'family204' };
+        const page = await people.list(tx, { ...narrowing, after, limit: 20 });
+        if (!page.ok) return page;
+        const counted = await people.count(tx, narrowing);
+        return counted.ok ? ok({ ...page.value, ...counted.value }) : counted;
+      });
+
+    const first = await timed('a directory search and its count', () => pageOf(null));
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.value.all).toBe(50);
+    expect(first.value.active).toBe(43);
+
+    const seen = [...first.value.items];
+    let next = first.value.next;
+    while (next !== null) {
+      const page = await pageOf(next);
+      expect(page.ok).toBe(true);
+      if (!page.ok) return;
+      seen.push(...page.value.items);
+      next = page.value.next;
+    }
+    expect(seen).toHaveLength(50);
+    expect(new Set(seen.map((p) => p.id)).size).toBe(50);
+    expect(new Set(seen.map((p) => p.attributes['family_name']))).toEqual(new Set(['Family204']));
+    // Somebody who is not HR does not read everybody's email, so it is not searched.
+    expect(seen.every((p) => p.attributes['work_email'] === undefined)).toBe(true);
+  });
+
+  it('searches together with a filter within the budget', async () => {
+    const page = await timed('a directory search with a filter', () =>
+      inTenantResult(inTenant, PERF, (tx) =>
+        people.list(tx, {
+          ...asking(hr, PERF),
+          limit: 50,
+          search: 'Given1',
+          where: { cost_centre: 'CC-1' },
+        }),
+      ),
+    );
+    expect(page.ok && page.value.items.length).toBeGreaterThan(0);
+  });
+
+  it('takes % and _ in a search as the characters they are', async () => {
+    const page = await inTenantResult(inTenant, PERF, (tx) =>
+      people.list(tx, { ...asking(hr, PERF), limit: 50, search: 'Family_%' }),
+    );
+    expect(page.ok && page.value.items).toEqual([]);
+  });
+
+  it('refuses a filter on a key the viewer reads on some people only', async () => {
+    const page = await inTenantResult(inTenant, PERF, (tx) =>
+      people.list(tx, {
+        ...asking(viewer(ADA_ACCOUNT), PERF),
+        limit: 50,
+        where: { cost_centre: 'CC-1' },
+      }),
+    );
+    expect(page.ok ? 'allowed' : page.error.code).toBe('FIELD_NOT_FILTERABLE');
   });
 });

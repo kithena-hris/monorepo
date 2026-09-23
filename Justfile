@@ -207,7 +207,7 @@ local: local-db
     # no effect — the process still running was the one started before the edit.
     npx tsx watch platform/messaging/src/main.ts &
     npx tsx watch platform/identity/src/main.ts &
-    npx next dev apps/web -p 3000 &
+    (node apps/web/scripts/build-renderer.mjs && npx next dev apps/web -p 3000) &
     (cd apps/auth/shell && npx modern dev) &
     (cd apps/admin && npx next dev -p 3001) &
     wait
@@ -282,4 +282,5 @@ local-reset:
 # `MODERN_TENANT_APP_BASE`, which is what the auth origin redirects to after a
 # sign-in. Two ports for one app meant that redirect landed on nothing.
 web-dev:
+    node apps/web/scripts/build-renderer.mjs
     npx next dev apps/web -p 3000
