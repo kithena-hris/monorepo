@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { logger, startTelemetry } from '@kithena/telemetry';
+import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 import { deploymentEntitlements } from '@kithena/contracts';
 
 import { wirePeopleConsumer } from './account/consumers/wire.js';
@@ -146,6 +146,10 @@ const server = createServer((request, response) => {
 
 // People's corrections to the cached name and start date (PRD §5).
 wirePeopleConsumer(databaseUrl);
+
+// SIGTERM drains it, then the process exits (PEO-118). The composition's
+// one-connection pool is idle once the requests are done.
+onShutdown('http server', () => drain(server));
 
 server.listen(PORT, () => {
   logger.info({ service: 'identity', port: PORT }, 'identity listening');

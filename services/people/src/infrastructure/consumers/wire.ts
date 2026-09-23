@@ -4,7 +4,7 @@ import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
 import { AccountProvisioned, SchemaPublished } from '@kithena/contracts';
 import { systemClock } from '@kithena/domain-kit';
-import { logger } from '@kithena/telemetry';
+import { logger, onShutdown } from '@kithena/telemetry';
 
 import { recomputeCompleteness } from '../../application/completeness/recompute.js';
 import { orgAdmin } from '../../application/org/org.js';
@@ -32,10 +32,13 @@ import { drizzleProvisionalPeople } from './identity.js';
 export function wireConsumers(env = process.env): void {
   // A consumer that failed to connect is a process that should be restarted,
   // not a subgraph quietly serving while nothing is provisioned.
-  startConsumers(env).catch((error: unknown) => {
+  const started = startConsumers(env);
+  started.catch((error: unknown) => {
     logger.error({ err: error }, 'people consumers failed');
     process.exit(1);
   });
+  // Leave the group and close the pool on SIGTERM, after the message in hand (PEO-118).
+  onShutdown('people consumer', async () => (await started)?.stop());
 }
 
 /** `wireConsumers` without the exit, for a test to boot and stop. Null when not configured. */

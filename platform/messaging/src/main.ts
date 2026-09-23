@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { logger, startTelemetry } from '@kithena/telemetry';
+import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { compose } from './composition.js';
 
@@ -104,6 +104,10 @@ const server = createServer((request, response) => {
       if (!response.headersSent) response.writeHead(500).end();
     });
 });
+
+// SIGTERM drains it, then the process exits (PEO-118). The composition's
+// one-connection pool is idle once the requests are done.
+onShutdown('http server', () => drain(server));
 
 server.listen(PORT, () => {
   logger.info({ service: 'messaging', port: PORT }, 'messaging listening');

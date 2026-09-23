@@ -4,7 +4,7 @@ import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
 import { SchemaPublished, type EventEnvelope } from '@kithena/contracts';
 import { systemClock } from '@kithena/domain-kit';
-import { logger, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry';
+import { logger, onShutdown, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry';
 
 import { publishBreakdowns } from '../application/analytics/publish.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
@@ -72,10 +72,13 @@ export interface BackgroundOptions {
 }
 
 export function wireBackground(env = process.env): void {
-  startBackground(env).catch((error: unknown) => {
+  const started = startBackground(env);
+  started.catch((error: unknown) => {
     logger.error({ err: error }, 'people background work failed to start');
     process.exit(1);
   });
+  // A job in flight finishes before its pool closes (PEO-118).
+  onShutdown('background jobs', async () => (await started)?.stop());
 }
 
 /** `wireBackground` without the exit, for a test to boot and stop. Null when not configured. */

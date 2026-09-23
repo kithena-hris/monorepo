@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, gt, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, lte, or, sql, type SQL } from 'drizzle-orm';
 
 import { CORE_COLUMNS } from '../application/person/core.js';
 import type {
   PersonReader,
   PersonRecord,
+  PersonSearch,
   RelationsResolver,
   SchemaVersions,
 } from '../application/person/ports.js';
@@ -67,6 +68,55 @@ function toRecord(row: Row): PersonRecord {
   };
 }
 
+const SEARCH_COLUMNS = {
+  given_name: person.givenName,
+  family_name: person.familyName,
+  preferred_name: person.preferredName,
+  work_email: person.workEmail,
+} as const;
+
+/** `%`, `_` and `\` typed into a search are the characters, not wildcards. */
+function likePattern(text: string): string {
+  return `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/**
+ * The directory's predicate: the tenant, `where` by containment, `search` by
+ * substring.
+ *
+ * Containment is what `person_custom_idx` (GIN, jsonb_path_ops) answers, one
+ * `@>` for every key at once. The search is `ILIKE` over at most four short
+ * text columns and the two full names, which one tenant's rows answer inside
+ * the 300 ms budget at 50,000 people (PEO-117's test).
+ * ponytail: no trigram index; add `pg_trgm` GIN indexes on the name columns
+ * when a tenant is large enough that the scan misses the budget.
+ */
+function matching(
+  tenantId: string,
+  where: Readonly<Record<string, string>> | undefined,
+  search: PersonSearch | undefined,
+): SQL | undefined {
+  const text = search?.text.trim() ?? '';
+  const keys = new Set(search?.keys ?? []);
+  const pattern = likePattern(text);
+  const matches: SQL[] = [...keys].map((k) => sql`${SEARCH_COLUMNS[k]} ILIKE ${pattern}`);
+  // "Ada Lovelace" finds Ada Lovelace: each full name the viewer may read.
+  for (const given of ['given_name', 'preferred_name'] as const) {
+    if (keys.has(given) && keys.has('family_name')) {
+      matches.push(
+        sql`concat_ws(' ', ${SEARCH_COLUMNS[given]}, ${person.familyName}) ILIKE ${pattern}`,
+      );
+    }
+  }
+  return and(
+    eq(person.tenantId, tenantId),
+    where === undefined || Object.keys(where).length === 0
+      ? undefined
+      : sql`${person.custom} @> ${JSON.stringify(where)}::jsonb`,
+    text === '' ? undefined : matches.length === 0 ? sql`false` : or(...matches),
+  );
+}
+
 export function drizzlePersonReader(): PersonReader {
   return {
     async record(tx, tenantId, personId, lock = false) {
@@ -80,24 +130,27 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
-    async page(tx, tenantId, after, limit, where) {
+    async page(tx, tenantId, after, limit, where, search) {
       const rows = await tx
         .select()
         .from(person)
         .where(
-          and(
-            eq(person.tenantId, tenantId),
-            after === null ? undefined : gt(person.id, after),
-            // Containment, which is what `person_custom_idx` (GIN,
-            // jsonb_path_ops) answers. One `@>` for every key at once.
-            where === undefined || Object.keys(where).length === 0
-              ? undefined
-              : sql`${person.custom} @> ${JSON.stringify(where)}::jsonb`,
-          ),
+          and(matching(tenantId, where, search), after === null ? undefined : gt(person.id, after)),
         )
         .orderBy(asc(person.id))
         .limit(limit);
       return rows.map(toRecord);
+    },
+
+    async count(tx, tenantId, where, search) {
+      const rows = await tx
+        .select({
+          all: sql<number>`count(*)::int`,
+          active: sql<number>`(count(*) FILTER (WHERE ${person.status} = 'active'))::int`,
+        })
+        .from(person)
+        .where(matching(tenantId, where, search));
+      return { all: rows[0]?.all ?? 0, active: rows[0]?.active ?? 0 };
     },
 
     async personOf(tx, tenantId, accountId) {

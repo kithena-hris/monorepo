@@ -47,6 +47,7 @@ import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
 import type {
   PersonReader,
   PersonRecord,
+  PersonSearch,
   RelationsResolver,
   SchemaVersions,
   Secrets,
@@ -130,8 +131,18 @@ export interface PersonAccess {
       readonly asOf?: string;
       /** Equality on tenant-defined attributes. See `filterable`. */
       readonly where?: Readonly<Record<string, string>>;
+      /** A substring of a name or work email. See `searchable`. */
+      readonly search?: string;
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
+  /** How many people `list` would page through for the same `where` and `search`. */
+  count(
+    tx: Tx,
+    asking: Asking & {
+      readonly where?: Readonly<Record<string, string>>;
+      readonly search?: string;
+    },
+  ): Promise<Result<{ readonly all: number; readonly active: number }>>;
   update(
     tx: Tx,
     asking: On<{
@@ -229,6 +240,28 @@ export function filterable(
   return ok(undefined);
 }
 
+const SEARCHED = ['given_name', 'family_name', 'preferred_name', 'work_email'] as const;
+
+/**
+ * What a directory search may match against: the names and work email the
+ * viewer can read on **everybody**, for `filterable`'s reason — who a search
+ * returns says what each person's value contains. None of them readable, and
+ * a search is refused rather than quietly matching nothing.
+ */
+export function searchable(
+  definitions: readonly AttributeDefinition[],
+  everyone: ViewerRelations,
+): Result<PersonSearch['keys']> {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  const keys = SEARCHED.filter((key) => {
+    const definition = byKey.get(key);
+    return definition !== undefined && !definition.encrypted && visibleTo(definition, everyone);
+  });
+  return keys.length === 0
+    ? err(failure('FIELD_NOT_FILTERABLE', 'You cannot search people by name', ['search']))
+    : ok(keys);
+}
+
 const NotPublished = () =>
   failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet');
 const PersonNotFound = () => failure('NOT_FOUND', 'No such person');
@@ -295,6 +328,41 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       correlationId: asking.correlationId,
       causationId: null,
     };
+  }
+
+  /**
+   * A list's `where` and `search`, authorized: each filtered key readable on
+   * everybody (`filterable`), a search only over what is (`searchable`).
+   * Both read today, so neither combines with `asOf`.
+   */
+  async function narrowing(
+    tx: Tx,
+    asking: Asking & {
+      readonly asOf?: string;
+      readonly where?: Readonly<Record<string, string>>;
+      readonly search?: string;
+    },
+    version: PublishedVersion,
+  ): Promise<
+    Result<{ where: Readonly<Record<string, string>>; search: PersonSearch | undefined }>
+  > {
+    const where = asking.where ?? {};
+    const text = (asking.search ?? '').trim();
+    if (Object.keys(where).length === 0 && text === '') return ok({ where, search: undefined });
+    if (asking.asOf !== undefined) {
+      return err(
+        failure('FILTER_WITH_AS_OF', 'A filter reads today; it cannot be combined with asOf'),
+      );
+    }
+    // Who the viewer is to nobody in particular: their tenant-wide relations,
+    // with self and manager false. The resolver answers that for an id no
+    // person has.
+    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+    const allowed = filterable(version.document.attributes, Object.keys(where), everyone);
+    if (!allowed.ok) return allowed;
+    if (text === '') return ok({ where, search: undefined });
+    const keys = searchable(version.document.attributes, everyone);
+    return keys.ok ? ok({ where, search: { text, keys: keys.value } }) : keys;
   }
 
   async function view(
@@ -825,30 +893,20 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly limit: number;
         readonly asOf?: string;
         readonly where?: Readonly<Record<string, string>>;
+        readonly search?: string;
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const where = asking.where ?? {};
-      if (Object.keys(where).length > 0) {
-        if (asking.asOf !== undefined) {
-          return err(
-            failure('FILTER_WITH_AS_OF', 'A filter reads today; it cannot be combined with asOf'),
-          );
-        }
-        // Who the viewer is to nobody in particular: their tenant-wide
-        // relations, with self and manager false. The resolver answers that
-        // for an id no person has.
-        const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-        const allowed = filterable(version.document.attributes, Object.keys(where), everyone);
-        if (!allowed.ok) return allowed;
-      }
+      const query = await narrowing(tx, asking, version);
+      if (!query.ok) return query;
       const rows = await deps.reader.page(
         tx,
         asking.tenantId,
         asking.after ?? null,
         asking.limit,
-        where,
+        query.value.where,
+        query.value.search,
       );
       const items: PersonView[] = [];
       for (const row of rows) {
@@ -862,6 +920,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }
       const next = rows.length === asking.limit ? (rows.at(-1)?.snapshot.id ?? null) : null;
       return ok({ items, next });
+    },
+
+    async count(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const query = await narrowing(tx, asking, version);
+      if (!query.ok) return query;
+      return ok(await deps.reader.count(tx, asking.tenantId, query.value.where, query.value.search));
     },
 
     update: (tx, asking) => update(tx, asking),

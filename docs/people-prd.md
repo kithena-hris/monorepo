@@ -1704,6 +1704,27 @@ POST   /v1/imports/dry-run             the five counts, the incomplete warning, 
 POST   /v1/imports                     commit
 ```
 
+**The directory is searched, filtered and paged in People (PEO-117).**
+`GET /v1/views/directory?search=&filter=key:value,…&after=<person id>` answers
+one keyset page of 50 in id order, the cursor for the next (`next`, null on
+the last), and `active`, counted over everybody the search and filters match
+rather than over the page. Before this the view read the first 200 people and
+searched those in memory, so nobody past the 200th could be found. `GET
+/v1/people` takes the same `search`. Both authorize it as a filter is
+authorized, in `PersonAccess.list` and so for every transport: a filter key
+the viewer cannot read on **everybody** is refused (`FIELD_NOT_FILTERABLE`,
+as PEO-052 already did), and a search matches only the names and work email
+the viewer can read on everybody — none of them, and it is refused rather
+than quietly matching nothing. Neither combines with `asOf`. The search is a
+case-insensitive substring (`%` and `_` are literal) over given, family and
+preferred name, work email, and the two full names. A person column such as
+the manager is named by reading that person as the viewer, so a manager on
+another page is still named. Measured at 50,000 people
+(`person-access.integration.test.ts`): a filter page 57 ms, a search page
+with its count 101 ms, a search with a filter 27 ms, against 300 ms. There is
+no trigram index: the search is a scan of one tenant's rows, which fits the
+budget at 50,000; a `pg_trgm` index is the next step when it does not.
+
 `/v1/views/*` answers with a screen's view model. The model is built from reads
 that were already authorized, so a withheld field never reaches it. An import
 keeps nothing between steps: each step carries the file (base64, up to 100 MB)
@@ -1740,6 +1761,78 @@ direct path therefore needs one of two decisions, and neither is small:
   reverses §13.1's "the subgraphs never parse a JWT".
 
 Until one is chosen the shell keeps the direct path, and PEO-113 is open.
+
+**The screens render on the server (PEO-094).** Module Federation cannot do
+this inside the Next App Router: `@module-federation/nextjs-mf` never supported
+the App Router and is being wound down. So the remote publishes a second build
+beside `remoteEntry.js`: `ssr/people.cjs`, whose only imports are React, its
+JSX runtime and Reach, plus `ssr/people.css`.
+
+- **How the page renders (PEO-115).** The page fetches the server build per
+  request, checks it (below), and asks a renderer process for the screen's
+  HTML. The shell's own process never evaluates the remote's code. The screen
+  is sent in the same response. In the browser a React root of the remote's
+  own holds that HTML until the browser build arrives, then hydrates it, and
+  a press made before then is replayed.
+- **Integrity.** The remote's deploy pipeline signs `ssr/manifest.json`, the
+  SHA-384 of `people.cjs` and `people.css` in SRI form, with an Ed25519 key
+  only the pipeline holds (`pnpm --filter @kithena/web-people sign`,
+  `PEOPLE_REMOTE_SSR_SIGNING_KEY`). The shell pins the public half in its own
+  configuration, `PEOPLE_REMOTE_SSR_PUBLIC_KEY`, and renders only a build
+  whose bytes match a manifest that key signed. The stylesheet is linked with
+  the signed hash as its `integrity`. Anything else — no key, no signature, a
+  different byte — and the page renders in the browser, as before PEO-094,
+  logging once per build the expected and actual hash and never the code.
+- **Why a signed manifest, not a pinned hash.** A hash in the shell's
+  environment is exact, but on the platform the shell runs on an environment
+  change only takes effect in a new deployment of the shell, so every remote
+  release would redeploy it. The signature keeps a remote release a remote
+  deploy alone; the shell's configuration changes only when the key rotates.
+  The trade: the host may serve any build that was ever signed, not only the
+  latest, until the key is rotated.
+- **Isolation.** The renderer is a child process started with an empty
+  environment, Node's permission model reading only its own bundle (no other
+  file, no child process, no worker, no addon), code generation from strings
+  disallowed, a 256 MB heap, and one process per build. Inside it the build is
+  evaluated in a `node:vm` context whose global has only the language —
+  `require` answers React, its JSX runtime and Reach and nothing else, and
+  there is no `process`, no timer and no `fetch` — under a one-second CPU
+  timeout for evaluation and for each render. The shell gives up on a render
+  after five seconds and kills a renderer that has gone quiet. A `vm` context
+  alone is not a security boundary: the objects handed into it belong to the
+  renderer's realm. The process is the boundary; the context is a first wall.
+  `apps/web/src/lib/remote-render.test.ts` proves a build reading
+  `process.env`, requiring a module, climbing out through a shared object, or
+  looping is refused or stopped, and that the next build still renders.
+- **The switch.** `PEOPLE_REMOTE_SSR=off` still turns server rendering off.
+- **Residual risk.** What remains, stated plainly:
+  - *Network.* The permission model in Node 22 does not cover sockets. The
+    renderer removes `fetch` and refuses the network modules, but code that
+    escaped the context and the renderer's own lockdown could open a
+    connection from the shell's network position — with nothing to
+    authenticate with, since the process holds no secret. Deploy the shell
+    where that position grants nothing by itself, or move to Node's
+    `--allow-net` when the runtime has it.
+  - *A signed build is trusted.* A malicious or buggy build that was signed
+    by the pipeline renders; so does an older signed one a host chooses to
+    serve. The key and the pipeline are the trust anchor.
+  - *Shared state within a build.* One renderer serves every request for a
+    build, so a hostile build could carry one request's props into another
+    request's HTML. It could equally do that from the browser build, which
+    runs on the page with every viewer's data.
+  - *The browser build is not covered.* `remoteEntry.js` and its chunks run in
+    the tenant's origin and are still trusted as they were; the signature
+    covers the server build and its stylesheet only.
+  - *The signing pipeline does not exist yet.* No workflow deploys the
+    remote, so no production build is signed and production renders these
+    screens in the browser until one does.
+- **Hosting.** `apps/web/people/vercel.json` serves the files that are read
+  per load (`remoteEntry.js`, `routes.json`, the server build, its stylesheet
+  and signed manifest) with `Cache-Control: no-cache`, so a redeploy is seen
+  at once. The hashed chunks are `immutable`. It echoes CORS for
+  `https://*.app.kithena.com` and `*.staging.app.kithena.com`, which the
+  stylesheet now needs, being fetched with `crossorigin` for its integrity
+  check.
 
 ### 13.3 Webhooks (Phase 1)
 
@@ -2239,6 +2332,11 @@ rule that gets broken in a car park by somebody who needed it now.
   `ListDetail` cards carrying the two or three columns that matter, with the
   rest behind a tap. Reach's `useBreakpoint` decides; the screen does not sniff
   a user agent.
+- **Long lists page on the server.** The directory shows 50 people and a
+  "Next page" / "First page" pair of Reach `Button`s below the list or cards,
+  the same on a phone as at a desk (PEO-117). Each page is a URL, so the
+  phone's Back gesture returns to the page before; nothing loads 50,000 rows
+  into a browser to scroll or search them.
 - **Dialogs become sheets.** `Sheet` from the bottom, not `Dialog` in the
   middle — a centred modal on a phone puts its actions under the keyboard.
 - **Actions stick.** A form's primary action sits in a sticky bar above the
@@ -2263,6 +2361,12 @@ Every story renders at a phone viewport as well as a desk one, and
 `pnpm test:stories` runs axe over both. Tap targets are asserted against the
 44px floor rather than eyeballed. The onboarding flow has an acceptance test
 that completes it end to end at 390×844 with a software keyboard raised.
+
+**On a slow network the screen arrives with the page (PEO-094, PEO-115).**
+A phone waiting on the remote's JavaScript still shows the screen the server
+drew, and a tap made before it loads is replayed once it does. When the
+server build is refused, the phone gets the spinner, as before server
+rendering.
 
 **The running app has its own check (PEO-098).**
 `apps/web/acceptance/people.acceptance.test.ts` drives the shell, the remote
@@ -2296,6 +2400,17 @@ characters, beyond which it should have been a document.
 **Availability.** The module boots and serves reads with Redpanda unavailable;
 writes queue in the outbox and drain on recovery. No dual writes, ever. TypeSafe
 being unavailable degrades a suggestion, never a save.
+
+**Stopping.** A deploy or a scale-down ends the process with SIGTERM, and the
+process ends itself: it stops accepting connections, answers every request
+already in flight, lets the background job in hand finish, leaves its Kafka
+consumer groups, closes its database pools, flushes its spans (at most 2 s)
+and exits 0. The whole stop is bounded by `SHUTDOWN_DEADLINE_MS` (10 s by
+default, inside an orchestrator's 30 s grace); past it the process logs which
+steps had not finished and exits 1. A step that fails also exits 1. A
+write interrupted by the deadline rolls back with its transaction, and its
+event with it, because the outbox row is in the same transaction. Every
+service started through `@kithena/telemetry` stops this way (PEO-118).
 
 **Security.** RLS on every table with `FORCE`. Envelope encryption for financial
 and identifier attributes. Field-level authorization in the application layer.
@@ -2555,7 +2670,7 @@ how People stops being sellable alone.
 | Risk | Probability | Impact | Mitigation |
 | --- | --- | --- | --- |
 | Runtime classification is skipped or defaulted carelessly, and personal data reaches a log or a prompt | Medium | **High** | No default that means "later"; `NOT NULL` policy; downgrades never automated; quarterly audit; an integration test asserting the invariant |
-| JSONB custom attributes make directory queries slow at 50k people | Medium | Medium | `indexed` promotes to a generated column; GIN for containment; the directory reads a projection, not the person table |
+| JSONB custom attributes make directory queries slow at 50k people | Medium | Medium | `indexed` promotes to a generated column; GIN for containment; the directory reads a projection, not the person table. *As built (PEO-117): the person table, GIN containment for filters and a scan for search, measured inside budget at 50,000 (§13.2)* |
 | The predicate language grows into a programming language | Medium | Medium | Closed grammar, fixed operand set, no user-authored expressions. Every extension is a product decision with a migration |
 | An HR admin marks six fields required and mails four hundred people | High | Medium | Impact preview before publish; `requiredFrom`; one reminder per person per week regardless of field count |
 | Identity and People name copies drift | Medium | Medium | One direction only — People publishes, identity consumes. A contract test asserts the direction |

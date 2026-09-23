@@ -95,4 +95,23 @@ describe('Directory', () => {
     expect(screen.getByText('Nobody matches')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('asks the shell for the next page and back to the first, never paging itself', async () => {
+    const user = fast();
+    const onNextPage = vi.fn();
+    const onFirstPage = vi.fn();
+    const { container, rerender } = render(<Directory {...props()} />);
+    // One page and nothing after it: no pager at all.
+    expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
+
+    rerender(<Directory {...props({ onNextPage, onFirstPage })} />);
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    await user.click(screen.getByRole('button', { name: 'First page' }));
+    expect(onNextPage).toHaveBeenCalledTimes(1);
+    expect(onFirstPage).toHaveBeenCalledTimes(1);
+    expect(await axeViolations(container)).toEqual([]);
+
+    rerender(<Directory {...props({ onFirstPage })} />);
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
 });
