@@ -122,7 +122,12 @@ function serverScreen(name: string, route: RemoteRoute): Screen {
       return SHARED[id];
     };
     // eslint-disable-next-line @typescript-eslint/no-implied-eval -- the remote's own build, by design; see above.
-    new Function('require', 'module', 'exports', code)(require, module, module.exports);
+    const evaluate = new Function('require', 'module', 'exports', code) as (
+      require: (id: string) => unknown,
+      module: { exports: Record<string, unknown> },
+      exports: Record<string, unknown>,
+    ) => void;
+    evaluate(require, module, module.exports);
     evaluated = { code, exports: module.exports };
   }
   return pick(evaluated.exports, name, route.component);
