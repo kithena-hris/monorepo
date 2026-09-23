@@ -40,6 +40,7 @@ export default ModuleManifest.parse({
     'people.location.updated',
     'people.location.zone_changed',
     'people.settings.changed',
+    'people.employee_numbering.set',
     'people.export.full_values_requested',
     'people.export.full_values_decided',
     'people.export.full_values_expired',

@@ -222,6 +222,20 @@ export const PatchLegalEntityBody = z.strictObject({
   archived: z.boolean().optional(),
 });
 
+/** An entity's employee numbering (PEO-101): `ES-` and 5 digits write `ES-00042`. */
+export const NumberingBody = z.object({
+  legalEntityId: z.uuid(),
+  prefix: z.string(),
+  digits: z.int(),
+  nextValue: z.int().describe('The number the next hire in this entity is given.'),
+});
+
+export const PutNumberingBody = z.strictObject({
+  prefix: z.string().max(10),
+  digits: z.int().min(1).max(12),
+  start: z.int().min(1).describe('Where the sequence starts; never moves it back.'),
+});
+
 export const LocationBody = z.object({
   id: z.uuid(),
   legalEntityId: z.uuid(),
@@ -468,6 +482,20 @@ export function restHandler(
       }),
       200,
       (x) => x,
+    );
+
+  const readNumbering = async (asking: Asking, legalEntityId: string) =>
+    respond(
+      await inOrg(asking, async (org, tx) => {
+        const all = await org.numberings(tx, asking);
+        if (!all.ok) return all;
+        const found = all.value.find((n) => n.legalEntityId === legalEntityId);
+        return found
+          ? ok(found)
+          : err(failure('NOT_FOUND', 'This legal entity does not number its people'));
+      }),
+      200,
+      (n) => n,
     );
 
   const readEntity = (asking: Asking, id: string) =>
@@ -938,6 +966,35 @@ export function restHandler(
             return updated.ok ? ok(id) : updated;
           },
           (resource) => readEntity(asking, resource),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/legal-entities/${UUID}/numbering$`),
+      handle: (asking, _request, params) => readNumbering(asking, params['id'] ?? ''),
+    },
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/legal-entities/${UUID}/numbering$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(PutNumberingBody, request);
+        if (!input.ok) return refused(input.error);
+        const legalEntityId = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            const saved = await service.org.setNumbering(tx, {
+              ...asking,
+              legalEntityId,
+              ...input.value,
+            });
+            return saved.ok ? ok(legalEntityId) : saved;
+          },
+          (id) => readNumbering(asking, id),
         );
       },
     },

@@ -9,11 +9,15 @@ import { logger, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry'
 import { publishBreakdowns } from '../application/analytics/publish.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
+import { recomputePerson } from '../application/completeness/recompute.js';
+import { startArrivals } from '../application/person/start.js';
 import { reconcile } from '../application/reconcile.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
 import { drizzleOrgStore } from './drizzle-org-store.js';
+import { drizzleArrivals, drizzlePersonReader } from './drizzle-person-reader.js';
+import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
@@ -36,6 +40,8 @@ import { tenantTransaction } from './unit-of-work.js';
  *   The same transaction then publishes whichever special-category
  *   breakdowns are due (PEO-083): the monthly check lives here, and a month
  *   holds one publication per breakdown whoever runs it.
+ * - **Starting pre-hires** (§8.1), hourly: each on their own start date, on
+ *   their own calendar.
  * - **The reminder sweep**, hourly, only when a mailer is configured
  *   (PEO-084: `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN`). A sweep without
  *   one would claim the week's reminder and send nothing. Links go to the
@@ -171,6 +177,38 @@ export async function startBackground(
       ),
     ),
   ];
+
+  // Starts every pre-hire whose start date has arrived on their own calendar
+  // (§8.1). Hourly, so each is started within an hour of their own midnight;
+  // idempotent, so a second replica finds nobody left.
+  const start = startArrivals({
+    inTenant,
+    arrivals: drizzleArrivals(),
+    people: drizzlePersonRepository(),
+    reader: drizzlePersonReader(),
+    calendars: org,
+    clock: systemClock,
+    newId: uuidv7,
+    completeness: recomputePerson({
+      schema,
+      people: drizzlePeopleFacts(),
+      store: drizzleCompletenessStore(),
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: org,
+    }),
+  });
+  jobs.push(
+    every(HOUR, () =>
+      forEachTenant('start', async (tenantId) => {
+        const { started, failed } = await start(tenantId, randomUUID());
+        for (const f of failed) {
+          logger.error({ err: f.error, tenantId, personId: f.personId }, 'start failed');
+        }
+        if (started > 0) logger.info({ tenantId, started }, 'pre-hires started');
+      }),
+    ),
+  );
 
   jobs.push(
     every(HOUR, () =>
