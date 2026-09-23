@@ -963,11 +963,19 @@ claimed this way, not only encrypted ones: a plaintext index of employee
 numbers is needless, and a plaintext index of national identifiers would be the
 ciphertext's plaintext stored beside it. An unkeyed hash is not enough — a NIF
 is 10^8 guesses. Rotating the master key re-computes every claim from its value
-(the person row, or the secret) in bounded, idempotent batches; until a claim is
-re-keyed, a claim is looked for under every key the deployment holds, behind a
-per-attribute lock, so no duplicate slips in between. A new key is rolled out
-known before it is current, so no writer ever claims under a key another
-writer cannot look under.
+(the person row, or the secret) in bounded, idempotent batches, normalised by
+the attribute's definition in the version the record was written under; until a
+claim is re-keyed, a claim is looked for under every key the deployment holds,
+behind a per-rule lock, so no duplicate slips in between. A write locks every
+rule it claims under first, in one order, so two writes naming the same
+attributes queue rather than deadlock. A new key is rolled out known before it
+is current (`.env.example` has the four steps), so no writer ever claims under
+a key another writer cannot look under; the rotation refuses to run when that
+step was skipped. A duplicate the rotation finds — two people already holding
+one value — is not a failure: the stale claim keeps its old key, so the value
+stays unique, and HR sees one `people.unique_claim.conflict` event and a
+`unique_conflict` row on the grid naming both people, never the value, until one
+of them changes it.
 
 **Secrets are not in the row.** Bank accounts, national identifiers and tax
 identifiers live in `people.person_secret` under envelope encryption, with their

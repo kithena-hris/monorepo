@@ -43,8 +43,14 @@
 -- The hash index compares hashes under one key. During a rotation a value can
 -- be held under the old key and claimed under the new one, so the application
 -- looks under every key the ring holds and takes a transaction-scoped advisory
--- lock per (tenant, attribute, scope) around the look and the write. The index
--- is still what decides between two writers under the same key.
+-- lock per (tenant, attribute, scope) around the look and the write — every
+-- rule a write claims under, sorted, before its first claim, so two writes
+-- cannot deadlock on each other. The index is still what decides between two
+-- writers under the same key.
+--
+-- A duplicate that predates a rotation — the re-keyed hash already held by
+-- somebody else — is not re-keyed: the claim keeps its old key, `conflict_with`
+-- names the other holder, and HR's grid lists the pair until one changes.
 
 ALTER TABLE people.attribute_unique
   ADD COLUMN value_hash    bytea,

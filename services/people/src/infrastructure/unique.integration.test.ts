@@ -353,7 +353,7 @@ describe('rotating the key', () => {
   const valueOf = (personId: string) => Promise.resolve(values.get(personId) ?? null);
   const rotating = drizzleUniqueClaims(staticKeyRing([K2, K1]));
   const rotate = (limit?: number) =>
-    inTenant(ACME, async ({ tx }) => (await rotating.rotate(tx, ACME, valueOf, { limit })).seen);
+    inTenant(ACME, async ({ tx }) => (await rotating.rotate(tx, ACME, valueOf, limit === undefined ? {} : { limit })).seen);
 
   beforeEach(async () => {
     await claim(ADA, 'E-1');
