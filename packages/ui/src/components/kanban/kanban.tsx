@@ -1373,7 +1373,7 @@ function KanbanCard<T extends { id: string }>({
             {...listeners}
             aria-label={`Drag ${itemLabel}`}
             className={cn(
-              'absolute z-10 grid size-6 place-items-center rounded-sm text-fg-subtle',
+              'tap-target absolute z-10 grid size-6 place-items-center rounded-sm text-fg-subtle',
               placement.grip,
               'cursor-grab touch-none',
               'transition-[color,background-color,opacity] duration-(--animate-duration-fast)',

@@ -218,7 +218,9 @@
      or a touchscreen kiosk, the query asks about the pointer, not the OS. */
   @media (pointer: coarse) {
     :root {
-      --reach-control-sm: 2.25rem;
+      /* `sm` too. A small control is a density choice for a mouse; a finger
+         is the same size whichever control it lands on. */
+      --reach-control-sm: 2.75rem;
       --reach-control-md: 2.75rem;
       --reach-control-lg: 3rem;
     }

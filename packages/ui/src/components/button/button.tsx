@@ -10,6 +10,8 @@ import { Spinner } from '../spinner/spinner';
 const button = cva(
   [
     'relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap',
+    // A small button keeps its size and still takes a whole thumb.
+    'tap-target',
     'font-medium select-none',
     'transition-[background-color,border-color,color,box-shadow,transform]',
     'duration-(--animate-duration-fast) ease-standard',

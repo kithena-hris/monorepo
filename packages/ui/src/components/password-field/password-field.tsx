@@ -209,7 +209,7 @@ export function PasswordField({
             setRevealed((current) => !current);
           }}
           className={cn(
-            '-me-1 grid size-8 shrink-0 place-items-center rounded-sm text-fg-subtle',
+            'tap-target relative -me-1 grid size-8 shrink-0 place-items-center rounded-sm text-fg-subtle',
             'transition-colors duration-(--animate-duration-fast)',
             'hover:bg-surface-hover hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',

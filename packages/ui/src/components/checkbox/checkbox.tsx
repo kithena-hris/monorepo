@@ -19,7 +19,8 @@ export function Checkbox({ className, ...props }: CheckboxProps): JSX.Element {
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        'peer grid size-4 shrink-0 place-items-center rounded-xs border border-border-strong',
+        'peer relative grid size-4 shrink-0 place-items-center rounded-xs border border-border-strong',
+        'tap-target',
         // Radix renders this as a <button>, which is `cursor: default`. A 16px
         // box with no label of its own gives the pointer nothing else to react
         // to, so without this the only hover feedback on a table's select-all

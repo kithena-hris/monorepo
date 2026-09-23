@@ -1029,7 +1029,6 @@ it is written down here rather than left in a PR description.
 | Ticket | Blocked on | Note |
 | --- | --- | --- |
 | PEO-027 | PEO-002 | People cannot see a name captured at enrolment until identity publishes it |
-| PEO-057 | PEO-001 | Two of its charts are written but not exported |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked |
 | PEO-045 | nothing technical | The cohort minimum default of 10 is a product decision; confirm before shipping |
 | PEO-037 | legal review | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |

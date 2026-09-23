@@ -620,3 +620,28 @@
     }
   }
 }
+
+/*
+ * A hit area of at least the tap floor under a coarse pointer, without
+ * drawing the control any bigger (WCAG 2.2, 2.5.8).
+ *
+ * A 16px checkbox or a 28px close button is the right size to look at and
+ * the wrong size for a thumb. This grows the part a finger can hit, as a
+ * `::before` centred on the control, and leaves the part an eye sees alone.
+ * Under a mouse it does nothing. The element must already be positioned
+ * (`relative`, `absolute`): setting that here would fight a control that is
+ * placed absolutely, like a dialog's close button.
+ */
+@utility tap-target {
+  @media (pointer: coarse) {
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, var(--spacing-tap));
+      height: max(100%, var(--spacing-tap));
+      translate: -50% -50%;
+    }
+  }
+}

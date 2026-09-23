@@ -181,10 +181,10 @@ export function ScatterChart({
                     }
                     className={cn(
                       // A 10px dot is a fine mouse target and an impossible
-                      // finger one, so the hit area grows on a coarse pointer
-                      // while the dot itself stays the size the data needs.
-                      'absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full',
-                      "touch:after:absolute touch:after:-inset-3 touch:after:content-['']",
+                      // finger one, so the hit area grows to the tap floor on
+                      // a coarse pointer while the dot itself stays the size
+                      // the data needs.
+                      'tap-target absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full',
                       'transition-[transform,opacity] duration-(--animate-duration-fast)',
                       'motion-safe:animate-pop-in',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
