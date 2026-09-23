@@ -12,16 +12,24 @@
 -- Expand only. `webhook_endpoint` already has ENABLE and FORCE row level
 -- security and its tenant policy from 20260923120000, which cover a new
 -- column, and `svc_people`'s table-level grants cover it too.
-ALTER TABLE people.webhook_endpoint
-  ADD COLUMN IF NOT EXISTS alert_email text
-    CHECK (alert_email IS NULL OR length(alert_email) BETWEEN 3 AND 320);
+--
+-- Both halves are guarded by `to_regclass`, because each service's integration
+-- database applies only its own schema: messaging's has no `people`, People's
+-- has no `messaging`. Every deployed database has both.
+DO $$
+BEGIN
+  IF to_regclass('people.webhook_endpoint') IS NOT NULL THEN
+    ALTER TABLE people.webhook_endpoint
+      ADD COLUMN IF NOT EXISTS alert_email text
+        CHECK (alert_email IS NULL OR length(alert_email) BETWEEN 3 AND 320);
+  END IF;
+END
+$$;
 
 -- ### The kind `messaging.delivery` records it under
 --
 -- Identical to 20260924120000, so PEO-084 and PEO-093 can land in either
--- order without the second narrowing the first. Guarded, because a module's
--- integration database has no `messaging` schema; every deployed database
--- has had it since 20260824090000.
+-- order without the second narrowing the first.
 DO $$
 BEGIN
   IF to_regclass('messaging.delivery') IS NOT NULL THEN
