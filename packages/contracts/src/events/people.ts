@@ -87,15 +87,12 @@ export const ChangedAttribute = z
      * tenant, which is the right default for a field whose contents nobody
      * can predict at build time.
      */
-    value: z
-      .unknown()
-      .optional()
-      .register(policy, {
-        classification: 'confidential',
-        piiKind: 'none',
-        exportable: true,
-        aiEligible: false,
-      }),
+    value: z.unknown().optional().register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
   })
   .refine((a) => a.classification !== 'special-category' || a.value === undefined, {
     message: 'special-category values never travel on an event',
@@ -254,9 +251,7 @@ export const PersonIdentityLinked = defineEvent(
   z.object({
     personId: PersonId,
     identityAccountId: z.uuid().register(policy, asPublic()),
-    direction: z
-      .enum(['person_first', 'account_first'])
-      .register(policy, asPublic()),
+    direction: z.enum(['person_first', 'account_first']).register(policy, asPublic()),
   }),
 );
 
@@ -302,15 +297,12 @@ export const PersonProfileUpdated = defineEvent(
      * at build time. That makes the array a redaction path and a deny-list
      * entry for every tenant, which is the right default for a field whose
      * contents nobody can predict. */
-    changed: z
-      .array(ChangedAttribute)
-      .min(1)
-      .register(policy, {
-        classification: 'confidential',
-        piiKind: 'none',
-        exportable: true,
-        aiEligible: false,
-      }),
+    changed: z.array(ChangedAttribute).min(1).register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
     schemaVersion: SchemaVersion,
   }),
 );
@@ -557,6 +549,27 @@ export const PersonSyncedFromExternal = defineEvent(
   }),
 );
 
+/**
+ * A unique value turned out to be held by two people, found while re-keying
+ * unique claims under a new key (PEO-082).
+ *
+ * Which attribute and which two people, never the value: the claim store
+ * holds only a keyed hash, and this event must not become the place the value
+ * finally appears. The stale claim is left under the retiring key, so the
+ * value stays unique there until HR resolves it; the HR grid shows it too.
+ */
+export const UniqueClaimConflict = defineEvent(
+  'people.unique_claim.conflict',
+  1,
+  z.object({
+    attributeKey: AttributeKey,
+    /** Holds the value under the current key. */
+    heldBy: PersonId,
+    /** Holds the same value under the retiring key; not re-keyed. */
+    staleClaimBy: PersonId,
+  }),
+);
+
 /* ---------------------------------------------------------- import events -- */
 
 /**
@@ -715,6 +728,27 @@ export const TenantSettingsChanged = defineEvent(
   }),
 );
 
+/**
+ * A webhook endpoint was disabled because nothing reached it for 24 hours
+ * (§13.3, PEO-093).
+ *
+ * Raised in the transaction that disabled it, once however many deliveries hit
+ * the ceiling together. The tenant's own record that an integration stopped;
+ * the alert email beside it is best effort. No URL — a receiver's token can
+ * sit in its query — and no address.
+ */
+export const WebhookEndpointDisabled = defineEvent(
+  'people.webhook.endpoint_disabled',
+  1,
+  z.object({
+    endpointId: z.uuid().register(policy, asPublic()),
+    reason: z.enum(['delivery_ceiling']).register(policy, asPublic()),
+    /** The last HTTP status, or null when nothing answered at all. */
+    lastResponse: z.int().min(100).max(599).nullable().register(policy, asInternal()),
+    disabledAt: Instant,
+  }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -740,6 +774,7 @@ export const peopleEvents = [
   PersonMerged,
   PersonAnonymised,
   PersonSyncedFromExternal,
+  UniqueClaimConflict,
   ImportStarted,
   ImportCompleted,
   ExportCompleted,
@@ -749,4 +784,5 @@ export const peopleEvents = [
   LocationUpdated,
   LocationZoneChanged,
   TenantSettingsChanged,
+  WebhookEndpointDisabled,
 ] as const;

@@ -19,11 +19,13 @@ import {
   drizzleRelations,
   drizzleSchemaVersions,
 } from '../infrastructure/drizzle-person-reader.js';
-import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
+import { keysFrom, staticKeyRing } from '../infrastructure/envelope.js';
 import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
+import { knownTenants } from '../infrastructure/tenants.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
@@ -40,16 +42,8 @@ import { restHandler, type RestResponse } from './rest.js';
  * pretending.
  */
 
-/** `id:base64,id:base64` — the first is the key new secrets are written under. */
-function keysFrom(value: string | undefined): MasterKey[] {
-  return (value ?? '')
-    .split(',')
-    .filter((pair) => pair.includes(':'))
-    .map((pair) => {
-      const [id = '', key = ''] = pair.split(':');
-      return { id, key: Buffer.from(key, 'base64') };
-    });
-}
+/** How often every known tenant's due deliveries are looked for. */
+const POLL_MS = 60_000;
 
 export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
   const db = drizzle(postgres(databaseUrl));
@@ -63,6 +57,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     allowHttp:
       process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
   };
+  const alerts = webhookAlertMailerFrom(process.env);
   const hooks = webhooks({
     inTenant: raw,
     ring,
@@ -70,48 +65,68 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     post: pinnedPoster(egress),
     clock: systemClock,
     newId: uuidv7,
-    // ponytail: the tenant is told through the log until a notification
-    // channel exists; a `people.webhook.disabled` event is the upgrade.
-    notify: (tenantId, endpointId, reason) => {
-      logger.warn({ tenantId, endpointId, reason }, 'webhook endpoint disabled');
+    // The event is already in the outbox; this is the email beside it.
+    notify: async (tenantId, disabled) => {
+      logger.warn(
+        { tenantId, endpointId: disabled.endpointId, lastResponse: disabled.lastResponse },
+        'webhook endpoint disabled',
+      );
+      if (alerts === undefined || disabled.alertEmail === null) return;
+      await alerts.send(tenantId, disabled).catch((cause: unknown) => {
+        logger.warn({ err: cause, tenantId, endpointId: disabled.endpointId }, 'alert not sent');
+      });
     },
+    schemas,
   });
 
   /*
-   * Deliveries are sent after any transaction for their tenant commits, and
-   * again when the earliest retry falls due.
+   * Deliveries are sent after any transaction for their tenant commits, again
+   * when the earliest retry falls due, and by a poller over every known tenant
+   * on boot and every minute (PEO-093).
    *
-   * ponytail: the retry timer is in-process. A restart forgets it, and a
-   * pending retry then waits for that tenant's next transaction — nothing is
-   * lost, because the rows are the truth. A BullMQ delayed job per tenant is
-   * the upgrade when that wait matters.
+   * The timer is in-process and a restart forgets it; the poller is what makes
+   * that harmless. The schedule is `next_attempt_at` on each row, so a fresh
+   * process's first poll resumes every retry that fell due while it was down,
+   * and the claim in `deliverDue` keeps two replicas from sending one twice.
    */
   const running = new Set<string>();
   const timers = new Map<string, NodeJS.Timeout>();
-  const kick = (tenantId: string): void => {
+  const pass = async (tenantId: string): Promise<void> => {
     if (running.has(tenantId)) return;
     running.add(tenantId);
-    void (async () => {
-      try {
-        await hooks.deliverDue(tenantId);
-        const due = await hooks.nextDue(tenantId);
-        clearTimeout(timers.get(tenantId));
-        if (due !== null) {
-          const wait = Math.max(due.getTime() - Date.now(), 1000);
-          timers.set(
-            tenantId,
-            setTimeout(() => {
-              kick(tenantId);
-            }, wait).unref(),
-          );
-        }
-      } catch (cause) {
-        logger.error({ err: cause, tenantId }, 'webhook delivery pass failed');
-      } finally {
-        running.delete(tenantId);
+    try {
+      await hooks.deliverDue(tenantId);
+      const due = await hooks.nextDue(tenantId);
+      clearTimeout(timers.get(tenantId));
+      if (due !== null) {
+        const wait = Math.max(due.getTime() - Date.now(), 1000);
+        timers.set(
+          tenantId,
+          setTimeout(() => {
+            kick(tenantId);
+          }, wait).unref(),
+        );
       }
-    })();
+    } catch (cause) {
+      logger.error({ err: cause, tenantId }, 'webhook delivery pass failed');
+    } finally {
+      running.delete(tenantId);
+    }
   };
+  const kick = (tenantId: string): void => {
+    void pass(tenantId);
+  };
+
+  // One tenant at a time, each pass bounded by `deliverDue`'s own limits.
+  const poll = async (): Promise<void> => {
+    try {
+      for (const tenantId of await knownTenants(db)) await pass(tenantId);
+    } catch (cause) {
+      logger.error({ err: cause }, 'webhook poll failed');
+    }
+  };
+  void poll();
+  setInterval(() => void poll(), POLL_MS).unref();
 
   const org = drizzleOrgStore();
   return {
@@ -121,7 +136,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       schemas,
       relations: drizzleRelations(),
       secrets: drizzleSecretStore(ring, logger),
-      uniques: drizzleUniqueClaims(),
+      uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,
       calendars: org,
@@ -139,6 +154,8 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
 /** The export pipeline: the store, the ledger and the queue, from the environment. */
 function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: ExportQueue } {
   const deps: ExportJobDeps = {
+    // The export's day is the tenant's (PRD §6.8).
+    calendars: drizzleOrgStore(),
     access: service.access,
     schemas: service.schemas,
     relations: drizzleRelations(),

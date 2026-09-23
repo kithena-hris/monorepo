@@ -726,7 +726,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an acceptance test completes it end to end at 390×844 with a
   software keyboard raised, and abandoning mid-way leaves a partial record.
 
-### [ ] PEO-051 — Profile screens
+### [x] PEO-051 — Profile screens
 
 - **Spec** PRD §6.6 · design screen 6
 - **Files** `apps/web/people/src/profile/`
@@ -737,7 +737,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test renders the same person as HR and as a manager and
   asserts the manager's DOM contains none of the withheld labels.
 
-### [ ] PEO-052 — Directory
+### [x] PEO-052 — Directory
 
 - **Spec** PRD §13.1 · design screen 7
 - **Files** `apps/web/people/src/directory/`
@@ -748,7 +748,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** filtering on a tenant-defined indexed attribute over 50,000
   rows meets the 300 ms budget.
 
-### [ ] PEO-053 — Completeness grid
+### [x] PEO-053 — Completeness grid
 
 - **Spec** PRD §8.4 · design screen 8
 - **Files** `apps/web/people/src/completeness/`
@@ -760,7 +760,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** tabbing moves down the column and a bulk save emits one event
   per person.
 
-### [ ] PEO-054 — Integrations settings
+### [x] PEO-054 — Integrations settings
 
 - **Spec** PRD §13.3 · design screen 9
 - **Files** `apps/web/people/src/settings/integrations/`
@@ -784,7 +784,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an admin can take a broken file, fix the blocked rows from the
   downloaded CSV, and import them without re-mapping.
 
-### [ ] PEO-056 — Export builder
+### [x] PEO-056 — Export builder
 
 - **Spec** PRD §15.1 · design screen 11
 - **Files** `apps/web/people/src/export/`
@@ -912,10 +912,15 @@ it is written down here rather than left in a PR description.
       `GET /api/internal/tenants/<id>/accounts` returning
       `{ accounts, nextCursor }`; identity must serve that shape or the
       caller changes. *(PRD §8.2)*
-- [ ] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
+- [x] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
       encrypted attribute cannot be unique without its plaintext sitting next
       to the ciphertext. Store a keyed hash instead; until then no national
       identifier in a country pack is marked unique. Found in PEO-059.
+      *Landed as `value_hash`, HMAC-SHA-256 under a per-tenant key derived
+      from the secrets' master key, for every attribute; rotation and the
+      backfill are one hourly job. The packs' identifiers are unique per
+      tenant. Dropping `normalised_value` is the contract step, once no claim
+      has a null `key_id` (see 20260924150000).*
 - [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs
@@ -968,10 +973,13 @@ it is written down here rather than left in a PR description.
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal
       token. Found in PEO-025 and PEO-030.
-- [ ] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
+- [x] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next
-      transaction. Found in PEO-032. *(PRD §13.3)*
+      transaction. Found in PEO-032. *(PRD §13.3)* — `people.webhook.endpoint_disabled`,
+      an alert email to the endpoint's `alert_email` (migration
+      20260924120100), a boot-and-every-minute poller, and a lease claim per
+      delivery.
 - [ ] **PEO-094** The People remote: no server-side rendering, and the
       remote's host needs `no-cache` and CORS for `remoteEntry.js` and
       `routes.json`. Found in PEO-046.

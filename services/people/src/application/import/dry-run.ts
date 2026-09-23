@@ -6,7 +6,7 @@ import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/f
 import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import type { PersonAccess, PersonView } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions, Viewer } from '../person/ports.js';
 import { coerceCell, coerceDate, isMasked, type DateOrder } from './cells.js';
@@ -92,8 +92,8 @@ export interface DryRunDeps {
   readonly schemas: SchemaVersions;
   readonly relations: RelationsResolver;
   readonly clock: Clock;
-  /** Whose day each row's person is on (PRD §6.8). UTC when absent. */
-  readonly calendars?: Calendars;
+  /** Whose day each row's person is on (PRD §6.8). */
+  readonly calendars: Calendars;
 }
 
 export interface DryRunInput {
@@ -214,7 +214,7 @@ export async function dryRun(
   const existing = await existingPeople(tx, deps, input);
   if (!existing.ok) return existing;
 
-  const calendar = await (deps.calendars ?? utcCalendars).load(tx, input.tenantId);
+  const calendar = await deps.calendars.load(tx, input.tenantId);
   const classify = rowClassifier(version, input, existing.value, relations, deps.clock, calendar);
   const rows = input.file.rows.map(classify);
 

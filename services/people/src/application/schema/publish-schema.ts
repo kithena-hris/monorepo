@@ -13,7 +13,7 @@ import type { Actor } from '@kithena/contracts';
 
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import { diff, publish, type PublishedVersion, type SchemaDiff } from '../../domain/schema/publish.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import {
   computeImpact,
   ownersOf,
@@ -63,8 +63,8 @@ export interface PublishSchemaDeps {
   readonly people: PeopleFactsReader;
   readonly clock: Clock;
   readonly newEventId: () => string;
-  /** Whose day each person's `requiredFrom` is read on. UTC when absent. */
-  readonly calendars?: Calendars;
+  /** Whose day each person's `requiredFrom` is read on. */
+  readonly calendars: Calendars;
 }
 
 export interface PublishSchema {
@@ -131,7 +131,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
      * replays the same instant — and so the same day for each person —
      * rather than whatever day it happens to be when the event arrives.
      */
-    const calendar = await (deps.calendars ?? utcCalendars).load(tx, request.tenantId);
+    const calendar = await deps.calendars.load(tx, request.tenantId);
     const evaluatedAt = deps.clock.instant();
     const evaluatedOn = localDate(evaluatedAt, calendar.defaultZone);
     const impact = computeImpact(before, after, people, fixedClock(evaluatedAt), calendar);

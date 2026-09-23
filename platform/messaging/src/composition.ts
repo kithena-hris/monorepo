@@ -6,6 +6,7 @@ import { logger } from '@kithena/telemetry';
 
 import { parseSender } from './message/domain/sender.js';
 import { sendInvitation } from './message/application/send-invitation.js';
+import { sendNotice } from './message/application/send-notice.js';
 import { settleDelivery } from './message/application/settle-delivery.js';
 import { noDeliveryLog, type DeliveryLog } from './message/application/delivery-log.js';
 import type { EmailTransport } from './message/application/email-transport.js';
@@ -16,6 +17,7 @@ import { drizzleDeliveryLog } from './message/infrastructure/drizzle-delivery-lo
 import { resendWebhookVerifier } from './message/infrastructure/resend-webhooks.js';
 import { messagingRoutes } from './message/http/messaging-routes.js';
 import { webhookRoutes } from './message/http/webhook-routes.js';
+import { noticeRoutes } from './message/http/notice-routes.js';
 
 /**
  * Where the service is assembled.
@@ -75,6 +77,16 @@ export interface Config {
    * by a secret that lives in a CI variable.
    */
   readonly authOrigin: string;
+  /**
+   * The secret a module presents to ask for a notice, and the only origin a
+   * notice's link may point at — the tenant app, where a profile lives.
+   *
+   * Separate from `internalToken` for the reason that one is separate from
+   * `INTERNAL_API_TOKEN`: one secret per pair of services. Absent or empty,
+   * the notice endpoint refuses everything.
+   */
+  readonly noticeToken?: string | undefined;
+  readonly appOrigin?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
    *
@@ -275,6 +287,26 @@ export function compose(config: Config): RequestHandler {
     },
   });
 
+  if (!config.noticeToken || !config.appOrigin) {
+    logger.warn(
+      { reason: 'no MESSAGING_PEOPLE_TOKEN or APP_ORIGIN' },
+      'notices refused: profile reminders will not be sent',
+    );
+  }
+  const notices = noticeRoutes({
+    sendNotice: sendNotice({
+      transport,
+      deliveries,
+      trustedLinkOrigin: config.appOrigin ?? '',
+      onRefusal: (reason, detail) => {
+        logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
+      },
+    }),
+    internalToken: config.noticeToken ?? '',
+  });
+
   return async (request, response) =>
-    (await invitations(request, response)) || (await webhooks(request, response));
+    (await invitations(request, response)) ||
+    (await notices(request, response)) ||
+    (await webhooks(request, response));
 }

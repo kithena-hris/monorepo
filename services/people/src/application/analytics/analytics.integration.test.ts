@@ -29,6 +29,7 @@ import {
 } from './queries.js';
 import { publishBreakdowns, ROUNDING_NOTE } from './publish.js';
 import { takeSnapshot } from './snapshot.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * Snapshots and the charts over them, against real Postgres as `svc_people`.
@@ -136,7 +137,7 @@ const facts = drizzlePeopleFacts();
 
 async function snapshotOn(tenantId: string, day: string, defs = definitions) {
   return inTenant(tenantId, (scope) =>
-    takeSnapshot({ facts, clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
+    takeSnapshot({ calendars: utcCalendars, facts, clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
       definitions: defs,
     }),
   );
@@ -145,7 +146,7 @@ async function snapshotOn(tenantId: string, day: string, defs = definitions) {
 /** The job's second step: publish whatever special-category breakdown is due. */
 async function publishOn(tenantId: string, day: string, defs = definitions) {
   return inTenant(tenantId, (scope) =>
-    publishBreakdowns({ clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
+    publishBreakdowns({ calendars: utcCalendars, clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
       definitions: defs,
       // A tenant with no legal entity: everybody on the tenant's day.
       run: { day, days: { byEntity: new Map(), fallback: day } },

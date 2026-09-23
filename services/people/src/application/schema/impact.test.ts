@@ -4,7 +4,7 @@ import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/con
 
 import { computeImpact, ownersOf, type EvaluablePerson } from './impact.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
-import type { Placement, TenantCalendar } from '../../domain/org/calendar.js';
+import { UTC_CALENDAR, type Placement, type TenantCalendar } from '../../domain/org/calendar.js';
 
 /**
  * The number that stops a Friday afternoon becoming four hundred emails.
@@ -66,13 +66,13 @@ describe('tightening a requirement', () => {
   const after = [define({ key: 'cost_centre', requiredness: { mode: 'always' } })];
 
   it('counts who becomes incomplete', () => {
-    const impact = computeImpact(before, after, crowd(412), clock);
+    const impact = computeImpact(before, after, crowd(412), clock, UTC_CALENDAR);
     expect(impact).toMatchObject({ evaluated: 412, becomingIncomplete: 412 });
   });
 
   it('does not count somebody who already has a value', () => {
     const answered = crowd(10, { values: { cost_centre: 'CC-1' } });
-    expect(computeImpact(before, after, answered, clock).becomingIncomplete).toBe(0);
+    expect(computeImpact(before, after, answered, clock, UTC_CALENDAR).becomingIncomplete).toBe(0);
   });
 
   it('splits the missing fields by who has to fill them in', () => {
@@ -82,12 +82,12 @@ describe('tightening a requirement', () => {
       define({ key: 'cost_centre', requiredness: { mode: 'always' }, ownership: ['hr'] }),
       define({ key: 'bio', requiredness: { mode: 'always' }, ownership: ['employee'] }),
     ];
-    const impact = computeImpact(before, mixed, crowd(5), clock);
+    const impact = computeImpact(before, mixed, crowd(5), clock, UTC_CALENDAR);
     expect(impact.fieldsByOwner).toEqual({ employee: 5, staff: 5 });
   });
 
   it('names the keys each person newly lacks', () => {
-    const impact = computeImpact(before, after, crowd(2), clock);
+    const impact = computeImpact(before, after, crowd(2), clock, UTC_CALENDAR);
     expect(impact.people).toEqual([
       { personId: 'person-0', newlyMissing: ['cost_centre'] },
       { personId: 'person-1', newlyMissing: ['cost_centre'] },
@@ -105,12 +105,12 @@ describe('somebody already incomplete', () => {
   it('is counted as already incomplete, not as newly so', () => {
     // An admin is accepting responsibility for the people they are about to
     // affect, not for the backlog they inherited.
-    const impact = computeImpact(before, after, crowd(3), clock);
+    const impact = computeImpact(before, after, crowd(3), clock, UTC_CALENDAR);
     expect(impact).toMatchObject({ becomingIncomplete: 0, alreadyIncomplete: 3 });
   });
 
   it('still reports the field that is new to them', () => {
-    const impact = computeImpact(before, after, crowd(1), clock);
+    const impact = computeImpact(before, after, crowd(1), clock, UTC_CALENDAR);
     expect(impact.people).toEqual([{ personId: 'person-0', newlyMissing: ['bio'] }]);
   });
 });
@@ -122,7 +122,7 @@ describe('loosening a requirement', () => {
     const before = [define({ key: 'cost_centre', requiredness: { mode: 'always' } })];
     const after = [define({ key: 'cost_centre' })];
 
-    const impact = computeImpact(before, after, crowd(88), clock);
+    const impact = computeImpact(before, after, crowd(88), clock, UTC_CALENDAR);
     expect(impact).toMatchObject({ becomingComplete: 88, becomingIncomplete: 0 });
   });
 });
@@ -134,19 +134,19 @@ describe('who is evaluated at all', () => {
   it('leaves provisional records out of the count', () => {
     // Nobody has been asked for anything yet. Counting them would inflate the
     // number an admin is being asked to accept.
-    const impact = computeImpact(before, after, crowd(5, { status: 'provisional' }), clock);
+    const impact = computeImpact(before, after, crowd(5, { status: 'provisional' }), clock, UTC_CALENDAR);
     expect(impact).toMatchObject({ evaluated: 5, becomingIncomplete: 0 });
   });
 
   it('leaves discarded records out too', () => {
-    const impact = computeImpact(before, after, crowd(5, { status: 'discarded' }), clock);
+    const impact = computeImpact(before, after, crowd(5, { status: 'discarded' }), clock, UTC_CALENDAR);
     expect(impact.becomingIncomplete).toBe(0);
   });
 
   it('counts a leaver, because a terminated record is still a record', () => {
     // Employment records outlive employment, and a statutory field missing
     // from one is still missing.
-    const impact = computeImpact(before, after, crowd(2, { status: 'terminated' }), clock);
+    const impact = computeImpact(before, after, crowd(2, { status: 'terminated' }), clock, UTC_CALENDAR);
     expect(impact.becomingIncomplete).toBe(2);
   });
 });
@@ -170,7 +170,7 @@ describe('a requirement that only applies to some people', () => {
       placement: NOWHERE,
     }))];
 
-    const impact = computeImpact(before, after, people, clock);
+    const impact = computeImpact(before, after, people, clock, UTC_CALENDAR);
     expect(impact).toMatchObject({ evaluated: 10, becomingIncomplete: 3 });
   });
 
@@ -185,7 +185,7 @@ describe('a requirement that only applies to some people', () => {
       }),
     ];
 
-    expect(computeImpact(before, after, crowd(412), clock).becomingIncomplete).toBe(0);
+    expect(computeImpact(before, after, crowd(412), clock, UTC_CALENDAR).becomingIncomplete).toBe(0);
   });
 });
 
@@ -240,12 +240,13 @@ describe('each person on their own day (PRD §6.8)', () => {
     expect(impact).toMatchObject({ evaluated: 7, becomingIncomplete: 3 });
   });
 
-  it('is UTC for everybody when no calendar is given', () => {
+  it('is UTC for everybody on a calendar that says UTC', () => {
     const impact = computeImpact(
       before,
       after,
       [...at(MADRID, 4), ...at(BANGALORE, 3)],
       fixedClock('2026-09-23T20:00:00.000Z'),
+      UTC_CALENDAR,
     );
     expect(impact).toMatchObject({ becomingIncomplete: 0 });
   });

@@ -17,7 +17,7 @@ import {
   type MissingAttribute,
 } from '../../domain/person/completeness.js';
 import { personZone } from '../../domain/org/calendar.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import { clockAsOf, computeImpact, type EvaluablePerson } from '../schema/impact.js';
 import type { PeopleFactsReader, SchemaRepository } from '../schema/schema-repository.js';
 import type { CompletenessStore, Gap } from './store.js';
@@ -66,8 +66,8 @@ export interface RecomputeDeps {
   readonly clock: Clock;
   readonly newEventId: () => string;
   readonly batchSize?: number;
-  /** Whose day each person is on; must be what the preview read. UTC when absent. */
-  readonly calendars?: Calendars;
+  /** Whose day each person is on; must be what the preview read. */
+  readonly calendars: Calendars;
 }
 
 export type RecomputeCompleteness = (
@@ -118,7 +118,7 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
         : published.evaluatedOn !== null
           ? clockAsOf(deps.clock, published.evaluatedOn)
           : deps.clock;
-    const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+    const calendar = await deps.calendars.load(tx, tenantId);
     const at = clock.instant();
     let evaluated = 0;
     let becameIncomplete = 0;

@@ -19,6 +19,7 @@ import { personAccess } from '../application/person/person-access.js';
 import { startExportRunner } from './export-queue.js';
 import { s3Blobs } from './s3-blobs.js';
 import { tenantTransaction } from './unit-of-work.js';
+import { utcCalendars } from '../application/org/org.js';
 
 /**
  * PEO-089 against the real things: MinIO with SSE, Postgres with RLS, and
@@ -166,7 +167,7 @@ describe('the queue', () => {
     });
     let puts = 0;
     let ids = 0;
-    const deps: ExportJobDeps = {
+    const deps: ExportJobDeps = { calendars: utcCalendars,
       access: personAccess(people.deps),
       schemas: people.deps.schemas,
       relations: people.deps.relations,

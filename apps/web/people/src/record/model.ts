@@ -15,6 +15,8 @@ export type AttributeValue =
   | boolean
   | readonly string[]
   | { readonly amountMinor: string; readonly currency: string }
+  /** An encrypted value as every ordinary read returns it: never the plaintext. */
+  | { readonly last4: string | null }
   | null;
 
 export type Values = Readonly<Record<string, AttributeValue>>;
@@ -31,6 +33,8 @@ export interface RecordField {
   readonly readOnly: boolean;
   /** ISO 4217, for a money field. */
   readonly currency?: string;
+  /** Who may change it, named when this viewer may not (§8.3): "HR". */
+  readonly ownedBy?: string;
 }
 
 export interface RecordSection {

@@ -10,6 +10,7 @@ import type { ExportJobDeps } from './job.js';
 import { inMemoryExportLedger } from './ledger.js';
 import { localObjectStore } from './object-store.js';
 import { purgeBefore, QUEUE_THRESHOLD, requestExport, runQueuedExport } from './queue.js';
+import { utcCalendars } from '../org/org.js';
 
 function setup() {
   const store = financeTenant();
@@ -25,6 +26,7 @@ function setup() {
   const ledger = inMemoryExportLedger();
   let ids = 0;
   const deps: ExportJobDeps = {
+    calendars: utcCalendars,
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,

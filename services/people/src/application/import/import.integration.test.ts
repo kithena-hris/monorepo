@@ -26,6 +26,7 @@ import { asking, attributes, csv, HEADERS, priyasRows } from './fixture.js';
 import { drizzleImportLedger, drizzleRowScope } from './ledger.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * PEO-041 over Postgres, as `svc_people`: the checksum constraint, the
@@ -48,17 +49,18 @@ const clients: ReturnType<typeof postgres>[] = [];
 let admin: ReturnType<typeof drizzle>;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
-const personDeps: PersonAccessDeps = {
+const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
+const personDeps: PersonAccessDeps = { calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
   relations: drizzleRelations(),
-  secrets: drizzleSecretStore(staticKeyRing([{ id: 'k1', key: randomBytes(32) }])),
-  uniques: drizzleUniqueClaims(),
+  secrets: drizzleSecretStore(ring),
+  uniques: drizzleUniqueClaims(ring),
   clock: fixedClock('2026-09-22T09:00:00.000Z'),
   newId: randomUUID,
 };
-const deps: CommitDeps = {
+const deps: CommitDeps = { calendars: utcCalendars,
   access: personAccess(personDeps),
   schemas: personDeps.schemas,
   relations: personDeps.relations,
@@ -82,6 +84,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
+    '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
     '20260923130000_people_import_export.sql',
     '20260924170000_people_calendar.sql',

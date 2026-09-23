@@ -5,7 +5,7 @@ import type { AttributeDefinition } from '@kithena/contracts';
 
 import { entityDays, entityZone, type TenantCalendar } from '../../domain/org/calendar.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import type { PeopleFactsReader } from '../schema/schema-repository.js';
 import { snapshot, snapshotMeasure, snapshotRun } from './tables.js';
 
@@ -266,8 +266,8 @@ export interface SnapshotDeps {
   /** Streams every person's facts, for the missing-field counts. */
   readonly facts: PeopleFactsReader;
   readonly clock: Clock;
-  /** Each legal entity's calendar (PRD §6.8). UTC when absent. */
-  readonly calendars?: Calendars;
+  /** Each legal entity's calendar (PRD §6.8). */
+  readonly calendars: Calendars;
 }
 
 export interface SnapshotRequest {
@@ -305,7 +305,7 @@ export async function takeSnapshot(
    * Runs are daily at about the same hour, so each entity's flow interval
    * stays contiguous: it is the run's interval, anchored on its own day.
    */
-  const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+  const calendar = await deps.calendars.load(tx, tenantId);
   const at = deps.clock.instant();
   const days = entityDays(calendar, at);
   const day = days.fallback as string;

@@ -55,7 +55,7 @@ describe('the country packs', () => {
     expect(draft.attribute('gb_ni_number')?.label.default).toBe('NI no.');
   });
 
-  it.each(countries)('%s ships every identifier encrypted, confidential and out of reach', (country) => {
+  it.each(countries)('%s ships every identifier encrypted, unique per tenant, confidential and out of reach', (country) => {
     for (const attribute of COUNTRY_PACKS[country].attributes) {
       expect(attribute.origin).toBe('country_pack');
       expect(attribute.key.startsWith(`${country.toLowerCase()}_`)).toBe(true);
@@ -64,6 +64,7 @@ describe('the country packs', () => {
       expect(attribute.typeConfig.country).toBe(country);
       expect(hasRule(country, attribute.typeConfig.scheme)).toBe(true);
       expect(attribute.encrypted).toBe(true);
+      expect(attribute.uniqueScope).toBe('tenant');
       expect(attribute.classification).toMatchObject({
         classification: 'confidential',
         piiKind: 'identity',

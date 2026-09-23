@@ -11,7 +11,7 @@ import {
 import { TenantId, type Actor, type FieldPolicy } from '@kithena/contracts';
 
 import { personZone, type Placement } from '../../domain/org/calendar.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
 
 /**
@@ -75,8 +75,8 @@ export function anonymiseDue(deps: {
   readonly store: RetentionStore;
   readonly clock: Clock;
   readonly newEventId: () => string;
-  /** UTC when absent. */
-  readonly calendars?: Calendars;
+  /** */
+  readonly calendars: Calendars;
 }): (tx: PostgresJsDatabase, request: AnonymiseRequest) => Promise<Result<{ cleared: readonly string[] }>> {
   return async (tx, request) => {
     const { tenantId, personId } = request;
@@ -88,7 +88,7 @@ export function anonymiseDue(deps: {
     // Due on the leaver's own calendar: "48 months after the last day" ends
     // at midnight where they worked, not where the server is (PRD §6.8).
     const at = deps.clock.instant();
-    const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+    const calendar = await deps.calendars.load(tx, tenantId);
     const today = localDate(at, personZone(calendar, leaver.placement, at));
     const due = dueForAnonymisation(attributes, leaver.lastWorkingDay, today).filter((d) =>
       leaver.held.has(d.key),

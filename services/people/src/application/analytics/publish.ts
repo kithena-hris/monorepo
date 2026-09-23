@@ -4,7 +4,7 @@ import type { AttributeDefinition } from '@kithena/contracts';
 
 import { cohortMinimum, suppressSmallCohorts, type Suppressed } from './access.js';
 import { entityDays } from '../../domain/org/calendar.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import {
   dayOf,
   DIMENSIONS,
@@ -268,7 +268,7 @@ export interface PublishRequest {
  * key says so, and a second replica racing the first loses quietly.
  */
 export async function publishBreakdowns(
-  deps: { readonly clock: Clock; readonly calendars?: Calendars },
+  deps: { readonly clock: Clock; readonly calendars: Calendars },
   scope: TenantScope,
   request: PublishRequest,
 ): Promise<Result<{ readonly published: readonly string[] }>> {
@@ -276,7 +276,7 @@ export async function publishBreakdowns(
   // The snapshot's day, never a second reading of the clock: a publication
   // is of the run it reads, and each entity was counted on its own day.
   const today = request.run.day;
-  const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+  const calendar = await deps.calendars.load(tx, tenantId);
   const threshold = cohortMinimum(request.cohortMinimum);
 
   const [run] = await rows<{ today: boolean; previous: string | null }>(

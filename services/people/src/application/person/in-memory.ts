@@ -14,6 +14,7 @@ import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
 import type { PersonRecord } from './ports.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * The person ports, in memory, for tests that are about a rule rather than
@@ -155,16 +156,18 @@ export function inMemoryPeople(
   };
 
   const deps: PersonAccessDeps = {
+    calendars: utcCalendars,
     people,
     reader: {
       record(_tx, _tenant, id) {
         const row = rows.get(id);
         return Promise.resolve(row ? toRecord(row) : null);
       },
-      page: (_tx, _tenant, after, limit) =>
+      page: (_tx, _tenant, after, limit, where = {}) =>
         Promise.resolve(
           [...rows.values()]
             .filter((r) => after === null || r.snapshot.id > after)
+            .filter((r) => Object.entries(where).every(([k, v]) => r.fields.custom[k] === v))
             .toSorted((a, b) => a.snapshot.id.localeCompare(b.snapshot.id))
             .slice(0, limit)
             .map(toRecord),
@@ -204,6 +207,7 @@ export function inMemoryPeople(
         ),
     },
     uniques: {
+      lock: () => Promise.resolve(),
       claim: () => Promise.resolve(ok(undefined)),
       release: () => Promise.resolve(),
     },
