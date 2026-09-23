@@ -869,7 +869,9 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
       carries a link, not the data. *(PRD §16.3)*
 - [ ] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
-      enforced in the query. *(PRD §6.7)*
+      enforced in the query. Its design follows PEO-083: served from the
+      monthly publication, rounded to 5, never from the live snapshot.
+      *(PRD §6.7, §16.1)*
 - [ ] **PEO-071** Bulk edit beyond the completeness grid. *(PRD §8.4)*
 
 ## Phase 3

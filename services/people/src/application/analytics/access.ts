@@ -12,7 +12,8 @@ import { visibleTo, type ViewerRelations } from '../../domain/access/field-acces
  *    it, so each one goes through `visibleTo` — the same decision a profile
  *    read makes. A manager's charts count their own chain and nobody else.
  * 2. **Cohort minimum.** A breakdown touching special-category data is served
- *    to HR only, and withheld whole when any cell is under the minimum.
+ *    to HR only, and withheld whole when any cell is under the minimum. It is
+ *    served from a monthly publication, rounded, never live (`publish.ts`).
  *
  * Enforced here rather than in a chart component, because the tooltip and the
  * export are built from what this layer returns: a number it withheld is a
