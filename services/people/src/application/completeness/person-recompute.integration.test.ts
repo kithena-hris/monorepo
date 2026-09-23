@@ -215,9 +215,9 @@ async function raised(): Promise<string[]> {
 }
 
 const due = () =>
-  inTenant(ACME, ({ tx }) => store.dueReminders(tx, ACME, new Date(NOW))).then((d) =>
-    d.map((r) => r.personId),
-  );
+  inTenant(ACME, ({ tx }) =>
+    store.dueReminders(tx, ACME, new Date(NOW), { after: null, limit: 500 }),
+  ).then((d) => d.map((r) => r.personId));
 
 describe('a field filled, cleared or corrected', () => {
   it('moves the stored state, the gaps and the reminder in the same transaction', async () => {
@@ -252,7 +252,11 @@ describe('a field filled, cleared or corrected', () => {
       employee: [],
       staff: ['cost_centre'],
     });
-    expect(await raised()).toEqual(['profile_incomplete', 'profile_completed', 'profile_incomplete']);
+    expect(await raised()).toEqual([
+      'profile_incomplete',
+      'profile_completed',
+      'profile_incomplete',
+    ]);
 
     // A correction that fills it again is a transition too.
     const [entry] = [
