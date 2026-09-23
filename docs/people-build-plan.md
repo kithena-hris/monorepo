@@ -681,7 +681,7 @@ Test-first, all of it. No drivers, no I/O.
   is visible without rebuilding the shell. **Do not skip this check** — if it
   fails, the federation is decoration.
 
-### [ ] PEO-047 — Field registry screens
+### [x] PEO-047 — Field registry screens
 
 - **Spec** PRD §9.1, §9.2 · design screens 2 and 3
 - **Files** `apps/web/people/src/settings/`
@@ -693,7 +693,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** reordering works by keyboard, `pnpm test:stories` is green, and
   no hand-rolled control appears in the diff.
 
-### [ ] PEO-048 — Publish and impact
+### [x] PEO-048 — Publish and impact
 
 - **Spec** PRD §9.3 · design screen 4
 - **Files** `apps/web/people/src/settings/publish.tsx`
