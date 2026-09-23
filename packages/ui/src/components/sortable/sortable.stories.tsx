@@ -58,6 +58,7 @@ const meta = {
       table: { defaultValue: { summary: "'handle'" }, category: 'Interaction' },
     },
     hideMoveButtons: { control: 'boolean', table: { category: 'Interaction' } },
+    itemLabel: { control: false, table: { category: 'Accessibility' } },
     onReorder: { control: false, table: { category: 'Interaction' } },
     children: { control: false, table: { category: 'Data' } },
   },
@@ -184,6 +185,45 @@ export const WholeRow: Story = {
           <SortableList
             {...args}
             items={items}
+            onReorder={(move) => {
+              args.onReorder(move);
+              setItems((current) => {
+                const byId = new Map(current.map((item) => [item.id, item]));
+                return move.order.flatMap((id) => byId.get(id) ?? []);
+              });
+            }}
+          >
+            {(item) => <span className="truncate text-sm text-fg">{item.name}</span>}
+          </SortableList>
+        </CardContent>
+      </Card>
+    );
+  },
+};
+
+export const NamedRows: Story = {
+  name: 'Rows that say what they are',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`itemLabel` names each row for its own controls and for the drag announcements. Without it the buttons read *"Move item 3 up"*, which is true and makes a screen reader user count; with it they read *"Move Ada Lovelace up"*, and *"Picked up Ada Lovelace"* when a drag starts.',
+      },
+    },
+  },
+  render: function NamedRowsStory(args) {
+    const [items, setItems] = useState<Approver[]>(approvers);
+
+    return (
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Approval chain</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SortableList
+            {...args}
+            items={items}
+            itemLabel={(item) => item.name}
             onReorder={(move) => {
               args.onReorder(move);
               setItems((current) => {

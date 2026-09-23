@@ -681,7 +681,7 @@ Test-first, all of it. No drivers, no I/O.
   is visible without rebuilding the shell. **Do not skip this check** — if it
   fails, the federation is decoration.
 
-### [ ] PEO-047 — Field registry screens
+### [x] PEO-047 — Field registry screens
 
 - **Spec** PRD §9.1, §9.2 · design screens 2 and 3
 - **Files** `apps/web/people/src/settings/`
@@ -693,7 +693,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** reordering works by keyboard, `pnpm test:stories` is green, and
   no hand-rolled control appears in the diff.
 
-### [ ] PEO-048 — Publish and impact
+### [x] PEO-048 — Publish and impact
 
 - **Spec** PRD §9.3 · design screen 4
 - **Files** `apps/web/people/src/settings/publish.tsx`
@@ -972,11 +972,28 @@ it is written down here rather than left in a PR description.
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next
       transaction. Found in PEO-032. *(PRD §13.3)*
-- [ ] **PEO-094** The People remote: no server-side rendering, Tailwind classes
-      used only by the remote may stay unstyled until the shell rebuilds, the
-      sidebar item is still disabled, and the remote's host needs `no-cache`
-      and CORS for `remoteEntry.js` and `routes.json`. Settle the CSS question
-      before PEO-047. Found in PEO-046.
+- [ ] **PEO-094** The People remote: no server-side rendering, and the
+      remote's host needs `no-cache` and CORS for `remoteEntry.js` and
+      `routes.json`. Found in PEO-046.
+      *Settled in PEO-047:* the CSS. The remote compiles its own utilities
+      (`apps/web/people/src/styles.css`, against `@reach/ui/theme.css`, no
+      preflight and no tokens) and `bundleAllCSS` loads them with the expose;
+      the shell no longer scans `apps/web/people`, so a class missing from the
+      remote's build fails in development too. Proven against an unchanged
+      production shell build: a remote-only class was styled, a rebuild of
+      the remote alone restyled it, and the same build without the remote's
+      stylesheet left it unstyled. The sidebar item is enabled.
+      *Still open:* SSR (the screen is client-only behind a spinner; the shell
+      is Next, not Modern.js) and the hosting headers.
+- [ ] **PEO-098** The shell hands People screens their data. The screens from
+      PEO-047 on are presentational: each takes a `Loadable` and async
+      callbacks as props, and `routes.json` lists none of them yet because the
+      shell has nothing to pass. Needs the router forwarding a principal
+      (PEO-092), a query per route that the shell runs and passes down, the
+      callbacks as server actions, and transports for what only the
+      application layer has today — draft edits, reorder, publish preview and
+      publish, the setup pack, import, export, analytics and webhook endpoint
+      management. Found in PEO-047.
 - [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
