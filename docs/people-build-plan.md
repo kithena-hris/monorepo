@@ -670,7 +670,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### UI
 
-### [ ] PEO-046 — The People remote
+### [x] PEO-046 — The People remote
 
 - **Spec** `docs/build-plan.md`, step 3
 - **Files** `apps/web/people/`
