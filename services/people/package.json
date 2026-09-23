@@ -41,6 +41,7 @@
     "@temporalio/testing": "^1.22.0",
     "fast-formula-parser": "1.0.19",
     "graphql": "^16.11.0",
+    "jose": "^6.2.8",
     "vitest": "^4.1.11"
   }
 }

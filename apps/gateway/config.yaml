@@ -12,12 +12,65 @@ persisted_operations:
   safelist:
     enabled: true
 
+# Who is asking, verified here and nowhere else (PEO-092).
+#
+# A token minted by identity (ES256, `docs/authentication.md` "Sessions") is
+# checked against identity's published keys, and a request without one is
+# refused before any subgraph sees it. The subgraphs never parse a JWT.
+authentication:
+  jwt:
+    jwks:
+      - url: '${AUTH_JWKS_URL}'
+        refresh_interval: 5m
+        algorithms: ['ES256']
+    header_name: Authorization
+    header_value_prefix: Bearer
+
+authorization:
+  require_authentication: true
+
+# What a subgraph is told, and the proof the router told it.
+#
+# People trusts `x-kithena-principal` only beside `x-internal-token`
+# (`services/people/src/http/caller.ts`): the token says the router sent the
+# request, and the principal says for whom. Both are `set`, never
+# `propagate`, so a copy a client sent is overwritten rather than forwarded —
+# a client that could choose its own principal could read anybody's record.
+#
+# `roles` is empty on purpose: tenant roles are OpenFGA tuples (PEO-092), not
+# token claims. `entitlements` is the deployment's list until tenants carry
+# their own (see `docs/people-prd.md` §13), as a JSON array, e.g.
+# `KITHENA_ENTITLEMENTS='["module.people"]'`.
+headers:
+  subgraphs:
+    people:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          # Concatenated rather than `toJSON`, which this router's expression
+          # language does not offer. Safe because `sub` and `tid` come from a
+          # token identity signed, and are uuids; People re-validates both.
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","roles":[],"entitlements":${KITHENA_ENTITLEMENTS}}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${PEOPLE_API_TOKEN}'
+
+# `complexity_limits`, not `complexity_calculation`: the router refuses to boot
+# on the old key (schema validation), which went unnoticed until PEO-092 first
+# started this file in a test.
 security:
-  complexity_calculation:
-    enabled: true
-    max_total_score: 10000
-    max_depth: 12
-    max_root_fields: 20
+  complexity_limits:
+    total_fields:
+      enabled: true
+      limit: 10000
+    depth:
+      enabled: true
+      limit: 12
+    root_fields:
+      enabled: true
+      limit: 20
 
 traffic_shaping:
   router:
