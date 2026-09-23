@@ -1377,6 +1377,27 @@ This is the same trust the router holds (§13.1), and it exists because nothing
 mints a token for the tenant app yet. When something does, one file in the
 shell changes.
 
+**The screens render on the server (PEO-094).** Module Federation cannot do
+this inside the Next App Router: `@module-federation/nextjs-mf` never supported
+the App Router and is being wound down. So the remote publishes a second build
+beside `remoteEntry.js`: `ssr/people.cjs`, whose only imports are React, its
+JSX runtime and Reach, plus `ssr/people.css`.
+
+- **How the page renders.** The page fetches the server build per request and
+  evaluates it with the shell's own copies of those three modules, which is
+  what federation's Node runtime does. The screen is sent in the same response.
+  Hydration keeps that HTML until the browser build arrives, and the screen
+  becomes interactive when it does.
+- **What it trusts.** The remote's host is inside the shell's trust boundary,
+  because its code runs with the shell server's privileges.
+  `PEOPLE_REMOTE_SSR=off` turns server rendering off, and the page is then
+  client-rendered as before.
+- **Hosting.** `apps/web/people/vercel.json` serves the files that are read
+  per load (`remoteEntry.js`, `routes.json` and the server build) with
+  `Cache-Control: no-cache`, so a redeploy is seen at once. The hashed chunks
+  are `immutable`. It echoes CORS for `https://*.app.kithena.com` and
+  `*.staging.app.kithena.com`.
+
 ### 13.3 Webhooks (Phase 1)
 
 | Property | Behaviour |

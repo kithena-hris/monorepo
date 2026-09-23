@@ -1009,7 +1009,7 @@ it is written down here rather than left in a PR description.
       an alert email to the endpoint's `alert_email` (migration
       20260924120100), a boot-and-every-minute poller, and a lease claim per
       delivery.
-- [ ] **PEO-094** The People remote: no server-side rendering, and the
+- [x] **PEO-094** The People remote: no server-side rendering, and the
       remote's host needs `no-cache` and CORS for `remoteEntry.js` and
       `routes.json`. Found in PEO-046.
       *Settled in PEO-047:* the CSS. The remote compiles its own utilities
@@ -1022,6 +1022,24 @@ it is written down here rather than left in a PR description.
       stylesheet left it unstyled. The sidebar item is enabled.
       *Still open:* SSR (the screen is client-only behind a spinner; the shell
       is Next, not Modern.js) and the hosting headers.
+      *Landed:* the SSR and the hosting headers.
+      - **Server rendering by the remote's own server build.** Module
+        Federation does not support the App Router on the server.
+        `vite.ssr.config.ts` builds `ssr/people.cjs`, whose only imports are
+        React, JSX and Reach. The page fetches it per request and
+        `remote-screen.tsx` evaluates it against the shell's copies of those
+        three. The screen streams in the response, and hydration holds it
+        until federation has loaded the browser build.
+      - **The hosting headers** are in `apps/web/people/vercel.json`:
+        `no-cache` on `remoteEntry.js`, `routes.json` and the server build,
+        `immutable` on the hashed chunks, and CORS echoed for tenant origins.
+      - **Proven** by the acceptance test: with the remote's JavaScript
+        blocked, the profile is still on the page. With it, the same page
+        hydrates without a mismatch and saves.
+      - **The trade.** The remote's host now runs code on the shell's
+        server. `PEOPLE_REMOTE_SSR=off` turns server rendering off.
+      - **Not verified.** The CORS capture group in `vercel.json` has not
+        been checked on a real deployment, because nothing was deployed.
 - [x] **PEO-098** The shell hands People screens their data. The screens from
       PEO-047 on are presentational: each takes a `Loadable` and async
       callbacks as props, and `routes.json` lists none of them yet because the
