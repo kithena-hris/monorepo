@@ -79,10 +79,10 @@ export function exportStoreFrom(env: NodeJS.ProcessEnv, clock: Clock = systemClo
     sealing,
     s3Blobs({
       bucket,
-      region: env['PEOPLE_EXPORT_S3_REGION'] ?? 'us-east-1',
-      ...(env['PEOPLE_EXPORT_S3_ENDPOINT'] ? { endpoint: env['PEOPLE_EXPORT_S3_ENDPOINT'] } : {}),
-      accessKeyId: env['PEOPLE_EXPORT_S3_ACCESS_KEY_ID'] ?? '',
-      secretAccessKey: env['PEOPLE_EXPORT_S3_SECRET_ACCESS_KEY'] ?? '',
+      region: env['S3_REGION'] ?? 'us-east-1',
+      ...(env['S3_ENDPOINT'] ? { endpoint: env['S3_ENDPOINT'] } : {}),
+      accessKeyId: env['S3_ACCESS_KEY_ID'] ?? '',
+      secretAccessKey: env['S3_SECRET_ACCESS_KEY'] ?? '',
     }),
   );
 }

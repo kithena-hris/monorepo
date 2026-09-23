@@ -76,11 +76,15 @@ export async function requestExport(
     exportId,
     requestedBy: request.viewer.accountId,
   });
-  const { viewer, exportId: _ignored, ...rest } = request;
+  // A stray `exportId` in `rest` is harmless: the job's own is the one used.
+  const { viewer, ...rest } = request;
   return ok({
     status: 'queued',
     exportId,
-    job: { exportId, request: { ...rest, viewer: { accountId: viewer.accountId, roles: [...viewer.roles] } } },
+    job: {
+      exportId,
+      request: { ...rest, viewer: { accountId: viewer.accountId, roles: [...viewer.roles] } },
+    },
   });
 }
 
