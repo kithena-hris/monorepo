@@ -37,6 +37,8 @@ export interface SchemaRepository {
     tenantId: string,
     version: PublishedVersion,
     events: readonly PendingEvent[],
+    /** The tenant-local date the impact preview evaluated `requiredFrom` on. */
+    evaluatedOn: string,
   ): Promise<void>;
 }
 

@@ -45,3 +45,21 @@ CREATE POLICY completeness_gap_tenant_isolation ON people.completeness_gap
 
 -- No DELETE: the row outlives the gap, for the reason at the top.
 GRANT SELECT, INSERT, UPDATE ON people.completeness_gap TO svc_people;
+
+-- ------------------------------------------------ schema_version.evaluated_on --
+--
+-- The calendar date the publish's impact preview evaluated `requiredFrom`
+-- against, in the tenant's time zone.
+--
+-- The recompute runs later, from `schema.published`, which carries no time
+-- zone. Without this it would have to guess one, and at 01:00 in Auckland the
+-- guess "UTC" is yesterday: a field required from today is required in the
+-- preview the admin accepted and not in the recompute that follows, and the
+-- two numbers stop agreeing on exactly the day somebody is looking. Recording
+-- the date, rather than the zone, also pins the recompute to the day the
+-- preview was shown even if the run itself starts after midnight.
+--
+-- Nullable, because a version written before this column existed has no
+-- answer; the recompute falls back to today in UTC for those. Written once on
+-- INSERT like every other column here — the row's trigger refuses an UPDATE.
+ALTER TABLE people.schema_version ADD COLUMN evaluated_on date;

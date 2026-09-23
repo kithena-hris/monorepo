@@ -1,5 +1,6 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { publish } from '@kithena/db-kit';
+import { CalendarDate } from '@kithena/contracts';
 
 import type { CompletenessStore, GridRow, Reminder } from '../application/completeness/store.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
@@ -15,14 +16,18 @@ import { outbox, person, schemaVersion } from './tables.js';
  */
 export function drizzleCompletenessStore(): CompletenessStore {
   return {
-    async definitionsAt(tx, tenantId, version) {
+    async versionAt(tx, tenantId, version) {
       const rows = await tx
-        .select({ document: schemaVersion.document })
+        .select({ document: schemaVersion.document, evaluatedOn: schemaVersion.evaluatedOn })
         .from(schemaVersion)
         .where(and(eq(schemaVersion.tenantId, tenantId), eq(schemaVersion.version, version)))
         .limit(1);
       const row = rows[0];
-      return row ? (row.document as SchemaDocument).attributes : null;
+      if (!row) return null;
+      return {
+        attributes: (row.document as SchemaDocument).attributes,
+        evaluatedOn: row.evaluatedOn === null ? null : CalendarDate.parse(row.evaluatedOn),
+      };
     },
 
     async setState(tx, tenantId, state, personIds) {

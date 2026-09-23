@@ -8,7 +8,7 @@ import {
   type CompletenessState,
   type MissingAttribute,
 } from '../../domain/person/completeness.js';
-import { computeImpact, type EvaluablePerson } from '../schema/impact.js';
+import { clockAsOf, computeImpact, type EvaluablePerson } from '../schema/impact.js';
 import type { PeopleFactsReader, SchemaRepository } from '../schema/schema-repository.js';
 import type { CompletenessStore, Gap } from './store.js';
 
@@ -81,17 +81,28 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
       return ok({ evaluated: 0, becameIncomplete: 0, becameComplete: 0, superseded: true });
     }
 
-    const after = await deps.store.definitionsAt(tx, tenantId, schemaVersion);
-    if (after === null) {
+    const published = await deps.store.versionAt(tx, tenantId, schemaVersion);
+    if (published === null) {
       return err(
         failure('VERSION_NOT_FOUND', `Schema version ${String(schemaVersion)} was never published`),
       );
     }
+    const after = published.attributes;
     const before =
       schemaVersion > 1
-        ? ((await deps.store.definitionsAt(tx, tenantId, schemaVersion - 1)) ?? [])
+        ? ((await deps.store.versionAt(tx, tenantId, schemaVersion - 1))?.attributes ?? [])
         : [];
 
+    /*
+     * Evaluate the day the preview evaluated, as recorded on the version —
+     * not today in UTC. The event that starts this run carries no time zone,
+     * and at 01:00 in Auckland "today in UTC" is yesterday: a field required
+     * from today would be in the preview's count and missing from this one,
+     * and the admin would have been shown a number that did not happen. A
+     * version written before the date was recorded falls back to the clock.
+     */
+    const clock =
+      published.evaluatedOn === null ? deps.clock : clockAsOf(deps.clock, published.evaluatedOn);
     const timeZone = request.timeZone ?? 'Etc/UTC';
     let evaluated = 0;
     let becameIncomplete = 0;
@@ -109,8 +120,8 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
 
       for (const person of batch) {
         // The preview's own classification, asked about one person.
-        const impact = computeImpact(before, after, [person], deps.clock, timeZone);
-        const verdict = assessCompleteness(after, person.facts, deps.clock, timeZone);
+        const impact = computeImpact(before, after, [person], clock, timeZone);
+        const verdict = assessCompleteness(after, person.facts, clock, timeZone);
 
         byState[verdict.state].push(person.personId);
         const owners = gapsByOwner(verdict);

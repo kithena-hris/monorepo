@@ -118,9 +118,10 @@ async function defineAttribute(
   key: string,
   owner: 'hr' | 'employee',
   required: boolean,
+  requiredFrom: string | null = null,
 ): Promise<void> {
   const requiredness = required
-    ? { mode: 'always', requiredFrom: null, appliesTo: 'all_records' }
+    ? { mode: 'always', requiredFrom, appliesTo: 'all_records' }
     : { mode: 'never' };
   await admin.execute(sql`
     INSERT INTO people.attribute_definition (
@@ -152,9 +153,12 @@ async function seed(
   `);
 }
 
-async function publishAndRecompute(clock: Clock) {
+async function publishAndRecompute(clock: Clock, timeZone?: string) {
   const published = await inTenant(ACME, ({ tx }) =>
-    publishSchema({ ...deps(clock) }).publish(tx, publishRequest),
+    publishSchema({ ...deps(clock) }).publish(
+      tx,
+      timeZone === undefined ? publishRequest : { ...publishRequest, timeZone },
+    ),
   );
   if (!published.ok) throw new Error(published.error.message);
 
@@ -310,6 +314,25 @@ describe('a tightening publish over 400 people', () => {
        WHERE p.status = 'provisional' AND cardinality(g.employee_keys) > 0
     `);
     expect([...provisional][0]?.['n']).toBe(0);
+  });
+});
+
+describe('a tenant whose calendar is not UTC', () => {
+  it('counts a requiredFrom on the local date the preview used, not the UTC one', async () => {
+    // 13:00 UTC on the 23rd is 01:00 on the 24th in Auckland (NZST, UTC+12).
+    // A field required from the 24th is required locally and not yet in UTC,
+    // so a recompute that assumed UTC would raise nothing at all. The
+    // recompute below is called the way the consumer calls it: with no time
+    // zone, because `schema.published` does not carry one.
+    const nearMidnight = fixedClock('2026-09-23T13:00:00.000Z');
+    await defineAttribute('cost_centre', 'hr', true, '2026-09-24');
+    await seed(40, 10, { cost_centre: 'CC-1' });
+
+    const { preview, summary } = await publishAndRecompute(nearMidnight, 'Pacific/Auckland');
+
+    expect(preview.impact.becomingIncomplete).toBe(30);
+    expect(summary.becameIncomplete).toBe(preview.impact.becomingIncomplete);
+    expect(await outbox('people.person.profile_incomplete')).toHaveLength(30);
   });
 });
 

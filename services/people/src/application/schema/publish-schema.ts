@@ -4,7 +4,13 @@ import type { Actor } from '@kithena/contracts';
 
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import { diff, publish, type PublishedVersion, type SchemaDiff } from '../../domain/schema/publish.js';
-import { computeImpact, ownersOf, type EvaluablePerson, type PublishImpact } from './impact.js';
+import {
+  clockAsOf,
+  computeImpact,
+  ownersOf,
+  type EvaluablePerson,
+  type PublishImpact,
+} from './impact.js';
 import type { PeopleFactsReader, SchemaRepository } from './schema-repository.js';
 
 /**
@@ -72,7 +78,9 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
   async function evaluate(
     tx: PostgresJsDatabase,
     request: PublishRequest,
-  ): Promise<Result<{ candidate: PublishedVersion; preview: PublishPreview }>> {
+  ): Promise<
+    Result<{ candidate: PublishedVersion; preview: PublishPreview; evaluatedOn: string }>
+  > {
     const [{ sections, attributes }, current] = await Promise.all([
       deps.schema.loadDraft(tx, request.tenantId),
       deps.schema.currentVersion(tx, request.tenantId),
@@ -102,11 +110,19 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
       people.push(person);
     }
 
-    const impact = computeImpact(before, after, people, deps.clock, request.timeZone);
+    /*
+     * One date, taken once, in the tenant's calendar. The preview evaluates
+     * against it and the publish records it on the version, so the recompute
+     * that runs later off `schema.published` — which carries no time zone —
+     * evaluates the same day rather than guessing one.
+     */
+    const evaluatedOn = deps.clock.date(request.timeZone ?? 'Etc/UTC');
+    const impact = computeImpact(before, after, people, clockAsOf(deps.clock, evaluatedOn));
     const newlyRequired = [...new Set(impact.people.flatMap((p) => p.newlyMissing))];
 
     return ok({
       candidate: candidate.value,
+      evaluatedOn,
       preview: {
         nextVersion: candidate.value.version,
         diff: diff(current?.document ?? { sections: [], attributes: [] }, candidate.value.document),
@@ -128,7 +144,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
       const evaluated = await evaluate(tx, request);
       if (!evaluated.ok) return evaluated;
 
-      const { candidate, preview } = evaluated.value;
+      const { candidate, preview, evaluatedOn } = evaluated.value;
 
       /*
        * A version identical to the one in force is refused.
@@ -151,6 +167,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
         request.tenantId,
         candidate,
         events(candidate, preview, request, deps),
+        evaluatedOn,
       );
 
       return ok({ version: candidate, preview });

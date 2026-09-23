@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { PendingEvent } from '@kithena/domain-kit';
-import type { AttributeDefinition } from '@kithena/contracts';
+import type { AttributeDefinition, CalendarDate } from '@kithena/contracts';
 
 import type { CompletenessState } from '../../domain/person/completeness.js';
 
@@ -12,12 +12,19 @@ import type { CompletenessState } from '../../domain/person/completeness.js';
  * be reading a connection with no tenant set.
  */
 export interface CompletenessStore {
-  /** The attributes of one published version, or null when there is no such version. */
-  definitionsAt(
+  /**
+   * One published version's attributes and the date its preview evaluated
+   * `requiredFrom` on, or null when there is no such version. `evaluatedOn` is
+   * null for a version written before that was recorded.
+   */
+  versionAt(
     tx: PostgresJsDatabase,
     tenantId: string,
     version: number,
-  ): Promise<readonly AttributeDefinition[] | null>;
+  ): Promise<{
+    attributes: readonly AttributeDefinition[];
+    evaluatedOn: CalendarDate | null;
+  } | null>;
 
   /**
    * Set the stored state for these people, and say whose actually changed.

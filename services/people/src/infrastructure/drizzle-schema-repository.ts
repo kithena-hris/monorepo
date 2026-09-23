@@ -62,7 +62,7 @@ export function drizzleSchemaRepository(): SchemaRepository {
       };
     },
 
-    async appendVersion(tx, tenantId, version, events) {
+    async appendVersion(tx, tenantId, version, events, evaluatedOn) {
       await tx.insert(schemaVersion).values({
         tenantId,
         version: version.version,
@@ -71,6 +71,7 @@ export function drizzleSchemaRepository(): SchemaRepository {
         checksum: version.checksum,
         document: version.document,
         rolledBackFrom: version.rolledBackFrom,
+        evaluatedOn,
       });
 
       // Same transaction as the row, which is the whole mechanism.
