@@ -30,7 +30,9 @@ export interface SendNoticeRequest {
   readonly dedupeKey: string;
 }
 
-export type SendNotice = (request: SendNoticeRequest) => Promise<Result<{ messageId: string | null }>>;
+export type SendNotice = (
+  request: SendNoticeRequest,
+) => Promise<Result<{ messageId: string | null }>>;
 
 export interface SendNoticeDeps {
   readonly transport: EmailTransport;

@@ -46,7 +46,8 @@ export function httpReminderMailer(config: ReminderMailerConfig): ReminderMailer
         }),
         signal: AbortSignal.timeout(config.timeoutMs ?? 5000),
       });
-      if (!response.ok) throw new Error(`messaging refused the reminder: ${String(response.status)}`);
+      if (!response.ok)
+        throw new Error(`messaging refused the reminder: ${String(response.status)}`);
     },
   };
 }

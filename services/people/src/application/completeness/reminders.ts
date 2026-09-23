@@ -42,14 +42,12 @@ export function sweepReminders(deps: SweepDeps) {
     let sent = 0;
     let failed = 0;
     for (;;) {
-      // eslint-disable-next-line no-await-in-loop -- one bounded batch at a time is the point
+      // One bounded batch at a time is the point.
       const claimed = await deps.inTenant(tenantId, ({ tx }) =>
         deps.store.claimReminders(tx, tenantId, now, limit),
       );
-      // eslint-disable-next-line no-await-in-loop -- send this batch before claiming the next
-      const outcomes = await Promise.allSettled(
-        claimed.map((r) => deps.mailer.send(tenantId, r)),
-      );
+      // Send this batch before claiming the next.
+      const outcomes = await Promise.allSettled(claimed.map((r) => deps.mailer.send(tenantId, r)));
       const lost = outcomes.filter((o) => o.status === 'rejected').length;
       failed += lost;
       sent += claimed.length - lost;

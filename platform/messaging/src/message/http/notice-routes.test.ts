@@ -17,7 +17,9 @@ const body = {
 };
 
 function exchange(token: string | undefined, payload: unknown = body) {
-  const request = Readable.from([Buffer.from(JSON.stringify(payload))]) as unknown as IncomingMessage;
+  const request = Readable.from([
+    Buffer.from(JSON.stringify(payload)),
+  ]) as unknown as IncomingMessage;
   request.method = 'POST';
   request.url = '/api/internal/messaging/notice';
   request.headers = token === undefined ? {} : { 'x-internal-token': token };

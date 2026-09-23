@@ -34,12 +34,12 @@ interface Copy {
 /** Enough for any real schema; a count past it is a caller bug, not copy. */
 const MAX_COUNT = 1000;
 
-function copyFor(notice: Notice): Copy | null {
-  switch (notice.kind) {
-    case 'profile_reminder': {
-      const n = notice.missing;
-      if (!Number.isInteger(n) || n < 1 || n > MAX_COUNT) return null;
-      const details = n === 1 ? 'one detail' : `${String(n)} details`;
+/** Each kind's copy, or null when its input cannot be said honestly. */
+const COPY: { readonly [K in NoticeKind]: (notice: Extract<Notice, { kind: K }>) => Copy | null } =
+  {
+    profile_reminder: ({ missing }) => {
+      if (!Number.isInteger(missing) || missing < 1 || missing > MAX_COUNT) return null;
+      const details = missing === 1 ? 'one detail' : `${String(missing)} details`;
       return {
         subject: 'A few details are missing from your profile',
         heading: 'Your profile needs a few details',
@@ -48,21 +48,18 @@ function copyFor(notice: Notice): Copy | null {
         footer:
           'Sent by Kithena on behalf of your employer. You will get at most one of these a week, and none once your profile is complete.',
       };
-    }
-  }
-}
+    },
+  };
 
 export function renderNotice(notice: Notice, url: string): Result<RenderedMessage> {
-  const copy = copyFor(notice);
+  const copy = COPY[notice.kind](notice);
   const href = safeHref(url);
   if (copy === null || href === null) return err(Unrenderable);
 
   return ok({
     subject: copy.subject,
     html: html(copy, href, escapeHtml(url)),
-    text: [copy.heading, '', copy.lede, '', `${copy.action}:`, url, '', copy.footer, ''].join(
-      '\n',
-    ),
+    text: [copy.heading, '', copy.lede, '', `${copy.action}:`, url, '', copy.footer, ''].join('\n'),
   });
 }
 

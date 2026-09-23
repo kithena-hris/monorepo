@@ -32,7 +32,7 @@ describe('httpReminderMailer', () => {
     if (call === undefined) throw new Error('expected a request');
     expect(call.url).toBe('http://messaging:4101/api/internal/messaging/notice');
     expect((call.init.headers as Record<string, string>)['x-internal-token']).toBe('people-token');
-    const body = String(call.init.body);
+    const body = call.init.body as string;
     expect(JSON.parse(body)).toEqual({
       tenantId: '00000000-0000-4000-8000-00000000000a',
       email: 'ada@acme.example',

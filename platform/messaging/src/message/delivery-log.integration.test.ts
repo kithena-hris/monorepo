@@ -156,7 +156,9 @@ describe('recording an attempt', () => {
   });
 
   it('records a profile reminder under its own kind', async () => {
-    await expect(log().record({ ...invitation(), kind: 'profile_reminder' })).resolves.not.toBeNull();
+    await expect(
+      log().record({ ...invitation(), kind: 'profile_reminder' }),
+    ).resolves.not.toBeNull();
   });
 
   it('refuses a kind the schema does not know', async () => {

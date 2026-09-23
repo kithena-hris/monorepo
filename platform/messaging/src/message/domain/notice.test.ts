@@ -33,7 +33,6 @@ describe('renderNotice: profile_reminder', () => {
   });
 
   it('refuses a link that is not http(s)', () => {
-    // eslint-disable-next-line no-script-url -- the case being refused
     expect(renderNotice({ kind: 'profile_reminder', missing: 2 }, 'javascript:alert(1)').ok).toBe(
       false,
     );
