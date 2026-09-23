@@ -3,6 +3,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type * as z from 'zod';
 import {
   PersonAccessEnded,
+  PersonAccessRestored,
   PersonIdentityFactsChanged,
   type EventEnvelope,
 } from '@kithena/contracts';
@@ -38,6 +39,8 @@ import { uuidv7 } from '../../shared/uuid.js';
  * and the passkeys are left alone, so a rehire signs in with the one they
  * have. The status it was suspended from is kept (`access_ended_from`), and an
  * account identity had already suspended or terminated keeps its own reason.
+ * A rehire's start (`access_restored`, PEO-110) puts it back to that status
+ * and lifts nothing identity suspended for its own reasons.
  *
  * **Order and repeats.** One person's events share a partition and arrive in
  * commit order, and each carries whole values rather than a change. That
@@ -67,6 +70,7 @@ const NAME_LIMIT = 100;
 /** `defineEvent` erases the envelope's type on the way out; this names it again. */
 type Facts = EventEnvelope & { payload: z.infer<typeof PersonIdentityFactsChanged.payload> };
 type AccessEnded = EventEnvelope & { payload: z.infer<typeof PersonAccessEnded.payload> };
+type AccessRestored = EventEnvelope & { payload: z.infer<typeof PersonAccessRestored.payload> };
 
 export function peopleConsumer(
   inTenant: InTenant,
@@ -156,6 +160,52 @@ export function peopleConsumer(
     });
   }
 
+  /**
+   * A rehire's new employment started (PEO-110): lift the suspension People's
+   * end of employment put on, back to the status it was taken from. An
+   * account identity suspended for its own reason is left for an admin.
+   */
+  async function restoreAccess(event: AccessRestored): Promise<Outcome> {
+    const accountId = event.payload.identityAccountId;
+    if (accountId === null) return 'ignored';
+
+    return inTenant(event.tenantId, async (tx) => {
+      const claimed = await tx
+        .update(account)
+        .set({ peopleAccessAt: event.occurredAt, updatedAt: sql`now()` })
+        .where(
+          and(
+            eq(account.tenantId, event.tenantId),
+            eq(account.id, accountId),
+            or(isNull(account.peopleAccessAt), lt(account.peopleAccessAt, event.occurredAt)),
+          ),
+        )
+        .returning({ status: account.status, from: account.accessEndedFrom });
+      const row = claimed[0];
+      if (row === undefined) return 'unchanged';
+      if (row.status !== 'suspended' || row.from === null) return 'applied';
+
+      const snapshot = await accounts.load(tx, accountId);
+      if (!snapshot) return 'unchanged';
+      const aggregate = Account.rehydrate(snapshot);
+      const ctx: EventContext = {
+        clock,
+        newEventId,
+        actor: { kind: 'system', process: 'identity-people-consumer' },
+        correlationId: event.correlationId,
+        causationId: event.eventId,
+      };
+      const to = row.from as 'provisioned' | 'invited' | 'active';
+      if (!aggregate.reinstate(ctx, to).ok) return 'unchanged';
+      await accounts.save(tx, aggregate);
+      await tx
+        .update(account)
+        .set({ accessEndedFrom: null })
+        .where(and(eq(account.tenantId, event.tenantId), eq(account.id, accountId)));
+      return 'applied';
+    });
+  }
+
   return async (raw) => {
     const name: unknown =
       typeof raw === 'object' && raw !== null ? Reflect.get(raw, 'eventName') : undefined;
@@ -164,7 +214,9 @@ export function peopleConsumer(
         ? PersonIdentityFactsChanged
         : name === PersonAccessEnded.name
           ? PersonAccessEnded
-          : null;
+          : name === PersonAccessRestored.name
+            ? PersonAccessRestored
+            : null;
     if (contract === null) return 'ignored';
 
     const parsed = contract.schema.safeParse(raw);
@@ -179,9 +231,9 @@ export function peopleConsumer(
       return 'rejected';
     }
 
-    return contract === PersonAccessEnded
-      ? endAccess(parsed.data as AccessEnded)
-      : correctFacts(parsed.data as Facts);
+    if (contract === PersonAccessEnded) return endAccess(parsed.data as AccessEnded);
+    if (contract === PersonAccessRestored) return restoreAccess(parsed.data as AccessRestored);
+    return correctFacts(parsed.data as Facts);
   };
 }
 

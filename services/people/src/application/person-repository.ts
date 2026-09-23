@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-import type { Person, PersonSnapshot } from '../domain/person/person.js';
+import type { EmploymentPeriodRow, Person, PersonSnapshot } from '../domain/person/person.js';
 import type { HistoryEntry } from '../domain/person/history.js';
 
 /**
@@ -45,6 +45,13 @@ export interface PersonRepository {
     person: Person,
     change?: { fields?: PersonFields; history?: readonly HistoryEntry[] },
   ): Promise<void>;
+
+  /** Every employment period on a person, first first (PEO-110). */
+  periods(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personId: string,
+  ): Promise<readonly EmploymentPeriodRow[]>;
 
   /** The dated facts for one person, for an `asOf` read or a correction. */
   history(

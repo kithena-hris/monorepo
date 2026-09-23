@@ -841,3 +841,164 @@ describe('access ends with employment (PEO-109)', () => {
     expect(p.drainEvents()[0]?.payload).toMatchObject({ identityAccountId: null });
   });
 });
+
+describe('employment periods and rehire (PEO-110)', () => {
+  const NZ = '00000000-0000-4000-8000-0000000000e1';
+  const US = '00000000-0000-4000-8000-0000000000e2';
+  const period1 = {
+    period: 1,
+    legalEntityId: NZ,
+    leavingReason: 'resigned',
+    eligibleForRehire: true,
+    noticeFrom: 'active',
+    rehireOverrideReason: null,
+  } as const;
+  const leaver = (over: Partial<PersonSnapshot> = {}) =>
+    person({
+      status: 'terminated',
+      hireDate: '2024-01-08',
+      lastWorkingDay: '2025-06-30',
+      accessEndedAt: '2025-06-30T12:00:00.000Z',
+      employment: period1,
+      ...over,
+    });
+  // 2026-09-30T12:00Z: already 1 October in Auckland, still the 30th in Los Angeles.
+  const noonUtc = context('2026-09-30T12:00:00.000Z');
+
+  it('records each hire as a period, and notice and termination on it', () => {
+    const p = person();
+    p.hire('2026-10-01', HIRED, ctx, UTC);
+    expect(p.drainPeriod()).toEqual({
+      period: 1,
+      legalEntityId: HIRED.legalEntityId,
+      startedOn: '2026-10-01',
+      lastWorkingDay: null,
+      leavingReason: null,
+      eligibleForRehire: null,
+      noticeFrom: null,
+      rehireOverrideReason: null,
+    });
+    expect(p.drainPeriod()).toBeNull();
+
+    const onLeave = person({ status: 'on_leave', hireDate: '2026-01-01' });
+    onLeave.giveNotice('2026-12-31', ctx, UTC, 'resigned');
+    onLeave.terminate('2026-12-31', after, UTC, { reason: 'resigned', eligibleForRehire: false });
+    expect(onLeave.drainPeriod()).toMatchObject({
+      // A record from before periods existed is its first.
+      period: 1,
+      lastWorkingDay: '2026-12-31',
+      noticeFrom: 'on_leave',
+      leavingReason: 'resigned',
+      eligibleForRehire: false,
+    });
+  });
+
+  it('rehires into a new period on the same record, pre-hire until the start on their calendar', () => {
+    const p = leaver();
+    // The 1st has begun in Auckland, not in Los Angeles.
+    expect(p.rehire('2026-10-01', { ...HIRED, legalEntityId: US }, noonUtc, 'America/Los_Angeles').ok).toBe(true);
+    expect(p.status).toBe('pre_hire');
+    expect(p.snapshot).toMatchObject({
+      hireDate: '2026-10-01',
+      lastWorkingDay: null,
+      // Access stays ended until the new start.
+      accessEndedAt: '2025-06-30T12:00:00.000Z',
+    });
+    expect(p.drainPeriod()).toMatchObject({
+      period: 2,
+      legalEntityId: US,
+      startedOn: '2026-10-01',
+      lastWorkingDay: null,
+      leavingReason: null,
+      eligibleForRehire: null,
+    });
+    expect(p.drainEvents().map((e) => [e.eventName, e.effectiveFrom, e.payload])).toEqual([
+      [
+        'people.person.status_changed',
+        '2026-10-01',
+        { personId: PERSON, previous: 'terminated', next: 'pre_hire', reason: 'rehired' },
+      ],
+      [
+        'people.person.hired',
+        '2026-10-01',
+        expect.objectContaining({
+          identityAccountId: '00000000-0000-4000-8000-0000000000b1',
+          legalEntityId: US,
+          employment: { from: '2026-10-01', to: null },
+          status: 'pending',
+        }),
+      ],
+    ]);
+    // History: the new start, and no end date from it on.
+    expect(p.drainHistory().map((h) => [h.attributeKey, h.value, h.effectiveFrom])).toEqual([
+      ['hire_date', '2026-10-01', '2026-10-01'],
+      ['last_working_day', null, '2026-10-01'],
+    ]);
+
+    // Their first day: active, and access back.
+    expect(p.start(context('2026-10-01T08:00:00.000Z'), 'America/Los_Angeles').ok).toBe(true);
+    expect(p.drainEvents().map((e) => [e.eventName, e.effectiveFrom])).toEqual([
+      ['people.person.status_changed', '2026-10-01'],
+      ['people.person.access_restored', '2026-10-01'],
+    ]);
+    expect(p.accessEndedAt).toBeNull();
+  });
+
+  it('rehires straight to active, with access back, when the start has come', () => {
+    const p = leaver();
+    expect(p.rehire('2026-10-01', HIRED, noonUtc, 'Pacific/Auckland').ok).toBe(true);
+    expect(p.status).toBe('active');
+    const restored = p.drainEvents().find((e) => e.eventName === 'people.person.access_restored');
+    expect(restored).toMatchObject({
+      effectiveFrom: '2026-10-01',
+      payload: {
+        personId: PERSON,
+        identityAccountId: '00000000-0000-4000-8000-0000000000b1',
+        restoredAt: '2026-09-30T12:00:00.000Z',
+        reason: 'rehired',
+      },
+    });
+  });
+
+  it('refuses somebody marked not eligible, unless HR overrides with a reason it keeps', () => {
+    const barred = { ...period1, eligibleForRehire: false } as const;
+    const refused = leaver({ employment: barred }).rehire('2026-10-01', HIRED, noonUtc, UTC);
+    expect(!refused.ok && refused.error.code).toBe('NOT_ELIGIBLE_FOR_REHIRE');
+    const blank = leaver({ employment: barred }).rehire('2026-10-01', HIRED, noonUtc, UTC, '  ');
+    expect(!blank.ok && blank.error.code).toBe('NOT_ELIGIBLE_FOR_REHIRE');
+
+    const p = leaver({ employment: barred });
+    expect(p.rehire('2026-10-01', HIRED, noonUtc, UTC, 'Cleared on appeal').ok).toBe(true);
+    expect(p.drainPeriod()).toMatchObject({ period: 2, rehireOverrideReason: 'Cleared on appeal' });
+    // Its own audit event: who (the envelope's actor), whom, which period, why. Nothing else.
+    const override = p.drainEvents().filter((e) => e.eventName === 'people.person.rehire_override');
+    expect(override).toEqual([
+      expect.objectContaining({
+        effectiveFrom: '2026-10-01',
+        actor: { kind: 'system', process: 'test' },
+        payload: { personId: PERSON, period: 2, reason: 'Cleared on appeal' },
+      }),
+    ]);
+  });
+
+  it('raises no override event when nothing was overridden', () => {
+    const p = leaver();
+    p.rehire('2026-10-01', HIRED, noonUtc, UTC, 'Not needed');
+    expect(p.drainEvents().map((e) => e.eventName)).not.toContain('people.person.rehire_override');
+    expect(p.drainPeriod()).toMatchObject({ rehireOverrideReason: null });
+  });
+
+  it('reads an unknown eligibility as not refused', () => {
+    const p = leaver({ employment: { ...period1, eligibleForRehire: null } });
+    expect(p.rehire('2026-10-01', HIRED, noonUtc, UTC).ok).toBe(true);
+  });
+
+  it('refuses from anything but terminated, and a start inside the old employment', () => {
+    for (const status of ['provisional', 'pre_hire', 'active', 'on_leave', 'notice', 'discarded'] as const) {
+      const r = person({ status, hireDate: '2024-01-08' }).rehire('2026-10-01', HIRED, noonUtc, UTC);
+      expect(!r.ok && r.error.code, status).toBe('INVALID_TRANSITION');
+    }
+    const overlapping = leaver().rehire('2025-06-30', HIRED, noonUtc, UTC);
+    expect(!overlapping.ok && overlapping.error.code).toBe('REHIRE_BEFORE_LAST_DAY');
+  });
+});

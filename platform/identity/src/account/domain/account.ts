@@ -403,10 +403,19 @@ export class Account extends AggregateRoot<string> {
    * with a null `credentialId`, which is a lie in the shape of a nullable
    * field. `raised-events.test.ts` is what caught that.
    */
-  reinstate(ctx: EventContext): Result<void> {
+  reinstate(
+    ctx: EventContext,
+    /**
+     * Where it goes back to. `active` for an admin lifting a suspension; for a
+     * rehire (PEO-110), the status People's end of employment suspended it
+     * from — an invited account that never enrolled goes back to invited,
+     * not to an active account with no passkey.
+     */
+    to: 'provisioned' | 'invited' | 'active' = 'active',
+  ): Result<void> {
     if (this.#status !== 'suspended') return err(InvalidTransition(this.#status, 'reinstated'));
 
-    this.#status = 'active';
+    this.#status = to;
     this.#raise(
       'identity.account.reinstated',
       { accountId: this.id, reinstatedBy: actorAccountId(ctx.actor) },

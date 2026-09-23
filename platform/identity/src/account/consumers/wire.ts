@@ -1,7 +1,11 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
-import { PersonAccessEnded, PersonIdentityFactsChanged } from '@kithena/contracts';
+import {
+  PersonAccessEnded,
+  PersonAccessRestored,
+  PersonIdentityFactsChanged,
+} from '@kithena/contracts';
 import { withTenant } from '@kithena/db-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
@@ -45,7 +49,13 @@ async function start(databaseUrl: string, brokers: string): Promise<() => Promis
   await consumer.connect();
   // One topic per module today, so this is one subscription; a set, so it stays right if not.
   await consumer.subscribe({
-    topics: [...new Set([PersonIdentityFactsChanged.topic, PersonAccessEnded.topic])],
+    topics: [
+      ...new Set([
+        PersonIdentityFactsChanged.topic,
+        PersonAccessEnded.topic,
+        PersonAccessRestored.topic,
+      ]),
+    ],
   });
   await consumer.run({
     eachMessage: async ({ message }) => {

@@ -16,7 +16,7 @@ import type { Asking, PersonView } from '../application/person/person-access.js'
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from '../http/caller.js';
 import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
-import { LEAVING_REASONS } from '../domain/person/person.js';
+import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
 
 /**
  * The People subgraph. Thin: it maps a request to a use case and a domain
@@ -715,6 +715,44 @@ builder.mutationFields((t) => ({
  */
 const LeavingReasonRef = builder.enumType('LeavingReason', { values: LEAVING_REASONS });
 
+/** One employment on a person (PEO-110). */
+const EmploymentPeriodRef = builder
+  .objectRef<EmploymentPeriodRow>('EmploymentPeriod')
+  .implement({
+    fields: (t) => ({
+      period: t.exposeInt('period'),
+      legalEntityId: t.id({ nullable: true, resolve: (p) => p.legalEntityId }),
+      startedOn: t.exposeString('startedOn'),
+      lastWorkingDay: t.string({ nullable: true, resolve: (p) => p.lastWorkingDay }),
+      leavingReason: t.field({
+        type: LeavingReasonRef,
+        nullable: true,
+        resolve: (p) => p.leavingReason,
+      }),
+      eligibleForRehire: t.boolean({ nullable: true, resolve: (p) => p.eligibleForRehire }),
+      noticeFrom: t.string({ nullable: true, resolve: (p) => p.noticeFrom }),
+      rehireOverrideReason: t.string({ nullable: true, resolve: (p) => p.rehireOverrideReason }),
+    }),
+  });
+
+builder.queryFields((t) => ({
+  employmentPeriods: t.field({
+    type: [EmploymentPeriodRef],
+    description: 'Every employment on a person, first first; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: async (_root, args, ctx) => {
+      const { service, asking } = await caller(ctx);
+      return [
+        ...unwrap(
+          await run(service, asking.tenantId, (tx) =>
+            service.access.employmentPeriods(tx, { ...asking, personId: args.personId }),
+          ),
+        ),
+      ];
+    },
+  }),
+}));
+
 async function move(
   ctx: RequestContext,
   name: string,
@@ -776,6 +814,18 @@ builder.mutationFields((t) => ({
     },
     resolve: (_root, { personId, ...rest }, ctx) =>
       move(ctx, 'terminatePerson', personId, sent(rest)),
+  }),
+  rehirePerson: t.field({
+    type: Person,
+    description:
+      'Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      startDate: t.arg.string({ required: true }),
+      legalEntityId: t.arg.id(),
+      overrideReason: t.arg.string(),
+    },
+    resolve: (_root, { personId, ...rest }, ctx) => move(ctx, 'rehirePerson', personId, sent(rest)),
   }),
   endPersonAccess: t.field({
     type: Person,

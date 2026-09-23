@@ -26,6 +26,8 @@ export default ModuleManifest.parse({
     'people.person.status_changed',
     'people.person.terminated',
     'people.person.access_ended',
+    'people.person.access_restored',
+    'people.person.rehire_override',
     'people.person.profile_incomplete',
     'people.person.profile_completed',
     'people.person.merged',

@@ -8,6 +8,7 @@ import {
   jsonb,
   numeric,
   pgSchema,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -244,6 +245,24 @@ export const legalEntity = people.table('legal_entity', {
   timeZone: text('time_zone').notNull(),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
 });
+
+/* 20260924220200: one row per employment on a person (PEO-110). */
+export const employmentPeriod = people.table(
+  'employment_period',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    period: smallint('period').notNull(),
+    legalEntityId: uuid('legal_entity_id'),
+    startedOn: date('started_on').notNull(),
+    lastWorkingDay: date('last_working_day'),
+    leavingReason: text('leaving_reason'),
+    eligibleForRehire: boolean('eligible_for_rehire'),
+    noticeFrom: text('notice_from'),
+    rehireOverrideReason: text('rehire_override_reason'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.period] })],
+);
 
 /* 20260924200000: one numbering scheme per legal entity (PEO-101). */
 export const employeeNumbering = people.table('employee_numbering', {
