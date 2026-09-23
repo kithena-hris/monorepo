@@ -1,0 +1,218 @@
+import type { IncomingMessage, Server, ServerResponse } from 'node:http';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import { systemClock } from '@kithena/domain-kit';
+import { logger } from '@kithena/telemetry';
+
+import { uuidv7 } from '../application/person/ids.js';
+import { personAccess } from '../application/person/person-access.js';
+import type { PeopleService } from '../application/person/service.js';
+import { configureGraphQL } from '../graphql/schema.js';
+import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
+import {
+  drizzlePersonReader,
+  drizzleRelations,
+  drizzleSchemaVersions,
+} from '../infrastructure/drizzle-person-reader.js';
+import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
+import { drizzleSecretStore } from '../infrastructure/secret-store.js';
+import { drizzleUniqueClaims } from '../infrastructure/unique.js';
+import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
+import { webhooks } from '../infrastructure/webhooks/webhooks.js';
+import { callerFromHeaders } from './caller.js';
+import { drizzleIdempotency } from './idempotency.js';
+import { openApiDocument } from './openapi.js';
+import { restHandler, type RestResponse } from './rest.js';
+
+/**
+ * The composition root for People's transports, called once from `main.ts`.
+ *
+ * With no `PEOPLE_DATABASE_URL` nothing is wired and the subgraph still
+ * serves its schema, so `just supergraph` can introspect a module that has no
+ * database behind it. Every operation then answers UNAVAILABLE rather than
+ * pretending.
+ */
+
+/** `id:base64,id:base64` — the first is the key new secrets are written under. */
+function keysFrom(value: string | undefined): MasterKey[] {
+  return (value ?? '')
+    .split(',')
+    .filter((pair) => pair.includes(':'))
+    .map((pair) => {
+      const [id = '', key = ''] = pair.split(':');
+      return { id, key: Buffer.from(key, 'base64') };
+    });
+}
+
+export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
+  const db = drizzle(postgres(databaseUrl));
+  const ring = staticKeyRing(keysFrom(secretKeys));
+  const raw = tenantTransaction(db);
+  const schemas = drizzleSchemaVersions();
+
+  // Plain http only when a developer says so; production has no such switch set.
+  const egress = {
+    resolve: systemResolver,
+    allowHttp:
+      process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
+  };
+  const hooks = webhooks({
+    inTenant: raw,
+    ring,
+    egress,
+    post: pinnedPoster(egress),
+    clock: systemClock,
+    newId: uuidv7,
+    // ponytail: the tenant is told through the log until a notification
+    // channel exists; a `people.webhook.disabled` event is the upgrade.
+    notify: (tenantId, endpointId, reason) => {
+      logger.warn({ tenantId, endpointId, reason }, 'webhook endpoint disabled');
+    },
+  });
+
+  /*
+   * Deliveries are sent after any transaction for their tenant commits, and
+   * again when the earliest retry falls due.
+   *
+   * ponytail: the retry timer is in-process. A restart forgets it, and a
+   * pending retry then waits for that tenant's next transaction — nothing is
+   * lost, because the rows are the truth. A BullMQ delayed job per tenant is
+   * the upgrade when that wait matters.
+   */
+  const running = new Set<string>();
+  const timers = new Map<string, NodeJS.Timeout>();
+  const kick = (tenantId: string): void => {
+    if (running.has(tenantId)) return;
+    running.add(tenantId);
+    void (async () => {
+      try {
+        await hooks.deliverDue(tenantId);
+        const due = await hooks.nextDue(tenantId);
+        clearTimeout(timers.get(tenantId));
+        if (due !== null) {
+          const wait = Math.max(due.getTime() - Date.now(), 1000);
+          timers.set(
+            tenantId,
+            setTimeout(() => {
+              kick(tenantId);
+            }, wait).unref(),
+          );
+        }
+      } catch (cause) {
+        logger.error({ err: cause, tenantId }, 'webhook delivery pass failed');
+      } finally {
+        running.delete(tenantId);
+      }
+    })();
+  };
+
+  return {
+    access: personAccess({
+      people: drizzlePersonRepository(),
+      reader: drizzlePersonReader(),
+      schemas,
+      relations: drizzleRelations(),
+      secrets: drizzleSecretStore(ring, logger),
+      uniques: drizzleUniqueClaims(),
+      clock: systemClock,
+      newId: uuidv7,
+    }),
+    schemas,
+    inTenant: async (tenantId, fn) => {
+      const result = await raw(tenantId, fn);
+      kick(tenantId);
+      return result;
+    },
+  };
+}
+
+const MAX_BODY = 256 * 1024;
+
+async function bodyOf(request: IncomingMessage): Promise<string | null> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const buffer = chunk as Buffer;
+    size += buffer.length;
+    if (size > MAX_BODY) return null;
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+function send(response: ServerResponse, answer: RestResponse): void {
+  response.writeHead(answer.status, { 'content-type': 'application/json', ...answer.headers });
+  response.end(JSON.stringify(answer.body));
+}
+
+/**
+ * Put REST in front of the subgraph on the same port.
+ *
+ * `/v1/*` is REST and `/v1/openapi.json` its document; everything else goes
+ * to whichever listener `main.ts` installed, which is Yoga.
+ */
+export function wirePeople(server: Server): void {
+  const url = process.env['PEOPLE_DATABASE_URL'];
+  if (!url) {
+    logger.warn({ module: 'people' }, 'PEOPLE_DATABASE_URL is not set; serving the schema only');
+    return;
+  }
+
+  const service = peopleService(url, process.env['PEOPLE_SECRET_KEYS']);
+  const callerFrom = callerFromHeaders(
+    process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
+  );
+  configureGraphQL({ service, callerFrom });
+
+  const rest = restHandler({ service, callerFrom, idempotency: drizzleIdempotency() });
+  const document = JSON.stringify(openApiDocument());
+  const [graphql] = server.listeners('request') as ((
+    request: IncomingMessage,
+    response: ServerResponse,
+  ) => void)[];
+  server.removeAllListeners('request');
+
+  server.on('request', (request: IncomingMessage, response: ServerResponse) => {
+    const path = request.url ?? '/';
+    if (!path.startsWith('/v1/')) {
+      graphql?.(request, response);
+      return;
+    }
+    if (path === '/v1/openapi.json') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(document);
+      return;
+    }
+    void (async () => {
+      try {
+        const body = await bodyOf(request);
+        if (body === null) {
+          send(response, {
+            status: 413,
+            body: { error: { code: 'TOO_LARGE', message: 'Body too large' } },
+          });
+          return;
+        }
+        const answer = await rest({
+          method: request.method ?? 'GET',
+          url: path,
+          headers: request.headers,
+          body,
+        });
+        send(
+          response,
+          answer ?? { status: 404, body: { error: { code: 'NOT_FOUND', message: path } } },
+        );
+      } catch (cause) {
+        logger.error({ err: cause, path }, 'people REST request failed');
+        if (!response.headersSent) {
+          send(response, {
+            status: 500,
+            body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+          });
+        }
+      }
+    })();
+  });
+}

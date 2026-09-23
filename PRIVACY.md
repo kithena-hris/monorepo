@@ -87,17 +87,23 @@ achievable if the list is derived rather than remembered.
 - **Money is never a float.** `numeric(19,4)` in Postgres, minor units in
   transport, `decimal.js` in application code.
 
+## Tenant-defined fields
+
+A field a customer creates at runtime is not in the build-time walk, so
+`@kithena/telemetry`'s policy registry unions the generated sets with a
+per-tenant set that the People module loads at boot and replaces on
+`people.schema.published`. `tenantPolicies.loggerFor(logger, tenantId)` redacts
+that union; `aiGateway` refuses any prompt whose context carries a denied path
+or a tenant key with `aiEligible: false`. A tenant not yet loaded fails closed:
+its `custom` bag is redacted wholesale and its prompts are refused.
+
 ## The known gap
 
-The AI gateway deny list and the DSAR export manifest are **computed and printed
-by `pnpm codegen` but not yet written to a file**, unlike the redaction paths.
-Nothing consumes them today. Wiring them into their consumers is outstanding
-work; until then, treat the manifest as a report rather than an enforced
-control.
-
-This is stated here rather than left to be discovered, because the difference
-between a derived artifact and one that merely could be derived is exactly the
-difference this document claims matters.
+The DSAR export manifest is computed and printed by `pnpm codegen` but not
+written to a file; the People DSAR export reads the tenant's published schema
+version instead, which covers every attribute a person record can hold.
+Retention clears current values only: encrypted values and history rows need a
+migration before a retention job can touch them.
 
 ## Reporting
 
