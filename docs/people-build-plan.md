@@ -507,7 +507,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Governance
 
-### [ ] PEO-034 — The runtime policy registry
+### [x] PEO-034 — The runtime policy registry
 
 - **Spec** PRD §12.2
 - **Files** `packages/telemetry/src/`, `services/people/src/infrastructure/`
@@ -519,7 +519,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test creates a tenant attribute, logs a value, and asserts it
   is redacted without a restart.
 
-### [ ] PEO-035 — The AI gateway deny list
+### [x] PEO-035 — The AI gateway deny list
 
 - **Spec** PRD §12.2
 - **Files** wherever the gateway's deny list is assembled
@@ -529,7 +529,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test asserts a prompt containing a tenant-defined
   special-category attribute is refused at the gateway.
 
-### [ ] PEO-036 — DSAR export
+### [x] PEO-036 — DSAR export
 
 - **Spec** PRD §12.2, §15.5
 - **Files** `services/people/src/application/dsar/`
@@ -542,7 +542,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test asserts 100% of exportable attributes
   including tenant-defined ones appear, in under 60 seconds.
 
-### [ ] PEO-037 — Retention targets
+### [x] PEO-037 — Retention targets
 
 - **Spec** PRD §6.2, §8.1
 - **Files** `services/people/src/application/retention/`

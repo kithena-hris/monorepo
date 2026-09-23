@@ -146,37 +146,36 @@ function asObject(schema: z.ZodType): z.ZodObject | undefined {
 /** Repo root, from this file's own location rather than from `process.cwd()`. */
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
-const REDACTION_FILE = join(repoRoot, 'packages/telemetry/src/generated/redaction.ts');
+const GENERATED = join(repoRoot, 'packages/telemetry/src/generated');
 
 /**
- * Writes the Pino redaction paths.
+ * Writes one list of paths as a TypeScript module under telemetry's
+ * `generated/`.
  *
- * This is artifact 2 of the four this file is documented as producing, and
- * until now it was the only one nothing actually wrote: the manifest went to
- * stdout and `redaction.ts` was left to be maintained by hand, under a header
- * telling the next reader not to. It had drifted in both directions, missing
- * two `confidential` fields the logger was therefore printing in clear, and
- * still redacting one the registry had since reclassified as `internal`.
+ * Artifacts 2 and 3 of the four this file is documented as producing. The
+ * redaction paths were once maintained by hand under a header telling the next
+ * reader not to, and drifted in both directions; the AI deny list was printed
+ * to stdout and read by nothing. Both are written now, from the same walk, and
+ * `@kithena/telemetry`'s policy registry unions each with the per-tenant set.
  *
  * De-duplicated because the same path is reached through more than one event,
- * `payload.reason` appears on both a rejection and a correction, and Pino has
- * no use for the repeat.
+ * `payload.reason` appears on both a rejection and a correction.
  */
-function writeRedactionPaths(paths: readonly string[]): void {
+function writePaths(file: string, name: string, why: string, paths: readonly string[]): void {
   const unique = [...new Set(paths)];
   const body = unique.map((path) => `  '${path}',`).join('\n');
+  const target = join(GENERATED, file);
 
-  mkdirSync(dirname(REDACTION_FILE), { recursive: true });
+  mkdirSync(dirname(target), { recursive: true });
   writeFileSync(
-    REDACTION_FILE,
+    target,
     [
       '// GENERATED FILE. Run `just codegen` to refresh.',
       '// Source: Zod classification registry in @kithena/contracts.',
       '//',
-      '// A path is here because its field is classified `confidential` or',
-      '// `special-category`. To change what is redacted, change the field policy',
-      '// in the contract, never this file.',
-      'export const redactionPaths: readonly string[] = [',
+      `// ${why} To change what is listed, change the`,
+      '// field policy in the contract, never this file.',
+      `export const ${name}: readonly string[] = [`,
       body,
       '];',
       '',
@@ -199,7 +198,18 @@ function main(): void {
   // Only once the walk has passed. Writing a redaction list derived from a
   // registry with an unclassified field in it would ship a gap in the very
   // artifact that exists to prevent one.
-  writeRedactionPaths(out.redact);
+  writePaths(
+    'redaction.ts',
+    'redactionPaths',
+    'A path is here because its field is `confidential` or `special-category`.',
+    out.redact,
+  );
+  writePaths(
+    'ai-deny.ts',
+    'aiDenyPaths',
+    'A path is here because its field is `aiEligible: false`.',
+    out.denyAi,
+  );
 
   console.log(JSON.stringify({ schemas: Object.keys(jsonSchemas()), ...out }, null, 2));
 }
