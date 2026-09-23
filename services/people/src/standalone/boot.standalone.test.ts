@@ -100,6 +100,13 @@ describe('exports with nothing configured', () => {
     const runner = await startExportRunner({}, () => Promise.reject(new Error('unused')), {} as never);
     await runner.close();
   });
+
+  it('settle full-values decisions in-process rather than needing Temporal', async () => {
+    const { startFullValues } = await import('../infrastructure/temporal/full-values.js');
+    const runner = await startFullValues({}, () => Promise.reject(new Error('unused')), {} as never);
+    await expect(runner.started('t', 'r', 'c')).resolves.toBeUndefined();
+    await runner.close();
+  });
 });
 
 describe('the standalone harness itself works', () => {

@@ -1,13 +1,21 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { systemClock } from '@kithena/domain-kit';
+import { systemClock, type DomainFailure } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
+import {
+  claimDownload,
+  fullValuesOf,
+  type FullValuesDeps,
+} from '../application/export/full-values.js';
+import { drizzleFullValuesStore } from '../application/export/full-values-store.js';
 import { drizzleExportLedger } from '../application/export/ledger.js';
+import { keyOf } from '../application/export/object-store.js';
 import type { ExportQueue } from '../application/export/queue.js';
 import { uuidv7 } from '../application/person/ids.js';
+import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
@@ -19,6 +27,7 @@ import {
 } from '../infrastructure/drizzle-person-reader.js';
 import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
 import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
+import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
@@ -27,7 +36,7 @@ import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
-import { restHandler, type RestResponse } from './rest.js';
+import { restHandler, type RestDeps, type RestResponse } from './rest.js';
 
 /**
  * The composition root for People's transports, called once from `main.ts`.
@@ -132,7 +141,15 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
 }
 
 /** The export pipeline: the store, the ledger and the queue, from the environment. */
-function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: ExportQueue } {
+function wireExports(service: PeopleService): {
+  deps: ExportJobDeps;
+  queue: ExportQueue;
+  fullValues: NonNullable<RestDeps['fullValues']>;
+} {
+  const secrets = drizzleSecretStore(
+    staticKeyRing(keysFrom(process.env['PEOPLE_SECRET_KEYS'])),
+    logger,
+  );
   const deps: ExportJobDeps = {
     access: service.access,
     schemas: service.schemas,
@@ -141,10 +158,7 @@ function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: Expo
     records: {
       people: drizzlePersonRepository(),
       reader: drizzlePersonReader(),
-      secrets: drizzleSecretStore(
-        staticKeyRing(keysFrom(process.env['PEOPLE_SECRET_KEYS'])),
-        logger,
-      ),
+      secrets,
     },
     store: exportStoreFrom(process.env),
     // ponytail: the requester learns the export is ready from
@@ -165,22 +179,60 @@ function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: Expo
   runner.catch((cause: unknown) => {
     logger.error({ err: cause }, 'export queue did not start');
   });
-  return { deps, queue: { enqueue: async (job) => (await runner).enqueue(job) } };
+
+  // Full values (PEO-088): `reveal` is the audited read, called only while an
+  // approved file is being built.
+  const full: FullValuesDeps = {
+    ...deps,
+    requests: drizzleFullValuesStore(),
+    reveal: (tx, where) => secrets.reveal(tx, where),
+  };
+  const workflows = startFullValues(process.env, service.inTenant, full);
+  workflows.catch((cause: unknown) => {
+    logger.error({ err: cause }, 'full-values workflows did not start');
+  });
+
+  return {
+    deps,
+    queue: { enqueue: async (job) => (await runner).enqueue(job) },
+    fullValues: {
+      deps: full,
+      started: async (...args) => (await workflows).started(...args),
+      decided: async (...args) => (await workflows).decided(...args),
+    },
+  };
 }
 
 async function download(
-  deps: ExportJobDeps,
+  service: PeopleService,
+  deps: FullValuesDeps,
   path: string,
   response: ServerResponse,
 ): Promise<void> {
+  const refuse = (error: DomainFailure) => {
+    send(response, {
+      status: error.code === 'LINK_INVALID' ? 404 : 410,
+      body: { error: { code: error.code, message: error.message } },
+    });
+  };
   try {
-    const opened = await deps.store.open(`http://people.internal${path}`);
+    const link = `http://people.internal${path}`;
+    const opened = await deps.store.open(link);
     if (!opened.ok) {
-      send(response, {
-        status: opened.error.code === 'LINK_EXPIRED' ? 410 : 404,
-        body: { error: { code: opened.error.code, message: opened.error.message } },
-      });
+      refuse(opened.error);
       return;
+    }
+    // A full-values file is one download: spent here, after the signature
+    // checked out and before a byte leaves.
+    const owner = fullValuesOf(keyOf(link) ?? '');
+    if (owner) {
+      const claimed = await inTenantResult(service.inTenant, owner.tenantId, (tx) =>
+        claimDownload(tx, deps, { ...owner, correlationId: uuidv7() }),
+      );
+      if (!claimed.ok) {
+        refuse(claimed.error);
+        return;
+      }
     }
     const name =
       decodeURIComponent(new URL(path, 'http://x').pathname).split('/').at(-1) ?? 'export';
@@ -245,6 +297,7 @@ export function wirePeople(server: Server): void {
     callerFrom,
     idempotency: drizzleIdempotency(),
     exports,
+    fullValues: exports.fullValues,
   });
   const document = JSON.stringify(openApiDocument());
   const [graphql] = server.listeners('request') as ((
@@ -262,7 +315,7 @@ export function wirePeople(server: Server): void {
     // A signed link carries its own authority and no caller headers: it is
     // opened from a browser, and its signature and expiry are the whole check.
     if (request.method === 'GET' && path.startsWith('/v1/exports/files/')) {
-      void download(exports.deps, path, response);
+      void download(service, exports.fullValues.deps, path, response);
       return;
     }
     if (path === '/v1/openapi.json') {

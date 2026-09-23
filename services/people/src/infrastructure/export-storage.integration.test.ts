@@ -11,6 +11,8 @@ import { startMinio, startPostgres, startValkey } from '@kithena/testing';
 
 import { ADA, asking, financeTenant, HR } from '../application/export/fixture.js';
 import type { ExportJobDeps } from '../application/export/job.js';
+import { drizzleFullValuesStore } from '../application/export/full-values-store.js';
+import type { FullValuesRequest } from '../application/export/full-values.js';
 import { drizzleExportLedger, inMemoryExportLedger } from '../application/export/ledger.js';
 import { localObjectStore, sealedObjectStore } from '../application/export/object-store.js';
 import { requestExport } from '../application/export/queue.js';
@@ -86,7 +88,12 @@ describe('the bucket adapter', () => {
       date: (tz) => current.date(tz),
     };
     const store = sealedObjectStore(
-      { encryptionKey: randomBytes(32), signingKey: randomBytes(32), clock, baseUrl: 'https://p.test/f' },
+      {
+        encryptionKey: randomBytes(32),
+        signingKey: randomBytes(32),
+        clock,
+        baseUrl: 'https://p.test/f',
+      },
       blobs,
     );
 
@@ -152,6 +159,116 @@ describe('the ledger', () => {
   });
 });
 
+describe('the full-values table', () => {
+  it('round-trips a request, lets each step win once, and hides it from another tenant', async () => {
+    const inTenant = tenantTransaction(asService);
+    const store = drizzleFullValuesStore();
+    const pending: FullValuesRequest = {
+      tenantId: ACME,
+      approval: {
+        id: '00000000-0000-4000-9000-0000000000f1',
+        requestedBy: '00000000-0000-4000-8000-0000000000fe',
+        requestedAt: '2026-09-22T09:00:00.000Z',
+        reason: 'September payroll run',
+        expiresAt: '2026-09-29T09:00:00.000Z',
+        state: 'pending',
+        decidedBy: null,
+        decidedAt: null,
+        note: null,
+      },
+      attributeKeys: ['iban'],
+      asOf: '2026-09-01',
+      personIds: ['00000000-0000-4000-8000-0000000000a1'],
+      filter: null,
+      exportId: null,
+      fileName: null,
+      grant: null,
+    };
+    await inTenant(ACME, ({ tx }) => store.insert(tx, pending));
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, pending.approval.id))).toEqual(
+      pending,
+    );
+    expect(
+      await inTenant(GLOBEX, ({ tx }) => store.find(tx, ACME, pending.approval.id)),
+    ).toBeNull();
+
+    const approved: FullValuesRequest = {
+      ...pending,
+      approval: {
+        ...pending.approval,
+        state: 'approved',
+        decidedBy: HR.accountId,
+        decidedAt: '2026-09-22T10:00:00.000Z',
+      },
+    };
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, pending, approved))).toBe(true);
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, pending, approved))).toBe(false);
+
+    const issued: FullValuesRequest = {
+      ...approved,
+      exportId: '00000000-0000-4000-9000-0000000000f2',
+      fileName: 'people-2026-09-22.xlsx',
+      grant: {
+        issuedAt: '2026-09-22T10:01:00.000Z',
+        expiresAt: '2026-09-23T10:01:00.000Z',
+        usedAt: null,
+      },
+    };
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, approved, issued))).toBe(true);
+    const used = {
+      ...issued,
+      grant: {
+        issuedAt: '2026-09-22T10:01:00.000Z',
+        expiresAt: '2026-09-23T10:01:00.000Z',
+        usedAt: '2026-09-22T11:00:00.000Z',
+      },
+    };
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, issued, used))).toBe(true);
+    // The second click finds the download spent.
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, issued, used))).toBe(false);
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, pending.approval.id))).toEqual(
+      used,
+    );
+  });
+
+  it('refuses, in the database too, a request decided by its own requester', async () => {
+    const inTenant = tenantTransaction(asService);
+    const store = drizzleFullValuesStore();
+    const base: FullValuesRequest = {
+      tenantId: ACME,
+      approval: {
+        id: '00000000-0000-4000-9000-0000000000f3',
+        requestedBy: HR.accountId,
+        requestedAt: '2026-09-22T09:00:00.000Z',
+        reason: 'r',
+        expiresAt: '2026-09-29T09:00:00.000Z',
+        state: 'pending',
+        decidedBy: null,
+        decidedAt: null,
+        note: null,
+      },
+      attributeKeys: ['iban'],
+      asOf: null,
+      personIds: null,
+      filter: null,
+      exportId: null,
+      fileName: null,
+      grant: null,
+    };
+    await inTenant(ACME, ({ tx }) => store.insert(tx, base));
+    const self = {
+      ...base,
+      approval: {
+        ...base.approval,
+        state: 'approved' as const,
+        decidedBy: HR.accountId,
+        decidedAt: base.approval.requestedAt,
+      },
+    };
+    await expect(inTenant(ACME, ({ tx }) => store.update(tx, base, self))).rejects.toThrow();
+  });
+});
+
 describe('the queue', () => {
   it('runs a large export once on BullMQ, retrying a failed attempt', async () => {
     const people = financeTenant();
@@ -176,7 +293,9 @@ describe('the queue', () => {
       store: {
         ...objects,
         put: (...args) =>
-          (puts += 1) === 1 ? Promise.reject(new Error('bucket unreachable')) : objects.put(...args),
+          (puts += 1) === 1
+            ? Promise.reject(new Error('bucket unreachable'))
+            : objects.put(...args),
       },
       notifier: { notify: (m) => (sent.push(m.exportId), Promise.resolve()) },
       audit: { publish: (_tx, e) => (events.push(...e), Promise.resolve()) },

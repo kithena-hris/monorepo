@@ -49,7 +49,7 @@ function fromRow(r: Row): FullValuesRequest {
       note: r.note,
     },
     attributeKeys: r.attribute_keys,
-    asOf: r.as_of === null ? null : String(r.as_of).slice(0, 10),
+    asOf: r.as_of === null ? null : r.as_of.slice(0, 10),
     personIds: r.person_ids,
     filter: r.filter,
     exportId: r.export_id,

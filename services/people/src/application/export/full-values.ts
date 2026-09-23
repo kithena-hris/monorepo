@@ -87,7 +87,7 @@ export interface FullValuesDeps extends ExportJobDeps {
 }
 
 /** The object key of an approved file: the request id is in it, so a download can find its grant. */
-export const fullValuesKey = (tenantId: string, requestId: string, name: string) =>
+export const fullValuesKey = (tenantId: string, requestId: string, name: string): string =>
   `${tenantId}/full-values/${requestId}/${name}`;
 
 const KEY = /^([0-9a-f-]{36})\/full-values\/([0-9a-f-]{36})\//u;

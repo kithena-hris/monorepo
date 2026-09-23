@@ -744,6 +744,15 @@ importers:
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      '@temporalio/client':
+        specifier: ^1.22.0
+        version: 1.22.0
+      '@temporalio/worker':
+        specifier: ^1.22.0
+        version: 1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)
+      '@temporalio/workflow':
+        specifier: ^1.22.0
+        version: 1.22.0
       bullmq:
         specifier: ^6.3.8
         version: 6.3.8(ioredis@6.0.0)
@@ -772,6 +781,9 @@ importers:
       '@kithena/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@temporalio/testing':
+        specifier: ^1.22.0
+        version: 1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)
       fast-formula-parser:
         specifier: 1.0.19
         version: 1.0.19
@@ -5667,6 +5679,10 @@ packages:
     resolution: {integrity: sha512-X7NVa0Z6HK3l9irZR48FKwZ9w9YXetCdF2z2KCIRr0W7Kul64Wt9o5hwvSXShAtrZuCEEHH8WO/ffHTXxJieLg==}
     engines: {node: '>= 20.3.0'}
 
+  '@temporalio/testing@1.22.0':
+    resolution: {integrity: sha512-LWIVkJZHLKsuuXLeTZ9VuN6Sjt79BJTl9KKTQ84dOysPj+tMGTET8TEZasBhCuocS0qFGrh00c5e4RzXjfnLLA==}
+    engines: {node: '>= 20.3.0'}
+
   '@temporalio/worker@1.22.0':
     resolution: {integrity: sha512-axRHhUsovFlqDtXZxUnhRLV7WmC6qOMUCij13lw4glT5yRH62k8wIZqcT3naEfvLSzoDxjt2xM7me3VvTRSaow==}
     engines: {node: '>= 20.3.0'}
@@ -7795,9 +7811,6 @@ packages:
 
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
-
-  es-module-lexer@2.3.1:
-    resolution: {integrity: sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA==}
 
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
@@ -17063,6 +17076,30 @@ snapshots:
       long: 5.3.2
       protobufjs: 7.6.5
 
+  '@temporalio/testing@1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)':
+    dependencies:
+      '@temporalio/activity': 1.22.0
+      '@temporalio/client': 1.22.0
+      '@temporalio/common': 1.22.0
+      '@temporalio/core-bridge': 1.22.0
+      '@temporalio/proto': 1.22.0
+      '@temporalio/worker': 1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)
+      '@temporalio/workflow': 1.22.0
+    transitivePeerDependencies:
+      - '@minify-html/node'
+      - '@swc/css'
+      - '@swc/helpers'
+      - '@swc/html'
+      - clean-css
+      - cssnano
+      - csso
+      - esbuild
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - uglify-js
+      - webpack-cli
+
   '@temporalio/worker@1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)':
     dependencies:
       '@grpc/grpc-js': 1.14.4
@@ -19577,8 +19614,6 @@ snapshots:
   es-module-lexer@1.5.0: {}
 
   es-module-lexer@1.7.0: {}
-
-  es-module-lexer@2.3.1: {}
 
   es-module-lexer@2.3.2: {}
 
@@ -24085,7 +24120,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11
@@ -24121,7 +24156,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11
@@ -24157,7 +24192,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11
