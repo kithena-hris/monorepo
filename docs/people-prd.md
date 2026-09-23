@@ -976,9 +976,13 @@ The tabs above other than integrations have no screen yet.
 **The setup wizard publishes the core fields with the pack.** The core fields
 are `country-packs/core.ts`: legal first and family name, preferred name, work
 email, employee number and manager. Before this, a fresh tenant's version 1
-held only the pack's identifiers. The legal entity is confirmed and not
-stored, because nothing holds legal entities yet (#100). The country it names
-travels with the publish.
+held only the pack's identifiers.
+
+**The legal entity the wizard confirms is the tenant's first
+`people.legal_entity` (PEO-099).** The back office's company wizard usually
+creates it. Confirming renames it. A different country creates a new entity
+on the tenant's default zone, because a country is not an edit. A tenant with
+no entity yet is offered the company as the tenant registry recorded it.
 
 ---
 
@@ -1501,7 +1505,7 @@ GET    /v1/views/profile/{id}          one person, as the viewer may see them
 POST   /v1/views/me/sections           save one section of my own record
 POST   /v1/views/people/{id}/sections  save one section of somebody's record
 POST   /v1/views/completeness          HR's grid: one write, and one event, per person
-POST   /v1/views/setup/entity          confirm the legal entity (checked, not stored: no legal entity table yet)
+POST   /v1/views/setup/entity          confirm the legal entity: rename the first in that country, or create one
 POST   /v1/views/setup/publish         the core fields + a country pack, published as version 1
 POST   /v1/schema/draft/sections       add a section to the draft
 PUT    /v1/schema/draft/sections/order

@@ -719,7 +719,9 @@ Test-first, all of it. No drivers, no I/O.
   section. It publishes version 1 (the core fields plus the Spanish pack),
   saves the names, and abandons before identification, which leaves a partial
   record: names in, no NIF. It then comes back, finishes, and lands on
-  `/people/me`. The legal entity is confirmed and not stored until #100.
+  `/people/me`. The confirmed legal entity is stored in PEO-099's
+  `people.legal_entity`: the first one in that country is renamed, and a
+  different country creates a new one.
 
 ### [x] PEO-050 — Onboarding
 
@@ -1050,7 +1052,8 @@ it is written down here rather than left in a PR description.
       - A finance full-values screen (PEO-088 has transports, no screen).
       - A webhook delivery log (replay is a transport only).
       - The expiry timeline and the onboarding funnel in analytics.
-      - Legal entities, locations and settings (#100 is not merged).
+      - Screens for legal entities, locations and settings. #100 has REST for
+        them and no screen exists. The wizard's legal entity step is wired.
 - [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
