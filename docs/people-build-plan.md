@@ -935,7 +935,7 @@ it is written down here rather than left in a PR description.
       gateway's deny list and the refresh on `people.schema.published` are
       exported but nothing calls them. Needs the Kafka consumer PEO-027 added
       and the tenant source in PEO-080. Found in PEO-034.
-- [ ] **PEO-087** Log redaction matches tenant fields four levels deep, and the
+- [x] **PEO-087** Log redaction matches tenant fields four levels deep, and the
       AI gateway checks structured `context` only, not free text in the
       instruction. Decide whether either needs to go further. Found in PEO-034
       and PEO-035.
