@@ -60,7 +60,12 @@ export async function loadTenantPolicies(
     policy: a.classification,
     encrypted: a.encrypted,
     // Every locale, so "groupe sanguin" is caught as surely as "blood group".
-    labels: [a.label.default, ...Object.values(a.label.translations)],
+    // The stored document is JSONB that was never re-parsed, so a label
+    // written before `translations` defaulted may not carry it.
+    labels: [
+      a.label.default,
+      ...Object.values((a.label as { translations?: Record<string, string> }).translations ?? {}),
+    ],
   }));
   registry.replace(tenantId, fields);
 }
