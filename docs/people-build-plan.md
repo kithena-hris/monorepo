@@ -406,7 +406,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test proves a manager's read of a salary attribute returns a
   result with no such key, through this layer rather than through a resolver.
 
-### [ ] PEO-026 — Completeness recompute and its events
+### [x] PEO-026 — Completeness recompute and its events
 
 - **Spec** PRD §8.4
 - **Files** `services/people/src/application/completeness/`
@@ -419,7 +419,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test publishes a tightening version over 400 seeded people
   and asserts both the event count and the one-email-per-week cap.
 
-### [ ] PEO-027 — The provisional person
+### [x] PEO-027 — The provisional person
 
 - **Spec** PRD §8.2, steps 3 and 5
 - **Files** `services/people/src/infrastructure/consumers/`
@@ -431,7 +431,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test provisions an account and sees a
   provisional person within a second, idempotent on `identityAccountId`.
 
-### [ ] PEO-028 — Reconciliation for tenants who buy People later
+### [x] PEO-028 — Reconciliation for tenants who buy People later
 
 - **Spec** PRD §8.2, "People is bought later"
 - **Files** `services/people/src/application/reconcile.ts`
