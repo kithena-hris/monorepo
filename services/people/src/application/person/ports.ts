@@ -49,12 +49,19 @@ export interface PersonReader {
     lock?: boolean,
   ): Promise<PersonRecord | null>;
 
-  /** Keyset by id: the last page of a large tenant costs what the first does. */
+  /**
+   * Keyset by id: the last page of a large tenant costs what the first does.
+   *
+   * `where` narrows to people whose tenant-defined value equals the one given,
+   * per key. Only `custom` keys: the caller has already refused anything else,
+   * and checked the viewer may read every key it filters on.
+   */
   page(
     tx: PostgresJsDatabase,
     tenantId: string,
     after: string | null,
     limit: number,
+    where?: Readonly<Record<string, string>>,
   ): Promise<readonly PersonRecord[]>;
 }
 

@@ -77,8 +77,12 @@ export function AttributeInput({
   readonly onChange: (value: AttributeValue) => void;
 }): JSX.Element | null {
   const invalid = problem !== undefined;
-  const described =
-    field.description === null ? null : <FieldDescription>{field.description}</FieldDescription>;
+  // A field this viewer reads but may not change is shown read-only with its
+  // owner named, not hidden (§8.3).
+  const owner =
+    field.readOnly && field.ownedBy !== undefined ? `Changed by ${field.ownedBy}.` : null;
+  const note = [field.description, owner].filter((x) => x !== null).join(' ');
+  const described = note === '' ? null : <FieldDescription>{note}</FieldDescription>;
   const error = <FieldError>{problem}</FieldError>;
   const disabled = field.readOnly;
 

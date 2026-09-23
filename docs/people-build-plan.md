@@ -726,7 +726,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an acceptance test completes it end to end at 390×844 with a
   software keyboard raised, and abandoning mid-way leaves a partial record.
 
-### [ ] PEO-051 — Profile screens
+### [x] PEO-051 — Profile screens
 
 - **Spec** PRD §6.6 · design screen 6
 - **Files** `apps/web/people/src/profile/`
@@ -737,7 +737,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test renders the same person as HR and as a manager and
   asserts the manager's DOM contains none of the withheld labels.
 
-### [ ] PEO-052 — Directory
+### [x] PEO-052 — Directory
 
 - **Spec** PRD §13.1 · design screen 7
 - **Files** `apps/web/people/src/directory/`
@@ -748,7 +748,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** filtering on a tenant-defined indexed attribute over 50,000
   rows meets the 300 ms budget.
 
-### [ ] PEO-053 — Completeness grid
+### [x] PEO-053 — Completeness grid
 
 - **Spec** PRD §8.4 · design screen 8
 - **Files** `apps/web/people/src/completeness/`

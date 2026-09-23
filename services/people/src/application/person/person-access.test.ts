@@ -651,3 +651,72 @@ describe('running a use case in a tenant transaction', () => {
     expect(rolledBack).toBe(false);
   });
 });
+
+describe('filtering the directory', () => {
+  const costCentre = define({
+    key: 'cost_centre',
+    visibility: ['self', 'manager', 'hr'],
+    ownership: ['hr'],
+  });
+  const team = define({ key: 'team', visibility: ['directory'], ownership: ['hr'] });
+  const number = define({ key: 'employee_number', visibility: ['directory'], ownership: ['hr'] });
+
+  function directory() {
+    const store = inMemoryPeople([versionOf(4, [salary, title, iban, costCentre, team, number])]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT, custom: { cost_centre: 'ENG-201', team: 'Core' } });
+    store.seed(ADA, {
+      account: ADA_ACCOUNT,
+      fields: { managerId: MARCO },
+      custom: { cost_centre: 'ENG-204', team: 'Core' },
+    });
+    return personAccess(store.deps);
+  }
+
+  it('narrows to people holding the value', async () => {
+    const people = directory();
+    const page = await people.list(tx, {
+      ...asking(hr),
+      limit: 50,
+      where: { cost_centre: 'ENG-204' },
+    });
+    expect(page.ok && page.value.items.map((p) => p.id)).toEqual([ADA]);
+  });
+
+  it('lets anybody filter on what everybody can read', async () => {
+    const page = await directory().list(tx, { ...asking(ada), limit: 50, where: { team: 'Core' } });
+    expect(page.ok && page.value.items).toHaveLength(2);
+  });
+
+  it('refuses a key the viewer can read on some people and not others', async () => {
+    // Marco reads Ada's cost centre as her manager, and nobody else's: who
+    // matches a filter would tell him the rest.
+    const page = await directory().list(tx, {
+      ...asking(marco),
+      limit: 50,
+      where: { cost_centre: 'ENG-201' },
+    });
+    expect(page).toEqual(
+      err(
+        failure('FIELD_NOT_FILTERABLE', 'You cannot filter people by cost_centre', ['cost_centre']),
+      ),
+    );
+  });
+
+  it('refuses an encrypted key, a core column and a key nobody defined', async () => {
+    const people = directory();
+    for (const key of ['iban', 'employee_number', 'hire_date', 'shoe_size']) {
+      const page = await people.list(tx, { ...asking(hr), limit: 50, where: { [key]: 'x' } });
+      expect(page.ok ? 'allowed' : page.error.code).toBe('FIELD_NOT_FILTERABLE');
+    }
+  });
+
+  it('refuses a filter combined with asOf, which it cannot honour', async () => {
+    const page = await directory().list(tx, {
+      ...asking(hr),
+      limit: 50,
+      asOf: '2026-01-01',
+      where: { cost_centre: 'ENG-204' },
+    });
+    expect(page.ok ? 'allowed' : page.error.code).toBe('FILTER_WITH_AS_OF');
+  });
+});
