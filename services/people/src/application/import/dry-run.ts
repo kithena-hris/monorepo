@@ -4,7 +4,13 @@ import type { AttributeDefinition, EmploymentType, WorkModel } from '@kithena/co
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
+import {
+  formatNumber,
+  sequenceOf,
+  type NumberingScheme,
+} from '../../domain/org/numbering.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
+import type { EmployeeNumbers } from '../org/numbering.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { Calendars } from '../org/org.js';
 import type { PersonAccess, PersonView } from '../person/person-access.js';
@@ -94,6 +100,8 @@ export interface DryRunDeps {
   readonly clock: Clock;
   /** Whose day each row's person is on (PRD §6.8). */
   readonly calendars: Calendars;
+  /** Each entity's numbering, which an explicit employee number is held to (PEO-101). */
+  readonly numbering?: EmployeeNumbers;
 }
 
 export interface DryRunInput {
@@ -215,7 +223,18 @@ export async function dryRun(
   if (!existing.ok) return existing;
 
   const calendar = await deps.calendars.load(tx, input.tenantId);
-  const classify = rowClassifier(version, input, existing.value, relations, deps.clock, calendar);
+  const schemes = new Map(
+    ((await deps.numbering?.list(tx, input.tenantId)) ?? []).map((n) => [n.legalEntityId, n]),
+  );
+  const classify = rowClassifier(
+    version,
+    input,
+    existing.value,
+    relations,
+    deps.clock,
+    calendar,
+    schemes,
+  );
   const rows = input.file.rows.map(classify);
 
   const counts: Record<RowOutcome, number> = {
@@ -261,6 +280,7 @@ function rowClassifier(
   relations: ViewerRelations,
   clock: Clock,
   calendar: TenantCalendar,
+  schemes: ReadonlyMap<string, NumberingScheme>,
 ) {
   const at = clock.instant();
   const definitions = version.document.attributes;
@@ -349,6 +369,20 @@ function rowClassifier(
       matchedOn = 'work_email';
     else if ((person = existing.byNumber.get(lower(values['employee_number']) ?? '')))
       matchedOn = 'employee_number';
+
+    // The same format the write will hold an employee number to (PEO-101);
+    // uniqueness is the write's claim, which the report then names.
+    const number = values['employee_number'];
+    const entity = values['legal_entity_id'] ?? person?.attributes['legal_entity_id'];
+    const scheme = typeof entity === 'string' ? schemes.get(entity) : undefined;
+    if (scheme && typeof number === 'string' && sequenceOf(scheme, number) === null) {
+      problems.push({
+        column: columnOf('employee_number')?.header ?? 'employee_number',
+        key: 'employee_number',
+        kind: 'invalid',
+        reason: `this legal entity's numbers look like ${formatNumber(scheme, 1)}`,
+      });
+    }
 
     const hires = person?.status === 'provisional' && hireDate !== null;
     const base = {

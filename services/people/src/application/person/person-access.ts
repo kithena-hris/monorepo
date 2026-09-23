@@ -36,6 +36,8 @@ import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
 import { placementOf, personZone } from '../../domain/org/calendar.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import { formatNumber, sequenceOf } from '../../domain/org/numbering.js';
+import type { EmployeeNumbers } from '../org/numbering.js';
 import type { Calendars } from '../org/org.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
@@ -79,6 +81,11 @@ export interface PersonAccessDeps {
   readonly newId: () => string;
   /** Whose day "today" is for each person (PRD §6.8). */
   readonly calendars: Calendars;
+  /**
+   * Employee numbering per legal entity (PEO-101). Absent, a hire numbers
+   * nobody and a typed number is held to no format.
+   */
+  readonly numbering?: EmployeeNumbers;
 }
 
 export interface Asking {
@@ -360,6 +367,48 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     });
   }
 
+  /**
+   * The next employee number for a hire, when the person has none, the entity
+   * they are hired into numbers its people, and the version has the field to
+   * hold it (PEO-101). Taken in the hire's transaction, so a refused hire
+   * hands it back.
+   */
+  async function numberFor(
+    tx: Tx,
+    asking: Asking & { readonly personId: string },
+    version: PublishedVersion,
+    changes: Readonly<Record<string, unknown>>,
+  ): Promise<{ employee_number?: string }> {
+    if (!deps.numbering || changes['employee_number'] !== undefined) return {};
+    if (!version.document.attributes.some((d) => d.key === 'employee_number')) return {};
+    const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
+    if (!person || person.snapshot.status !== 'provisional') return {};
+    if (person.values['employee_number'] !== undefined) return {};
+    const entity = changes['legal_entity_id'] ?? person.legalEntityId;
+    if (typeof entity !== 'string') return {};
+    /*
+     * A number somebody already holds — typed in another entity, or imported
+     * before the scheme existed — is skipped: the register is unique in the
+     * tenant (`person_employee_number_key`), and a skipped number is taken,
+     * not lost.
+     *
+     * ponytail: bounded at 100 skips, after which the hire goes unnumbered
+     * and HR types one. Only a register full of hand-typed numbers in this
+     * scheme's format gets near it.
+     */
+    for (let skips = 0; skips < 100; skips += 1) {
+      // eslint-disable-next-line no-await-in-loop -- each allocation depends on the last
+      const next = await deps.numbering.allocate(tx, asking.tenantId, entity);
+      if (!next) return {};
+      const employeeNumber = formatNumber(next, next.sequence);
+      // eslint-disable-next-line no-await-in-loop -- as above
+      if (!(await deps.numbering.taken(tx, asking.tenantId, employeeNumber))) {
+        return { employee_number: employeeNumber };
+      }
+    }
+    return {};
+  }
+
   async function update(
     tx: Tx,
     asking: Asking & {
@@ -429,6 +478,36 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const legalEntityId =
       (accepted.find(([d]) => d.key === 'legal_entity_id')?.[1] as string | null | undefined) ??
       person.legalEntityId;
+
+    /*
+     * An employee number in an entity that numbers its people (PEO-101) is
+     * held to the scheme's format, is claimed unique whatever the attribute's
+     * own scope says, and moves the sequence past itself so a later hire is
+     * never handed it.
+     */
+    const numbered = accepted.findIndex(([d, v]) => d.key === 'employee_number' && v !== null);
+    const entry = accepted[numbered];
+    if (entry && deps.numbering && legalEntityId !== null) {
+      const scheme = await deps.numbering.scheme(tx, asking.tenantId, legalEntityId);
+      if (scheme) {
+        const sequence = sequenceOf(scheme, String(entry[1]));
+        if (sequence === null) {
+          return err(
+            failure(
+              'VALUE_INVALID',
+              `employee_number: this legal entity's numbers look like ${formatNumber(scheme, 1)}`,
+              ['employee_number'],
+            ),
+          );
+        }
+        await deps.numbering.observe(tx, asking.tenantId, legalEntityId, sequence);
+        // Claimed tenant-wide, as `person_employee_number_key` holds it, so a
+        // clash is refused as UNIQUE_VALUE_TAKEN rather than failing the write.
+        if (entry[0].uniqueScope !== 'tenant') {
+          accepted[numbered] = [{ ...entry[0], uniqueScope: 'tenant' }, entry[1]];
+        }
+      }
+    }
 
     // Every rule this write claims under, locked in one order before the
     // first claim, so two writes naming the same attributes in opposite
@@ -878,7 +957,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }
       // The values first, without telling identity: the hire below tells it
       // once, with the name as it stands after both.
-      const { changes = {}, hireDate, ...rest } = asking;
+      const { changes: asked = {}, hireDate, ...rest } = asking;
+      const changes = { ...asked, ...(await numberFor(tx, asking, version, asked)) };
       if (Object.keys(changes).length > 0) {
         const updated = await update(tx, { ...rest, changes }, false);
         if (!updated.ok) return updated;

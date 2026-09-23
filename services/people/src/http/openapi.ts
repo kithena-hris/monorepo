@@ -18,12 +18,14 @@ import {
   ListQuery,
   LocationBody,
   LocationZoneBody,
+  NumberingBody,
   PatchLegalEntityBody,
   PatchLocationBody,
   PatchPersonBody,
   PatchSettingsBody,
   PersonBody,
   PersonPageBody,
+  PutNumberingBody,
   SchemaVersionSummary,
   SettingsBody,
 } from './rest.js';
@@ -57,6 +59,8 @@ const components = {
   LegalEntities: z.object({ items: z.array(LegalEntityBody) }),
   CreateLegalEntity: CreateLegalEntityBody,
   PatchLegalEntity: PatchLegalEntityBody,
+  Numbering: NumberingBody,
+  PutNumbering: PutNumberingBody,
   Location: LocationBody,
   Locations: z.object({ items: z.array(LocationBody) }),
   CreateLocation: CreateLocationBody,
@@ -251,6 +255,20 @@ export function openApiDocument(): Record<string, unknown> {
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('PatchLegalEntity') },
           responses: { 200: { description: 'After', ...json('LegalEntity') }, ...failure },
+        },
+      },
+      '/v1/legal-entities/{id}/numbering': {
+        get: {
+          summary: "The entity's employee numbering; 404 when it does not number its people",
+          parameters: [id],
+          responses: { 200: { description: 'Scheme', ...json('Numbering') }, ...failure },
+        },
+        put: {
+          summary:
+            'Set the prefix, width and start a hire here is numbered from; people_admin only',
+          parameters: [id, idempotencyKey],
+          requestBody: { required: true, ...json('PutNumbering') },
+          responses: { 200: { description: 'Scheme', ...json('Numbering') }, ...failure },
         },
       },
       '/v1/locations': {
