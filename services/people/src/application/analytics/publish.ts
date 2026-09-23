@@ -3,7 +3,18 @@ import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import { cohortMinimum, suppressSmallCohorts, type Suppressed } from './access.js';
-import { DIMENSIONS, rows, selfIdFields, type Dimension, type TenantScope } from './snapshot.js';
+import { entityDays } from '../../domain/org/calendar.js';
+import type { Calendars } from '../org/org.js';
+import {
+  dayOf,
+  DIMENSIONS,
+  rows,
+  selfIdFields,
+  type Days,
+  type Dimension,
+  type SnapshotRun,
+  type TenantScope,
+} from './snapshot.js';
 
 /**
  * Published special-category breakdowns (PEO-083, §16.1 rule 2).
@@ -198,9 +209,9 @@ export async function latestPublication<T>(
   };
 }
 
-/** In headcount on a day, by the dated facts the snapshot counts by. */
-const present = (day: string) =>
-  sql`(p.hire_date <= ${day}::date AND (p.last_working_day IS NULL OR p.last_working_day >= ${day}::date))`;
+/** In headcount on each person's day, by the dated facts the snapshot counts by. */
+const present = (days: Days) =>
+  sql`(p.hire_date <= ${dayOf(days)} AND (p.last_working_day IS NULL OR p.last_working_day >= ${dayOf(days)}))`;
 
 /**
  * How many people changed, for one field, since a publication.
@@ -217,13 +228,14 @@ const present = (day: string) =>
 export async function changesSince(
   { tx, tenantId }: TenantScope,
   key: string,
-  since: { readonly day: string; readonly at: string },
-  today: string,
+  /** Each entity's day at the publication, and now (PRD §6.8). */
+  since: { readonly days: Days; readonly at: string },
+  today: Days,
 ): Promise<number> {
-  const answer = (day: string, recordedBy: string | null) => sql`(
+  const answer = (days: Days, recordedBy: string | null) => sql`(
     SELECT h.value FROM people.person_attribute_history h
      WHERE h.tenant_id = p.tenant_id AND h.person_id = p.id AND h.attribute_key = ${key}
-       AND h.effective_from <= ${day}::date
+       AND h.effective_from <= ${dayOf(days)}
        AND (${recordedBy}::timestamptz IS NULL OR h.recorded_at <= ${recordedBy}::timestamptz)
      ORDER BY h.effective_from DESC, h.recorded_at DESC
      LIMIT 1)`;
@@ -233,9 +245,9 @@ export async function changesSince(
          WHERE p.tenant_id = ${tenantId}::uuid
            AND p.status NOT IN ('provisional', 'discarded')
            AND p.hire_date IS NOT NULL
-           AND (${present(today)} <> ${present(since.day)}
+           AND (${present(today)} <> ${present(since.days)}
                 OR (${present(today)}
-                    AND ${answer(today, null)} IS DISTINCT FROM ${answer(since.day, since.at)}))`,
+                    AND ${answer(today, null)} IS DISTINCT FROM ${answer(since.days, since.at)}))`,
   );
   return row?.n ?? 0;
 }
@@ -244,7 +256,8 @@ export interface PublishRequest {
   readonly definitions: readonly AttributeDefinition[];
   /** The tenant's cohort minimum, which is also the change threshold. */
   readonly cohortMinimum?: number;
-  readonly timeZone?: string;
+  /** The run `takeSnapshot` just took: its day, and the day each entity was counted on. */
+  readonly run: Pick<SnapshotRun, 'day' | 'days'>;
 }
 
 /**
@@ -255,12 +268,15 @@ export interface PublishRequest {
  * key says so, and a second replica racing the first loses quietly.
  */
 export async function publishBreakdowns(
-  deps: { readonly clock: Clock },
+  deps: { readonly clock: Clock; readonly calendars: Calendars },
   scope: TenantScope,
   request: PublishRequest,
 ): Promise<Result<{ readonly published: readonly string[] }>> {
   const { tx, tenantId } = scope;
-  const today = deps.clock.date(request.timeZone ?? 'Etc/UTC') as string;
+  // The snapshot's day, never a second reading of the clock: a publication
+  // is of the run it reads, and each entity was counted on its own day.
+  const today = request.run.day;
+  const calendar = await deps.calendars.load(tx, tenantId);
   const threshold = cohortMinimum(request.cohortMinimum);
 
   const [run] = await rows<{ today: boolean; previous: string | null }>(
@@ -288,8 +304,8 @@ export async function publishBreakdowns(
     // Not a boundary even with every change it could want: nothing to count.
     if (!due(threshold)) continue;
     if (last !== null) {
-      const since = { day: last.publishedOn, at: last.publishedAt };
-      if (!due(await changesSince(scope, breakdown.key, since, today))) continue;
+      const since = { days: entityDays(calendar, last.publishedAt), at: last.publishedAt };
+      if (!due(await changesSince(scope, breakdown.key, since, request.run.days))) continue;
     }
 
     const cells = await breakdown.cells(scope, today);

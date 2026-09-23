@@ -20,6 +20,7 @@ import {
 import { inMemoryFullValuesStore } from './full-values-store.js';
 import { inMemoryExportLedger } from './ledger.js';
 import { keyOf, localObjectStore } from './object-store.js';
+import { utcCalendars } from '../org/org.js';
 
 const IBAN = 'ES9121000418450200051332';
 const FINANCE_TOO: Viewer = {
@@ -54,7 +55,7 @@ function setup() {
   const sent: string[] = [];
   const revealed: string[] = [];
   let ids = 0;
-  const deps: FullValuesDeps = {
+  const deps: FullValuesDeps = { calendars: utcCalendars,
     access: personAccess(people.deps),
     schemas: people.deps.schemas,
     relations: people.deps.relations,

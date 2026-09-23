@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import ExcelJS from 'exceljs';
-import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
+import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo } from '../../domain/access/field-access.js';
@@ -9,6 +9,7 @@ import { exponentOf, fromMinor, MASK } from '../import/cells.js';
 import { writeCsv } from '../import/csv.js';
 import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
 import { PERSON_ID_COLUMN } from '../import/parse.js';
+import type { Calendars } from '../org/org.js';
 import type { Asking, PersonAccess, PersonView, SealedValue } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
 
@@ -69,6 +70,8 @@ export interface ExportDeps {
   readonly clock: Clock;
   /** The raw record and its history, for judging completeness on the export's day. */
   readonly records: RecordDeps;
+  /** The tenant's calendar, for the file's date. */
+  readonly calendars: Calendars;
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -132,11 +135,17 @@ export async function buildExport(
   }
   const wanted = request.fields ? new Set(request.fields) : null;
 
+  // A tenant-wide file, so the tenant's day (PRD §6.8): one date for
+  // everybody on it — the file's stamp, its "As of", and the day its gaps are
+  // judged on.
+  const calendar = await deps.calendars.load(tx, request.tenantId);
+  const stamp = localDate(deps.clock.instant(), calendar.defaultZone);
+
   // Completeness is judged on the export's day, against the version in force
   // then: an `asOf` export is a picture of that day, its gaps included.
-  const day = request.asOf ?? deps.clock.date(request.timeZone ?? 'Etc/UTC');
+  const day = request.asOf ?? stamp;
   const judgedBy = request.asOf
-    ? await versionInForce(tx, deps.schemas, request.tenantId, request.asOf)
+    ? await versionInForce(tx, deps.schemas, request.tenantId, request.asOf, calendar.defaultZone)
     : version;
   const requested = candidates.filter((d) => !wanted || wanted.has(d.key));
 
@@ -200,7 +209,6 @@ export async function buildExport(
   }
   const flat = columns.filter((d) => d.cardinality !== 'repeating');
   const repeating = columns.filter((d) => d.cardinality === 'repeating');
-  const stamp = deps.clock.instant().slice(0, 10);
 
   const files =
     request.format === 'csv'
@@ -218,6 +226,7 @@ export async function buildExport(
               request,
               deps.clock,
               columns,
+              stamp,
             ),
           },
         ];
@@ -355,6 +364,7 @@ async function workbook(
   request: ExportRequest,
   clock: Clock,
   columns: readonly AttributeDefinition[],
+  today: string,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   const people = wb.addWorksheet('People', { views: [{ state: 'frozen', ySplit: 2 }] });
@@ -423,7 +433,7 @@ async function workbook(
   const about = wb.addWorksheet('About this export');
   for (const line of [
     ['Schema version', version.version],
-    ['As of', request.asOf ?? clock.date(request.timeZone ?? 'Etc/UTC')],
+    ['As of', request.asOf ?? today],
     [
       'Filter',
       request.filter ??

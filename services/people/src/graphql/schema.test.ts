@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createYoga } from 'graphql-yoga';
-import { err, failure, ok } from '@kithena/domain-kit';
+import { err, failure, fixedClock, ok } from '@kithena/domain-kit';
 
+import { inMemoryOrg } from '../application/org/in-memory.js';
+import { orgAdmin } from '../application/org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
 import { configureGraphQL, schema, valueOf } from './schema.js';
@@ -156,5 +158,52 @@ describe('an attribute value input', () => {
       ok({ amountMinor: 5_500_000, currency: 'EUR' }),
     );
     expect(valueOf({ money: { amountMinor: '55.5', currency: 'EUR' } }).ok).toBe(false);
+  });
+});
+
+describe('legal entities over GraphQL', () => {
+  function wireOrg(roles: string[]) {
+    const store = inMemoryPeople([versionOf(1, [title])]);
+    let n = 0;
+    configureGraphQL({
+      service: {
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+        org: orgAdmin({
+          store: inMemoryOrg().store,
+          clock: fixedClock('2026-03-10T12:00:00.000Z'),
+          newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
+        }),
+      },
+      callerFrom: () =>
+        ok({
+          tenantId: TENANT,
+          viewer: { accountId: HR_ACCOUNT, roles: new Set(roles) },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        }),
+    });
+  }
+
+  const CREATE = `
+    mutation ($name: String!, $country: String!, $timeZone: String!) {
+      createLegalEntity(name: $name, country: $country, timeZone: $timeZone) { name country timeZone }
+    }`;
+  const madrid = { name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' };
+
+  it('creates one for a People administrator and lists it', async () => {
+    wireOrg(['people_admin']);
+    expect((await query(CREATE, madrid)).data).toEqual({ createLegalEntity: madrid });
+    const listed = await query('{ legalEntities { name archived } peopleSettings { cohortMinimum } }', {});
+    expect(listed.data).toEqual({
+      legalEntities: [{ name: 'Acme SL', archived: false }],
+      peopleSettings: { cohortMinimum: 10 },
+    });
+  });
+
+  it('refuses anybody else with the same code REST gives', async () => {
+    wireOrg(['hr']);
+    const refused = await query(CREATE, madrid);
+    expect(refused.errors?.[0]?.extensions).toMatchObject({ code: 'FORBIDDEN' });
   });
 });

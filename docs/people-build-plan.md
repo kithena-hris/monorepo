@@ -928,10 +928,15 @@ it is written down here rather than left in a PR description.
       Found in PEO-045. *(PRD §16.1)* *Decided as a monthly publication,
       republished only after N changes, rounded to 5; landed as
       `people.published_breakdown`.*
-- [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
+- [x] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
-      under the cap; confirm that is intended. *(PRD §8.4)*
+      under the cap; confirm that is intended. *(PRD §8.4)* — Confirmed: day 1,
+      then weekly. Messaging serves `POST /api/internal/messaging/notice`;
+      People's mailer is configured by `MESSAGING_URL` and
+      `MESSAGING_PEOPLE_TOKEN`, and the hourly sweep runs only when it is. The
+      email names the company and links to its own origin (`TENANT_APP_BASE`,
+      from PEO-099's slug and name); a tenant without both waits.
 - [x] **PEO-085** Retention does not fully erase. `anonymise` clears current
       plain values only: encrypted values stay because `svc_people` has no
       DELETE on `people.person_secret`, and history keeps every past value
@@ -1041,6 +1046,23 @@ it is written down here rather than left in a PR description.
       asking HR to end the employment. *Decided: the first returns to
       `pre_hire`; the second stays on notice and HR's grid gets a
       `confirm_termination` row.* Found in PEO-096. *(PRD §8.1, §8.5)*
+- [x] **PEO-099** Whose day it is. Every "today" in People — required-from,
+      the reminder window, retention due dates, the daily snapshot, the
+      monthly self-ID publication — ran on UTC or on whatever zone a request
+      carried. Decided (option D): a time zone per legal entity and per
+      location, owned by People (`people.legal_entity`, `people.location`,
+      effective-dated `people.location_zone`), a tenant default and the cohort
+      minimum in `people.tenant_settings` (never lowerable, by trigger too).
+      A person's day is their location's, else their entity's, else their own,
+      else the tenant's; aggregates are counted per legal entity on its own
+      day and summed. One resolver (`Calendars`), one conversion
+      (`localDate`); the company wizard carries the first zone and country to
+      People on `identity.tenant.provisioned`, with the slug and name that
+      `identity.tenant.amended` keeps current. *(PRD §6.8, §8.4, §8.5, §9.4,
+      §10.2a, §11, §12, §16)*
+- [ ] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
+      sequence start. Found in PEO-099, which added the legal entity it hangs
+      off. *(PRD §7, §9.4, Appendix A)*
 
 ## Blocked, and by what
 

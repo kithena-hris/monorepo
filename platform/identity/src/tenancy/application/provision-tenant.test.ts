@@ -23,6 +23,7 @@ function scope(written: string[], over: Partial<ProvisionScope> = {}): Provision
       written.push(`enter:${tenantId}`);
       return Promise.resolve();
     },
+    announce: () => Promise.resolve(),
     inviteAdmin: (_t, email) => {
       written.push(`account:${email}`);
       return Promise.resolve({
@@ -301,5 +302,38 @@ describe('what an invitation carries', () => {
         expect(link.searchParams.get(param)).not.toBeNull();
       }
     }
+  });
+});
+
+describe('telling People the company exists (PEO-099)', () => {
+  it('announces the zone and country after entering the tenant, and gives the admins that zone', async () => {
+    const seen: string[] = [];
+    const d = deps({
+      enterTenant: () => {
+        seen.push('enter');
+        return Promise.resolve();
+      },
+      announce: (_tenantId, tenant) => {
+        seen.push(`announce:${tenant.country}:${tenant.timeZone}:${tenant.slug}`);
+        return Promise.resolve();
+      },
+      inviteAdmin: (_t, email, timeZone) => {
+        seen.push(`invite:${timeZone}`);
+        return Promise.resolve({
+          accountId: `acct-${email}`,
+          identityId: `id-${email}`,
+          token: 't',
+          expiresAt: EXPIRES,
+        });
+      },
+    });
+    const result = await provisionTenant(d)({ ...request, timeZone: 'Europe/Madrid' });
+    expect(result.ok).toBe(true);
+    expect(seen).toEqual([
+      'enter',
+      'announce:ES:Europe/Madrid:acme',
+      'invite:Europe/Madrid',
+      'invite:Europe/Madrid',
+    ]);
   });
 });

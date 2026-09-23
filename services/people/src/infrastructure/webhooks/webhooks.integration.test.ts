@@ -25,6 +25,7 @@ import { tenantTransaction } from '../unit-of-work.js';
 import { verifySignature } from './payload.js';
 import type { Poster } from './egress.js';
 import { webhooks } from './webhooks.js';
+import { utcCalendars } from '../../application/org/org.js';
 
 /**
  * Webhooks over Postgres: the outbox trigger enqueues, the dispatcher sends,
@@ -90,6 +91,7 @@ const hooks = () =>
 
 const people = () =>
   personAccess({
+    calendars: utcCalendars,
     people: drizzlePersonRepository(),
     reader: drizzlePersonReader(),
     schemas: drizzleSchemaVersions(),

@@ -26,6 +26,22 @@ const request = (over: Partial<ProvisionRequest> = {}): ProvisionRequest => ({
 
 const IMAGES = { hosts: ['.public.blob.vercel-storage.com'] };
 
+describe('the company time zone (PEO-099)', () => {
+  it('defaults to UTC when the caller sends none', () => {
+    const checked = checkProvisionable(request(), IMAGES);
+    expect(checked.ok && checked.value.timeZone).toBe('Etc/UTC');
+  });
+
+  it('keeps an IANA zone and refuses anything else, naming the field', () => {
+    const madrid = checkProvisionable(request({ timeZone: 'Europe/Madrid' }), IMAGES);
+    expect(madrid.ok && madrid.value.timeZone).toBe('Europe/Madrid');
+    expect(checkProvisionable(request({ timeZone: 'UTC+1' }), IMAGES)).toMatchObject({
+      ok: false,
+      error: { code: 'TIME_ZONE_UNKNOWN', path: ['timeZone'] },
+    });
+  });
+});
+
 describe('checkProvisionable', () => {
   it('accepts a well-formed company', () => {
     expect(checkProvisionable(request(), IMAGES).ok).toBe(true);

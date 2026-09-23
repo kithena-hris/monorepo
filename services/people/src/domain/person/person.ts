@@ -254,7 +254,7 @@ export class Person extends AggregateRoot<string> {
    * data-entry ritual, and the intermediate state would be false the moment it
    * was written.
    */
-  hire(hireDate: string, facts: HireFacts, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
+  hire(hireDate: string, facts: HireFacts, ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'hired'));
 
     this.#hireDate = hireDate;
@@ -444,7 +444,7 @@ export class Person extends AggregateRoot<string> {
    * else moves: on leave or on notice stays put, and a correction does not
    * re-run the hire.
    */
-  correctHireDate(hireDate: string, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
+  correctHireDate(hireDate: string, ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay !== null && this.#lastWorkingDay < hireDate) {
       return err(

@@ -1,10 +1,12 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
+import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition, EmploymentType, WorkModel } from '@kithena/contracts';
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
+import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import type { Calendars } from '../org/org.js';
 import type { PersonAccess, PersonView } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions, Viewer } from '../person/ports.js';
 import { coerceCell, coerceDate, isMasked, type DateOrder } from './cells.js';
@@ -90,13 +92,14 @@ export interface DryRunDeps {
   readonly schemas: SchemaVersions;
   readonly relations: RelationsResolver;
   readonly clock: Clock;
+  /** Whose day each row's person is on (PRD §6.8). */
+  readonly calendars: Calendars;
 }
 
 export interface DryRunInput {
   readonly tenantId: string;
   readonly viewer: Viewer;
   readonly correlationId: string;
-  readonly timeZone?: string;
   readonly file: ParsedFile;
   /** A resolved mapping: nothing left in review, nothing refused. */
   readonly mapping: readonly ColumnMapping[];
@@ -166,7 +169,6 @@ const asking = (input: DryRunInput) => ({
   tenantId: input.tenantId,
   viewer: input.viewer,
   correlationId: input.correlationId,
-  ...(input.timeZone ? { timeZone: input.timeZone } : {}),
 });
 
 export async function dryRun(
@@ -212,8 +214,8 @@ export async function dryRun(
   const existing = await existingPeople(tx, deps, input);
   if (!existing.ok) return existing;
 
-  const today = deps.clock.date(input.timeZone ?? 'Etc/UTC') as string;
-  const classify = rowClassifier(version, input, existing.value, relations, deps.clock, today);
+  const calendar = await deps.calendars.load(tx, input.tenantId);
+  const classify = rowClassifier(version, input, existing.value, relations, deps.clock, calendar);
   const rows = input.file.rows.map(classify);
 
   const counts: Record<RowOutcome, number> = {
@@ -258,8 +260,9 @@ function rowClassifier(
   existing: Existing,
   relations: ViewerRelations,
   clock: Clock,
-  today: string,
+  calendar: TenantCalendar,
 ) {
+  const at = clock.instant();
   const definitions = version.document.attributes;
   const byKey = new Map(definitions.map((d) => [d.key as string, d]));
   const mapped = input.mapping.filter((m) => m.status === 'mapped' && m.key !== null);
@@ -270,21 +273,43 @@ function rowClassifier(
 
   return (parsed: ParsedRow): ClassifiedRow => {
     const cell = (m: ColumnMapping) => parsed.cells[m.index] ?? '';
-    const problems: CellProblem[] = [];
-    const values: Record<string, unknown> = {};
+    const coerceRow = (today: string) => {
+      const found: CellProblem[] = [];
+      const coerced: Record<string, unknown> = {};
+      for (const m of mapped) {
+        const key = m.key as string;
+        const definition = byKey.get(key);
+        if (!definition) continue; // system columns, read below
+        const raw = cell(m);
+        // A sealed value exports masked; the mask is "unchanged", not a value.
+        if (definition.encrypted && isMasked(raw)) continue;
+        const one = coerceCell(definition, raw, { today, dateOrder: order });
+        if (!one.ok)
+          found.push({ column: m.header, key, kind: 'invalid', reason: one.error.message });
+        else if (one.value !== null) coerced[key] = one.value;
+      }
+      return { found, coerced };
+    };
 
-    for (const m of mapped) {
-      const key = m.key as string;
-      const definition = byKey.get(key);
-      if (!definition) continue; // system columns, read below
-      const raw = cell(m);
-      // A sealed value exports masked; the mask is "unchanged", not a value.
-      if (definition.encrypted && isMasked(raw)) continue;
-      const coerced = coerceCell(definition, raw, { today, dateOrder: order });
-      if (!coerced.ok)
-        problems.push({ column: m.header, key, kind: 'invalid', reason: coerced.error.message });
-      else if (coerced.value !== null) values[key] = coerced.value;
-    }
+    /*
+     * A date's "past" or "future" is judged on the person's own day (PRD
+     * §6.8), and which person — and so which calendar — is only known once
+     * the row's entity, location and identifiers are read. So: read on the
+     * tenant's day, work out whose day it really is, and read again on that
+     * day if it differs. The placement cells are ids and zones, which no day
+     * changes.
+     */
+    const tenantDay = localDate(at, calendar.defaultZone);
+    const first = coerceRow(tenantDay);
+    const idCell = columnOf(PERSON_ID_COLUMN);
+    const matched =
+      (idCell ? existing.byId.get(cell(idCell)) : undefined) ??
+      existing.byEmail.get(lower(first.coerced['work_email']) ?? '') ??
+      existing.byNumber.get(lower(first.coerced['employee_number']) ?? '');
+    const zone = personZone(calendar, placementOf({ ...matched?.attributes, ...first.coerced }), at);
+    const personDay = localDate(at, zone);
+    const { found: problems, coerced: values } =
+      personDay === tenantDay ? first : coerceRow(personDay);
 
     const dateColumn = (key: 'hire_date' | 'effective_from'): string | null => {
       const m = columnOf(key);
@@ -410,7 +435,7 @@ function rowClassifier(
         knownAttributes: new Set(byKey.keys()),
       },
       clock,
-      input.timeZone,
+      zone,
     );
     const missing = verdict.missing
       .map((m) => m.key)

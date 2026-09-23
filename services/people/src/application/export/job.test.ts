@@ -9,6 +9,7 @@ import { asking, FINANCE, financeTenant, HR } from './fixture.js';
 import { runExportJob, type ExportJobDeps, type ExportNotifier } from './job.js';
 import { inMemoryExportLedger } from './ledger.js';
 import { localObjectStore } from './object-store.js';
+import { utcCalendars } from '../org/org.js';
 
 /** A clock the test can move, as a day passes between the link and the click. */
 function movableClock(start: string): Clock & { set(iso: string): void } {
@@ -35,6 +36,7 @@ function setup() {
   const sent: Parameters<ExportNotifier['notify']>[0][] = [];
   let ids = 0;
   const deps: ExportJobDeps = {
+    calendars: utcCalendars,
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,

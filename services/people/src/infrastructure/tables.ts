@@ -97,6 +97,25 @@ export const schemaVersion = people.table(
   (t) => [uniqueIndex('schema_version_pk_idx').on(t.tenantId, t.version)],
 );
 
+/**
+ * The same table with `evaluated_at` (20260924170000). Separate so that every
+ * read and write that does not need the instant keeps working against a
+ * database one migration behind; only the publish writes it and only the
+ * recompute reads it.
+ */
+export const schemaVersionEvaluated = people.table('schema_version', {
+  tenantId: uuid('tenant_id').notNull(),
+  version: integer('version').notNull(),
+  publishedAt: timestamp('published_at', { withTimezone: true }).notNull().defaultNow(),
+  publishedBy: uuid('published_by'),
+  checksum: char('checksum', { length: 64 }).notNull(),
+  document: jsonb('document').notNull(),
+  rolledBackFrom: integer('rolled_back_from'),
+  evaluatedOn: date('evaluated_on'),
+  /** The instant the preview read every person's own day off (PEO-099). */
+  evaluatedAt: timestamp('evaluated_at', { withTimezone: true }),
+});
+
 export const person = people.table('person', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull(),
@@ -200,6 +219,45 @@ export const attributeUnique = people.table(
     index('attribute_unique_person_lookup').on(t.tenantId, t.personId),
   ],
 );
+
+/* Legal entities, locations and settings: `20260924170000_people_calendar.sql`. */
+
+export const tenantSettings = people.table('tenant_settings', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  defaultTimeZone: text('default_time_zone').notNull(),
+  cohortMinimum: integer('cohort_minimum').notNull(),
+  /* 20260924170100: the company, as the back office last described it. */
+  slug: text('slug'),
+  displayName: text('display_name'),
+  companyAsOf: timestamp('company_as_of', { withTimezone: true }),
+});
+
+export const legalEntity = people.table('legal_entity', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  name: text('name').notNull(),
+  country: char('country', { length: 2 }).notNull(),
+  timeZone: text('time_zone').notNull(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+});
+
+export const location = people.table('location', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  legalEntityId: uuid('legal_entity_id').notNull(),
+  name: text('name').notNull(),
+  country: char('country', { length: 2 }).notNull(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+});
+
+export const locationZone = people.table('location_zone', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  locationId: uuid('location_id').notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  timeZone: text('time_zone').notNull(),
+  supersedes: uuid('supersedes'),
+});
 
 /** Every tenant People has work for. Readable unscoped, by design: see the migration. */
 export const tenant = people.table('tenant', {

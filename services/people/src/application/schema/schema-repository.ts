@@ -37,8 +37,14 @@ export interface SchemaRepository {
     tenantId: string,
     version: PublishedVersion,
     events: readonly PendingEvent[],
-    /** The tenant-local date the impact preview evaluated `requiredFrom` on. */
+    /** The tenant default's date at `evaluatedAt`, kept for versions read by date. */
     evaluatedOn: string,
+    /**
+     * The instant the impact preview evaluated at. Each person's `requiredFrom`
+     * is read on their own calendar at this instant (PRD §6.8), so the
+     * recompute replays the instant rather than one date.
+     */
+    evaluatedAt?: string,
   ): Promise<void>;
 }
 

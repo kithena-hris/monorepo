@@ -9,6 +9,8 @@ import { startPostgres } from '@kithena/testing';
 
 import { knownTenants, rememberTenant } from '../tenants.js';
 import { tenantTransaction } from '../unit-of-work.js';
+import { orgAdmin } from '../../application/org/org.js';
+import { drizzleOrgStore } from '../drizzle-org-store.js';
 import { peopleConsumer } from './handle.js';
 import { drizzleProvisionalPeople } from './identity.js';
 
@@ -53,6 +55,8 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
     '20260923160000_people_tenant.sql',
+    '20260924170000_people_calendar.sql',
+    '20260924170100_people_tenant_company.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -72,6 +76,7 @@ beforeAll(async () => {
         ok({ evaluated: 0, becameIncomplete: 0, becameComplete: 0, superseded: false }),
       );
     },
+    org: orgAdmin({ store: drizzleOrgStore(), clock, newId: newEventId }),
   });
 });
 
@@ -296,5 +301,59 @@ describe('the tenant list (PEO-080)', () => {
     await expect(
       service().execute(sql`UPDATE people.tenant SET first_seen_at = now()`),
     ).rejects.toThrow();
+  });
+});
+
+describe('identity.tenant.* (PEO-099)', () => {
+  const tenantEvent = (eventName: string, payload: object, occurredAt: string) => ({
+    ...envelope(eventName, payload),
+    occurredAt,
+    effectiveFrom: null,
+    aggregate: { type: 'Tenant', id: ACME, version: 1 },
+  });
+  const created = tenantEvent(
+    'identity.tenant.provisioned',
+    { slug: 'acme', displayName: 'Acme', country: 'ES', timeZone: 'Europe/Madrid' },
+    '2026-09-23T09:00:00.000Z',
+  );
+  const settings = async () =>
+    [
+      ...(await admin.execute(sql`
+        SELECT default_time_zone, slug, display_name FROM people.tenant_settings
+         WHERE tenant_id = ${ACME}::uuid`)),
+    ][0];
+  const entities = async () =>
+    [
+      ...(await admin.execute(
+        sql`SELECT name, country, time_zone FROM people.legal_entity WHERE tenant_id = ${ACME}::uuid`,
+      )),
+    ];
+
+  beforeEach(async () => {
+    await admin.execute(sql`DELETE FROM people.legal_entity`);
+    await admin.execute(sql`DELETE FROM people.tenant_settings`);
+  });
+
+  it('takes the default zone, a first legal entity, the slug and the name, once', async () => {
+    expect(await handle(created)).toBe('applied');
+    expect(await handle(created)).toBe('unchanged');
+    expect(await settings()).toEqual({
+      default_time_zone: 'Europe/Madrid',
+      slug: 'acme',
+      display_name: 'Acme',
+    });
+    expect(await entities()).toEqual([{ name: 'Acme', country: 'ES', time_zone: 'Europe/Madrid' }]);
+    expect([...(await admin.execute(sql`SELECT tenant_id FROM people.tenant`))]).toEqual([
+      { tenant_id: ACME },
+    ]);
+  });
+
+  it('follows a rename, and ignores one delivered after a later one', async () => {
+    await handle(created);
+    const renamed = (displayName: string, at: string) =>
+      tenantEvent('identity.tenant.amended', { slug: 'acme', displayName }, at);
+    expect(await handle(renamed('Acme Iberia', '2026-09-25T09:00:00.000Z'))).toBe('applied');
+    expect(await handle(renamed('Acme Old', '2026-09-24T09:00:00.000Z'))).toBe('unchanged');
+    expect(await settings()).toMatchObject({ display_name: 'Acme Iberia' });
   });
 });

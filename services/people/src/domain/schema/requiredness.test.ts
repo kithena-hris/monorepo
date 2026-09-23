@@ -30,7 +30,7 @@ const facts: PersonFacts = {
 };
 
 const evaluate = (rule: unknown, over: Partial<PersonFacts> = {}) =>
-  evaluateRequiredness(Requiredness.parse(rule), { ...facts, ...over }, clock);
+  evaluateRequiredness(Requiredness.parse(rule), { ...facts, ...over }, clock, 'Etc/UTC');
 
 describe('the simple modes', () => {
   it('never is never', () => {
@@ -45,8 +45,10 @@ describe('the simple modes', () => {
 describe('each operand', () => {
   it('reads the legal entity', () => {
     expect(
-      evaluate({ mode: 'conditional', when: { clauses: [{ operand: 'legalEntity', in: [ENTITY] }] } })
-        .required,
+      evaluate({
+        mode: 'conditional',
+        when: { clauses: [{ operand: 'legalEntity', in: [ENTITY] }] },
+      }).required,
     ).toBe(true);
     expect(
       evaluate({
@@ -59,7 +61,10 @@ describe('each operand', () => {
   it('reads the country', () => {
     // The requirement this whole grammar exists for: a NIF is required in
     // Spain and meaningless in Germany.
-    const spanish = { mode: 'conditional', when: { clauses: [{ operand: 'country', in: ['ES'] }] } };
+    const spanish = {
+      mode: 'conditional',
+      when: { clauses: [{ operand: 'country', in: ['ES'] }] },
+    };
     expect(evaluate(spanish).required).toBe(true);
     expect(evaluate(spanish, { country: 'DE' }).required).toBe(false);
   });
@@ -104,9 +109,7 @@ describe('each operand', () => {
     const rule = {
       mode: 'conditional',
       when: {
-        clauses: [
-          { operand: 'attribute', key: 'visa_type', is: 'equals', equals: 'work_permit' },
-        ],
+        clauses: [{ operand: 'attribute', key: 'visa_type', is: 'equals', equals: 'work_permit' }],
       },
     };
     expect(evaluate(rule).required).toBe(true);
@@ -160,7 +163,9 @@ describe('combining clauses', () => {
   });
 
   it('requires one clause under `any`', () => {
-    expect(evaluate({ mode: 'conditional', when: { combine: 'any', clauses } }).required).toBe(true);
+    expect(evaluate({ mode: 'conditional', when: { combine: 'any', clauses } }).required).toBe(
+      true,
+    );
   });
 });
 

@@ -23,6 +23,7 @@ import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { define, versionOf } from './in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
 import type { Viewer } from './ports.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * The person use cases over the real adapters and a real Postgres, as
@@ -85,7 +86,7 @@ let inTenant: ReturnType<typeof tenantTransaction>;
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 let ids = 0;
-const people = personAccess({
+const people = personAccess({ calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
@@ -127,6 +128,8 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
+    '20260924170000_people_calendar.sql',
+    '20260924170100_people_tenant_company.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
