@@ -138,6 +138,14 @@ function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: Expo
     schemas: service.schemas,
     relations: drizzleRelations(),
     clock: systemClock,
+    records: {
+      people: drizzlePersonRepository(),
+      reader: drizzlePersonReader(),
+      secrets: drizzleSecretStore(
+        staticKeyRing(keysFrom(process.env['PEOPLE_SECRET_KEYS'])),
+        logger,
+      ),
+    },
     store: exportStoreFrom(process.env),
     // ponytail: the requester learns the export is ready from
     // `people.export.completed` and fetches the links from `GET
@@ -160,7 +168,11 @@ function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: Expo
   return { deps, queue: { enqueue: async (job) => (await runner).enqueue(job) } };
 }
 
-async function download(deps: ExportJobDeps, path: string, response: ServerResponse): Promise<void> {
+async function download(
+  deps: ExportJobDeps,
+  path: string,
+  response: ServerResponse,
+): Promise<void> {
   try {
     const opened = await deps.store.open(`http://people.internal${path}`);
     if (!opened.ok) {
@@ -170,7 +182,8 @@ async function download(deps: ExportJobDeps, path: string, response: ServerRespo
       });
       return;
     }
-    const name = decodeURIComponent(new URL(path, 'http://x').pathname).split('/').at(-1) ?? 'export';
+    const name =
+      decodeURIComponent(new URL(path, 'http://x').pathname).split('/').at(-1) ?? 'export';
     response.writeHead(200, {
       'content-type': opened.value.mediaType,
       'content-disposition': `attachment; filename="${name.replaceAll('"', '')}"`,
@@ -180,7 +193,10 @@ async function download(deps: ExportJobDeps, path: string, response: ServerRespo
   } catch (cause) {
     logger.error({ err: cause }, 'export download failed');
     if (!response.headersSent) {
-      send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+      send(response, {
+        status: 500,
+        body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+      });
     }
   }
 }

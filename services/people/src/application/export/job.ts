@@ -60,7 +60,10 @@ export const outboxExportAudit: ExportAudit = {
 /** One row per export, in the caller's transaction. Holds no value and no link. */
 export interface ExportLedger {
   /** A queued export, recorded before the job is handed over. */
-  queue(tx: PostgresJsDatabase, run: { tenantId: string; exportId: string; requestedBy: string }): Promise<void>;
+  queue(
+    tx: PostgresJsDatabase,
+    run: { tenantId: string; exportId: string; requestedBy: string },
+  ): Promise<void>;
   /** False when this export was already complete: the caller then does nothing more. */
   complete(tx: PostgresJsDatabase, run: CompletedExport): Promise<boolean>;
   find(tx: PostgresJsDatabase, tenantId: string, exportId: string): Promise<LedgerEntry | null>;

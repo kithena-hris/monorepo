@@ -959,9 +959,11 @@ it is written down here rather than left in a PR description.
       `hire_date`, the import checksum is not on `people.import.started`, and a
       re-upload cannot re-serve the blocked-row report because it is not
       stored. Found in PEO-038 to PEO-041. *(PRD §14)*
-- [ ] **PEO-091** Export gaps: the Missing information sheet reflects today's
+- [x] **PEO-091** Export gaps: the Missing information sheet reflects today's
       completeness even for an `asOf` export, and grey not-applicable cells are
-      not rendered. Found in PEO-042. *(PRD §15.4)*
+      not rendered. Found in PEO-042. *(PRD §15.4)* *Status, employment type,
+      work model, legal entity and whether a secret exists are still read as
+      of today; none has a dated read yet.*
 - [ ] **PEO-092** Authorization and transport setup. OpenFGA has no client
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal

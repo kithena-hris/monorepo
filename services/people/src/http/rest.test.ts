@@ -164,6 +164,7 @@ describe('exports', () => {
           access: service.access,
           schemas: service.schemas,
           relations: store.deps.relations,
+          records: store.deps,
           clock,
           store: localObjectStore({
             encryptionKey: randomBytes(32),
