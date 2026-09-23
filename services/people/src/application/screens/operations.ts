@@ -25,7 +25,7 @@ import {
   headcountTrend,
   movementWaterfall,
 } from '../analytics/queries.js';
-import { blockedReport, commitImport, type CommitDeps } from '../import/commit.js';
+import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
   proposeMapping,
@@ -385,35 +385,41 @@ function importDeps(deps: ImportDeps): CommitDeps {
   };
 }
 
-/** Commit: the dry run again, never taken from the client, then the writes (§14.5). */
+/**
+ * Commit: the dry run again, never taken from the client, then the writes
+ * (§14.5). Through `commitImportRetrying` (PEO-106), in its own transaction:
+ * two imports claiming the same unique values can deadlock, and the loser is
+ * run again rather than failed.
+ */
 export async function commitImportView(
   deps: ImportDeps,
   asking: Asking,
   upload: ImportUpload,
 ): Promise<Result<ImportStageView>> {
-  return run(deps.service, asking.tenantId, async (tx) => {
+  const planned = await run(deps.service, asking.tenantId, async (tx) => {
     const prepared = await prepare(deps, tx, asking, upload);
     if (!prepared.ok) return prepared;
     const mapping = resolved(prepared.value, upload.mapping ?? {});
-    if (!mapping.ok) return mapping;
-    const committed = await commitImport(tx, importDeps(deps), {
-      ...asking,
-      file: prepared.value.file,
-      mapping: mapping.value,
-    });
-    if (!committed.ok) return committed;
-    if (committed.value.status === 'already_imported') {
-      return err(failure('ALREADY_IMPORTED', 'This exact file has already been imported'));
-    }
-    const { counts, report } = committed.value;
-    return ok({
-      step: 'done' as const,
-      file: fileView(upload.name, prepared.value.file),
-      created: counts.created,
-      updated: counts.updated,
-      blocked: counts.blocked + counts.duplicate,
-      blockedCsv: b64(report),
-    });
+    return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
+  });
+  if (!planned.ok) return planned;
+  const committed = await commitImportRetrying(deps.service.inTenant, importDeps(deps), {
+    ...asking,
+    file: planned.value.file,
+    mapping: planned.value.mapping,
+  });
+  if (!committed.ok) return committed;
+  if (committed.value.status === 'already_imported') {
+    return err(failure('ALREADY_IMPORTED', 'This exact file has already been imported'));
+  }
+  const { counts, report } = committed.value;
+  return ok({
+    step: 'done' as const,
+    file: fileView(upload.name, planned.value.file),
+    created: counts.created,
+    updated: counts.updated,
+    blocked: counts.blocked + counts.duplicate,
+    blockedCsv: b64(report),
   });
 }
 
