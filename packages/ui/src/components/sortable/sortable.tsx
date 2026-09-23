@@ -80,6 +80,15 @@ export interface SortableListProps<T extends SortableItem> {
   children: (item: T, info: { index: number; dragging: boolean }) => ReactNode;
   /** Hides the up/down buttons. Only for a list that is also reorderable elsewhere. */
   hideMoveButtons?: boolean;
+  /**
+   * What a row is called, for its controls and the drag announcements.
+   *
+   * Without it a row is "item 3", which is true and useless: a screen reader
+   * user hears "Move item 3 up" ten times down a list and has to count. With it
+   * they hear "Move Hire date up", and the announcement after a drag says what
+   * moved as well as where.
+   */
+  itemLabel?: (item: T) => string;
   className?: string;
 }
 
@@ -90,6 +99,7 @@ export function SortableList<T extends SortableItem>({
   activator = 'handle',
   children,
   hideMoveButtons = false,
+  itemLabel,
   className,
 }: SortableListProps<T>): JSX.Element {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -114,8 +124,13 @@ export function SortableList<T extends SortableItem>({
     onReorder({ id: item.id, from, to, order: arrayMove([...ids], from, to) });
   };
 
+  const nameOf = (index: number): string => {
+    const item = items[index];
+    return item !== undefined && itemLabel !== undefined ? itemLabel(item) : `item ${String(index + 1)}`;
+  };
+
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up item ${String(ids.indexOf(String(active.id)) + 1)}.`,
+    onDragStart: ({ active }) => `Picked up ${nameOf(ids.indexOf(String(active.id)))}.`,
     onDragOver: ({ over }) =>
       over ? `Now over position ${String(ids.indexOf(String(over.id)) + 1)}.` : undefined,
     onDragEnd: ({ over }) =>
@@ -162,6 +177,7 @@ export function SortableList<T extends SortableItem>({
               total={items.length}
               activator={activator}
               hideMoveButtons={hideMoveButtons}
+              name={nameOf(index)}
               onMove={move}
             >
               {children(item, { index, dragging: activeId === item.id })}
@@ -187,6 +203,7 @@ function SortableRow({
   total,
   activator,
   hideMoveButtons,
+  name,
   onMove,
   children,
 }: {
@@ -195,6 +212,7 @@ function SortableRow({
   total: number;
   activator: 'handle' | 'row';
   hideMoveButtons: boolean;
+  name: string;
   onMove: (from: number, to: number) => void;
   children: ReactNode;
 }): JSX.Element {
@@ -233,7 +251,7 @@ function SortableRow({
           ref={setActivatorNodeRef}
           disabled={locked}
           // Named, because "grip icon" is not a thing anyone can act on.
-          aria-label={`Reorder item ${String(index + 1)}`}
+          aria-label={`Reorder ${name}`}
           className={cn(
             'shrink-0 rounded-sm p-1 text-fg-subtle',
             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
@@ -252,7 +270,7 @@ function SortableRow({
           <Button
             size="sm"
             variant="ghost"
-            aria-label={`Move item ${String(index + 1)} up`}
+            aria-label={`Move ${name} up`}
             disabled={index === 0 || locked}
             startIcon={<ChevronUp />}
             onClick={() => {
@@ -262,7 +280,7 @@ function SortableRow({
           <Button
             size="sm"
             variant="ghost"
-            aria-label={`Move item ${String(index + 1)} down`}
+            aria-label={`Move ${name} down`}
             disabled={index === total - 1 || locked}
             startIcon={<ChevronDown />}
             onClick={() => {
