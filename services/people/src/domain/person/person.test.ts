@@ -77,7 +77,7 @@ describe('the path a record actually takes', () => {
     const p = person();
     expect(p.hire('2026-10-01', HIRED, ctx, 'Etc/UTC').ok).toBe(true);
     expect(p.status).toBe('pre_hire');
-    expect(p.start(ctx).ok).toBe(true);
+    expect(p.start(context('2026-10-01T09:00:00.000Z'), 'Etc/UTC').ok).toBe(true);
     expect(p.status).toBe('active');
   });
 
@@ -131,7 +131,7 @@ describe('what is refused', () => {
   });
 
   it('refuses to start somebody nobody hired', () => {
-    expect(person().start(ctx).ok).toBe(false);
+    expect(person().start(ctx, 'Etc/UTC').ok).toBe(false);
   });
 
   it('refuses leave for somebody who has not started', () => {
@@ -159,7 +159,7 @@ describe('terminated is a tombstone', () => {
     // A rehire is a new employment, deliberately entered. If this were
     // reversible, every relation a leaver still carries could be switched back
     // on by anybody who could end one.
-    expect(leaver().start(ctx).ok).toBe(false);
+    expect(leaver().start(ctx, 'Etc/UTC').ok).toBe(false);
   });
 
   it('cannot be terminated twice', () => {
@@ -200,11 +200,39 @@ describe('discarding', () => {
   });
 });
 
+describe('starting on the start date (§8.1)', () => {
+  const preHire = () => person({ status: 'pre_hire', hireDate: '2026-10-01' });
+
+  it('takes effect on the start date, whenever it is recorded', () => {
+    const p = preHire();
+    expect(p.start(context('2026-10-03T09:00:00.000Z'), 'Etc/UTC').ok).toBe(true);
+    const raised = p.drainEvents();
+    expect(raised).toHaveLength(1);
+    expect(raised[0]).toMatchObject({
+      eventName: 'people.person.status_changed',
+      effectiveFrom: '2026-10-01',
+      payload: { previous: 'pre_hire', next: 'active', reason: 'started' },
+    });
+  });
+
+  it('refuses before the start date has begun on the person’s own calendar', () => {
+    // 2026-09-30T12:00Z is already 1 October in Auckland and still 30
+    // September in Los Angeles.
+    const at = context('2026-09-30T12:00:00.000Z');
+    expect(preHire().start(at, 'Pacific/Auckland').ok).toBe(true);
+    const early = preHire();
+    const refused = early.start(at, 'America/Los_Angeles');
+    expect(!refused.ok && refused.error.code).toBe('NOT_STARTED_YET');
+    expect(early.status).toBe('pre_hire');
+    expect(early.drainEvents()).toEqual([]);
+  });
+});
+
 describe('what each transition raises', () => {
   it('raises one event per transition, in order', () => {
     const p = person();
     p.hire('2026-10-01', HIRED, ctx, 'Etc/UTC');
-    p.start(ctx);
+    p.start(context('2026-10-01T09:00:00.000Z'), 'Etc/UTC');
     p.giveNotice('2026-12-31', ctx);
     p.terminate('2026-12-31', ctx);
 
@@ -229,7 +257,7 @@ describe('what each transition raises', () => {
     // A refusal that had already moved the aggregate is the failure mode a
     // Result-returning domain exists to prevent.
     const p = person({ status: 'terminated', hireDate: '2026-01-01' });
-    p.start(ctx);
+    p.start(ctx, 'Etc/UTC');
     expect(p.drainEvents()).toEqual([]);
     expect(p.status).toBe('terminated');
   });

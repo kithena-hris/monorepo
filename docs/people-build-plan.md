@@ -1064,6 +1064,10 @@ it is written down here rather than left in a PR description.
       §8.1 asks only for fields collected at signup, enrolment or onboarding.
       Applied in the one function, and the import dry run judges a hired row
       in the state the commit leaves it in. *(PRD §8.1)*
+- [x] **PEO-104** Nothing moved a pre-hire to active on their start date. An
+      hourly, bounded, idempotent job in the background wiring starts each
+      one once the date has begun on their own calendar, with the events a
+      start raises and a completeness re-judge. *(PRD §8.1)*
 - [x] **PEO-105** `secret-store.rotate` was never called, so no encrypted value
       ever moved off an old master key and step 4 of the rollout could never
       happen. An hourly, bounded, idempotent re-wrap job beside PEO-082's,
