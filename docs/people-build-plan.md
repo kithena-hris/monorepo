@@ -948,9 +948,13 @@ it is written down here rather than left in a PR description.
       AI gateway checks structured `context` only, not free text in the
       instruction. Decide whether either needs to go further. Found in PEO-034
       and PEO-035.
-- [ ] **PEO-088** An audited way to read a secret for export. Encrypted fields
+- [x] **PEO-088** An audited way to read a secret for export. Encrypted fields
       are always masked in an export, but §15.2 lets finance see the full value
-      with a stated reason. Found in PEO-042. *(PRD §15.2)*
+      with a stated reason. Found in PEO-042. *(PRD §15.2)* *Replaced, by
+      product decision, with an approval: finance asks with a reason, HR
+      decides within seven days, an approval issues one single-use 24-hour
+      download, every step an event. A Temporal workflow per request; the
+      approval rules live in `domain/approval/` for PEO-077 to reuse.*
 - [x] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
       queue to hand exports over 2,000 rows to. Today the port has one
       in-memory implementation and nothing decides when to queue. Found in

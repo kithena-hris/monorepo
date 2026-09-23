@@ -34,6 +34,11 @@ export default ModuleManifest.parse({
     'people.import.started',
     'people.import.completed',
     'people.export.completed',
+    'people.export.full_values_requested',
+    'people.export.full_values_decided',
+    'people.export.full_values_expired',
+    'people.export.full_values_issued',
+    'people.export.full_values_downloaded',
     'people.webhook.endpoint_disabled',
   ],
   /*
