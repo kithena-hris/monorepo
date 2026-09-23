@@ -7,7 +7,7 @@ import postgres from 'postgres';
 import { startPostgres } from '@kithena/testing';
 
 import { staticKeyRing, type MasterKey } from './envelope.js';
-import { drizzleSecretStore, type SecretLogger } from './secret-store.js';
+import { drizzleSecretStore, secretRotation, type SecretLogger } from './secret-store.js';
 import { tenantTransaction } from './unit-of-work.js';
 
 /**
@@ -242,5 +242,67 @@ describe('rotation', () => {
     await inTenant(ACME, ({ tx }) => store.put(tx, at('bank_account'), IBAN));
     const count = await inTenant(ACME, ({ tx }) => store.rotate(tx, ACME, ADA));
     expect(count).toBe(0);
+  });
+});
+
+describe('the rotation job (PEO-105)', () => {
+  const env = (...keys: MasterKey[]) =>
+    keys.map((k) => `${k.id}:${k.key.toString('base64')}`).join(',');
+  const PEOPLE = Array.from(
+    { length: 5 },
+    (_, i) => `00000000-0000-4000-8000-0000000001${String(i).padStart(2, '0')}`,
+  );
+
+  it('re-wraps every secret in batches; with the old key dropped, every one still reveals', async () => {
+    const older = key('k1');
+    const newer = key('k2');
+    for (const id of PEOPLE) {
+      await admin.execute(sql`
+        INSERT INTO people.person (id, tenant_id, status) VALUES (${id}::uuid, ${ACME}::uuid, 'active')`);
+    }
+    const before = drizzleSecretStore(staticKeyRing([older]));
+    const values = new Map<string, string>();
+    await inTenant(ACME, async ({ tx }) => {
+      for (const [i, personId] of [ADA, ...PEOPLE].entries()) {
+        for (const attributeKey of ['bank_account', 'national_id']) {
+          const value = `${attributeKey}-${String(i)}-${randomBytes(4).toString('hex')}`;
+          values.set(`${personId}:${attributeKey}`, value);
+          await before.put(tx, { tenantId: ACME, personId, attributeKey }, value);
+        }
+      }
+    });
+
+    // Step 2 of the rollout: the new key current, the old one still held.
+    // Batches of two people, so six people cross three batch boundaries.
+    const rotate = secretRotation(inTenant, env(newer, older), { batch: 2 });
+    expect(await rotate(ACME)).toEqual({ rewrapped: 12 });
+    expect(await rotate(ACME)).toEqual({ rewrapped: 0 });
+    const keys = await admin.execute(sql`SELECT DISTINCT key_id FROM people.person_secret`);
+    expect([...keys].map((r) => String(r['key_id']))).toEqual(['k2']);
+
+    // Step 4: the old key gone. Everything opens under the new one alone.
+    const onlyNew = drizzleSecretStore(staticKeyRing([newer]));
+    for (const [where, value] of values) {
+      const [personId = '', attributeKey = ''] = where.split(':');
+      const revealed = await inTenant(ACME, ({ tx }) =>
+        onlyNew.reveal(tx, { tenantId: ACME, personId, attributeKey }),
+      );
+      expect(revealed).toBe(value);
+    }
+  });
+
+  it('refuses, and touches nothing, when a secret sits under a key the ring does not hold', async () => {
+    const lost = key('k0');
+    await inTenant(ACME, ({ tx }) =>
+      drizzleSecretStore(staticKeyRing([lost])).put(tx, at('bank_account'), IBAN),
+    );
+    const rotate = secretRotation(inTenant, env(key('k2'), key('k1')));
+    expect(await rotate(ACME)).toEqual({ rewrapped: 0 });
+    const keys = await admin.execute(sql`SELECT key_id FROM people.person_secret`);
+    expect([...keys].map((r) => String(r['key_id']))).toEqual(['k0']);
+  });
+
+  it('is a no-op without keys', async () => {
+    expect(await secretRotation(inTenant, undefined)(ACME)).toEqual({ rewrapped: 0 });
   });
 });

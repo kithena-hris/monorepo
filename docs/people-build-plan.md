@@ -1059,6 +1059,17 @@ it is written down here rather than left in a PR description.
       §8.1 asks only for fields collected at signup, enrolment or onboarding.
       Applied in the one function, and the import dry run judges a hired row
       in the state the commit leaves it in. *(PRD §8.1)*
+- [x] **PEO-105** `secret-store.rotate` was never called, so no encrypted value
+      ever moved off an old master key and step 4 of the rollout could never
+      happen. An hourly, bounded, idempotent re-wrap job beside PEO-082's,
+      refusing when a secret sits under a key the ring lacks. *(PRD §11.2)*
+- [x] **PEO-106** Two concurrent imports claiming the same unique attributes
+      in different orders deadlocked (40P01). `commitImportRetrying` retries
+      the commit three times with backoff, idempotent by checksum, and refuses
+      clearly when it still loses. *(PRD §14.5)*
+- [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
+      retried decision got 409 rather than a replay. Now keyed like every
+      other People REST write. *(PRD §13.2)*
 
 ## Blocked, and by what
 
