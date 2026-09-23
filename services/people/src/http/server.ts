@@ -18,6 +18,7 @@ import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { fetchPoster, webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
@@ -45,20 +46,76 @@ function keysFrom(value: string | undefined): MasterKey[] {
 
 export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
   const db = drizzle(postgres(databaseUrl));
+  const ring = staticKeyRing(keysFrom(secretKeys));
+  const raw = tenantTransaction(db);
   const schemas = drizzleSchemaVersions();
+
+  const hooks = webhooks({
+    inTenant: raw,
+    ring,
+    post: fetchPoster,
+    clock: systemClock,
+    newId: uuidv7,
+    // ponytail: the tenant is told through the log until a notification
+    // channel exists; a `people.webhook.disabled` event is the upgrade.
+    notify: (tenantId, endpointId, reason) => {
+      logger.warn({ tenantId, endpointId, reason }, 'webhook endpoint disabled');
+    },
+  });
+
+  /*
+   * Deliveries are sent after any transaction for their tenant commits, and
+   * again when the earliest retry falls due.
+   *
+   * ponytail: the retry timer is in-process. A restart forgets it, and a
+   * pending retry then waits for that tenant's next transaction — nothing is
+   * lost, because the rows are the truth. A BullMQ delayed job per tenant is
+   * the upgrade when that wait matters.
+   */
+  const running = new Set<string>();
+  const timers = new Map<string, NodeJS.Timeout>();
+  const kick = (tenantId: string): void => {
+    if (running.has(tenantId)) return;
+    running.add(tenantId);
+    void (async () => {
+      try {
+        await hooks.deliverDue(tenantId);
+        const due = await hooks.nextDue(tenantId);
+        clearTimeout(timers.get(tenantId));
+        if (due !== null) {
+          const wait = Math.max(due.getTime() - Date.now(), 1000);
+          timers.set(
+            tenantId,
+            setTimeout(() => {
+              kick(tenantId);
+            }, wait).unref(),
+          );
+        }
+      } catch (cause) {
+        logger.error({ err: cause, tenantId }, 'webhook delivery pass failed');
+      } finally {
+        running.delete(tenantId);
+      }
+    })();
+  };
+
   return {
     access: personAccess({
       people: drizzlePersonRepository(),
       reader: drizzlePersonReader(),
       schemas,
       relations: drizzleRelations(),
-      secrets: drizzleSecretStore(staticKeyRing(keysFrom(secretKeys)), logger),
+      secrets: drizzleSecretStore(ring, logger),
       uniques: drizzleUniqueClaims(),
       clock: systemClock,
       newId: uuidv7,
     }),
     schemas,
-    inTenant: tenantTransaction(db),
+    inTenant: async (tenantId, fn) => {
+      const result = await raw(tenantId, fn);
+      kick(tenantId);
+      return result;
+    },
   };
 }
 
