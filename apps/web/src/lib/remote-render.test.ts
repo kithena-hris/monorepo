@@ -38,7 +38,9 @@ const legitimate = screen(`
   ] });
 `);
 
-describe('a build that behaves', () => {
+// Each new build forks a fresh renderer (PEO-115). That is ~330 ms on a laptop and
+// several seconds on a loaded CI runner, so the default 5 s is too tight here.
+describe('a build that behaves', { timeout: 30_000 }, () => {
   it('renders with the shell’s React and Reach, the same way every time', async () => {
     const props = { title: 'Personal information', onSave: { '\u0000fn': true } };
     const html = await render(legitimate, props);
@@ -52,7 +54,7 @@ describe('a build that behaves', () => {
   });
 });
 
-describe('a build that does not', () => {
+describe('a build that does not', { timeout: 30_000 }, () => {
   it('cannot read the environment: there is no process', async () => {
     await expect(render(`exports.x = process.env;`)).rejects.toThrow(
       /refused: .*process is not defined/,
