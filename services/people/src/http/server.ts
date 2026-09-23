@@ -18,7 +18,8 @@ import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
-import { fetchPoster, webhooks } from '../infrastructure/webhooks/webhooks.js';
+import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
+import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
@@ -50,10 +51,17 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
   const raw = tenantTransaction(db);
   const schemas = drizzleSchemaVersions();
 
+  // Plain http only when a developer says so; production has no such switch set.
+  const egress = {
+    resolve: systemResolver,
+    allowHttp:
+      process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
+  };
   const hooks = webhooks({
     inTenant: raw,
     ring,
-    post: fetchPoster,
+    egress,
+    post: pinnedPoster(egress),
     clock: systemClock,
     newId: uuidv7,
     // ponytail: the tenant is told through the log until a notification

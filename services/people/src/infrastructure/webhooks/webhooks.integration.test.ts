@@ -22,7 +22,8 @@ import { drizzleSecretStore } from '../secret-store.js';
 import { drizzleUniqueClaims } from '../unique.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { verifySignature } from './payload.js';
-import { webhooks, type Poster } from './webhooks.js';
+import type { Poster } from './egress.js';
+import { webhooks } from './webhooks.js';
 
 /**
  * Webhooks over Postgres: the outbox trigger enqueues, the dispatcher sends,
@@ -70,7 +71,17 @@ const post: Poster = (url, request) => {
 const notified: string[] = [];
 
 const hooks = () =>
-  webhooks({ inTenant, ring, post, clock, newId, notify: (_t, id) => notified.push(id) });
+  webhooks({
+    inTenant,
+    ring,
+    post,
+    // Every name answers a public documentation-free address; the egress
+    // rules themselves are tested in egress.test.ts.
+    egress: { resolve: () => Promise.resolve([{ address: '93.184.215.14', family: 4 }]) },
+    clock,
+    newId,
+    notify: (_t, id) => notified.push(id),
+  });
 
 const people = () =>
   personAccess({

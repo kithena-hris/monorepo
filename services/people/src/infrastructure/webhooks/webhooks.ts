@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { isIP } from 'node:net';
 import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
 import type { InTenant } from '../../application/person/service.js';
 import { open, seal, type KeyRing } from '../envelope.js';
+import { vet, type EgressPolicy, type Poster } from './egress.js';
 import { filterFor, signatureHeader, type StoredEnvelope } from './payload.js';
 import { webhookDelivery, webhookEndpoint } from './tables.js';
 
@@ -25,27 +25,13 @@ import { webhookDelivery, webhookEndpoint } from './tables.js';
  *             allowlist as it is when it is sent — never as it was.
  */
 
-export type Poster = (
-  url: string,
-  request: { readonly headers: Record<string, string>; readonly body: string },
-) => Promise<{ readonly status: number }>;
-
-/** `fetch`, bounded, and never following a redirect somewhere we did not validate. */
-export const fetchPoster: Poster = async (url, request) => {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: request.headers,
-    body: request.body,
-    redirect: 'manual',
-    signal: AbortSignal.timeout(10_000),
-  });
-  return { status: response.status };
-};
-
 export interface WebhookDeps {
   readonly inTenant: InTenant;
   readonly ring: KeyRing;
+  /** Delivery. In production, `pinnedPoster` over the same egress policy. */
   readonly post: Poster;
+  /** Checked at registration as well as, through `post`, at every delivery. */
+  readonly egress: EgressPolicy;
   readonly clock: Clock;
   readonly newId: () => string;
   /** The tenant is told an endpoint was disabled. */
@@ -66,30 +52,6 @@ export function nextAttempt(firstAttempt: Date, attempts: number, now: Date): Da
   if (now.getTime() >= deadline) return null;
   const wait = Math.min(FIRST_RETRY_MS * 2 ** Math.max(attempts - 1, 0), MAX_RETRY_MS);
   return new Date(Math.min(now.getTime() + wait, deadline));
-}
-
-/**
- * An endpoint must be somewhere on the internet, over TLS.
- *
- * ponytail: literal addresses and obvious internal names only. A hostname
- * that resolves to a private address (DNS rebinding) needs the resolved IP
- * checked at connect time; add that with an egress proxy.
- */
-export function publicHttpsUrl(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
-  }
-  if (url.protocol !== 'https:' || url.username !== '' || url.password !== '') return false;
-  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal'))
-    return false;
-  if (isIP(host) === 0) return true;
-  return !/^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|::$|f[cd]|fe80:|::ffff:)/.test(
-    host,
-  );
 }
 
 const secret = () => randomBytes(32).toString('base64url');
@@ -129,9 +91,12 @@ export interface WebhookService {
 }
 
 export function webhooks(deps: WebhookDeps): WebhookService {
-  const validate = (input: Partial<EndpointInput>): Result<void> => {
-    if (input.url !== undefined && !publicHttpsUrl(input.url)) {
-      return err(failure('BAD_WEBHOOK_URL', 'A webhook URL is a public https address', ['url']));
+  // An early answer for the settings screen. Not the defence: DNS can change
+  // its mind, so `post` vets and pins again on every delivery.
+  const validate = async (input: Partial<EndpointInput>): Promise<Result<void>> => {
+    if (input.url !== undefined) {
+      const target = await vet(input.url, deps.egress);
+      if (!target.ok) return target;
     }
     if (input.events?.length === 0) {
       return err(failure('BAD_WEBHOOK_EVENTS', 'Subscribe to at least one event', ['events']));
@@ -141,7 +106,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
 
   return {
     async createEndpoint(tenantId, input) {
-      const valid = validate(input);
+      const valid = await validate(input);
       if (!valid.ok) return valid;
       const id = deps.newId();
       const plaintext = secret();
@@ -161,7 +126,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
     },
 
     async updateEndpoint(tenantId, id, patch) {
-      const valid = validate(patch);
+      const valid = await validate(patch);
       if (!valid.ok) return valid;
       const updated = await deps.inTenant(tenantId, ({ tx }) =>
         tx
