@@ -40,6 +40,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       const params = new URLSearchParams();
       if (query.search['search']) params.set('search', query.search['search']);
       if (query.search['filter']) params.set('filter', query.search['filter']);
+      if (query.search['after']) params.set('after', query.search['after']);
       const qs = params.toString();
       return read(`/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
     }
