@@ -55,7 +55,10 @@ beforeAll(async () => {
   adminClient = postgres(pg.url, { max: 1 });
   admin = drizzle(adminClient);
   const files = (await readdir(migrations))
-    .filter((f) => f === '20260821120000_tenant_registry.sql' || f.includes('_people_'))
+    // People's own files name the module right after the timestamp. A bare
+    // `_people_` also matched identity's `…_identity_people_facts_at.sql`,
+    // which alters a table this suite never creates.
+    .filter((f) => f === '20260821120000_tenant_registry.sql' || /^\d{14}_people_/.test(f))
     .toSorted();
   for (const file of files) {
     await admin.execute(sql.raw(await readFile(new URL(file, migrations), 'utf8')));
