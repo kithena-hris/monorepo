@@ -607,7 +607,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** importing the same file twice creates one set of people, and
   the blocked-row CSV re-imports cleanly after a fix.
 
-### [ ] PEO-042 — CSV and XLSX export
+### [x] PEO-042 — CSV and XLSX export
 
 - **Spec** PRD §15.2, §15.4
 - **Files** `services/people/src/application/export/`
@@ -624,7 +624,7 @@ Test-first, all of it. No drivers, no I/O.
   only that cell, and a test asserts the salary column sums in a spreadsheet
   engine.
 
-### [ ] PEO-043 — Export jobs and their audit trail
+### [x] PEO-043 — Export jobs and their audit trail
 
 - **Spec** PRD §15.1
 - **Files** `services/people/src/application/export/job.ts`
