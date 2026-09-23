@@ -1056,9 +1056,7 @@ The same screen area, separate tabs:
   ten letters, digits or hyphens), a width the sequence is zero-padded to
   (1–12 digits) and where it starts, so `ES-` and 5 from 100 write `ES-00100`,
   and grow past the width rather than wrapping. `GET/PUT
-  /v1/legal-entities/{id}/numbering`, and in GraphQL the `employeeNumbering`
-  query and `setEmployeeNumbering` mutation (the sequence a Float there,
-  because twelve digits do not fit a 32-bit Int); each change raises
+  /v1/legal-entities/{id}/numbering`; each change raises
   `people.employee_numbering.set`. An entity with a scheme numbers every
   person hired into it who has no number yet, in the hire's transaction: the
   entity's row is locked and incremented, so racing hires queue, and a hire
@@ -1708,6 +1706,78 @@ This is the same trust the router holds (§13.1), and it exists because nothing
 mints a token for the tenant app yet. When something does, one file in the
 shell changes.
 
+**The screens render on the server (PEO-094).** Module Federation cannot do
+this inside the Next App Router: `@module-federation/nextjs-mf` never supported
+the App Router and is being wound down. So the remote publishes a second build
+beside `remoteEntry.js`: `ssr/people.cjs`, whose only imports are React, its
+JSX runtime and Reach, plus `ssr/people.css`.
+
+- **How the page renders (PEO-115).** The page fetches the server build per
+  request, checks it (below), and asks a renderer process for the screen's
+  HTML. The shell's own process never evaluates the remote's code. The screen
+  is sent in the same response. In the browser a React root of the remote's
+  own holds that HTML until the browser build arrives, then hydrates it, and
+  a press made before then is replayed.
+- **Integrity.** The remote's deploy pipeline signs `ssr/manifest.json`, the
+  SHA-384 of `people.cjs` and `people.css` in SRI form, with an Ed25519 key
+  only the pipeline holds (`pnpm --filter @kithena/web-people sign`,
+  `PEOPLE_REMOTE_SSR_SIGNING_KEY`). The shell pins the public half in its own
+  configuration, `PEOPLE_REMOTE_SSR_PUBLIC_KEY`, and renders only a build
+  whose bytes match a manifest that key signed. The stylesheet is linked with
+  the signed hash as its `integrity`. Anything else — no key, no signature, a
+  different byte — and the page renders in the browser, as before PEO-094,
+  logging once per build the expected and actual hash and never the code.
+- **Why a signed manifest, not a pinned hash.** A hash in the shell's
+  environment is exact, but on the platform the shell runs on an environment
+  change only takes effect in a new deployment of the shell, so every remote
+  release would redeploy it. The signature keeps a remote release a remote
+  deploy alone; the shell's configuration changes only when the key rotates.
+  The trade: the host may serve any build that was ever signed, not only the
+  latest, until the key is rotated.
+- **Isolation.** The renderer is a child process started with an empty
+  environment, Node's permission model reading only its own bundle (no other
+  file, no child process, no worker, no addon), code generation from strings
+  disallowed, a 256 MB heap, and one process per build. Inside it the build is
+  evaluated in a `node:vm` context whose global has only the language —
+  `require` answers React, its JSX runtime and Reach and nothing else, and
+  there is no `process`, no timer and no `fetch` — under a one-second CPU
+  timeout for evaluation and for each render. The shell gives up on a render
+  after five seconds and kills a renderer that has gone quiet. A `vm` context
+  alone is not a security boundary: the objects handed into it belong to the
+  renderer's realm. The process is the boundary; the context is a first wall.
+  `apps/web/src/lib/remote-render.test.ts` proves a build reading
+  `process.env`, requiring a module, climbing out through a shared object, or
+  looping is refused or stopped, and that the next build still renders.
+- **The switch.** `PEOPLE_REMOTE_SSR=off` still turns server rendering off.
+- **Residual risk.** What remains, stated plainly:
+  - *Network.* The permission model in Node 22 does not cover sockets. The
+    renderer removes `fetch` and refuses the network modules, but code that
+    escaped the context and the renderer's own lockdown could open a
+    connection from the shell's network position — with nothing to
+    authenticate with, since the process holds no secret. Deploy the shell
+    where that position grants nothing by itself, or move to Node's
+    `--allow-net` when the runtime has it.
+  - *A signed build is trusted.* A malicious or buggy build that was signed
+    by the pipeline renders; so does an older signed one a host chooses to
+    serve. The key and the pipeline are the trust anchor.
+  - *Shared state within a build.* One renderer serves every request for a
+    build, so a hostile build could carry one request's props into another
+    request's HTML. It could equally do that from the browser build, which
+    runs on the page with every viewer's data.
+  - *The browser build is not covered.* `remoteEntry.js` and its chunks run in
+    the tenant's origin and are still trusted as they were; the signature
+    covers the server build and its stylesheet only.
+  - *The signing pipeline does not exist yet.* No workflow deploys the
+    remote, so no production build is signed and production renders these
+    screens in the browser until one does.
+- **Hosting.** `apps/web/people/vercel.json` serves the files that are read
+  per load (`remoteEntry.js`, `routes.json`, the server build, its stylesheet
+  and signed manifest) with `Cache-Control: no-cache`, so a redeploy is seen
+  at once. The hashed chunks are `immutable`. It echoes CORS for
+  `https://*.app.kithena.com` and `*.staging.app.kithena.com`, which the
+  stylesheet now needs, being fetched with `crossorigin` for its integrity
+  check.
+
 ### 13.3 Webhooks (Phase 1)
 
 | Property | Behaviour |
@@ -2231,6 +2301,12 @@ Every story renders at a phone viewport as well as a desk one, and
 44px floor rather than eyeballed. The onboarding flow has an acceptance test
 that completes it end to end at 390×844 with a software keyboard raised.
 
+**On a slow network the screen arrives with the page (PEO-094, PEO-115).**
+A phone waiting on the remote's JavaScript still shows the screen the server
+drew, and a tap made before it loads is replayed once it does. When the
+server build is refused, the phone gets the spinner, as before server
+rendering.
+
 **The running app has its own check (PEO-098).**
 `apps/web/acceptance/people.acceptance.test.ts` drives the shell, the remote
 and People as production builds. It completes the setup wizard at 390×844,
@@ -2263,6 +2339,17 @@ characters, beyond which it should have been a document.
 **Availability.** The module boots and serves reads with Redpanda unavailable;
 writes queue in the outbox and drain on recovery. No dual writes, ever. TypeSafe
 being unavailable degrades a suggestion, never a save.
+
+**Stopping.** A deploy or a scale-down ends the process with SIGTERM, and the
+process ends itself: it stops accepting connections, answers every request
+already in flight, lets the background job in hand finish, leaves its Kafka
+consumer groups, closes its database pools, flushes its spans (at most 2 s)
+and exits 0. The whole stop is bounded by `SHUTDOWN_DEADLINE_MS` (10 s by
+default, inside an orchestrator's 30 s grace); past it the process logs which
+steps had not finished and exits 1. A step that fails also exits 1. A
+write interrupted by the deadline rolls back with its transaction, and its
+event with it, because the outbox row is in the same transaction. Every
+service started through `@kithena/telemetry` stops this way (PEO-118).
 
 **Security.** RLS on every table with `FORCE`. Envelope encryption for financial
 and identifier attributes. Field-level authorization in the application layer.

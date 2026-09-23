@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && vite build -c vite.ssr.config.ts",
     "preview": "vite preview --port 3002 --strictPort",
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --project unit",
-    "test:stories": "vitest run --project phone"
+    "test:stories": "vitest run --project phone",
+    "sign": "node scripts/sign-ssr.mjs"
   },
   "dependencies": {
     "@reach/ui": "workspace:*",

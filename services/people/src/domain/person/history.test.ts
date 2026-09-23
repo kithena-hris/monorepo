@@ -209,6 +209,6 @@ describe('the timeline a correction produces', () => {
 
   it('still holds the superseded row for anyone who asks', () => {
     if (!corrected.ok) return;
-    expect(corrected.value.map((e) => e.id)).toEqual(['h1', 'h2', 'h3']);
+    expect(corrected.value.map((e: HistoryEntry) => e.id)).toEqual(['h1', 'h2', 'h3']);
   });
 });

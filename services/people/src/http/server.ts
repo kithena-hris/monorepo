@@ -2,7 +2,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { systemClock, type DomainFailure } from '@kithena/domain-kit';
-import { logger } from '@kithena/telemetry';
+import { drain, logger, onShutdown } from '@kithena/telemetry';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
@@ -85,8 +85,9 @@ export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
 export function peopleService(
   databaseUrl: string,
   secretKeys: string | undefined,
-): PeopleService & { readonly webhooks: WebhookService } {
-  const db = drizzle(postgres(databaseUrl));
+): PeopleService & { readonly webhooks: WebhookService; close(): Promise<void> } {
+  const client = postgres(databaseUrl);
+  const db = drizzle(client);
   const ring = staticKeyRing(keysFrom(secretKeys));
   const raw = tenantTransaction(db);
   const schemas = drizzleSchemaVersions();
@@ -164,20 +165,30 @@ export function peopleService(
       running.delete(tenantId);
     }
   };
+  const passes = new Set<Promise<void>>();
   const kick = (tenantId: string): void => {
-    void pass(tenantId);
+    if (closed) return;
+    const p = pass(tenantId);
+    passes.add(p);
+    void p.finally(() => passes.delete(p));
   };
 
   // One tenant at a time, each pass bounded by `deliverDue`'s own limits.
+  let closed = false;
   const poll = async (): Promise<void> => {
     try {
-      for (const tenantId of await knownTenants(db)) await pass(tenantId);
+      for (const tenantId of await knownTenants(db)) {
+        if (closed) return;
+        await pass(tenantId);
+      }
     } catch (cause) {
       logger.error({ err: cause }, 'webhook poll failed');
     }
   };
-  void poll();
-  setInterval(() => void poll(), POLL_MS).unref();
+  let polling = poll();
+  const poller = setInterval(() => {
+    polling = poll();
+  }, POLL_MS).unref();
 
   const org = drizzleOrgStore();
   const numbers = drizzleEmployeeNumbers();
@@ -210,6 +221,14 @@ export function peopleService(
       return result;
     },
     webhooks: hooks,
+    /** The poller and the retry timers stop, the passes in hand finish, then the pool (PEO-118). */
+    async close() {
+      closed = true;
+      clearInterval(poller);
+      for (const timer of timers.values()) clearTimeout(timer);
+      await Promise.all([polling, ...passes]);
+      await client.end();
+    },
   };
 }
 
@@ -217,6 +236,7 @@ export function peopleService(
 function wireExports(service: PeopleService): {
   deps: ExportJobDeps;
   queue: ExportQueue;
+  close(): Promise<void>;
   fullValues: NonNullable<RestDeps['fullValues']>;
 } {
   const secrets = drizzleSecretStore(
@@ -269,6 +289,19 @@ function wireExports(service: PeopleService): {
 
   return {
     deps,
+    // A worker that never started has nothing to close.
+    close: async () => {
+      await Promise.all([
+        runner.then(
+          (r) => r.close(),
+          () => undefined,
+        ),
+        workflows.then(
+          (w) => w.close(),
+          () => undefined,
+        ),
+      ]);
+    },
     queue: { enqueue: async (job) => (await runner).enqueue(job) },
     fullValues: {
       deps: full,
@@ -411,6 +444,12 @@ export function wirePeople(server: Server): void {
     exports,
     fullValues: exports.fullValues,
     screens: screenRoutes(screenDeps(service)),
+  });
+  // Requests first, then what they use (PEO-118).
+  onShutdown('requests, exports and the service pool', async () => {
+    await drain(server);
+    await exports.close();
+    await service.close();
   });
   const document = JSON.stringify(openApiDocument());
   const [graphql] = server.listeners('request') as ((

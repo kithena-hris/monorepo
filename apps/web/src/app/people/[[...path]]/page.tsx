@@ -5,6 +5,7 @@ import { AppShell } from '../../../components/app-shell';
 import { PeopleScreen } from '../../../components/people-screen';
 import { currentTenant } from '../../../lib/branding';
 import { loadScreen, today } from '../../../lib/people-screens';
+import { prepareRemoteSsr } from '../../../lib/remote-code';
 import { peopleRoute } from '../../../lib/remotes';
 import { currentPerson, displayName } from '../../../lib/session';
 
@@ -14,8 +15,9 @@ import { currentPerson, displayName } from '../../../lib/session';
  * The shell does what only the shell may: reads the session, asks the remote's
  * manifest which screen owns the path, fetches that screen's data from People
  * as the person signed in (PEO-098), and draws the chrome. The screen itself
- * arrives from wherever the remote is deployed, so shipping a change to it
- * never rebuilds this app.
+ * comes from wherever the remote is deployed — its server build for the HTML,
+ * its browser build to hydrate (PEO-094) — so shipping a change to it never
+ * rebuilds this app.
  */
 export default async function People({
   params,
@@ -36,10 +38,17 @@ export default async function People({
       typeof value === 'string' ? [[key, value]] : [],
     ),
   );
-  const load =
+  // Server rendering: a build whose signed manifest verifies, rendered in a
+  // process of its own (`lib/remote-code.ts`, PEO-115). `PEOPLE_REMOTE_SSR=off`
+  // is still the switch.
+  const [load, ssr] = await Promise.all([
     route === null
       ? ({ status: 'none' } as const)
-      : await loadScreen(route.component, { params: route.params, search });
+      : loadScreen(route.component, { params: route.params, search }),
+    route === null || process.env['PEOPLE_REMOTE_SSR'] === 'off'
+      ? undefined
+      : prepareRemoteSsr(route.base),
+  ]);
 
   const tenant = await currentTenant();
   const name =
@@ -53,7 +62,15 @@ export default async function People({
       logoUrl={tenant?.branding.logoUrl ?? null}
     >
       <PeopleScreen
-        route={route === null ? null : { entry: route.entry, component: route.component }}
+        route={
+          route === null
+            ? null
+            : {
+                entry: route.entry,
+                component: route.component,
+                ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
+              }
+        }
         load={load}
         params={route?.params ?? {}}
         search={search}

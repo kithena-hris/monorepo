@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 
-import { ADMIN, EMPLOYEE, TENANT, startStack, type Stack } from './stack';
+import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
 
 /**
  * The People screens, end to end, in the running shell (PEO-098).
@@ -212,6 +213,85 @@ describe('PEO-049: the setup wizard, on a phone', () => {
   });
 });
 
+describe('PEO-094: the remote, rendered on the server', () => {
+  it('sends the screen in the HTML, and hydrates it without a mismatch', async () => {
+    // The remote's JavaScript never arrives: whatever is on the page, the
+    // server drew. React's own inline script reveals the streamed screen; no
+    // bundle of the remote's is involved.
+    const bare = await signedIn(ADMIN.session);
+    await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
+    const page = await bare.newPage();
+    const response = await page.goto(`${stack.shell}/people/me`);
+    const sent = (await response?.text()) ?? '';
+    expect(sent).toContain('Personal information');
+    // Drawn by the renderer process, from the signed build (PEO-115).
+    expect(sent).toContain('data-remote="people"');
+    await expect
+      .poll(() => page.evaluate(() => document.body.innerText.replaceAll('\n', ' | ')), {
+        timeout: 10_000,
+      })
+      .toContain('Legal first name');
+    expect(await page.getByText('Loading People').count()).toBe(0);
+    await bare.close();
+
+    // With JavaScript: the same markup hydrates, and the form answers.
+    const context = await signedIn(ADMIN.session);
+    const live = await context.newPage();
+    const problems: string[] = [];
+    live.on('console', (message) => {
+      if (message.type() === 'error') problems.push(message.text());
+    });
+    live.on('pageerror', (error) => problems.push(error.message));
+    await live.goto(`${stack.shell}/people/me`);
+    // Pressed as soon as it is on screen: it answers once the remote hydrates.
+    await live.getByRole('button', { name: 'Edit Personal information' }).click();
+    const personal = live.getByRole('form', { name: 'Personal information' });
+    await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pri');
+    await personal.getByRole('button', { name: 'Save' }).click();
+    await eventually(
+      'the preferred name',
+      () => stack.sql<{ preferred_name: string | null }[]>`
+        SELECT preferred_name FROM people.person WHERE id = ${ADMIN.person}`,
+      ([p]) => p?.preferred_name === 'Pri',
+    );
+    expect(problems.filter((p) => /hydrat/i.test(p))).toEqual([]);
+    await context.close();
+  });
+
+  it('refuses a server build that is not the one signed, and draws the screen in the browser', async () => {
+    // What a compromised host would do: serve other code under the same name,
+    // beside the genuine signed manifest. One harmless byte is enough; the
+    // same length, so the static server's cached headers still describe it.
+    const file = join(ROOT, 'apps/web/people/dist/ssr/people.cjs');
+    const genuine = await readFile(file, 'utf8');
+    await writeFile(file, `${genuine.slice(0, -1)}${genuine.endsWith('\n') ? ' ' : '\n'}`);
+    try {
+      const bare = await signedIn(ADMIN.session);
+      await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
+      const page = await bare.newPage();
+      const response = await page.goto(`${stack.shell}/people/me`);
+      // No screen drawn on the server — only the spinner in its place. (The
+      // labels are still in the page's data, which is not a rendering.)
+      const html = (await response?.text()) ?? '';
+      expect(html).not.toContain('data-remote="people"');
+      expect(html).toContain('Loading People');
+      expect(await page.evaluate(() => document.body.innerText)).not.toContain('Legal first name');
+      await bare.close();
+
+      // With JavaScript, the browser build draws it as before PEO-094.
+      const context = await signedIn(ADMIN.session);
+      const live = await context.newPage();
+      await live.goto(`${stack.shell}/people/me`);
+      await live.getByRole('button', { name: 'Edit Personal information' }).waitFor({
+        timeout: 30_000,
+      });
+      await context.close();
+    } finally {
+      await writeFile(file, genuine);
+    }
+  });
+});
+
 describe('Field-level absence, end to end', () => {
   it('leaves a field the viewer may not read out of the HTML and out of the screen', async () => {
     const context = await signedIn(EMPLOYEE.session);
@@ -225,7 +305,10 @@ describe('Field-level absence, end to end', () => {
     expect(html).not.toContain('NIF / NIE');
     expect(html).not.toContain('678Z');
 
-    await page.getByRole('heading', { name: 'Priya Shah' }).waitFor({ timeout: 30_000 });
+    // "Pri Shah": the preferred name the test before set.
+    await expect
+      .poll(() => page.evaluate(() => document.body.innerText), { timeout: 30_000 })
+      .toContain('Pri Shah');
     expect(await page.getByText('NIF / NIE').count()).toBe(0);
     expect(await page.getByText('Identification & right to work').count()).toBe(0);
     await context.close();
@@ -256,6 +339,9 @@ function cells(line: string): string[] {
 }
 
 async function upload(page: Page, name: string, text: string): Promise<void> {
+  // The screen is server-rendered and becomes interactive when the remote's
+  // JavaScript has loaded; a file chosen before that is not seen (PEO-094).
+  await page.waitForLoadState('networkidle');
   await page.locator('input[type=file]').setInputFiles({
     name,
     mimeType: 'text/csv',

@@ -1016,7 +1016,7 @@ it is written down here rather than left in a PR description.
       an alert email to the endpoint's `alert_email` (migration
       20260924120100), a boot-and-every-minute poller, and a lease claim per
       delivery.
-- [ ] **PEO-094** The People remote: no server-side rendering, and the
+- [x] **PEO-094** The People remote: no server-side rendering, and the
       remote's host needs `no-cache` and CORS for `remoteEntry.js` and
       `routes.json`. Found in PEO-046.
       *Settled in PEO-047:* the CSS. The remote compiles its own utilities
@@ -1029,6 +1029,26 @@ it is written down here rather than left in a PR description.
       stylesheet left it unstyled. The sidebar item is enabled.
       *Still open:* SSR (the screen is client-only behind a spinner; the shell
       is Next, not Modern.js) and the hosting headers.
+      *Landed:* the SSR and the hosting headers.
+      - **Server rendering by the remote's own server build.** Module
+        Federation does not support the App Router on the server.
+        `vite.ssr.config.ts` builds `ssr/people.cjs`, whose only imports are
+        React, JSX and Reach. The page fetches it per request and
+        `remote-screen.tsx` evaluates it against the shell's copies of those
+        three. The screen streams in the response, and hydration holds it
+        until federation has loaded the browser build.
+      - **The hosting headers** are in `apps/web/people/vercel.json`:
+        `no-cache` on `remoteEntry.js`, `routes.json` and the server build,
+        `immutable` on the hashed chunks, and CORS echoed for tenant origins.
+      - **Proven** by the acceptance test: with the remote's JavaScript
+        blocked, the profile is still on the page. With it, the same page
+        hydrates without a mismatch and saves.
+      - **The trade.** The remote's host now runs code on the shell's
+        server. `PEOPLE_REMOTE_SSR=off` turns server rendering off.
+        *Closed by PEO-115:* a signed build, rendered in a process that holds
+        nothing.
+      - **Not verified.** The CORS capture group in `vercel.json` has not
+        been checked on a real deployment, because nothing was deployed.
 - [x] **PEO-098** The shell hands People screens their data. The screens from
       PEO-047 on are presentational: each takes a `Loadable` and async
       callbacks as props, and `routes.json` lists none of them yet because the
@@ -1096,6 +1116,7 @@ it is written down here rather than left in a PR description.
       /v1/legal-entities/{id}/numbering`; a hire takes the next number under
       the entity's row lock, gap-free; a typed or imported number is held to
       the format, claimed tenant-wide and moves the sequence past it.*
+      off. *(PRD §7, §9.4, Appendix A)*
 - [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
       state, the gap rows and the reminder went stale on every write. Each
       write now re-judges its one person in its transaction, through the
@@ -1162,6 +1183,39 @@ it is written down here rather than left in a PR description.
       status they held before it, until their last working day has ended on
       their calendar, superseding the notice's last-working-day row.
       *(PRD §8.1, §8.5, §10.2, §13)*
+- [x] **PEO-115** Server rendering without trusting the remote's host.
+      PEO-094 evaluated the remote's server build in the shell's own process,
+      beside the internal token. *Decided (option A):* integrity and
+      isolation. The remote's deploy pipeline signs a manifest of SHA-384
+      hashes (`sign-ssr.mjs`); the shell pins the Ed25519 public key
+      (`PEOPLE_REMOTE_SSR_PUBLIC_KEY`) and renders only a build that matches,
+      so a remote release is still a remote deploy alone. The build renders in
+      a child process with an empty environment, the permission model, no
+      code generation from strings and a `vm` context holding React, JSX and
+      Reach only (`remote-render.ts`, `remote-renderer.ts`); in the browser
+      the remote's own root hydrates it. Refused, altered or failing builds
+      render in the browser. `PEOPLE_REMOTE_SSR=off` is still the switch.
+      *Residual risk* in PRD §13.2: sockets in Node 22, any signed build is
+      trusted, the browser build is not covered, and nothing signs a
+      production build yet. *(PRD §13.2, §17.3)*
+- [x] **PEO-118** People never exited on SIGTERM: `startTelemetry` caught the
+      signal to flush spans and nothing else, so the database pool, the Kafka
+      consumers and the pollers kept the process alive until it was SIGKILLed,
+      mid-request and mid-job. The acceptance harness SIGKILLed it after 3 s
+      and said so in a comment. *Landed:* `@kithena/telemetry` owns the stop —
+      `onShutdown(name, step)` registers a step, `drain(server)` stops
+      accepting and waits for requests in flight; on SIGTERM or SIGINT every
+      step runs, spans are flushed within 2 s, and the process exits 0, or 1
+      when a step failed or `SHUTDOWN_DEADLINE_MS` (10 s) passed, naming the
+      steps still running. People drains HTTP then closes the export queue,
+      the Temporal worker, the webhook poller and its pool; its consumers and
+      background jobs finish the one in hand and close theirs. Time Off,
+      identity (and its consumer) and messaging drain the same way. Proven by
+      `shutdown.integration.test.ts`: the real `main.ts` with Postgres and
+      Redpanda answers a half-sent request after SIGTERM, refuses a new one,
+      exits 0; a request that never finishes exits 1 at the deadline. The
+      harness now fails a run whose server outlives SIGTERM by 15 s.
+      *(PRD §18)*
 
 ## Blocked, and by what
 

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack -p 3000",
-    "build": "next build",
+    "dev": "node scripts/build-renderer.mjs && next dev --turbopack -p 3000",
+    "build": "node scripts/build-renderer.mjs && next build",
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
@@ -28,6 +28,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "esbuild": "^0.28.2",
     "playwright": "^1.62.1",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.1.12",
