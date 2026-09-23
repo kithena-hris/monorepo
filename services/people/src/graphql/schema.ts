@@ -11,9 +11,12 @@ import type {
   OrgAdmin,
   TenantSettings,
 } from '../application/org/org.js';
+import type { NumberingView } from '../application/org/numbering.js';
 import type { Asking, PersonView } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from '../http/caller.js';
+import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
+import { LEAVING_REASONS } from '../domain/person/person.js';
 
 /**
  * The People subgraph. Thin: it maps a request to a use case and a domain
@@ -656,6 +659,142 @@ builder.mutationType({
     }),
   }),
 });
+
+/* -------------------------------------------------- employee numbering -- */
+
+/**
+ * PEO-101's scheme per legal entity, beside REST's `/numbering`. The sequence
+ * is a Float because a scheme may be twelve digits wide and an Int is 32 bits;
+ * `setNumbering` refuses anything but a whole number.
+ */
+const EmployeeNumberingRef = builder.objectRef<NumberingView>('EmployeeNumbering').implement({
+  description: 'An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`.',
+  fields: (t) => ({
+    legalEntityId: t.exposeID('legalEntityId'),
+    prefix: t.exposeString('prefix'),
+    digits: t.exposeInt('digits'),
+    nextValue: t.exposeFloat('nextValue', {
+      description: 'The number the next hire in this entity is given.',
+    }),
+  }),
+});
+
+builder.queryFields((t) => ({
+  employeeNumbering: t.field({
+    type: EmployeeNumberingRef,
+    nullable: true,
+    description: 'Null for an entity that does not number its people.',
+    args: { legalEntityId: t.arg.id({ required: true }) },
+    resolve: async (_root, args, ctx) =>
+      (await inOrg(ctx, (org, tx, asking) => org.numberings(tx, asking))).find(
+        (n) => n.legalEntityId === args.legalEntityId,
+      ) ?? null,
+  }),
+}));
+
+builder.mutationFields((t) => ({
+  setEmployeeNumbering: t.field({
+    type: EmployeeNumberingRef,
+    description:
+      'Set or change an entity’s scheme; people_admin only. Never moves the sequence back.',
+    args: {
+      legalEntityId: t.arg.id({ required: true }),
+      prefix: t.arg.string({ required: true }),
+      digits: t.arg.int({ required: true }),
+      start: t.arg.float({ required: true }),
+    },
+    resolve: (_root, args, ctx) =>
+      inOrg(ctx, (org, tx, asking) => org.setNumbering(tx, { ...asking, ...args })),
+  }),
+}));
+
+/* ---------------------------------------------------------- lifecycle -- */
+
+/**
+ * Notice, termination, leave and discarding (PEO-108). The arguments are
+ * parsed by the same Zod body REST parses, and the move is `PersonAccess`'s,
+ * which is where HR-only is decided.
+ */
+const LeavingReasonRef = builder.enumType('LeavingReason', { values: LEAVING_REASONS });
+
+async function move(
+  ctx: RequestContext,
+  name: string,
+  personId: string,
+  input: Record<string, unknown>,
+): Promise<PersonShape> {
+  const action = LIFECYCLE_ACTIONS.find((a) => a.name === name);
+  if (!action) return fail(failure('UNAVAILABLE', `No lifecycle action ${name}`));
+  const parsed = action.body.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return fail(
+      failure(
+        'BAD_INPUT',
+        issue?.message ?? 'invalid input',
+        issue?.path.map((p) => String(p)),
+      ),
+    );
+  }
+  const { service, asking } = caller(ctx);
+  return unwrap(
+    await run(service, asking.tenantId, async (tx) => {
+      const view = await action.run(service.access, tx, { ...asking, personId }, parsed.data);
+      if (!view.ok) return view;
+      return ok({ view: view.value, version: await service.schemas.current(tx, asking.tenantId) });
+    }),
+  );
+}
+
+builder.mutationFields((t) => ({
+  giveNotice: t.field({
+    type: Person,
+    description: 'Put an active or on-leave person on notice until a last working day; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      lastWorkingDay: t.arg.string({ required: true }),
+      reason: t.arg({ type: LeavingReasonRef }),
+    },
+    resolve: (_root, args, ctx) =>
+      move(
+        ctx,
+        'giveNotice',
+        args.personId,
+        sent({ lastWorkingDay: args.lastWorkingDay, reason: args.reason }),
+      ),
+  }),
+  terminatePerson: t.field({
+    type: Person,
+    description: 'End the employment once its last working day has come; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      lastWorkingDay: t.arg.string({ required: true }),
+      reason: t.arg({ type: LeavingReasonRef, required: true }),
+      note: t.arg.string(),
+      eligibleForRehire: t.arg.boolean(),
+    },
+    resolve: (_root, { personId, ...rest }, ctx) =>
+      move(ctx, 'terminatePerson', personId, sent(rest)),
+  }),
+  startLeave: t.field({
+    type: Person,
+    description: 'An active person goes on leave from today, on their calendar; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: (_root, args, ctx) => move(ctx, 'startLeave', args.personId, {}),
+  }),
+  endLeave: t.field({
+    type: Person,
+    description: 'A person on leave is back from today, on their calendar; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: (_root, args, ctx) => move(ctx, 'endLeave', args.personId, {}),
+  }),
+  discardPerson: t.field({
+    type: Person,
+    description: 'Withdraw a provisional record that was never a person; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}),
+  }),
+}));
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

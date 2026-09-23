@@ -46,6 +46,10 @@ function context(at = '2026-09-22T09:00:00.000Z'): EventContext {
 }
 
 const ctx = context();
+/** After the last working days these tests use, so a termination on one is allowed. */
+const after = context('2027-01-04T09:00:00.000Z');
+const UTC = 'Etc/UTC';
+const resigned = { reason: 'resigned' } as const;
 
 function snapshot(over: Partial<PersonSnapshot> = {}): PersonSnapshot {
   return {
@@ -91,17 +95,17 @@ describe('the path a record actually takes', () => {
 
   it('goes on leave and comes back', () => {
     const p = person({ status: 'active' });
-    expect(p.startLeave(ctx).ok).toBe(true);
+    expect(p.startLeave(ctx, UTC).ok).toBe(true);
     expect(p.status).toBe('on_leave');
-    expect(p.endLeave(ctx).ok).toBe(true);
+    expect(p.endLeave(ctx, UTC).ok).toBe(true);
     expect(p.status).toBe('active');
   });
 
   it('serves notice and then leaves', () => {
     const p = person({ status: 'active' });
-    expect(p.giveNotice('2026-12-31', ctx).ok).toBe(true);
+    expect(p.giveNotice('2026-12-31', ctx, UTC).ok).toBe(true);
     expect(p.status).toBe('notice');
-    expect(p.terminate('2026-12-31', ctx).ok).toBe(true);
+    expect(p.terminate('2026-12-31', after, UTC, resigned).ok).toBe(true);
     expect(p.status).toBe('terminated');
   });
 
@@ -111,13 +115,13 @@ describe('the path a record actually takes', () => {
     // day somebody last opened the file.
     const p = person({ status: 'active' });
     expect(p.lastWorkingDay).toBeNull();
-    p.giveNotice('2026-12-31', ctx);
+    p.giveNotice('2026-12-31', ctx, UTC);
     expect(p.lastWorkingDay).toBe('2026-12-31');
   });
 
   it('lets somebody on leave resign without coming back first', () => {
     const p = person({ status: 'on_leave' });
-    expect(p.giveNotice('2026-12-31', ctx).ok).toBe(true);
+    expect(p.giveNotice('2026-12-31', ctx, UTC).ok).toBe(true);
   });
 });
 
@@ -135,16 +139,16 @@ describe('what is refused', () => {
   });
 
   it('refuses leave for somebody who has not started', () => {
-    expect(person({ status: 'pre_hire', hireDate: '2026-12-01' }).startLeave(ctx).ok).toBe(false);
+    expect(person({ status: 'pre_hire', hireDate: '2026-12-01' }).startLeave(ctx, UTC).ok).toBe(false);
   });
 
   it('refuses to end leave for somebody who is not on it', () => {
-    expect(person({ status: 'active' }).endLeave(ctx).ok).toBe(false);
+    expect(person({ status: 'active' }).endLeave(ctx, UTC).ok).toBe(false);
   });
 
   it('refuses a last working day before the hire date', () => {
     const p = person({ status: 'active', hireDate: '2026-06-01' });
-    const impossible = p.terminate('2026-01-01', ctx);
+    const impossible = p.terminate('2026-01-01', after, UTC, resigned);
     expect(impossible.ok).toBe(false);
     if (impossible.ok) return;
     expect(impossible.error.code).toBe('LAST_DAY_BEFORE_HIRE');
@@ -163,11 +167,11 @@ describe('terminated is a tombstone', () => {
   });
 
   it('cannot be terminated twice', () => {
-    expect(leaver().terminate('2026-09-30', ctx).ok).toBe(false);
+    expect(leaver().terminate('2026-09-30', after, UTC, resigned).ok).toBe(false);
   });
 
   it('cannot go on leave', () => {
-    expect(leaver().startLeave(ctx).ok).toBe(false);
+    expect(leaver().startLeave(ctx, UTC).ok).toBe(false);
   });
 
   it('cannot be discarded, because the record is the history', () => {
@@ -229,17 +233,18 @@ describe('starting on the start date (§8.1)', () => {
 });
 
 describe('what each transition raises', () => {
-  it('raises one event per transition, in order', () => {
+  it('raises a status change for every move, and a hire and a termination beside theirs', () => {
     const p = person();
     p.hire('2026-10-01', HIRED, ctx, 'Etc/UTC');
     p.start(context('2026-10-01T09:00:00.000Z'), 'Etc/UTC');
-    p.giveNotice('2026-12-31', ctx);
-    p.terminate('2026-12-31', ctx);
+    p.giveNotice('2026-12-31', ctx, UTC);
+    p.terminate('2026-12-31', after, UTC, resigned);
 
     const raised = p.drainEvents();
     expect(raised.map((e) => e.eventName)).toEqual([
       'people.person.status_changed',
       'people.person.hired',
+      'people.person.status_changed',
       'people.person.status_changed',
       'people.person.status_changed',
       'people.person.terminated',
@@ -249,6 +254,7 @@ describe('what each transition raises', () => {
       'n/a',
       'pre_hire',
       'active',
+      'notice',
       'n/a',
     ]);
   });
@@ -392,11 +398,11 @@ describe('the lifecycle dates, as history', () => {
 
   it('records the last working day when notice is given, and again only if termination moves it', () => {
     const p = person({ status: 'active', hireDate: '2026-01-01' });
-    p.giveNotice('2026-12-31', ctx);
+    p.giveNotice('2026-12-31', ctx, UTC);
     expect(p.drainHistory().map((e) => [e.attributeKey, e.value, e.effectiveFrom])).toEqual([
       ['last_working_day', '2026-12-31', '2026-12-31'],
     ]);
-    p.terminate('2026-12-31', ctx);
+    p.terminate('2026-12-31', after, UTC, resigned);
     expect(p.drainHistory()).toEqual([]);
 
     const early = person({
@@ -404,13 +410,13 @@ describe('the lifecycle dates, as history', () => {
       hireDate: '2026-01-01',
       lastWorkingDay: '2026-12-31',
     });
-    early.terminate('2026-11-30', ctx);
+    early.terminate('2026-11-30', after, UTC, resigned);
     expect(early.drainHistory().map((e) => e.value)).toEqual(['2026-11-30']);
   });
 
   it('records nothing when a transition is refused', () => {
     const p = person({ status: 'active', hireDate: '2026-06-01' });
-    p.terminate('2026-01-01', ctx);
+    p.terminate('2026-01-01', after, UTC, resigned);
     p.hire('2026-10-01', HIRED, ctx, 'Etc/UTC');
     expect(p.drainHistory()).toEqual([]);
   });
@@ -617,5 +623,82 @@ describe('reading the facts off a record', () => {
     expect(
       identityFactsOf({ given_name: 'Ada', family_name: 'Lovelace', preferred_name: '' }).name,
     ).toEqual({ given: 'Ada', family: 'Lovelace', preferred: null });
+  });
+});
+
+describe('ending employment, and leave, on the person’s own calendar (PEO-108)', () => {
+  const active = () => person({ status: 'active', hireDate: '2026-01-01' });
+  // 2026-09-30T12:00Z is already 1 October in Auckland and still 30 September
+  // in Los Angeles.
+  const noonUtc = context('2026-09-30T12:00:00.000Z');
+
+  it('dates leave and notice from the day it is where the person works', () => {
+    const p = active();
+    p.startLeave(noonUtc, 'Pacific/Auckland');
+    p.endLeave(noonUtc, 'America/Los_Angeles');
+    p.giveNotice('2026-12-31', noonUtc, 'Pacific/Auckland', 'dismissed');
+    expect(
+      p.drainEvents().map((e) => [(e.payload as { reason: string }).reason, e.effectiveFrom]),
+    ).toEqual([
+      ['leave_started', '2026-10-01'],
+      ['leave_ended', '2026-09-30'],
+      ['dismissed', '2026-10-01'],
+    ]);
+  });
+
+  it('gives notice as a resignation unless told otherwise', () => {
+    const p = active();
+    p.giveNotice('2026-12-31', ctx, UTC);
+    expect(p.drainEvents()[0]?.payload).toMatchObject({ reason: 'resigned' });
+  });
+
+  it('terminates with a typed reason on the status change and the note on the termination', () => {
+    const p = person({ status: 'notice', hireDate: '2026-01-01', lastWorkingDay: '2026-09-30' });
+    const ended = p.terminate('2026-09-30', noonUtc, 'America/Los_Angeles', {
+      reason: 'end_of_contract',
+      note: 'Fixed term ran out',
+      eligibleForRehire: true,
+    });
+    expect(ended.ok).toBe(true);
+    const [moved, terminated] = p.drainEvents();
+    expect(moved).toMatchObject({
+      eventName: 'people.person.status_changed',
+      effectiveFrom: '2026-09-30',
+      payload: { previous: 'notice', next: 'terminated', reason: 'end_of_contract' },
+    });
+    expect(terminated).toMatchObject({
+      eventName: 'people.person.terminated',
+      effectiveFrom: '2026-09-30',
+      payload: {
+        lastWorkingDay: '2026-09-30',
+        reason: 'Fixed term ran out',
+        eligibleForRehire: true,
+      },
+    });
+  });
+
+  it('refuses to terminate before the last working day has come on their calendar: that is notice', () => {
+    // The 1st has begun in Auckland and not in Los Angeles.
+    const tomorrowInLa = active();
+    const refused = tomorrowInLa.terminate('2026-10-01', noonUtc, 'America/Los_Angeles', resigned);
+    expect(!refused.ok && refused.error.code).toBe('LAST_DAY_NOT_REACHED');
+    expect(tomorrowInLa.status).toBe('active');
+    expect(tomorrowInLa.drainEvents()).toEqual([]);
+    expect(tomorrowInLa.drainHistory()).toEqual([]);
+
+    expect(active().terminate('2026-10-01', noonUtc, 'Pacific/Auckland', resigned).ok).toBe(true);
+  });
+
+  it('closes a pre-hire who never started on their start date, which has not come yet', () => {
+    // Somebody hired who never started still has a record to close, and has
+    // no working day in the past to name.
+    const p = person({ status: 'pre_hire', hireDate: '2026-11-01' });
+    expect(p.terminate('2026-11-01', ctx, UTC, { reason: 'dismissed' }).ok).toBe(true);
+    expect(p.status).toBe('terminated');
+  });
+
+  it('refuses to terminate a provisional record: that is discarding', () => {
+    const refused = person().terminate('2026-09-01', ctx, UTC, resigned);
+    expect(!refused.ok && refused.error.code).toBe('INVALID_TRANSITION');
   });
 });

@@ -1,0 +1,115 @@
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as z from 'zod';
+import type { Result } from '@kithena/domain-kit';
+
+import { LEAVING_REASONS } from '../domain/person/person.js';
+import type { Asking, PersonAccess, PersonView } from '../application/person/person-access.js';
+
+/**
+ * The §8.1 moves a transport offers (PEO-108), described once for REST, its
+ * OpenAPI document and GraphQL.
+ *
+ * Each is a POST to `/v1/people/{id}/<path>` answering with the person after,
+ * and a GraphQL mutation of the same name. The body schema here is what both
+ * transports parse against, so neither accepts a shape the other refuses.
+ * Who may, and what each raises, is `PersonAccess`'s to decide.
+ */
+
+export const LeavingReasonBody = z
+  .enum(LEAVING_REASONS)
+  .describe('resigned: the person gave notice. dismissed or end_of_contract: the employer did.');
+
+export const GiveNoticeBody = z.strictObject({
+  lastWorkingDay: z.iso.date().describe('On the person’s own calendar.'),
+  reason: LeavingReasonBody.optional().describe('Defaults to resigned.'),
+});
+
+export const TerminateBody = z.strictObject({
+  lastWorkingDay: z.iso
+    .date()
+    .describe('Must have begun on the person’s calendar; until then they are on notice.'),
+  reason: LeavingReasonBody,
+  /** HR's own words, confidential; published as `terminated.reason`. */
+  note: z.string().max(500).nullable().optional(),
+  eligibleForRehire: z.boolean().nullable().optional(),
+});
+
+export const NoBody = z.strictObject({});
+
+type On = Asking & { readonly personId: string };
+
+export interface LifecycleAction {
+  /** The path segment under `/v1/people/{id}/`. */
+  readonly path: string;
+  /** The GraphQL mutation, and the OpenAPI component for its body. */
+  readonly name: string;
+  readonly summary: string;
+  readonly body: z.ZodType;
+  /** `input` is what `body` parsed. */
+  run(
+    access: PersonAccess,
+    tx: PostgresJsDatabase,
+    on: On,
+    input: unknown,
+  ): Promise<Result<PersonView>>;
+}
+
+function action<T>(spec: {
+  readonly path: string;
+  readonly name: string;
+  readonly summary: string;
+  readonly body: z.ZodType<T>;
+  run(access: PersonAccess, tx: PostgresJsDatabase, on: On, input: T): Promise<Result<PersonView>>;
+}): LifecycleAction {
+  return { ...spec, run: (access, tx, on, input) => spec.run(access, tx, on, input as T) };
+}
+
+export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
+  action({
+    path: 'notice',
+    name: 'giveNotice',
+    summary: 'Put an active or on-leave person on notice until a last working day; HR only',
+    body: GiveNoticeBody,
+    run: (access, tx, on, input) =>
+      access.giveNotice(tx, {
+        ...on,
+        lastWorkingDay: input.lastWorkingDay,
+        ...(input.reason ? { reason: input.reason } : {}),
+      }),
+  }),
+  action({
+    path: 'termination',
+    name: 'terminatePerson',
+    summary: 'End the employment once its last working day has come; HR only',
+    body: TerminateBody,
+    run: (access, tx, on, input) =>
+      access.terminate(tx, {
+        ...on,
+        lastWorkingDay: input.lastWorkingDay,
+        reason: input.reason,
+        note: input.note ?? null,
+        eligibleForRehire: input.eligibleForRehire ?? null,
+      }),
+  }),
+  action({
+    path: 'leave/start',
+    name: 'startLeave',
+    summary: 'An active person goes on leave from today, on their calendar; HR only',
+    body: NoBody,
+    run: (access, tx, on) => access.startLeave(tx, on),
+  }),
+  action({
+    path: 'leave/end',
+    name: 'endLeave',
+    summary: 'A person on leave is back from today, on their calendar; HR only',
+    body: NoBody,
+    run: (access, tx, on) => access.endLeave(tx, on),
+  }),
+  action({
+    path: 'discard',
+    name: 'discardPerson',
+    summary: 'Withdraw a provisional record that was never a person; HR only',
+    body: NoBody,
+    run: (access, tx, on) => access.discard(tx, on),
+  }),
+];

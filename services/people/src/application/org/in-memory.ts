@@ -8,6 +8,7 @@ import {
   type TenantSettings,
   type ZoneRow,
 } from './org.js';
+import type { EmployeeNumbers, NumberingView } from './numbering.js';
 
 /** The store, in memory: what the rules are about, without Postgres. */
 export function inMemoryOrg(): {
@@ -73,4 +74,32 @@ export function inMemoryOrg(): {
     },
   };
   return { store, events, settings: () => settings };
+}
+
+/** Employee numbering in memory, with `drizzleEmployeeNumbers`'s rule: a change never moves the sequence back. */
+export function inMemoryNumbers(): EmployeeNumbers {
+  const schemes = new Map<string, NumberingView>();
+  return {
+    list: () => Promise.resolve([...schemes.values()]),
+    scheme: (_tx, _tenant, id) => Promise.resolve(schemes.get(id) ?? null),
+    save: (_tx, _tenant, legalEntityId, { prefix, digits, start }) => {
+      const nextValue = Math.max(schemes.get(legalEntityId)?.nextValue ?? start, start);
+      const saved = { legalEntityId, prefix, digits, nextValue };
+      schemes.set(legalEntityId, saved);
+      return Promise.resolve(saved);
+    },
+    allocate: (_tx, _tenant, id) => {
+      const found = schemes.get(id);
+      if (!found) return Promise.resolve(null);
+      schemes.set(id, { ...found, nextValue: found.nextValue + 1 });
+      return Promise.resolve({ ...found, sequence: found.nextValue });
+    },
+    taken: () => Promise.resolve(false),
+    observe: (_tx, _tenant, id, sequence) => {
+      const found = schemes.get(id);
+      if (found && sequence >= found.nextValue)
+        schemes.set(id, { ...found, nextValue: sequence + 1 });
+      return Promise.resolve();
+    },
+  };
 }
