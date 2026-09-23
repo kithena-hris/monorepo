@@ -82,8 +82,8 @@ export async function judge(
     for (const d of definitions) {
       if (!d.effectiveDated || d.encrypted) continue;
       const entry = valueAsOf(history, d.key, where.day);
-      if (entry === undefined || entry.value === null) delete values[d.key];
-      else values[d.key] = entry.value;
+      // Null rather than absent: both read as "no value" to a rule.
+      values[d.key] = entry === undefined ? null : entry.value;
     }
   }
 
