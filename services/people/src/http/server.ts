@@ -22,8 +22,8 @@ import { personAccess } from '../application/person/person-access.js';
 import type { RelationsResolver } from '../application/person/ports.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
-import { drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import {
   drizzlePeopleFacts,
   drizzleSchemaRepository,
@@ -171,6 +171,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
   setInterval(() => void poll(), POLL_MS).unref();
 
   const org = drizzleOrgStore();
+  const numbers = drizzleEmployeeNumbers();
   return {
     access: personAccess({
       people: drizzlePersonRepository(),
@@ -182,6 +183,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       clock: systemClock,
       newId: uuidv7,
       calendars: org,
+      numbering: numbers,
       completeness: recomputePerson({
         schema: drizzleSchemaRepository(),
         people: drizzlePeopleFacts(),
@@ -192,7 +194,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       }),
     }),
     schemas,
-    org: orgAdmin({ store: org, clock: systemClock, newId: uuidv7 }),
+    org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       kick(tenantId);

@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   char,
   date,
@@ -7,6 +8,7 @@ import {
   jsonb,
   numeric,
   pgSchema,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -239,6 +241,15 @@ export const legalEntity = people.table('legal_entity', {
   country: char('country', { length: 2 }).notNull(),
   timeZone: text('time_zone').notNull(),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
+});
+
+/* 20260924200000: one numbering scheme per legal entity (PEO-101). */
+export const employeeNumbering = people.table('employee_numbering', {
+  tenantId: uuid('tenant_id').notNull(),
+  legalEntityId: uuid('legal_entity_id').notNull(),
+  prefix: text('prefix').notNull(),
+  digits: smallint('digits').notNull(),
+  nextValue: bigint('next_value', { mode: 'number' }).notNull(),
 });
 
 export const location = people.table('location', {
