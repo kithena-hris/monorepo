@@ -1,6 +1,11 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition, EmploymentType, WorkModel } from '@kithena/contracts';
+import type {
+  AttributeDefinition,
+  EmploymentType,
+  PersonStatus,
+  WorkModel,
+} from '@kithena/contracts';
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
@@ -422,6 +427,16 @@ function rowClassifier(
       : values;
     const merged = { ...person?.attributes, ...changes };
 
+    // The state the commit leaves the row in, so a pre-hire is asked only for
+    // what a pre-hire is asked for (§8.1): a hire, of a new person or a
+    // provisional one, is active from its start date on the person's day.
+    const statusAfter = (
+      !person || hires
+        ? hireDate !== null && hireDate > personDay
+          ? 'pre_hire'
+          : 'active'
+        : person.status
+    ) as PersonStatus;
     const verdict = assessCompleteness(
       definitions,
       {
@@ -430,7 +445,7 @@ function rowClassifier(
         country: countryOf(merged),
         employmentType: (merged['employment_type'] as EmploymentType | undefined) ?? null,
         workModel: (merged['work_model'] as WorkModel | undefined) ?? null,
-        status: person ? (person.status as 'active') : 'active',
+        status: statusAfter,
         values: merged,
         knownAttributes: new Set(byKey.keys()),
       },

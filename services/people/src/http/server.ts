@@ -4,6 +4,7 @@ import postgres from 'postgres';
 import { systemClock, type DomainFailure } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
+import { recomputePerson } from '../application/completeness/recompute.js';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
 import {
   claimDownload,
@@ -20,7 +21,12 @@ import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
+import {
+  drizzlePeopleFacts,
+  drizzleSchemaRepository,
+} from '../infrastructure/drizzle-schema-repository.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
   drizzlePersonReader,
@@ -149,6 +155,14 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       clock: systemClock,
       newId: uuidv7,
       calendars: org,
+      completeness: recomputePerson({
+        schema: drizzleSchemaRepository(),
+        people: drizzlePeopleFacts(),
+        store: drizzleCompletenessStore(),
+        clock: systemClock,
+        newEventId: uuidv7,
+        calendars: org,
+      }),
     }),
     schemas,
     org: orgAdmin({ store: org, clock: systemClock, newId: uuidv7 }),

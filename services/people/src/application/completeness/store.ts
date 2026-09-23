@@ -43,6 +43,13 @@ export interface CompletenessStore {
     personIds: readonly string[],
   ): Promise<ReadonlySet<string>>;
 
+  /** One person's stored state, or null when there is no such person. */
+  stateOf(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personId: string,
+  ): Promise<CompletenessState | null>;
+
   /** Replace each person's open gaps. Empty arrays close them without forgetting the last reminder. */
   saveGaps(
     tx: PostgresJsDatabase,

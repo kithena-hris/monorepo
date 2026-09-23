@@ -36,6 +36,7 @@ import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
 import { placementOf, personZone } from '../../domain/org/calendar.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import type { RecomputePerson } from '../completeness/recompute.js';
 import type { Calendars } from '../org/org.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
@@ -79,6 +80,12 @@ export interface PersonAccessDeps {
   readonly newId: () => string;
   /** Whose day "today" is for each person (PRD §6.8). */
   readonly calendars: Calendars;
+  /**
+   * Re-judge one person's completeness after a write, in its transaction
+   * (PEO-102). Absent only in tests about something else; every wiring that
+   * writes people passes it.
+   */
+  readonly completeness?: RecomputePerson;
 }
 
 export interface Asking {
@@ -230,6 +237,22 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return { zone, day: localDate(at, zone) };
   }
   const actorOf = (viewer: Viewer): Actor => ({ kind: 'user', userId: viewer.accountId });
+
+  /** After a write: the record's completeness, judged again in the same transaction. */
+  async function rejudge(
+    tx: Tx,
+    asking: Asking,
+    personId: string,
+    causationId: string | null,
+  ): Promise<void> {
+    await deps.completeness?.(tx, {
+      tenantId: asking.tenantId,
+      personId,
+      actor: actorOf(asking.viewer),
+      correlationId: asking.correlationId,
+      causationId,
+    });
+  }
 
   /** One event id when a history row names the event; a fresh one per event otherwise. */
   function contextFor(asking: Asking, eventId?: string): EventContext {
@@ -519,6 +542,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       },
       history,
     });
+    await rejudge(tx, asking, asking.personId, eventId);
 
     // Asked again: a write can move a manager, and the answer is shown under
     // the relations that hold after it, not the ones that held before.
@@ -805,6 +829,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             : {},
         history: [entry],
       });
+      await rejudge(tx, asking, asking.personId, eventId);
       return ok(entry);
     },
 
@@ -903,6 +928,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       shareIdentityFacts(aggregate, asking, person.values, hireDate);
 
       await deps.people.save(tx, aggregate);
+      await rejudge(tx, asking, asking.personId, null);
 
       const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!after) return err(PersonNotFound());

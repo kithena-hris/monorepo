@@ -594,7 +594,13 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
 - **provisional** — an account exists, a person record has been created from it,
   and no HR has confirmed it is an employee. Required fields do not apply.
 - **pre_hire** — confirmed, with a start date in the future. Required fields
-  apply to whatever is `collectAt: signup | enrolment | onboarding`.
+  apply to whatever is `collectAt: signup | enrolment | onboarding`; an
+  `hr_only` or `anytime` field waits for the start date. The filter is in the
+  one function every reader of completeness calls, so the publish preview, the
+  recompute, a record's own verdict, the import dry run (which judges a hired
+  row in the state the commit will leave it in) and an export's grey
+  not-applicable cells all agree. Analytics counts missing fields for active,
+  on-leave and notice records only.
 - **active** — started. All applicable required fields apply.
 - **on_leave**, **notice** — active variants; relevant because requiredness
   predicates can name them.
@@ -761,6 +767,19 @@ before the instant was recorded replays its one `evaluated_on` date.
 The sweep runs hourly for every tenant, so without this a reminder reaches
 Auckland at 03:00 because it was morning in Europe. The one-per-week cap stays
 in hours (168), which needs no calendar at all.
+
+**Kept current between publishes.** A verdict read only at publish goes
+stale the moment anybody writes: a field filled an hour ago is still on the
+gap row, and the reminder goes out anyway. So every write to a person — a
+field filled, cleared or corrected, a hire, a start, a status a correction
+moves (§8.1) — re-judges that one person in the same transaction, with the
+same reader, the same function and the same day as the publish recompute.
+The stored state, the gap rows and so the reminder's list move with the
+write: a filled field leaves the list at once. `profile_incomplete` is raised
+when a record that was not incomplete becomes so (a hire with gaps included),
+`profile_completed` only when an incomplete one closes, and a write that
+leaves the state where it was raises nothing. A sealed value counts as
+present by its existence; its plaintext is never read to decide.
 
 Completeness is exposed on the API and in reporting, so a customer who *wants*
 to gate something on it — an onboarding module, an access request — can do that

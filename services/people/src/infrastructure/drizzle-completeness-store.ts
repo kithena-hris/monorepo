@@ -3,6 +3,7 @@ import { publish } from '@kithena/db-kit';
 import { CalendarDate } from '@kithena/contracts';
 
 import type { CompletenessStore, GridRow, Reminder } from '../application/completeness/store.js';
+import type { CompletenessState } from '../domain/person/completeness.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
 import { outbox, person, schemaVersionEvaluated } from './tables.js';
 
@@ -54,6 +55,15 @@ export function drizzleCompletenessStore(): CompletenessStore {
         )
         .returning({ id: person.id });
       return new Set(rows.map((r) => r.id));
+    },
+
+    async stateOf(tx, tenantId, personId) {
+      const rows = await tx
+        .select({ completeness: person.completeness })
+        .from(person)
+        .where(and(eq(person.tenantId, tenantId), eq(person.id, personId)))
+        .limit(1);
+      return (rows[0]?.completeness as CompletenessState | undefined) ?? null;
     },
 
     async saveGaps(tx, tenantId, version, gaps) {

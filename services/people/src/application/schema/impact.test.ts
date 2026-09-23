@@ -61,6 +61,25 @@ const crowd = (n: number, over: Partial<PersonFacts> = {}): EvaluablePerson[] =>
     placement: NOWHERE,
   }));
 
+describe('a pre-hire in the preview (§8.1)', () => {
+  it('is counted only for what is collected before the start date', () => {
+    const before = [define({ key: 'cost_centre' }), define({ key: 'nif', collectAt: 'onboarding' })];
+    const after = [
+      define({ key: 'cost_centre', requiredness: { mode: 'always' } }),
+      define({ key: 'nif', collectAt: 'onboarding', requiredness: { mode: 'always' } }),
+    ];
+    const impact = computeImpact(
+      before,
+      after,
+      crowd(3, { status: 'pre_hire' }),
+      clock,
+      UTC_CALENDAR,
+    );
+    expect(impact).toMatchObject({ becomingIncomplete: 3, fieldsByOwner: { staff: 3 } });
+    expect(impact.people.map((p) => p.newlyMissing)).toEqual([['nif'], ['nif'], ['nif']]);
+  });
+});
+
 describe('tightening a requirement', () => {
   const before = [define({ key: 'cost_centre' })];
   const after = [define({ key: 'cost_centre', requiredness: { mode: 'always' } })];
