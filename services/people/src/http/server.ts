@@ -74,6 +74,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
         logger.warn({ err: cause, tenantId, endpointId: disabled.endpointId }, 'alert not sent');
       });
     },
+    schemas,
   });
 
   /*

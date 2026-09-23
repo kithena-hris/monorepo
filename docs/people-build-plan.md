@@ -760,7 +760,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** tabbing moves down the column and a bulk save emits one event
   per person.
 
-### [ ] PEO-054 — Integrations settings
+### [x] PEO-054 — Integrations settings
 
 - **Spec** PRD §13.3 · design screen 9
 - **Files** `apps/web/people/src/settings/integrations/`
@@ -784,7 +784,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an admin can take a broken file, fix the blocked rows from the
   downloaded CSV, and import them without re-mapping.
 
-### [ ] PEO-056 — Export builder
+### [x] PEO-056 — Export builder
 
 - **Spec** PRD §15.1 · design screen 11
 - **Files** `apps/web/people/src/export/`

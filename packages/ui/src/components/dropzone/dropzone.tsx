@@ -210,11 +210,15 @@ export function Dropzone({
         )}
       </button>
 
+      {/* The button above is the control; this is its mechanism. Hidden from
+          assistive tech as well as from Tab, or a screen reader meets a second,
+          unlabelled file field after the one it just heard. */}
       <input
         ref={input}
         type="file"
         className="sr-only"
         tabIndex={-1}
+        aria-hidden
         {...(accept === undefined ? {} : { accept })}
         multiple={multiple}
         disabled={disabled}

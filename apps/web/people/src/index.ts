@@ -11,3 +11,6 @@ export { Onboarding } from './onboarding/onboarding';
 export { Profile } from './profile/profile';
 export { Directory } from './directory/directory';
 export { CompletenessGrid } from './completeness/completeness-grid';
+export { Integrations } from './settings/integrations/integrations';
+export { ImportFlow } from './import/import-flow';
+export { ExportBuilder } from './export/export-builder';
