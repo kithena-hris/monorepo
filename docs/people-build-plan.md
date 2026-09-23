@@ -395,7 +395,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test publishes a version and asserts the preview
   count matches the count after the recompute in PEO-026.
 
-### [ ] PEO-025 — Reading and writing a person
+### [x] PEO-025 — Reading and writing a person
 
 - **Spec** PRD §6.6, §8.5
 - **Files** `services/people/src/application/person/`
@@ -640,7 +640,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Analytics
 
-### [ ] PEO-044 — Snapshots
+### [x] PEO-044 — Snapshots
 
 - **Spec** PRD §16.4
 - **Files** `migrations/<ts>_people_snapshot.sql`,
@@ -653,7 +653,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a chart query over 50,000 seeded people returns in under
   400 ms.
 
-### [ ] PEO-045 — Analytics queries
+### [x] PEO-045 — Analytics queries
 
 - **Spec** PRD §16.1, §16.2
 - **Files** `services/people/src/application/analytics/`
