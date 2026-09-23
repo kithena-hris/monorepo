@@ -7,10 +7,12 @@ import { logger } from '@kithena/telemetry';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
 import { drizzleExportLedger } from '../application/export/ledger.js';
 import type { ExportQueue } from '../application/export/queue.js';
+import { orgAdmin } from '../application/org/org.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
   drizzlePersonReader,
@@ -123,6 +125,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       newId: uuidv7,
     }),
     schemas,
+    org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       kick(tenantId);

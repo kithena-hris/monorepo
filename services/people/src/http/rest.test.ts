@@ -5,6 +5,8 @@ import { fixedClock, ok } from '@kithena/domain-kit';
 
 import { inMemoryExportLedger } from '../application/export/ledger.js';
 import { localObjectStore } from '../application/export/object-store.js';
+import { inMemoryOrg } from '../application/org/in-memory.js';
+import { orgAdmin } from '../application/org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
 import { inMemoryIdempotency } from './idempotency.js';
@@ -226,5 +228,90 @@ describe('exports', () => {
     expect(first.body).toMatchObject({ status: 'queued', links: [] });
     expect(again.body).toEqual(first.body);
     expect(enqueued).toHaveLength(1);
+  });
+});
+
+describe('legal entities, locations and settings', () => {
+  function withOrg(roles: string[]) {
+    const store = inMemoryPeople([versionOf(1, [title])]);
+    const org = inMemoryOrg();
+    let n = 0;
+    const rest = restHandler({
+      service: {
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+        org: orgAdmin({
+          store: org.store,
+          clock: fixedClock('2026-03-31T20:00:00.000Z'),
+          newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
+        }),
+      },
+      callerFrom: () =>
+        ok({
+          tenantId: TENANT,
+          viewer: { accountId: HR, roles: new Set(roles) },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        }),
+      idempotency: inMemoryIdempotency(),
+    });
+    const call = async (method: string, url: string, body?: unknown, key = `${method} ${url}`) => {
+      const answer = await rest({
+        method,
+        url,
+        headers: { 'idempotency-key': key },
+        body: body === undefined ? '' : JSON.stringify(body),
+      });
+      if (!answer) throw new Error('not a REST route');
+      return answer;
+    };
+    return { call, org };
+  }
+
+  it('creates an entity and a location, and serves the zone in force', async () => {
+    const { call } = withOrg(['people_admin']);
+    const entity = await call('POST', '/v1/legal-entities', {
+      name: 'Acme India',
+      country: 'IN',
+      timeZone: 'Asia/Kolkata',
+    });
+    expect(entity.status).toBe(201);
+    const { id } = entity.body as { id: string };
+
+    // 20:00 UTC on the 31st is already 1 April in Kolkata: the default effective date.
+    const office = await call('POST', '/v1/locations', {
+      legalEntityId: id,
+      name: 'Bangalore',
+      country: 'IN',
+      timeZone: 'Asia/Kolkata',
+    });
+    expect(office).toMatchObject({
+      status: 201,
+      body: { timeZone: 'Asia/Kolkata', zones: [{ effectiveFrom: '2026-04-01' }] },
+    });
+    expect((await call('GET', '/v1/locations')).body).toMatchObject({
+      items: [{ name: 'Bangalore' }],
+    });
+  });
+
+  it('refuses a writer who is not a People administrator', async () => {
+    const { call } = withOrg(['hr']);
+    const refused = await call('POST', '/v1/legal-entities', {
+      name: 'Acme',
+      country: 'ES',
+      timeZone: 'Europe/Madrid',
+    });
+    expect(refused).toMatchObject({ status: 403, body: { error: { code: 'FORBIDDEN' } } });
+  });
+
+  it('never lowers the cohort minimum', async () => {
+    const { call } = withOrg(['people_admin']);
+    expect((await call('PATCH', '/v1/settings', { cohortMinimum: 20 }, 'a')).body).toMatchObject({
+      cohortMinimum: 20,
+    });
+    expect((await call('PATCH', '/v1/settings', { cohortMinimum: 15 }, 'b')).body).toMatchObject({
+      error: { code: 'COHORT_MINIMUM_LOWERED' },
+    });
+    expect((await call('GET', '/v1/settings')).body).toMatchObject({ cohortMinimum: 20 });
   });
 });

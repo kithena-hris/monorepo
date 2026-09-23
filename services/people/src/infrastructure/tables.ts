@@ -196,6 +196,41 @@ export const attributeUnique = people.table(
   ],
 );
 
+/* Legal entities, locations and settings: `20260924170000_people_calendar.sql`. */
+
+export const tenantSettings = people.table('tenant_settings', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  defaultTimeZone: text('default_time_zone').notNull(),
+  cohortMinimum: integer('cohort_minimum').notNull(),
+});
+
+export const legalEntity = people.table('legal_entity', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  name: text('name').notNull(),
+  country: char('country', { length: 2 }).notNull(),
+  timeZone: text('time_zone').notNull(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+});
+
+export const location = people.table('location', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  legalEntityId: uuid('legal_entity_id').notNull(),
+  name: text('name').notNull(),
+  country: char('country', { length: 2 }).notNull(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+});
+
+export const locationZone = people.table('location_zone', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  locationId: uuid('location_id').notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  timeZone: text('time_zone').notNull(),
+  supersedes: uuid('supersedes'),
+});
+
 /** Every tenant People has work for. Readable unscoped, by design: see the migration. */
 export const tenant = people.table('tenant', {
   tenantId: uuid('tenant_id').primaryKey(),

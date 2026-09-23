@@ -470,6 +470,62 @@ are explicit and are not tenant-configurable:
 - Never required. A `requiredness` of anything but `never` is refused by the
   domain.
 
+### 6.8 Legal entities, locations and whose day it is
+
+A calendar date is not an instant. "Required from the 1st", "last working day
+plus 48 months" and "headcount today" all compare a date with *today*, and at
+11:30 UTC on 1 March today is the 2nd in Auckland and still the 1st in Los
+Angeles. So People owns two small objects whose job is to say whose today it
+is, and one tenant setting as the last resort:
+
+```
+people.legal_entity   The employer of record. A name, a country, a default
+                      IANA time zone. The country decides which country pack
+                      and which numbering apply; the zone decides whose day the
+                      entity's aggregates are counted on.
+people.location       Where somebody works. A name, a country, a legal entity
+                      it belongs to, and an IANA time zone that is
+                      effective-dated: an office moving to the Canaries on
+                      1 April is on Canary time from midnight on 1 April,
+                      Canary time.
+people.tenant_settings  The tenant's default zone, and the cohort minimum (§16.1).
+```
+
+**A person's zone** is, in order: their `work_location`'s zone on that
+instant, else their `legal_entity`'s default, else their own `time_zone` (the
+copy identity holds, §5), else the tenant default. A location or entity the
+tenant does not have, or an own zone that is not an IANA zone, is skipped
+rather than trusted. A tenant nobody has configured runs on UTC.
+
+**An aggregate's day** is a legal entity's: a company-wide figure is counted
+per legal entity, each on that entity's own day at the moment of counting, and
+a tenant-wide figure is the sum of the per-entity figures. Somebody with no
+legal entity is counted on the tenant default's day. A location's zone never
+decides an aggregate, so an office in the Canaries does not split its Madrid
+entity's headcount across two days.
+
+What that means for the attributes that point at them:
+
+- `legal_entity` (`legal_entity_id`) and `work_location` (`location_id`) are
+  references to these rows. Setting either can move a person onto another
+  calendar, and the move takes effect for every person-level rule from the
+  next evaluation — nothing is back-dated by it.
+- `time_zone` stays identity's projection (§5). It is the person's own zone
+  and it only decides their day when neither their location nor their entity
+  does.
+- `employee_number` is unique per legal entity (Appendix A), which is why the
+  entity is a row with an id rather than a label.
+
+Zones are IANA names, validated against the runtime's own database (`Intl`)
+where they are written; an offset such as `UTC+2` is refused, because it has no
+daylight saving and is wrong for half of every year somewhere. A location's
+zone change is an effective-dated fact with the correction path of §8.5: a
+second change dated the same day supersedes the first. An entity's default
+zone and the tenant default are configuration, changed when recorded.
+
+Entities and locations are archived, never deleted: a person's history names
+them, and an archived entity still decides its people's day.
+
 ---
 
 ## 7. Who creates what, and where it lives
@@ -486,6 +542,8 @@ database the bytes end up in.
 | Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
 | Provisional person record | People, from `identity.account.provisioned` | Automatically, within the second | `people.person` |
 | Schema: sections, attributes, requiredness | HR admin (`people_admin`) | Settings, any time | `people.section`, `people.attribute_definition`, `people.schema_version` |
+| Legal entities, locations and their time zones (§6.8) | HR admin (`people_admin`); the first entity from the back office's company wizard | Tenant creation, then settings, any time | `people.legal_entity`, `people.location`, `people.location_zone` |
+| Tenant default time zone, cohort minimum | HR admin (`people_admin`); the default zone first from the company wizard | Tenant creation, then settings | `people.tenant_settings` |
 | Country pack defaults | Kithena | Tenant creation, by legal-entity country | Same tables, `origin: 'country_pack'` |
 | Personal information | The employee; HR may correct | Onboarding, then any time | `people.person`, `people.person_attribute_history` |
 | Identification, right to work | HR, with employee-supplied values | Onboarding | `people.person_secret` (encrypted) plus history |
@@ -790,12 +848,22 @@ who is asking. A permissions matrix is a `Table` with a selection mode, not a
 
 The same screen area, separate tabs:
 
+- **Legal entities and locations** — each entity's country and default time
+  zone; each location's entity, country and time zone, with the date a zone
+  change takes effect (§6.8). The tenant's default zone sits here too. All of
+  it is `people_admin`'s to change and anybody's in the tenant to read, over
+  `GET/POST/PATCH /v1/legal-entities`, `/v1/locations`,
+  `POST /v1/locations/{id}/zones`, `GET/PATCH /v1/settings`, and the matching
+  GraphQL fields.
 - **Employee numbering** — format, prefix, sequence start, per legal entity.
 - **Directory** — which attributes are searchable, who may see the directory,
   whether photos show.
 - **Country packs** — which are enabled, per legal entity.
 - **Completeness and reminders** — reminder schedule, cap, who receives the HR
-  digest, minimum cohort size for aggregate reporting.
+  digest, minimum cohort size for aggregate reporting. The minimum starts at
+  10 and can be raised, never lowered: the domain refuses a lower number and a
+  trigger on `people.tenant_settings` refuses it again for any path that skips
+  the domain.
 - **Integrations** — webhook endpoints, subscribed events, per-endpoint field
   allowlists, signing secret rotation, delivery log and replay. See §13.
 - **Data protection** — retention per classification, DSAR export format, the
@@ -858,6 +926,24 @@ New:
 | `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
+
+### 10.2a Calendar events
+
+Legal entities, locations and settings (§6.8). Organisation configuration,
+never anybody's values, every field classified like any other.
+
+| Event | Payload highlights |
+| --- | --- |
+| `people.legal_entity.created` v1 | legalEntityId, name, country, default time zone |
+| `people.legal_entity.updated` v1 | legalEntityId, name, default time zone, archived, changed field names |
+| `people.location.created` v1 | locationId, legalEntityId, name, country, time zone, `effectiveFrom` |
+| `people.location.updated` v1 | locationId, name, archived, changed field names |
+| `people.location.zone_changed` v1 | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
+| `people.settings.changed` v1 | default time zone, cohort minimum, changed field names |
+
+`people.person.org_changed` already names the legal entity and location a
+person moved to; that event is what tells a consumer a person changed
+calendar.
 
 ### 10.3 What a payload may carry
 
@@ -931,7 +1017,26 @@ people.attribute_unique       (tenant_id, attribute_key, scope_id,
                                        normalised_value)
 
 people.outbox                 -- same shape as platform.outbox
+
+-- Calendars (§6.8) -------------------------------------------------------------
+people.tenant_settings        (tenant_id PK, default_time_zone, cohort_minimum
+                               CHECK >= 10, created_at, updated_at)
+                               -- a trigger refuses lowering cohort_minimum
+people.legal_entity           (tenant_id, id, name, country char(2), time_zone,
+                               archived_at, created_at, updated_at)
+people.location               (tenant_id, id, legal_entity_id -> legal_entity,
+                               name, country char(2), archived_at, ...)
+people.location_zone          (tenant_id, id, location_id -> location,
+                               effective_from date, time_zone, supersedes,
+                               recorded_at)                   -- append-only
+people.schema_version         + evaluated_at timestamptz      -- see §8.4
 ```
+
+`people.person.legal_entity_id` and `location_id` carry no foreign key to the
+new tables: rows written before them hold ids nothing checked, and the
+resolver treats an id it cannot find as absent, which is the answer an FK
+would force anyway. Zones are checked for shape by the database and against
+the IANA database by the domain, because a CHECK cannot reach `Intl`.
 
 ### 11.2 Why this shape
 
@@ -1572,6 +1677,10 @@ Every chart obeys four rules without exception:
 2. **Cohort minimum.** Any breakdown touching special-category data returns
    "insufficient data" below the tenant's minimum (default 10, raisable, never
    lowerable). This applies to the chart, the tooltip and the underlying export.
+   The minimum is `people.tenant_settings.cohort_minimum`, set on the
+   Completeness and reminders tab (§9.4); a CHECK holds the floor of 10 and a
+   trigger refuses any UPDATE that lowers it, so a path that skips the domain
+   cannot lower it either. It is also the change threshold below.
    A minimum that holds on every reading still leaks across two — 14 people on
    Monday, 15 on Tuesday, and HR knows who started on Tuesday — so a
    special-category breakdown is **published**, never read live from the daily
