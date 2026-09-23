@@ -278,6 +278,25 @@ describe('Field-level absence, end to end', () => {
   });
 });
 
+describe('PEO-117: the directory searches and filters in People', () => {
+  it('finds a person by name server-side, and refuses a filter the viewer cannot run', async () => {
+    const context = await signedIn(EMPLOYEE.session);
+    const page = await context.newPage();
+    const text = () =>
+      page.evaluate(() => document.body.innerText.replaceAll('\n', ' | '));
+
+    // Adam reads every name, so he may search them: Priya, and nobody else.
+    await page.goto(`${stack.shell}/people/directory?search=shah`);
+    await expect.poll(text, { timeout: 30_000 }).toContain('Pri Shah');
+    expect(await page.getByText(EMPLOYEE.email).count()).toBe(0);
+
+    // Her NIF is hers and HR's: who matched a filter on it would tell him the rest.
+    await page.goto(`${stack.shell}/people/directory?filter=es_nif:1`);
+    await expect.poll(text, { timeout: 30_000 }).toContain('You cannot filter people by es_nif');
+    await context.close();
+  });
+});
+
 /** A CSV row into cells, quotes and all. */
 function cells(line: string): string[] {
   const out: string[] = [];

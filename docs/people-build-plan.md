@@ -1140,6 +1140,15 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
+- [x] **PEO-117** Directory search covered only the first 200 people: the view
+      read one page and searched it in memory. Search, filters and paging now
+      run in Postgres through `PersonAccess.list` (and `count` for the
+      summary): keyset pages of 50 by `?after=`, a search over the names and
+      work email the viewer reads on everybody (refused when there is none,
+      as a filter on a key they cannot read on everybody already was, PEO-052),
+      `search` on `GET /v1/people` too. 57 ms for a filter page, 101 ms for a
+      search page with its count, at 50,000 people. The screen pages with
+      "Next page" / "First page"; each page is a URL. *(PRD §13.2, §17.2)*
 
 ## Blocked, and by what
 

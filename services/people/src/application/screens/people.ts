@@ -25,7 +25,7 @@ import {
  * for the reason it is absent from REST: the same call made the decision.
  */
 
-/** How many people a screen reads. The directory pages beyond this through REST. */
+/** How many people a picker or the grid reads. The directory pages instead (PEO-117). */
 const PAGE = 200;
 
 /** Everybody this viewer may list, up to `PAGE`, as the list call authorizes them. */
@@ -190,8 +190,6 @@ export { saveSection };
 export interface DirectoryView {
   /** Active people among everybody the search and filters match, not only this page. */
   readonly active: number;
-  /** Everybody the search and filters match. */
-  readonly matching: number;
   readonly incomplete: number | null;
   readonly columns: readonly { readonly key: string; readonly label: string }[];
   readonly filterable: readonly {
@@ -281,7 +279,6 @@ export async function directoryView(
 
     return ok({
       active: counted.value.active,
-      matching: counted.value.all,
       incomplete: null,
       columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
       filterable: selects.map((d) => ({
