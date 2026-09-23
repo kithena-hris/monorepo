@@ -984,7 +984,7 @@ it is written down here rather than left in a PR description.
       enrolment onto the account even after People has set one, and People
       only fills its own name when empty, so the two can differ until People's
       next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
-- [ ] **PEO-100** Corrections that contradict the state. An active person whose
+- [x] **PEO-100** Corrections that contradict the state. An active person whose
       start date is corrected into the future stays active, and a person on
       notice whose last working day is corrected into the past has nothing
       asking HR to end the employment. *Decided: the first returns to
