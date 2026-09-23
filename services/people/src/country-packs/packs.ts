@@ -46,10 +46,13 @@ const identification: SectionInput = {
  * the employee is who types it (§6.6), and a required field its owner cannot
  * read back is a nag they cannot answer.
  *
- * Not `unique`, although a national identifier is unique in life. A unique
- * claim stores the normalised value in `people.attribute_unique` in plain
- * text, which for an encrypted field would be the plaintext beside the
- * ciphertext. That needs a keyed hash in the claim first.
+ * Unique per **tenant**, not per legal entity. An identifier names one human,
+ * and a tenant holds one record per human — a transfer between its legal
+ * entities moves that record, a rehire reopens it (PRD §8.1) — so the same NIF
+ * on two records in one tenant is a duplicate wherever each is employed. The
+ * claim is a keyed hash of the value as `checkNationalId` normalises it
+ * (PEO-082), so `12345678 z` collides with `12345678Z` and the plaintext never
+ * leaves `people.person_secret`.
  *
  * `required` means required of people whose country is this one: incomplete
  * until given, never blocked (§8.4). Payroll in each of these countries cannot
@@ -86,6 +89,7 @@ function identifier(
     },
     classificationSource: 'human',
     encrypted: true,
+    uniqueScope: 'tenant',
     includeInEvents: false,
     origin: 'country_pack',
   };

@@ -103,11 +103,33 @@ export const ErrorBody = z.object({
   error: z.object({ code: z.string(), message: z.string(), path: z.array(z.string()).optional() }),
 });
 
+const FILTER = /^[a-z][a-z0-9_]*:[^,]+(,[a-z][a-z0-9_]*:[^,]+)*$/;
+
 export const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
   asOf: z.iso.date().optional(),
+  // ponytail: a value containing a comma cannot be filtered on. Take a
+  // repeated parameter when a tenant's option list needs one.
+  filter: z
+    .string()
+    .regex(FILTER)
+    .optional()
+    .describe(
+      'Equality on tenant-defined attributes, `key:value` pairs joined by commas, e.g. `cost_centre:ENG-204`. Only keys you can read on everybody; not with asOf.',
+    ),
 });
+
+/** `cost_centre:ENG-204,location:BCN` as a record. */
+export function filterIn(filter: string | undefined): Record<string, string> {
+  if (filter === undefined) return {};
+  return Object.fromEntries(
+    filter.split(',').map((pair) => {
+      const at = pair.indexOf(':');
+      return [pair.slice(0, at), pair.slice(at + 1)];
+    }),
+  );
+}
 
 export const AsOfQuery = z.object({ asOf: z.iso.date().optional() });
 
@@ -200,12 +222,16 @@ const STATUS: Record<string, number> = {
   NOT_ENTITLED: 403,
   FORBIDDEN: 403,
   FIELD_NOT_WRITABLE: 403,
+  FIELD_NOT_FILTERABLE: 403,
   NOT_FOUND: 404,
   SCHEMA_NOT_PUBLISHED: 409,
   UNIQUE_VALUE_TAKEN: 409,
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
+  // A request missing what every webhook endpoint must carry. No route
+  // creates endpoints yet; this is the answer when one does (PEO-093).
+  BAD_WEBHOOK_ALERT_EMAIL: 400,
   UNAVAILABLE: 503,
 };
 
@@ -571,6 +597,7 @@ export function restHandler(
               limit: q.value.limit,
               after: cursorIn(q.value.cursor),
               ...(q.value.asOf ? { asOf: q.value.asOf } : {}),
+              where: filterIn(q.value.filter),
             }),
           ),
           200,

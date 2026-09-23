@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import {
   err,
@@ -34,6 +32,7 @@ import {
   Person,
   type EventContext,
 } from '../../domain/person/person.js';
+import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
 import { placementOf, personZone } from '../../domain/org/calendar.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -113,6 +112,8 @@ export interface PersonAccess {
       readonly after?: string | null;
       readonly limit: number;
       readonly asOf?: string;
+      /** Equality on tenant-defined attributes. See `filterable`. */
+      readonly where?: Readonly<Record<string, string>>;
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
   update(
@@ -155,16 +156,59 @@ export interface PersonAccess {
   ): Promise<Result<PersonView>>;
 }
 
+/** An id no person has, for asking what the viewer may see tenant-wide. */
+const NOBODY = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Whether the viewer may filter the directory by these keys.
+ *
+ * A filter is a read of every person it passes over: who matches
+ * `cost_centre = ENG-204` says each person's cost centre without showing it.
+ * So a key is filterable only when the viewer can read it on **everybody**,
+ * through a tenant-wide relation, never one they hold to some people and not
+ * others, and only when it lives in `custom`, which is what the index covers.
+ * Encrypted values are never filterable: their plaintext is not in the row.
+ */
+export function filterable(
+  definitions: readonly AttributeDefinition[],
+  keys: readonly string[],
+  everyone: ViewerRelations,
+): Result<void> {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  for (const key of keys) {
+    const definition = byKey.get(key);
+    if (
+      definition === undefined ||
+      definition.encrypted ||
+      isCoreKey(key) ||
+      LIFECYCLE_KEYS.has(key) ||
+      !visibleTo(definition, everyone)
+    ) {
+      return err(failure('FIELD_NOT_FILTERABLE', `You cannot filter people by ${key}`, [key]));
+    }
+  }
+  return ok(undefined);
+}
+
 const NotPublished = () =>
   failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet');
 const PersonNotFound = () => failure('NOT_FOUND', 'No such person');
 const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Normalised as `unique.ts` normalises, then hashed. */
-function digest(value: string): string {
-  return createHash('sha256')
-    .update(value.normalize('NFC').trim().toLocaleLowerCase('en'))
-    .digest('hex');
+/**
+ * The text a unique claim is keyed on.
+ *
+ * A national identifier as its country's rule normalises it, so `12345678 z`
+ * and `12345678Z` are one NIF rather than two people. Anything else as typed;
+ * `unique.ts` trims and casefolds it, then keys it with the tenant's HMAC key.
+ * The claim store never keeps this text.
+ */
+export function claimText(definition: AttributeDefinition, value: unknown): string {
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  const config = definition.typeConfig;
+  if (config.kind !== 'national_id') return text;
+  const checked = checkNationalId(config.country, config.scheme, text);
+  return checked.ok ? checked.value.normalised : text;
 }
 
 export function personAccess(deps: PersonAccessDeps): PersonAccess {
@@ -309,13 +353,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         ),
       );
     }
-    const text = typeof value === 'string' ? value : JSON.stringify(value);
     return deps.uniques.claim(tx, asking.tenantId, {
       ...where,
       scopeId,
-      // A claim row is plaintext. A sealed value is claimed by its digest, so
-      // uniqueness on a national identifier does not copy it out of the vault.
-      value: definition.encrypted ? digest(text) : text,
+      value: claimText(definition, value),
     });
   }
 
@@ -388,6 +429,19 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const legalEntityId =
       (accepted.find(([d]) => d.key === 'legal_entity_id')?.[1] as string | null | undefined) ??
       person.legalEntityId;
+
+    // Every rule this write claims under, locked in one order before the
+    // first claim, so two writes naming the same attributes in opposite
+    // orders queue rather than deadlock.
+    await deps.uniques.lock(
+      tx,
+      asking.tenantId,
+      accepted.flatMap(([d, v]) => {
+        if (d.uniqueScope === 'none' || v === null) return [];
+        const scopeId = d.uniqueScope === 'tenant' ? asking.tenantId : legalEntityId;
+        return scopeId === null ? [] : [{ attributeKey: d.key, scopeId }];
+      }),
+    );
 
     const eventId = deps.newId();
     const custom = new Map(Object.entries(person.custom));
@@ -504,11 +558,32 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly after?: string | null;
         readonly limit: number;
         readonly asOf?: string;
+        readonly where?: Readonly<Record<string, string>>;
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const rows = await deps.reader.page(tx, asking.tenantId, asking.after ?? null, asking.limit);
+      const where = asking.where ?? {};
+      if (Object.keys(where).length > 0) {
+        if (asking.asOf !== undefined) {
+          return err(
+            failure('FILTER_WITH_AS_OF', 'A filter reads today; it cannot be combined with asOf'),
+          );
+        }
+        // Who the viewer is to nobody in particular: their tenant-wide
+        // relations, with self and manager false. The resolver answers that
+        // for an id no person has.
+        const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+        const allowed = filterable(version.document.attributes, Object.keys(where), everyone);
+        if (!allowed.ok) return allowed;
+      }
+      const rows = await deps.reader.page(
+        tx,
+        asking.tenantId,
+        asking.after ?? null,
+        asking.limit,
+        where,
+      );
       const items: PersonView[] = [];
       for (const row of rows) {
         const relations = await deps.relations.relations(

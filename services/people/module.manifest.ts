@@ -30,6 +30,7 @@ export default ModuleManifest.parse({
     'people.person.merged',
     'people.person.anonymised',
     'people.person.synced_from_external',
+    'people.unique_claim.conflict',
     'people.import.started',
     'people.import.completed',
     'people.export.completed',
@@ -39,6 +40,7 @@ export default ModuleManifest.parse({
     'people.location.updated',
     'people.location.zone_changed',
     'people.settings.changed',
+    'people.webhook.endpoint_disabled',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its

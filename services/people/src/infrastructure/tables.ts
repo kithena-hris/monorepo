@@ -200,17 +200,22 @@ export const attributeUnique = people.table(
     tenantId: uuid('tenant_id').notNull(),
     attributeKey: text('attribute_key').notNull(),
     scopeId: uuid('scope_id').notNull(),
-    normalisedValue: text('normalised_value').notNull(),
+    /**
+     * Pre-PEO-082 claims only, until the rotation job backfills them; never
+     * written now. Dropped by a later migration (20260924150000 says when).
+     */
+    normalisedValue: text('normalised_value'),
+    /** HMAC-SHA-256 of the normalised value under the tenant's claim key. `bytea`, base64 here. */
+    valueHash: encrypted('value_hash'),
+    /** The master key the claim key was derived from. Null with `valueHash`. */
+    keyId: text('key_id'),
+    /** Who holds this value under the current key, when the rotation could not re-key it. */
+    conflictWith: uuid('conflict_with'),
     personId: uuid('person_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('attribute_unique_pk_idx').on(
-      t.tenantId,
-      t.attributeKey,
-      t.scopeId,
-      t.normalisedValue,
-    ),
+    uniqueIndex('attribute_unique_hash_key').on(t.tenantId, t.attributeKey, t.scopeId, t.valueHash),
     index('attribute_unique_person_lookup').on(t.tenantId, t.personId),
   ],
 );
