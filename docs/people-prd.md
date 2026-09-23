@@ -235,6 +235,14 @@ The rule this produces:
 > afterwards. The copies are reconciled by events in one direction only —
 > People publishes, identity consumes.**
 
+**Which name wins at enrolment.** The person types a name on the enrolment
+form. If People has not yet written the account's name, identity stores what
+was typed. If it has — `platform.account.people_facts_at` is set once People's
+first correction is applied — identity keeps People's and does not overwrite
+it. Either way identity publishes `identity.account.profile_captured` with what
+was typed, and People fills its own name from it only when its own is empty.
+A later correction from People still applies as usual, so the two cannot drift.
+
 That direction matters. A tenant with no People module keeps identity's copies
 as the only truth, which is exactly what `requiresPeopleSource` is for. A tenant
 with People gets one editing surface and one source of record, and the two rows
@@ -512,9 +520,13 @@ Three rules make that table safe rather than merely descriptive:
 ### 8.1 Person states
 
 ```
+                   ┌───────────┐
+                   ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
      │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
+     │              │           │      │
+     │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
@@ -531,6 +543,28 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
   customers. Retention and anonymisation act on this state, on a schedule.
 - **discarded** — a provisional record that was never a person. The only state
   that permits a hard delete, and only before confirmation.
+
+**A corrected date re-reads the state; it never ends employment.** The two
+definitions above are about dates, so a correction to one of those dates
+(§8.5) can make the state false, and it is re-read in both directions:
+
+- A **pre_hire** whose start date is corrected to today or earlier has started,
+  and becomes **active**.
+- An **active** person whose start date is corrected into the future has not
+  started, and returns to **pre_hire**. Everything that reads the state follows
+  it back: required fields are those of a pre-hire again, headcount stops
+  counting them, and identity learns the later start date, which is the date
+  it gates enrolment on.
+- A person on **notice** whose last working day is corrected to a date already
+  past **stays on notice**. Termination is a deliberate act, so HR gets a task
+  to confirm it, in the same grid as HR's missing fields (§8.4) rather than one
+  task per person. The task is read off the state and the date: it closes when
+  HR terminates or corrects the date forward.
+- **on_leave** and **terminated** keep their state whatever either date is
+  corrected to.
+
+Each move raises `status_changed` with reason `corrected`; §8.5 says what it
+is effective from.
 
 ### 8.2 The first employee
 
@@ -661,6 +695,11 @@ Per the repository rule, and it is load-bearing here rather than decorative:
 - A **correction** is a typed event carrying `supersedes`, never a silent update.
   A salary typo corrected three months later must not read as a pay cut followed
   by a raise.
+- A correction that moves the state (§8.1) raises `status_changed` beside the
+  `attribute_corrected` that carries `supersedes`, and names that event as its
+  cause. A start that arrived is effective from the corrected start date. A
+  start that had not is effective from the start date it corrects, the day the
+  record wrongly became active, so an "as of" read of that span says pre-hire.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
@@ -1169,7 +1208,9 @@ GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
 POST   /v1/imports                     dry run, then commit
-GET    /v1/exports/{id}                including a DSAR package for one person
+POST   /v1/exports                     run now, or queue over 2,000 rows (202)
+GET    /v1/exports/{id}                the requester's own, links signed again; a DSAR package for one person
+GET    /v1/exports/files/{key}         a signed link, 24 hours; carries its own authority
 ```
 
 OpenAPI generated from the same Zod definitions, per the rule that a derived
@@ -1373,6 +1414,37 @@ Anything over 2,000 rows runs as a job. The file lands in object storage,
 encrypted, behind a signed link that expires in 24 hours and is delivered as a
 notification — never as an email attachment, because an email attachment is a
 copy of the employee register in a mailbox nobody controls.
+
+How that is built:
+
+- **The threshold is what the requester may list**, counted through the same
+  read the export is. A manager with a team of eight is never queued because
+  the company has ten thousand people.
+- **The job is a BullMQ job**, keyed by the export id, so a request retried by
+  the client is one job and a job retried by the queue is one export. Five
+  attempts with exponential backoff; a refusal — a field refused, a reason
+  missing — is final, because it would be refused again. A queued export that
+  needs a reason is refused **before** it is queued, not by a worker nobody is
+  watching.
+- **Storage is any S3-compatible bucket**, with two layers of encryption:
+  AES-256-GCM in the service before the bytes leave it, and the bucket's own
+  server-side encryption beneath. They fail differently — the bucket's key
+  protects a disk that leaves the data centre, the service's protects against a
+  bucket policy one checkbox too generous.
+- **The link is the service's, not the bucket's.** `GET /v1/exports/files/…`
+  checks an HMAC over the key and the expiry, and after 24 hours answers `410
+  Gone`. A presigned bucket URL would hand the requester ciphertext.
+- **Files are deleted after the link dies**, by a sweep that runs hourly and
+  removes at most a thousand files per run, so a backlog drains over several
+  runs instead of one long one.
+- **The notification is `people.export.completed`**, which still carries no
+  link. The requester — and only the requester — fetches the links from `GET
+  /v1/exports/{id}`, which signs them again from the file names and expiry in
+  the export ledger; no link is stored anywhere. An export-ready email waits on
+  `platform/messaging` gaining that message.
+- **Nothing configured is a supported mode.** With no bucket and no queue the
+  module keeps files in memory and runs large exports in-process, says so at
+  boot, and still boots alone.
 
 ### 15.2 Exporting a sheet that has extra attributes
 

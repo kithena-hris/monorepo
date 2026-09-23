@@ -89,6 +89,19 @@ describe('it owns the Person key', () => {
   });
 });
 
+describe('exports with nothing configured', () => {
+  it('store files in memory and run large exports in-process rather than refusing to boot', async () => {
+    const { exportStoreFrom, startExportRunner } = await import('../infrastructure/export-queue.js');
+    const store = exportStoreFrom({});
+    await store.put('t/exports/1/f.csv', new Uint8Array([104, 105]), 'text/csv');
+    const opened = await store.open(await store.sign('t/exports/1/f.csv', '2999-01-01T00:00:00.000Z'));
+    expect(opened.ok && [...opened.value.bytes]).toEqual([104, 105]);
+
+    const runner = await startExportRunner({}, () => Promise.reject(new Error('unused')), {} as never);
+    await runner.close();
+  });
+});
+
 describe('the standalone harness itself works', () => {
   it('fails an import that reaches a sibling', async () => {
     // A negative control. Without it every assertion above would still pass if

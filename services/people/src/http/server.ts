@@ -4,6 +4,9 @@ import postgres from 'postgres';
 import { systemClock } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
+import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
+import { drizzleExportLedger } from '../application/export/ledger.js';
+import type { ExportQueue } from '../application/export/queue.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { PeopleService } from '../application/person/service.js';
@@ -15,6 +18,7 @@ import {
   drizzleSchemaVersions,
 } from '../infrastructure/drizzle-person-reader.js';
 import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
+import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
@@ -152,6 +156,60 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
   };
 }
 
+/** The export pipeline: the store, the ledger and the queue, from the environment. */
+function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: ExportQueue } {
+  const deps: ExportJobDeps = {
+    access: service.access,
+    schemas: service.schemas,
+    relations: drizzleRelations(),
+    clock: systemClock,
+    store: exportStoreFrom(process.env),
+    // ponytail: the requester learns the export is ready from
+    // `people.export.completed` and fetches the links from `GET
+    // /v1/exports/{id}`. An email through platform/messaging is the upgrade,
+    // once it has an export-ready message (as PEO-084 needs for reminders).
+    notifier: {
+      notify: ({ tenantId, exportId, recipientAccountId }) => {
+        logger.info({ tenantId, exportId, recipientAccountId }, 'export ready');
+        return Promise.resolve();
+      },
+    },
+    audit: outboxExportAudit,
+    ledger: drizzleExportLedger(),
+    newId: uuidv7,
+  };
+  const runner = startExportRunner(process.env, service.inTenant, deps);
+  runner.catch((cause: unknown) => {
+    logger.error({ err: cause }, 'export queue did not start');
+  });
+  return { deps, queue: { enqueue: async (job) => (await runner).enqueue(job) } };
+}
+
+async function download(deps: ExportJobDeps, path: string, response: ServerResponse): Promise<void> {
+  try {
+    const opened = await deps.store.open(`http://people.internal${path}`);
+    if (!opened.ok) {
+      send(response, {
+        status: opened.error.code === 'LINK_EXPIRED' ? 410 : 404,
+        body: { error: { code: opened.error.code, message: opened.error.message } },
+      });
+      return;
+    }
+    const name = decodeURIComponent(new URL(path, 'http://x').pathname).split('/').at(-1) ?? 'export';
+    response.writeHead(200, {
+      'content-type': opened.value.mediaType,
+      'content-disposition': `attachment; filename="${name.replaceAll('"', '')}"`,
+      'cache-control': 'no-store',
+    });
+    response.end(Buffer.from(opened.value.bytes));
+  } catch (cause) {
+    logger.error({ err: cause }, 'export download failed');
+    if (!response.headersSent) {
+      send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+    }
+  }
+}
+
 const MAX_BODY = 256 * 1024;
 
 async function bodyOf(request: IncomingMessage): Promise<string | null> {
@@ -190,7 +248,13 @@ export function wirePeople(server: Server): void {
   );
   configureGraphQL({ service, callerFrom });
 
-  const rest = restHandler({ service, callerFrom, idempotency: drizzleIdempotency() });
+  const exports = wireExports(service);
+  const rest = restHandler({
+    service,
+    callerFrom,
+    idempotency: drizzleIdempotency(),
+    exports,
+  });
   const document = JSON.stringify(openApiDocument());
   const [graphql] = server.listeners('request') as ((
     request: IncomingMessage,
@@ -202,6 +266,12 @@ export function wirePeople(server: Server): void {
     const path = request.url ?? '/';
     if (!path.startsWith('/v1/')) {
       graphql?.(request, response);
+      return;
+    }
+    // A signed link carries its own authority and no caller headers: it is
+    // opened from a browser, and its signature and expiry are the whole check.
+    if (request.method === 'GET' && path.startsWith('/v1/exports/files/')) {
+      void download(exports.deps, path, response);
       return;
     }
     if (path === '/v1/openapi.json') {

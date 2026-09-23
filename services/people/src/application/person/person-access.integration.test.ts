@@ -8,6 +8,7 @@ import { fixedClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { Person } from '../../domain/person/person.js';
+import { drizzleCompletenessStore } from '../../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../../infrastructure/drizzle-person-repository.js';
 import {
   drizzlePersonReader,
@@ -384,4 +385,141 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
     const corrections = (await lifecycleRows()).filter((r) => r['supersedes'] !== null);
     expect(corrections.map((r) => r['supersedes'])).toEqual([hireRow?.['id'], noticeRow?.['id']]);
   });
+
+  /** A hired person in INITECH, and the history row their hire wrote. */
+  async function hired(id: string, account: string | null, hireDate: string): Promise<string> {
+    await inTenant(INITECH, ({ tx }) =>
+      drizzlePersonRepository().create(
+        tx,
+        Person.rehydrate({
+          id,
+          tenantId: INITECH,
+          status: 'provisional',
+          identityAccountId: account,
+          hireDate: null,
+          lastWorkingDay: null,
+        }),
+        { givenName: 'Sam', familyName: 'Ortiz', workEmail: `${id.slice(-4)}@initech.test` },
+      ),
+    );
+    const done = await inTenantResult(inTenant, INITECH, (tx) =>
+      people.hire(tx, { ...asking(hr, INITECH), personId: id, hireDate }),
+    );
+    if (!done.ok) throw new Error(done.error.message);
+    const [row] = await admin.execute(sql`
+      SELECT id FROM people.person_attribute_history
+       WHERE person_id = ${id}::uuid AND attribute_key = 'hire_date'`);
+    return String(row?.['id']);
+  }
+
+  const correctOn = (personId: string, supersedes: string, value: string) =>
+    inTenantResult(inTenant, INITECH, (tx) =>
+      people.correct(tx, {
+        ...asking(hr, INITECH),
+        personId,
+        supersedes,
+        value,
+        reason: 'entered wrongly',
+      }),
+    );
+
+  const eventsOf = async (personId: string, name: string) => [
+    ...(await admin.execute(sql`
+      SELECT event_id, envelope FROM people.outbox
+       WHERE aggregate_id = ${personId} AND event_name = ${name}
+       ORDER BY created_at, event_id`)),
+  ];
+
+  it('returns an active person to pre-hire when the start is corrected into the future, and tells identity', async () => {
+    const SAM = '00000000-0000-4000-8000-0000000000a5';
+    const hireRow = await hired(SAM, '00000000-0000-4000-8000-0000000000b5', '2026-09-01');
+
+    const corrected = await correctOn(SAM, hireRow, '2026-10-15');
+    expect(corrected.ok).toBe(true);
+
+    const seen = await inTenantResult(inTenant, INITECH, (tx) =>
+      people.read(tx, { ...asking(hr, INITECH), personId: SAM }),
+    );
+    expect(seen.ok && seen.value.status).toBe('pre_hire');
+
+    const [correction] = await eventsOf(SAM, 'people.person.attribute_corrected');
+    const moves = await eventsOf(SAM, 'people.person.status_changed');
+    expect(moves.map((m) => (m['envelope'] as { payload: unknown }).payload)).toMatchObject([
+      { previous: 'provisional', next: 'active', reason: 'hired' },
+      { previous: 'active', next: 'pre_hire', reason: 'corrected' },
+    ]);
+    expect(moves[1]?.['envelope']).toMatchObject({
+      effectiveFrom: '2026-09-01',
+      causationId: correction?.['event_id'],
+    });
+    expect(correction?.['envelope']).toMatchObject({ payload: { supersedes: hireRow } });
+
+    // Identity gates enrolment on the start date it caches, so it hears the new one.
+    const facts = await eventsOf(SAM, 'people.person.identity_facts_changed');
+    expect(facts.at(-1)?.['envelope']).toMatchObject({ payload: { employmentStart: '2026-10-15' } });
+  });
+
+  it('keeps a person on notice whose last day is corrected into the past, and asks HR to confirm', async () => {
+    const KIM = '00000000-0000-4000-8000-0000000000a6';
+    await hired(KIM, null, '2026-01-01');
+    await inTenant(INITECH, async ({ tx }) => {
+      const snapshot = await drizzlePersonRepository().load(tx, INITECH, KIM);
+      if (!snapshot) throw new Error('Kim is missing');
+      const kim = Person.rehydrate(snapshot);
+      const given = kim.giveNotice('2026-12-31', systemContext());
+      if (!given.ok) throw new Error(given.error.message);
+      await drizzlePersonRepository().save(tx, kim);
+    });
+    const lastDayRow = async () => {
+      const [row] = await admin.execute(sql`
+        SELECT id FROM people.person_attribute_history
+         WHERE person_id = ${KIM}::uuid AND attribute_key = 'last_working_day'
+         ORDER BY recorded_at DESC, id DESC LIMIT 1`);
+      return String(row?.['id']);
+    };
+    const grid = () =>
+      inTenant(INITECH, ({ tx }) => drizzleCompletenessStore().staffGrid(tx, INITECH, '2026-09-22'));
+    expect(await grid()).toEqual([]);
+
+    const before = (await eventsOf(KIM, 'people.person.status_changed')).length;
+    expect((await correctOn(KIM, await lastDayRow(), '2026-09-15')).ok).toBe(true);
+
+    const [row] = await admin.execute(sql`SELECT status FROM people.person WHERE id = ${KIM}::uuid`);
+    expect(row?.['status']).toBe('notice');
+    expect(await eventsOf(KIM, 'people.person.status_changed')).toHaveLength(before);
+    expect(await eventsOf(KIM, 'people.person.terminated')).toEqual([]);
+    expect(await eventsOf(KIM, 'people.person.attribute_corrected')).toHaveLength(1);
+    expect(await grid()).toEqual([
+      { task: 'confirm_termination', key: 'last_working_day', personIds: [KIM] },
+    ]);
+
+    // Corrected forward, the task is gone; back again, and HR terminating closes it.
+    expect((await correctOn(KIM, await lastDayRow(), '2026-10-31')).ok).toBe(true);
+    expect(await grid()).toEqual([]);
+    expect((await correctOn(KIM, await lastDayRow(), '2026-09-15')).ok).toBe(true);
+    expect(await grid()).toHaveLength(1);
+    await inTenant(INITECH, async ({ tx }) => {
+      const snapshot = await drizzlePersonRepository().load(tx, INITECH, KIM);
+      if (!snapshot) throw new Error('Kim is missing');
+      const kim = Person.rehydrate(snapshot);
+      const ended = kim.terminate('2026-09-15', systemContext());
+      if (!ended.ok) throw new Error(ended.error.message);
+      await drizzlePersonRepository().save(tx, kim);
+    });
+    expect(await grid()).toEqual([]);
+  });
 });
+
+/** The context for a transition no transport offers yet, driven through the aggregate. */
+function systemContext() {
+  return {
+    clock: fixedClock('2026-09-22T09:00:00.000Z'),
+    newEventId: () => {
+      ids += 1;
+      return `01890000-0000-7000-8000-${String(ids).padStart(12, '0')}`;
+    },
+    actor: { kind: 'system' as const, process: 'integration-test' },
+    correlationId: '00000000-0000-4000-8000-0000000000c1',
+    causationId: null,
+  };
+}
