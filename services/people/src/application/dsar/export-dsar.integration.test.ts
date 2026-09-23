@@ -20,6 +20,7 @@ import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { exportDsar } from './export-dsar.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * PEO-036: every exportable attribute, tenant-defined ones included, in the
@@ -55,7 +56,7 @@ const dsar = exportDsar({
 });
 
 let ids = 0;
-const publisher = publishSchema({
+const publisher = publishSchema({ calendars: utcCalendars,
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   clock,
@@ -116,6 +117,7 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
     '20260923140000_people_retention.sql',
+    '20260924170000_people_calendar.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

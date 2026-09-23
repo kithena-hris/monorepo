@@ -13,6 +13,7 @@ import { reconcile } from '../application/reconcile.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
+import { drizzleOrgStore } from './drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { knownTenants } from './tenants.js';
@@ -84,6 +85,7 @@ export async function startBackground(
   const inTenant = tenantTransaction(db);
   const registry = options.registry ?? tenantPolicies;
   const schema = drizzleSchemaRepository();
+  const org = drizzleOrgStore();
 
   /*
    * A group per process, from the beginning of the topic. Every replica sees
@@ -135,11 +137,10 @@ export async function startBackground(
         inTenant(tenantId, async (scope) => {
           const version = await schema.currentVersion(scope.tx, tenantId);
           if (version === null) return;
-          // `ponytail: UTC day. People does not hold a tenant's calendar yet;
-          // the publish request carries one, the snapshot has nowhere to read it.`
+          // Each legal entity counted on its own day (PRD §6.8, §16).
           const definitions = version.document.attributes;
           const result = await takeSnapshot(
-            { facts: drizzlePeopleFacts(), clock: systemClock },
+            { facts: drizzlePeopleFacts(), clock: systemClock, calendars: org },
             scope,
             { definitions },
           );
@@ -147,9 +148,13 @@ export async function startBackground(
             logger.warn({ tenantId, code: result.error.code }, 'snapshot refused');
             return;
           }
-          // `ponytail: default cohort minimum. No tenant setting is stored yet;
-          // when one is, pass it here — it is the change threshold too.`
-          const published = await publishBreakdowns({ clock: systemClock }, scope, { definitions });
+          // The tenant's own minimum, which is the change threshold too.
+          const { cohortMinimum } = await org.settings(scope.tx, tenantId);
+          const published = await publishBreakdowns(
+            { clock: systemClock, calendars: org },
+            scope,
+            { definitions, cohortMinimum, run: result.value },
+          );
           if (!published.ok) {
             logger.warn({ tenantId, code: published.error.code }, 'publication refused');
           } else if (published.value.published.length > 0) {
@@ -173,6 +178,7 @@ export async function startBackground(
       store: drizzleCompletenessStore(),
       mailer: options.mailer,
       clock: systemClock,
+      calendars: org,
     });
     jobs.push(
       every(HOUR, () =>

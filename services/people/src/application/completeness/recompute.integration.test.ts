@@ -5,6 +5,8 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { PersonProfileCompleted, PersonProfileIncomplete } from '@kithena/contracts';
 import { fixedClock, type Clock } from '@kithena/domain-kit';
+import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
+import { fixedCalendars } from '../org/org.js';
 import { startPostgres } from '@kithena/testing';
 
 import { drizzleCompletenessStore } from '../../infrastructure/drizzle-completeness-store.js';
@@ -46,7 +48,7 @@ const newEventId = () => {
 };
 
 const store = drizzleCompletenessStore();
-const deps = (clock: Clock) => ({
+const deps = (clock: Clock, calendar: TenantCalendar = UTC_CALENDAR) => ({
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   store,
@@ -54,6 +56,7 @@ const deps = (clock: Clock) => ({
   newEventId,
   // Small, so 400 people cross several batch boundaries.
   batchSize: 64,
+  calendars: fixedCalendars(calendar),
 });
 
 const actor = { kind: 'system', process: 'integration-test' } as const;
@@ -83,6 +86,7 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
     '20260924150000_people_unique_hash.sql',
+    '20260924170000_people_calendar.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -154,17 +158,19 @@ async function seed(
   `);
 }
 
-async function publishAndRecompute(clock: Clock, timeZone?: string) {
+async function publishAndRecompute(
+  clock: Clock,
+  calendar?: TenantCalendar,
+  /** When the `schema.published` event is consumed, if not at once. */
+  consumedBy: Clock = clock,
+) {
   const published = await inTenant(ACME, ({ tx }) =>
-    publishSchema({ ...deps(clock) }).publish(
-      tx,
-      timeZone === undefined ? publishRequest : { ...publishRequest, timeZone },
-    ),
+    publishSchema(deps(clock, calendar)).publish(tx, publishRequest),
   );
   if (!published.ok) throw new Error(published.error.message);
 
   const recomputed = await inTenant(ACME, ({ tx }) =>
-    recomputeCompleteness(deps(clock))(tx, {
+    recomputeCompleteness(deps(consumedBy, calendar))(tx, {
       tenantId: ACME,
       schemaVersion: published.value.version.version,
       actor,
@@ -198,8 +204,8 @@ function recordingMailer(): ReminderMailer & { sent: Reminder[] } {
   };
 }
 
-const sweep = (clock: Clock, mailer: ReminderMailer) =>
-  sweepReminders({ inTenant, store, mailer, clock })(ACME);
+const sweep = (clock: Clock, mailer: ReminderMailer, calendar: TenantCalendar = UTC_CALENDAR) =>
+  sweepReminders({ inTenant, store, mailer, clock, calendars: fixedCalendars(calendar) })(ACME);
 
 describe('a tightening publish over 400 people', () => {
   beforeEach(async () => {
@@ -345,11 +351,45 @@ describe('a tenant whose calendar is not UTC', () => {
     await defineAttribute('cost_centre', 'hr', true, '2026-09-24');
     await seed(40, 10, { cost_centre: 'CC-1' });
 
-    const { preview, summary } = await publishAndRecompute(nearMidnight, 'Pacific/Auckland');
+    const { preview, summary } = await publishAndRecompute(
+      nearMidnight,
+      { ...UTC_CALENDAR, defaultZone: 'Pacific/Auckland' },
+      // Consumed a day later: the recompute replays the preview's instant.
+      fixedClock('2026-09-24T13:00:00.000Z'),
+    );
 
     expect(preview.impact.becomingIncomplete).toBe(30);
     expect(summary.becameIncomplete).toBe(preview.impact.becomingIncomplete);
     expect(await outbox('people.person.profile_incomplete')).toHaveLength(30);
+  });
+
+  it('counts entities in Madrid and Bangalore each on their own day', async () => {
+    const MADRID = '00000000-0000-4000-8000-0000000000e1';
+    const BANGALORE = '00000000-0000-4000-8000-0000000000e2';
+    const calendar: TenantCalendar = {
+      defaultZone: 'Europe/Madrid',
+      entities: new Map([
+        [MADRID, { id: MADRID, name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' }],
+        [BANGALORE, { id: BANGALORE, name: 'Acme India', country: 'IN', timeZone: 'Asia/Kolkata' }],
+      ]),
+      locations: new Map(),
+    };
+    await defineAttribute('cost_centre', 'hr', true, '2026-09-24');
+    for (const [entity, n] of [[MADRID, 20], [BANGALORE, 12]] as const) {
+      // eslint-disable-next-line no-await-in-loop -- two inserts
+      await admin.execute(sql`
+        INSERT INTO people.person (tenant_id, status, given_name, work_email, legal_entity_id)
+        SELECT ${ACME}::uuid, 'active', 'Ada', ${entity} || '-' || i || '@acme.test', ${entity}::uuid
+        FROM generate_series(1, ${n}) AS i`);
+    }
+
+    // 20:00 UTC on the 23rd: 01:30 on the 24th in Bangalore, 22:00 on the 23rd in Madrid.
+    const { preview, summary } = await publishAndRecompute(
+      fixedClock('2026-09-23T20:00:00.000Z'),
+      calendar,
+    );
+    expect(preview.impact.becomingIncomplete).toBe(12);
+    expect(summary.becameIncomplete).toBe(12);
   });
 });
 
@@ -360,6 +400,15 @@ describe('the reminder cap: one email per person per week', () => {
     await defineAttribute('cost_centre', 'hr', true);
     await seed(400, 100, { emergency_contact: 'Grace', cost_centre: 'CC-1' });
     await publishAndRecompute(at(0));
+  });
+
+  it("waits for working hours on the person's own clock", async () => {
+    const mailer = recordingMailer();
+    const auckland = { ...UTC_CALENDAR, defaultZone: 'Pacific/Auckland' };
+    // T0 is 09:00 UTC: 21:00 in Auckland. Nobody there is emailed at night.
+    expect((await sweep(at(0), mailer, auckland)).sent).toBe(0);
+    // Twelve hours on it is 09:00 in Auckland, and the week has not begun.
+    expect((await sweep(at(12 * HOUR), mailer, auckland)).sent).toBe(300);
   });
 
   it('sends one email per person however many fields are missing, then none for 168 hours', async () => {

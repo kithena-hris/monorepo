@@ -14,6 +14,7 @@ import {
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { COUNTRY_PACKS, type PackCountry } from './packs.js';
 import { seedCountryPack } from './seed.js';
+import { utcCalendars } from '../application/org/org.js';
 
 /**
  * PEO-059's "done when": a pack applied to a fresh tenant publishes as
@@ -31,7 +32,7 @@ let admin: PostgresJsDatabase;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
 let events = 0;
-const use = publishSchema({
+const use = publishSchema({ calendars: utcCalendars,
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   clock,
@@ -65,6 +66,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
+    '20260924170000_people_calendar.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

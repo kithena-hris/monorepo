@@ -728,7 +728,8 @@ On publishing a schema version that adds or tightens a requirement:
    banner on their profile, an item in their task list, and a reminder email
    through `platform/messaging` on a decaying schedule (day 1, day 3, day 7,
    then weekly, capped). Never more than one reminder email per person per
-   week regardless of how many fields are missing.
+   week regardless of how many fields are missing, and only ever sent between
+   09:00 and 18:00 on the person's own clock (§6.8) — see below.
 4. Missing **HR-owned** attributes become a task for HR, aggregated: "88 people
    are missing a cost centre" with a bulk-edit grid, not 88 separate tasks.
 5. The settings screen shows the impact **before** publishing: "This makes 88 of
@@ -738,6 +739,20 @@ The preview is the part that prevents the mistake. An HR admin who can see the
 consequence before committing will pick a sensible `requiredFrom` date; one who
 cannot will mark six fields required on a Friday afternoon and mail four hundred
 people.
+
+**Whose day `requiredFrom` is read on.** Each person's own (§6.8): a field
+required from the 24th is required in Bangalore at 01:30 on the 24th while it
+is still the 23rd in Madrid. The preview takes one instant, reads every
+person's day off it, and records the instant on the version
+(`schema_version.evaluated_at`); the recompute that runs later off
+`schema.published` replays that instant, so the number the admin was shown is
+the number that happens, whenever the event is consumed. A version published
+before the instant was recorded replays its one `evaluated_on` date.
+
+**When a reminder lands.** Between 09:00 and 18:00 on the person's own clock.
+The sweep runs hourly for every tenant, so without this a reminder reaches
+Auckland at 03:00 because it was morning in Europe. The one-per-week cap stays
+in hours (168), which needs no calendar at all.
 
 Completeness is exposed on the API and in reporting, so a customer who *wants*
 to gate something on it — an onboarding module, an access request — can do that
@@ -767,6 +782,16 @@ last March" in any sense payroll cares about.
 Every read of a person takes an optional `asOf` date. The default is today. A
 payroll run for March asks for March, and gets the org chart, the salary and the
 cost centre as they were, not as they are.
+
+"Today" is always the person's own day (§6.8), never the server's: the default
+`effectiveFrom` of a change, whether a new value is already in force, whether a
+hire date has arrived (so whether the hire is `active` or `pre_hire`), and a
+date field's past/future rule are all read on the calendar of the person being
+written — their location, else their legal entity, else their own zone, else
+the tenant's. A write that moves somebody to another office is judged on the
+calendar it moves them to. An import row is judged the same way, on the
+calendar of the person the row is about. An export's file date and its "As of"
+line are the tenant default's day, because one file has one date.
 
 ---
 
@@ -1192,7 +1217,10 @@ derived artifact computed from the union of both.**
   stored on the person row.
 - Retention jobs read the same source, and erase a value's unique claim with
   the value: a keyed hash of an erased identifier is still that identifier to
-  whoever holds the key.
+  whoever holds the key. A retention due date — the last working day plus the
+  policy's months — is a calendar date, and whether it has arrived is read on
+  the leaver's own calendar (§6.8): it falls at midnight where they worked,
+  not where the server is.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that
@@ -1795,6 +1823,21 @@ number nobody can check, and it goes stale the moment it leaves.
 A daily snapshot table, `people.headcount_snapshot`, holds the aggregate
 dimensions per tenant per day: counts by department, location, status,
 employment type, tenure band and completeness. Charts read snapshots.
+
+**Whose day a snapshot counts.** Each legal entity's own (§6.8). The job
+reads one instant, files the run under the tenant default's date, and counts
+every person on their legal entity's date at that instant — headcount,
+joiners, leavers, tenure, expiries and the completeness grid's missing
+fields. Somebody with no legal entity is counted on the tenant's day. **A
+tenant-wide figure is the sum of per-entity figures, each on its own day**: at
+20:00 UTC on 31 March a joiner starting 1 April in Bangalore is already in the
+headcount and one starting 1 April in Madrid is not, and the tenant's number
+is their sum. Each entity's flow interval is the run's, anchored on its own
+day, so consecutive runs stay contiguous for every entity. The monthly
+special-category publication (§16.1) reads the run it follows, never a second
+reading of the clock, and counts "who changed since" on each entity's day at
+the publication's instant and at this run's. A requested `asOf` is a date and
+is the same date for everybody.
 
 Arbitrary `asOf` dates outside the snapshot grid fall back to replaying
 history, which is slower and is marked as such in the UI. Nothing is computed

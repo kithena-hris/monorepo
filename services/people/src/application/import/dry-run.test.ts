@@ -6,6 +6,7 @@ import { dryRun } from './dry-run.js';
 import { asking, csv, HEADERS, HR, priyasRows, priyasTenant } from './fixture.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
+import { utcCalendars } from '../org/org.js';
 
 const HR_RELATIONS = {
   isSelf: false,
@@ -19,6 +20,7 @@ const HR_RELATIONS = {
 async function run(bytes: Uint8Array) {
   const store = priyasTenant();
   const deps = {
+    calendars: utcCalendars,
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,
@@ -130,6 +132,7 @@ describe('who may run it', () => {
   it('refuses a mapping that routes a column to a field the importer may not write', async () => {
     const store = priyasTenant();
     const deps = {
+      calendars: utcCalendars,
       access: personAccess(store.deps),
       schemas: store.deps.schemas,
       relations: store.deps.relations,

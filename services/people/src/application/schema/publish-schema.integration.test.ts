@@ -13,6 +13,7 @@ import {
 } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from './publish-schema.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * Publishing a version, and the number shown before it happens.
@@ -39,6 +40,7 @@ let inTenant: ReturnType<typeof tenantTransaction>;
 
 let events = 0;
 const use = publishSchema({
+  calendars: utcCalendars,
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   clock,
@@ -72,6 +74,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
+    '20260924170000_people_calendar.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -200,6 +203,7 @@ async function recountIncomplete(): Promise<number> {
         knownAttributes: new Set(Object.keys(values)),
       },
       clock,
+      'Etc/UTC',
     );
     if (verdict.state === 'incomplete') incomplete += 1;
   }

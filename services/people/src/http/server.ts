@@ -137,6 +137,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
   void poll();
   setInterval(() => void poll(), POLL_MS).unref();
 
+  const org = drizzleOrgStore();
   return {
     access: personAccess({
       people: drizzlePersonRepository(),
@@ -147,9 +148,10 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,
+      calendars: org,
     }),
     schemas,
-    org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
+    org: orgAdmin({ store: org, clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       kick(tenantId);
@@ -169,6 +171,8 @@ function wireExports(service: PeopleService): {
     logger,
   );
   const deps: ExportJobDeps = {
+    // The export's day is the tenant's (PRD §6.8).
+    calendars: drizzleOrgStore(),
     access: service.access,
     schemas: service.schemas,
     relations: drizzleRelations(),

@@ -1,5 +1,5 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { fixedClock, type Clock } from '@kithena/domain-kit';
+import { fixedClock, localDate, type Clock } from '@kithena/domain-kit';
 import {
   CalendarDate,
   type AttributeDefinition,
@@ -40,15 +40,20 @@ export interface Judgement {
 
 export const NOTHING_JUDGED: Judgement = { missing: new Map(), notApplicable: new Set() };
 
-/** The version that was the published one at the end of `day`, or null before the first. */
+/**
+ * The version that was the published one at the end of `day`, or null before
+ * the first. A publish instant is read as a day on the tenant's calendar
+ * (PRD §6.8), the calendar an export's `asOf` is written in.
+ */
 export async function versionInForce(
   tx: PostgresJsDatabase,
   schemas: SchemaVersions,
   tenantId: string,
   day: string,
+  zone: string,
 ): Promise<PublishedVersion | null> {
   const versions = await schemas.list(tx, tenantId);
-  const summary = versions.find((v) => v.publishedAt.slice(0, 10) <= day);
+  const summary = versions.find((v) => localDate(v.publishedAt, zone) <= day);
   if (!summary) return null;
   // `list` may carry only a summary; the document comes from `byNumber`.
   return (await schemas.byNumber(tx, tenantId, summary.version)) ?? summary;
@@ -98,13 +103,17 @@ export async function judge(
   };
   const clock = clockOn(where.day);
   const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-  const verdict = assessCompleteness(definitions, facts, clock);
+  // `clockOn` reads the same day in every zone, so the zone is moot here.
+  const verdict = assessCompleteness(definitions, facts, clock, 'Etc/UTC');
   const missing = new Map<string, AttributeDefinition>();
   for (const m of verdict.missing) {
     const d = byKey.get(m.key);
     if (d && visibleTo(d, relations)) missing.set(m.key, d);
   }
-  return { missing, notApplicable: new Set(notApplicable(definitions, facts, clock)) };
+  return {
+    missing,
+    notApplicable: new Set(notApplicable(definitions, facts, clock, 'Etc/UTC')),
+  };
 }
 
 /** The convention `person-access.ts` and `drizzlePeopleFacts` read: an address's country, else a plain one. */

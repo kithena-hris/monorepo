@@ -2,6 +2,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { PendingEvent } from '@kithena/domain-kit';
 import type { AttributeDefinition, CalendarDate } from '@kithena/contracts';
 
+import type { Placement } from '../../domain/org/calendar.js';
 import type { CompletenessState } from '../../domain/person/completeness.js';
 
 /**
@@ -24,6 +25,8 @@ export interface CompletenessStore {
   ): Promise<{
     attributes: readonly AttributeDefinition[];
     evaluatedOn: CalendarDate | null;
+    /** The instant the preview evaluated at; null for a version from before PEO-099. */
+    evaluatedAt: string | null;
   } | null>;
 
   /**
@@ -58,7 +61,20 @@ export interface CompletenessStore {
    * interval arithmetic follows the session time zone across a DST change and
    * is 23 or 25 hours long, which would let two emails through 167 hours apart.
    */
-  claimReminders(tx: PostgresJsDatabase, tenantId: string, now: Date): Promise<readonly Reminder[]>;
+  claimReminders(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    now: Date,
+    /** Only these people, when given: the ones whose own clock says working hours. */
+    only?: readonly string[],
+  ): Promise<readonly Reminder[]>;
+
+  /** Who `claimReminders` would claim at `now`, and where each sits. Claims nothing. */
+  dueReminders(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    now: Date,
+  ): Promise<readonly { readonly personId: string; readonly placement: Placement }[]>;
 
   /**
    * HR's work, one row per missing key — the grid, never a task per person.

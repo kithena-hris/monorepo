@@ -1,6 +1,8 @@
 import type { Clock } from '@kithena/domain-kit';
 
+import { inReminderWindow, personZone } from '../../domain/org/calendar.js';
 import type { InTenantTransaction } from '../../infrastructure/unit-of-work.js';
+import type { Calendars } from '../org/org.js';
 import type { CompletenessStore, Reminder } from './store.js';
 
 /**
@@ -18,6 +20,10 @@ import type { CompletenessStore, Reminder } from './store.js';
  * rolled-back claim never becomes an email. The cost is the other direction —
  * a messaging outage after the commit loses that week's reminder rather than
  * sending it twice. At most once is the property the product rule asks for.
+ *
+ * **Working hours, on the person's own clock** (PRD §6.8): a reminder is
+ * claimed only between 09:00 and 18:00 in the person's zone, so the hourly
+ * sweep reaches each person in their own morning rather than Europe's.
  */
 
 export interface ReminderMailer {
@@ -29,13 +35,22 @@ export interface SweepDeps {
   readonly store: CompletenessStore;
   readonly mailer: ReminderMailer;
   readonly clock: Clock;
+  /** Whose clock "working hours" is read on (PRD §6.8). */
+  readonly calendars: Calendars;
 }
 
 export function sweepReminders(deps: SweepDeps) {
   return async (tenantId: string): Promise<{ sent: number; failed: number }> => {
-    const claimed = await deps.inTenant(tenantId, ({ tx }) =>
-      deps.store.claimReminders(tx, tenantId, deps.clock.now()),
-    );
+    const claimed = await deps.inTenant(tenantId, async ({ tx }) => {
+      // Only people for whom it is working hours now, on their own clock.
+      const now = deps.clock.now();
+      const at = deps.clock.instant();
+      const calendar = await deps.calendars.load(tx, tenantId);
+      const open = (await deps.store.dueReminders(tx, tenantId, now))
+        .filter((d) => inReminderWindow(at, personZone(calendar, d.placement, at)))
+        .map((d) => d.personId);
+      return open.length === 0 ? [] : deps.store.claimReminders(tx, tenantId, now, open);
+    });
 
     const outcomes = await Promise.allSettled(claimed.map((r) => deps.mailer.send(tenantId, r)));
     const failed = outcomes.filter((o) => o.status === 'rejected').length;
