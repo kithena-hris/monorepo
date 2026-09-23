@@ -1045,6 +1045,8 @@ it is written down here rather than left in a PR description.
         hydrates without a mismatch and saves.
       - **The trade.** The remote's host now runs code on the shell's
         server. `PEOPLE_REMOTE_SSR=off` turns server rendering off.
+        *Closed by PEO-115:* a signed build, rendered in a process that holds
+        nothing.
       - **Not verified.** The CORS capture group in `vercel.json` has not
         been checked on a real deployment, because nothing was deployed.
 - [x] **PEO-098** The shell hands People screens their data. The screens from
@@ -1140,6 +1142,21 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
+- [x] **PEO-115** Server rendering without trusting the remote's host.
+      PEO-094 evaluated the remote's server build in the shell's own process,
+      beside the internal token. *Decided (option A):* integrity and
+      isolation. The remote's deploy pipeline signs a manifest of SHA-384
+      hashes (`sign-ssr.mjs`); the shell pins the Ed25519 public key
+      (`PEOPLE_REMOTE_SSR_PUBLIC_KEY`) and renders only a build that matches,
+      so a remote release is still a remote deploy alone. The build renders in
+      a child process with an empty environment, the permission model, no
+      code generation from strings and a `vm` context holding React, JSX and
+      Reach only (`remote-render.ts`, `remote-renderer.ts`); in the browser
+      the remote's own root hydrates it. Refused, altered or failing builds
+      render in the browser. `PEOPLE_REMOTE_SSR=off` is still the switch.
+      *Residual risk* in PRD §13.2: sockets in Node 22, any signed build is
+      trusted, the browser build is not covered, and nothing signs a
+      production build yet. *(PRD §13.2, §17.3)*
 
 ## Blocked, and by what
 
