@@ -1,5 +1,5 @@
 import { err, failure, isTimeZone, localDate, ok, type Result } from '@kithena/domain-kit';
-import { countryRules, type CalendarDate } from '@kithena/contracts';
+import { countryRules, Instant, type CalendarDate } from '@kithena/contracts';
 
 /**
  * Whose day it is (PEO-099).
@@ -111,6 +111,34 @@ export function personZone(calendar: TenantCalendar, placement: Placement, at: s
 
   if (placement.ownZone !== null && isTimeZone(placement.ownZone)) return placement.ownZone;
   return calendar.defaultZone;
+}
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * The instant a calendar day ends in a zone: the first instant of the next
+ * day there (PEO-109). Auckland's 30 September ends at 11:00 UTC on the 30th,
+ * Los Angeles's at 07:00 UTC on 1 October.
+ *
+ * Searched for rather than computed from an offset, because the offset at
+ * midnight is the thing a daylight change moves, and in a zone that springs
+ * forward at 00:00 (Santiago, Beirut) midnight does not exist at all — the
+ * next day begins at 01:00. Every zone's midnight lies within ±15 hours of
+ * UTC's, so the answer is inside that window, and ~27 halvings find it to
+ * the millisecond.
+ */
+export function dayEnd(date: string, zone: string): Instant {
+  const [y = 0, m = 1, d = 1] = date.split('-').map(Number);
+  const utcNextMidnight = Date.UTC(y, m - 1, d + 1);
+  // `lo` is still on `date` (or before) in the zone; `hi` is past it.
+  let lo = utcNextMidnight - 15 * HOUR_MS;
+  let hi = utcNextMidnight + 15 * HOUR_MS;
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (localDate(new Date(mid), zone) > date) hi = mid;
+    else lo = mid;
+  }
+  return Instant.parse(new Date(hi).toISOString());
 }
 
 /** A legal entity's zone; the tenant's for nobody's entity or one the tenant does not have. */

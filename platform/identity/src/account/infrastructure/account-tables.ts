@@ -44,6 +44,10 @@ export const account = platform.table(
     // When People last corrected the name and start date. Written and read by
     // the People consumer alone, as the guard against a replayed older event.
     peopleFactsAt: instant('people_facts_at'),
+    // The same guard for People's access events (PEO-109), and the status
+    // People's end of employment suspended the account from. Null: never.
+    peopleAccessAt: instant('people_access_at'),
+    accessEndedFrom: text('access_ended_from'),
     version: integer('version').notNull(),
     createdAt: instant('created_at').notNull(),
     updatedAt: instant('updated_at').notNull(),

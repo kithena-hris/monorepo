@@ -32,7 +32,13 @@ export type { CapturedProfile };
 export type AccountStatus = 'provisioned' | 'invited' | 'active' | 'suspended' | 'terminated';
 
 export type SuspensionReason =
-  'garden_leave' | 'investigation' | 'billing' | 'tenant_suspended' | 'security';
+  | 'garden_leave'
+  | 'investigation'
+  | 'billing'
+  | 'tenant_suspended'
+  | 'security'
+  /** People said the employment ended (PEO-109); a rehire lifts it. */
+  | 'employment_ended';
 
 export type RevocationReason =
   'signed_out' | 'evicted' | 'expired' | 'revoked_by_user' | 'revoked_by_admin' | 'terminated';
@@ -373,7 +379,12 @@ export class Account extends AggregateRoot<string> {
       return err(InvalidTransition(this.#status, 'suspended'));
     }
 
-    const revoked = this.#revokeAll('revoked_by_admin', ctx);
+    // A leaver's sessions end because employment did, which is what an
+    // incident reader filtering on `terminated` is looking for.
+    const revoked = this.#revokeAll(
+      reason === 'employment_ended' ? 'terminated' : 'revoked_by_admin',
+      ctx,
+    );
     this.#status = 'suspended';
     this.#raise(
       'identity.account.suspended',

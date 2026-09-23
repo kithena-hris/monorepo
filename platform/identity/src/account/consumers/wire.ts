@@ -1,14 +1,15 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
-import { PersonIdentityFactsChanged } from '@kithena/contracts';
+import { PersonAccessEnded, PersonIdentityFactsChanged } from '@kithena/contracts';
 import { withTenant } from '@kithena/db-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
 import { peopleConsumer } from './people.js';
 
 /**
- * Consume People's corrections, when there is a broker to consume from.
+ * Consume People's corrections and access events, when there is a broker to
+ * consume from.
  *
  * Optional the way `MESSAGING_URL` is: without `KAFKA_BROKERS` identity serves
  * sign-in exactly as before, which is also every tenant's situation when no
@@ -42,7 +43,10 @@ async function start(databaseUrl: string, brokers: string): Promise<() => Promis
     groupId: 'identity',
   });
   await consumer.connect();
-  await consumer.subscribe({ topics: [PersonIdentityFactsChanged.topic] });
+  // One topic per module today, so this is one subscription; a set, so it stays right if not.
+  await consumer.subscribe({
+    topics: [...new Set([PersonIdentityFactsChanged.topic, PersonAccessEnded.topic])],
+  });
   await consumer.run({
     eachMessage: async ({ message }) => {
       if (message.value === null) return;
