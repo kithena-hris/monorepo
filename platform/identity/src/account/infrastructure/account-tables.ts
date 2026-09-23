@@ -41,6 +41,9 @@ export const account = platform.table(
     timeZone: text('time_zone').notNull(),
     employmentStart: date('employment_start', { mode: 'string' }).notNull(),
     sessionLimit: smallint('session_limit').notNull(),
+    // When People last corrected the name and start date. Written and read by
+    // the People consumer alone, as the guard against a replayed older event.
+    peopleFactsAt: instant('people_facts_at'),
     version: integer('version').notNull(),
     createdAt: instant('created_at').notNull(),
     updatedAt: instant('updated_at').notNull(),

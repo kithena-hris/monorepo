@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type * as z from 'zod';
 import { PersonIdentityFactsChanged, type EventEnvelope } from '@kithena/contracts';
@@ -21,18 +21,13 @@ import { account } from '../infrastructure/account-tables.js';
  * a person who has been signing in for a month does not become somebody who
  * has not started because HR corrected a typo.
  *
- * **Order and repeats.** Every `people.person.*` event is keyed
- * `tenantId:personId`, so one person's events reach this partition in the order
- * they committed, and a redelivery replays them in that order too. Each event
- * carries the whole current value, not a change, so applying one twice writes
- * what the first did, and the last one applied is the newest.
- *
- * ponytail: no durable `occurredAt` watermark. Partition order covers
- * redelivery and a group reset; it does not cover an old event re-published
- * out of band (a dead-letter replay). That needs a nullable
- * `platform.account.people_facts_at timestamptz` and
- * `AND (people_facts_at IS NULL OR people_facts_at < occurredAt)` on the
- * update below. It is a migration, so it is not here.
+ * **Order and repeats.** One person's events share a partition and arrive in
+ * commit order, and each carries whole values rather than a change. That
+ * covers ordinary redelivery. It does not cover an old event published again
+ * out of band, such as a dead-letter replay, so the update also records the
+ * event's `occurredAt` in `people_facts_at` and only applies an event newer
+ * than the one already applied. The same event delivered twice is therefore a
+ * no-op the second time, which is what makes this idempotent on the event.
  */
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
@@ -73,17 +68,18 @@ export function peopleConsumer(inTenant: InTenant): (raw: unknown) => Promise<Ou
     const touched = await inTenant(event.tenantId, (tx) =>
       tx
         .update(account)
-        .set({ ...set, updatedAt: sql`now()` })
+        .set({ ...set, peopleFactsAt: event.occurredAt, updatedAt: sql`now()` })
         .where(
           and(
             eq(account.tenantId, event.tenantId),
             eq(account.id, event.payload.identityAccountId),
+            or(isNull(account.peopleFactsAt), lt(account.peopleFactsAt, event.occurredAt)),
           ),
         )
         .returning({ id: account.id }),
     );
-    // No account: it was deleted, or lives in a tenant this event does not
-    // name. Either way there is no copy to correct.
+    // No row: the account was deleted, lives in a tenant this event does not
+    // name, or has already taken an event at least this new.
     return touched.length > 0 ? 'applied' : 'unchanged';
   };
 }

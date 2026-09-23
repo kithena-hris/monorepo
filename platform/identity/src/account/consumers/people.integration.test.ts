@@ -42,6 +42,7 @@ beforeAll(async () => {
     '20260821230000_identity.sql',
     '20260919160000_account_name.sql',
     '20260921230000_account_mobile.sql',
+    '20260923170000_identity_people_facts_at.sql',
   ]) {
     const path = new URL(`../../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
@@ -85,7 +86,14 @@ afterAll(async () => {
   await stop?.();
 });
 
+/*
+ * Each event a minute after the last, as they would be in production. The
+ * guard refuses anything not newer than what was applied, so a fixture that
+ * stamped every event alike would test nothing past its first delivery.
+ */
 let n = 0;
+const minute = (m: number) => new Date(Date.UTC(2026, 2, 20, 9, m)).toISOString();
+
 function facts(
   accountId: string,
   payload: { name?: unknown; employmentStart?: string | null },
@@ -97,8 +105,8 @@ function facts(
     eventName: 'people.person.identity_facts_changed',
     eventVersion: 1,
     tenantId,
-    occurredAt: '2026-03-20T09:00:00.000Z',
-    recordedAt: '2026-03-20T09:00:00.000Z',
+    occurredAt: minute(n),
+    recordedAt: minute(n),
     effectiveFrom: null,
     aggregate: { type: 'Person', id: '00000000-0000-4000-8000-0000000000f1', version: 2 },
     actor: { kind: 'system', process: 'test' },
@@ -163,7 +171,7 @@ describe('a corrected name', () => {
     const event = facts(ACTIVE, { name });
     expect(await consume(event)).toBe('applied');
     const once = await row(ACTIVE);
-    expect(await consume(event)).toBe('applied');
+    expect(await consume(event)).toBe('unchanged');
     expect(await row(ACTIVE)).toEqual(once);
     expect(once).toMatchObject({
       given_name: 'Grace',
@@ -185,6 +193,26 @@ describe('a corrected name', () => {
       'applied',
     );
     expect(await row(ACTIVE)).toMatchObject({ given_name: 'Grace', employment_start: '2026-08-01' });
+  });
+});
+
+describe('an older event arriving after a newer one', () => {
+  it('changes nothing, so a dead-letter replay cannot restore a superseded value', async () => {
+    const older = facts(ACTIVE, {
+      name: { given: 'Grace', family: 'Brewster', preferred: null },
+      employmentStart: '2025-01-01',
+    });
+    const newer = facts(ACTIVE, {
+      name: { given: 'Grace', family: 'Hopper', preferred: null },
+      employmentStart: '2026-09-01',
+    });
+
+    expect(await consume(newer)).toBe('applied');
+    expect(await consume(older)).toBe('unchanged');
+    expect(await row(ACTIVE)).toMatchObject({
+      family_name: 'Hopper',
+      employment_start: '2026-09-01',
+    });
   });
 });
 
