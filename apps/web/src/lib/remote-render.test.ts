@@ -65,7 +65,9 @@ describe('a build that does not', () => {
   it('cannot require anything the shell does not share', async () => {
     await expect(render(`require('node:fs');`)).rejects.toThrow(/asked for node:fs/);
     await expect(
-      render(screen(`return jsx('p', { children: require('node:child_process').execSync('id') });`)),
+      render(
+        screen(`return jsx('p', { children: require('node:child_process').execSync('id') });`),
+      ),
     ).rejects.toThrow(/threw while rendering/);
   });
 
@@ -96,7 +98,11 @@ describe('a build that does not', () => {
     // A microtask loop the timeout interrupts; the process may not survive
     // that, and either way nobody waits on it.
     await expect(
-      render(screen(`Promise.resolve().then(function f() { return Promise.resolve().then(f); }); return null;`)),
+      render(
+        screen(
+          `Promise.resolve().then(function f() { return Promise.resolve().then(f); }); return null;`,
+        ),
+      ),
     ).rejects.toThrow(/timed out|exited/);
     const html = await render(legitimate, { title: 'After' });
     expect(html).toContain('After');

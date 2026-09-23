@@ -35,6 +35,11 @@ export default tseslint.config(
       // reads a stylesheet and does colour maths, so there is nothing typed for
       // the type-aware rules to check even if they could load it.
       'tools/email/*.mjs',
+      // Same case: build and deploy steps of an app, plain Node scripts that
+      // belong to no tsconfig (the shell's renderer bundle, the remote's
+      // signed manifest).
+      'apps/*/scripts/*.mjs',
+      'apps/*/*/scripts/*.mjs',
       // Conflict copies from whatever syncs this directory — `foo 2.ts` beside
       // `foo.ts`. Git ignores them; ESLint does not read `.gitignore`, so it
       // was reporting a parse error for a file nothing is meant to see.

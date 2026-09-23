@@ -222,7 +222,10 @@ describe('PEO-094: the remote, rendered on the server', () => {
     await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
     const page = await bare.newPage();
     const response = await page.goto(`${stack.shell}/people/me`);
-    expect(await response?.text()).toContain('Personal information');
+    const sent = (await response?.text()) ?? '';
+    expect(sent).toContain('Personal information');
+    // Drawn by the renderer process, from the signed build (PEO-115).
+    expect(sent).toContain('data-remote="people"');
     await expect
       .poll(() => page.evaluate(() => document.body.innerText.replaceAll('\n', ' | ')), {
         timeout: 10_000,
@@ -267,9 +270,12 @@ describe('PEO-094: the remote, rendered on the server', () => {
       await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
       const page = await bare.newPage();
       const response = await page.goto(`${stack.shell}/people/me`);
+      // No screen drawn on the server — only the spinner in its place. (The
+      // labels are still in the page's data, which is not a rendering.)
       const html = (await response?.text()) ?? '';
-      expect(html).not.toContain('Legal first name');
+      expect(html).not.toContain('data-remote="people"');
       expect(html).toContain('Loading People');
+      expect(await page.evaluate(() => document.body.innerText)).not.toContain('Legal first name');
       await bare.close();
 
       // With JavaScript, the browser build draws it as before PEO-094.

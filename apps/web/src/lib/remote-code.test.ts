@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { pinnedKey, prepareRemoteSsr, sri, verifyBuild } from './remote-code';
+import { stopRenderer } from './remote-render';
 
 /*
  * The shell renders a remote's server build only when a manifest signed by
@@ -97,6 +98,8 @@ describe('prepareRemoteSsr', () => {
   afterAll(() => {
     vi.unstubAllEnvs();
     server.close();
+    // A verified build starts its renderer at once.
+    stopRenderer();
   });
 
   const serve = (code: string, manifest = manifestOf(code)) => {

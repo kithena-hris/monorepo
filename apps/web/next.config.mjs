@@ -24,7 +24,9 @@ const config = {
   outputFileTracingRoot: join(import.meta.dirname, '../..'),
   // The renderer process's bundle is read from disk, not imported, so tracing
   // cannot find it on its own (PEO-115, `src/lib/remote-render.ts`).
-  outputFileTracingIncludes: { '/people/**': ['./.renderer/renderer.cjs'] },
+  outputFileTracingIncludes: {
+    '/people/\\[\\[\\.\\.\\.path\\]\\]': ['./.renderer/renderer.cjs'],
+  },
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],
     // An import sends its file through a server action (PEO-098), and People

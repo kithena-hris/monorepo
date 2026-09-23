@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
 
-import { renderRemote } from './remote-render';
+import { renderRemote, warmRenderer } from './remote-render';
 
 /*
  * A remote's server build, fetched, checked and handed to the renderer
@@ -31,7 +31,12 @@ const Manifest = z.object({
 
 export type Verdict =
   | { readonly ok: true; readonly sha: string; readonly stylesheet: string }
-  | { readonly ok: false; readonly reason: string; readonly expected?: string; readonly actual?: string };
+  | {
+      readonly ok: false;
+      readonly reason: string;
+      readonly expected?: string;
+      readonly actual?: string;
+    };
 
 export const sri = (bytes: string | Uint8Array): string =>
   `sha384-${createHash('sha384').update(bytes).digest('base64')}`;
@@ -78,7 +83,7 @@ export function pinnedKey(value: string | undefined): KeyObject | undefined {
 const told = new Set<string>();
 
 /** Once per distinct refusal: the hashes, never the code. */
-function refuse(verdict: Extract<Verdict, { ok: false }>, url: string): undefined {
+function refuse(verdict: Extract<Verdict, { ok: false }>, url: string): void {
   const key = `${verdict.reason} ${verdict.actual ?? ''}`;
   if (!told.has(key)) {
     told.add(key);
@@ -93,7 +98,6 @@ function refuse(verdict: Extract<Verdict, { ok: false }>, url: string): undefine
       }),
     );
   }
-  return undefined;
 }
 
 async function text(url: string): Promise<string | undefined> {
@@ -142,7 +146,8 @@ export async function prepareRemoteSsr(base: string): Promise<PreparedSsr | unde
   const url = `${base}/ssr/people.cjs`;
   const key = pinnedKey(process.env['PEOPLE_REMOTE_SSR_PUBLIC_KEY']);
   if (key === undefined) {
-    return refuse({ ok: false, reason: 'PEOPLE_REMOTE_SSR_PUBLIC_KEY is not an Ed25519 key' }, url);
+    refuse({ ok: false, reason: 'PEOPLE_REMOTE_SSR_PUBLIC_KEY is not an Ed25519 key' }, url);
+    return undefined;
   }
   const [code, manifest, signature] = await Promise.all([
     text(url),
@@ -152,7 +157,14 @@ export async function prepareRemoteSsr(base: string): Promise<PreparedSsr | unde
   // Down, slow or not deployed with a server build: nothing to say.
   if (code === undefined || manifest === undefined || signature === undefined) return undefined;
   const verdict = verifyBuild(key, manifest, signature, code);
-  if (!verdict.ok) return refuse(verdict, url);
+  if (!verdict.ok) {
+    refuse(verdict, url);
+    return undefined;
+  }
   verified.set(url, { code, sha: verdict.sha });
-  return { ssr: url, stylesheet: { href: `${base}/ssr/people.css`, integrity: verdict.stylesheet } };
+  warmRenderer(code, verdict.sha);
+  return {
+    ssr: url,
+    stylesheet: { href: `${base}/ssr/people.css`, integrity: verdict.stylesheet },
+  };
 }

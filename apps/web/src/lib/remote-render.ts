@@ -30,7 +30,7 @@ interface Pending {
   readonly timer: NodeJS.Timeout;
 }
 
-interface Renderer {
+export interface Renderer {
   readonly child: ChildProcess;
   readonly sha: string;
   readonly pending: Map<number, Pending>;
@@ -90,7 +90,9 @@ function spawn(code: string, sha: string, path: string): Renderer {
     if (m.type === 'refused') {
       // Those waiting hear why from `ready`; the process goes.
       refused.add(sha);
-      settle?.reject(new Error(`the build was refused: ${String(m.error)}`));
+      settle?.reject(
+        new Error(`the build was refused: ${typeof m.error === 'string' ? m.error : 'unknown'}`),
+      );
       if (current === renderer) current = undefined;
       child.kill('SIGKILL');
       return;
@@ -101,7 +103,10 @@ function spawn(code: string, sha: string, path: string): Renderer {
     renderer.pending.delete(m.id);
     clearTimeout(pending.timer);
     if (typeof m.html === 'string' && m.html.length <= MAX_HTML) pending.resolve(m.html);
-    else pending.reject(new Error(`the render failed: ${String(m.error ?? 'no HTML')}`));
+    else
+      pending.reject(
+        new Error(`the render failed: ${typeof m.error === 'string' ? m.error : 'no HTML'}`),
+      );
   });
   child.on('exit', () => {
     settle?.reject(new Error('the renderer exited'));
@@ -112,6 +117,19 @@ function spawn(code: string, sha: string, path: string): Renderer {
   });
   child.send({ type: 'load', code });
   return renderer;
+}
+
+/**
+ * The renderer for this build, started now if it is not running: the page
+ * calls this as soon as a build verifies, so the process starts while the
+ * page's data is still being fetched.
+ */
+export function warmRenderer(code: string, sha: string, path: string = RENDERER): Renderer {
+  if (current?.sha !== sha) {
+    if (current !== undefined) stop(current, 'a newer build replaced it');
+    current = spawn(code, sha, path);
+  }
+  return current;
 }
 
 /**
@@ -127,11 +145,7 @@ export async function renderRemote(
   path: string = RENDERER,
 ): Promise<string> {
   if (refused.has(sha)) throw new Error('the build was refused');
-  if (current?.sha !== sha) {
-    if (current !== undefined) stop(current, 'a newer build replaced it');
-    current = spawn(code, sha, path);
-  }
-  const renderer = current;
+  const renderer = warmRenderer(code, sha, path);
   return new Promise<string>((resolve, reject) => {
     const id = ++nextId;
     const timer = setTimeout(() => {
