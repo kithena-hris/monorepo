@@ -37,7 +37,7 @@ import type { RelationsResolver } from '../application/person/ports.js';
  *
  * The standalone implementation, `drizzleRelations`, answers the same
  * questions from `people.person` and the forwarded roles, and is what runs
- * when `OPENFGA_API_URL` is unset — `just standalone people` has no OpenFGA.
+ * when `OPENFGA_URL` is unset — `just standalone people` has no OpenFGA.
  */
 export const PEOPLE_AUTHORIZATION_MODEL = {
   schema_version: '1.1',
@@ -111,9 +111,9 @@ export interface OpenFga {
   role(tenantId: string, accountId: string, role: (typeof TENANT_ROLES)[number], held: boolean): Promise<void>;
 }
 
-/** Null when `OPENFGA_API_URL` is unset: the caller uses `drizzleRelations`. */
+/** Null when `OPENFGA_URL` is unset: the caller uses `drizzleRelations`. */
 export function openFgaFrom(env: NodeJS.ProcessEnv): OpenFga | null {
-  const apiUrl = env['OPENFGA_API_URL'];
+  const apiUrl = env['OPENFGA_URL'];
   if (apiUrl === undefined || apiUrl === '') return null;
   // One per process: the transports and the consumer share it, so a first
   // boot creates People's store once rather than racing itself to two.

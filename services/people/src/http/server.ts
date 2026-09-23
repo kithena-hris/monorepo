@@ -55,7 +55,7 @@ import { restHandler, type RestDeps, type RestResponse } from './rest.js';
 const POLL_MS = 60_000;
 
 /**
- * OpenFGA when `OPENFGA_API_URL` is set; otherwise the org chart the rows
+ * OpenFGA when `OPENFGA_URL` is set; otherwise the org chart the rows
  * describe and the roles the principal carries — the standalone answer, and
  * what `just standalone people` runs.
  */

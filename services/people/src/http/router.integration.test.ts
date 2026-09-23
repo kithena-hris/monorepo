@@ -121,7 +121,7 @@ beforeAll(async () => {
   );
 
   // People, as `main.ts` boots it, without OpenFGA: the standalone relations.
-  delete process.env['OPENFGA_API_URL'];
+  delete process.env['OPENFGA_URL'];
   process.env['PEOPLE_DATABASE_URL'] = asService.toString();
   process.env['PEOPLE_API_TOKEN'] = TOKEN;
   process.env['PEOPLE_SECRET_KEYS'] = `k1:${randomBytes(32).toString('base64')}`;

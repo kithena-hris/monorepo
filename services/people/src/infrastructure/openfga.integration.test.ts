@@ -56,6 +56,7 @@ let inTenant: InTenantTransaction;
 let fga: OpenFga;
 let access: PersonAccess;
 let handle: (raw: unknown) => Promise<string>;
+let admin: ReturnType<typeof postgres>;
 
 const relations = (tenantId: string, accountId: string, personId: string) =>
   inTenant(tenantId, ({ tx }) => fga.relations.relations(tx, tenantId, viewer(accountId), personId));
@@ -63,8 +64,6 @@ const relations = (tenantId: string, accountId: string, personId: string) =>
 /** Debezium's job: every outbox row not yet handed over, in order, to the consumer. */
 let relayed = 0;
 async function relay(): Promise<void> {
-  const [admin] = clients;
-  if (admin === undefined) throw new Error('no admin client');
   const rows = await admin<{ envelope: unknown }[]>`
     SELECT envelope FROM people.outbox ORDER BY created_at, event_id OFFSET ${relayed}`;
   relayed += rows.length;
@@ -76,16 +75,16 @@ beforeAll(async () => {
   stopPg = pg.stop;
   stopFga = openfga.stop;
 
-  const adminClient = postgres(pg.url, { max: 1, onnotice: () => {} });
-  clients.push(adminClient);
+  admin = postgres(pg.url, { max: 1, onnotice: () => {} });
+  clients.push(admin);
   const dir = new URL('../../../../migrations/', import.meta.url);
   const files = (await readdir(dir))
     .filter((f) => f.endsWith('.sql') && ((f.includes('_people_') && !f.includes('identity')) || f.includes('tenant_registry')))
     .sort();
   for (const file of files) {
-    await drizzle(adminClient).execute(sql.raw(await readFile(new URL(file, dir), 'utf8')));
+    await drizzle(admin).execute(sql.raw(await readFile(new URL(file, dir), 'utf8')));
   }
-  await adminClient`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
+  await admin`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
   const asService = new URL(pg.url);
   asService.username = 'svc_people';
   asService.password = 'svc_people';
@@ -203,7 +202,7 @@ describe('OpenFGA relations for People', () => {
     expect(moved.ok).toBe(true);
     await relay();
 
-    const outbox = await clients[0]!<{ event_name: string }[]>`
+    const outbox = await admin<{ event_name: string }[]>`
       SELECT event_name FROM people.outbox WHERE event_name = 'people.person.manager_changed'`;
     expect(outbox).toHaveLength(1);
 
@@ -251,7 +250,7 @@ describe('OpenFGA relations for People', () => {
   });
 
   it('takes a leaver out of their reports’ chain, and grants and revokes a role', async () => {
-    await clients[0]!`UPDATE people.person SET status = 'terminated', last_working_day = '2026-09-01'
+    await admin`UPDATE people.person SET status = 'terminated', last_working_day = '2026-09-01'
                        WHERE id = ${OTHER.person}`;
     await inTenant(ACME, ({ tx }) => fga.sync(tx, ACME, OTHER.person));
     expect(await relations(ACME, OTHER.account, EMPLOYEE.person)).toMatchObject({

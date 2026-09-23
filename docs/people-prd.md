@@ -443,6 +443,47 @@ tenant:<id>  finance       user:<account>
 tenant:<id>  people_admin  user:<account>          (may edit the schema)
 ```
 
+**As built (PEO-092).** The model is People's own OpenFGA store, `people`,
+found by name or created on boot, with the model in
+`services/people/src/infrastructure/openfga.ts`:
+
+```
+type tenant   hr, finance, people_admin: [user]
+type person   account: [user]                  (§6.6's `self`; OpenFGA reserves the word)
+              reports_to: [person]
+              manager: account from reports_to
+              manager_chain: manager or manager_chain from reports_to
+```
+
+- **Two tuples a person, at most**: the account they sign in as, and the
+  person they report to. A manager is whoever signs in as that person, so a
+  manager changing account or leaving touches nothing on their reports, and a
+  move is one tuple replaced — the old chain loses the person in the same
+  write the new one gains them.
+- **Written from People's own events** — `provisioned`, `identity_linked`,
+  `hired`, `manager_changed`, `org_changed`, `status_changed`, `terminated`,
+  `anonymised` — by the consumer on People's topic. The event says which
+  person to look at; the row says what the tuples should be. That makes it
+  idempotent and indifferent to order, on top of the per-person ordering the
+  outbox's partition key already gives. A leaver's `account` tuple goes, so
+  their reports' chain skips them.
+- **`manager_changed` and `org_changed` are raised** when an update moves
+  `manager_id`, or any of `org_unit_id`, `cost_centre`, `legal_entity_id`,
+  `location_id`: `profile_updated` names keys and never values, so the tuples
+  could not be written from it.
+- **Tenant roles.** The first person in a tenant — the administrator the
+  operator invites (§8.2, step 2) — is granted `people_admin` and `hr`. Every
+  later grant waits for a role-management transport, which does not exist yet.
+- **The manager chain is the reporting line.** Org units have no heads in the
+  data yet, so an org unit grants nothing; `org_changed` re-syncs the person and
+  is where that would start.
+- **Standalone.** With `OPENFGA_URL` unset, the same questions are answered
+  from `people.person` and the roles on the forwarded principal. That is what
+  `just standalone people` runs, and it needs no OpenFGA.
+- **Freshness.** Tuples follow the outbox, so a relation lags a write by the
+  time Debezium and the consumer take. A new report is visible to their
+  manager once the event is consumed, not in the same response.
+
 Field-level checks are a set intersection between the attribute's visibility
 rule and the viewer's relations, computed once per request and cached for the
 life of that request. A profile read is one FGA check for the person plus a
@@ -1215,6 +1256,20 @@ The federated subgraph, thin, mapping domain failures to GraphQL errors. Person
 and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
 Extends federated types rather than owning what People does not own.
+
+**Through the router (PEO-092).** The Cosmo Router verifies the caller's
+token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
+without one. It then *sets* — never propagates — two headers on the request to
+People: `x-kithena-principal`, built from the token's `sub` and `tid` with no
+roles (roles are OpenFGA tuples) and the deployment's `KITHENA_ENTITLEMENTS`,
+and `x-internal-token`, People's `PEOPLE_API_TOKEN`. People trusts the first
+only beside the second. `apps/gateway/config.yaml` holds the rules, and
+`services/people/src/http/router.integration.test.ts` boots that file in the
+real router in front of the real subgraph: a verified token reads, no token
+and a foreign token are refused, and a principal a client sends is overwritten.
+
+Entitlements are one list per deployment until tenants carry their own;
+nothing in the platform stores a tenant's modules yet.
 
 ### 13.2 REST (Phase 1)
 
