@@ -129,7 +129,8 @@ describe('the cohort minimum', () => {
 });
 
 describe('suppression', () => {
-  const cells = (...counts: number[]) => counts.map((count, i) => ({ bucket: `b${String(i)}`, count }));
+  const cells = (...counts: number[]) =>
+    counts.map((count, i) => ({ bucket: `b${String(i)}`, count }));
 
   it('serves a breakdown where every cell meets the minimum', () => {
     expect(suppressSmallCohorts(cells(10, 12), 10)).toEqual({
@@ -168,7 +169,10 @@ describe('the tooltip and the export', () => {
 
   it('carry no number when the query withheld one', () => {
     expect(chartTooltip(withheld, 'a')).toEqual({ bucket: 'a', value: 'insufficient data' });
-    expect(chartExport(withheld)).toEqual([['bucket', 'count'], ['insufficient data', '']]);
+    expect(chartExport(withheld)).toEqual([
+      ['bucket', 'count'],
+      ['insufficient data', ''],
+    ]);
   });
 
   it('carry the served numbers otherwise', () => {

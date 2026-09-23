@@ -1,9 +1,11 @@
 import { and, asc, eq } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 import { Actor } from '@kithena/contracts';
 
 import type { PersonFields, PersonRepository } from '../application/person-repository.js';
 import type { PersonSnapshot, PersonState } from '../domain/person/person.js';
+import type { HistoryEntry } from '../domain/person/history.js';
 import { person, personAttributeHistory } from './tables.js';
 
 /**
@@ -68,6 +70,9 @@ export function drizzlePersonRepository(): PersonRepository {
         ...writable(fields),
       });
 
+      // A record hired before it was first written carries its hire date's row.
+      await insertHistory(tx, snapshot, aggregate.drainHistory());
+
       // Same transaction as the row. That is the whole mechanism, and the
       // reason there is no `create` that skips it.
       await publish(tx, outbox, aggregate.drainEvents());
@@ -86,22 +91,11 @@ export function drizzlePersonRepository(): PersonRepository {
        * produced it. Append-only: the table's trigger refuses an UPDATE, and
        * a correction is a new row carrying `supersedes`.
        */
-      if (change?.history && change.history.length > 0) {
-        await tx.insert(personAttributeHistory).values(
-          change.history.map((entry) => ({
-            id: entry.id,
-            tenantId: snapshot.tenantId,
-            personId: snapshot.id,
-            attributeKey: entry.attributeKey,
-            value: entry.value ?? null,
-            effectiveFrom: entry.effectiveFrom,
-            recordedAt: new Date(entry.recordedAt),
-            actor: entry.actor,
-            supersedes: entry.supersedes,
-            eventId: entry.eventId ?? null,
-          })),
-        );
-      }
+      await insertHistory(tx, snapshot, [
+        ...(change?.history ?? []),
+        // The lifecycle's own dates, which a correction supersedes like any row.
+        ...aggregate.drainHistory(),
+      ]);
 
       await publish(tx, outbox, aggregate.drainEvents());
     },
@@ -139,6 +133,28 @@ export function drizzlePersonRepository(): PersonRepository {
       }));
     },
   };
+}
+
+async function insertHistory(
+  tx: PostgresJsDatabase,
+  snapshot: PersonSnapshot,
+  entries: readonly HistoryEntry[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  await tx.insert(personAttributeHistory).values(
+    entries.map((entry) => ({
+      id: entry.id,
+      tenantId: snapshot.tenantId,
+      personId: snapshot.id,
+      attributeKey: entry.attributeKey,
+      value: entry.value ?? null,
+      effectiveFrom: entry.effectiveFrom,
+      recordedAt: new Date(entry.recordedAt),
+      actor: entry.actor,
+      supersedes: entry.supersedes,
+      eventId: entry.eventId ?? null,
+    })),
+  );
 }
 
 function aggregateColumns(snapshot: PersonSnapshot): AggregateColumns {

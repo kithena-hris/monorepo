@@ -67,6 +67,31 @@ export function filterFor(
       : { ...envelope, payload: kept };
   }
 
+  /*
+   * A hire carries the name, the work email and the placement, so each is
+   * held to the attribute it stands for. The fact of the hire itself — who,
+   * which account, which schema version — always goes.
+   */
+  if (envelope.eventName === 'people.person.hired') {
+    const name = record(payload['name']);
+    const only = (key: string, field: string) => (allowed.has(key) ? (payload[field] ?? null) : null);
+    return {
+      ...envelope,
+      payload: {
+        ...payload,
+        name:
+          payload['name'] != null && allowed.has('given_name') && allowed.has('family_name')
+            ? { ...name, preferred: allowed.has('preferred_name') ? (name['preferred'] ?? null) : null }
+            : null,
+        workEmail: only('work_email', 'workEmail'),
+        employment: only('hire_date', 'employment'),
+        legalEntityId: only('legal_entity_id', 'legalEntityId'),
+        managerId: only('manager_id', 'managerId'),
+        orgUnitId: only('org_unit_id', 'orgUnitId'),
+      },
+    };
+  }
+
   if (envelope.eventName === 'people.person.attribute_corrected') {
     const attribute = record(payload['attribute']) as Partial<ChangedAttribute>;
     return typeof attribute.key === 'string' && allowed.has(attribute.key) ? envelope : null;

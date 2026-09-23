@@ -17,3 +17,4 @@ export * from './people/data-type.js';
 export * from './people/requiredness.js';
 export * from './people/policy.js';
 export * from './people/attribute-definition.js';
+export * from './account-directory.js';

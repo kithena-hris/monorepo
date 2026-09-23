@@ -250,7 +250,6 @@ export function commitDeps(
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,
-    people: store.deps.people,
     clock: store.deps.clock,
     newId: store.deps.newId,
     ledger,

@@ -8,10 +8,16 @@ import {
   cohortMinimum,
   relationsOf,
   scopeOf,
-  suppressSmallCohorts,
   type ChartViewer,
   type Suppressed,
 } from './access.js';
+import {
+  compositionMeasure,
+  latestPublication,
+  selfIdMeasure,
+  servePublished,
+  type PublishedMarks,
+} from './publish.js';
 import {
   cubeAt,
   DIMENSIONS,
@@ -36,19 +42,18 @@ import {
  *
  * A breakdown touching it (self-identification, or a core field a tenant
  * tightened to special-category) is served to HR only, unfiltered, from the
- * latest snapshot only, and withheld whole below the cohort minimum. Each of
- * those closes one way round the minimum:
+ * latest publication only, rounded, and withheld whole below the cohort
+ * minimum. Each of those closes one way round the minimum:
  *
  * - **unfiltered**, because "all of X" minus "X in Engineering" is X outside
  *   Engineering, whatever the minimum said about that cell;
  * - **latest only, never a range**, because this March minus last March is
  *   whoever changed in between;
  * - **all or nothing**, because headcount minus the cells shown is the cell
- *   withheld.
- *
- * `ponytail:` two reads of the latest snapshot on different days still differ
- * by whoever changed in between. Closing that needs noise (differential
- * privacy) or a coarse publication cadence; add it when a works council asks.
+ *   withheld;
+ * - **published, not live** (PEO-083), because two readings of the latest
+ *   snapshot a day apart differ by whoever changed in between. `publish.ts`
+ *   has the cadence, the change threshold and the rounding.
  */
 
 export interface ChartContext extends TenantScope {
@@ -69,7 +74,11 @@ export type Source = 'snapshot' | 'history';
 
 function keysOf(dimensions: readonly Dimension[], filters: Filters | undefined): string[] {
   const all = [...dimensions, ...(Object.keys(filters ?? {}) as Dimension[])];
-  return [...new Set(all.map((d): string | null => DIMENSIONS[d].key).filter((k): k is string => k !== null))];
+  return [
+    ...new Set(
+      all.map((d): string | null => DIMENSIONS[d].key).filter((k): k is string => k !== null),
+    ),
+  ];
 }
 
 /** Any key at all counts, so a stray `{ department: undefined }` errs towards refusing. */
@@ -130,7 +139,12 @@ function filterSql(filters: Filters | undefined): SQL {
     const column = sql.identifier(DIMENSIONS[dimension as Dimension].column);
     // An empty list matches nothing, which is what "none of these" means.
     if (values.length === 0) return [sql`false`];
-    return [sql`${column} IN (${sql.join(values.map((v) => sql`${v}`), sql`, `)})`];
+    return [
+      sql`${column} IN (${sql.join(
+        values.map((v) => sql`${v}`),
+        sql`, `,
+      )})`,
+    ];
   });
   return clauses.length === 0 ? sql`true` : sql.join(clauses, sql` AND `);
 }
@@ -371,26 +385,47 @@ export async function composition(
     readonly by: readonly [Dimension] | readonly [Dimension, Dimension];
     readonly filters?: Filters;
   },
-): Promise<Result<{ readonly asOf: string; readonly source: Source } & Suppressed<CompositionCell>>> {
+): Promise<
+  Result<
+    { readonly asOf: string; readonly source: Source } & Suppressed<CompositionCell> &
+      Partial<PublishedMarks>
+  >
+> {
   const authorized = authorizeChart(ctx, request.by, request.filters);
   if (!authorized.ok) return authorized;
-  const special = authorized.value.special;
 
   const latest = await latestSnapshotDay(ctx);
-  if (special) {
+  if (authorized.value.special) {
     if (hasFilters(request.filters)) {
       return err(
         failure('SPECIAL_CATEGORY_UNFILTERED', 'A special-category breakdown cannot be filtered'),
       );
     }
-    if (request.asOf !== undefined && request.asOf !== latest) {
+    /*
+     * From the latest publication, never the cube. One dimension only: that
+     * is what the job publishes, so two dimensions have never been published
+     * and are "insufficient data" rather than a live read.
+     */
+    const publication =
+      request.by.length === 1
+        ? await latestPublication<CompositionCell>(ctx, compositionMeasure(request.by[0]))
+        : null;
+    const publishedOn = publication?.publishedOn ?? null;
+    if (request.asOf !== undefined && request.asOf !== latest && request.asOf !== publishedOn) {
       return err(
         failure(
           'SPECIAL_CATEGORY_LATEST_ONLY',
-          'A special-category breakdown is reported at the latest snapshot only',
+          'A special-category breakdown is reported at its latest publication only',
         ),
       );
     }
+    const asOf = publishedOn ?? latest;
+    if (asOf === null) return err(failure('NO_SNAPSHOT', 'No snapshot has been taken yet'));
+    return ok({
+      asOf,
+      source: 'snapshot',
+      ...servePublished(publication, cohortMinimum(ctx.cohortMinimum)),
+    });
   }
 
   const asOf = request.asOf ?? latest;
@@ -407,11 +442,7 @@ export async function composition(
         HAVING sum(headcount) > 0
          ORDER BY 2 DESC`,
   );
-
-  const cells: Suppressed<CompositionCell> = special
-    ? suppressSmallCohorts(found, cohortMinimum(ctx.cohortMinimum))
-    : { status: 'ok', cells: found };
-  return ok({ asOf, source: cube.source, ...cells });
+  return ok({ asOf, source: cube.source, status: 'ok', cells: found });
 }
 
 export interface AttritionPoint {
@@ -525,7 +556,10 @@ export async function spanOfControl(
   ctx: ChartContext,
   request: { readonly asOf: string },
 ): Promise<
-  Result<{ readonly source: Source; readonly spans: readonly { reports: number; managers: number }[] }>
+  Result<{
+    readonly source: Source;
+    readonly spans: readonly { reports: number; managers: number }[];
+  }>
 > {
   const authorized = authorizeRange(ctx, [], undefined);
   if (!authorized.ok) return authorized;
@@ -571,7 +605,11 @@ export async function expiries(
     readableKinds.map((k) => sql`${`expiry:${k}`}`),
     sql`, `,
   );
-  const { rows: found, source } = await measureFor(ctx, request.asOf, sql`m.measure IN (${measures})`);
+  const { rows: found, source } = await measureFor(
+    ctx,
+    request.asOf,
+    sql`m.measure IN (${measures})`,
+  );
   return ok({
     source,
     expiries: found.map((r) => ({
@@ -629,7 +667,9 @@ export async function joinerHeatmap(
   ctx: ChartContext,
   range: { readonly from: string; readonly to: string },
 ): Promise<
-  Result<{ readonly cells: readonly { month: string; department: string | null; joiners: number }[] }>
+  Result<{
+    readonly cells: readonly { month: string; department: string | null; joiners: number }[];
+  }>
 > {
   const authorized = authorizeRange(ctx, ['department'], undefined);
   if (!authorized.ok) return authorized;
@@ -650,16 +690,22 @@ export async function joinerHeatmap(
 
 /**
  * What does the workforce look like in aggregate? One self-identification
- * question, answered at the latest snapshot, tenant-wide, to HR, withheld
- * whole below the cohort minimum (§6.7).
+ * question, answered from its latest publication, tenant-wide, to HR, withheld
+ * whole below the cohort minimum (§6.7) and rounded to the nearest 5.
  *
  * No `asOf` and no filters, by construction rather than by check: there is
- * nothing to pass that could narrow the cohort.
+ * nothing to pass that could narrow the cohort. `asOf` in the result is the
+ * day the publication reflects, the same as `publishedAsOf`.
  */
 export async function selfIdBreakdown(
   ctx: ChartContext,
   request: { readonly attributeKey: string },
-): Promise<Result<{ readonly asOf: string | null } & Suppressed<{ bucket: string; count: number }>>> {
+): Promise<
+  Result<
+    { readonly asOf: string | null } & PublishedMarks &
+      Suppressed<{ bucket: string; count: number }>
+  >
+> {
   const definition = ctx.definitions.find((d) => d.key === request.attributeKey);
   if (definition?.classification.classification !== 'special-category') {
     return err(
@@ -671,16 +717,10 @@ export async function selfIdBreakdown(
   const authorized = authorizeFields(ctx.definitions, ctx.viewer, [request.attributeKey]);
   if (!authorized.ok) return authorized;
 
-  const minimum = cohortMinimum(ctx.cohortMinimum);
-  const asOf = await latestSnapshotDay(ctx);
-  if (asOf === null) return ok({ asOf, status: 'insufficient_data', minimum });
-
-  const cells = await rows<{ bucket: string; count: number }>(
-    ctx.tx,
-    sql`SELECT bucket, count FROM people.headcount_snapshot_measure
-         WHERE tenant_id = ${ctx.tenantId}::uuid AND scope_id = ${ctx.tenantId}::uuid
-           AND day = ${asOf}::date AND measure = ${`self_id:${request.attributeKey}`}
-         ORDER BY bucket`,
+  const publication = await latestPublication<{ bucket: string; count: number }>(
+    ctx,
+    selfIdMeasure(request.attributeKey),
   );
-  return ok({ asOf, ...suppressSmallCohorts(cells, minimum) });
+  const served = servePublished(publication, cohortMinimum(ctx.cohortMinimum));
+  return ok({ asOf: served.publishedAsOf, ...served });
 }

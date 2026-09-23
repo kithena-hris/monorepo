@@ -869,7 +869,9 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
       carries a link, not the data. *(PRD §16.3)*
 - [ ] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
-      enforced in the query. *(PRD §6.7)*
+      enforced in the query. Its design follows PEO-083: served from the
+      monthly publication, rounded to 5, never from the live snapshot.
+      *(PRD §6.7, §16.1)*
 - [ ] **PEO-071** Bulk edit beyond the completeness grid. *(PRD §8.4)*
 
 ## Phase 3
@@ -905,7 +907,7 @@ it is written down here rather than left in a PR description.
       sweep (PEO-026) are built but nothing calls them. Needs a tenant source
       and the wiring in `main.ts`. *Landed as `people.tenant`, filled by the
       consumer; the sweep is scheduled only once PEO-084 supplies a mailer.*
-- [ ] **PEO-081** Identity has no endpoint listing a tenant's accounts.
+- [x] **PEO-081** Identity has no endpoint listing a tenant's accounts.
       Reconciliation (PEO-028) is written against an assumed
       `GET /api/internal/tenants/<id>/accounts` returning
       `{ accounts, nextCursor }`; identity must serve that shape or the
@@ -914,11 +916,13 @@ it is written down here rather than left in a PR description.
       encrypted attribute cannot be unique without its plaintext sitting next
       to the ciphertext. Store a keyed hash instead; until then no national
       identifier in a country pack is marked unique. Found in PEO-059.
-- [ ] **PEO-083** Differencing across snapshots. Reading the latest snapshot
+- [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs
       noise or a coarser publishing cadence; a product decision first.
-      Found in PEO-045. *(PRD §16.1)*
+      Found in PEO-045. *(PRD §16.1)* *Decided as a monthly publication,
+      republished only after N changes, rounded to 5; landed as
+      `people.published_breakdown`.*
 - [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
@@ -935,7 +939,7 @@ it is written down here rather than left in a PR description.
       gateway's deny list and the refresh on `people.schema.published` are
       exported but nothing calls them. Needs the Kafka consumer PEO-027 added
       and the tenant source in PEO-080. Found in PEO-034.
-- [ ] **PEO-087** Log redaction matches tenant fields four levels deep, and the
+- [x] **PEO-087** Log redaction matches tenant fields four levels deep, and the
       AI gateway checks structured `context` only, not free text in the
       instruction. Decide whether either needs to go further. Found in PEO-034
       and PEO-035.
@@ -984,12 +988,12 @@ it is written down here rather than left in a PR description.
       application layer has today — draft edits, reorder, publish preview and
       publish, the setup pack, import, export, analytics and webhook endpoint
       management. Found in PEO-047.
-- [ ] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
+- [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
       hires through `Person.hire`; it and any later hire path must call
       `shareIdentityFacts` and raise `people.person.hired`. Found in PEO-029.
-- [ ] **PEO-096** Correcting `last_working_day` writes into `custom` while
+- [x] **PEO-096** Correcting `last_working_day` writes into `custom` while
       every reader uses the typed column, the same bug PEO-029 fixed for
       `hire_date`. A hire-date correction also does not re-evaluate status.
       Found in PEO-029. *(PRD §8.5)*
@@ -997,6 +1001,12 @@ it is written down here rather than left in a PR description.
       enrolment onto the account even after People has set one, and People
       only fills its own name when empty, so the two can differ until People's
       next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
+- [x] **PEO-100** Corrections that contradict the state. An active person whose
+      start date is corrected into the future stays active, and a person on
+      notice whose last working day is corrected into the past has nothing
+      asking HR to end the employment. *Decided: the first returns to
+      `pre_hire`; the second stays on notice and HR's grid gets a
+      `confirm_termination` row.* Found in PEO-096. *(PRD §8.1, §8.5)*
 
 ## Blocked, and by what
 
