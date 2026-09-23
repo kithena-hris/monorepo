@@ -232,3 +232,61 @@ describe('not applicable (PRD §15.4)', () => {
     ).toEqual([]);
   });
 });
+
+describe('a pre-hire (PRD §8.1)', () => {
+  // Asked only for what is collected before the first day: at signup, at
+  // enrolment or during onboarding. An HR-only or any-time field is for later.
+  const definitions = [
+    define({ key: 'cost_centre', collectAt: 'hr_only' }),
+    define({ key: 'bio', collectAt: 'anytime' }),
+    define({ key: 'nif', collectAt: 'onboarding', ownership: ['employee'] }),
+    define({ key: 'mobile', collectAt: 'enrolment', ownership: ['employee'] }),
+    define({ key: 'given_name', collectAt: 'signup', ownership: ['employee'] }),
+  ];
+  const known = new Set(definitions.map((d) => d.key as string));
+
+  it('is asked only for fields collected at signup, enrolment or onboarding', () => {
+    const verdict = assessCompleteness(
+      definitions,
+      facts({ status: 'pre_hire', knownAttributes: known }),
+      clock,
+      'Etc/UTC',
+    );
+    expect(verdict.missing.map((m) => m.key)).toEqual(['nif', 'mobile', 'given_name']);
+  });
+
+  it('is complete once those are filled, whatever HR has still to add', () => {
+    const verdict = assessCompleteness(
+      definitions,
+      facts({
+        status: 'pre_hire',
+        knownAttributes: known,
+        values: { nif: 'x', mobile: 'y', given_name: 'z' },
+      }),
+      clock,
+      'Etc/UTC',
+    );
+    expect(verdict.state).toBe('complete');
+  });
+
+  it('is asked for everything once active', () => {
+    const verdict = assessCompleteness(
+      definitions,
+      facts({ status: 'active', knownAttributes: known }),
+      clock,
+      'Etc/UTC',
+    );
+    expect(verdict.missing).toHaveLength(5);
+  });
+
+  it('greys what is not asked of them yet in an export', () => {
+    expect(
+      notApplicable(
+        definitions,
+        facts({ status: 'pre_hire', knownAttributes: known }),
+        clock,
+        'Etc/UTC',
+      ),
+    ).toEqual(['cost_centre', 'bio']);
+  });
+});

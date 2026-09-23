@@ -104,6 +104,18 @@ describe('the three outcomes, one at a time', () => {
     expect(result.ok && result.value.incomplete.count).toBe(1);
   });
 
+  it('a future start imports a pre-hire, asked only for what a pre-hire is (§8.1)', async () => {
+    // Cost centre is HR-only: it waits for the start date, so the dry run
+    // counts it as the record will, not as it would for somebody active.
+    const { result } = await run(
+      csv(HEADERS, [row({ ...good, 'Cost centre': '', 'Hire date': '2026-12-01' })]),
+    );
+    const only = result.ok ? result.value.rows[0] : undefined;
+    expect(only?.outcome).toBe('create');
+    expect(only?.missing).toEqual([]);
+    expect(result.ok && result.value.incomplete.count).toBe(0);
+  });
+
   it('an invalid value blocks the row and names the cell', async () => {
     const { result } = await run(
       csv(HEADERS, [

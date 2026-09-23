@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import { outboxTable, publish as publishEvents } from '@kithena/db-kit';
 
 import type {
@@ -186,7 +186,7 @@ export function drizzleDraftWriter(): DraftWriter {
  */
 export function drizzlePeopleFacts(): PeopleFactsReader {
   return {
-    async *forImpact(tx, tenantId, pageSize = 500) {
+    async *forImpact(tx, tenantId, pageSize = 500, personId) {
       let after = '00000000-0000-0000-0000-000000000000';
 
       for (;;) {
@@ -211,9 +211,21 @@ export function drizzlePeopleFacts(): PeopleFactsReader {
             locationId: person.locationId,
             hireDate: person.hireDate,
             lastWorkingDay: person.lastWorkingDay,
+            // Which sealed values exist. The plaintext is never in the row, so
+            // without this a required bank account reads as missing for
+            // everybody, and filling it would never close the gap.
+            sealed: sql<string[]>`array(
+              SELECT s.attribute_key FROM people.person_secret s
+               WHERE s.tenant_id = ${person.tenantId} AND s.person_id = ${person.id})`,
           })
           .from(person)
-          .where(and(eq(person.tenantId, tenantId), gt(person.id, after)))
+          .where(
+            and(
+              eq(person.tenantId, tenantId),
+              gt(person.id, after),
+              personId === undefined ? undefined : eq(person.id, personId),
+            ),
+          )
           .orderBy(asc(person.id))
           .limit(pageSize);
 
@@ -252,6 +264,7 @@ function countryOf(custom: Record<string, unknown>): string | null {
 
 function toEvaluable(
   row: ValueColumns & {
+    sealed: readonly string[];
     id: string;
     status: string;
     legalEntityId: string | null;
@@ -261,7 +274,9 @@ function toEvaluable(
   },
 ): EvaluablePerson {
   const custom = (row.custom ?? {}) as Record<string, unknown>;
-  const values = valuesOf(row);
+  const values: Record<string, unknown> = { ...valuesOf(row) };
+  // Present, as `PersonAccess.completeness` reads it; never the value.
+  for (const key of row.sealed) values[key] = true;
 
   const ownZone = custom['time_zone'];
   return {

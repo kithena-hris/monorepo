@@ -1,8 +1,10 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, gt, ne } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { logger } from '@kithena/telemetry';
 
-import { open, rewrap, seal, type KeyRing } from './envelope.js';
+import { keysFrom, open, rewrap, seal, staticKeyRing, type KeyRing } from './envelope.js';
 import { personSecret } from './tables.js';
+import type { InTenantTransaction } from './unit-of-work.js';
 
 /**
  * Where a bank account, a national identifier and a tax identifier live.
@@ -186,5 +188,89 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
 
       return rewrapped;
     },
+  };
+}
+
+/** People re-wrapped per transaction. Each holds a handful of secrets. */
+export const SECRET_ROTATION_BATCH = 200;
+
+/**
+ * The re-wrap job for one tenant (PEO-105): every secret not under the ring's
+ * current key, moved onto it, so step 4 of the rollout in `.env.example` —
+ * dropping the old key — can actually happen.
+ *
+ * The same shape as PEO-082's claim rotation: the same key ring, batches of
+ * people walked once by cursor, each batch its own transaction, hourly, a
+ * no-op without `PEOPLE_SECRET_KEYS`. Idempotent — a secret already under the
+ * current key is skipped, so a re-run or a second replica re-wraps nothing.
+ * Only the data key is re-wrapped; the value is never decrypted, and nothing
+ * is logged but counts and key ids.
+ *
+ * **The rollout-order guard.** A secret under a key this ring does not hold
+ * cannot be opened by anybody, and re-wrapping it would throw halfway through
+ * a batch. That is a deployment that dropped a key it still needed, so the job
+ * refuses, says which key, and stops for good in this process; the service
+ * keeps running and every other secret stays readable.
+ */
+export function secretRotation(
+  inTenant: InTenantTransaction,
+  secretKeys: string | undefined,
+  options: { readonly batch?: number } = {},
+): (tenantId: string) => Promise<{ rewrapped: number }> {
+  const keys = keysFrom(secretKeys);
+  if (keys.length === 0) return () => Promise.resolve({ rewrapped: 0 });
+  const ring = staticKeyRing(keys);
+  const store = drizzleSecretStore(ring);
+  const current = ring.current().id;
+  const batch = options.batch ?? SECRET_ROTATION_BATCH;
+  let halted = false;
+
+  return async (tenantId) => {
+    if (halted) return { rewrapped: 0 };
+    const missing = await inTenant(tenantId, async ({ tx }) => {
+      const rows = await tx
+        .selectDistinct({ keyId: personSecret.keyId })
+        .from(personSecret)
+        .where(eq(personSecret.tenantId, tenantId));
+      return rows.map((r) => r.keyId).filter((id) => ring.byId(id) === undefined);
+    });
+    if (missing.length > 0) {
+      halted = true;
+      logger.error(
+        { tenantId, current, missing },
+        'secret rotation refused: secrets are under a key this deployment does not hold; put the old key back after the current one in PEOPLE_SECRET_KEYS and restart',
+      );
+      return { rewrapped: 0 };
+    }
+
+    let rewrapped = 0;
+    let after = '00000000-0000-0000-0000-000000000000';
+    for (;;) {
+      const cursor = after;
+      // eslint-disable-next-line no-await-in-loop -- one batch, one transaction, at a time
+      const done = await inTenant(tenantId, async ({ tx }) => {
+        const people = await tx
+          .selectDistinct({ personId: personSecret.personId })
+          .from(personSecret)
+          .where(
+            and(
+              eq(personSecret.tenantId, tenantId),
+              ne(personSecret.keyId, current),
+              gt(personSecret.personId, cursor),
+            ),
+          )
+          .orderBy(asc(personSecret.personId))
+          .limit(batch);
+        for (const { personId } of people) {
+          // eslint-disable-next-line no-await-in-loop -- see `rotate`
+          rewrapped += await store.rotate(tx, tenantId, personId);
+        }
+        return people;
+      });
+      if (done.length < batch) break;
+      after = done.at(-1)?.personId ?? after;
+    }
+    if (rewrapped > 0) logger.info({ tenantId, current, rewrapped }, 'secrets re-wrapped');
+    return { rewrapped };
   };
 }

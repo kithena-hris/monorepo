@@ -19,6 +19,7 @@ import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
 import { NO_TENANT_APP_BASE, tenantAppBase, tenantCompanies } from './tenant-origin.js';
 import { knownTenants } from './tenants.js';
+import { secretRotation } from './secret-store.js';
 import { claimRotation } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
 
@@ -174,6 +175,15 @@ export async function startBackground(
   jobs.push(
     every(HOUR, () =>
       forEachTenant('unique-claims', claimRotation(inTenant, env['PEOPLE_SECRET_KEYS'])),
+    ),
+  );
+  // The same rollout, for the encrypted values themselves (PEO-105).
+  const rewrap = secretRotation(inTenant, env['PEOPLE_SECRET_KEYS']);
+  jobs.push(
+    every(HOUR, () =>
+      forEachTenant('secret-rotation', async (tenantId) => {
+        await rewrap(tenantId);
+      }),
     ),
   );
 
