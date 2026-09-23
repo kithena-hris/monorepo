@@ -1,6 +1,6 @@
 import { createYoga } from 'graphql-yoga';
 import { createServer } from 'node:http';
-import { startTelemetry, logger } from '@kithena/telemetry';
+import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 import { schema } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
 
@@ -13,6 +13,9 @@ const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 const server = createServer((request, response) => {
   void yoga(request, response);
 });
+
+// SIGTERM drains it, then the process exits (PEO-118).
+onShutdown('http server', () => drain(server));
 
 server.listen(4002, () => {
   logger.info({ module: manifest.key, port: 4002 }, 'subgraph listening');

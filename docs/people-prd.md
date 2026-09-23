@@ -2236,6 +2236,17 @@ characters, beyond which it should have been a document.
 writes queue in the outbox and drain on recovery. No dual writes, ever. TypeSafe
 being unavailable degrades a suggestion, never a save.
 
+**Stopping.** A deploy or a scale-down ends the process with SIGTERM, and the
+process ends itself: it stops accepting connections, answers every request
+already in flight, lets the background job in hand finish, leaves its Kafka
+consumer groups, closes its database pools, flushes its spans (at most 2 s)
+and exits 0. The whole stop is bounded by `SHUTDOWN_DEADLINE_MS` (10 s by
+default, inside an orchestrator's 30 s grace); past it the process logs which
+steps had not finished and exits 1. A step that fails also exits 1. A
+write interrupted by the deadline rolls back with its transaction, and its
+event with it, because the outbox row is in the same transaction. Every
+service started through `@kithena/telemetry` stops this way (PEO-118).
+
 **Security.** RLS on every table with `FORCE`. Envelope encryption for financial
 and identifier attributes. Field-level authorization in the application layer.
 Every read of a special-category attribute is audit-logged with actor, time and
