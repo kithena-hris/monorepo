@@ -928,10 +928,15 @@ it is written down here rather than left in a PR description.
       Found in PEO-045. *(PRD §16.1)* *Decided as a monthly publication,
       republished only after N changes, rounded to 5; landed as
       `people.published_breakdown`.*
-- [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
+- [x] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
-      under the cap; confirm that is intended. *(PRD §8.4)*
+      under the cap; confirm that is intended. *(PRD §8.4)* — Confirmed: day 1,
+      then weekly. Messaging serves `POST /api/internal/messaging/notice`;
+      People's mailer is configured by `MESSAGING_URL` and
+      `MESSAGING_PEOPLE_TOKEN`, and the hourly sweep runs only when it is. The
+      email names the company and links to its own origin (`TENANT_APP_BASE`,
+      from PEO-099's slug and name); a tenant without both waits.
 - [x] **PEO-085** Retention does not fully erase. `anonymise` clears current
       plain values only: encrypted values stay because `svc_people` has no
       DELETE on `people.person_secret`, and history keeps every past value

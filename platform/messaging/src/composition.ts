@@ -78,15 +78,16 @@ export interface Config {
    */
   readonly authOrigin: string;
   /**
-   * The secret a module presents to ask for a notice, and the only origin a
-   * notice's link may point at — the tenant app, where a profile lives.
+   * The secret a module presents to ask for a notice, and the shape of origin
+   * a notice's link may point at — a company's own `<slug>.app…`, where its
+   * people sign in. `{slug}` marks the label.
    *
    * Separate from `internalToken` for the reason that one is separate from
    * `INTERNAL_API_TOKEN`: one secret per pair of services. Absent or empty,
    * the notice endpoint refuses everything.
    */
   readonly noticeToken?: string | undefined;
-  readonly appOrigin?: string | undefined;
+  readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
    *
@@ -244,6 +245,27 @@ export function selectDeliveryLog(config: Config): DeliveryLog {
   });
 }
 
+/** Where `just local` serves a company. Used only where `allowLogTransport` says development. */
+export const DEFAULT_TENANT_APP_BASE = 'http://{slug}.app.localhost:3000';
+
+/**
+ * The origin shape a notice may link to, or null when none may be trusted.
+ *
+ * Fails closed outside development — `allowLogTransport` is this service's one
+ * "somebody's machine" flag, the same that refuses the log transport. Unset,
+ * not `https:`, or with no `{slug}` is null there, and every notice is refused
+ * rather than trusting a default that points at localhost.
+ */
+export function selectTenantAppBase(
+  config: Pick<Config, 'tenantAppBase' | 'allowLogTransport'>,
+): string | null {
+  const base = config.tenantAppBase;
+  if (config.allowLogTransport) {
+    return base === undefined || base === '' ? DEFAULT_TENANT_APP_BASE : base;
+  }
+  return base?.startsWith('https://') === true && base.includes('{slug}') ? base : null;
+}
+
 export function compose(config: Config): RequestHandler {
   const transport = selectTransport(config);
   const deliveries = selectDeliveryLog(config);
@@ -287,17 +309,21 @@ export function compose(config: Config): RequestHandler {
     },
   });
 
-  if (!config.noticeToken || !config.appOrigin) {
-    logger.warn(
-      { reason: 'no MESSAGING_PEOPLE_TOKEN or APP_ORIGIN' },
-      'notices refused: profile reminders will not be sent',
+  const base = selectTenantAppBase(config);
+  if (base === null) {
+    logger.error(
+      { reason: 'TENANT_APP_BASE unset or not https' },
+      'notices refused: no link may be trusted, so reminders and webhook alerts will not be sent',
     );
+  } else if (!config.noticeToken) {
+    logger.warn({ reason: 'no MESSAGING_PEOPLE_TOKEN' }, 'notices refused');
   }
   const notices = noticeRoutes({
     sendNotice: sendNotice({
       transport,
       deliveries,
-      trustedLinkOrigin: config.appOrigin ?? '',
+      // '' matches no link at all, so every notice is refused as untrusted.
+      tenantAppBase: base ?? '',
       onRefusal: (reason, detail) => {
         logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
       },
