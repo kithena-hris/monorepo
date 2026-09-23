@@ -3,8 +3,10 @@ import { createServer } from 'node:http';
 import { startTelemetry, logger } from '@kithena/telemetry';
 import { schema } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
+import { wireConsumers } from './infrastructure/consumers/wire.js';
 
 startTelemetry(`kithena-${manifest.key}`);
+wireConsumers();
 
 const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 
