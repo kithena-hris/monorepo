@@ -819,7 +819,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** every story renders at a phone viewport with axe green, and tap
   targets are **asserted** against the 44px floor rather than eyeballed.
 
-### [ ] PEO-059 — Country packs
+### [x] PEO-059 — Country packs
 
 - **Spec** PRD §6.3, §8.2
 - **Files** `services/people/src/country-packs/`
