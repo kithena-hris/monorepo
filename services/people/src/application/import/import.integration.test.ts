@@ -26,6 +26,7 @@ import { asking, attributes, csv, HEADERS, priyasRows } from './fixture.js';
 import { drizzleImportLedger, drizzleRowScope } from './ledger.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * PEO-041 over Postgres, as `svc_people`: the checksum constraint, the
@@ -49,7 +50,7 @@ let admin: ReturnType<typeof drizzle>;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
-const personDeps: PersonAccessDeps = {
+const personDeps: PersonAccessDeps = { calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
@@ -59,7 +60,7 @@ const personDeps: PersonAccessDeps = {
   clock: fixedClock('2026-09-22T09:00:00.000Z'),
   newId: randomUUID,
 };
-const deps: CommitDeps = {
+const deps: CommitDeps = { calendars: utcCalendars,
   access: personAccess(personDeps),
   schemas: personDeps.schemas,
   relations: personDeps.relations,

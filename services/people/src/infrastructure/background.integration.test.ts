@@ -24,6 +24,7 @@ import { startBackground } from './background.js';
 import { startConsumers, uuidv7 } from './consumers/wire.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { tenantTransaction } from './unit-of-work.js';
+import { utcCalendars } from '../application/org/org.js';
 
 /**
  * PEO-080 and PEO-086, through the wiring `main.ts` calls: a real Postgres, a
@@ -142,7 +143,7 @@ async function publishAndRelay(): Promise<void> {
   const published = await tenantTransaction(drizzle(serviceClient as ReturnType<typeof postgres>))(
     ACME,
     ({ tx }) =>
-      publishSchema({
+      publishSchema({ calendars: utcCalendars,
         schema: drizzleSchemaRepository(),
         people: drizzlePeopleFacts(),
         clock: systemClock,

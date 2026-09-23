@@ -2,7 +2,7 @@ import type { Clock } from '@kithena/domain-kit';
 
 import { inReminderWindow, personZone } from '../../domain/org/calendar.js';
 import type { InTenantTransaction } from '../../infrastructure/unit-of-work.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import type { CompletenessStore, Reminder } from './store.js';
 
 /**
@@ -35,8 +35,8 @@ export interface SweepDeps {
   readonly store: CompletenessStore;
   readonly mailer: ReminderMailer;
   readonly clock: Clock;
-  /** Whose clock "working hours" is read on (PRD §6.8). UTC when absent. */
-  readonly calendars?: Calendars;
+  /** Whose clock "working hours" is read on (PRD §6.8). */
+  readonly calendars: Calendars;
 }
 
 export function sweepReminders(deps: SweepDeps) {
@@ -45,7 +45,7 @@ export function sweepReminders(deps: SweepDeps) {
       // Only people for whom it is working hours now, on their own clock.
       const now = deps.clock.now();
       const at = deps.clock.instant();
-      const calendar = await (deps.calendars ?? utcCalendars).load(tx, tenantId);
+      const calendar = await deps.calendars.load(tx, tenantId);
       const open = (await deps.store.dueReminders(tx, tenantId, now))
         .filter((d) => inReminderWindow(at, personZone(calendar, d.placement, at)))
         .map((d) => d.personId);

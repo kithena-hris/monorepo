@@ -36,7 +36,7 @@ import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
 import { placementOf, personZone } from '../../domain/org/calendar.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
 import type {
@@ -77,8 +77,8 @@ export interface PersonAccessDeps {
   readonly clock: Clock;
   /** UUIDv7, for history rows, events and new records. */
   readonly newId: () => string;
-  /** Whose day "today" is for each person (PRD §6.8). UTC when absent. */
-  readonly calendars?: Calendars;
+  /** Whose day "today" is for each person (PRD §6.8). */
+  readonly calendars: Calendars;
 }
 
 export interface Asking {
@@ -212,7 +212,7 @@ export function claimText(definition: AttributeDefinition, value: unknown): stri
 }
 
 export function personAccess(deps: PersonAccessDeps): PersonAccess {
-  const calendars = deps.calendars ?? utcCalendars;
+  const { calendars } = deps;
 
   /**
    * The person's zone and today on it: their location's, else their legal

@@ -13,6 +13,7 @@ import {
 } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from './publish-schema.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * Publishing a version, and the number shown before it happens.
@@ -39,6 +40,7 @@ let inTenant: ReturnType<typeof tenantTransaction>;
 
 let events = 0;
 const use = publishSchema({
+  calendars: utcCalendars,
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   clock,

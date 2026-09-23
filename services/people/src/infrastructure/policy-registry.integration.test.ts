@@ -11,6 +11,7 @@ import { publishSchema } from '../application/schema/publish-schema.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { tenantTransaction } from './unit-of-work.js';
+import { utcCalendars } from '../application/org/org.js';
 
 /**
  * PEO-034 and PEO-035, end to end: a tenant creates an attribute, publishes,
@@ -29,7 +30,7 @@ let admin: PostgresJsDatabase;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
 let ids = 0;
-const use = publishSchema({
+const use = publishSchema({ calendars: utcCalendars,
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   clock: fixedClock('2026-09-22T09:00:00.000Z'),

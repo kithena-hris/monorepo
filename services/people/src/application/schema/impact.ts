@@ -1,12 +1,7 @@
 import type { Clock } from '@kithena/domain-kit';
 import type { AttributeDefinition, CalendarDate, WriterRole } from '@kithena/contracts';
 
-import {
-  personZone,
-  UTC_CALENDAR,
-  type Placement,
-  type TenantCalendar,
-} from '../../domain/org/calendar.js';
+import { personZone, type Placement, type TenantCalendar } from '../../domain/org/calendar.js';
 import { assessCompleteness, gapsByOwner } from '../../domain/person/completeness.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 
@@ -76,7 +71,7 @@ export function computeImpact(
   people: Iterable<EvaluablePerson>,
   clock: Clock,
   /** Whose day each person is on. Each is evaluated on their own. */
-  calendar: TenantCalendar = UTC_CALENDAR,
+  calendar: TenantCalendar,
 ): PublishImpact {
   let evaluated = 0;
   let becomingIncomplete = 0;

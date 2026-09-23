@@ -154,6 +154,8 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
 /** The export pipeline: the store, the ledger and the queue, from the environment. */
 function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: ExportQueue } {
   const deps: ExportJobDeps = {
+    // The export's day is the tenant's (PRD §6.8).
+    calendars: drizzleOrgStore(),
     access: service.access,
     schemas: service.schemas,
     relations: drizzleRelations(),

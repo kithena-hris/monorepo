@@ -27,6 +27,7 @@ import { claimRotation, drizzleUniqueClaims } from '../infrastructure/unique.js'
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { COUNTRY_PACKS } from './packs.js';
 import { seedCountryPack } from './seed.js';
+import { utcCalendars } from '../application/org/org.js';
 
 /**
  * PEO-082 over the real tables: the country packs' national identifiers are
@@ -62,7 +63,7 @@ let inTenant: ReturnType<typeof tenantTransaction>;
 
 let ids = 0;
 const newId = () => `01890000-0000-7000-8000-${String((ids += 1)).padStart(12, '0')}`;
-const people = personAccess({
+const people = personAccess({ calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
@@ -132,7 +133,7 @@ beforeAll(async () => {
     }
   });
   const published = await inTenant(ACME, ({ tx }) =>
-    publishSchema({
+    publishSchema({ calendars: utcCalendars,
       schema: drizzleSchemaRepository(),
       people: drizzlePeopleFacts(),
       clock,
@@ -215,7 +216,7 @@ describe('a national identifier from a country pack', () => {
     expect([...rows].map((r) => r['key_id'])).toEqual(['k2']);
 
     // k1 dropped: the re-keyed claims are still found, in either spelling.
-    const after = personAccess({
+    const after = personAccess({ calendars: utcCalendars,
       people: drizzlePersonRepository(),
       reader: drizzlePersonReader(),
       schemas: drizzleSchemaVersions(),

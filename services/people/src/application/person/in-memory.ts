@@ -14,6 +14,7 @@ import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
 import type { PersonRecord } from './ports.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * The person ports, in memory, for tests that are about a rule rather than
@@ -155,6 +156,7 @@ export function inMemoryPeople(
   };
 
   const deps: PersonAccessDeps = {
+    calendars: utcCalendars,
     people,
     reader: {
       record(_tx, _tenant, id) {

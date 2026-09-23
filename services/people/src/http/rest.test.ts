@@ -12,6 +12,7 @@ import { personAccess } from '../application/person/person-access.js';
 import { inMemoryIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest } from './rest.js';
+import { utcCalendars } from '../application/org/org.js';
 
 const ADA = '00000000-0000-4000-8000-0000000000a1';
 const BEA = '00000000-0000-4000-8000-0000000000a4';
@@ -173,7 +174,7 @@ describe('exports', () => {
         }),
       idempotency: inMemoryIdempotency(),
       exports: {
-        deps: {
+        deps: { calendars: utcCalendars,
           access: service.access,
           schemas: service.schemas,
           relations: store.deps.relations,

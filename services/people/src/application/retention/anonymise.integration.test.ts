@@ -19,6 +19,7 @@ import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { anonymiseDue } from './anonymise.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * PEO-037 and PEO-085 against a real database: a leaver four and a half years
@@ -45,7 +46,7 @@ let ciphertext = '';
 
 let ids = 0;
 const newEventId = () => `01890000-0000-7000-8000-${String((ids += 1)).padStart(12, '0')}`;
-const anonymise = anonymiseDue({ store: drizzleRetentionStore(), clock, newEventId });
+const anonymise = anonymiseDue({ calendars: utcCalendars, store: drizzleRetentionStore(), clock, newEventId });
 const run = () =>
   inTenant(ACME, ({ tx }) =>
     anonymise(tx, {
@@ -150,7 +151,7 @@ beforeAll(async () => {
   await define('hobby', kept());
 
   const published = await inTenant(ACME, ({ tx }) =>
-    publishSchema({ schema: drizzleSchemaRepository(), people: drizzlePeopleFacts(), clock, newEventId }).publish(tx, {
+    publishSchema({ calendars: utcCalendars, schema: drizzleSchemaRepository(), people: drizzlePeopleFacts(), clock, newEventId }).publish(tx, {
       tenantId: ACME,
       actor: { kind: 'system', process: 'integration-test' },
       publishedBy: null,

@@ -9,7 +9,7 @@ import { exponentOf, fromMinor, MASK } from '../import/cells.js';
 import { writeCsv } from '../import/csv.js';
 import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
 import { PERSON_ID_COLUMN } from '../import/parse.js';
-import { utcCalendars, type Calendars } from '../org/org.js';
+import type { Calendars } from '../org/org.js';
 import type { Asking, PersonAccess, PersonView, SealedValue } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
 
@@ -70,8 +70,8 @@ export interface ExportDeps {
   readonly clock: Clock;
   /** The raw record and its history, for judging completeness on the export's day. */
   readonly records: RecordDeps;
-  /** The tenant's calendar, for the file's date. UTC when absent. */
-  readonly calendars?: Calendars;
+  /** The tenant's calendar, for the file's date. */
+  readonly calendars: Calendars;
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -124,7 +124,7 @@ export async function buildExport(
   // A tenant-wide file, so the tenant's day (PRD §6.8): one date for
   // everybody on it — the file's stamp, its "As of", and the day its gaps are
   // judged on.
-  const calendar = await (deps.calendars ?? utcCalendars).load(tx, request.tenantId);
+  const calendar = await deps.calendars.load(tx, request.tenantId);
   const stamp = localDate(deps.clock.instant(), calendar.defaultZone);
 
   // Completeness is judged on the export's day, against the version in force
