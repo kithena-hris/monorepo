@@ -6,7 +6,7 @@ import { useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
-import { RemoteScreen } from './remote-screen';
+import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
 /**
  * A People screen's props, from what the server fetched and the actions that
@@ -22,7 +22,7 @@ import { RemoteScreen } from './remote-screen';
 type Outcome = { readonly ok: true } | { readonly ok: false; readonly message: string };
 
 export interface PeopleScreenProps {
-  readonly route: { readonly entry: string; readonly component: string } | null;
+  readonly route: RemoteRoute | null;
   readonly load: ScreenLoad;
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
