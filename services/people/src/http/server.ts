@@ -17,6 +17,7 @@ import type { ExportQueue } from '../application/export/queue.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
+import type { RelationsResolver } from '../application/person/ports.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
@@ -31,6 +32,7 @@ import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
+import { openFgaFrom } from '../infrastructure/openfga.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
@@ -51,6 +53,15 @@ import { restHandler, type RestDeps, type RestResponse } from './rest.js';
 
 /** How often every known tenant's due deliveries are looked for. */
 const POLL_MS = 60_000;
+
+/**
+ * OpenFGA when `OPENFGA_API_URL` is set; otherwise the org chart the rows
+ * describe and the roles the principal carries — the standalone answer, and
+ * what `just standalone people` runs.
+ */
+export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
+  return openFgaFrom(env)?.relations ?? drizzleRelations();
+}
 
 export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
   const db = drizzle(postgres(databaseUrl));
@@ -140,7 +151,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       people: drizzlePersonRepository(),
       reader: drizzlePersonReader(),
       schemas,
-      relations: drizzleRelations(),
+      relations: relationsFrom(process.env),
       secrets: drizzleSecretStore(ring, logger),
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
@@ -168,7 +179,7 @@ function wireExports(service: PeopleService): {
   const deps: ExportJobDeps = {
     access: service.access,
     schemas: service.schemas,
-    relations: drizzleRelations(),
+    relations: relationsFrom(process.env),
     clock: systemClock,
     records: {
       people: drizzlePersonRepository(),

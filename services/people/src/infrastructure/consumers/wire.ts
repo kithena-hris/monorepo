@@ -9,6 +9,7 @@ import { logger } from '@kithena/telemetry';
 import { recomputeCompleteness } from '../../application/completeness/recompute.js';
 import { drizzleCompletenessStore } from '../drizzle-completeness-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
+import { openFgaFrom } from '../openfga.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { peopleConsumer } from './handle.js';
 import { drizzleProvisionalPeople } from './identity.js';
@@ -46,7 +47,9 @@ export async function startConsumers(
 
   const client = postgres(databaseUrl, { max: 5 });
   const inTenant = tenantTransaction(drizzle(client));
+  const authz = openFgaFrom(env);
   const handle = peopleConsumer({
+    ...(authz === null ? {} : { authz }),
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
     recompute: recomputeCompleteness({
@@ -65,6 +68,8 @@ export async function startConsumers(
   // From the beginning, which only matters the first time the group exists:
   // every handler is idempotent, and an account provisioned before People was
   // first deployed is an account People should still know about.
+  // `SchemaPublished.topic` is People's own topic, so the person events the
+  // OpenFGA tuples are written from (PEO-092) arrive here too.
   await consumer.subscribe({
     topics: [AccountProvisioned.topic, SchemaPublished.topic],
     fromBeginning: true,

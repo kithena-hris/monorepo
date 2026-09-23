@@ -114,6 +114,27 @@ export async function startRedpanda(): Promise<{ brokers: string; stop: () => Pr
   };
 }
 
+/**
+ * OpenFGA, the image `docker-compose.yml` runs, with its in-memory datastore.
+ *
+ * Memory rather than Postgres: the question a test asks is what the model
+ * answers for these tuples, and the datastore does not change the answer.
+ */
+export async function startOpenFga(): Promise<{ apiUrl: string; stop: () => Promise<void> }> {
+  const container = await new GenericContainer('openfga/openfga:latest')
+    .withCommand(['run'])
+    .withExposedPorts(8080)
+    .withWaitStrategy(Wait.forHttp('/healthz', 8080))
+    .start();
+
+  return {
+    apiUrl: `http://${container.getHost()}:${String(container.getMappedPort(8080))}`,
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
