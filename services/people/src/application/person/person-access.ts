@@ -658,12 +658,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
       // The lifecycle's dates are the aggregate's columns, not a projection:
       // written into `custom` they would leave the date every reader uses
-      // unchanged. A hire-date correction may start a pre-hire (§8.1), and
-      // that status change is its own event with its own id.
+      // unchanged. A hire-date correction may start a pre-hire or return an
+      // active record to pre-hire (§8.1); that status change is its own event
+      // with its own id, caused by the correction that carries `supersedes`.
       if (moves && definition.key === 'hire_date') {
         const moved = aggregate.correctHireDate(
           valid.value as string,
-          contextFor(asking),
+          { ...contextFor(asking), causationId: eventId },
           asking.timeZone,
         );
         if (!moved.ok) return moved;

@@ -97,15 +97,30 @@ export function drizzleCompletenessStore(): CompletenessStore {
       }));
     },
 
-    async staffGrid(tx, tenantId) {
+    async staffGrid(tx, tenantId, today) {
+      /*
+       * The termination row is the status and the date, not a stored task:
+       * `people.person` already says both, and a stored copy would need
+       * clearing by every path that terminates or corrects.
+       */
       const rows = await tx.execute(sql`
-        SELECT key, array_agg(g.person_id ORDER BY g.person_id) AS person_ids
-          FROM people.completeness_gap g, unnest(g.staff_keys) AS key
-         WHERE g.tenant_id = ${tenantId}::uuid
-         GROUP BY key
-         ORDER BY key
+        SELECT task, key, array_agg(person_id ORDER BY person_id) AS person_ids
+          FROM (
+            SELECT 'missing' AS task, key, g.person_id
+              FROM people.completeness_gap g, unnest(g.staff_keys) AS key
+             WHERE g.tenant_id = ${tenantId}::uuid
+            UNION ALL
+            SELECT 'confirm_termination', 'last_working_day', p.id
+              FROM people.person p
+             WHERE p.tenant_id = ${tenantId}::uuid
+               AND p.status = 'notice'
+               AND p.last_working_day < ${today}::date
+          ) AS work
+         GROUP BY task, key
+         ORDER BY task DESC, key
       `);
       return [...rows].map((row): GridRow => ({
+        task: row['task'] as GridRow['task'],
         key: row['key'] as string,
         personIds: row['person_ids'] as string[],
       }));

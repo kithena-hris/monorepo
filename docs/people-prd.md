@@ -512,9 +512,13 @@ Three rules make that table safe rather than merely descriptive:
 ### 8.1 Person states
 
 ```
+                   ┌───────────┐
+                   ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
      │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
+     │              │           │      │
+     │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
@@ -531,6 +535,28 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
   customers. Retention and anonymisation act on this state, on a schedule.
 - **discarded** — a provisional record that was never a person. The only state
   that permits a hard delete, and only before confirmation.
+
+**A corrected date re-reads the state; it never ends employment.** The two
+definitions above are about dates, so a correction to one of those dates
+(§8.5) can make the state false, and it is re-read in both directions:
+
+- A **pre_hire** whose start date is corrected to today or earlier has started,
+  and becomes **active**.
+- An **active** person whose start date is corrected into the future has not
+  started, and returns to **pre_hire**. Everything that reads the state follows
+  it back: required fields are those of a pre-hire again, headcount stops
+  counting them, and identity learns the later start date, which is the date
+  it gates enrolment on.
+- A person on **notice** whose last working day is corrected to a date already
+  past **stays on notice**. Termination is a deliberate act, so HR gets a task
+  to confirm it, in the same grid as HR's missing fields (§8.4) rather than one
+  task per person. The task is read off the state and the date: it closes when
+  HR terminates or corrects the date forward.
+- **on_leave** and **terminated** keep their state whatever either date is
+  corrected to.
+
+Each move raises `status_changed` with reason `corrected`; §8.5 says what it
+is effective from.
 
 ### 8.2 The first employee
 
@@ -661,6 +687,11 @@ Per the repository rule, and it is load-bearing here rather than decorative:
 - A **correction** is a typed event carrying `supersedes`, never a silent update.
   A salary typo corrected three months later must not read as a pay cut followed
   by a raise.
+- A correction that moves the state (§8.1) raises `status_changed` beside the
+  `attribute_corrected` that carries `supersedes`, and names that event as its
+  cause. A start that arrived is effective from the corrected start date. A
+  start that had not is effective from the start date it corrects, the day the
+  record wrongly became active, so an "as of" read of that span says pre-hire.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
