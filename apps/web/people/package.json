@@ -1,0 +1,22 @@
+{
+  "name": "@kithena/web-people",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview --port 3002 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit"
+  },
+  "dependencies": {
+    "@reach/ui": "workspace:*",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@module-federation/vite": "1.22.1",
+    "@types/react": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.1.0"
+  }
+}

@@ -1,9 +1,9 @@
-import { and, eq, getTableColumns, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { RetentionAttribute, RetentionStore } from '../application/retention/anonymise.js';
 import { publishedAttributes } from './policy-registry.js';
-import { person } from './tables.js';
+import { person, personSecret } from './tables.js';
 
 const outbox = outboxTable('people');
 
@@ -50,6 +50,22 @@ export function drizzleRetentionStore(): RetentionStore {
       for (const [name, prop] of clearable) {
         if (byProp[prop] !== null && byProp[prop] !== undefined) held.add(name);
       }
+
+      // A value can outlive the row: in a secret, or in a history row the
+      // projection has since moved past. Both count as held until erased.
+      const [secrets, history] = await Promise.all([
+        tx
+          .select({ key: personSecret.attributeKey })
+          .from(personSecret)
+          .where(and(eq(personSecret.tenantId, tenantId), eq(personSecret.personId, personId))),
+        tx.execute(sql`
+          SELECT DISTINCT attribute_key AS key FROM people.person_attribute_history
+           WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid
+             AND redacted_at IS NULL AND value IS NOT NULL
+        `),
+      ]);
+      for (const s of secrets) held.add(s.key);
+      for (const h of history) held.add(String(h['key']));
       return { status: row.status, lastWorkingDay: row.lastWorkingDay, held };
     },
 
@@ -58,7 +74,7 @@ export function drizzleRetentionStore(): RetentionStore {
       // policy — and a key a rollback dropped still carries its last one.
       const latest = new Map<string, RetentionAttribute>();
       for (const a of await publishedAttributes(tx, tenantId)) {
-        latest.set(a.key, { key: a.key, policy: a.classification, encrypted: a.encrypted });
+        latest.set(a.key, { key: a.key, policy: a.classification });
       }
       return [...latest.values()];
     },
@@ -80,6 +96,31 @@ export function drizzleRetentionStore(): RetentionStore {
           updatedAt: new Date(),
         })
         .where(and(eq(person.tenantId, tenantId), eq(person.id, personId)));
+
+      await tx
+        .delete(personSecret)
+        .where(
+          and(
+            eq(personSecret.tenantId, tenantId),
+            eq(personSecret.personId, personId),
+            inArray(personSecret.attributeKey, [...keys]),
+          ),
+        );
+
+      /*
+       * Every row for the key, corrections included: a correction supersedes a
+       * value, it does not remove it, so redacting only the latest row would
+       * leave the original in the timeline. Raw SQL because the redaction
+       * columns belong to this job alone and the shared table definition does
+       * not need to know them. The trigger admits exactly this shape.
+       */
+      await tx.execute(sql`
+        UPDATE people.person_attribute_history
+           SET value = NULL, redacted_at = now(), redaction_reason = 'retention'
+         WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid
+           AND attribute_key = ANY(${sql.param([...keys])}::text[])
+           AND redacted_at IS NULL
+      `);
 
       // Same transaction as the write, like every other person write here.
       await publish(tx, outbox, events);

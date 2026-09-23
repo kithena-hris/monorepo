@@ -61,6 +61,7 @@
     },
     "overrides": {
       "protobufjs@8": ">=8.0.2",
+      "uuid@8": ">=11.1.1",
       "uuid@9": ">=11.1.1",
       "uuid@10": ">=11.1.1",
       "@opentelemetry/core": ">=2.8.0",

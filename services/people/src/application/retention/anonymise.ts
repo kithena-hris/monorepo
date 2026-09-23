@@ -12,16 +12,17 @@ import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
  * tenant. Only values actually held are cleared, which makes a re-run a no-op
  * rather than a second `people.person.anonymised` for the same fields.
  *
- * `ponytail: current values only. An encrypted attribute is skipped because
- * svc_people has no DELETE on people.person_secret, and history keeps its
- * values because people.person_attribute_history is append-only by trigger.
- * Both need a migration this ticket does not own.`
+ * Erased in all three places a value lives: the person row (a typed column or
+ * `custom`), `people.person_secret` for an encrypted one, and every history
+ * row for the key, corrections included. History rows are redacted rather
+ * than deleted — the trigger in 20260923140000_people_retention.sql allows
+ * exactly that — so the timeline keeps its dates and actors and loses only
+ * what the value was.
  */
 
 export interface RetentionAttribute {
   readonly key: string;
   readonly policy: FieldPolicy;
-  readonly encrypted: boolean;
 }
 
 /** Reads and writes for the job. Every method takes the caller's tenant transaction. */
@@ -33,12 +34,15 @@ export interface RetentionStore {
   ): Promise<{
     readonly status: string;
     readonly lastWorkingDay: string | null;
-    /** Keys that currently hold a value, in `custom` or a typed column. */
+    /**
+     * Keys that still hold a value anywhere: `custom`, a typed column, a
+     * secret, or an unredacted history row.
+     */
     readonly held: ReadonlySet<string>;
   } | null>;
   /** Every attribute the tenant has published, each with its most recent policy. */
   policies(tx: PostgresJsDatabase, tenantId: string): Promise<readonly RetentionAttribute[]>;
-  /** Clear these keys and write the events, together. */
+  /** Erase these keys from the row, the secrets and the history, and write the events, together. */
   clear(
     tx: PostgresJsDatabase,
     tenantId: string,
@@ -70,7 +74,7 @@ export function anonymiseDue(deps: {
 
     const attributes = await deps.store.policies(tx, tenantId);
     const due = dueForAnonymisation(
-      attributes.filter((a) => !a.encrypted),
+      attributes,
       leaver.lastWorkingDay,
       deps.clock.date(request.timeZone ?? 'Etc/UTC'),
     ).filter((d) => leaver.held.has(d.key));

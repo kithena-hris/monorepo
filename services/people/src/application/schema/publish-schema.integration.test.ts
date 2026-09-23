@@ -113,7 +113,10 @@ async function defineAttribute(
 ): Promise<void> {
   const requiredness =
     over.country !== undefined
-      ? { mode: 'conditional', when: { combine: 'all', clauses: [{ operand: 'country', in: [over.country] }] } }
+      ? {
+          mode: 'conditional',
+          when: { combine: 'all', clauses: [{ operand: 'country', in: [over.country] }] },
+        }
       : over.required === true
         ? { mode: 'always', requiredFrom: null, appliesTo: 'all_records' }
         : { mode: 'never' };
@@ -142,7 +145,12 @@ async function defineAttribute(
 }
 
 /** `n` people, `answered` of whom already have a value for `key`. */
-async function seedPeople(n: number, key: string, answered: number, custom: object = {}): Promise<void> {
+async function seedPeople(
+  n: number,
+  key: string,
+  answered: number,
+  custom: object = {},
+): Promise<void> {
   for (let i = 0; i < n; i += 1) {
     const bag = i < answered ? { ...custom, [key]: `value-${String(i)}` } : custom;
     // eslint-disable-next-line no-await-in-loop -- seeding, in a test
@@ -171,12 +179,15 @@ async function recountIncomplete(): Promise<number> {
   const definitions = document.attributes as Parameters<typeof assessCompleteness>[0];
 
   const rows = await admin.execute(sql`
-    SELECT status, legal_entity_id, employment_type, work_model, custom FROM people.person
+    SELECT status, legal_entity_id, employment_type, work_model, custom,
+           hire_date::text AS hire_date FROM people.person
   `);
 
   let incomplete = 0;
   for (const row of rows) {
     const custom = (row['custom'] ?? {}) as Record<string, unknown>;
+    // A core field lives in its column, not in `custom`, and is as present.
+    const values = row['hire_date'] === null ? custom : { ...custom, hire_date: row['hire_date'] };
     const verdict = assessCompleteness(
       definitions,
       {
@@ -185,8 +196,8 @@ async function recountIncomplete(): Promise<number> {
         employmentType: row['employment_type'] as never,
         workModel: row['work_model'] as never,
         status: row['status'] as never,
-        values: custom,
-        knownAttributes: new Set(Object.keys(custom)),
+        values,
+        knownAttributes: new Set(Object.keys(values)),
       },
       clock,
     );
@@ -227,6 +238,26 @@ describe('the preview and the recompute', () => {
 
     await inTenant(ACME, ({ tx }) => use.publish(tx, request));
     expect(await recountIncomplete()).toBe(30);
+  });
+
+  it('count a required core field everybody has as missing for nobody', async () => {
+    // PEO-079: `hire_date` is a column, not a `custom` key. Read from `custom`
+    // alone it is missing for all 20, and the preview would say so.
+    await defineAttribute('hire_date', { required: true });
+    for (let i = 0; i < 20; i += 1) {
+      // eslint-disable-next-line no-await-in-loop -- seeding, in a test
+      await admin.execute(sql`
+        INSERT INTO people.person (tenant_id, status, given_name, hire_date)
+        VALUES (${ACME}::uuid, 'active', 'Ada', '2024-01-01')
+      `);
+    }
+
+    const preview = await inTenant(ACME, ({ tx }) => use.preview(tx, request));
+    if (!preview.ok) return;
+    expect(preview.value.impact).toMatchObject({ evaluated: 20, becomingIncomplete: 0 });
+
+    await inTenant(ACME, ({ tx }) => use.publish(tx, request));
+    expect(await recountIncomplete()).toBe(0);
   });
 
   it('splits the fields by who has to fill them in', async () => {

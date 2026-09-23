@@ -5,9 +5,11 @@ import { schema } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 import { wirePeople } from './http/server.js';
+import { wireBackground } from './infrastructure/background.js';
 
 startTelemetry(`kithena-${manifest.key}`);
 wireConsumers();
+wireBackground();
 
 const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 

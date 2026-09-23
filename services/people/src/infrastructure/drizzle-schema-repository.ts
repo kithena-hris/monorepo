@@ -1,11 +1,15 @@
 import { and, asc, desc, eq, gt } from 'drizzle-orm';
 import { outboxTable, publish as publishEvents } from '@kithena/db-kit';
 
-import type { PeopleFactsReader, SchemaRepository } from '../application/schema/schema-repository.js';
+import type {
+  PeopleFactsReader,
+  SchemaRepository,
+} from '../application/schema/schema-repository.js';
 import type { EvaluablePerson } from '../application/schema/impact.js';
 import type { Attribute, Section } from '../domain/schema/draft.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
 import { SectionKey, type PersonStatus } from '@kithena/contracts';
+import { valuesOf, type ValueColumns } from './drizzle-person-reader.js';
 import { attributeDefinition, person, schemaVersion, section } from './tables.js';
 
 /**
@@ -87,9 +91,10 @@ export function drizzleSchemaRepository(): SchemaRepository {
  * discard forty thousand rows to return a hundred, so the last page of a large
  * tenant costs the most — which is exactly the tenant this exists for.
  *
- * Only the columns a predicate can read. A `SELECT *` here would pull every
- * salary and every JSONB bag through the impact walk to count how many people
- * lack a cost centre.
+ * Only the columns a predicate or a completeness check can read: `custom` and
+ * the core columns, since a required core field is present or missing like any
+ * other (PEO-079). A `SELECT *` would pull every salary through the impact
+ * walk to count how many people lack a cost centre.
  */
 export function drizzlePeopleFacts(): PeopleFactsReader {
   return {
@@ -105,6 +110,19 @@ export function drizzlePeopleFacts(): PeopleFactsReader {
             employmentType: person.employmentType,
             workModel: person.workModel,
             custom: person.custom,
+            // The core columns, because a required core field is as present
+            // as a custom one. `valuesOf` names them; the type holds us to it.
+            givenName: person.givenName,
+            familyName: person.familyName,
+            preferredName: person.preferredName,
+            workEmail: person.workEmail,
+            employeeNumber: person.employeeNumber,
+            seniorityDate: person.seniorityDate,
+            managerId: person.managerId,
+            orgUnitId: person.orgUnitId,
+            locationId: person.locationId,
+            hireDate: person.hireDate,
+            lastWorkingDay: person.lastWorkingDay,
           })
           .from(person)
           .where(and(eq(person.tenantId, tenantId), gt(person.id, after)))
@@ -144,15 +162,17 @@ function countryOf(custom: Record<string, unknown>): string | null {
   return typeof direct === 'string' ? direct : null;
 }
 
-function toEvaluable(row: {
-  id: string;
-  status: string;
-  legalEntityId: string | null;
-  employmentType: string | null;
-  workModel: string | null;
-  custom: unknown;
-}): EvaluablePerson {
+function toEvaluable(
+  row: ValueColumns & {
+    id: string;
+    status: string;
+    legalEntityId: string | null;
+    employmentType: string | null;
+    workModel: string | null;
+  },
+): EvaluablePerson {
   const custom = (row.custom ?? {}) as Record<string, unknown>;
+  const values = valuesOf(row);
 
   return {
     personId: row.id,
@@ -162,12 +182,12 @@ function toEvaluable(row: {
       employmentType: row.employmentType as EvaluablePerson['facts']['employmentType'],
       workModel: row.workModel as EvaluablePerson['facts']['workModel'],
       status: row.status as PersonStatus,
-      values: custom,
+      values,
       // Filled in by the caller's document: which attributes the published
       // version still knows about is a property of the version, not of the
       // row. `computeImpact` passes the definitions, and a predicate naming
       // something absent from them evaluates to not-required with a signal.
-      knownAttributes: new Set(Object.keys(custom)),
+      knownAttributes: new Set(Object.keys(values)),
     },
   };
 }

@@ -10,6 +10,7 @@ import { logger } from '@kithena/telemetry';
 
 import type { RecomputeCompleteness } from '../../application/completeness/recompute.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
+import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
 import { captureProfile } from './identity.js';
 
@@ -23,6 +24,10 @@ import { captureProfile } from './identity.js';
  * Throwing would make Kafka redeliver it forever and stall the partition
  * behind it, and a malformed event will be exactly as malformed next time.
  * A database error still throws, because that one may well succeed on retry.
+ *
+ * The two events that give a tenant work — its first account, its first
+ * publish — also record the tenant, in the same transaction, so background
+ * jobs know it exists (PEO-080).
  */
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
@@ -45,8 +50,9 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         const event = parse(AccountProvisioned, raw);
         if (!event) return 'rejected';
         const { payload } = event;
-        const wrote = await deps.inTenant(event.tenantId, ({ tx }) =>
-          deps.provisional.provision(
+        const wrote = await deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          return deps.provisional.provision(
             tx,
             event.tenantId,
             {
@@ -57,8 +63,8 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
               name: null,
             },
             context(event),
-          ),
-        );
+          );
+        });
         return wrote ? 'applied' : 'unchanged';
       }
 
@@ -74,13 +80,14 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
       case SchemaPublished.name: {
         const event = parse(SchemaPublished, raw);
         if (!event) return 'rejected';
-        const result = await deps.inTenant(event.tenantId, ({ tx }) =>
-          deps.recompute(tx, {
+        const result = await deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          return deps.recompute(tx, {
             tenantId: event.tenantId,
             schemaVersion: event.payload.schemaVersion,
             ...context(event),
-          }),
-        );
+          });
+        });
         if (!result.ok) {
           logger.error(
             { eventId: event.eventId, code: result.error.code },

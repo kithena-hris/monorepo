@@ -7,6 +7,7 @@ import { PersonProvisioned } from '@kithena/contracts';
 import { fixedClock, ok } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
+import { knownTenants, rememberTenant } from '../tenants.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { peopleConsumer } from './handle.js';
 import { drizzleProvisionalPeople } from './identity.js';
@@ -51,6 +52,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
+    '20260923160000_people_tenant.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -82,6 +84,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await admin.execute(sql`DELETE FROM people.outbox`);
   await admin.execute(sql`DELETE FROM people.person`);
+  await admin.execute(sql`TRUNCATE people.tenant`);
 });
 
 function envelope(eventName: string, payload: object, tenantId = ACME) {
@@ -254,5 +257,44 @@ describe('people.schema.published', () => {
     );
     expect(outcome).toBe('applied');
     expect(recomputed).toBe(before + 1);
+  });
+});
+
+describe('the tenant list (PEO-080)', () => {
+  const service = () => drizzle(serviceClient as ReturnType<typeof postgres>);
+
+  it('records the tenant of every account provisioned, once', async () => {
+    await handle(provisioned(ACME));
+    await handle(provisioned(ACME));
+    await handle(provisioned(OTHER));
+    // Read as `svc_people` with no tenant set: the one table that answers.
+    expect(await knownTenants(service())).toEqual([ACME, OTHER]);
+  });
+
+  it('records the tenant of a schema publish', async () => {
+    await handle(
+      envelope('people.schema.published', {
+        schemaVersion: 1,
+        checksum: 'a'.repeat(64),
+        counts: { sections: 1, attributes: 1, added: 1, tightened: 0, archived: 0 },
+        artifactUrl: 'https://api.kithena.test/v1/people/schema/1',
+      }),
+    );
+    expect(await knownTenants(service())).toEqual([ACME]);
+  });
+
+  it('lets a unit of work register only its own tenant', async () => {
+    await expect(
+      tenantTransaction(service())(ACME, ({ tx }) => rememberTenant(tx, OTHER)),
+    ).rejects.toThrow();
+    expect(await knownTenants(service())).toEqual([]);
+  });
+
+  it('never forgets one: svc_people has no UPDATE or DELETE', async () => {
+    await handle(provisioned(ACME));
+    await expect(service().execute(sql`DELETE FROM people.tenant`)).rejects.toThrow();
+    await expect(
+      service().execute(sql`UPDATE people.tenant SET first_seen_at = now()`),
+    ).rejects.toThrow();
   });
 });
