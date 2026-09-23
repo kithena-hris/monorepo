@@ -442,13 +442,14 @@ export function wirePeople(server: Server): void {
   configureGraphQL({ service, callerFrom });
 
   const exports = wireExports(service);
+  const idempotency = drizzleIdempotency();
   const rest = restHandler({
     service,
     callerFrom,
-    idempotency: drizzleIdempotency(),
+    idempotency,
     exports,
     fullValues: exports.fullValues,
-    screens: screenRoutes(screenDeps(service)),
+    screens: screenRoutes(screenDeps(service), idempotency),
   });
   // Requests first, then what they use (PEO-118).
   onShutdown('requests, exports and the service pool', async () => {

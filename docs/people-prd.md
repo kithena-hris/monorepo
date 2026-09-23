@@ -1773,15 +1773,32 @@ budget at 50,000; a `pg_trgm` index is the next step when it does not.
 `/v1/views/*` answers with a screen's view model. The model is built from reads
 that were already authorized, so a withheld field never reaches it. An import
 keeps nothing between steps: each step carries the file (base64, up to 100 MB)
-and the mapping. Three things are known gaps:
+and the mapping.
 
-- **No Idempotency-Key on these writes yet.** A retried publish is refused as
-  unchanged, and an import is keyed by its file. A section or an endpoint
-  created twice is not caught.
-- **Not yet in `/v1/openapi.json`.**
-- **The classification advice is a small rule set.** The TypeSafe judgment
-  §12.3 describes is not built, and the rules only ever err towards more
-  protection.
+**Every write is keyed and documented (PEO-116).** These routes take an
+Idempotency-Key like every other People write, and the router refuses a write
+without one before its handler runs, so a new route cannot forget it. Four
+POSTs change nothing — advice, the publish preview, the import proposal and
+the dry run — and take none. The use cases open their own transactions, so a
+keyed write runs them inside the key's transaction (`sharing` in
+`unit-of-work.ts`; each joins as a savepoint), and the write and its key
+commit together. An import commit's deadlock retry (PEO-106) still holds
+inside that transaction: each attempt is its own savepoint, a 40P01 rolls back
+to it, and the key is written after, in the outer transaction, so it commits
+with the attempt that won or not at all (proven against a real deadlock in
+`import.integration.test.ts`). A retry is answered from what exists now, never from a stored
+body: a publish answers the version in force, a webhook endpoint's create or
+rotate answers `{ id }` without the secret (it is shown once), and a replayed
+import commit answers `ALREADY_IMPORTED`, because its report is not kept
+(PEO-090). Every one is in `/v1/openapi.json`, its request body generated from
+the Zod schema the route parses with. `writes.contract.test.ts` enumerates the
+router's own routes and fails when a state-changing one lacks the key or an
+OpenAPI operation, or when the document lists a write the router does not
+serve. The tenant app sends a fresh key per action.
+
+One thing is a known gap: **the classification advice is a small rule set.**
+The TypeSafe judgment §12.3 describes is not built, and the rules only ever err
+towards more protection.
 
 **The shell calls People directly, not through the router.** The tenant app's
 server sends the internal token beside a principal it builds itself: the
@@ -2398,7 +2415,9 @@ rule that gets broken in a car park by somebody who needed it now.
   as well as the file picker, because a right-to-work document is a passport on
   a desk, not a file on a laptop.
 - **Poor networks are the normal case.** Onboarding saves per section and
-  retries; a failed save says which section and keeps the values.
+  retries; a failed save says which section and keeps the values. A retry is
+  safe because every write carries an Idempotency-Key (§13.2): a save that
+  reached People before the connection dropped is answered, not repeated.
 
 ### 17.3 How it is checked
 

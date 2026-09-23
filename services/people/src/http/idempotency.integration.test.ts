@@ -5,7 +5,7 @@ import postgres from 'postgres';
 import { readFile } from 'node:fs/promises';
 import { startPostgres } from '@kithena/testing';
 
-import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { sharing, tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { drizzleIdempotency } from './idempotency.js';
 
 /** The key table over Postgres, as `svc_people`: first writer wins, and tenants do not share keys. */
@@ -69,5 +69,48 @@ describe('idempotency keys over Postgres', () => {
   it('does not show one tenant another tenant’s key', async () => {
     expect(await inTenant(GLOBEX, ({ tx }) => store.find(tx, ACME, 'k1'))).toBeNull();
     expect(await inTenant(GLOBEX, ({ tx }) => store.save(tx, GLOBEX, 'k1', stored))).toBe(true);
+  });
+});
+
+describe('a keyed write whose use case opens its own transactions (PEO-116)', () => {
+  it('commits the key and the write together, or neither', async () => {
+    await expect(
+      inTenant(ACME, ({ tx }) =>
+        sharing({ tx, tenantId: ACME }, async () => {
+          await store.save(tx, ACME, 'outer-1', stored);
+          // The use case's own unit of work: joins, rather than committing alone.
+          await inTenant(ACME, ({ tx: inner }) => store.save(inner, ACME, 'inner-1', stored));
+          throw new Error('the key could not be kept');
+        }),
+      ),
+    ).rejects.toThrow('the key could not be kept');
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, 'outer-1'))).toBeNull();
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, 'inner-1'))).toBeNull();
+  });
+
+  it('rolls back a refused inner unit alone, as a savepoint', async () => {
+    await inTenant(ACME, ({ tx }) =>
+      sharing({ tx, tenantId: ACME }, async () => {
+        await store.save(tx, ACME, 'outer-2', stored);
+        await inTenant(ACME, async ({ tx: inner }) => {
+          await store.save(inner, ACME, 'inner-2', stored);
+          throw new Error('refused');
+        }).catch(() => undefined);
+      }),
+    );
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, 'outer-2'))).toEqual(stored);
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, 'inner-2'))).toBeNull();
+  });
+
+  it('never joins another tenant’s transaction', async () => {
+    await expect(
+      inTenant(ACME, ({ tx }) =>
+        sharing({ tx, tenantId: ACME }, async () => {
+          await inTenant(GLOBEX, ({ tx: own }) => store.save(own, GLOBEX, 'own-3', stored));
+          throw new Error('outer refused');
+        }),
+      ),
+    ).rejects.toThrow('outer refused');
+    expect(await inTenant(GLOBEX, ({ tx }) => store.find(tx, GLOBEX, 'own-3'))).toEqual(stored);
   });
 });

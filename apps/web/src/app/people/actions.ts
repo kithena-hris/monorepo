@@ -1,7 +1,5 @@
 'use server';
 
-import { randomUUID } from 'node:crypto';
-
 import { people } from '../../lib/people';
 
 /**
@@ -217,12 +215,11 @@ export async function requestExport(choice: {
 }): Promise<
   { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }
 > {
-  const answer = await people<{ links?: { name: string; url: string }[] }>(
-    'POST',
-    '/v1/exports',
-    { format: choice.format, fields: choice.fields, asOf: choice.asOf },
-    { 'idempotency-key': randomUUID() },
-  );
+  const answer = await people<{ links?: { name: string; url: string }[] }>('POST', '/v1/exports', {
+    format: choice.format,
+    fields: choice.fields,
+    asOf: choice.asOf,
+  });
   return answer.ok
     ? { ok: true, links: answer.data.links ?? [] }
     : { ok: false, message: answer.message };

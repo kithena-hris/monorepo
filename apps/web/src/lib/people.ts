@@ -59,6 +59,9 @@ export async function people<T>(
           entitlements: person.entitlements,
         }),
         'x-correlation-id': randomUUID(),
+        // Every People write is keyed (PEO-116); one key per action, so a
+        // retried request is answered rather than repeated.
+        ...(method === 'GET' ? {} : { 'idempotency-key': randomUUID() }),
         ...extra,
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),

@@ -1069,6 +1069,7 @@ it is written down here rather than left in a PR description.
 
       Field-level absence is proven in the HTML the shell sends. *Not done:*
       - Idempotency keys on the new writes, and OpenAPI entries for them.
+        *Landed in PEO-116.*
       - A finance full-values screen (PEO-088 has transports, no screen).
       - A webhook delivery log (replay is a transport only).
       - The expiry timeline and the onboarding funnel in analytics.
@@ -1141,6 +1142,15 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
+- [x] **PEO-116** PEO-098's screen writes took no Idempotency-Key and were
+      missing from OpenAPI. The router now refuses any write without a key
+      before its handler runs (four compute-only POSTs are `safe`); each
+      screen write runs its use case inside the key's transaction (`sharing`,
+      savepoints), and a retry is answered from what exists now — no secret,
+      no import report. Every write is in `/v1/openapi.json` from its Zod
+      body, and `writes.contract.test.ts` fails when a state-changing route
+      lacks either. The shell sends a key per action. Found in PEO-098.
+      *(PRD §13.2, §17.2)*
 - [x] **PEO-108** Lifecycle actions through the application layer and
       transports. The domain could give notice, terminate, start and end
       leave and discard, but `PersonAccess` exposed none of them, so no
