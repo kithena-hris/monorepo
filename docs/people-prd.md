@@ -512,13 +512,13 @@ Three rules make that table safe rather than merely descriptive:
 ### 8.1 Person states
 
 ```
+                   ┌───────────┐
+                   ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
-     │              ▲           │
-     │              └───────────┤  start date corrected into the future
-     │                          │
+     │              │           │
      │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
      │              │           │      │
-     │              │           │      └ last working day passed: HR confirms, never a date
+     │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
