@@ -259,6 +259,29 @@ describe('suspension holds the door without closing it', () => {
     expect(account.reinstate(context(clock)).ok).toBe(true);
     expect(account.status).toBe('active');
   });
+
+  it('ends a leaver’s sessions as ended by termination, not by an admin (PEO-109)', () => {
+    const account = Account.rehydrate(
+      snapshot({ sessions: [session('a', 1, '2026-03-30'), session('b', 2, '2026-03-31')] }),
+    );
+    expect(account.suspend('employment_ended', context(clock)).ok).toBe(true);
+    expect(account.status).toBe('suspended');
+    expect(account.liveSessions).toEqual([]);
+    expect(account.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
+      ['identity.session.revoked', { sessionId: 'a', accountId: ACCOUNT, reason: 'terminated' }],
+      ['identity.session.revoked', { sessionId: 'b', accountId: ACCOUNT, reason: 'terminated' }],
+      [
+        'identity.account.suspended',
+        { accountId: ACCOUNT, reason: 'employment_ended', sessionsRevoked: 2 },
+      ],
+    ]);
+  });
+
+  it('suspends an invited account too, so its link cannot enrol a leaver', () => {
+    const account = Account.rehydrate(snapshot({ status: 'invited' }));
+    expect(account.suspend('employment_ended', context(clock)).ok).toBe(true);
+    expect(account.enrol('cred-1', context(clock)).ok).toBe(false);
+  });
 });
 
 /* ------------------------------------------------------------- sessions -- */

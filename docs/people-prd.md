@@ -248,6 +248,33 @@ as the only truth, which is exactly what `requiresPeopleSource` is for. A tenant
 with People gets one editing surface and one source of record, and the two rows
 cannot drift because only one of them is ever written by a human.
 
+**Access ends with employment (PEO-109).** Who may sign in is identity's
+question, but *when employment ends* is People's fact, so People decides the
+moment and identity acts on it — the same one direction:
+
+- At the end of a leaver's last working day **on their own calendar** (§6.8)
+  — Auckland's 30th at 11:00 UTC on the 30th, Los Angeles's at 07:00 UTC on
+  the 1st — People's hourly lifecycle job raises `people.person.access_ended`,
+  once, effective from the first day without access, carrying that midnight
+  as `endedAt`. **Whether or not HR has confirmed the termination**: a person
+  on `notice` whose last day has ended loses access exactly as a terminated
+  one does. Confirming the termination is paperwork, which the
+  `confirm_termination` row still asks HR for (§8.1, §8.4); ending access is
+  security, and it does not wait for paperwork.
+- For a dismissal for cause HR ends it at once instead: `endAccessNow` on the
+  termination, or `POST /v1/people/{id}/access/end` after it. HR only, and the
+  event names who did it.
+- Identity consumes it and **suspends** the account (reason
+  `employment_ended`): no sign-in, every live session revoked so a cookie is
+  refused on its next request, every live enrolment link spent. Suspended,
+  never terminated or deleted, and the passkeys are kept, so a rehire (§8.1)
+  signs in with the one they already have. Idempotent on the event and blind
+  to a stale one (`people_access_at`, the `people_facts_at` guard for access).
+  An account identity had already suspended for its own reason keeps it.
+
+A tenant without People never raises the event, and its accounts end the way
+they always have — an admin suspends or terminates them in identity.
+
 Everything else about a person — job, org, contract, pay, addresses, emergency
 contacts, documents, every tenant-defined attribute — is People's alone, and
 identity never sees it.
@@ -634,7 +661,10 @@ Three rules make that table safe rather than merely descriptive:
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
      │              │           ├──▶ notice ──▶ terminated ──▶ (rehired, not built) ──▶ pre_hire
-     │              │           │      │
+     │              │           │      │            │
+     │              │           │      │            └ end of last working day, own calendar:
+     │              │           │      │              access ends, on notice or terminated
+     │              │           │      │              (identity suspends; PEO-109)
      │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
@@ -714,7 +744,13 @@ answered with the record and raises nothing.
   with the typed reason, then `terminated` with HR's free-text note and
   whether they are eligible for rehire, both effective from the last working
   day — which is also where retention's clock starts (§12). The `confirm
-  termination` row closes on its own, being read off the status.
+  termination` row closes on its own, being read off the status. Access
+  ended at the end of that day on their calendar whether or not this has
+  happened yet, or ends at once with `endAccessNow` (§5, PEO-109).
+- **End access now** — `terminated` only, HR only: a dismissal for cause
+  ends access this instant rather than at the end of the last working day.
+  Raises `access_ended` (trigger `ended_by_hr`); once access has ended, by
+  either path, a repeat is answered with the record.
 - **Discard** — `provisional` only, as the diagram says.
 
 Two edges of the diagram have no move yet. **Rehire** (`terminated → pre_hire`)
@@ -722,8 +758,14 @@ is drawn and not built: the domain treats a terminated record as a tombstone,
 so a rehire needs a decision on whether it is a new record linked to the old
 or a new employment on the same one. **Withdrawing notice** is neither drawn
 nor built; today a resignation withdrawn is a correction of the last working
-day at best. Identity hears nothing from these moves: it caches a start date,
-not an end, and ending an account when employment ends is not specified.
+day at best. Of these moves identity hears only the end of access (§5): it
+caches a start date, not an end, and suspends on `access_ended`.
+
+A person on notice whose last working day has passed without HR terminating
+stays on notice — termination is HR's act — but **loses access at the end of
+that day** all the same (§5): confirming the termination is paperwork, and the
+`confirm_termination` row is what asks for it. Terminating afterwards raises
+no second `access_ended`.
 
 ### 8.2 The first employee
 
@@ -1127,6 +1169,7 @@ New:
 | `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
+| `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 
 ### 10.2a Calendar events
 
@@ -1544,8 +1587,9 @@ The federated subgraph, thin, mapping domain failures to GraphQL errors. Person
 and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
 Extends federated types rather than owning what People does not own. The
-lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`,
-`startLeave`, `endLeave`, `discardPerson` — each answering with the person
+lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`
+(with `endAccessNow`), `endPersonAccess`, `startLeave`, `endLeave`,
+`discardPerson` — each answering with the person
 after, their arguments parsed by the same Zod body REST parses.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
@@ -1593,7 +1637,8 @@ GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
 POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
-POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come
+POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
+POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
 POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
 POST   /v1/people/{id}/leave/end       HR: back from leave today
 POST   /v1/people/{id}/discard         HR: a provisional record that was never a person

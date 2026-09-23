@@ -7,7 +7,7 @@ import { identityFactsOf, Person, type EventContext } from '../../domain/person/
 import type { RecomputePerson } from '../completeness/recompute.js';
 import type { Calendars } from '../org/org.js';
 import type { PersonRepository } from '../person-repository.js';
-import type { PersonReader } from './ports.js';
+import type { PersonReader, PersonRecord } from './ports.js';
 import type { InTenant } from './service.js';
 
 /**
@@ -60,27 +60,99 @@ const EARLIEST_ZONE = 'Pacific/Kiritimati';
 
 const ACTOR: Actor = { kind: 'system', process: 'people-lifecycle' };
 
-export function startArrivals(deps: StartDeps) {
+/** What one run of a lifecycle job did, for the log. */
+interface Run {
+  readonly waiting: number;
+  readonly failed: readonly { personId: string; error: unknown }[];
+}
+
+export function startArrivals(
+  deps: StartDeps,
+): (tenantId: string, correlationId: string) => Promise<Run & { readonly started: number }> {
+  const run = lifecycleJob(deps, deps.arrivals, true, (record, person, zone, ctx) => {
+    if (record.snapshot.status !== 'pre_hire' || !person.start(ctx, zone).ok) return false;
+    person.shareIdentityFacts(
+      identityFactsOf({ ...record.values, hire_date: person.hireDate }),
+      ctx,
+      person.hireDate,
+    );
+    return true;
+  });
+  return async (tenantId: string, correlationId: string) => {
+    const { moved, ...rest } = await run(tenantId, correlationId);
+    return { started: moved, ...rest };
+  };
+}
+
+/** People on notice or terminated whose access has not ended, and whose last day may have ended somewhere. */
+export interface Leavers {
+  due(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    /** A last working day before this date has ended somewhere on Earth. */
+    before: string,
+    limit: number,
+  ): Promise<readonly string[]>;
+}
+
+/**
+ * PEO-109: access ends with employment, at the end of the last working day on
+ * the leaver's own calendar.
+ *
+ * The same shape as starting: candidates bounded by the latest date anywhere,
+ * each judged on their own day by the aggregate, which refuses a day still
+ * going on. Auckland's 30th ends at 11:00 UTC on the 30th and Los Angeles's at
+ * 07:00 UTC on the 1st; run hourly, each ends within an hour of their own
+ * midnight, and `endedAt` is that midnight either way. Once per leaving:
+ * `access_ended_at` is written with the event, and the row is locked and
+ * re-read before either. On notice as well as terminated: the end of the last
+ * working day ends access whether or not HR has confirmed the termination.
+ */
+export function endAccessDue(
+  deps: Omit<StartDeps, 'arrivals'> & { readonly leavers: Leavers },
+): (tenantId: string, correlationId: string) => Promise<Run & { readonly ended: number }> {
+  const run = lifecycleJob(
+    deps,
+    deps.leavers,
+    false,
+    (record, person, zone, ctx) =>
+      (record.snapshot.status === 'terminated' || record.snapshot.status === 'notice') &&
+      person.endAccess(ctx, zone, 'day_ended').ok,
+  );
+  return async (tenantId: string, correlationId: string) => {
+    const { moved, ...rest } = await run(tenantId, correlationId);
+    return { ended: moved, ...rest };
+  };
+}
+
+/**
+ * One hourly move, bounded and idempotent: candidates by the latest date
+ * anywhere, then one transaction each with the row locked and re-read, judged
+ * on the person's own calendar. One refused or failing does not stop the rest.
+ */
+function lifecycleJob(
+  deps: Omit<StartDeps, 'arrivals'>,
+  candidates: Arrivals | Leavers,
+  /** Whether the move can change what completeness asks (a status did). */
+  rejudge: boolean,
+  act: (record: PersonRecord, person: Person, zone: string, ctx: EventContext) => boolean,
+) {
   return async (
     tenantId: string,
     correlationId: string,
-  ): Promise<{
-    started: number;
-    waiting: number;
-    failed: readonly { personId: string; error: unknown }[];
-  }> => {
+  ): Promise<Run & { readonly moved: number }> => {
     const latest = localDate(deps.clock.instant(), EARLIEST_ZONE);
     const due = await deps.inTenant(tenantId, ({ tx }) =>
-      deps.arrivals.due(tx, tenantId, latest, deps.limit ?? 500),
+      candidates.due(tx, tenantId, latest, deps.limit ?? 500),
     );
 
-    let started = 0;
+    let moved = 0;
     const failed: { personId: string; error: unknown }[] = [];
     for (const personId of due) {
       // eslint-disable-next-line no-await-in-loop -- one transaction at a time is the bound
-      const moved = await deps.inTenant(tenantId, async ({ tx }) => {
+      const done = await deps.inTenant(tenantId, async ({ tx }) => {
         const record = await deps.reader.record(tx, tenantId, personId, true);
-        if (!record || record.snapshot.status !== 'pre_hire') return false;
+        if (!record) return false;
 
         const at = deps.clock.instant();
         const zone = personZone(await deps.calendars.load(tx, tenantId), placementOf(record.values), at);
@@ -92,27 +164,24 @@ export function startArrivals(deps: StartDeps) {
           causationId: null,
         };
         const person = Person.rehydrate(record.snapshot);
-        if (!person.start(ctx, zone).ok) return false;
-        person.shareIdentityFacts(
-          identityFactsOf({ ...record.values, hire_date: person.hireDate }),
-          ctx,
-          person.hireDate,
-        );
+        if (!act(record, person, zone, ctx)) return false;
         await deps.people.save(tx, person);
-        await deps.completeness?.(tx, {
-          tenantId,
-          personId,
-          actor: ACTOR,
-          correlationId,
-          causationId: null,
-        });
+        if (rejudge) {
+          await deps.completeness?.(tx, {
+            tenantId,
+            personId,
+            actor: ACTOR,
+            correlationId,
+            causationId: null,
+          });
+        }
         return true;
       }).catch((error: unknown) => {
         failed.push({ personId, error });
         return false;
       });
-      if (moved) started += 1;
+      if (done) moved += 1;
     }
-    return { started, waiting: due.length - started - failed.length, failed };
+    return { moved, waiting: due.length - moved - failed.length, failed };
   };
 }

@@ -2,6 +2,7 @@ import {
   AggregateRoot,
   err,
   failure,
+  localDate,
   ok,
   type Clock,
   type PendingEvent,
@@ -9,6 +10,7 @@ import {
 } from '@kithena/domain-kit';
 import { TenantId, type Actor, type ChangedAttribute } from '@kithena/contracts';
 
+import { dayEnd } from '../org/calendar.js';
 import { record, type HistoryEntry } from './history.js';
 
 /**
@@ -44,6 +46,11 @@ export interface PersonSnapshot {
   readonly identityAccountId: string | null;
   readonly hireDate: string | null;
   readonly lastWorkingDay: string | null;
+  /**
+   * When access ended with this employment (PEO-109): the instant
+   * `access_ended` said. Null while it has not; absent reads as null.
+   */
+  readonly accessEndedAt?: string | null;
 }
 
 /**
@@ -178,6 +185,7 @@ export class Person extends AggregateRoot<string> {
   #status: PersonState;
   #hireDate: string | null;
   #lastWorkingDay: string | null;
+  #accessEndedAt: string | null;
   readonly #tenantId: TenantId;
   readonly #identityAccountId: string | null;
   /** Lifecycle dates as history rows, drained by the repository with the events. */
@@ -189,6 +197,7 @@ export class Person extends AggregateRoot<string> {
     this.#status = snapshot.status;
     this.#hireDate = snapshot.hireDate;
     this.#lastWorkingDay = snapshot.lastWorkingDay;
+    this.#accessEndedAt = snapshot.accessEndedAt ?? null;
     // Parsed, not asserted: a brand should mean "this was checked" rather than
     // "somebody said so", and a malformed tenant id reaching the domain is a
     // bug — which is the one thing worth throwing for.
@@ -219,6 +228,7 @@ export class Person extends AggregateRoot<string> {
       identityAccountId: this.#identityAccountId,
       hireDate: this.#hireDate,
       lastWorkingDay: this.#lastWorkingDay,
+      accessEndedAt: this.#accessEndedAt,
     };
   }
 
@@ -240,6 +250,10 @@ export class Person extends AggregateRoot<string> {
 
   get identityAccountId(): string | null {
     return this.#identityAccountId;
+  }
+
+  get accessEndedAt(): string | null {
+    return this.#accessEndedAt;
   }
 
   /**
@@ -422,6 +436,69 @@ export class Person extends AggregateRoot<string> {
   discard(ctx: EventContext): Result<void> {
     if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'discarded'));
     return this.#moveTo('discarded', 'discarded', ctx);
+  }
+
+  /**
+   * Access ends with employment (PEO-109): raise `access_ended`, once per
+   * leaving, for identity to suspend the account on.
+   *
+   * - `day_ended` — the hourly job, once the last working day has ended on
+   *   the person's own calendar: Auckland's 30th at 11:00 UTC on the 30th,
+   *   Los Angeles's at 07:00 UTC on the 1st. `endedAt` is that midnight, not
+   *   whenever the job ran, and the envelope is effective from the first day
+   *   without access.
+   * - `now` — HR ending it at once, for a dismissal for cause. Effective
+   *   today, from this instant.
+   *
+   * `day_ended` applies on notice as well as terminated: confirming the
+   * termination is HR's paperwork, ending access is security, and a last
+   * working day that has ended is the end of access whether or not HR has
+   * got round to the termination (the `confirm_termination` row still asks
+   * them to). `now` is for a terminated record only: before the last day
+   * ends, somebody on notice is still working. Raised for somebody with no
+   * account too — "access ended" is a fact about the employment, and a
+   * consumer other than identity may act on it — with a null account for
+   * identity to ignore.
+   */
+  endAccess(ctx: EventContext, timeZone: string, when: 'day_ended' | 'now'): Result<void> {
+    const leaving =
+      this.#status === 'terminated' || (when === 'day_ended' && this.#status === 'notice');
+    if (!leaving) {
+      return err(InvalidTransition(this.#status, 'have access ended'));
+    }
+    if (this.#accessEndedAt !== null) {
+      return err(failure('ACCESS_ALREADY_ENDED', `Access already ended at ${this.#accessEndedAt}`));
+    }
+
+    let endedAt: string;
+    if (when === 'now') {
+      endedAt = ctx.clock.instant();
+    } else {
+      const lastDay = this.#lastWorkingDay;
+      if (lastDay === null || ctx.clock.date(timeZone) <= lastDay) {
+        return err(
+          failure('LAST_DAY_NOT_ENDED', `The last working day ${String(lastDay)} has not ended`, [
+            'lastWorkingDay',
+          ]),
+        );
+      }
+      endedAt = dayEnd(lastDay, timeZone);
+    }
+
+    this.#accessEndedAt = endedAt;
+    this.#raise(
+      'people.person.access_ended',
+      {
+        personId: this.id,
+        identityAccountId: this.#identityAccountId,
+        lastWorkingDay: this.#lastWorkingDay,
+        endedAt,
+        trigger: when === 'now' ? 'ended_by_hr' : 'last_working_day_ended',
+      },
+      ctx,
+      localDate(endedAt, timeZone),
+    );
+    return ok(undefined);
   }
 
   /**

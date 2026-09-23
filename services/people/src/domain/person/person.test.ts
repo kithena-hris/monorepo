@@ -741,3 +741,103 @@ describe('ending employment, and leave, on the person’s own calendar (PEO-108)
     expect(!refused.ok && refused.error.code).toBe('INVALID_TRANSITION');
   });
 });
+
+describe('access ends with employment (PEO-109)', () => {
+  const leaver = (over: Partial<PersonSnapshot> = {}) =>
+    person({ status: 'terminated', hireDate: '2026-01-01', lastWorkingDay: '2026-09-30', ...over });
+  // 11:30 UTC on 30 September: the 30th has ended in Auckland (UTC+13) and
+  // has most of a day left in Los Angeles (UTC-7).
+  const aucklandMidnight = context('2026-09-30T11:30:00.000Z');
+
+  it('ends at the midnight after the last working day, where the person works', () => {
+    const kiri = leaver();
+    expect(kiri.endAccess(aucklandMidnight, 'Pacific/Auckland', 'day_ended').ok).toBe(true);
+    expect(kiri.drainEvents()).toMatchObject([
+      {
+        eventName: 'people.person.access_ended',
+        // The first day without access, on their calendar.
+        effectiveFrom: '2026-10-01',
+        payload: {
+          personId: PERSON,
+          identityAccountId: '00000000-0000-4000-8000-0000000000b1',
+          lastWorkingDay: '2026-09-30',
+          endedAt: '2026-09-30T11:00:00.000Z',
+          trigger: 'last_working_day_ended',
+        },
+      },
+    ]);
+    expect(kiri.accessEndedAt).toBe('2026-09-30T11:00:00.000Z');
+  });
+
+  it('waits while the last working day is still going on their calendar', () => {
+    const lucy = leaver();
+    const early = lucy.endAccess(aucklandMidnight, 'America/Los_Angeles', 'day_ended');
+    expect(!early.ok && early.error.code).toBe('LAST_DAY_NOT_ENDED');
+    expect(lucy.drainEvents()).toEqual([]);
+    expect(lucy.accessEndedAt).toBeNull();
+
+    const later = context('2026-10-01T07:00:00.000Z');
+    expect(lucy.endAccess(later, 'America/Los_Angeles', 'day_ended').ok).toBe(true);
+    expect(lucy.drainEvents()[0]?.payload).toMatchObject({ endedAt: '2026-10-01T07:00:00.000Z' });
+  });
+
+  it('ends once per termination', () => {
+    const p = leaver({ accessEndedAt: '2026-09-30T11:00:00.000Z' });
+    const again = p.endAccess(after, UTC, 'day_ended');
+    expect(!again.ok && again.error.code).toBe('ACCESS_ALREADY_ENDED');
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('ends only for somebody whose employment has ended', () => {
+    for (const status of ['notice', 'active', 'on_leave', 'pre_hire', 'provisional'] as const) {
+      const p = person({ status, hireDate: '2026-01-01', lastWorkingDay: '2026-09-30' });
+      const refused = p.endAccess(after, UTC, 'now');
+      expect(!refused.ok && refused.error.code).toBe('INVALID_TRANSITION');
+    }
+    for (const status of ['active', 'on_leave', 'pre_hire', 'provisional'] as const) {
+      const p = person({ status, hireDate: '2026-01-01', lastWorkingDay: '2026-09-30' });
+      const refused = p.endAccess(after, UTC, 'day_ended');
+      expect(!refused.ok && refused.error.code).toBe('INVALID_TRANSITION');
+    }
+  });
+
+  it('ends on notice too once the last day has ended, termination confirmed or not', () => {
+    // Confirming the termination is paperwork; ending access is security.
+    const kiri = leaver({ status: 'notice' });
+    expect(kiri.endAccess(aucklandMidnight, 'Pacific/Auckland', 'day_ended').ok).toBe(true);
+    expect(kiri.status).toBe('notice');
+    expect(kiri.drainEvents()[0]?.payload).toMatchObject({
+      endedAt: '2026-09-30T11:00:00.000Z',
+      trigger: 'last_working_day_ended',
+    });
+
+    const lucy = leaver({ status: 'notice' });
+    const early = lucy.endAccess(aucklandMidnight, 'America/Los_Angeles', 'day_ended');
+    expect(!early.ok && early.error.code).toBe('LAST_DAY_NOT_ENDED');
+
+    // HR confirming the termination afterwards raises no second end.
+    kiri.terminate('2026-09-30', aucklandMidnight, 'Pacific/Auckland', resigned);
+    expect(kiri.accessEndedAt).toBe('2026-09-30T11:00:00.000Z');
+    expect(kiri.drainEvents().map((e) => e.eventName)).not.toContain('people.person.access_ended');
+  });
+
+  it('ends now when HR says so, for a dismissal for cause, whatever the hour', () => {
+    const p = leaver();
+    // 09:00 UTC on the last working day itself: the day has not ended anywhere west of Tonga.
+    const midMorning = context('2026-09-30T09:00:00.000Z');
+    expect(p.endAccess(midMorning, 'Europe/Madrid', 'now').ok).toBe(true);
+    expect(p.drainEvents()).toMatchObject([
+      {
+        eventName: 'people.person.access_ended',
+        effectiveFrom: '2026-09-30',
+        payload: { endedAt: '2026-09-30T09:00:00.000Z', trigger: 'ended_by_hr' },
+      },
+    ]);
+  });
+
+  it('is raised for somebody with no account too, with nobody for identity to suspend', () => {
+    const p = leaver({ identityAccountId: null });
+    expect(p.endAccess(after, UTC, 'day_ended').ok).toBe(true);
+    expect(p.drainEvents()[0]?.payload).toMatchObject({ identityAccountId: null });
+  });
+});

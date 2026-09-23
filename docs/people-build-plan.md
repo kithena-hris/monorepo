@@ -1136,6 +1136,32 @@ it is written down here rather than left in a PR description.
       `employeeNumbering`/`setEmployeeNumbering` for PEO-101, and REST tests
       for its routes. Not built, and written into §8.1: rehire and
       withdrawing notice.*
+- [x] **PEO-109** Access ends with employment. A terminated person could sign
+      in for as long as identity had their account, because nothing told
+      identity employment had ended. *Decided: at the end of the last working
+      day on the person's own calendar, identity suspends the account — no
+      sign-in, every session revoked, enrolment links spent, passkeys kept for
+      a rehire; suspended, never deleted.* *(PRD §5, §8.1, §10.2, §13)*
+      *Landed as `people.person.access_ended`, raised once by the hourly
+      lifecycle job for anybody on notice or terminated whose last working
+      day has ended — HR's confirmation of the termination is not awaited;
+      the `confirm_termination` row stays the paperwork prompt —
+      (`access_ended_at`, 20260924220000) or at once
+      by HR (`endAccessNow` on termination, `POST
+      /v1/people/{id}/access/end`, `endPersonAccess`), and identity's consumer
+      suspending with reason `employment_ended`, idempotent and blind to a
+      stale event through `people_access_at`, remembering the status it
+      suspended from in `access_ended_from` (20260924220100). A tenant
+      without People is untouched.*
+- [ ] **PEO-110** Rehire: a new employment period on the same person record,
+      HR only, from `terminated`, refused when not eligible for rehire unless
+      HR overrides with a reason. Identity reactivates the suspended account
+      at the new start; retention runs from the latest period's end and a
+      rehire cancels it. *(PRD §5, §7, §8.1, §8.5, §10.2, §12, §13)*
+- [ ] **PEO-111** Withdraw notice: HR returns a person on notice to the
+      status they held before it, until their last working day has ended on
+      their calendar, superseding the notice's last-working-day row.
+      *(PRD §8.1, §8.5, §10.2, §13)*
 
 ## Blocked, and by what
 

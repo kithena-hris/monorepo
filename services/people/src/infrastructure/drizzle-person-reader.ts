@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
 
 import { CORE_COLUMNS } from '../application/person/core.js';
 import type {
@@ -7,7 +7,7 @@ import type {
   RelationsResolver,
   SchemaVersions,
 } from '../application/person/ports.js';
-import type { Arrivals } from '../application/person/start.js';
+import type { Arrivals, Leavers } from '../application/person/start.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
 import { person, schemaVersion } from './tables.js';
@@ -57,6 +57,7 @@ function toRecord(row: Row): PersonRecord {
       identityAccountId: row.identityAccountId,
       hireDate: row.hireDate,
       lastWorkingDay: row.lastWorkingDay,
+      accessEndedAt: row.accessEndedAt?.toISOString() ?? null,
     },
     values,
     custom,
@@ -126,6 +127,32 @@ export function drizzleArrivals(): Arrivals {
           ),
         )
         .orderBy(asc(person.hireDate), asc(person.id))
+        .limit(limit);
+      return rows.map((r) => r.id);
+    },
+  };
+}
+
+/**
+ * People on notice or terminated whose access has not ended and whose last
+ * working day is before a
+ * day, earliest first (PEO-109). `person_access_due_idx` answers it.
+ */
+export function drizzleLeavers(): Leavers {
+  return {
+    async due(tx, tenantId, before, limit) {
+      const rows = await tx
+        .select({ id: person.id })
+        .from(person)
+        .where(
+          and(
+            eq(person.tenantId, tenantId),
+            inArray(person.status, ['notice', 'terminated']),
+            isNull(person.accessEndedAt),
+            lt(person.lastWorkingDay, before),
+          ),
+        )
+        .orderBy(asc(person.lastWorkingDay), asc(person.id))
         .limit(limit);
       return rows.map((r) => r.id);
     },

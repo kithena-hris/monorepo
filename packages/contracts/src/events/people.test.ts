@@ -232,6 +232,16 @@ describe('what identity is told', () => {
     ]);
   });
 
+  it('ends access with ids, dates and why, never a name (PEO-109)', () => {
+    expect(payloadKeys('people.person.access_ended').toSorted()).toEqual([
+      'endedAt',
+      'identityAccountId',
+      'lastWorkingDay',
+      'personId',
+      'trigger',
+    ]);
+  });
+
   it('is only for a person who has an account to correct', () => {
     const facts = peopleEvents.find((e) => e.name === 'people.person.identity_facts_changed');
     const unlinked = facts?.payload.safeParse({

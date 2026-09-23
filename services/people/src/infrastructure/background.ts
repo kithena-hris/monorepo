@@ -10,13 +10,13 @@ import { publishBreakdowns } from '../application/analytics/publish.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
 import { recomputePerson } from '../application/completeness/recompute.js';
-import { startArrivals } from '../application/person/start.js';
+import { endAccessDue, startArrivals } from '../application/person/start.js';
 import { reconcile } from '../application/reconcile.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
 import { drizzleOrgStore } from './drizzle-org-store.js';
-import { drizzleArrivals, drizzlePersonReader } from './drizzle-person-reader.js';
+import { drizzleArrivals, drizzleLeavers, drizzlePersonReader } from './drizzle-person-reader.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
@@ -40,7 +40,8 @@ import { tenantTransaction } from './unit-of-work.js';
  *   The same transaction then publishes whichever special-category
  *   breakdowns are due (PEO-083): the monthly check lives here, and a month
  *   holds one publication per breakdown whoever runs it.
- * - **Starting pre-hires** (§8.1), hourly: each on their own start date, on
+ * - **Starting pre-hires** (§8.1) and **ending leavers' access** (PEO-109),
+ *   hourly: each on their own start date or after their own last day, on
  *   their own calendar.
  * - **The reminder sweep**, hourly, only when a mailer is configured
  *   (PEO-084: `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN`). A sweep without
@@ -178,17 +179,21 @@ export async function startBackground(
     ),
   ];
 
-  // Starts every pre-hire whose start date has arrived on their own calendar
-  // (§8.1). Hourly, so each is started within an hour of their own midnight;
-  // idempotent, so a second replica finds nobody left.
-  const start = startArrivals({
+  // The lifecycle's dated moves (§8.1), hourly, so each lands within an hour
+  // of the person's own midnight; idempotent, so a second replica finds nobody
+  // left. Starts every pre-hire whose start date has arrived, and ends the
+  // access of every leaver whose last working day has ended (PEO-109).
+  const lifecycleDeps = {
     inTenant,
-    arrivals: drizzleArrivals(),
     people: drizzlePersonRepository(),
     reader: drizzlePersonReader(),
     calendars: org,
     clock: systemClock,
     newId: uuidv7,
+  };
+  const start = startArrivals({
+    ...lifecycleDeps,
+    arrivals: drizzleArrivals(),
     completeness: recomputePerson({
       schema,
       people: drizzlePeopleFacts(),
@@ -198,14 +203,17 @@ export async function startBackground(
       calendars: org,
     }),
   });
+  const endAccess = endAccessDue({ ...lifecycleDeps, leavers: drizzleLeavers() });
   jobs.push(
     every(HOUR, () =>
-      forEachTenant('start', async (tenantId) => {
-        const { started, failed } = await start(tenantId, randomUUID());
-        for (const f of failed) {
-          logger.error({ err: f.error, tenantId, personId: f.personId }, 'start failed');
+      forEachTenant('lifecycle', async (tenantId) => {
+        const started = await start(tenantId, randomUUID());
+        const ended = await endAccess(tenantId, randomUUID());
+        for (const f of [...started.failed, ...ended.failed]) {
+          logger.error({ err: f.error, tenantId, personId: f.personId }, 'lifecycle move failed');
         }
-        if (started > 0) logger.info({ tenantId, started }, 'pre-hires started');
+        if (started.started > 0) logger.info({ tenantId, started: started.started }, 'pre-hires started');
+        if (ended.ended > 0) logger.info({ tenantId, ended: ended.ended }, 'leavers’ access ended');
       }),
     ),
   );
