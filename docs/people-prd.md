@@ -1250,7 +1250,9 @@ the same application layer.
 | Signing | HMAC over the raw body with a per-endpoint secret, rotatable with an overlap window |
 | Ordering | Per person, guaranteed. Across people, not |
 | Delivery | At least once. Every payload carries `eventId`; consumers deduplicate on it |
-| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told |
+| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address is emailed through `platform/messaging` |
+| Alert address | Required when an endpoint is registered: a request without a valid one is refused, 400, naming `alertEmail`. An endpoint registered before this rule may have none and is told through the event alone |
+| Durability | The retry schedule is `next_attempt_at` on each delivery row. A bounded poller passes every known tenant on boot and every minute, so a retry pending across a restart resumes when it falls due. A pass claims a delivery with a short lease before sending, so two replicas never send one twice and a crash mid-send is a resend |
 | Replay | Any delivery re-sendable from the settings screen for the retention window |
 | Filtering | Per endpoint: which events, and which attributes within them (§10.3) |
 | Payload | The event envelope, unchanged, minus what the allowlist excludes |
@@ -1524,6 +1526,22 @@ empty string and from "not applicable at this company".
 | CSV | Empty cell. A `__missing_required` column lists the keys, comma-separated | Empty cell | Empty cell |
 | XLSX | Empty cell with an amber fill and a cell comment naming the field, plus a **Missing information** sheet listing person, field and who owns filling it | Empty cell, no fill | Cell shaded grey, comment "not required for this person" |
 | PDF | Prints **Not provided** in muted type, never a blank | Omitted entirely | Omitted entirely |
+
+**Which cells are which is judged on the export's day.** An export `asOf`
+March is a picture of March, gaps included: the values in force then — dated
+attributes replayed through history — against the schema version that was
+published then. Judged against today, a field made required in June would
+mark every March row as missing something nobody could have been asked for,
+and a gap closed in May would vanish from the March picture. The provenance
+sheet names the version the gaps were judged against, and a day before
+anything was published has no gaps at all. The Missing information sheet
+lists every gap on that day, including one in a field archived since, which
+therefore has no column.
+
+**Not applicable** is a blank that some rule could ask for but does not ask of
+this person on that day — a conditional rule that does not hold for them, or a
+requirement whose `requiredFrom` has not arrived. A field with no rule at all
+is optional, not "not applicable", and gets no fill.
 
 The PDF rule is the one that matters most. A blank line on a printed employee
 record is ambiguous between "we do not hold this", "the field did not exist"

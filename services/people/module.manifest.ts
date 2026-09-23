@@ -34,6 +34,7 @@ export default ModuleManifest.parse({
     'people.import.started',
     'people.import.completed',
     'people.export.completed',
+    'people.webhook.endpoint_disabled',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its

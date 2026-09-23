@@ -21,7 +21,9 @@ import { keysFrom, staticKeyRing } from '../infrastructure/envelope.js';
 import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
+import { knownTenants } from '../infrastructure/tenants.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
@@ -38,6 +40,9 @@ import { restHandler, type RestResponse } from './rest.js';
  * pretending.
  */
 
+/** How often every known tenant's due deliveries are looked for. */
+const POLL_MS = 60_000;
+
 export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
   const db = drizzle(postgres(databaseUrl));
   const ring = staticKeyRing(keysFrom(secretKeys));
@@ -50,6 +55,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     allowHttp:
       process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
   };
+  const alerts = webhookAlertMailerFrom(process.env);
   const hooks = webhooks({
     inTenant: raw,
     ring,
@@ -57,48 +63,67 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     post: pinnedPoster(egress),
     clock: systemClock,
     newId: uuidv7,
-    // ponytail: the tenant is told through the log until a notification
-    // channel exists; a `people.webhook.disabled` event is the upgrade.
-    notify: (tenantId, endpointId, reason) => {
-      logger.warn({ tenantId, endpointId, reason }, 'webhook endpoint disabled');
+    // The event is already in the outbox; this is the email beside it.
+    notify: async (tenantId, disabled) => {
+      logger.warn(
+        { tenantId, endpointId: disabled.endpointId, lastResponse: disabled.lastResponse },
+        'webhook endpoint disabled',
+      );
+      if (alerts === undefined || disabled.alertEmail === null) return;
+      await alerts.send(tenantId, disabled).catch((cause: unknown) => {
+        logger.warn({ err: cause, tenantId, endpointId: disabled.endpointId }, 'alert not sent');
+      });
     },
   });
 
   /*
-   * Deliveries are sent after any transaction for their tenant commits, and
-   * again when the earliest retry falls due.
+   * Deliveries are sent after any transaction for their tenant commits, again
+   * when the earliest retry falls due, and by a poller over every known tenant
+   * on boot and every minute (PEO-093).
    *
-   * ponytail: the retry timer is in-process. A restart forgets it, and a
-   * pending retry then waits for that tenant's next transaction — nothing is
-   * lost, because the rows are the truth. A BullMQ delayed job per tenant is
-   * the upgrade when that wait matters.
+   * The timer is in-process and a restart forgets it; the poller is what makes
+   * that harmless. The schedule is `next_attempt_at` on each row, so a fresh
+   * process's first poll resumes every retry that fell due while it was down,
+   * and the claim in `deliverDue` keeps two replicas from sending one twice.
    */
   const running = new Set<string>();
   const timers = new Map<string, NodeJS.Timeout>();
-  const kick = (tenantId: string): void => {
+  const pass = async (tenantId: string): Promise<void> => {
     if (running.has(tenantId)) return;
     running.add(tenantId);
-    void (async () => {
-      try {
-        await hooks.deliverDue(tenantId);
-        const due = await hooks.nextDue(tenantId);
-        clearTimeout(timers.get(tenantId));
-        if (due !== null) {
-          const wait = Math.max(due.getTime() - Date.now(), 1000);
-          timers.set(
-            tenantId,
-            setTimeout(() => {
-              kick(tenantId);
-            }, wait).unref(),
-          );
-        }
-      } catch (cause) {
-        logger.error({ err: cause, tenantId }, 'webhook delivery pass failed');
-      } finally {
-        running.delete(tenantId);
+    try {
+      await hooks.deliverDue(tenantId);
+      const due = await hooks.nextDue(tenantId);
+      clearTimeout(timers.get(tenantId));
+      if (due !== null) {
+        const wait = Math.max(due.getTime() - Date.now(), 1000);
+        timers.set(
+          tenantId,
+          setTimeout(() => {
+            kick(tenantId);
+          }, wait).unref(),
+        );
       }
-    })();
+    } catch (cause) {
+      logger.error({ err: cause, tenantId }, 'webhook delivery pass failed');
+    } finally {
+      running.delete(tenantId);
+    }
   };
+  const kick = (tenantId: string): void => {
+    void pass(tenantId);
+  };
+
+  // One tenant at a time, each pass bounded by `deliverDue`'s own limits.
+  const poll = async (): Promise<void> => {
+    try {
+      for (const tenantId of await knownTenants(db)) await pass(tenantId);
+    } catch (cause) {
+      logger.error({ err: cause }, 'webhook poll failed');
+    }
+  };
+  void poll();
+  setInterval(() => void poll(), POLL_MS).unref();
 
   return {
     access: personAccess({
@@ -127,6 +152,14 @@ function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: Expo
     schemas: service.schemas,
     relations: drizzleRelations(),
     clock: systemClock,
+    records: {
+      people: drizzlePersonRepository(),
+      reader: drizzlePersonReader(),
+      secrets: drizzleSecretStore(
+        staticKeyRing(keysFrom(process.env['PEOPLE_SECRET_KEYS'])),
+        logger,
+      ),
+    },
     store: exportStoreFrom(process.env),
     // ponytail: the requester learns the export is ready from
     // `people.export.completed` and fetches the links from `GET
@@ -149,7 +182,11 @@ function wireExports(service: PeopleService): { deps: ExportJobDeps; queue: Expo
   return { deps, queue: { enqueue: async (job) => (await runner).enqueue(job) } };
 }
 
-async function download(deps: ExportJobDeps, path: string, response: ServerResponse): Promise<void> {
+async function download(
+  deps: ExportJobDeps,
+  path: string,
+  response: ServerResponse,
+): Promise<void> {
   try {
     const opened = await deps.store.open(`http://people.internal${path}`);
     if (!opened.ok) {
@@ -159,7 +196,8 @@ async function download(deps: ExportJobDeps, path: string, response: ServerRespo
       });
       return;
     }
-    const name = decodeURIComponent(new URL(path, 'http://x').pathname).split('/').at(-1) ?? 'export';
+    const name =
+      decodeURIComponent(new URL(path, 'http://x').pathname).split('/').at(-1) ?? 'export';
     response.writeHead(200, {
       'content-type': opened.value.mediaType,
       'content-disposition': `attachment; filename="${name.replaceAll('"', '')}"`,
@@ -169,7 +207,10 @@ async function download(deps: ExportJobDeps, path: string, response: ServerRespo
   } catch (cause) {
     logger.error({ err: cause }, 'export download failed');
     if (!response.headersSent) {
-      send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+      send(response, {
+        status: 500,
+        body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+      });
     }
   }
 }

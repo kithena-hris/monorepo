@@ -183,7 +183,7 @@ export const attributeUnique = people.table(
     scopeId: uuid('scope_id').notNull(),
     /**
      * Pre-PEO-082 claims only, until the rotation job backfills them; never
-     * written now. Dropped by a later migration (20260924110000 says when).
+     * written now. Dropped by a later migration (20260924150000 says when).
      */
     normalisedValue: text('normalised_value'),
     /** HMAC-SHA-256 of the normalised value under the tenant's claim key. `bytea`, base64 here. */

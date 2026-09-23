@@ -125,7 +125,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
-    '20260924110000_people_unique_hash.sql',
+    '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
@@ -525,3 +525,52 @@ function systemContext() {
     causationId: null,
   };
 }
+describe('the directory at 50,000 people', () => {
+  const PERF = '00000000-0000-4000-8000-0000000000fe';
+  // A field the tenant invented and marked indexed, the case §11.2 promises
+  // stays fast: filtered through the GIN index on `custom`.
+  const costCentre = define({
+    key: 'cost_centre',
+    visibility: ['self', 'manager', 'hr'],
+    ownership: ['hr'],
+    indexed: true,
+  });
+
+  beforeAll(async () => {
+    await inTenant(PERF, ({ tx }) =>
+      drizzleSchemaRepository().appendVersion(
+        tx,
+        PERF,
+        versionOf(1, [costCentre]),
+        [],
+        '2026-09-01',
+      ),
+    );
+    await admin.execute(sql`
+      INSERT INTO people.person (id, tenant_id, status, hire_date, custom)
+      SELECT md5('dir' || i)::uuid, ${PERF}::uuid, 'active', DATE '2015-01-01' + (i % 4000),
+             jsonb_build_object('cost_centre', 'CC-' || (i % 500))
+        FROM generate_series(1, 50000) AS i`);
+    await admin.execute(sql`ANALYZE people.person`);
+  });
+
+  it('filters on a tenant-defined indexed attribute within the 300 ms budget', async () => {
+    const filtered = () =>
+      inTenantResult(inTenant, PERF, (tx) =>
+        people.list(tx, { ...asking(hr, PERF), limit: 50, where: { cost_centre: 'CC-204' } }),
+      );
+    await filtered(); // one warm-up, so the timing is the query rather than the first connection
+    const start = performance.now();
+    const page = await filtered();
+    const ms = performance.now() - start;
+
+    expect(page.ok).toBe(true);
+    if (!page.ok) return;
+    expect(page.value.items).toHaveLength(50);
+    expect(new Set(page.value.items.map((p) => p.attributes['cost_centre']))).toEqual(
+      new Set(['CC-204']),
+    );
+    console.info(`directory filter over 50,000 people took ${String(Math.round(ms))} ms`);
+    expect(ms).toBeLessThan(300);
+  });
+});

@@ -124,7 +124,7 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
     '20260923140000_people_retention.sql',
-    '20260924110000_people_unique_hash.sql',
+    '20260924150000_people_unique_hash.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -209,8 +209,9 @@ describe('anonymising a leaver', () => {
     for (const gone of [IBAN, ciphertext, PHONE, PHONE_OLD, '"P-1"', '"Ada"']) {
       expect(everything).not.toContain(gone);
     }
-    // The last four of the account went with the row.
-    expect(everything).not.toContain('1332');
+    // The last four of the account went with the row. Matched as the end of a
+    // stored string: a bare `1332` also turns up in microsecond timestamps.
+    expect(everything).not.toContain('1332"');
 
     // The erased value's unique claim went with it; the kept one's stays.
     const claims = await admin.execute(sql`SELECT attribute_key FROM people.attribute_unique`);

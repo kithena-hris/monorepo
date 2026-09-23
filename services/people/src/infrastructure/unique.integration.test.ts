@@ -65,7 +65,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
-    '20260924110000_people_unique_hash.sql',
+    '20260924150000_people_unique_hash.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

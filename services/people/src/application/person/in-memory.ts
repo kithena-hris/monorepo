@@ -161,10 +161,11 @@ export function inMemoryPeople(
         const row = rows.get(id);
         return Promise.resolve(row ? toRecord(row) : null);
       },
-      page: (_tx, _tenant, after, limit) =>
+      page: (_tx, _tenant, after, limit, where = {}) =>
         Promise.resolve(
           [...rows.values()]
             .filter((r) => after === null || r.snapshot.id > after)
+            .filter((r) => Object.entries(where).every(([k, v]) => r.fields.custom[k] === v))
             .toSorted((a, b) => a.snapshot.id.localeCompare(b.snapshot.id))
             .slice(0, limit)
             .map(toRecord),

@@ -87,15 +87,12 @@ export const ChangedAttribute = z
      * tenant, which is the right default for a field whose contents nobody
      * can predict at build time.
      */
-    value: z
-      .unknown()
-      .optional()
-      .register(policy, {
-        classification: 'confidential',
-        piiKind: 'none',
-        exportable: true,
-        aiEligible: false,
-      }),
+    value: z.unknown().optional().register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
   })
   .refine((a) => a.classification !== 'special-category' || a.value === undefined, {
     message: 'special-category values never travel on an event',
@@ -254,9 +251,7 @@ export const PersonIdentityLinked = defineEvent(
   z.object({
     personId: PersonId,
     identityAccountId: z.uuid().register(policy, asPublic()),
-    direction: z
-      .enum(['person_first', 'account_first'])
-      .register(policy, asPublic()),
+    direction: z.enum(['person_first', 'account_first']).register(policy, asPublic()),
   }),
 );
 
@@ -302,15 +297,12 @@ export const PersonProfileUpdated = defineEvent(
      * at build time. That makes the array a redaction path and a deny-list
      * entry for every tenant, which is the right default for a field whose
      * contents nobody can predict. */
-    changed: z
-      .array(ChangedAttribute)
-      .min(1)
-      .register(policy, {
-        classification: 'confidential',
-        piiKind: 'none',
-        exportable: true,
-        aiEligible: false,
-      }),
+    changed: z.array(ChangedAttribute).min(1).register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
     schemaVersion: SchemaVersion,
   }),
 );
@@ -637,6 +629,27 @@ export const ExportCompleted = defineEvent(
   }),
 );
 
+/**
+ * A webhook endpoint was disabled because nothing reached it for 24 hours
+ * (§13.3, PEO-093).
+ *
+ * Raised in the transaction that disabled it, once however many deliveries hit
+ * the ceiling together. The tenant's own record that an integration stopped;
+ * the alert email beside it is best effort. No URL — a receiver's token can
+ * sit in its query — and no address.
+ */
+export const WebhookEndpointDisabled = defineEvent(
+  'people.webhook.endpoint_disabled',
+  1,
+  z.object({
+    endpointId: z.uuid().register(policy, asPublic()),
+    reason: z.enum(['delivery_ceiling']).register(policy, asPublic()),
+    /** The last HTTP status, or null when nothing answered at all. */
+    lastResponse: z.int().min(100).max(599).nullable().register(policy, asInternal()),
+    disabledAt: Instant,
+  }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -666,4 +679,5 @@ export const peopleEvents = [
   ImportStarted,
   ImportCompleted,
   ExportCompleted,
+  WebhookEndpointDisabled,
 ] as const;

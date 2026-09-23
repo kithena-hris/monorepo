@@ -681,7 +681,7 @@ Test-first, all of it. No drivers, no I/O.
   is visible without rebuilding the shell. **Do not skip this check** — if it
   fails, the federation is decoration.
 
-### [ ] PEO-047 — Field registry screens
+### [x] PEO-047 — Field registry screens
 
 - **Spec** PRD §9.1, §9.2 · design screens 2 and 3
 - **Files** `apps/web/people/src/settings/`
@@ -693,7 +693,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** reordering works by keyboard, `pnpm test:stories` is green, and
   no hand-rolled control appears in the diff.
 
-### [ ] PEO-048 — Publish and impact
+### [x] PEO-048 — Publish and impact
 
 - **Spec** PRD §9.3 · design screen 4
 - **Files** `apps/web/people/src/settings/publish.tsx`
@@ -726,7 +726,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an acceptance test completes it end to end at 390×844 with a
   software keyboard raised, and abandoning mid-way leaves a partial record.
 
-### [ ] PEO-051 — Profile screens
+### [x] PEO-051 — Profile screens
 
 - **Spec** PRD §6.6 · design screen 6
 - **Files** `apps/web/people/src/profile/`
@@ -737,7 +737,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test renders the same person as HR and as a manager and
   asserts the manager's DOM contains none of the withheld labels.
 
-### [ ] PEO-052 — Directory
+### [x] PEO-052 — Directory
 
 - **Spec** PRD §13.1 · design screen 7
 - **Files** `apps/web/people/src/directory/`
@@ -748,7 +748,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** filtering on a tenant-defined indexed attribute over 50,000
   rows meets the 300 ms budget.
 
-### [ ] PEO-053 — Completeness grid
+### [x] PEO-053 — Completeness grid
 
 - **Spec** PRD §8.4 · design screen 8
 - **Files** `apps/web/people/src/completeness/`
@@ -920,7 +920,7 @@ it is written down here rather than left in a PR description.
       from the secrets' master key, for every attribute; rotation and the
       backfill are one hourly job. The packs' identifiers are unique per
       tenant. Dropping `normalised_value` is the contract step, once no claim
-      has a null `key_id` (see 20260924110000).*
+      has a null `key_id` (see 20260924150000).*
 - [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs
@@ -964,22 +964,44 @@ it is written down here rather than left in a PR description.
       `hire_date`, the import checksum is not on `people.import.started`, and a
       re-upload cannot re-serve the blocked-row report because it is not
       stored. Found in PEO-038 to PEO-041. *(PRD §14)*
-- [ ] **PEO-091** Export gaps: the Missing information sheet reflects today's
+- [x] **PEO-091** Export gaps: the Missing information sheet reflects today's
       completeness even for an `asOf` export, and grey not-applicable cells are
-      not rendered. Found in PEO-042. *(PRD §15.4)*
+      not rendered. Found in PEO-042. *(PRD §15.4)* *Status, employment type,
+      work model, legal entity and whether a secret exists are still read as
+      of today; none has a dated read yet.*
 - [ ] **PEO-092** Authorization and transport setup. OpenFGA has no client
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal
       token. Found in PEO-025 and PEO-030.
-- [ ] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
+- [x] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next
-      transaction. Found in PEO-032. *(PRD §13.3)*
-- [ ] **PEO-094** The People remote: no server-side rendering, Tailwind classes
-      used only by the remote may stay unstyled until the shell rebuilds, the
-      sidebar item is still disabled, and the remote's host needs `no-cache`
-      and CORS for `remoteEntry.js` and `routes.json`. Settle the CSS question
-      before PEO-047. Found in PEO-046.
+      transaction. Found in PEO-032. *(PRD §13.3)* — `people.webhook.endpoint_disabled`,
+      an alert email to the endpoint's `alert_email` (migration
+      20260924120100), a boot-and-every-minute poller, and a lease claim per
+      delivery.
+- [ ] **PEO-094** The People remote: no server-side rendering, and the
+      remote's host needs `no-cache` and CORS for `remoteEntry.js` and
+      `routes.json`. Found in PEO-046.
+      *Settled in PEO-047:* the CSS. The remote compiles its own utilities
+      (`apps/web/people/src/styles.css`, against `@reach/ui/theme.css`, no
+      preflight and no tokens) and `bundleAllCSS` loads them with the expose;
+      the shell no longer scans `apps/web/people`, so a class missing from the
+      remote's build fails in development too. Proven against an unchanged
+      production shell build: a remote-only class was styled, a rebuild of
+      the remote alone restyled it, and the same build without the remote's
+      stylesheet left it unstyled. The sidebar item is enabled.
+      *Still open:* SSR (the screen is client-only behind a spinner; the shell
+      is Next, not Modern.js) and the hosting headers.
+- [ ] **PEO-098** The shell hands People screens their data. The screens from
+      PEO-047 on are presentational: each takes a `Loadable` and async
+      callbacks as props, and `routes.json` lists none of them yet because the
+      shell has nothing to pass. Needs the router forwarding a principal
+      (PEO-092), a query per route that the shell runs and passes down, the
+      callbacks as server actions, and transports for what only the
+      application layer has today — draft edits, reorder, publish preview and
+      publish, the setup pack, import, export, analytics and webhook endpoint
+      management. Found in PEO-047.
 - [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)

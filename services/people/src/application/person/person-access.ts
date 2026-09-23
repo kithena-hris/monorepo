@@ -102,6 +102,8 @@ export interface PersonAccess {
       readonly after?: string | null;
       readonly limit: number;
       readonly asOf?: string;
+      /** Equality on tenant-defined attributes. See `filterable`. */
+      readonly where?: Readonly<Record<string, string>>;
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
   update(
@@ -142,6 +144,40 @@ export interface PersonAccess {
       readonly effectiveFrom?: string;
     }>,
   ): Promise<Result<PersonView>>;
+}
+
+/** An id no person has, for asking what the viewer may see tenant-wide. */
+const NOBODY = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Whether the viewer may filter the directory by these keys.
+ *
+ * A filter is a read of every person it passes over: who matches
+ * `cost_centre = ENG-204` says each person's cost centre without showing it.
+ * So a key is filterable only when the viewer can read it on **everybody**,
+ * through a tenant-wide relation, never one they hold to some people and not
+ * others, and only when it lives in `custom`, which is what the index covers.
+ * Encrypted values are never filterable: their plaintext is not in the row.
+ */
+export function filterable(
+  definitions: readonly AttributeDefinition[],
+  keys: readonly string[],
+  everyone: ViewerRelations,
+): Result<void> {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  for (const key of keys) {
+    const definition = byKey.get(key);
+    if (
+      definition === undefined ||
+      definition.encrypted ||
+      isCoreKey(key) ||
+      LIFECYCLE_KEYS.has(key) ||
+      !visibleTo(definition, everyone)
+    ) {
+      return err(failure('FIELD_NOT_FILTERABLE', `You cannot filter people by ${key}`, [key]));
+    }
+  }
+  return ok(undefined);
 }
 
 const NotPublished = () =>
@@ -496,11 +532,32 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly after?: string | null;
         readonly limit: number;
         readonly asOf?: string;
+        readonly where?: Readonly<Record<string, string>>;
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const rows = await deps.reader.page(tx, asking.tenantId, asking.after ?? null, asking.limit);
+      const where = asking.where ?? {};
+      if (Object.keys(where).length > 0) {
+        if (asking.asOf !== undefined) {
+          return err(
+            failure('FILTER_WITH_AS_OF', 'A filter reads today; it cannot be combined with asOf'),
+          );
+        }
+        // Who the viewer is to nobody in particular: their tenant-wide
+        // relations, with self and manager false. The resolver answers that
+        // for an id no person has.
+        const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+        const allowed = filterable(version.document.attributes, Object.keys(where), everyone);
+        if (!allowed.ok) return allowed;
+      }
+      const rows = await deps.reader.page(
+        tx,
+        asking.tenantId,
+        asking.after ?? null,
+        asking.limit,
+        where,
+      );
       const items: PersonView[] = [];
       for (const row of rows) {
         const relations = await deps.relations.relations(
