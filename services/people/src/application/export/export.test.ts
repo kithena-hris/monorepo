@@ -223,7 +223,7 @@ describe('who gets which columns', () => {
 describe('the CSV register', () => {
   it('has two header rows, __missing_required, a file per repeating attribute, and guarded formulas', async () => {
     const { files } = await exported(HR, { format: 'csv' });
-    expect(files.map((f) => f.name)).toEqual([
+    expect(files.map((f: { readonly name: string }) => f.name)).toEqual([
       'people-2026-09-22.csv',
       'people-2026-09-22-languages.csv',
     ]);
