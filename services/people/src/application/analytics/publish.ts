@@ -198,6 +198,10 @@ export async function latestPublication<T>(
   };
 }
 
+/** In headcount on a day, by the dated facts the snapshot counts by. */
+const present = (day: string) =>
+  sql`(p.hire_date <= ${day}::date AND (p.last_working_day IS NULL OR p.last_working_day >= ${day}::date))`;
+
 /**
  * How many people changed, for one field, since a publication.
  *
@@ -223,9 +227,6 @@ export async function changesSince(
        AND (${recordedBy}::timestamptz IS NULL OR h.recorded_at <= ${recordedBy}::timestamptz)
      ORDER BY h.effective_from DESC, h.recorded_at DESC
      LIMIT 1)`;
-  const present = (day: string) =>
-    sql`(p.hire_date <= ${day}::date AND (p.last_working_day IS NULL OR p.last_working_day >= ${day}::date))`;
-
   const [row] = await rows<{ n: number }>(
     tx,
     sql`SELECT count(*)::int AS n FROM people.person p
