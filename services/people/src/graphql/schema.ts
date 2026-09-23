@@ -49,10 +49,10 @@ function fail(failure: DomainFailure): never {
   throw toGraphQLError(failure);
 }
 
-function caller(ctx: RequestContext): { service: PeopleService; asking: Asking } {
+async function caller(ctx: RequestContext): Promise<{ service: PeopleService; asking: Asking }> {
   if (!wiring) return fail(failure('UNAVAILABLE', 'People is not configured'));
   const headers = Object.fromEntries(ctx.request?.headers.entries() ?? []);
-  const asking = wiring.callerFrom({ headers });
+  const asking = await wiring.callerFrom({ headers });
   if (!asking.ok) return fail(asking.error);
   return { service: wiring.service, asking: asking.value };
 }
@@ -257,7 +257,7 @@ const Person = builder.objectRef<PersonShape>('Person').implement({
 });
 
 async function readPerson(ctx: RequestContext, id: string, asOf?: string): Promise<PersonShape> {
-  const { service, asking } = caller(ctx);
+  const { service, asking } = await caller(ctx);
   return unwrap(
     await run(service, asking.tenantId, async (tx) => {
       const view = await service.access.read(tx, {
@@ -338,14 +338,12 @@ const LegalEntityRef = builder.objectRef<LegalEntityView>('LegalEntity').impleme
   }),
 });
 
-const LocationZoneRef = builder
-  .objectRef<LocationView['zones'][number]>('LocationZone')
-  .implement({
-    fields: (t) => ({
-      effectiveFrom: t.exposeString('effectiveFrom'),
-      timeZone: t.exposeString('timeZone'),
-    }),
-  });
+const LocationZoneRef = builder.objectRef<LocationView['zones'][number]>('LocationZone').implement({
+  fields: (t) => ({
+    effectiveFrom: t.exposeString('effectiveFrom'),
+    timeZone: t.exposeString('timeZone'),
+  }),
+});
 
 const LocationRef = builder.objectRef<LocationView>('Location').implement({
   fields: (t) => ({
@@ -364,7 +362,7 @@ async function inOrg<T>(
   ctx: RequestContext,
   fn: (org: OrgAdmin, tx: PostgresJsDatabase, asking: Asking) => Promise<Result<T>>,
 ): Promise<T> {
-  const { service, asking } = caller(ctx);
+  const { service, asking } = await caller(ctx);
   const { org } = service;
   if (!org) return fail(failure('UNAVAILABLE', 'Legal entities and settings are not configured'));
   return unwrap(await run(service, asking.tenantId, (tx) => fn(org, tx, asking)));
@@ -466,7 +464,7 @@ builder.queryType({
       type: PersonPage,
       args: { first: t.arg.int(), after: t.arg.string(), asOf: t.arg.string() },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         return unwrap(
           await run(service, asking.tenantId, async (tx) => {
             const page = await service.access.list(tx, {
@@ -506,7 +504,7 @@ builder.queryType({
       nullable: true,
       args: { version: t.arg.int() },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         return unwrap(
           await run(service, asking.tenantId, async (tx) =>
             ok(
@@ -531,7 +529,7 @@ builder.mutationType({
         effectiveFrom: t.arg.string(),
       },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         const changes: Record<string, unknown> = {};
         for (const input of args.changes) {
           changes[input.key] = unwrap(valueOf(input));
@@ -638,7 +636,7 @@ builder.mutationType({
         reason: t.arg.string(),
       },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         // The attribute is the one `supersedes` names; `key` is not consulted.
         const value = unwrap(valueOf(args.value));
         return unwrap(

@@ -44,7 +44,7 @@ import {
 } from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
-import { callerFromHeaders } from './caller.js';
+import { callerFromHeaders, withTenantRoles } from './caller.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestDeps, type RestResponse } from './rest.js';
@@ -335,9 +335,14 @@ export function wirePeople(server: Server): void {
   }
 
   const service = peopleService(url, process.env['PEOPLE_SECRET_KEYS']);
-  const callerFrom = callerFromHeaders(
+  const headers = callerFromHeaders(
     process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
   );
+  const fga = openFgaFrom(process.env);
+  const callerFrom =
+    fga === null
+      ? headers
+      : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
   configureGraphQL({ service, callerFrom });
 
   const exports = wireExports(service);

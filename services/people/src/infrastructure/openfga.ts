@@ -106,9 +106,20 @@ export interface OpenFga {
    * outbox by `tenant:aggregate`, so one person's events reach one consumer
    * in order anyway; this does not depend on it.
    */
-  sync(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<'applied' | 'unchanged'>;
+  sync(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personId: string,
+  ): Promise<'applied' | 'unchanged'>;
+  /** The tenant roles this account holds: `hr`, `finance`, `people_admin`. */
+  roles(tenantId: string, accountId: string): Promise<ReadonlySet<string>>;
   /** Grant or revoke a tenant role. Idempotent. */
-  role(tenantId: string, accountId: string, role: (typeof TENANT_ROLES)[number], held: boolean): Promise<void>;
+  role(
+    tenantId: string,
+    accountId: string,
+    role: (typeof TENANT_ROLES)[number],
+    held: boolean,
+  ): Promise<void>;
 }
 
 /** Null when `OPENFGA_URL` is unset: the caller uses `drizzleRelations`. */
@@ -258,6 +269,23 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
       return 'applied';
     },
 
+    async roles(tenantId, accountId) {
+      const fga = await client();
+      const user = `user:${accountId}`;
+      const object = `tenant:${tenantId}`;
+      const { result } = await fga.batchCheck({
+        checks: TENANT_ROLES.map((relation) => ({
+          user,
+          relation,
+          object,
+          correlationId: relation,
+        })),
+      });
+      return new Set(
+        result.filter((r) => r.allowed && r.error === undefined).map((r) => r.correlationId),
+      );
+    },
+
     async role(tenantId, accountId, role, held) {
       const fga = await client();
       const tuple = { user: `user:${accountId}`, relation: role, object: `tenant:${tenantId}` };
@@ -293,9 +321,7 @@ async function prepare(apiUrl: string, storeId?: string): Promise<OpenFgaClient>
       JSON.stringify(PEOPLE_AUTHORIZATION_MODEL.type_definitions)
   ) {
     modelId = (
-      await inStore.writeAuthorizationModel(
-        structuredClone(PEOPLE_AUTHORIZATION_MODEL) as never,
-      )
+      await inStore.writeAuthorizationModel(structuredClone(PEOPLE_AUTHORIZATION_MODEL) as never)
     ).authorization_model_id;
   }
   return new OpenFgaClient({

@@ -474,6 +474,10 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
 - **Tenant roles.** The first person in a tenant — the administrator the
   operator invites (§8.2, step 2) — is granted `people_admin` and `hr`. Every
   later grant waits for a role-management transport, which does not exist yet.
+  With OpenFGA, every transport resolves the caller's tenant roles from these
+  tuples once per request (`withTenantRoles`). A role claimed in the forwarded
+  principal is ignored. The code that reads `viewer.roles` (settings, legal
+  entities, finance's full values) therefore sees OpenFGA's answer.
 - **The manager chain is the reporting line.** Org units have no heads in the
   data yet, so an org unit grants nothing; `org_changed` re-syncs the person and
   is where that would start.
