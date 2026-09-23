@@ -97,12 +97,15 @@ function start(
 }
 
 /**
- * Stop a process group: politely, then not. People keeps its event loop open
- * on SIGTERM (its pollers are `unref`'d, its database pool is not), and a
- * test run must never leave a server behind.
+ * Stop a process group with SIGTERM, and wait for it to exit.
+ *
+ * Every server here exits on SIGTERM — People drains and closes its pools
+ * (PEO-118), Next and Vite always have. One that is still running after the
+ * wait is a bug this suite reports: it is SIGKILLed so no run leaves a server
+ * behind, and the rejection fails the run.
  */
-async function kill(child: ChildProcess | undefined): Promise<void> {
-  if (child?.pid === undefined || child.exitCode !== null) return;
+async function kill(child: ChildProcess | undefined, name = 'a process'): Promise<void> {
+  if (child?.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
   const pid = child.pid;
   const signal = (s: NodeJS.Signals) => {
     try {
@@ -111,18 +114,20 @@ async function kill(child: ChildProcess | undefined): Promise<void> {
       // Already gone.
     }
   };
-  signal('SIGTERM');
   const exited = new Promise<boolean>((resolve) =>
     child.once('exit', () => {
       resolve(true);
     }),
   );
+  signal('SIGTERM');
   const timeout = new Promise<boolean>((resolve) =>
     setTimeout(() => {
       resolve(false);
-    }, 3000),
+    }, 15_000),
   );
-  if (!(await Promise.race([exited, timeout]))) signal('SIGKILL');
+  if (await Promise.race([exited, timeout])) return;
+  signal('SIGKILL');
+  throw new Error(`${name} did not exit within 15s of SIGTERM`);
 }
 
 /** Run to completion, bounded. */
@@ -137,7 +142,8 @@ function run(
     const log: string[] = [];
     const child = start(command, args, cwd, env, log);
     const timer = setTimeout(() => {
-      void kill(child);
+      // The timeout is the failure reported; a stuck child is SIGKILLed either way.
+      kill(child).catch(() => undefined);
       reject(new Error(`${command} ${args.join(' ')} took longer than ${String(ms / 1000)}s`));
     }, ms);
     child.once('exit', (code) => {
@@ -161,10 +167,15 @@ export async function startStack(): Promise<Stack> {
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
   const stop = async (): Promise<void> => {
-    await Promise.all(children.map((child) => kill(child)));
+    const stopped = await Promise.allSettled(
+      children.map((child) => kill(child, child.spawnargs.join(' '))),
+    );
     for (const server of servers) server.close();
     await sql.end({ timeout: 5 }).catch(() => undefined);
     await Promise.allSettled([pg.stop(), fga.stop()]);
+    // After everything else is down, so a failure still cleans up.
+    const stuck = stopped.flatMap((s) => (s.status === 'rejected' ? [s.reason as Error] : []));
+    if (stuck.length > 0) throw new AggregateError(stuck, 'a server did not stop');
   };
 
   try {
