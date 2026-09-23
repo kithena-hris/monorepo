@@ -1595,7 +1595,11 @@ POSTs change nothing — advice, the publish preview, the import proposal and
 the dry run — and take none. The use cases open their own transactions, so a
 keyed write runs them inside the key's transaction (`sharing` in
 `unit-of-work.ts`; each joins as a savepoint), and the write and its key
-commit together. A retry is answered from what exists now, never from a stored
+commit together. An import commit's deadlock retry (PEO-106) still holds
+inside that transaction: each attempt is its own savepoint, a 40P01 rolls back
+to it, and the key is written after, in the outer transaction, so it commits
+with the attempt that won or not at all (proven against a real deadlock in
+`import.integration.test.ts`). A retry is answered from what exists now, never from a stored
 body: a publish answers the version in force, a webhook endpoint's create or
 rotate answers `{ id }` without the secret (it is shown once), and a replayed
 import commit answers `ALREADY_IMPORTED`, because its report is not kept

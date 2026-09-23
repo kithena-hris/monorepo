@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { fixedClock } from '@kithena/domain-kit';
+import { fixedClock, ok } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { Person } from '../../domain/person/person.js';
@@ -18,7 +18,7 @@ import { drizzleSchemaRepository } from '../../infrastructure/drizzle-schema-rep
 import { staticKeyRing } from '../../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
-import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
+import { sharing, tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { define, versionOf } from '../person/in-memory.js';
 import { inTenantResult, personAccess, type PersonAccessDeps } from '../person/person-access.js';
 import { commitImport, commitImportRetrying, type CommitDeps, type RowScope } from './commit.js';
@@ -27,6 +27,10 @@ import { drizzleImportLedger, drizzleRowScope } from './ledger.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
 import { utcCalendars } from '../org/org.js';
+import { drizzleIdempotency } from '../../http/idempotency.js';
+import { idempotent, restHandler, type RestRequest } from '../../http/rest.js';
+import { screenRoutes, type ScreenRouteDeps } from '../../http/screens.js';
+import type { PeopleService } from '../person/service.js';
 
 /**
  * PEO-041 over Postgres, as `svc_people`: the checksum constraint, the
@@ -50,7 +54,8 @@ let admin: ReturnType<typeof drizzle>;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
-const personDeps: PersonAccessDeps = { calendars: utcCalendars,
+const personDeps: PersonAccessDeps = {
+  calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
@@ -60,7 +65,8 @@ const personDeps: PersonAccessDeps = { calendars: utcCalendars,
   clock: fixedClock('2026-09-22T09:00:00.000Z'),
   newId: randomUUID,
 };
-const deps: CommitDeps = { calendars: utcCalendars,
+const deps: CommitDeps = {
+  calendars: utcCalendars,
   access: personAccess(personDeps),
   schemas: personDeps.schemas,
   relations: personDeps.relations,
@@ -86,6 +92,7 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
+    '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
@@ -101,7 +108,13 @@ beforeAll(async () => {
   inTenant = tenantTransaction(drizzle(serviceClient));
 
   await inTenant(TENANT, async ({ tx }) => {
-    await drizzleSchemaRepository().appendVersion(tx, TENANT, versionOf(1, attributes), [], '2026-09-01');
+    await drizzleSchemaRepository().appendVersion(
+      tx,
+      TENANT,
+      versionOf(1, attributes),
+      [],
+      '2026-09-01',
+    );
     // Somebody already holding c61@acme.test, whom the dry run cannot see as
     // holding it: the write path's claim is what finds out.
     await drizzlePersonRepository().create(
@@ -392,5 +405,188 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
     ];
     // Round 1's winner, and both of round 2: one ledger row each, nothing twice.
     expect(Number(numbers[0]?.['n'])).toBe(3);
+  });
+
+  /*
+   * PEO-116: the same race through the keyed path. The use case's own
+   * transactions join the key's as savepoints (`sharing`), so a deadlock
+   * rolls back one attempt's savepoint, the retry runs in a fresh one, and
+   * the Idempotency-Key row, written after in the outer transaction, commits
+   * with whichever attempt won, or not at all.
+   */
+  describe('keyed, through the route (PEO-116)', () => {
+    const deadlocks: string[] = [];
+    /** `slowRows`, noting each real deadlock that passes through a row. */
+    const observed: RowScope = async (tx, fn) => {
+      try {
+        return await slowRows(tx, fn);
+      } catch (error) {
+        for (let e: unknown = error; e; e = (e as { cause?: unknown }).cause) {
+          if ((e as { code?: unknown }).code === '40P01') {
+            deadlocks.push('40P01');
+            break;
+          }
+        }
+        throw error;
+      }
+    };
+    const idempotency = drizzleIdempotency();
+    const service = (): PeopleService =>
+      ({
+        access: deps.access,
+        schemas: deps.schemas,
+        // Late: `inTenant` is set in beforeAll, after this describe is built.
+        inTenant: (tenantId: string, fn: Parameters<typeof inTenant>[1]) => inTenant(tenantId, fn),
+      }) as unknown as PeopleService;
+    const who = { ...asking, tenantId: CONTENDED };
+    const rest = restHandler({
+      service: service(),
+      callerFrom: () => Promise.resolve(ok(who)),
+      idempotency,
+      screens: screenRoutes(
+        {
+          service: service(),
+          relations: personDeps.relations,
+          clock: personDeps.clock,
+          calendars: utcCalendars,
+          personOf: () => Promise.resolve(null),
+          advisor: null,
+          commit: {
+            ledger: drizzleImportLedger(),
+            rowScope: observed,
+            newId: randomUUID,
+            calendars: utcCalendars,
+          },
+        } as unknown as ScreenRouteDeps,
+        idempotency,
+      ),
+    });
+
+    const rowsA = (round: number) => [
+      ['Ana', 'Ay', `a${String(round)}@acme.test`, '2026-03-01', ''],
+      ['', '', 'p1@acme.test', '', `A-${String(round)}`],
+    ];
+    const rowsB = (round: number) => [
+      ['', '', 'p2@acme.test', '', `B-${String(round)}`],
+      ['Bo', 'Bee', `b${String(round)}@acme.test`, '2026-03-01', ''],
+    ];
+    const commit = (key: string, rows: string[][]): RestRequest => ({
+      method: 'POST',
+      url: '/v1/imports',
+      headers: { 'idempotency-key': key },
+      body: JSON.stringify({
+        name: 'people.csv',
+        file: Buffer.from(csv(headers, rows)).toString('base64'),
+      }),
+    });
+
+    const tally = async () => ({
+      people: await count(
+        sql`SELECT count(*) AS n FROM people.person WHERE tenant_id = ${CONTENDED}::uuid`,
+      ),
+      claims: await count(
+        sql`SELECT count(*) AS n FROM people.attribute_unique WHERE tenant_id = ${CONTENDED}::uuid`,
+      ),
+      numbers: await count(sql`
+        SELECT count(*) AS n FROM people.person_attribute_history
+         WHERE tenant_id = ${CONTENDED}::uuid AND attribute_key = 'employee_number'`),
+      imports: await count(
+        sql`SELECT count(*) AS n FROM people.import WHERE tenant_id = ${CONTENDED}::uuid`,
+      ),
+    });
+    const keyRows = (key: string) =>
+      count(sql`SELECT count(*) AS n FROM people.idempotency_key
+                 WHERE tenant_id = ${CONTENDED}::uuid AND key = ${key}`);
+
+    it('deadlocks for real, retries in a savepoint, and commits each key with its import', async () => {
+      deadlocks.length = 0;
+      const before = await tally();
+      const first = rest(commit('race-3-a', rowsA(3)));
+      await pause(150);
+      const second = rest(commit('race-3-b', rowsB(3)));
+      const answers = await Promise.all([first, second]);
+
+      // Not a pass by luck: Postgres chose a victim at least once.
+      expect(deadlocks.length).toBeGreaterThan(0);
+      for (const r of answers) {
+        if (r?.status !== 201) {
+          expect(r?.body).toMatchObject({ error: { code: 'IMPORT_CONTENDED' } });
+        }
+      }
+      // Both went through: the victim's attempt rolled back to its savepoint,
+      // the outer transaction survived the 40P01, and the retry committed
+      // with its key. Were the savepoint not there, the key's insert would
+      // meet an aborted transaction and the request would fail.
+      const won = answers.filter((r) => r?.status === 201).length;
+      expect(won).toBe(2);
+
+      // Each key exists exactly when its import went through.
+      expect(await keyRows('race-3-a')).toBe(answers[0]?.status === 201 ? 1 : 0);
+      expect(await keyRows('race-3-b')).toBe(answers[1]?.status === 201 ? 1 : 0);
+
+      // Nothing half-written: per import that won, one new person, one new
+      // claim (the email; the number's claim moves off the person's last
+      // one), one number in history and one ledger row.
+      const after = await tally();
+      expect(after.people - before.people).toBe(won);
+      expect(after.claims - before.claims).toBe(won);
+      expect(after.numbers - before.numbers).toBe(won);
+      expect(after.imports - before.imports).toBe(won);
+
+      // A retry of a key that won is answered and imports nothing again.
+      const again = await rest(commit('race-3-a', rowsA(3)));
+      if (answers[0]?.status === 201) {
+        expect(again?.body).toMatchObject({ error: { code: 'ALREADY_IMPORTED' } });
+      }
+      expect(await tally()).toEqual(after);
+    });
+
+    it('leaves no key and no rows for the request that loses outright', async () => {
+      deadlocks.length = 0;
+      const before = await tally();
+      const observedDeps: CommitDeps = { ...deps, rowScope: observed };
+      // The route's own composition, with one attempt so that the loser loses.
+      const keyedCommit = async (key: string, rows: string[][]) => {
+        const input = await prepared(rows);
+        return idempotent(
+          { service: service(), idempotency },
+          who,
+          commit(key, rows),
+          201,
+          async (tx) => {
+            const done = await sharing({ tx, tenantId: CONTENDED }, () =>
+              commitImportRetrying(inTenant, observedDeps, input, { attempts: 1 }),
+            );
+            return done.ok ? ok(CONTENDED) : done;
+          },
+          () => Promise.resolve({ status: 201, body: { ok: true } }),
+        );
+      };
+      const first = keyedCommit('race-4-a', rowsA(4));
+      await pause(150);
+      const second = keyedCommit('race-4-b', rowsB(4));
+      const answers = await Promise.all([first, second]);
+
+      expect(deadlocks.length).toBeGreaterThan(0);
+      const codes = answers.map((r) =>
+        r.status < 300 ? 'ok' : (r.body as { error: { code: string } }).error.code,
+      );
+      expect(codes.toSorted()).toEqual(['IMPORT_CONTENDED', 'ok']);
+      const lost = codes[0] === 'ok' ? 'race-4-b' : 'race-4-a';
+      const kept = lost === 'race-4-a' ? 'race-4-b' : 'race-4-a';
+      expect(await keyRows(lost)).toBe(0);
+      expect(await keyRows(kept)).toBe(1);
+
+      const after = await tally();
+      expect(after.people - before.people).toBe(1);
+      expect(after.claims - before.claims).toBe(1);
+      expect(after.numbers - before.numbers).toBe(1);
+      expect(after.imports - before.imports).toBe(1);
+      const loserEmail = lost === 'race-4-a' ? 'a4@acme.test' : 'b4@acme.test';
+      expect(
+        await count(sql`SELECT count(*) AS n FROM people.person
+                         WHERE tenant_id = ${CONTENDED}::uuid AND work_email = ${loserEmail}`),
+      ).toBe(0);
+    });
   });
 });
