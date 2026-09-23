@@ -25,7 +25,7 @@ import {
   headcountTrend,
   movementWaterfall,
 } from '../analytics/queries.js';
-import { blockedReport, commitImport, type CommitDeps } from '../import/commit.js';
+import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
   proposeMapping,
@@ -39,7 +39,7 @@ import { parseUpload, type ParsedFile } from '../import/parse.js';
 import { exportableColumns } from '../export/export.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { NOBODY, personOfViewer, type ScreenDeps, type Tx } from './record.js';
+import { NOBODY, personOfViewer, tenantToday, type ScreenDeps, type Tx } from './record.js';
 
 /**
  * The screens that act on many people at once: integrations, import, the
@@ -385,35 +385,41 @@ function importDeps(deps: ImportDeps): CommitDeps {
   };
 }
 
-/** Commit: the dry run again, never taken from the client, then the writes (§14.5). */
+/**
+ * Commit: the dry run again, never taken from the client, then the writes
+ * (§14.5). Through `commitImportRetrying` (PEO-106), in its own transaction:
+ * two imports claiming the same unique values can deadlock, and the loser is
+ * run again rather than failed.
+ */
 export async function commitImportView(
   deps: ImportDeps,
   asking: Asking,
   upload: ImportUpload,
 ): Promise<Result<ImportStageView>> {
-  return run(deps.service, asking.tenantId, async (tx) => {
+  const planned = await run(deps.service, asking.tenantId, async (tx) => {
     const prepared = await prepare(deps, tx, asking, upload);
     if (!prepared.ok) return prepared;
     const mapping = resolved(prepared.value, upload.mapping ?? {});
-    if (!mapping.ok) return mapping;
-    const committed = await commitImport(tx, importDeps(deps), {
-      ...asking,
-      file: prepared.value.file,
-      mapping: mapping.value,
-    });
-    if (!committed.ok) return committed;
-    if (committed.value.status === 'already_imported') {
-      return err(failure('ALREADY_IMPORTED', 'This exact file has already been imported'));
-    }
-    const { counts, report } = committed.value;
-    return ok({
-      step: 'done' as const,
-      file: fileView(upload.name, prepared.value.file),
-      created: counts.created,
-      updated: counts.updated,
-      blocked: counts.blocked + counts.duplicate,
-      blockedCsv: b64(report),
-    });
+    return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
+  });
+  if (!planned.ok) return planned;
+  const committed = await commitImportRetrying(deps.service.inTenant, importDeps(deps), {
+    ...asking,
+    file: planned.value.file,
+    mapping: planned.value.mapping,
+  });
+  if (!committed.ok) return committed;
+  if (committed.value.status === 'already_imported') {
+    return err(failure('ALREADY_IMPORTED', 'This exact file has already been imported'));
+  }
+  const { counts, report } = committed.value;
+  return ok({
+    step: 'done' as const,
+    file: fileView(upload.name, planned.value.file),
+    created: counts.created,
+    updated: counts.updated,
+    blocked: counts.blocked + counts.duplicate,
+    blockedCsv: b64(report),
   });
 }
 
@@ -459,7 +465,7 @@ export async function exportBuilderView(
     }
     const columns = exportableColumns(version).filter((d) => readable.has(d.key));
     return ok({
-      today: deps.clock.date(asking.timeZone ?? 'Etc/UTC'),
+      today: await tenantToday(deps, tx, asking.tenantId),
       who: [
         {
           value: 'everyone',
@@ -540,7 +546,7 @@ export async function analyticsView(
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const ctx = { tx, tenantId: asking.tenantId, viewer, definitions: version.document.attributes };
-    const today = deps.clock.date(asking.timeZone ?? 'Etc/UTC') as string;
+    const today = await tenantToday(deps, tx, asking.tenantId);
 
     const trend = await headcountTrend(ctx, { from: minusMonths(today, 12), to: today });
     if (!trend.ok) return trend;

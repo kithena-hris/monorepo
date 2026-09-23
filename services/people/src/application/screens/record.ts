@@ -1,10 +1,11 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
+import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition, WriterRole } from '@kithena/contracts';
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking, PersonView } from '../person/person-access.js';
+import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
 import type { FormValue, FormValues, RecordField, RecordSection } from './model.js';
@@ -26,6 +27,14 @@ export interface ScreenDeps {
   readonly clock: Clock;
   /** Which person signs in as an account (`PersonReader.personOf`). */
   readonly personOf: (tx: Tx, tenantId: string, accountId: string) => Promise<string | null>;
+  /** Whose day "today" is (PEO-099). */
+  readonly calendars: Calendars;
+}
+
+/** Today on the tenant's default calendar: the day a screen about everybody is drawn for. */
+export async function tenantToday(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<string> {
+  const calendar = await deps.calendars.load(tx, tenantId);
+  return localDate(deps.clock.instant(), calendar.defaultZone);
 }
 
 export type Tx = PostgresJsDatabase;

@@ -16,6 +16,7 @@ import {
   NOBODY,
   personOfViewer,
   recordSections,
+  tenantToday,
   type ScreenDeps,
   type Tx,
 } from './record.js';
@@ -343,7 +344,7 @@ async function applyRequiredFrom(
   tenantId: string,
   requiredFrom: string,
 ): Promise<void> {
-  const today = deps.clock.date('Etc/UTC') as string;
+  const today = await tenantToday(deps, tx, tenantId);
   if (requiredFrom <= today) return;
   const [draft, published] = await Promise.all([
     deps.schema.loadDraft(tx, tenantId),
@@ -367,7 +368,6 @@ function request(deps: SchemaScreenDeps, asking: Asking, next: number) {
     publishedBy: asking.viewer.accountId,
     correlationId: asking.correlationId,
     artifactUrl: deps.artifactUrl(next),
-    ...(asking.timeZone ? { timeZone: asking.timeZone } : {}),
   };
 }
 
@@ -512,6 +512,8 @@ export function adviseClassification(field: {
 /* --------------------------------------------------------------- setup -- */
 
 export interface SetupView {
+  /** The company's first legal entity, when the back office or an admin made one (PEO-099). */
+  readonly legalEntity?: { readonly name: string; readonly country: string };
   readonly entityConfirmed: boolean;
   readonly countries: readonly { readonly code: string; readonly name: string }[];
   readonly packs: readonly {
@@ -538,9 +540,9 @@ const countryName = (code: string): string =>
   new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
 
 /**
- * The wizard's state (§8.2 steps 6 and 7). The legal entity itself is the
- * shell's to fill in from what the back office recorded: People has no legal
- * entity to read until the legal-entity ticket lands.
+ * The wizard's state (§8.2 steps 6 and 7). The legal entity is the tenant's
+ * first, which the back office's company wizard creates (PEO-099); a tenant
+ * with none leaves it to the shell to suggest one from the tenant registry.
  */
 export async function setupView(
   deps: SchemaScreenDeps,
@@ -593,7 +595,13 @@ export async function setupView(
           };
         }),
       }));
+      const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
+      const entity = entities.ok ? entities.value.find((e) => !e.archived) : undefined;
       return ok({
+        ...(entity === undefined
+          ? {}
+          : { legalEntity: { name: entity.name, country: entity.country } }),
+        // Shown every time: confirming the entity is the first thing the admin does.
         entityConfirmed: false,
         countries: packs.map((p) => ({ code: p.country, name: p.countryName })),
         packs,
@@ -605,23 +613,49 @@ export async function setupView(
 }
 
 /**
- * Confirm the legal entity. Checked and not stored: People has no legal
- * entity table until the legal-entity ticket (#100) lands, and the country it
- * decides travels with the publish below.
+ * Confirm the legal entity (PEO-099's `people.legal_entity`).
+ *
+ * The first entity in the same country is renamed to what the admin
+ * confirmed. A country is not an edit — it decides which fields the law
+ * requires of everybody employed there — so a different country is a new
+ * entity, on the tenant's default zone until an admin sets its own. With no
+ * legal-entity store wired, confirming checks the input and keeps nothing;
+ * the country still travels with the publish.
  */
 export async function confirmEntity(
   deps: SchemaScreenDeps,
   asking: Asking,
   entity: { readonly name: string; readonly country: string },
 ): Promise<Result<void>> {
-  if (entity.name.trim() === '') {
+  const name = entity.name.trim();
+  if (name === '') {
     return err(failure('VALUE_INVALID', 'Give the entity’s registered name', ['name']));
   }
   if (!/^[A-Z]{2}$/u.test(entity.country)) {
     return err(failure('VALUE_INVALID', 'A country is a two-letter code', ['country']));
   }
   return run(deps.service, asking.tenantId, (tx) =>
-    asAdmin(deps, tx, asking, () => Promise.resolve(ok(undefined))),
+    asAdmin(deps, tx, asking, async () => {
+      const org = deps.service.org;
+      if (org === undefined) return ok(undefined);
+      const entities = await org.legalEntities(tx, asking);
+      if (!entities.ok) return entities;
+      const same = entities.value.find((e) => !e.archived && e.country === entity.country);
+      if (same !== undefined) {
+        if (same.name === name) return ok(undefined);
+        const renamed = await org.updateLegalEntity(tx, { ...asking, id: same.id, name });
+        return renamed.ok ? ok(undefined) : renamed;
+      }
+      const settings = await org.settings(tx, asking);
+      if (!settings.ok) return settings;
+      const created = await org.createLegalEntity(tx, {
+        ...asking,
+        name,
+        country: entity.country,
+        timeZone: settings.value.defaultTimeZone,
+      });
+      return created.ok ? ok(undefined) : created;
+    }),
   );
 }
 

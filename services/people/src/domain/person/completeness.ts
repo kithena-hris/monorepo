@@ -54,6 +54,19 @@ export interface CompletenessVerdict {
  */
 const NOT_APPLICABLE = new Set(['provisional', 'discarded']);
 
+/**
+ * What a pre-hire is asked for (PRD §8.1): what is collected before the first
+ * day — at signup, at enrolment, in onboarding. An `hr_only` or `anytime`
+ * field waits for the start date, so a pre-hire is neither reminded of it nor
+ * counted as missing it.
+ */
+const BEFORE_START = new Set(['signup', 'enrolment', 'onboarding']);
+
+/** Whether this definition can be asked of a person in this state at all. */
+function askable(definition: AttributeDefinition, status: string): boolean {
+  return status !== 'pre_hire' || BEFORE_START.has(definition.collectAt);
+}
+
 function hasValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
   // A form posts an empty string for a field somebody skipped, and a trimmed
@@ -67,7 +80,8 @@ export function assessCompleteness(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
   clock: Clock,
-  timeZone = 'Etc/UTC',
+  /** Whose calendar "today" is read on (PRD §6.8). Required: there is no safe default. */
+  timeZone: string,
 ): CompletenessVerdict {
   if (NOT_APPLICABLE.has(facts.status)) {
     return { state: 'not_applicable', missing: [], unevaluable: [] };
@@ -80,6 +94,7 @@ export function assessCompleteness(
     // A deprecated field is hidden from every form. Counting it would ask for
     // something nobody can be shown.
     if (definition.deprecatedAt !== null) continue;
+    if (!askable(definition, facts.status)) continue;
 
     const verdict = evaluateRequiredness(definition.requiredness, facts, clock, timeZone);
     if (verdict.unevaluable.length > 0) {
@@ -116,13 +131,18 @@ export function notApplicable(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
   clock: Clock,
-  timeZone = 'Etc/UTC',
+  /** Whose calendar "today" is read on (PRD §6.8). Required: there is no safe default. */
+  timeZone: string,
 ): readonly string[] {
   if (NOT_APPLICABLE.has(facts.status)) return [];
   return definitions
     .filter((d) => d.deprecatedAt === null && d.requiredness.mode !== 'never')
     .filter((d) => !hasValue(facts.values[d.key]))
-    .filter((d) => !evaluateRequiredness(d.requiredness, facts, clock, timeZone).required)
+    .filter(
+      (d) =>
+        !askable(d, facts.status) ||
+        !evaluateRequiredness(d.requiredness, facts, clock, timeZone).required,
+    )
     .map((d) => d.key);
 }
 

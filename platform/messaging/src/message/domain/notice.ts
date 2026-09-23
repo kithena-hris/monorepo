@@ -20,6 +20,13 @@ import { Unrenderable, type RenderedMessage } from './invitation.js';
  * button opens, signed in. A webhook alert names the receiver's host and
  * nothing after it, because a path or query can carry the receiver's own
  * token. The link carries no token and no record id.
+ *
+ * ### Who it is from, and where it points
+ *
+ * Every notice names the company it is about — an HR email that will not say
+ * which employer sent it reads as phishing — and links to that company's own
+ * origin, `<slug>.app…`, which `linkIsOnTenantApp` checks against the one
+ * pattern this service is configured with.
  */
 export type Notice =
   | { readonly kind: 'profile_reminder'; readonly missing: number }
@@ -42,45 +49,90 @@ const MAX_COUNT = 1000;
 const HOST =
   /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/i;
 
-/** Each kind's copy, or null when its input cannot be said honestly. */
-const COPY: { readonly [K in NoticeKind]: (notice: Extract<Notice, { kind: K }>) => Copy | null } =
-  {
-    profile_reminder: ({ missing }) => {
-      if (!Number.isInteger(missing) || missing < 1 || missing > MAX_COUNT) return null;
-      const details = missing === 1 ? 'one detail' : `${String(missing)} details`;
-      return {
-        subject: 'A few details are missing from your profile',
-        heading: 'Your profile needs a few details',
-        lede: `Your employer has asked everyone to fill in ${details} that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.`,
-        action: 'Open your profile',
-        footer:
-          'Sent by Kithena on behalf of your employer. You will get at most one of these a week, and none once your profile is complete.',
-      };
-    },
-    webhook_disabled: ({ host }) => {
-      if (!HOST.test(host)) return null;
-      return {
-        subject: 'A People webhook was turned off',
-        heading: 'We stopped sending to one of your webhooks',
-        lede: `Nothing sent to ${host} has succeeded for 24 hours, so Kithena turned that endpoint off. Events raised while it is off are not sent to it. Once the receiver is fixed, turn the endpoint back on and replay the delivery that failed.`,
-        action: 'Open People',
-        footer:
-          'Sent by Kithena because this address is the alert contact for a webhook endpoint in People.',
-      };
-    },
-  };
+/** The invitation's limit: long enough for any real company, one subject line. */
+const MAX_COMPANY_NAME = 120;
 
-export function renderNotice(notice: Notice, url: string): Result<RenderedMessage> {
+/** One DNS label, as a tenant slug must be. */
+const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/**
+ * Whether a link is on some company's own origin under `base`, a URL with
+ * `{slug}` where the label goes (`https://{slug}.app.kithena.com`).
+ *
+ * The first host label is taken as the slug and the base is rebuilt with it;
+ * the link passes only if its origin is exactly that. So `acme.app.kithena.com`
+ * passes, and `acme.app.kithena.com.evil.example`, a different port, or a
+ * second label in front of the base do not. Which company's origin it is, is
+ * the caller's to get right — this only refuses an origin that is nobody's.
+ */
+export function linkIsOnTenantApp(url: string, base: string): boolean {
+  if (!base.includes('{slug}')) return false;
+  try {
+    const target = new URL(url);
+    const slug = target.hostname.split('.')[0] ?? '';
+    if (!LABEL.test(slug)) return false;
+    return target.origin === new URL(base.replace('{slug}', slug)).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Each kind's copy for a company, or null when its input cannot be said
+ * honestly. Called once with the name as typed (subject, text) and once
+ * escaped (HTML).
+ */
+const COPY: {
+  readonly [K in NoticeKind]: (
+    notice: Extract<Notice, { kind: K }>,
+    company: string,
+  ) => Copy | null;
+} = {
+  profile_reminder: ({ missing }, company) => {
+    if (!Number.isInteger(missing) || missing < 1 || missing > MAX_COUNT) return null;
+    const details = missing === 1 ? 'one detail' : `${String(missing)} details`;
+    return {
+      subject: `${company}: a few details are missing from your profile`,
+      heading: 'Your profile needs a few details',
+      lede: `${company} has asked everyone to fill in ${details} that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.`,
+      action: 'Open your profile',
+      footer: `Sent by Kithena on behalf of ${company}. You will get at most one of these a week, and none once your profile is complete.`,
+    };
+  },
+  webhook_disabled: ({ host }, company) => {
+    if (!HOST.test(host)) return null;
+    return {
+      subject: `${company}: a People webhook was turned off`,
+      heading: 'We stopped sending to one of your webhooks',
+      lede: `Nothing sent to ${host} has succeeded for 24 hours, so Kithena turned that endpoint off. Events raised while it is off are not sent to it. Once the receiver is fixed, turn the endpoint back on and replay the delivery that failed.`,
+      action: 'Open People',
+      footer: `Sent by Kithena because this address is the alert contact for a webhook endpoint in ${company}'s People.`,
+    };
+  },
+};
+
+export function renderNotice(
+  notice: Notice,
+  url: string,
+  companyName: string,
+): Result<RenderedMessage> {
+  const company = companyName.trim();
+  if (company.length === 0 || company.length > MAX_COMPANY_NAME) return err(Unrenderable);
+
   // The mapped type pairs each kind with its input; TypeScript cannot follow
   // that through an index, so the call is widened by hand.
-  const copy = (COPY[notice.kind] as (n: Notice) => Copy | null)(notice);
+  const copyFor = COPY[notice.kind] as (n: Notice, company: string) => Copy | null;
+  const plain = copyFor(notice, company);
+  const marked = copyFor(notice, escapeHtml(company));
   const href = safeHref(url);
-  if (copy === null || href === null) return err(Unrenderable);
+  if (plain === null || marked === null || href === null) return err(Unrenderable);
 
   return ok({
-    subject: copy.subject,
-    html: html(copy, href, escapeHtml(url)),
-    text: [copy.heading, '', copy.lede, '', `${copy.action}:`, url, '', copy.footer, ''].join('\n'),
+    subject: plain.subject,
+    html: html(marked, href, escapeHtml(url)),
+    text: [plain.heading, '', plain.lede, '', `${plain.action}:`, url, '', plain.footer, ''].join(
+      '\n',
+    ),
   });
 }
 

@@ -54,15 +54,24 @@ describe('a provisional record', () => {
     // An account exists and nobody has told us anything about the person yet.
     // Counting that as incomplete would nag somebody on day zero for fields
     // nobody has asked them for.
-    const verdict = assessCompleteness([define({ key: 'cost_centre' })], facts({ status: 'provisional' }), clock);
+    const verdict = assessCompleteness(
+      [define({ key: 'cost_centre' })],
+      facts({ status: 'provisional' }),
+      clock,
+      'Etc/UTC',
+    );
     expect(verdict.state).toBe('not_applicable');
     expect(verdict.missing).toEqual([]);
   });
 
   it('is not applicable once discarded', () => {
     expect(
-      assessCompleteness([define({ key: 'cost_centre' })], facts({ status: 'discarded' }), clock)
-        .state,
+      assessCompleteness(
+        [define({ key: 'cost_centre' })],
+        facts({ status: 'discarded' }),
+        clock,
+        'Etc/UTC',
+      ).state,
     ).toBe('not_applicable');
   });
 });
@@ -73,6 +82,7 @@ describe('a live record', () => {
       [define({ key: 'cost_centre' })],
       facts({ values: { cost_centre: 'CC-100' } }),
       clock,
+      'Etc/UTC',
     );
     expect(verdict.state).toBe('complete');
   });
@@ -87,6 +97,7 @@ describe('a live record', () => {
       ],
       facts(),
       clock,
+      'Etc/UTC',
     );
 
     expect(verdict.state).toBe('incomplete');
@@ -101,6 +112,7 @@ describe('a live record', () => {
       [define({ key: 'bio', requiredness: { mode: 'never' } })],
       facts(),
       clock,
+      'Etc/UTC',
     );
     expect(verdict.state).toBe('complete');
   });
@@ -110,6 +122,7 @@ describe('a live record', () => {
       [define({ key: 'cost_centre', deprecatedAt: '2026-01-01T00:00:00.000Z' })],
       facts(),
       clock,
+      'Etc/UTC',
     );
     expect(verdict.state).toBe('complete');
   });
@@ -119,6 +132,7 @@ describe('a live record', () => {
       [define({ key: 'cost_centre' })],
       facts({ values: { cost_centre: '  ' } }),
       clock,
+      'Etc/UTC',
     );
     expect(verdict.state).toBe('incomplete');
   });
@@ -129,9 +143,15 @@ describe('a requirement that has not started yet', () => {
     // The whole point of `requiredFrom`: an admin scheduling a field for
     // January does not make four hundred people incomplete in September.
     const verdict = assessCompleteness(
-      [define({ key: 'cost_centre', requiredness: { mode: 'always', requiredFrom: '2027-01-01' } })],
+      [
+        define({
+          key: 'cost_centre',
+          requiredness: { mode: 'always', requiredFrom: '2027-01-01' },
+        }),
+      ],
       facts(),
       clock,
+      'Etc/UTC',
     );
     expect(verdict.state).toBe('complete');
   });
@@ -147,12 +167,14 @@ describe('a requirement that depends on the person', () => {
   });
 
   it('applies in the country that asks for it', () => {
-    expect(assessCompleteness([nif], facts(), clock).state).toBe('incomplete');
+    expect(assessCompleteness([nif], facts(), clock, 'Etc/UTC').state).toBe('incomplete');
   });
 
   it('does not apply anywhere else', () => {
     // A Spanish tax identifier is not a thing to nag a German employee about.
-    expect(assessCompleteness([nif], facts({ country: 'DE' }), clock).state).toBe('complete');
+    expect(assessCompleteness([nif], facts({ country: 'DE' }), clock, 'Etc/UTC').state).toBe(
+      'complete',
+    );
   });
 });
 
@@ -168,7 +190,7 @@ describe('a rule that cannot be evaluated', () => {
       },
     });
 
-    const verdict = assessCompleteness([broken], facts(), clock);
+    const verdict = assessCompleteness([broken], facts(), clock, 'Etc/UTC');
     expect(verdict.state).toBe('complete');
     expect(verdict.unevaluable).toEqual([{ key: 'cost_centre', reads: ['retired_field'] }]);
   });
@@ -188,25 +210,83 @@ describe('not applicable (PRD §15.4)', () => {
   it('is a blank a rule could ask for but does not ask of this person', () => {
     // Grey in the XLSX: distinguishable from missing (amber) and from an
     // optional field nobody filled (no fill).
-    expect(notApplicable([nif, bio], facts({ country: 'DE' }), clock)).toEqual(['nif']);
+    expect(notApplicable([nif, bio], facts({ country: 'DE' }), clock, 'Etc/UTC')).toEqual(['nif']);
   });
 
   it('is not a field that is required of them, or one that has a value', () => {
-    expect(notApplicable([nif], facts(), clock)).toEqual([]);
-    expect(notApplicable([nif], facts({ country: 'DE', values: { nif: 'X' } }), clock)).toEqual(
-      [],
-    );
+    expect(notApplicable([nif], facts(), clock, 'Etc/UTC')).toEqual([]);
+    expect(
+      notApplicable([nif], facts({ country: 'DE', values: { nif: 'X' } }), clock, 'Etc/UTC'),
+    ).toEqual([]);
   });
 
   it('includes a rule that has not started yet, on the day being asked about', () => {
-    expect(notApplicable([scheduled], facts(), clock)).toEqual(['cost_centre']);
+    expect(notApplicable([scheduled], facts(), clock, 'Etc/UTC')).toEqual(['cost_centre']);
     const january = fixedClock('2027-01-02T09:00:00.000Z');
-    expect(notApplicable([scheduled], facts(), january)).toEqual([]);
+    expect(notApplicable([scheduled], facts(), january, 'Etc/UTC')).toEqual([]);
   });
 
   it('is nothing at all for a record with nothing to be complete about', () => {
     expect(
-      notApplicable([nif], facts({ country: 'DE', status: 'provisional' }), clock),
+      notApplicable([nif], facts({ country: 'DE', status: 'provisional' }), clock, 'Etc/UTC'),
     ).toEqual([]);
+  });
+});
+
+describe('a pre-hire (PRD §8.1)', () => {
+  // Asked only for what is collected before the first day: at signup, at
+  // enrolment or during onboarding. An HR-only or any-time field is for later.
+  const definitions = [
+    define({ key: 'cost_centre', collectAt: 'hr_only' }),
+    define({ key: 'bio', collectAt: 'anytime' }),
+    define({ key: 'nif', collectAt: 'onboarding', ownership: ['employee'] }),
+    define({ key: 'mobile', collectAt: 'enrolment', ownership: ['employee'] }),
+    define({ key: 'given_name', collectAt: 'signup', ownership: ['employee'] }),
+  ];
+  const known = new Set(definitions.map((d) => d.key as string));
+
+  it('is asked only for fields collected at signup, enrolment or onboarding', () => {
+    const verdict = assessCompleteness(
+      definitions,
+      facts({ status: 'pre_hire', knownAttributes: known }),
+      clock,
+      'Etc/UTC',
+    );
+    expect(verdict.missing.map((m) => m.key)).toEqual(['nif', 'mobile', 'given_name']);
+  });
+
+  it('is complete once those are filled, whatever HR has still to add', () => {
+    const verdict = assessCompleteness(
+      definitions,
+      facts({
+        status: 'pre_hire',
+        knownAttributes: known,
+        values: { nif: 'x', mobile: 'y', given_name: 'z' },
+      }),
+      clock,
+      'Etc/UTC',
+    );
+    expect(verdict.state).toBe('complete');
+  });
+
+  it('is asked for everything once active', () => {
+    const verdict = assessCompleteness(
+      definitions,
+      facts({ status: 'active', knownAttributes: known }),
+      clock,
+      'Etc/UTC',
+    );
+    expect(verdict.missing).toHaveLength(5);
+  });
+
+  it('greys what is not asked of them yet in an export', () => {
+    expect(
+      notApplicable(
+        definitions,
+        facts({ status: 'pre_hire', knownAttributes: known }),
+        clock,
+        'Etc/UTC',
+      ),
+    ).toEqual(['cost_centre', 'bio']);
   });
 });

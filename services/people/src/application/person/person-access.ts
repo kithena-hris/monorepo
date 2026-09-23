@@ -1,5 +1,13 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type DomainFailure, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  localDate,
+  ok,
+  type Clock,
+  type DomainFailure,
+  type Result,
+} from '@kithena/domain-kit';
 import type { Actor, AttributeDefinition, EmploymentType, WorkModel } from '@kithena/contracts';
 
 import {
@@ -26,7 +34,10 @@ import {
 } from '../../domain/person/person.js';
 import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
+import { placementOf, personZone } from '../../domain/org/calendar.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import type { RecomputePerson } from '../completeness/recompute.js';
+import type { Calendars } from '../org/org.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS, isCoreKey, LIFECYCLE_KEYS } from './core.js';
 import type {
@@ -67,14 +78,20 @@ export interface PersonAccessDeps {
   readonly clock: Clock;
   /** UUIDv7, for history rows, events and new records. */
   readonly newId: () => string;
+  /** Whose day "today" is for each person (PRD §6.8). */
+  readonly calendars: Calendars;
+  /**
+   * Re-judge one person's completeness after a write, in its transaction
+   * (PEO-102). Absent only in tests about something else; every wiring that
+   * writes people passes it.
+   */
+  readonly completeness?: RecomputePerson;
 }
 
 export interface Asking {
   readonly tenantId: string;
   readonly viewer: Viewer;
   readonly correlationId: string;
-  /** The tenant's calendar, for "today". */
-  readonly timeZone?: string;
 }
 
 export interface PersonView {
@@ -202,8 +219,40 @@ export function claimText(definition: AttributeDefinition, value: unknown): stri
 }
 
 export function personAccess(deps: PersonAccessDeps): PersonAccess {
-  const today = (asking: Asking) => deps.clock.date(asking.timeZone ?? 'Etc/UTC') as string;
+  const { calendars } = deps;
+
+  /**
+   * The person's zone and today on it: their location's, else their legal
+   * entity's, else their own, else the tenant's (PRD §6.8). Read off the
+   * values the person will have, so a write that moves somebody to another
+   * office is judged on the calendar it moves them to.
+   */
+  async function calendarOf(
+    tx: Tx,
+    tenantId: string,
+    values: Readonly<Record<string, unknown>>,
+  ): Promise<{ readonly zone: string; readonly day: string }> {
+    const at = deps.clock.instant();
+    const zone = personZone(await calendars.load(tx, tenantId), placementOf(values), at);
+    return { zone, day: localDate(at, zone) };
+  }
   const actorOf = (viewer: Viewer): Actor => ({ kind: 'user', userId: viewer.accountId });
+
+  /** After a write: the record's completeness, judged again in the same transaction. */
+  async function rejudge(
+    tx: Tx,
+    asking: Asking,
+    personId: string,
+    causationId: string | null,
+  ): Promise<void> {
+    await deps.completeness?.(tx, {
+      tenantId: asking.tenantId,
+      personId,
+      actor: actorOf(asking.viewer),
+      correlationId: asking.correlationId,
+      causationId,
+    });
+  }
 
   /** One event id when a history row names the event; a fresh one per event otherwise. */
   function contextFor(asking: Asking, eventId?: string): EventContext {
@@ -386,7 +435,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     }
 
     const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-    const day = today(asking);
+    const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...allowed });
     const effectiveFrom = asking.effectiveFrom ?? day;
 
     // Every value checked before anything is written, so a bad sixth field
@@ -521,6 +570,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       },
       history,
     });
+    await rejudge(tx, asking, asking.personId, eventId);
 
     // Asked again: a write can move a manager, and the answer is shown under
     // the relations that hold after it, not the ones that held before.
@@ -722,7 +772,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         );
       }
 
-      const day = today(asking);
+      const { zone, day } = await calendarOf(tx, asking.tenantId, person.values);
       const lifecycle = LIFECYCLE_KEYS.has(definition.key);
       if (lifecycle && asking.value === null) {
         return err(
@@ -768,7 +818,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         const moved = aggregate.correctHireDate(
           valid.value as string,
           { ...contextFor(asking), causationId: eventId },
-          asking.timeZone,
+          zone,
         );
         if (!moved.ok) return moved;
       } else if (moves && definition.key === 'last_working_day') {
@@ -807,6 +857,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             : {},
         history: [entry],
       });
+      await rejudge(tx, asking, asking.personId, eventId);
       return ok(entry);
     },
 
@@ -845,7 +896,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           knownAttributes: new Set(definitions.map((d) => d.key as string)),
         },
         deps.clock,
-        asking.timeZone,
+        (await calendarOf(tx, asking.tenantId, person.values)).zone,
       );
 
       const byKey = new Map(definitions.map((d) => [d.key as string, d]));
@@ -899,16 +950,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
-      const hired = aggregate.hire(
-        hireDate,
-        facts.value,
-        contextFor(asking),
-        asking.timeZone,
-      );
+      const { zone } = await calendarOf(tx, asking.tenantId, person.values);
+      const hired = aggregate.hire(hireDate, facts.value, contextFor(asking), zone);
       if (!hired.ok) return hired;
       shareIdentityFacts(aggregate, asking, person.values, hireDate);
 
       await deps.people.save(tx, aggregate);
+      await rejudge(tx, asking, asking.personId, null);
 
       const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!after) return err(PersonNotFound());

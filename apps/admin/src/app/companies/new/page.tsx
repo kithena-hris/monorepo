@@ -38,6 +38,7 @@ interface Draft {
   address: PostalAddress;
   admins: string[];
   themeId: string;
+  timeZone: string;
 }
 
 export default async function NewCompany(): Promise<JSX.Element> {
@@ -61,6 +62,8 @@ export default async function NewCompany(): Promise<JSX.Element> {
         coverImageUrl: draft.coverImageUrl,
         admins: draft.admins,
         address: draft.address,
+        // The company's zone: People's first legal entity and default (PEO-099).
+        timeZone: draft.timeZone,
       },
     });
 

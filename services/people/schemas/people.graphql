@@ -67,9 +67,34 @@ type HistoryEntry {
   supersedes: ID
 }
 
+type LegalEntity {
+  id: ID
+  name: String
+  country: String
+  timeZone: String
+  archived: Boolean
+}
+
 type ListAttribute {
   key: String
   values: [String!]
+}
+
+type Location {
+  id: ID
+  legalEntityId: ID
+  name: String
+  country: String
+
+  """The zone in force today."""
+  timeZone: String
+  zones: [LocationZone!]
+  archived: Boolean
+}
+
+type LocationZone {
+  effectiveFrom: String
+  timeZone: String
 }
 
 """
@@ -88,6 +113,16 @@ input MoneyInput {
 
 type Mutation {
   updatePerson(id: ID!, changes: [AttributeValueInput!]!, effectiveFrom: String): Person
+  updatePeopleSettings(defaultTimeZone: String, cohortMinimum: Int): PeopleSettings
+  createLegalEntity(name: String!, country: String!, timeZone: String!): LegalEntity
+  updateLegalEntity(id: ID!, name: String, timeZone: String, archived: Boolean): LegalEntity
+  createLocation(legalEntityId: ID!, name: String!, country: String!, timeZone: String!, effectiveFrom: String): Location
+  updateLocation(id: ID!, name: String, archived: Boolean): Location
+
+  """
+  From a date, in the new zone. The same date again corrects the earlier change.
+  """
+  changeLocationZone(id: ID!, timeZone: String!, effectiveFrom: String!): Location
   correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String): HistoryEntry
 }
 
@@ -101,6 +136,13 @@ type PeopleSchema {
   checksum: String
   publishedAt: String
   attributes: [AttributeDescriptor!]
+}
+
+type PeopleSettings {
+  defaultTimeZone: String
+  cohortMinimum: Int
+  slug: String
+  displayName: String
 }
 
 type Person
@@ -122,6 +164,9 @@ type PersonPage {
 type Query {
   person(id: ID!, asOf: String): Person
   people(first: Int, after: String, asOf: String): PersonPage
+  peopleSettings: PeopleSettings
+  legalEntities: [LegalEntity!]
+  locations: [Location!]
   peopleSchema(version: Int): PeopleSchema
 }
 

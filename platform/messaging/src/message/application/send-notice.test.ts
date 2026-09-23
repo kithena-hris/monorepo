@@ -5,11 +5,12 @@ import type { EmailTransport, OutgoingEmail } from './email-transport.js';
 import type { DeliveryLog, DeliveryRecord } from './delivery-log.js';
 import { sendNotice } from './send-notice.js';
 
-const APP = 'https://app.kithena.com';
+const BASE = 'https://{slug}.app.kithena.com';
 const request = {
   tenantId: '00000000-0000-4000-8000-000000000001',
   email: 'Ada@Acme.Example',
-  url: `${APP}/people`,
+  url: 'https://acme.app.kithena.com/people',
+  companyName: 'Acme Corp',
   notice: { kind: 'profile_reminder', missing: 4 } as const,
   dedupeKey: 'person-1/2026-09-23T09:00:00.000Z',
 };
@@ -31,7 +32,7 @@ function harness() {
     },
     settle: () => Promise.resolve(true),
   };
-  return { sent, recorded, send: sendNotice({ transport, deliveries, trustedLinkOrigin: APP }) };
+  return { sent, recorded, send: sendNotice({ transport, deliveries, tenantAppBase: BASE }) };
 }
 
 describe('sendNotice', () => {
@@ -62,6 +63,7 @@ describe('sendNotice', () => {
     expect(stored).not.toContain(request.url);
     expect(stored).not.toContain(email.subject);
     expect(stored).not.toContain('details');
+    expect(stored).not.toContain('Acme Corp');
   });
 
   it('keys a retry of the same claim to the same message, and hides what the key names', async () => {
@@ -76,7 +78,7 @@ describe('sendNotice', () => {
     expect(keys[0]).not.toContain('person-1');
   });
 
-  it('refuses a link outside the app origin and sends nothing', async () => {
+  it('refuses a link that is on no company’s origin, and sends nothing', async () => {
     const h = harness();
     const result = await h.send({ ...request, url: 'https://evil.example/people' });
     expect(result.ok ? null : result.error.path?.[0]).toBe('untrusted_link');

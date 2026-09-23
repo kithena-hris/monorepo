@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import { outboxTable, publish as publishEvents } from '@kithena/db-kit';
 
 import type {
@@ -11,7 +11,13 @@ import type { Attribute, Section } from '../domain/schema/draft.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
 import { SectionKey, type PersonStatus } from '@kithena/contracts';
 import { valuesOf, type ValueColumns } from './drizzle-person-reader.js';
-import { attributeDefinition, person, schemaVersion, section } from './tables.js';
+import {
+  attributeDefinition,
+  person,
+  schemaVersion,
+  schemaVersionEvaluated,
+  section,
+} from './tables.js';
 
 /**
  * The registry, as Drizzle.
@@ -67,8 +73,8 @@ export function drizzleSchemaRepository(): SchemaRepository {
       };
     },
 
-    async appendVersion(tx, tenantId, version, events, evaluatedOn) {
-      await tx.insert(schemaVersion).values({
+    async appendVersion(tx, tenantId, version, events, evaluatedOn, evaluatedAt) {
+      const row = {
         tenantId,
         version: version.version,
         publishedAt: new Date(version.publishedAt),
@@ -77,7 +83,10 @@ export function drizzleSchemaRepository(): SchemaRepository {
         document: version.document,
         rolledBackFrom: version.rolledBackFrom,
         evaluatedOn,
-      });
+      };
+      await (evaluatedAt === undefined
+        ? tx.insert(schemaVersion).values(row)
+        : tx.insert(schemaVersionEvaluated).values({ ...row, evaluatedAt: new Date(evaluatedAt) }));
 
       // Same transaction as the row, which is the whole mechanism.
       await publishEvents(tx, outbox, events);
@@ -177,7 +186,7 @@ export function drizzleDraftWriter(): DraftWriter {
  */
 export function drizzlePeopleFacts(): PeopleFactsReader {
   return {
-    async *forImpact(tx, tenantId, pageSize = 500) {
+    async *forImpact(tx, tenantId, pageSize = 500, personId) {
       let after = '00000000-0000-0000-0000-000000000000';
 
       for (;;) {
@@ -202,9 +211,21 @@ export function drizzlePeopleFacts(): PeopleFactsReader {
             locationId: person.locationId,
             hireDate: person.hireDate,
             lastWorkingDay: person.lastWorkingDay,
+            // Which sealed values exist. The plaintext is never in the row, so
+            // without this a required bank account reads as missing for
+            // everybody, and filling it would never close the gap.
+            sealed: sql<string[]>`array(
+              SELECT s.attribute_key FROM people.person_secret s
+               WHERE s.tenant_id = ${person.tenantId} AND s.person_id = ${person.id})`,
           })
           .from(person)
-          .where(and(eq(person.tenantId, tenantId), gt(person.id, after)))
+          .where(
+            and(
+              eq(person.tenantId, tenantId),
+              gt(person.id, after),
+              personId === undefined ? undefined : eq(person.id, personId),
+            ),
+          )
           .orderBy(asc(person.id))
           .limit(pageSize);
 
@@ -243,18 +264,28 @@ function countryOf(custom: Record<string, unknown>): string | null {
 
 function toEvaluable(
   row: ValueColumns & {
+    sealed: readonly string[];
     id: string;
     status: string;
     legalEntityId: string | null;
+    locationId: string | null;
     employmentType: string | null;
     workModel: string | null;
   },
 ): EvaluablePerson {
   const custom = (row.custom ?? {}) as Record<string, unknown>;
-  const values = valuesOf(row);
+  const values: Record<string, unknown> = { ...valuesOf(row) };
+  // Present, as `PersonAccess.completeness` reads it; never the value.
+  for (const key of row.sealed) values[key] = true;
 
+  const ownZone = custom['time_zone'];
   return {
     personId: row.id,
+    placement: {
+      legalEntityId: row.legalEntityId,
+      locationId: row.locationId,
+      ownZone: typeof ownZone === 'string' ? ownZone : null,
+    },
     facts: {
       legalEntityId: row.legalEntityId,
       country: countryOf(custom),

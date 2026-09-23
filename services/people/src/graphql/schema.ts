@@ -1,9 +1,16 @@
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { createBuilder, toGraphQLError } from '@kithena/graphql-kit';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
 import type { Attribute } from '../domain/schema/draft.js';
 import type { PublishedVersion } from '../domain/schema/publish.js';
 import type { HistoryEntry } from '../domain/person/history.js';
+import type {
+  LegalEntityView,
+  LocationView,
+  OrgAdmin,
+  TenantSettings,
+} from '../application/org/org.js';
 import type { Asking, PersonView } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from '../http/caller.js';
@@ -42,10 +49,10 @@ function fail(failure: DomainFailure): never {
   throw toGraphQLError(failure);
 }
 
-function caller(ctx: RequestContext): { service: PeopleService; asking: Asking } {
+async function caller(ctx: RequestContext): Promise<{ service: PeopleService; asking: Asking }> {
   if (!wiring) return fail(failure('UNAVAILABLE', 'People is not configured'));
   const headers = Object.fromEntries(ctx.request?.headers.entries() ?? []);
-  const asking = wiring.callerFrom({ headers });
+  const asking = await wiring.callerFrom({ headers });
   if (!asking.ok) return fail(asking.error);
   return { service: wiring.service, asking: asking.value };
 }
@@ -250,7 +257,7 @@ const Person = builder.objectRef<PersonShape>('Person').implement({
 });
 
 async function readPerson(ctx: RequestContext, id: string, asOf?: string): Promise<PersonShape> {
-  const { service, asking } = caller(ctx);
+  const { service, asking } = await caller(ctx);
   return unwrap(
     await run(service, asking.tenantId, async (tx) => {
       const view = await service.access.read(tx, {
@@ -309,6 +316,64 @@ const HistoryEntryRef = builder.objectRef<HistoryEntry>('HistoryEntry').implemen
     supersedes: t.id({ nullable: true, resolve: (e) => e.supersedes }),
   }),
 });
+
+/* ----------------------------------------- legal entities and settings -- */
+
+const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').implement({
+  fields: (t) => ({
+    defaultTimeZone: t.exposeString('defaultTimeZone'),
+    cohortMinimum: t.exposeInt('cohortMinimum'),
+    slug: t.string({ nullable: true, resolve: (s) => s.slug }),
+    displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
+  }),
+});
+
+const LegalEntityRef = builder.objectRef<LegalEntityView>('LegalEntity').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    country: t.exposeString('country'),
+    timeZone: t.exposeString('timeZone'),
+    archived: t.exposeBoolean('archived'),
+  }),
+});
+
+const LocationZoneRef = builder.objectRef<LocationView['zones'][number]>('LocationZone').implement({
+  fields: (t) => ({
+    effectiveFrom: t.exposeString('effectiveFrom'),
+    timeZone: t.exposeString('timeZone'),
+  }),
+});
+
+const LocationRef = builder.objectRef<LocationView>('Location').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    legalEntityId: t.exposeID('legalEntityId'),
+    name: t.exposeString('name'),
+    country: t.exposeString('country'),
+    timeZone: t.exposeString('timeZone', { description: 'The zone in force today.' }),
+    zones: t.field({ type: [LocationZoneRef], resolve: (l) => [...l.zones] }),
+    archived: t.exposeBoolean('archived'),
+  }),
+});
+
+/** A legal entity, location or settings use case for this caller, in its own transaction. */
+async function inOrg<T>(
+  ctx: RequestContext,
+  fn: (org: OrgAdmin, tx: PostgresJsDatabase, asking: Asking) => Promise<Result<T>>,
+): Promise<T> {
+  const { service, asking } = await caller(ctx);
+  const { org } = service;
+  if (!org) return fail(failure('UNAVAILABLE', 'Legal entities and settings are not configured'));
+  return unwrap(await run(service, asking.tenantId, (tx) => fn(org, tx, asking)));
+}
+
+/** Only the arguments a caller actually sent, for `exactOptionalPropertyTypes`. */
+function sent<T extends object>(args: T): { [K in keyof T]?: Exclude<T[K], null | undefined> } {
+  return Object.fromEntries(
+    Object.entries(args).filter(([, v]) => v !== null && v !== undefined),
+  ) as { [K in keyof T]?: Exclude<T[K], null | undefined> };
+}
 
 /* ------------------------------------------------------------- inputs -- */
 
@@ -399,7 +464,7 @@ builder.queryType({
       type: PersonPage,
       args: { first: t.arg.int(), after: t.arg.string(), asOf: t.arg.string() },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         return unwrap(
           await run(service, asking.tenantId, async (tx) => {
             const page = await service.access.list(tx, {
@@ -418,12 +483,28 @@ builder.queryType({
         );
       },
     }),
+    peopleSettings: t.field({
+      type: PeopleSettingsRef,
+      resolve: (_root, _args, ctx) => inOrg(ctx, (org, tx, asking) => org.settings(tx, asking)),
+    }),
+    legalEntities: t.field({
+      type: [LegalEntityRef],
+      resolve: async (_root, _args, ctx) => [
+        ...(await inOrg(ctx, (org, tx, asking) => org.legalEntities(tx, asking))),
+      ],
+    }),
+    locations: t.field({
+      type: [LocationRef],
+      resolve: async (_root, _args, ctx) => [
+        ...(await inOrg(ctx, (org, tx, asking) => org.locations(tx, asking))),
+      ],
+    }),
     peopleSchema: t.field({
       type: PeopleSchema,
       nullable: true,
       args: { version: t.arg.int() },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         return unwrap(
           await run(service, asking.tenantId, async (tx) =>
             ok(
@@ -448,7 +529,7 @@ builder.mutationType({
         effectiveFrom: t.arg.string(),
       },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         const changes: Record<string, unknown> = {};
         for (const input of args.changes) {
           changes[input.key] = unwrap(valueOf(input));
@@ -470,6 +551,82 @@ builder.mutationType({
         );
       },
     }),
+    updatePeopleSettings: t.field({
+      type: PeopleSettingsRef,
+      args: { defaultTimeZone: t.arg.string(), cohortMinimum: t.arg.int() },
+      resolve: (_root, args, ctx) =>
+        inOrg(ctx, (org, tx, asking) => org.updateSettings(tx, { ...asking, ...sent(args) })),
+    }),
+    createLegalEntity: t.field({
+      type: LegalEntityRef,
+      args: {
+        name: t.arg.string({ required: true }),
+        country: t.arg.string({ required: true }),
+        timeZone: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        inOrg(ctx, (org, tx, asking) => org.createLegalEntity(tx, { ...asking, ...args })),
+    }),
+    updateLegalEntity: t.field({
+      type: LegalEntityRef,
+      args: {
+        id: t.arg.id({ required: true }),
+        name: t.arg.string(),
+        timeZone: t.arg.string(),
+        archived: t.arg.boolean(),
+      },
+      resolve: (_root, args, ctx) =>
+        inOrg(ctx, (org, tx, asking) =>
+          org.updateLegalEntity(tx, { ...asking, ...sent(args), id: args.id }),
+        ),
+    }),
+    createLocation: t.field({
+      type: LocationRef,
+      args: {
+        legalEntityId: t.arg.id({ required: true }),
+        name: t.arg.string({ required: true }),
+        country: t.arg.string({ required: true }),
+        timeZone: t.arg.string({ required: true }),
+        effectiveFrom: t.arg.string(),
+      },
+      resolve: (_root, args, ctx) =>
+        inOrg(ctx, (org, tx, asking) =>
+          org.createLocation(tx, {
+            ...asking,
+            ...sent(args),
+            legalEntityId: args.legalEntityId,
+            name: args.name,
+            country: args.country,
+            timeZone: args.timeZone,
+          }),
+        ),
+    }),
+    updateLocation: t.field({
+      type: LocationRef,
+      args: { id: t.arg.id({ required: true }), name: t.arg.string(), archived: t.arg.boolean() },
+      resolve: (_root, args, ctx) =>
+        inOrg(ctx, (org, tx, asking) =>
+          org.updateLocation(tx, { ...asking, ...sent(args), id: args.id }),
+        ),
+    }),
+    changeLocationZone: t.field({
+      type: LocationRef,
+      description: 'From a date, in the new zone. The same date again corrects the earlier change.',
+      args: {
+        id: t.arg.id({ required: true }),
+        timeZone: t.arg.string({ required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        inOrg(ctx, (org, tx, asking) =>
+          org.changeLocationZone(tx, {
+            ...asking,
+            id: args.id,
+            timeZone: args.timeZone,
+            effectiveFrom: args.effectiveFrom,
+          }),
+        ),
+    }),
     correctAttribute: t.field({
       type: HistoryEntryRef,
       args: {
@@ -479,7 +636,7 @@ builder.mutationType({
         reason: t.arg.string(),
       },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = caller(ctx);
+        const { service, asking } = await caller(ctx);
         // The attribute is the one `supersedes` names; `key` is not consulted.
         const value = unwrap(valueOf(args.value));
         return unwrap(

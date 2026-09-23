@@ -238,9 +238,19 @@ jobs:
         if: vars.VERCEL_PROJECT_ID_MESSAGING_STAGING != ''
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_STAGING }}
+          # The only origin shape a notice may link to (`https://{slug}.…`).
+          # A repository variable, like the project id. Unset, nothing is
+          # passed and the service fails closed: it refuses every notice rather
+          # than trusting a default that points at localhost.
+          TENANT_APP_BASE: ${{ vars.TENANT_APP_BASE_STAGING }}
         run: |
-          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
-            --yes --archive=tgz --token "$VERCEL_TOKEN"
+          args=(--prod --yes --archive=tgz --token "$VERCEL_TOKEN")
+          if [ -n "$TENANT_APP_BASE" ]; then
+            args+=(--env "TENANT_APP_BASE=$TENANT_APP_BASE")
+          else
+            echo "::warning::TENANT_APP_BASE_STAGING is unset: messaging will send no reminder or webhook alert"
+          fi
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}"
 
       # `/healthz`, which is deliberately unauthenticated and says nothing worth
       # having — a status and which transport is composed. Putting the shared

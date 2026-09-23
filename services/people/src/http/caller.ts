@@ -25,9 +25,34 @@ const Forwarded = z.object({
   entitlements: z.array(z.string()).default([]),
 });
 
-export type CallerFrom = (request: HeaderCarrier) => Result<Asking>;
+export type CallerFrom = (request: HeaderCarrier) => Result<Asking> | Promise<Result<Asking>>;
 
-export function callerFromHeaders(internalToken: string): CallerFrom {
+/**
+ * The viewer's tenant roles from OpenFGA, in place of any the principal claimed
+ * (PEO-092).
+ *
+ * With OpenFGA, roles are tuples and the forwarded principal carries none —
+ * the router and the shell send `roles: []`. Every check that reads
+ * `viewer.roles` (settings, legal entities, finance's full values) would then
+ * refuse everybody, so the roles are resolved here, once per request, for
+ * every transport. A role claimed in the header is ignored: OpenFGA is the
+ * authority, and a header is not.
+ */
+export function withTenantRoles(
+  callerFrom: CallerFrom,
+  roles: (tenantId: string, accountId: string) => Promise<ReadonlySet<string>>,
+): CallerFrom {
+  return async (request) => {
+    const asking = await callerFrom(request);
+    if (!asking.ok) return asking;
+    const held = await roles(asking.value.tenantId, asking.value.viewer.accountId);
+    return ok({ ...asking.value, viewer: { ...asking.value.viewer, roles: held } });
+  };
+}
+
+export function callerFromHeaders(
+  internalToken: string,
+): (request: HeaderCarrier) => Result<Asking> {
   return (request) => {
     if (!presentsInternalToken(request, internalToken)) {
       return err(failure('UNAUTHENTICATED', 'This service is reached through the router'));

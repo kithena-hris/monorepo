@@ -10,6 +10,7 @@ import {
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
 import type { CommitDeps, ImportCounts, ImportLedger, RowScope } from './commit.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * Priya's 412 rows (PRD §14.4, story 6), for the import tests.
@@ -247,6 +248,7 @@ export function commitDeps(
   ledger: ImportLedger = inMemoryLedger(),
 ): CommitDeps {
   return {
+    calendars: utcCalendars,
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,

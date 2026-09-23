@@ -1,8 +1,9 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
 import { ImportCompleted, ImportStarted, type Actor } from '@kithena/contracts';
 
-import type { Asking, PersonAccess } from '../person/person-access.js';
+import { inTenantResult, type Asking, type PersonAccess } from '../person/person-access.js';
+import type { InTenant } from '../person/service.js';
 import { writeCsv } from './csv.js';
 import {
   dryRun,
@@ -182,6 +183,70 @@ export async function commitImport(
   });
 }
 
+/**
+ * `commitImport` in a transaction of its own, retried when Postgres chose it
+ * as the loser of a deadlock or a serialization conflict (PEO-106).
+ *
+ * An import is one long transaction, and each row takes the unique-claim
+ * locks for the rules it writes — sorted within the row, but a later row can
+ * take a rule an earlier row of another import already holds. Two imports
+ * working through rules in different orders can therefore deadlock (40P01),
+ * and Postgres breaks the cycle by aborting one of them whole. Nothing of the
+ * loser was committed, so running it again is safe; the winner has committed
+ * by then, or is about to, so the second attempt queues behind it rather than
+ * deadlocking again.
+ *
+ * Idempotent by the file's checksum, as the commit itself is: a retry that
+ * finds the checksum already claimed answers "already imported". Bounded:
+ * `attempts` tries (3 by default) with exponential backoff and jitter, then a
+ * clear refusal — nothing was imported, upload again — rather than a 500.
+ */
+export async function commitImportRetrying(
+  inTenant: InTenant,
+  deps: CommitDeps,
+  input: DryRunInput,
+  options: {
+    readonly attempts?: number;
+    readonly backoffMs?: number;
+    /** Told each time an attempt lost, with its SQLSTATE, before waiting. */
+    readonly onRetry?: (attempt: number, code: string) => void;
+  } = {},
+): Promise<Result<CommitResult>> {
+  const attempts = options.attempts ?? 3;
+  const backoff = options.backoffMs ?? 100;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop -- a retry waits for the attempt before it
+      return await inTenantResult(inTenant, input.tenantId, (tx) => commitImport(tx, deps, input));
+    } catch (error) {
+      const code = contention(error);
+      if (code === null) throw error;
+      if (attempt >= attempts) {
+        return err(
+          failure(
+            'IMPORT_CONTENDED',
+            `Another write to the same fields won ${String(attempts)} times in a row; nothing from this file was imported. Upload it again.`,
+          ),
+        );
+      }
+      options.onRetry?.(attempt, code);
+      const wait = backoff * 2 ** (attempt - 1) * (1 + Math.random());
+      // eslint-disable-next-line no-await-in-loop -- the backoff is the point
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
+/** The SQLSTATE of a deadlock or serialization failure anywhere in the cause chain, else null. */
+function contention(error: unknown): string | null {
+  for (let e: unknown = error, depth = 0; e !== null && e !== undefined && depth < 5; depth += 1) {
+    const code = (e as { code?: unknown }).code;
+    if (code === '40P01' || code === '40001') return code;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return null;
+}
+
 async function write(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
@@ -208,7 +273,6 @@ async function write(
     tenantId: input.tenantId,
     viewer: input.viewer,
     correlationId: input.correlationId,
-    ...(input.timeZone ? { timeZone: input.timeZone } : {}),
   };
 
   const done = await deps.rowScope(tx, async (sp) => {

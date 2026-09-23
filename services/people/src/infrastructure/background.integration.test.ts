@@ -24,6 +24,7 @@ import { startBackground } from './background.js';
 import { startConsumers, uuidv7 } from './consumers/wire.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { tenantTransaction } from './unit-of-work.js';
+import { utcCalendars } from '../application/org/org.js';
 
 /**
  * PEO-080 and PEO-086, through the wiring `main.ts` calls: a real Postgres, a
@@ -143,6 +144,7 @@ async function publishAndRelay(): Promise<void> {
     ACME,
     ({ tx }) =>
       publishSchema({
+        calendars: utcCalendars,
         schema: drizzleSchemaRepository(),
         people: drizzlePeopleFacts(),
         clock: systemClock,
@@ -226,10 +228,24 @@ describe('the running process', () => {
     // fresh process as far as governance is concerned.
     const registry = createPolicyRegistry({ unknownTenantRedaction: [] });
     const sent: Reminder[] = [];
+    const companies: unknown[] = [];
+    // Reminders land in working hours on the person's own clock (PRD §6.8),
+    // and this runs on the real clock: put ACME where it is midday now.
+    const offset = 12 - new Date().getUTCHours();
+    const noon =
+      offset === 0 ? 'Etc/UTC' : `Etc/GMT${offset > 0 ? '-' : '+'}${String(Math.abs(offset))}`;
+    await admin.execute(sql`
+      INSERT INTO people.tenant_settings (tenant_id, default_time_zone, slug, display_name)
+      VALUES (${ACME}::uuid, ${noon}, 'acme', 'Acme Corp')
+      ON CONFLICT (tenant_id) DO UPDATE
+        SET default_time_zone = EXCLUDED.default_time_zone,
+            slug = EXCLUDED.slug,
+            display_name = EXCLUDED.display_name`);
     const background = await startBackground(env, {
       registry,
       mailer: {
-        send: (_tenantId, reminder) => {
+        send: (_tenantId, company, reminder) => {
+          companies.push(company);
           sent.push(reminder);
           return Promise.resolve();
         },
@@ -243,6 +259,8 @@ describe('the running process', () => {
         return runs === 1 && sent.length === 1;
       });
       expect(sent[0]).toMatchObject({ workEmail: 'ada@acme.test', keys: ['emergency_contact'] });
+      // The company by name, and its own origin under the default base.
+      expect(companies[0]).toEqual({ name: 'Acme Corp', origin: 'http://acme.app.localhost:3000' });
     } finally {
       await background?.stop();
     }

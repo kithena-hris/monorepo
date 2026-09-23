@@ -19,13 +19,14 @@ import { staticKeyRing } from '../../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
-import { versionOf } from '../person/in-memory.js';
+import { define, versionOf } from '../person/in-memory.js';
 import { inTenantResult, personAccess, type PersonAccessDeps } from '../person/person-access.js';
-import { commitImport, type CommitDeps } from './commit.js';
+import { commitImport, commitImportRetrying, type CommitDeps, type RowScope } from './commit.js';
 import { asking, attributes, csv, HEADERS, priyasRows } from './fixture.js';
 import { drizzleImportLedger, drizzleRowScope } from './ledger.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
+import { utcCalendars } from '../org/org.js';
 
 /**
  * PEO-041 over Postgres, as `svc_people`: the checksum constraint, the
@@ -49,7 +50,7 @@ let admin: ReturnType<typeof drizzle>;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
-const personDeps: PersonAccessDeps = {
+const personDeps: PersonAccessDeps = { calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
@@ -59,7 +60,7 @@ const personDeps: PersonAccessDeps = {
   clock: fixedClock('2026-09-22T09:00:00.000Z'),
   newId: randomUUID,
 };
-const deps: CommitDeps = {
+const deps: CommitDeps = { calendars: utcCalendars,
   access: personAccess(personDeps),
   schemas: personDeps.schemas,
   relations: personDeps.relations,
@@ -86,6 +87,8 @@ beforeAll(async () => {
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
     '20260923130000_people_import_export.sql',
+    '20260924170000_people_calendar.sql',
+    '20260924170100_people_tenant_company.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -272,5 +275,122 @@ describe('an import over Postgres', () => {
     const other = '00000000-0000-4000-8000-00000000000b';
     const seen = await inTenant(other, ({ tx }) => tx.execute(sql`SELECT id FROM people.import`));
     expect([...seen]).toHaveLength(0);
+  });
+});
+
+describe('two imports claiming the same attributes in opposite orders (PEO-106)', () => {
+  // Their own tenant, with a second unique attribute: one import claims
+  // work_email then employee_number, the other employee_number then
+  // work_email, each holding its first claim while the other takes its own.
+  const CONTENDED = '00000000-0000-4000-8000-00000000000c';
+  const P1 = '00000000-0000-4000-8000-0000000000e1';
+  const P2 = '00000000-0000-4000-8000-0000000000e2';
+  const headers = ['Given name', 'Family name', 'Work email', 'Hire date', 'Employee number'];
+  const withNumber = [
+    ...attributes,
+    define({
+      key: 'employee_number',
+      label: { default: 'Employee number' },
+      uniqueScope: 'tenant',
+    }),
+  ];
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  // Each row holds its locks a moment before the next, so the two interleave.
+  const slowRows: RowScope = async (tx, fn) => {
+    const done = await drizzleRowScope(tx, fn);
+    await pause(400);
+    return done;
+  };
+  const slow: CommitDeps = { ...deps, rowScope: slowRows };
+
+  beforeAll(async () => {
+    await inTenant(CONTENDED, async ({ tx }) => {
+      await drizzleSchemaRepository().appendVersion(
+        tx,
+        CONTENDED,
+        versionOf(1, withNumber),
+        [],
+        '2026-09-01',
+      );
+      for (const [id, email] of [
+        [P1, 'p1@acme.test'],
+        [P2, 'p2@acme.test'],
+      ] as const) {
+        await drizzlePersonRepository().create(
+          tx,
+          Person.rehydrate({
+            id,
+            tenantId: CONTENDED,
+            status: 'active',
+            identityAccountId: null,
+            hireDate: '2026-01-01',
+            lastWorkingDay: null,
+          }),
+          { workEmail: email, givenName: 'P', familyName: id.slice(-1) },
+        );
+      }
+    });
+  });
+
+  async function prepared(rows: string[][]) {
+    const file = await parseUpload(csv(headers, rows));
+    if (!file.ok) throw new Error(file.error.message);
+    const version = versionOf(1, withNumber);
+    const proposed = await proposeMapping({
+      file: file.value,
+      version,
+      relations: HR_RELATIONS,
+      advisor: null,
+    });
+    const mapping = resolveMapping(proposed, {}, version, HR_RELATIONS);
+    if (!mapping.ok) throw new Error(mapping.error.message);
+    return { ...asking, tenantId: CONTENDED, file: file.value, mapping: mapping.value };
+  }
+
+  async function race(round: number, attempts: number, retried: string[]) {
+    // A: a new person (work_email), then P1's number. B: P2's number, then a new person.
+    const a = await prepared([
+      ['Ana', 'Ay', `a${String(round)}@acme.test`, '2026-03-01', ''],
+      ['', '', 'p1@acme.test', '', `A-${String(round)}`],
+    ]);
+    const b = await prepared([
+      ['', '', 'p2@acme.test', '', `B-${String(round)}`],
+      ['Bo', 'Bee', `b${String(round)}@acme.test`, '2026-03-01', ''],
+    ]);
+    const options = {
+      attempts,
+      backoffMs: 50,
+      onRetry: (_attempt: number, code: string) => {
+        retried.push(code);
+      },
+    };
+    const first = commitImportRetrying(inTenant, slow, a, options);
+    await pause(150);
+    const second = commitImportRetrying(inTenant, slow, b, options);
+    return Promise.all([first, second]);
+  }
+
+  it('deadlocks without a retry, and says so rather than throwing', async () => {
+    const retried: string[] = [];
+    const results = await race(1, 1, retried);
+    const lost = results.flatMap((r) => (r.ok ? [] : [r.error.code]));
+    expect(lost).toEqual(['IMPORT_CONTENDED']);
+  });
+
+  it('both commit when the loser is retried, each once', async () => {
+    const retried: string[] = [];
+    const results = await race(2, 3, retried);
+    expect(retried).toEqual(['40P01']);
+    expect(results.map((r) => r.ok && r.value.status)).toEqual(['imported', 'imported']);
+    expect(results.map((r) => r.ok && r.value.status === 'imported' && r.value.counts)).toEqual([
+      expect.objectContaining({ created: 1, updated: 1, blocked: 0 }),
+      expect.objectContaining({ created: 1, updated: 1, blocked: 0 }),
+    ]);
+    const numbers = [
+      ...(await admin.execute(sql`
+        SELECT count(*) AS n FROM people.import WHERE tenant_id = ${CONTENDED}::uuid`)),
+    ];
+    // Round 1's winner, and both of round 2: one ledger row each, nothing twice.
+    expect(Number(numbers[0]?.['n'])).toBe(3);
   });
 });

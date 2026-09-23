@@ -64,14 +64,16 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'PeopleSetup': {
       const loaded = await read('/v1/views/setup');
       if (loaded.status !== 'ready') return loaded;
-      // The legal entity as the back office recorded the company: People has
-      // no legal entity to read yet, so the wizard confirms this one.
+      const data = loaded.data as { legalEntity?: { name: string; country: string } };
+      if (data.legalEntity !== undefined) return loaded;
+      // No legal entity in People yet: suggest the company as the back office
+      // recorded it, for the admin to confirm.
       const tenant = await currentTenant();
       const country = tenant?.location?.country ?? '';
       return {
         status: 'ready',
         data: {
-          ...(loaded.data as object),
+          ...data,
           legalEntity: {
             name: tenant?.branding.displayName ?? tenant?.slug ?? '',
             // A code, or nothing for the administrator to pick: never a guess.

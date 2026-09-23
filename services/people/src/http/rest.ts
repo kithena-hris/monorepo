@@ -6,6 +6,7 @@ import { err, failure, ok, type DomainFailure, type Result } from '@kithena/doma
 import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.js';
 import { linksOf } from '../application/export/job.js';
 import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
+import type { OrgAdmin } from '../application/org/org.js';
 import {
   decideFullValues,
   requestFullValues,
@@ -184,6 +185,73 @@ export const ExportBody = z.object({
   links: z.array(z.object({ name: z.string(), url: z.url() })),
 });
 
+/* Legal entities, locations and settings (PEO-099). Zones are IANA names. */
+
+export const SettingsBody = z.object({
+  defaultTimeZone: z.string(),
+  cohortMinimum: z.int().describe('Raisable, never lowerable; at least 10.'),
+  slug: z
+    .string()
+    .nullable()
+    .describe('Where the company signs in, <slug>.app…; the back office sets it, read-only here.'),
+  displayName: z.string().nullable().describe('The company name; the back office sets it.'),
+});
+
+export const PatchSettingsBody = z.strictObject({
+  defaultTimeZone: z.string().optional(),
+  cohortMinimum: z.int().optional(),
+});
+
+export const LegalEntityBody = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string(),
+  archived: z.boolean(),
+});
+
+export const CreateLegalEntityBody = z.strictObject({
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string(),
+});
+
+export const PatchLegalEntityBody = z.strictObject({
+  name: z.string().optional(),
+  timeZone: z.string().optional(),
+  archived: z.boolean().optional(),
+});
+
+export const LocationBody = z.object({
+  id: z.uuid(),
+  legalEntityId: z.uuid(),
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string().describe('The zone in force today.'),
+  zones: z.array(z.object({ effectiveFrom: z.iso.date(), timeZone: z.string() })),
+  archived: z.boolean(),
+});
+
+export const CreateLocationBody = z.strictObject({
+  legalEntityId: z.uuid(),
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string(),
+  /** From when the zone is in force. Defaults to today in that zone. */
+  effectiveFrom: z.iso.date().optional(),
+});
+
+export const PatchLocationBody = z.strictObject({
+  name: z.string().optional(),
+  archived: z.boolean().optional(),
+});
+
+export const LocationZoneBody = z.strictObject({
+  timeZone: z.string(),
+  /** The day the new zone takes effect, in that zone. The same day again is a correction. */
+  effectiveFrom: z.iso.date(),
+});
+
 /* ------------------------------------------------------------- errors -- */
 
 const STATUS: Record<string, number> = {
@@ -200,6 +268,9 @@ const STATUS: Record<string, number> = {
   IDEMPOTENCY_KEY_REUSED: 422,
   APPROVAL_DECIDED: 409,
   APPROVAL_EXPIRED: 409,
+  // Two imports contended past the retries (PEO-106): nothing was written; upload again.
+  IMPORT_CONTENDED: 409,
+  ALREADY_IMPORTED: 409,
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
@@ -238,6 +309,13 @@ export function json(body: string): Result<unknown> {
   } catch {
     return err(failure('BAD_REQUEST', 'The body is not JSON'));
   }
+}
+
+/** The keys a caller sent, without the ones Zod left `undefined` (`exactOptionalPropertyTypes`). */
+function present<T extends object>(value: T): { [K in keyof T]?: Exclude<T[K], undefined> } {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>;
+  };
 }
 
 /** Opaque to the caller; today it is the last id, base64url. */
@@ -367,6 +445,42 @@ export function restHandler(
       (view) => view,
     );
 
+  /** A legal entity, location or settings use case, in its own transaction. */
+  const inOrg = <T>(asking: Asking, fn: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<T>>) => {
+    const { org } = service;
+    return org
+      ? run(service, asking.tenantId, (tx) => fn(org, tx))
+      : Promise.resolve(err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')));
+  };
+
+  /** Reads one back by id for a write's answer, and for its idempotent replay. */
+  const readOrg = async <T extends { id: string }>(
+    asking: Asking,
+    list: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<readonly T[]>>,
+    id: string,
+  ) =>
+    respond(
+      await inOrg(asking, async (org, tx) => {
+        const all = await list(org, tx);
+        if (!all.ok) return all;
+        const found = all.value.find((x) => x.id === id);
+        return found ? ok(found) : err(failure('NOT_FOUND', 'Not found'));
+      }),
+      200,
+      (x) => x,
+    );
+
+  const readEntity = (asking: Asking, id: string) =>
+    readOrg(asking, (org, tx) => org.legalEntities(tx, asking), id);
+  const readLocation = (asking: Asking, id: string) =>
+    readOrg(asking, (org, tx) => org.locations(tx, asking), id);
+
+  /** Parse a JSON body against a schema, or the refusal to answer with. */
+  const bodyAs = <T>(schema: z.ZodType<T>, request: RestRequest): Result<T> => {
+    const body = json(request.body);
+    return body.ok ? parse(schema, body.value) : body;
+  };
+
   const readEntry = async (asking: Asking, personId: string, entryId: string) =>
     respond(
       await run(service, asking.tenantId, async (tx) => {
@@ -486,17 +600,27 @@ export function restHandler(
         const input = body.ok ? parse(FullValuesDecisionBody, body.value) : body;
         if (!input.ok) return refused(input.error);
         const requestId = params['id'] ?? '';
-        const decided = await run(service, asking.tenantId, (tx) =>
-          decideFullValues(tx, full.deps, {
-            ...asking,
-            requestId,
-            approve: input.value.approve,
-            note: input.value.note ?? null,
-          }),
+        // Idempotent like every other write (PEO-107): a retried decision is
+        // answered with the request as it now stands, not a 409 for deciding
+        // twice. The wake-up is sent on a replay too; settling is idempotent,
+        // and it covers a first attempt whose wake-up was lost.
+        const answer = await idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const decided = await decideFullValues(tx, full.deps, {
+              ...asking,
+              requestId,
+              approve: input.value.approve,
+              note: input.value.note ?? null,
+            });
+            return decided.ok ? ok(requestId) : decided;
+          },
+          (id) => readFullValues(asking, id),
         );
-        if (!decided.ok) return refused(decided.error);
-        await full.decided(asking.tenantId, requestId, asking.correlationId);
-        return readFullValues(asking, requestId);
+        if (answer.status < 300) await full.decided(asking.tenantId, requestId, asking.correlationId);
+        return answer;
       },
     },
     {
@@ -741,6 +865,162 @@ export function restHandler(
           (verdict) => ({ state: verdict.state, missing: verdict.missing }),
         ),
     },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/settings$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
+    },
+    {
+      method: 'PATCH',
+      pattern: /^\/v1\/settings$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(PatchSettingsBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Settings are not configured'));
+            const saved = await service.org.updateSettings(tx, { ...asking, ...present(input.value) });
+            return saved.ok ? ok(asking.tenantId) : saved;
+          },
+          async () => respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/legal-entities$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.legalEntities(tx, asking)), 200, (items) => ({
+          items,
+        })),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/legal-entities$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(CreateLegalEntityBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            const created = await service.org.createLegalEntity(tx, { ...asking, ...input.value });
+            return created.ok ? ok(created.value.id) : created;
+          },
+          (id) => readEntity(asking, id),
+        );
+      },
+    },
+    {
+      method: 'PATCH',
+      pattern: new RegExp(`^/v1/legal-entities/${UUID}$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(PatchLegalEntityBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            const updated = await service.org.updateLegalEntity(tx, {
+              ...asking,
+              id,
+              ...present(input.value),
+            });
+            return updated.ok ? ok(id) : updated;
+          },
+          (resource) => readEntity(asking, resource),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/locations$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.locations(tx, asking)), 200, (items) => ({
+          items,
+        })),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/locations$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(CreateLocationBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Locations are not configured'));
+            const { effectiveFrom, ...place } = input.value;
+            const created = await service.org.createLocation(tx, {
+              ...asking,
+              ...place,
+              ...(effectiveFrom === undefined ? {} : { effectiveFrom }),
+            });
+            return created.ok ? ok(created.value.id) : created;
+          },
+          (id) => readLocation(asking, id),
+        );
+      },
+    },
+    {
+      method: 'PATCH',
+      pattern: new RegExp(`^/v1/locations/${UUID}$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(PatchLocationBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Locations are not configured'));
+            const updated = await service.org.updateLocation(tx, {
+              ...asking,
+              id,
+              ...present(input.value),
+            });
+            return updated.ok ? ok(id) : updated;
+          },
+          (resource) => readLocation(asking, resource),
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/locations/${UUID}/zones$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(LocationZoneBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Locations are not configured'));
+            const changed = await service.org.changeLocationZone(tx, {
+              ...asking,
+              id,
+              ...input.value,
+            });
+            return changed.ok ? ok(id) : changed;
+          },
+          (resource) => readLocation(asking, resource),
+        );
+      },
+    },
     ...(deps.screens ?? []),
   ];
 
@@ -757,7 +1037,7 @@ export function restHandler(
         body: { error: { code: 'METHOD_NOT_ALLOWED', message: request.method } },
       };
 
-    const asking = deps.callerFrom(request);
+    const asking = await deps.callerFrom(request);
     if (!asking.ok) return refused(asking.error);
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];

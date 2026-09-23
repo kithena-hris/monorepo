@@ -7,11 +7,14 @@ import { asking as exportAsking, FINANCE, financeTenant } from '../application/e
 import { inMemoryFullValuesStore } from '../application/export/full-values-store.js';
 import { inMemoryExportLedger } from '../application/export/ledger.js';
 import { localObjectStore } from '../application/export/object-store.js';
+import { inMemoryOrg } from '../application/org/in-memory.js';
+import { orgAdmin } from '../application/org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
 import { inMemoryIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest } from './rest.js';
+import { utcCalendars } from '../application/org/org.js';
 
 const ADA = '00000000-0000-4000-8000-0000000000a1';
 const BEA = '00000000-0000-4000-8000-0000000000a4';
@@ -173,7 +176,7 @@ describe('exports', () => {
         }),
       idempotency: inMemoryIdempotency(),
       exports: {
-        deps: {
+        deps: { calendars: utcCalendars,
           access: service.access,
           schemas: service.schemas,
           relations: store.deps.relations,
@@ -274,7 +277,7 @@ describe('full-values requests', () => {
       },
       idempotency: inMemoryIdempotency(),
       fullValues: {
-        deps: {
+        deps: { calendars: utcCalendars,
           access: service.access,
           schemas: service.schemas,
           relations: store.deps.relations,
@@ -327,10 +330,10 @@ describe('full-values requests', () => {
     const id = (created.body as { id: string }).id;
     expect(hooks).toEqual([`started ${id}`]);
 
-    const decision = (who: string) => ({
+    const decision = (who: string, key = 'd1') => ({
       method: 'POST',
       url: `/v1/exports/full-values/${id}/decision`,
-      headers: { 'x-as': who },
+      headers: { 'x-as': who, 'idempotency-key': key },
       body: JSON.stringify({ approve: true }),
     });
     expect((await call(decision('finance'))).status).toBe(403);
@@ -338,7 +341,15 @@ describe('full-values requests', () => {
     expect(decided.status).toBe(200);
     expect(decided.body).toMatchObject({ state: 'approved' });
     expect(hooks).toEqual([`started ${id}`, `decided ${id}`]);
-    expect((await call(decision('hr'))).status).toBe(409);
+
+    // A retried decision, same key and body, replays rather than refusing (PEO-107).
+    const replayed = await call(decision('hr'));
+    expect(replayed.status).toBe(200);
+    expect(replayed.body).toEqual(decided.body);
+    // A second decision is a new request, and deciding twice is still refused.
+    expect((await call(decision('hr', 'd2'))).status).toBe(409);
+    const unkeyed = await call({ ...decision('hr'), headers: { 'x-as': 'hr' } });
+    expect(unkeyed.body).toMatchObject({ error: { code: 'IDEMPOTENCY_KEY_REQUIRED' } });
 
     const stranger = await call({
       url: `/v1/exports/full-values/${id}`,
@@ -357,5 +368,90 @@ describe('full-values requests', () => {
     });
     expect(refused.status).toBe(403);
     expect(hooks).toEqual([]);
+  });
+});
+
+describe('legal entities, locations and settings', () => {
+  function withOrg(roles: string[]) {
+    const store = inMemoryPeople([versionOf(1, [title])]);
+    const org = inMemoryOrg();
+    let n = 0;
+    const rest = restHandler({
+      service: {
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+        org: orgAdmin({
+          store: org.store,
+          clock: fixedClock('2026-03-31T20:00:00.000Z'),
+          newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
+        }),
+      },
+      callerFrom: () =>
+        ok({
+          tenantId: TENANT,
+          viewer: { accountId: HR, roles: new Set(roles) },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        }),
+      idempotency: inMemoryIdempotency(),
+    });
+    const call = async (method: string, url: string, body?: unknown, key = `${method} ${url}`) => {
+      const answer = await rest({
+        method,
+        url,
+        headers: { 'idempotency-key': key },
+        body: body === undefined ? '' : JSON.stringify(body),
+      });
+      if (!answer) throw new Error('not a REST route');
+      return answer;
+    };
+    return { call, org };
+  }
+
+  it('creates an entity and a location, and serves the zone in force', async () => {
+    const { call } = withOrg(['people_admin']);
+    const entity = await call('POST', '/v1/legal-entities', {
+      name: 'Acme India',
+      country: 'IN',
+      timeZone: 'Asia/Kolkata',
+    });
+    expect(entity.status).toBe(201);
+    const { id } = entity.body as { id: string };
+
+    // 20:00 UTC on the 31st is already 1 April in Kolkata: the default effective date.
+    const office = await call('POST', '/v1/locations', {
+      legalEntityId: id,
+      name: 'Bangalore',
+      country: 'IN',
+      timeZone: 'Asia/Kolkata',
+    });
+    expect(office).toMatchObject({
+      status: 201,
+      body: { timeZone: 'Asia/Kolkata', zones: [{ effectiveFrom: '2026-04-01' }] },
+    });
+    expect((await call('GET', '/v1/locations')).body).toMatchObject({
+      items: [{ name: 'Bangalore' }],
+    });
+  });
+
+  it('refuses a writer who is not a People administrator', async () => {
+    const { call } = withOrg(['hr']);
+    const refused = await call('POST', '/v1/legal-entities', {
+      name: 'Acme',
+      country: 'ES',
+      timeZone: 'Europe/Madrid',
+    });
+    expect(refused).toMatchObject({ status: 403, body: { error: { code: 'FORBIDDEN' } } });
+  });
+
+  it('never lowers the cohort minimum', async () => {
+    const { call } = withOrg(['people_admin']);
+    expect((await call('PATCH', '/v1/settings', { cohortMinimum: 20 }, 'a')).body).toMatchObject({
+      cohortMinimum: 20,
+    });
+    expect((await call('PATCH', '/v1/settings', { cohortMinimum: 15 }, 'b')).body).toMatchObject({
+      error: { code: 'COHORT_MINIMUM_LOWERED' },
+    });
+    expect((await call('GET', '/v1/settings')).body).toMatchObject({ cohortMinimum: 20 });
   });
 });

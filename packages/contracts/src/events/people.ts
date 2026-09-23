@@ -629,6 +629,105 @@ export const ExportCompleted = defineEvent(
   }),
 );
 
+/* ----------------------------------------------------- calendar events -- */
+
+/*
+ * Legal entities, locations and tenant settings (PEO-099): the calendars
+ * every "today" in People is read on. Organisation configuration rather than
+ * anybody's personal data — a company's legal name and an office's time zone
+ * are on its letterhead — but classified all the same, because the codegen
+ * walk refuses anything that is not.
+ */
+
+const PlaceName = z.string().min(1).max(200).register(policy, asInternal());
+/** ISO 3166-1 alpha-2, upper case. */
+const CountryOf = z
+  .string()
+  .regex(/^[A-Z]{2}$/u)
+  .register(policy, asPublic());
+/** An IANA zone, validated against the runtime's database where it is written. */
+const ZoneName = z.string().min(1).register(policy, asPublic());
+const LocationId = z.uuid().register(policy, asPublic());
+
+export const LegalEntityCreated = defineEvent(
+  'people.legal_entity.created',
+  1,
+  z.object({
+    legalEntityId: LegalEntityId,
+    name: PlaceName,
+    country: CountryOf,
+    /** The entity's default zone: whose day its aggregates are counted on. */
+    timeZone: ZoneName,
+  }),
+);
+
+/** A rename, a new default zone, or archiving. The country never changes. */
+export const LegalEntityUpdated = defineEvent(
+  'people.legal_entity.updated',
+  1,
+  z.object({
+    legalEntityId: LegalEntityId,
+    name: PlaceName,
+    timeZone: ZoneName,
+    archived: z.boolean().register(policy, asPublic()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
+export const LocationCreated = defineEvent(
+  'people.location.created',
+  1,
+  z.object({
+    locationId: LocationId,
+    legalEntityId: LegalEntityId,
+    name: PlaceName,
+    country: CountryOf,
+    timeZone: ZoneName,
+    /** From when the first zone is in force. Also the envelope's `effectiveFrom`. */
+    effectiveFrom: CalendarDate,
+  }),
+);
+
+export const LocationUpdated = defineEvent(
+  'people.location.updated',
+  1,
+  z.object({
+    locationId: LocationId,
+    name: PlaceName,
+    archived: z.boolean().register(policy, asPublic()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
+/**
+ * A location's zone changed from a date, or a mistaken zone was corrected.
+ *
+ * Effective-dated like any fact: `effectiveFrom` is the calendar day it takes
+ * effect on, in the new zone; a correction names the row it `supersedes`.
+ */
+export const LocationZoneChanged = defineEvent(
+  'people.location.zone_changed',
+  1,
+  z.object({
+    locationId: LocationId,
+    zoneId: z.uuid().register(policy, asPublic()),
+    timeZone: ZoneName,
+    effectiveFrom: CalendarDate,
+    supersedes: z.uuid().nullable().register(policy, asPublic()),
+  }),
+);
+
+/** The tenant's default zone or cohort minimum changed. The minimum only ever rises. */
+export const TenantSettingsChanged = defineEvent(
+  'people.settings.changed',
+  1,
+  z.object({
+    defaultTimeZone: ZoneName,
+    cohortMinimum: z.int().min(10).register(policy, asInternal()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
 /**
  * Full values for finance: asked for, decided, issued once, downloaded once
  * (PEO-088; §15.2). Finance never downloads a sensitive value directly — HR
@@ -742,6 +841,12 @@ export const peopleEvents = [
   ImportStarted,
   ImportCompleted,
   ExportCompleted,
+  LegalEntityCreated,
+  LegalEntityUpdated,
+  LocationCreated,
+  LocationUpdated,
+  LocationZoneChanged,
+  TenantSettingsChanged,
   FullValuesRequested,
   FullValuesDecided,
   FullValuesExpired,

@@ -1,11 +1,20 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  fixedClock,
+  localDate,
+  ok,
+  type Clock,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
 import type { Actor } from '@kithena/contracts';
 
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import { diff, publish, type PublishedVersion, type SchemaDiff } from '../../domain/schema/publish.js';
+import type { Calendars } from '../org/org.js';
 import {
-  clockAsOf,
   computeImpact,
   ownersOf,
   type EvaluablePerson,
@@ -37,8 +46,6 @@ export interface PublishRequest {
   readonly correlationId: string;
   /** Where the published artifact will be fetchable. */
   readonly artifactUrl: string;
-  /** The tenant's calendar, for `requiredFrom`. */
-  readonly timeZone?: string;
 }
 
 export interface PublishPreview {
@@ -56,6 +63,8 @@ export interface PublishSchemaDeps {
   readonly people: PeopleFactsReader;
   readonly clock: Clock;
   readonly newEventId: () => string;
+  /** Whose day each person's `requiredFrom` is read on. */
+  readonly calendars: Calendars;
 }
 
 export interface PublishSchema {
@@ -79,7 +88,12 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
     tx: PostgresJsDatabase,
     request: PublishRequest,
   ): Promise<
-    Result<{ candidate: PublishedVersion; preview: PublishPreview; evaluatedOn: string }>
+    Result<{
+      candidate: PublishedVersion;
+      preview: PublishPreview;
+      evaluatedOn: string;
+      evaluatedAt: string;
+    }>
   > {
     const [{ sections, attributes }, current] = await Promise.all([
       deps.schema.loadDraft(tx, request.tenantId),
@@ -111,18 +125,22 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
     }
 
     /*
-     * One date, taken once, in the tenant's calendar. The preview evaluates
-     * against it and the publish records it on the version, so the recompute
-     * that runs later off `schema.published` — which carries no time zone —
-     * evaluates the same day rather than guessing one.
+     * One instant, taken once. Each person's `requiredFrom` is read on their
+     * own calendar at it (PRD §6.8), and the publish records it on the
+     * version, so the recompute that runs later off `schema.published`
+     * replays the same instant — and so the same day for each person —
+     * rather than whatever day it happens to be when the event arrives.
      */
-    const evaluatedOn = deps.clock.date(request.timeZone ?? 'Etc/UTC');
-    const impact = computeImpact(before, after, people, clockAsOf(deps.clock, evaluatedOn));
+    const calendar = await deps.calendars.load(tx, request.tenantId);
+    const evaluatedAt = deps.clock.instant();
+    const evaluatedOn = localDate(evaluatedAt, calendar.defaultZone);
+    const impact = computeImpact(before, after, people, fixedClock(evaluatedAt), calendar);
     const newlyRequired = [...new Set(impact.people.flatMap((p) => p.newlyMissing))];
 
     return ok({
       candidate: candidate.value,
       evaluatedOn,
+      evaluatedAt,
       preview: {
         nextVersion: candidate.value.version,
         diff: diff(current?.document ?? { sections: [], attributes: [] }, candidate.value.document),
@@ -144,7 +162,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
       const evaluated = await evaluate(tx, request);
       if (!evaluated.ok) return evaluated;
 
-      const { candidate, preview, evaluatedOn } = evaluated.value;
+      const { candidate, preview, evaluatedOn, evaluatedAt } = evaluated.value;
 
       /*
        * A version identical to the one in force is refused.
@@ -168,6 +186,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
         candidate,
         events(candidate, preview, request, deps),
         evaluatedOn,
+        evaluatedAt,
       );
 
       return ok({ version: candidate, preview });

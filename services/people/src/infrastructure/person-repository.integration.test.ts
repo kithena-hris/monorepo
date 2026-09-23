@@ -91,6 +91,8 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
+    '20260924170000_people_calendar.sql',
+    '20260924170100_people_tenant_company.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -111,9 +113,13 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await admin.execute(sql`ALTER TABLE people.person_attribute_history DISABLE TRIGGER history_is_append_only`);
+  await admin.execute(
+    sql`ALTER TABLE people.person_attribute_history DISABLE TRIGGER history_is_append_only`,
+  );
   await admin.execute(sql`DELETE FROM people.person_attribute_history`);
-  await admin.execute(sql`ALTER TABLE people.person_attribute_history ENABLE TRIGGER history_is_append_only`);
+  await admin.execute(
+    sql`ALTER TABLE people.person_attribute_history ENABLE TRIGGER history_is_append_only`,
+  );
   await admin.execute(sql`DELETE FROM people.outbox`);
   await admin.execute(sql`DELETE FROM people.person`);
 });
@@ -136,7 +142,7 @@ describe('a write and its event', () => {
   it('commit together', async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', HIRED, context());
+      person.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
       await repository.create(tx, person, { givenName: 'Ada', familyName: 'Lovelace' });
     });
 
@@ -158,7 +164,7 @@ describe('a write and its event', () => {
     await expect(
       inTenant(ACME, async ({ tx }) => {
         const person = provisional();
-        person.hire('2026-09-01', HIRED, context());
+        person.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
         await repository.create(tx, person, { givenName: 'Ada', familyName: 'Lovelace' });
 
         // Something later in the same unit of work fails. A validation, a
@@ -174,7 +180,7 @@ describe('a write and its event', () => {
     await expect(
       inTenant(ACME, async ({ tx }) => {
         const first = provisional();
-        first.hire('2026-09-01', HIRED, context());
+        first.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
         await repository.create(tx, first, { employeeNumber: 'E-1' });
 
         // Same employee number, same tenant. The partial unique index refuses
@@ -187,7 +193,7 @@ describe('a write and its event', () => {
           hireDate: null,
           lastWorkingDay: null,
         });
-        second.hire('2026-09-01', HIRED, context());
+        second.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
         await repository.create(tx, second, { employeeNumber: 'E-1' });
       }),
     ).rejects.toThrow();
@@ -198,7 +204,7 @@ describe('a write and its event', () => {
   it('writes history, the row and the event as one', async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', HIRED, context());
+      person.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
       await repository.create(tx, person);
     });
 
@@ -243,7 +249,7 @@ describe('the aggregate and the row', () => {
   beforeEach(async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', HIRED, context());
+      person.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
       await repository.create(tx, person, { givenName: 'Ada', familyName: 'Lovelace' });
     });
   });
@@ -298,7 +304,7 @@ describe('the unit of work', () => {
   it('scopes every statement to one tenant', async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', HIRED, context());
+      person.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
       await repository.create(tx, person);
     });
 
@@ -312,7 +318,7 @@ describe('the unit of work', () => {
     // tenant.
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', HIRED, context());
+      person.hire('2026-09-01', HIRED, context(), 'Etc/UTC');
       await repository.create(tx, person);
     });
 

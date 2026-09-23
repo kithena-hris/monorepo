@@ -18,6 +18,7 @@ import { noTransaction as tx } from '../../application/person/in-memory.js';
 import { personAccess } from '../../application/person/person-access.js';
 import { activities, TASK_QUEUE, workflowId, workflowsPath } from './full-values.js';
 import { decidedSignal, fullValuesApproval } from './full-values.workflow.js';
+import { utcCalendars } from '../../application/org/org.js';
 
 /**
  * The workflow on Temporal's time-skipping test server: a week passes in
@@ -45,7 +46,7 @@ function setup() {
   };
   const sent: string[] = [];
   let ids = 0;
-  const deps: FullValuesDeps = {
+  const deps: FullValuesDeps = { calendars: utcCalendars,
     access: personAccess(people.deps),
     schemas: people.deps.schemas,
     relations: people.deps.relations,
