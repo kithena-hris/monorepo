@@ -35,7 +35,11 @@ import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
-import { tenantAppBaseOrLog, tenantCompanies } from '../infrastructure/tenant-origin.js';
+import {
+  NO_TENANT_APP_BASE,
+  tenantAppBase,
+  tenantCompanies,
+} from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
@@ -69,9 +73,8 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
   };
   // No base (production without a safe `TENANT_APP_BASE`): no alert email,
   // the event alone — never a link to localhost.
-  const base = tenantAppBaseOrLog(process.env, (message) => {
-    logger.error(message);
-  });
+  const base = tenantAppBase(process.env);
+  if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
   const alerts = base === null ? undefined : webhookAlertMailerFrom(process.env);
   const companyOf = tenantCompanies(base ?? '', drizzleOrgStore());
   const hooks = webhooks({

@@ -17,7 +17,7 @@ import { drizzleOrgStore } from './drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
-import { tenantAppBaseOrLog, tenantCompanies } from './tenant-origin.js';
+import { NO_TENANT_APP_BASE, tenantAppBase, tenantCompanies } from './tenant-origin.js';
 import { knownTenants } from './tenants.js';
 import { claimRotation } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
@@ -178,9 +178,8 @@ export async function startBackground(
   );
 
   const mailer = options.mailer ?? reminderMailerFrom(env);
-  const base = tenantAppBaseOrLog(env, (message) => {
-    logger.error(message);
-  });
+  const base = tenantAppBase(env);
+  if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
   if (mailer === undefined || base === null) {
     logger.info('no reminder mailer or no tenant app base; reminder sweep not scheduled');
   } else {

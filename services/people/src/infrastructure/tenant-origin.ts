@@ -30,17 +30,9 @@ export function tenantAppBase(env: NodeJS.ProcessEnv): string | null {
   return base?.startsWith('https://') === true && base.includes('{slug}') ? base : null;
 }
 
-/** `tenantAppBase`, said once at boot when it refuses: an error, because email is off. */
-export function tenantAppBaseOrLog(
-  env: NodeJS.ProcessEnv,
-  log: (message: string) => void,
-): string | null {
-  const base = tenantAppBase(env);
-  if (base === null) {
-    log('TENANT_APP_BASE is unset or not https in production; notice emails are off, events only');
-  }
-  return base;
-}
+/** What is logged, once at boot, when `tenantAppBase` refuses: an error, because email is off. */
+export const NO_TENANT_APP_BASE =
+  'TENANT_APP_BASE is unset or not https in production; notice emails are off, events only';
 
 /** One DNS label: what a slug must be before it goes in front of a host. */
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
