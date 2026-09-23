@@ -70,12 +70,16 @@ function walkObject(value: object, state: Walk): object | undefined {
     const child = record[key];
     const next = state.keys.has(key) ? CENSOR : walk(child, state);
     if (next !== child) {
-      copy ??= Object.create(
-        Object.getPrototypeOf(value) as object | null,
-        Object.getOwnPropertyDescriptors(value),
-      ) as Record<string, unknown>;
+      copy ??= clone(value);
       Object.defineProperty(copy, key, { value: next, enumerable: true, writable: true, configurable: true });
     }
   }
   return copy;
+}
+
+/** A spread for a plain object, which is nearly every log line; the full copy otherwise. */
+function clone(value: object): Record<string, unknown> {
+  const proto = Object.getPrototypeOf(value) as object | null;
+  if (proto === Object.prototype) return { ...value };
+  return Object.create(proto, Object.getOwnPropertyDescriptors(value)) as Record<string, unknown>;
 }
