@@ -14,6 +14,7 @@ import {
   assessCompleteness,
   gapsByOwner,
   type CompletenessState,
+  type CompletenessVerdict,
   type MissingAttribute,
 } from '../../domain/person/completeness.js';
 import { personZone } from '../../domain/org/calendar.js';
@@ -125,86 +126,25 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
     let becameComplete = 0;
 
     const flush = async (batch: readonly EvaluablePerson[]): Promise<void> => {
-      const byState: Record<CompletenessState, string[]> = {
-        complete: [],
-        incomplete: [],
-        not_applicable: [],
-      };
-      const newlyIncomplete = new Map<string, readonly MissingAttribute[]>();
-      const newlyComplete: string[] = [];
-      const gaps: Gap[] = [];
-
-      for (const person of batch) {
+      const judged = batch.map((person) => {
         // The preview's own classification, asked about one person.
         const impact = computeImpact(before, after, [person], clock, calendar);
-        const verdict = assessCompleteness(
-          after,
-          person.facts,
-          clock,
-          personZone(calendar, person.placement, at),
-        );
-
-        byState[verdict.state].push(person.personId);
-        const owners = gapsByOwner(verdict);
-        gaps.push({
+        return {
           personId: person.personId,
-          employeeKeys: owners.employee.map((m) => m.key),
-          staffKeys: owners.staff.map((m) => m.key),
-        });
-
-        if (impact.becomingIncomplete === 1) newlyIncomplete.set(person.personId, verdict.missing);
-        if (impact.becomingComplete === 1) newlyComplete.push(person.personId);
-      }
-
-      const changedToIncomplete = await deps.store.setState(
-        tx,
-        tenantId,
-        'incomplete',
-        byState.incomplete,
-      );
-      const changedToComplete = await deps.store.setState(
-        tx,
-        tenantId,
-        'complete',
-        byState.complete,
-      );
-      await deps.store.setState(tx, tenantId, 'not_applicable', byState.not_applicable);
-
-      const events: PendingEvent[] = [];
-      for (const [personId, missing] of newlyIncomplete) {
-        if (!changedToIncomplete.has(personId)) continue;
-        events.push(
-          event(request, deps, personId, 'people.person.profile_incomplete', {
-            personId,
-            missing: missing.map((m) => ({
-              key: m.key,
-              sectionKey: m.sectionKey,
-              owners: m.owners,
-            })),
-            schemaVersion,
-          }),
-        );
-      }
-      for (const personId of newlyComplete) {
-        if (!changedToComplete.has(personId)) continue;
-        events.push(
-          event(request, deps, personId, 'people.person.profile_completed', {
-            personId,
-            schemaVersion,
-          }),
-        );
-      }
-
-      await deps.store.saveGaps(tx, tenantId, schemaVersion, gaps);
-      await deps.store.publish(tx, events);
-
+          verdict: assessCompleteness(
+            after,
+            person.facts,
+            clock,
+            personZone(calendar, person.placement, at),
+          ),
+          becameIncomplete: impact.becomingIncomplete === 1,
+          becameComplete: impact.becomingComplete === 1,
+        };
+      });
+      const raised = await settle(tx, deps, request, schemaVersion, judged);
       evaluated += batch.length;
-      becameIncomplete += events.filter(
-        (e) => e.eventName === 'people.person.profile_incomplete',
-      ).length;
-      becameComplete += events.filter(
-        (e) => e.eventName === 'people.person.profile_completed',
-      ).length;
+      becameIncomplete += raised.becameIncomplete;
+      becameComplete += raised.becameComplete;
     };
 
     let batch: EvaluablePerson[] = [];
@@ -221,9 +161,147 @@ export function recomputeCompleteness(deps: RecomputeDeps): RecomputeCompletenes
   };
 }
 
+/** One person's verdict, and whether it is a transition worth an event. */
+interface Judged {
+  readonly personId: string;
+  readonly verdict: CompletenessVerdict;
+  readonly becameIncomplete: boolean;
+  readonly becameComplete: boolean;
+}
+
+type Cause = Pick<RecomputeRequest, 'tenantId' | 'actor' | 'correlationId' | 'causationId'>;
+
+/**
+ * Store verdicts and raise what changed: the one write path for both the
+ * publish run and the one-person run, so the two cannot drift apart.
+ *
+ * An event goes out only when the stored state actually moved, which is what
+ * makes a redelivery, or a second write that changes nothing, raise nothing.
+ */
+async function settle(
+  tx: PostgresJsDatabase,
+  deps: Pick<RecomputeDeps, 'store' | 'clock' | 'newEventId'>,
+  cause: Cause,
+  schemaVersion: number,
+  judged: readonly Judged[],
+): Promise<{ becameIncomplete: number; becameComplete: number }> {
+  const { tenantId } = cause;
+  const byState: Record<CompletenessState, string[]> = {
+    complete: [],
+    incomplete: [],
+    not_applicable: [],
+  };
+  const gaps: Gap[] = [];
+  for (const { personId, verdict } of judged) {
+    byState[verdict.state].push(personId);
+    const owners = gapsByOwner(verdict);
+    gaps.push({
+      personId,
+      employeeKeys: owners.employee.map((m) => m.key),
+      staffKeys: owners.staff.map((m) => m.key),
+    });
+  }
+
+  const changedToIncomplete = await deps.store.setState(
+    tx,
+    tenantId,
+    'incomplete',
+    byState.incomplete,
+  );
+  const changedToComplete = await deps.store.setState(tx, tenantId, 'complete', byState.complete);
+  await deps.store.setState(tx, tenantId, 'not_applicable', byState.not_applicable);
+
+  const events: PendingEvent[] = [];
+  for (const j of judged) {
+    if (j.becameIncomplete && changedToIncomplete.has(j.personId)) {
+      events.push(
+        event(cause, deps, j.personId, 'people.person.profile_incomplete', {
+          personId: j.personId,
+          missing: j.verdict.missing.map((m: MissingAttribute) => ({
+            key: m.key,
+            sectionKey: m.sectionKey,
+            owners: m.owners,
+          })),
+          schemaVersion,
+        }),
+      );
+    }
+    if (j.becameComplete && changedToComplete.has(j.personId)) {
+      events.push(
+        event(cause, deps, j.personId, 'people.person.profile_completed', {
+          personId: j.personId,
+          schemaVersion,
+        }),
+      );
+    }
+  }
+
+  await deps.store.saveGaps(tx, tenantId, schemaVersion, gaps);
+  await deps.store.publish(tx, events);
+  return {
+    becameIncomplete: events.filter((e) => e.eventName === 'people.person.profile_incomplete')
+      .length,
+    becameComplete: events.filter((e) => e.eventName === 'people.person.profile_completed').length,
+  };
+}
+
+/**
+ * §8.4 again, for one person, after their record changed (PEO-102).
+ *
+ * A field filled, cleared or corrected, a hire, a start, a status corrected
+ * back: each can move the verdict, and a verdict read only at publish goes
+ * stale — the gap row keeps asking for a field somebody filled an hour ago,
+ * and the reminder goes out anyway. So every write path calls this in its
+ * own transaction, and it evaluates exactly as the publish run does: the same
+ * reader, the same `assessCompleteness`, the person's own day, the same
+ * `settle`. Only "was" differs — here it is the stored state, since the
+ * version did not change and the record did.
+ *
+ * `profile_incomplete` when a record that was not incomplete now is (a hire
+ * with gaps included); `profile_completed` only when an incomplete one
+ * closed. A write that leaves the state where it was raises nothing, and the
+ * gap row is rewritten either way, so a filled field leaves the reminder's
+ * list at once and an empty list is never reminded.
+ */
+export type RecomputePerson = (
+  tx: PostgresJsDatabase,
+  request: Cause & { readonly personId: string },
+) => Promise<void>;
+
+export function recomputePerson(
+  deps: Omit<RecomputeDeps, 'batchSize'>,
+): RecomputePerson {
+  return async (tx, request) => {
+    const current = await deps.schema.currentVersion(tx, request.tenantId);
+    if (current === null) return;
+    let person: EvaluablePerson | undefined;
+    for await (const one of deps.people.forImpact(tx, request.tenantId, 1, request.personId)) {
+      person = one;
+    }
+    if (person === undefined) return;
+
+    const was = await deps.store.stateOf(tx, request.tenantId, request.personId);
+    const calendar = await deps.calendars.load(tx, request.tenantId);
+    const verdict = assessCompleteness(
+      current.document.attributes,
+      person.facts,
+      deps.clock,
+      personZone(calendar, person.placement, deps.clock.instant()),
+    );
+    await settle(tx, deps, request, current.version, [
+      {
+        personId: request.personId,
+        verdict,
+        becameIncomplete: verdict.state === 'incomplete' && was !== 'incomplete',
+        becameComplete: verdict.state === 'complete' && was === 'incomplete',
+      },
+    ]);
+  };
+}
+
 function event(
-  request: RecomputeRequest,
-  deps: RecomputeDeps,
+  request: Cause,
+  deps: Pick<RecomputeDeps, 'clock' | 'newEventId'>,
   personId: string,
   eventName: string,
   payload: Record<string, unknown>,

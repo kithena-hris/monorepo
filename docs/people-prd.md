@@ -639,7 +639,13 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
 - **provisional** — an account exists, a person record has been created from it,
   and no HR has confirmed it is an employee. Required fields do not apply.
 - **pre_hire** — confirmed, with a start date in the future. Required fields
-  apply to whatever is `collectAt: signup | enrolment | onboarding`.
+  apply to whatever is `collectAt: signup | enrolment | onboarding`; an
+  `hr_only` or `anytime` field waits for the start date. The filter is in the
+  one function every reader of completeness calls, so the publish preview, the
+  recompute, a record's own verdict, the import dry run (which judges a hired
+  row in the state the commit will leave it in) and an export's grey
+  not-applicable cells all agree. Analytics counts missing fields for active,
+  on-leave and notice records only.
 - **active** — started. All applicable required fields apply.
 - **on_leave**, **notice** — active variants; relevant because requiredness
   predicates can name them.
@@ -814,6 +820,19 @@ before the instant was recorded replays its one `evaluated_on` date.
 The sweep runs hourly for every tenant, so without this a reminder reaches
 Auckland at 03:00 because it was morning in Europe. The one-per-week cap stays
 in hours (168), which needs no calendar at all.
+
+**Kept current between publishes.** A verdict read only at publish goes
+stale the moment anybody writes: a field filled an hour ago is still on the
+gap row, and the reminder goes out anyway. So every write to a person — a
+field filled, cleared or corrected, a hire, a start, a status a correction
+moves (§8.1) — re-judges that one person in the same transaction, with the
+same reader, the same function and the same day as the publish recompute.
+The stored state, the gap rows and so the reminder's list move with the
+write: a filled field leaves the list at once. `profile_incomplete` is raised
+when a record that was not incomplete becomes so (a hire with gaps included),
+`profile_completed` only when an incomplete one closes, and a write that
+leaves the state where it was raises nothing. A sealed value counts as
+present by its existence; its plaintext is never read to decide.
 
 Completeness is exposed on the API and in reporting, so a customer who *wants*
 to gate something on it — an onboarding module, an access request — can do that
@@ -1193,7 +1212,14 @@ of them changes it.
 **Secrets are not in the row.** Bank accounts, national identifiers and tax
 identifiers live in `people.person_secret` under envelope encryption, with their
 own RLS policy and their own grant. The person row keeps `last4` for display.
-Nothing in `custom` and nothing in an event ever holds the plaintext.
+Nothing in `custom` and nothing in an event ever holds the plaintext. Rotating
+the master key re-wraps each secret's data key under the new one — the value
+is never decrypted — in the same hourly, bounded, idempotent job shape as the
+claims, a batch of people per transaction, logging counts and key ids only;
+once no secret and no claim names the old key it can be dropped
+(`.env.example`). A secret under a key the deployment no longer holds cannot
+be opened by anybody, so the job refuses and says which key rather than
+failing half a batch.
 
 **RLS with FORCE on every table**, `svc_people` created `NOBYPASSRLS`, using the
 same `NULLIF(current_setting('app.tenant_id', true), '')::uuid` form the identity
@@ -1464,7 +1490,9 @@ POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
 ```
 
 OpenAPI generated from the same Zod definitions, per the rule that a derived
-artifact is never hand-written. Idempotency keys on every write. Cursor
+artifact is never hand-written. Idempotency keys on every write — an HR
+decision on a full-values request included, so a retried approval replays the
+request as it stands instead of refusing a second decision. Cursor
 pagination. Field-level authorization identical to GraphQL's, because both call
 the same application layer.
 
@@ -1614,6 +1642,12 @@ rather than a failure.
 - **Idempotency.** An import carries a key derived from the file's checksum.
   Re-uploading the same file reports "already imported" rather than
   duplicating 400 people, which is the mistake every importer makes once.
+- **Concurrent imports.** An import is one transaction, and two of them
+  claiming the same unique attributes in different orders can deadlock;
+  Postgres then aborts one whole. The commit is retried on a deadlock or
+  serialization failure, three attempts with backoff, idempotent by the
+  checksum key; one that still loses is refused with "nothing from this file
+  was imported, upload it again", never half-applied.
 - **Partial commit.** Blocked rows never prevent good rows. The report is
   downloadable as a CSV with the original row number, the original values and
   the reason, so it can be fixed and re-imported as a smaller file.
