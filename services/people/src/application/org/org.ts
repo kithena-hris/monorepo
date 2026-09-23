@@ -24,7 +24,9 @@ import {
   type PlaceInput,
   type TenantCalendar,
 } from '../../domain/org/calendar.js';
+import { checkScheme } from '../../domain/org/numbering.js';
 import type { Viewer } from '../person/ports.js';
+import type { EmployeeNumbers, NumberingView } from './numbering.js';
 
 /**
  * Legal entities, locations and the tenant's People settings (PEO-099).
@@ -139,6 +141,8 @@ export interface OrgStore extends Calendars {
 
 export interface OrgDeps {
   readonly store: OrgStore;
+  /** Employee numbering (PEO-101). Absent, those use cases answer UNAVAILABLE. */
+  readonly numbers?: EmployeeNumbers;
   readonly clock: Clock;
   /** UUIDv7, for ids and events. */
   readonly newId: () => string;
@@ -199,6 +203,18 @@ export interface OrgAdmin {
   ): Promise<Result<{ readonly created: boolean }>>;
   /** The back office named or renamed the company. An older description is ignored. */
   rememberCompany(tx: Tx, tenantId: string, company: Company): Promise<boolean>;
+  /** Every entity's numbering scheme; an entity with none does not number. */
+  numberings(tx: Tx, asking: Asked): Promise<Result<readonly NumberingView[]>>;
+  /** Set or change one entity's scheme; `people_admin` only (§9.4). */
+  setNumbering(
+    tx: Tx,
+    asking: Asked<{
+      readonly legalEntityId: string;
+      readonly prefix: string;
+      readonly digits: number;
+      readonly start: number;
+    }>,
+  ): Promise<Result<NumberingView>>;
 }
 
 export function orgAdmin(deps: OrgDeps): OrgAdmin {
@@ -516,6 +532,37 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
      * wanting the company's name listens there.
      */
     rememberCompany: (tx, tenantId, company) => store.saveCompany(tx, tenantId, company),
+
+    numberings: async (tx, asking) =>
+      deps.numbers
+        ? ok(await deps.numbers.list(tx, asking.tenantId))
+        : err(failure('UNAVAILABLE', 'Employee numbering is not configured')),
+
+    setNumbering: async (tx, asking) => {
+      const { numbers } = deps;
+      if (!numbers) return err(failure('UNAVAILABLE', 'Employee numbering is not configured'));
+      const by = writer(asking);
+      if (!by.ok) return by;
+      const found = await entity(tx, asking.tenantId, asking.legalEntityId);
+      if (!found.ok) return found;
+      const checked = checkScheme(asking);
+      if (!checked.ok) return checked;
+      const saved = await numbers.save(tx, asking.tenantId, asking.legalEntityId, checked.value);
+      await store.publish(tx, [
+        event(
+          by.value,
+          'people.employee_numbering.set',
+          { type: 'LegalEntity', id: asking.legalEntityId },
+          {
+            legalEntityId: saved.legalEntityId,
+            prefix: saved.prefix,
+            digits: saved.digits,
+            nextValue: saved.nextValue,
+          },
+        ),
+      ]);
+      return ok(saved);
+    },
   };
 }
 

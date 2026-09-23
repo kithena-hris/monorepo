@@ -729,6 +729,21 @@ export const TenantSettingsChanged = defineEvent(
 );
 
 /**
+ * A legal entity's employee numbering, set or changed (PEO-101; §9.4). The
+ * next number is internal: it says how many people an entity has hired.
+ */
+export const EmployeeNumberingSet = defineEvent(
+  'people.employee_numbering.set',
+  1,
+  z.object({
+    legalEntityId: LegalEntityId,
+    prefix: z.string().max(10).register(policy, asPublic()),
+    digits: z.int().min(1).max(12).register(policy, asPublic()),
+    nextValue: z.int().min(1).register(policy, asInternal()),
+  }),
+);
+
+/**
  * Full values for finance: asked for, decided, issued once, downloaded once
  * (PEO-088; §15.2). Finance never downloads a sensitive value directly — HR
  * approves a named request, and the approval issues one file behind a link
@@ -847,6 +862,7 @@ export const peopleEvents = [
   LocationUpdated,
   LocationZoneChanged,
   TenantSettingsChanged,
+  EmployeeNumberingSet,
   FullValuesRequested,
   FullValuesDecided,
   FullValuesExpired,

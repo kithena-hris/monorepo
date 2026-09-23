@@ -560,8 +560,10 @@ What that means for the attributes that point at them:
 - `time_zone` stays identity's projection (§5). It is the person's own zone
   and it only decides their day when neither their location nor their entity
   does.
-- `employee_number` is unique per legal entity (Appendix A), which is why the
-  entity is a row with an id rather than a label.
+- `employee_number` is numbered per legal entity (§9.4) — each entity its own
+  prefix and sequence — which is why the entity is a row with an id rather
+  than a label. The number itself is unique in the whole tenant, so it names
+  one person whichever entity it came from.
 
 Zones are IANA names, validated against the runtime's own database (`Intl`)
 where they are written; an offset such as `UTC+2` is refused, because it has no
@@ -589,6 +591,7 @@ database the bytes end up in.
 | Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
 | Provisional person record | People, from `identity.account.provisioned` | Automatically, within the second | `people.person` |
 | Schema: sections, attributes, requiredness | HR admin (`people_admin`) | Settings, any time | `people.section`, `people.attribute_definition`, `people.schema_version` |
+| Employee numbering schemes: prefix, width, next number (§9.4) | HR admin (`people_admin`) | Settings, any time | `people.employee_numbering` |
 | Legal entities, locations and their time zones (§6.8) | HR admin (`people_admin`); the first entity from the back office's company wizard | Tenant creation, then settings, any time | `people.legal_entity`, `people.location`, `people.location_zone` |
 | Tenant default time zone, cohort minimum | HR admin (`people_admin`); the default zone first from the company wizard | Tenant creation, then settings | `people.tenant_settings` |
 | Country pack defaults | Kithena | Tenant creation, by legal-entity country | Same tables, `origin: 'country_pack'` |
@@ -600,6 +603,7 @@ database the bytes end up in.
 | Salary, variable pay | HR or finance | Hire, then effective-dated changes | Typed columns, encrypted where financial, plus history |
 | Bank account, tax identifiers | The employee | Onboarding | `people.person_secret` only |
 | Public profile | The employee | Any time | `people.person` plus history |
+| Employee number | People, from the legal entity's numbering scheme (§9.4); HR or an import where it has none, or to set one by hand | Hire | `people.person.employee_number`; the sequence in `people.employee_numbering` |
 | Manager, org unit | HR | Hire, then on change | Typed columns; emits `manager_changed` |
 | Onboarding checklist state | System, from the Onboarding module or People's own minimal version | Automatically | `people.person` |
 | Termination facts | HR | Offboarding | Typed columns; emits `terminated` |
@@ -646,7 +650,14 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
   row in the state the commit will leave it in) and an export's grey
   not-applicable cells all agree. Analytics counts missing fields for active,
   on-leave and notice records only.
-- **active** — started. All applicable required fields apply.
+- **active** — started. All applicable required fields apply. A pre-hire
+  becomes active on their start date without anybody pressing anything: an
+  hourly job starts every pre-hire whose start date has begun on their own
+  calendar (§6.8) — Auckland's 1st at its midnight, Los Angeles's at its own —
+  raising `status_changed` (reason `started`, effective from the start date)
+  and, for a linked person, `identity_facts_changed`, and re-judging their
+  completeness. Bounded per run, one transaction per person, and idempotent:
+  a second replica or a re-run finds nobody left to start.
 - **on_leave**, **notice** — active variants; relevant because requiredness
   predicates can name them.
 - **terminated** — a tombstone. The record survives; employment records outlive
@@ -962,7 +973,21 @@ The same screen area, separate tabs:
   `GET/POST/PATCH /v1/legal-entities`, `/v1/locations`,
   `POST /v1/locations/{id}/zones`, `GET/PATCH /v1/settings`, and the matching
   GraphQL fields.
-- **Employee numbering** — format, prefix, sequence start, per legal entity.
+- **Employee numbering** — per legal entity, `people_admin`'s: a prefix (up to
+  ten letters, digits or hyphens), a width the sequence is zero-padded to
+  (1–12 digits) and where it starts, so `ES-` and 5 from 100 write `ES-00100`,
+  and grow past the width rather than wrapping. `GET/PUT
+  /v1/legal-entities/{id}/numbering`; each change raises
+  `people.employee_numbering.set`. An entity with a scheme numbers every
+  person hired into it who has no number yet, in the hire's transaction: the
+  entity's row is locked and incremented, so racing hires queue, and a hire
+  that is refused hands its number back — no holes, which a database
+  sequence could not promise. A number somebody already holds is skipped. A
+  number typed or imported in such an entity must be one the scheme would
+  write (the dry run says so per row, and the write refuses it), is claimed
+  unique, and moves the sequence past itself. An entity with no scheme
+  numbers nobody. Numbers are unique in the tenant, and so in each entity,
+  and a change to the scheme never moves the sequence back.
 - **Directory** — which attributes are searchable, who may see the directory,
   whether photos show.
 - **Country packs** — which are enabled, per legal entity.
@@ -1077,6 +1102,7 @@ never anybody's values, every field classified like any other.
 | `people.location.updated` v1 | locationId, name, archived, changed field names |
 | `people.location.zone_changed` v1 | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
 | `people.settings.changed` v1 | default time zone, cohort minimum, changed field names |
+| `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number |
 
 `people.person.org_changed` already names the legal entity and location a
 person moved to; that event is what tells a consumer a person changed
@@ -2492,7 +2518,8 @@ deleted and cannot have their classification loosened.
 
 ### HR information
 
-`employee_number`**core** (unique per legal entity), `status`**core**,
+`employee_number`**core** (numbered per legal entity, unique in the tenant;
+§9.4), `status`**core**,
 `hire_date`**core**, `seniority_date`, `legal_entity`**core**, `org_unit`,
 `cost_centre`, `work_location`, `manager`**core**, `dotted_line_manager`,
 `work_email`**core**, `work_phone`, `job_title`**core**, `job_family`,
