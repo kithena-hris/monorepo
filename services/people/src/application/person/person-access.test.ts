@@ -243,7 +243,7 @@ describe('the edges of a write', () => {
     expect(!result.ok && result.error.path).toEqual(['effectiveFrom']);
   });
 
-  it('claims a sealed unique value by digest, never by its plaintext', async () => {
+  it('claims a national identifier as its country normalises it', async () => {
     const nationalId = define({
       key: 'national_id',
       dataType: 'national_id',
@@ -263,6 +263,7 @@ describe('the edges of a write', () => {
     const people = personAccess({
       ...store.deps,
       uniques: {
+        lock: () => Promise.resolve(),
         claim: (_tx, _tenant, claim) => {
           claimed.push(claim.value);
           return Promise.resolve(ok(undefined));
@@ -276,13 +277,42 @@ describe('the edges of a write', () => {
         await people.update(tx, {
           ...asking(hr),
           personId: ADA,
-          changes: { national_id: '12345678Z' },
+          changes: { national_id: ' 12345678-z ' },
         })
       ).ok,
     ).toBe(true);
-    expect(claimed).toHaveLength(1);
-    expect(claimed[0]).toMatch(/^[0-9a-f]{64}$/);
-    expect(claimed[0]).not.toContain('12345678');
+    // Keyed and hashed by the claim store, which never keeps this text
+    // (`unique.integration.test.ts`); the application hands over one spelling.
+    expect(claimed).toEqual(['12345678Z']);
+  });
+
+  it('locks every rule it will claim under before the first claim', async () => {
+    const unique = (key: string) => define({ key, uniqueScope: 'tenant', visibility: ['hr'] });
+    const store = inMemoryPeople([versionOf(1, [unique('a_number'), unique('b_number')])]);
+    store.seed(ADA);
+    const calls: string[] = [];
+    const people = personAccess({
+      ...store.deps,
+      uniques: {
+        lock: (_tx, _tenant, rules) => {
+          calls.push(`lock ${rules.map((r) => r.attributeKey).join(',')}`);
+          return Promise.resolve();
+        },
+        claim: (_tx, _tenant, claim) => {
+          calls.push(`claim ${claim.attributeKey}`);
+          return Promise.resolve(ok(undefined));
+        },
+        release: () => Promise.resolve(),
+      },
+    });
+
+    const written = await people.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { b_number: 'B-1', a_number: 'A-1' },
+    });
+    expect(written.ok).toBe(true);
+    expect(calls).toEqual(['lock b_number,a_number', 'claim b_number', 'claim a_number']);
   });
 });
 
@@ -649,5 +679,74 @@ describe('running a use case in a tenant transaction', () => {
     rolledBack = false;
     expect(await inTenantResult(inTenant, TENANT, () => Promise.resolve(ok(1)))).toEqual(ok(1));
     expect(rolledBack).toBe(false);
+  });
+});
+
+describe('filtering the directory', () => {
+  const costCentre = define({
+    key: 'cost_centre',
+    visibility: ['self', 'manager', 'hr'],
+    ownership: ['hr'],
+  });
+  const team = define({ key: 'team', visibility: ['directory'], ownership: ['hr'] });
+  const number = define({ key: 'employee_number', visibility: ['directory'], ownership: ['hr'] });
+
+  function directory() {
+    const store = inMemoryPeople([versionOf(4, [salary, title, iban, costCentre, team, number])]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT, custom: { cost_centre: 'ENG-201', team: 'Core' } });
+    store.seed(ADA, {
+      account: ADA_ACCOUNT,
+      fields: { managerId: MARCO },
+      custom: { cost_centre: 'ENG-204', team: 'Core' },
+    });
+    return personAccess(store.deps);
+  }
+
+  it('narrows to people holding the value', async () => {
+    const people = directory();
+    const page = await people.list(tx, {
+      ...asking(hr),
+      limit: 50,
+      where: { cost_centre: 'ENG-204' },
+    });
+    expect(page.ok && page.value.items.map((p) => p.id)).toEqual([ADA]);
+  });
+
+  it('lets anybody filter on what everybody can read', async () => {
+    const page = await directory().list(tx, { ...asking(ada), limit: 50, where: { team: 'Core' } });
+    expect(page.ok && page.value.items).toHaveLength(2);
+  });
+
+  it('refuses a key the viewer can read on some people and not others', async () => {
+    // Marco reads Ada's cost centre as her manager, and nobody else's: who
+    // matches a filter would tell him the rest.
+    const page = await directory().list(tx, {
+      ...asking(marco),
+      limit: 50,
+      where: { cost_centre: 'ENG-201' },
+    });
+    expect(page).toEqual(
+      err(
+        failure('FIELD_NOT_FILTERABLE', 'You cannot filter people by cost_centre', ['cost_centre']),
+      ),
+    );
+  });
+
+  it('refuses an encrypted key, a core column and a key nobody defined', async () => {
+    const people = directory();
+    for (const key of ['iban', 'employee_number', 'hire_date', 'shoe_size']) {
+      const page = await people.list(tx, { ...asking(hr), limit: 50, where: { [key]: 'x' } });
+      expect(page.ok ? 'allowed' : page.error.code).toBe('FIELD_NOT_FILTERABLE');
+    }
+  });
+
+  it('refuses a filter combined with asOf, which it cannot honour', async () => {
+    const page = await directory().list(tx, {
+      ...asking(hr),
+      limit: 50,
+      asOf: '2026-01-01',
+      where: { cost_centre: 'ENG-204' },
+    });
+    expect(page.ok ? 'allowed' : page.error.code).toBe('FILTER_WITH_AS_OF');
   });
 });

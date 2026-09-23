@@ -59,33 +59,44 @@ export interface AccordionTriggerProps extends ComponentPropsWithoutRef<
 > {
   /** Right-aligned summary that stays visible while the panel is closed. */
   meta?: ReactNode;
+  /**
+   * The heading level the trigger sits in. Each header is a real heading, so
+   * a screen reader can jump between sections; `3` suits an accordion under a
+   * section title, `2` one directly under the page's `h1`. A level that skips
+   * one breaks the outline that jump relies on.
+   */
+  level?: 2 | 3 | 4 | 5 | 6;
 }
 
 export function AccordionTrigger({
   className,
   children,
   meta,
+  level = 3,
   ...props
 }: AccordionTriggerProps): JSX.Element {
+  const Heading = `h${String(level)}` as 'h3';
   return (
-    <AccordionPrimitive.Header className="flex">
-      <AccordionPrimitive.Trigger
-        className={cn(
-          'group flex min-h-tap flex-1 items-center gap-3 px-4 py-3 text-left text-base font-medium text-fg',
-          'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover',
-          'active:bg-surface-active',
-          'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-          className,
-        )}
-        {...props}
-      >
-        <span className="min-w-0 flex-1 truncate">{children}</span>
-        {meta ? <span className="shrink-0 text-sm text-fg-muted">{meta}</span> : null}
-        <ChevronDown
-          aria-hidden
-          className="size-4 shrink-0 text-fg-subtle transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]:rotate-180"
-        />
-      </AccordionPrimitive.Trigger>
+    <AccordionPrimitive.Header asChild>
+      <Heading className="flex">
+        <AccordionPrimitive.Trigger
+          className={cn(
+            'group flex min-h-tap flex-1 items-center gap-3 px-4 py-3 text-left text-base font-medium text-fg',
+            'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover',
+            'active:bg-surface-active',
+            'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+            className,
+          )}
+          {...props}
+        >
+          <span className="min-w-0 flex-1 truncate">{children}</span>
+          {meta ? <span className="shrink-0 text-sm text-fg-muted">{meta}</span> : null}
+          <ChevronDown
+            aria-hidden
+            className="size-4 shrink-0 text-fg-subtle transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]:rotate-180"
+          />
+        </AccordionPrimitive.Trigger>
+      </Heading>
     </AccordionPrimitive.Header>
   );
 }

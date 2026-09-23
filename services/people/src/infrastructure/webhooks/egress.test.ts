@@ -78,9 +78,7 @@ afterEach(async () => {
   hits = [];
 });
 
-async function receiver(
-  respond: (res: ServerResponse) => void,
-): Promise<number> {
+async function receiver(respond: (res: ServerResponse) => void): Promise<number> {
   server = createServer((req, res) => {
     hits.push(`${req.headers.host ?? ''}${req.url ?? ''}`);
     respond(res);

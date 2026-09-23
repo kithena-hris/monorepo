@@ -46,6 +46,9 @@ function routes(): RequestHandler {
     // a service that silently prints them instead of sending looks exactly like
     // one that works.
     allowLogTransport: process.env['VERCEL_ENV'] !== 'production',
+    // Both optional: without them notices are refused and compose says so.
+    noticeToken: process.env['MESSAGING_PEOPLE_TOKEN'],
+    appOrigin: process.env['APP_ORIGIN'],
     // Neon's *pooled* host, and `svc_messaging` rather than the owner — an
     // owner bypasses row-level security on its own tables whatever the policy
     // says, and `messaging.delivery` is scoped by one.

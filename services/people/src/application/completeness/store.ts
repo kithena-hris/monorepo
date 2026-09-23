@@ -67,6 +67,10 @@ export interface CompletenessStore {
    * day is before `today` (§8.1). Read off the record rather than stored, so
    * it closes when HR terminates or corrects the date forward, with nothing
    * to clear.
+   *
+   * And one `unique_conflict` row per attribute where a key rotation found a
+   * value two people hold (PEO-082), naming both. It closes when either of
+   * them changes the value and the next rotation re-keys the claim.
    */
   staffGrid(tx: PostgresJsDatabase, tenantId: string, today: string): Promise<readonly GridRow[]>;
 }
@@ -84,8 +88,12 @@ export interface Reminder {
 }
 
 export interface GridRow {
-  /** `missing`: `key` has no value. `confirm_termination`: `key` is `last_working_day`, and it has passed. */
-  readonly task: 'missing' | 'confirm_termination';
+  /**
+   * `missing`: `key` has no value. `confirm_termination`: `key` is
+   * `last_working_day`, and it has passed. `unique_conflict`: `key` is unique
+   * and these people hold the same value.
+   */
+  readonly task: 'missing' | 'confirm_termination' | 'unique_conflict';
   readonly key: string;
   readonly personIds: readonly string[];
 }

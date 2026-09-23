@@ -258,3 +258,30 @@ export const Disabled: Story = {
     </div>
   ),
 };
+
+export const HeadingLevel: Story = {
+  name: 'Directly under the page title',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Every header is a real heading, so a screen reader can jump section to section. Under a section title the default `h3` is right; straight under the page `h1`, pass `level={2}` so the outline does not skip a level.',
+      },
+    },
+  },
+  render: () => (
+    <div className="max-w-xl space-y-4">
+      <h1 className="text-xl font-semibold">Onboarding</h1>
+      <Accordion type="single" collapsible defaultValue="contact">
+        <AccordionItem value="contact">
+          <AccordionTrigger level={2}>Contact details</AccordionTrigger>
+          <AccordionContent>A phone number and a personal email.</AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="bank">
+          <AccordionTrigger level={2}>Bank details</AccordionTrigger>
+          <AccordionContent>Where your salary is paid.</AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  ),
+};

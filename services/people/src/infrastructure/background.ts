@@ -16,6 +16,7 @@ import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { knownTenants } from './tenants.js';
+import { claimRotation } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
 
 /**
@@ -161,6 +162,8 @@ export async function startBackground(
       ),
     ),
   ];
+
+  jobs.push(every(HOUR, () => forEachTenant('unique-claims', claimRotation(inTenant, env['PEOPLE_SECRET_KEYS']))));
 
   if (options.mailer === undefined) {
     logger.info('no reminder mailer (PEO-084); reminder sweep not scheduled');

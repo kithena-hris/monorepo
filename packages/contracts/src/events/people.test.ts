@@ -190,6 +190,16 @@ describe('the events a person record produces', () => {
   });
 });
 
+describe('a unique-claim conflict', () => {
+  it('names the attribute and the two people, never a value', () => {
+    expect(payloadKeys('people.unique_claim.conflict').toSorted()).toEqual([
+      'attributeKey',
+      'heldBy',
+      'staleClaimBy',
+    ]);
+  });
+});
+
 describe('an import or an export', () => {
   it('carries counts and keys, never the file and never a value', () => {
     for (const name of [

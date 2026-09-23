@@ -79,14 +79,20 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
-    async page(tx, tenantId, after, limit) {
+    async page(tx, tenantId, after, limit, where) {
       const rows = await tx
         .select()
         .from(person)
         .where(
-          after === null
-            ? eq(person.tenantId, tenantId)
-            : and(eq(person.tenantId, tenantId), gt(person.id, after)),
+          and(
+            eq(person.tenantId, tenantId),
+            after === null ? undefined : gt(person.id, after),
+            // Containment, which is what `person_custom_idx` (GIN,
+            // jsonb_path_ops) answers. One `@>` for every key at once.
+            where === undefined || Object.keys(where).length === 0
+              ? undefined
+              : sql`${person.custom} @> ${JSON.stringify(where)}::jsonb`,
+          ),
         )
         .orderBy(asc(person.id))
         .limit(limit);
