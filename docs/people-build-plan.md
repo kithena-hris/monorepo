@@ -703,7 +703,7 @@ Test-first, all of it. No drivers, no I/O.
   colour alone never distinguishes them.
 - **Done when** the previewed count matches what the recompute produces.
 
-### [ ] PEO-049 — Setup wizard
+### [x] PEO-049 — Setup wizard
 
 - **Spec** PRD §8.2 · design screen 1
 - **Files** `apps/web/people/src/setup/`
@@ -714,6 +714,12 @@ Test-first, all of it. No drivers, no I/O.
   test.
 - **Done when** a fresh tenant reaches a published version 1 and a complete
   first profile without touching an API by hand.
+- *Landed in PEO-098.* `apps/web/acceptance/people.acceptance.test.ts` runs
+  the wizard in the shell at 390×844, with the keyboard raised for each
+  section. It publishes version 1 (the core fields plus the Spanish pack),
+  saves the names, and abandons before identification, which leaves a partial
+  record: names in, no NIF. It then comes back, finishes, and lands on
+  `/people/me`. The legal entity is confirmed and not stored until #100.
 
 ### [x] PEO-050 — Onboarding
 
@@ -773,7 +779,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a special-category attribute cannot be added to any allowlist
   through the UI or the API.
 
-### [ ] PEO-055 — Import screens
+### [x] PEO-055 — Import screens
 
 - **Spec** PRD §14 · design screen 10
 - **Files** `apps/web/people/src/import/`
@@ -783,6 +789,11 @@ Test-first, all of it. No drivers, no I/O.
   offending cell and download as CSV.
 - **Done when** an admin can take a broken file, fix the blocked rows from the
   downloaded CSV, and import them without re-mapping.
+- *Landed in PEO-098.* The acceptance test uploads four rows, two of them
+  broken (an empty work email, `31/02/2025`). It downloads the blocked-rows
+  CSV at the dry run and imports the two good rows. It then fixes the two
+  cells in the downloaded file and uploads it, and every column maps itself.
+  The two fixed rows import.
 
 ### [x] PEO-056 — Export builder
 
@@ -1011,7 +1022,7 @@ it is written down here rather than left in a PR description.
       stylesheet left it unstyled. The sidebar item is enabled.
       *Still open:* SSR (the screen is client-only behind a spinner; the shell
       is Next, not Modern.js) and the hosting headers.
-- [ ] **PEO-098** The shell hands People screens their data. The screens from
+- [x] **PEO-098** The shell hands People screens their data. The screens from
       PEO-047 on are presentational: each takes a `Loadable` and async
       callbacks as props, and `routes.json` lists none of them yet because the
       shell has nothing to pass. Needs the router forwarding a principal
@@ -1019,7 +1030,22 @@ it is written down here rather than left in a PR description.
       callbacks as server actions, and transports for what only the
       application layer has today — draft edits, reorder, publish preview and
       publish, the setup pack, import, export, analytics and webhook endpoint
-      management. Found in PEO-047.
+      management. Found in PEO-047. *Landed as:*
+      - `/v1/views/*` view models, plus REST for the draft, publishing, setup,
+        import and webhook endpoints (PRD §13.2), all under
+        `application/screens/*`;
+      - the shell fetching each route's data on the server as the signed-in
+        person (`lib/people.ts`, directly and not through the router, because
+        nothing mints a token yet);
+      - server actions for every callback;
+      - every screen in `routes.json`.
+
+      Field-level absence is proven in the HTML the shell sends. *Not done:*
+      - Idempotency keys on the new writes, and OpenAPI entries for them.
+      - A finance full-values screen (PEO-088 has transports, no screen).
+      - A webhook delivery log (replay is a transport only).
+      - The expiry timeline and the onboarding funnel in analytics.
+      - Legal entities, locations and settings (#100 is not merged).
 - [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
