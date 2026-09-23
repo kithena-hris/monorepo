@@ -284,10 +284,23 @@ export class Person extends AggregateRoot<string> {
     return ok(undefined);
   }
 
-  /** Their first day arrived. */
-  start(ctx: EventContext): Result<void> {
+  /**
+   * Their first day arrived — on their own calendar (§6.8), which is why the
+   * zone is asked for: at noon UTC on the 30th the 1st has begun in Auckland
+   * and not in Los Angeles. Effective from the start date, not from whenever
+   * the scheduler got round to it.
+   */
+  start(ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status !== 'pre_hire') return err(InvalidTransition(this.#status, 'started'));
-    return this.#moveTo('active', 'started', ctx);
+    const hireDate = this.#hireDate;
+    if (hireDate === null || hireDate > ctx.clock.date(timeZone)) {
+      return err(
+        failure('NOT_STARTED_YET', `The start date ${String(hireDate)} has not arrived`, [
+          'hireDate',
+        ]),
+      );
+    }
+    return this.#moveTo('active', 'started', ctx, hireDate);
   }
 
   startLeave(ctx: EventContext): Result<void> {

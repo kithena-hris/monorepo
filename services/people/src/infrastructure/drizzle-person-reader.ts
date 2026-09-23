@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, lte, sql } from 'drizzle-orm';
 
 import { CORE_COLUMNS } from '../application/person/core.js';
 import type {
@@ -7,6 +7,7 @@ import type {
   RelationsResolver,
   SchemaVersions,
 } from '../application/person/ports.js';
+import type { Arrivals } from '../application/person/start.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
 import { person, schemaVersion } from './tables.js';
@@ -97,6 +98,27 @@ export function drizzlePersonReader(): PersonReader {
         .orderBy(asc(person.id))
         .limit(limit);
       return rows.map(toRecord);
+    },
+  };
+}
+
+/** Pre-hires whose start date is on or before a day, earliest start first. */
+export function drizzleArrivals(): Arrivals {
+  return {
+    async due(tx, tenantId, onOrBefore, limit) {
+      const rows = await tx
+        .select({ id: person.id })
+        .from(person)
+        .where(
+          and(
+            eq(person.tenantId, tenantId),
+            eq(person.status, 'pre_hire'),
+            lte(person.hireDate, onOrBefore),
+          ),
+        )
+        .orderBy(asc(person.hireDate), asc(person.id))
+        .limit(limit);
+      return rows.map((r) => r.id);
     },
   };
 }
