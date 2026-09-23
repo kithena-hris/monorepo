@@ -890,6 +890,39 @@ Ordered, but none of it blocks Phase 1 shipping.
 
 ---
 
+## Found while building Phase 1
+
+Gaps the Phase 1 lanes surfaced. Each is outside the ticket that found it, so
+it is written down here rather than left in a PR description.
+
+- [ ] **PEO-079** `drizzlePeopleFacts().forImpact` exposes custom attributes
+      only, so a required **core** field such as `hire_date` counts as missing
+      for everybody. The publish-impact preview (PEO-024) and the analytics
+      missing-field counts (PEO-045) both overstate. Found in PEO-045.
+- [ ] **PEO-080** Background work has no list of tenants to run for. RLS
+      correctly stops `svc_people` enumerating them, so the snapshot job
+      (PEO-044), the policy registry's boot load (PEO-034) and the reminder
+      sweep (PEO-026) are built but nothing calls them. Needs a tenant source
+      and the wiring in `main.ts`.
+- [ ] **PEO-081** Identity has no endpoint listing a tenant's accounts.
+      Reconciliation (PEO-028) is written against an assumed
+      `GET /api/internal/tenants/<id>/accounts` returning
+      `{ accounts, nextCursor }`; identity must serve that shape or the
+      caller changes. *(PRD §8.2)*
+- [ ] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
+      encrypted attribute cannot be unique without its plaintext sitting next
+      to the ciphertext. Store a keyed hash instead; until then no national
+      identifier in a country pack is marked unique. Found in PEO-059.
+- [ ] **PEO-083** Differencing across snapshots. Reading the latest snapshot
+      on two days can reveal who changed in between, which is the attack the
+      cohort minimum exists to stop for special-category breakdowns. Needs
+      noise or a coarser publishing cadence; a product decision first.
+      Found in PEO-045. *(PRD §16.1)*
+- [ ] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
+      (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
+      schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
+      under the cap; confirm that is intended. *(PRD §8.4)*
+
 ## Blocked, and by what
 
 | Ticket | Blocked on | Note |
@@ -898,3 +931,4 @@ Ordered, but none of it blocks Phase 1 shipping.
 | PEO-057 | PEO-001 | Two of its charts are written but not exported |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked |
 | PEO-045 | nothing technical | The cohort minimum default of 10 is a product decision; confirm before shipping |
+| PEO-037 | legal review | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
