@@ -584,6 +584,15 @@ Two cases this has to survive, and does:
   HTTP endpoint for the tenant's accounts — the same internal-token mechanism
   identity already uses to call messaging — and creates a provisional person per
   account. Idempotent on `identityAccountId`. Re-running it is a no-op.
+
+  The token is a secret of its own, `PEOPLE_IDENTITY_TOKEN`, for the reason
+  `MESSAGING_API_TOKEN` is: the listing is every work email and name in a
+  company, and the token every front end holds should not be enough to read
+  it. It falls back to `INTERNAL_API_TOKEN` until a deployment splits them.
+
+  **A terminated account is not listed.** It belongs to somebody who has left,
+  and its work email may already be held by a new account. A leaver who never
+  had a person record is not given a provisional one on the way out.
 - **People is never bought.** Identity's copies stay the only truth, no People
   event ever arrives to correct them, and nothing in identity's code path checks
   for the module's presence. This is what `requiresPeopleSource` exists to keep
@@ -784,6 +793,12 @@ tells it a new version exists and what changed at a summary level.
 Existing, kept, extended where noted:
 
 - `people.person.hired` — payload gains `schemaVersion` and `sourceOfRecord`.
+  `legalEntityId` is nullable: a tenant whose published schema has no legal
+  entity attribute has none to send, and §14.4 demands only the core fields the
+  schema defines. A webhook receives the hire itself — who, which account,
+  which version — always, and the name, work email, employment period, legal
+  entity, manager and org unit only where its allowlist names the attribute
+  each stands for, exactly as §10.3 filters `profile_updated`.
 - `people.person.manager_changed` — unchanged.
 - `people.person.terminated` — unchanged.
 - `people.person.synced_from_external` — unchanged; finally has a writer.
@@ -1469,6 +1484,17 @@ Every chart obeys four rules without exception:
 2. **Cohort minimum.** Any breakdown touching special-category data returns
    "insufficient data" below the tenant's minimum (default 10, raisable, never
    lowerable). This applies to the chart, the tooltip and the underlying export.
+   A minimum that holds on every reading still leaks across two — 14 people on
+   Monday, 15 on Tuesday, and HR knows who started on Tuesday — so a
+   special-category breakdown is **published**, never read live from the daily
+   snapshot. A new one is published at most once per calendar month, on the
+   month's first run, and only when at least as many people as the cohort
+   minimum changed since the last (joined, left, or changed their answer);
+   otherwise the previous one keeps being served, unchanged. Before the first,
+   the answer is "insufficient data". Every count in a published breakdown is
+   rounded to the nearest 5, ties away from zero, after the minimum has been
+   checked on the true counts; the total is rounded on its own and is not the
+   sum of the rounded counts, and the result says so.
 3. **`asOf` is a first-class control.** History makes "what did the org look
    like in March" a parameter rather than a separate report.
 4. **Every chart ships its table.** Reach's `ChartDataTable` renders the

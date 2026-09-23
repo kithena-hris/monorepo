@@ -61,6 +61,8 @@ export interface ClassifiedRow {
   /** Typed values to write, by attribute key. Only what differs, for an update. */
   readonly changes: Readonly<Record<string, unknown>>;
   readonly hireDate: string | null;
+  /** The row confirms an existing provisional record as hired, from `hireDate`. */
+  readonly hires: boolean;
   readonly effectiveFrom: string | null;
   /** Why it is blocked. Empty otherwise. */
   readonly problems: readonly CellProblem[];
@@ -323,7 +325,15 @@ function rowClassifier(
     else if ((person = existing.byNumber.get(lower(values['employee_number']) ?? '')))
       matchedOn = 'employee_number';
 
-    const base = { row: parsed.row, cells: parsed.cells, hireDate, effectiveFrom, matchedOn };
+    const hires = person?.status === 'provisional' && hireDate !== null;
+    const base = {
+      row: parsed.row,
+      cells: parsed.cells,
+      hireDate,
+      hires,
+      effectiveFrom,
+      matchedOn,
+    };
 
     if (problems.length > 0) {
       return {
@@ -408,7 +418,7 @@ function rowClassifier(
 
     const outcome: RowOutcome = !person
       ? 'create'
-      : Object.keys(changes).length > 0
+      : Object.keys(changes).length > 0 || hires
         ? 'update'
         : 'unchanged';
     return { ...base, outcome, personId: person?.id ?? null, changes, problems: [], missing };

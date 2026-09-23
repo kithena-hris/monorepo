@@ -8,10 +8,12 @@ import { logger } from '@kithena/telemetry';
 
 import { startSession } from './account/application/start-session.js';
 import {
+  accountsPage,
   drizzleAccountRepository,
   loadSession,
   profileOf,
 } from './account/infrastructure/drizzle-account-repository.js';
+import { directoryRoutes } from './account/http/directory-routes.js';
 import { authenticate } from './account/application/authenticate.js';
 import { issueHandoff, redeemHandoff } from './account/application/handoff.js';
 import { revokeSession } from './account/application/revoke-session.js';
@@ -122,6 +124,13 @@ export interface Config {
    * split them yet keeps working.
    */
   readonly messagingToken?: string | undefined;
+  /**
+   * The secret People presents to list a tenant's accounts, for the same
+   * reason `messagingToken` is its own: that listing hands over every work
+   * email and name in a company, and a leak of the token every front end holds
+   * should not be enough to read it. Falls back to `internalToken` when unset.
+   */
+  readonly peopleToken?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -533,6 +542,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
   });
 
   const jwks = jwksRoute(signer);
+
+  const directory = directoryRoutes({
+    internalToken: config.peopleToken ?? config.internalToken,
+    page: (tenantId, after, limit) =>
+      inTenantTransaction(tenantId, (tx) => accountsPage(tx, after, limit)),
+  });
 
   const tenants = tenantRoutes({
     resolve: resolveTenant({ tenants: drizzleTenantRepository(db) }),
@@ -1291,5 +1306,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await enrolment(request, response)) ||
     (await operator(request, response)) ||
     (await admin(request, response)) ||
+    (await directory(request, response)) ||
     (await tenants(request, response));
 }

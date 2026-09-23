@@ -234,6 +234,52 @@ export async function workEmailOf(
   return rows[0]?.workEmail ?? null;
 }
 
+/**
+ * One page of the tenant's accounts, by id, for People's reconciliation.
+ *
+ * Keyset rather than offset, so the last page of a large tenant costs what the
+ * first does. Ids are UUIDv7, so this is also creation order. The tenant is
+ * whatever `app.tenant_id` the caller's transaction set: row-level security
+ * does the scoping, and a transaction without one sees nothing.
+ *
+ * A terminated account is left out. It belongs to somebody who has left, and
+ * its work email may already be held by a new account.
+ */
+export async function accountsPage(
+  tx: PostgresJsDatabase,
+  after: string | null,
+  limit: number,
+): Promise<
+  {
+    id: string;
+    workEmail: string;
+    timeZone: string;
+    employmentStart: string;
+    givenName: string | null;
+    familyName: string | null;
+    preferredName: string | null;
+  }[]
+> {
+  return tx
+    .select({
+      id: account.id,
+      workEmail: account.workEmail,
+      timeZone: account.timeZone,
+      employmentStart: account.employmentStart,
+      givenName: account.givenName,
+      familyName: account.familyName,
+      preferredName: account.preferredName,
+    })
+    .from(account)
+    .where(
+      after === null
+        ? sql`${account.status} <> 'terminated'`
+        : and(sql`${account.status} <> 'terminated'`, sql`${account.id} > ${after}::uuid`),
+    )
+    .orderBy(account.id)
+    .limit(limit);
+}
+
 /** Sessions whose absolute lifetime has passed, for the reaper. */
 export async function expiredSessionIds(tx: PostgresJsDatabase): Promise<string[]> {
   const rows = await tx
