@@ -7,7 +7,7 @@ import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking, PersonView } from '../person/person-access.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
-import type { FormValue, FormValues, RecordField, RecordSection, ViewerScope } from './model.js';
+import type { FormValue, FormValues, RecordField, RecordSection } from './model.js';
 
 /**
  * One person's record as a form: the sections and fields this viewer may
@@ -44,7 +44,9 @@ const OWNER_WORDS: Record<WriterRole, string> = {
 
 export function ownedBy(definition: AttributeDefinition): string {
   const words = definition.ownership.map((r) => OWNER_WORDS[r]);
-  return words.length <= 1 ? (words[0] ?? 'nobody') : `${words.slice(0, -1).join(', ')} or ${words.at(-1) ?? ''}`;
+  return words.length <= 1
+    ? (words[0] ?? 'nobody')
+    : `${words.slice(0, -1).join(', ')} or ${words.at(-1) ?? ''}`;
 }
 
 const label = (d: { readonly label: { readonly default: string } }) => d.label.default;
@@ -78,7 +80,7 @@ export function recordSections(
             {
               key: section.key,
               label: label(section),
-              visibility: section.defaultVisibility as readonly ViewerScope[],
+              visibility: section.defaultVisibility,
               fields,
             },
           ];
@@ -96,7 +98,7 @@ function fieldOf(
     config.kind === 'select' || config.kind === 'multi_select'
       ? config.options
           .filter((o) => o.retiredAt === null)
-          .map((o) => ({ value: o.value as string, label: o.label.default }))
+          .map((o) => ({ value: o.value, label: o.label.default }))
       : config.kind === 'person_ref'
         ? people
         : [];
@@ -151,7 +153,7 @@ export function formValues(view: PersonView, sections: readonly RecordSection[])
 export function fromForm(definition: AttributeDefinition | undefined, value: unknown): unknown {
   if (value === undefined) return undefined;
   if (value === '' || value === null) return null;
-  if (typeof value === 'object' && value !== null && 'last4' in value) return undefined;
+  if (typeof value === 'object' && 'last4' in value) return undefined;
   if (definition === undefined) return value;
   switch (definition.dataType) {
     case 'number':

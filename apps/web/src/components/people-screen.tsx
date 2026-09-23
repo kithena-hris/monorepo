@@ -2,7 +2,7 @@
 
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition, type JSX } from 'react';
+import { useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -42,7 +42,13 @@ function download(name: string, base64: string, type = 'text/csv'): void {
 
 type Stage = Record<string, unknown> & { step: string; blockedCsv?: string };
 
-export function PeopleScreen({ route, load, params, search, today }: PeopleScreenProps): JSX.Element {
+export function PeopleScreen({
+  route,
+  load,
+  params,
+  search,
+  today,
+}: PeopleScreenProps): JSX.Element {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const refresh = (): void => {
@@ -51,7 +57,7 @@ export function PeopleScreen({ route, load, params, search, today }: PeopleScree
     });
   };
   const go = (to: string): void => {
-    router.push(to as Route);
+    router.push(to);
   };
 
   /** A write, then the page again from the server when it went through. */
@@ -71,13 +77,12 @@ export function PeopleScreen({ route, load, params, search, today }: PeopleScree
     stages: Stage[];
   }>({ file: null, mapping: {}, stages: [{ step: 'upload' }] });
 
-  const loadable = useMemo(() => {
-    if (load.status === 'ready') return { status: 'ready' as const, data: load.data };
-    if (load.status === 'error') return { status: 'error' as const, message: load.message, retry: refresh };
-    return null;
-    // `refresh` is stable in behaviour; the load is what matters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [load]);
+  const loadable =
+    load.status === 'ready'
+      ? { status: 'ready' as const, data: load.data }
+      : load.status === 'error'
+        ? { status: 'error' as const, message: load.message, retry: refresh }
+        : null;
 
   const component = route?.component ?? '';
   const props = ((): Record<string, unknown> => {
@@ -141,8 +146,20 @@ export function PeopleScreen({ route, load, params, search, today }: PeopleScree
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          ...(can.export === true ? { onExport: () => { go('/people/export'); } } : {}),
-          ...(can.import === true ? { onImport: () => { go('/people/import'); } } : {}),
+          ...(can.export === true
+            ? {
+                onExport: () => {
+                  go('/people/export');
+                },
+              }
+            : {}),
+          ...(can.import === true
+            ? {
+                onImport: () => {
+                  go('/people/import');
+                },
+              }
+            : {}),
         };
       }
       case 'CompletenessGrid':
@@ -223,7 +240,10 @@ export function PeopleScreen({ route, load, params, search, today }: PeopleScree
             if (typeof csv === 'string') download(`${name}-blocked.csv`, csv);
           },
           onBack: () => {
-            setImporting((s) => ({ ...s, stages: s.stages.length > 1 ? s.stages.slice(0, -1) : s.stages }));
+            setImporting((s) => ({
+              ...s,
+              stages: s.stages.length > 1 ? s.stages.slice(0, -1) : s.stages,
+            }));
           },
         };
       }

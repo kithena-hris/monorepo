@@ -18,7 +18,13 @@ import {
 import type { ListedEndpoint } from '../../infrastructure/webhooks/list.js';
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
-import { attritionTrend, completeness, expiries, headcountTrend, movementWaterfall } from '../analytics/queries.js';
+import {
+  attritionTrend,
+  completeness,
+  expiries,
+  headcountTrend,
+  movementWaterfall,
+} from '../analytics/queries.js';
 import { blockedReport, commitImport, type CommitDeps } from '../import/commit.js';
 import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
@@ -108,7 +114,7 @@ export async function integrationsView(
       fields: version.document.attributes
         .filter((d) => d.deprecatedAt === null)
         .map((d) => ({
-          key: d.key as string,
+          key: d.key,
           label: d.label.default,
           refused:
             d.classification.classification === 'special-category'
@@ -132,7 +138,11 @@ async function asAdmin<T>(
   return allowed.ok ? then() : allowed;
 }
 
-export const createEndpoint = (deps: IntegrationDeps, asking: Asking, input: EndpointInput) =>
+export const createEndpoint = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  input: EndpointInput,
+): Promise<Result<{ id: string; secret: string }>> =>
   asAdmin(deps, asking, () => deps.webhooks.createEndpoint(asking.tenantId, input));
 
 export const updateEndpoint = (
@@ -140,12 +150,21 @@ export const updateEndpoint = (
   asking: Asking,
   id: string,
   patch: Partial<EndpointInput> & { readonly enabled?: boolean },
-) => asAdmin(deps, asking, () => deps.webhooks.updateEndpoint(asking.tenantId, id, patch));
+): Promise<Result<void>> =>
+  asAdmin(deps, asking, () => deps.webhooks.updateEndpoint(asking.tenantId, id, patch));
 
-export const rotateEndpoint = (deps: IntegrationDeps, asking: Asking, id: string) =>
+export const rotateEndpoint = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+): Promise<Result<{ secret: string }>> =>
   asAdmin(deps, asking, () => deps.webhooks.rotateSecret(asking.tenantId, id));
 
-export const replayDelivery = (deps: IntegrationDeps, asking: Asking, deliveryId: string) =>
+export const replayDelivery = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  deliveryId: string,
+): Promise<Result<string>> =>
   asAdmin(deps, asking, () => deps.webhooks.replay(asking.tenantId, deliveryId));
 
 /* ------------------------------------------------------------- import -- */
@@ -172,7 +191,9 @@ export type ImportStageView =
       readonly step: 'review';
       readonly file: ImportFileView;
       readonly dryRun: {
-        readonly counts: Readonly<Record<'create' | 'update' | 'unchanged' | 'blocked' | 'duplicate', number>>;
+        readonly counts: Readonly<
+          Record<'create' | 'update' | 'unchanged' | 'blocked' | 'duplicate', number>
+        >;
         readonly incomplete: {
           readonly count: number;
           readonly byField: readonly { readonly label: string; readonly count: number }[];
@@ -277,7 +298,7 @@ export async function proposeImport(
           .map((key) => ({ key, label: key.replaceAll('_', ' ') })),
         ...version.document.attributes
           .filter((d) => d.deprecatedAt === null && visibleTo(d, everyone))
-          .map((d) => ({ key: d.key as string, label: d.label.default })),
+          .map((d) => ({ key: d.key, label: d.label.default })),
       ],
     });
   });
@@ -331,7 +352,9 @@ export async function dryRunImport(
           return {
             row: r.row,
             person: null,
-            problem: problem?.reason ?? (r.outcome === 'duplicate' ? 'A duplicate of an earlier row' : 'Blocked'),
+            problem:
+              problem?.reason ??
+              (r.outcome === 'duplicate' ? 'A duplicate of an earlier row' : 'Blocked'),
             cell:
               at < 0
                 ? `row ${String(r.row)}`
@@ -398,7 +421,11 @@ export async function commitImportView(
 
 export interface ExportBuilderView {
   readonly today: string;
-  readonly who: readonly { readonly value: string; readonly label: string; readonly count: number }[];
+  readonly who: readonly {
+    readonly value: string;
+    readonly label: string;
+    readonly count: number;
+  }[];
   readonly sections: readonly {
     readonly key: string;
     readonly label: string;
@@ -422,12 +449,17 @@ export async function exportBuilderView(
     if (!listed.ok) return listed;
     const readable = new Set<string>();
     for (const person of listed.value.items) {
-      const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, person.id);
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        person.id,
+      );
       for (const d of version.document.attributes) if (visibleTo(d, relations)) readable.add(d.key);
     }
     const columns = exportableColumns(version).filter((d) => readable.has(d.key));
     return ok({
-      today: deps.clock.date(asking.timeZone ?? 'Etc/UTC') as string,
+      today: deps.clock.date(asking.timeZone ?? 'Etc/UTC'),
       who: [
         {
           value: 'everyone',
@@ -440,8 +472,8 @@ export async function exportBuilderView(
         .flatMap((s) => {
           const fields = columns
             .filter((d) => d.sectionKey === s.key)
-            .map((d) => ({ key: d.key as string, label: d.label.default }));
-          return fields.length === 0 ? [] : [{ key: s.key as string, label: s.label.default, fields }];
+            .map((d) => ({ key: d.key, label: d.label.default }));
+          return fields.length === 0 ? [] : [{ key: s.key, label: s.label.default, fields }];
         }),
     });
   });
@@ -458,7 +490,11 @@ export interface AnalyticsView {
     readonly change: number | null;
     readonly trend: readonly { readonly label: string; readonly value: number }[];
   };
-  readonly attrition: { readonly percent: number; readonly leavers: number; readonly formula: string } | null;
+  readonly attrition: {
+    readonly percent: number;
+    readonly leavers: number;
+    readonly formula: string;
+  } | null;
   readonly complete: { readonly percent: number; readonly incomplete: number } | null;
   readonly expiringIn90Days: number | null;
   readonly movement: {
@@ -469,7 +505,8 @@ export interface AnalyticsView {
     readonly leavers: number;
     readonly closing: number;
   } | null;
-  readonly completenessBySection: readonly { readonly label: string; readonly value: number }[] | null;
+  readonly completenessBySection:
+    readonly { readonly label: string; readonly value: number }[] | null;
   readonly expiries: null;
   readonly funnel: null;
 }
@@ -516,16 +553,16 @@ export async function analyticsView(
     const expiring = await expiries(ctx, { asOf: today });
     const moved = await movementWaterfall(ctx, { from: minusMonths(today, 1), to: today });
 
-    const total = states.ok
-      ? states.value.states.complete + states.value.states.incomplete
-      : 0;
+    const total = states.ok ? states.value.states.complete + states.value.states.incomplete : 0;
     const bySection = new Map<string, number>();
     if (states.ok && states.value.byField !== null) {
       for (const f of states.value.byField) {
         bySection.set(f.sectionKey, (bySection.get(f.sectionKey) ?? 0) + f.missing);
       }
     }
-    const sectionLabel = new Map(version.document.sections.map((s) => [s.key as string, s.label.default]));
+    const sectionLabel = new Map(
+      version.document.sections.map((s) => [s.key as string, s.label.default]),
+    );
     const source = states.ok ? states.value.source : 'snapshot';
 
     return ok({
@@ -537,7 +574,8 @@ export async function analyticsView(
           : 'Computed from history for this date, which is slower.',
       headcount: {
         value: last?.headcount ?? 0,
-        change: last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
+        change:
+          last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
         trend: points.map((p) => ({ label: p.month, value: p.headcount })),
       },
       attrition:
@@ -555,7 +593,9 @@ export async function analyticsView(
               incomplete: states.value.states.incomplete,
             }
           : null,
-      expiringIn90Days: expiring.ok ? expiring.value.expiries.reduce((n, e) => n + e.count, 0) : null,
+      expiringIn90Days: expiring.ok
+        ? expiring.value.expiries.reduce((n, e) => n + e.count, 0)
+        : null,
       movement: moved.ok
         ? {
             period: `${minusMonths(today, 1)} to ${today}`,

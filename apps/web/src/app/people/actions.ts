@@ -42,7 +42,10 @@ export async function savePersonSection(
 }
 
 export async function saveGrid(
-  changes: readonly { readonly personId: string; readonly values: Readonly<Record<string, string>> }[],
+  changes: readonly {
+    readonly personId: string;
+    readonly values: Readonly<Record<string, string>>;
+  }[],
 ): Promise<Outcome> {
   return outcome(people('POST', '/v1/views/completeness', { changes }));
 }
@@ -66,7 +69,10 @@ export async function reorderSections(order: readonly string[]): Promise<Outcome
   return outcome(people('PUT', '/v1/schema/draft/sections/order', { order }));
 }
 
-export async function reorderFields(sectionKey: string, order: readonly string[]): Promise<Outcome> {
+export async function reorderFields(
+  sectionKey: string,
+  order: readonly string[],
+): Promise<Outcome> {
   return outcome(
     people('PUT', `/v1/schema/draft/sections/${encodeURIComponent(sectionKey)}/order`, { order }),
   );
@@ -110,7 +116,9 @@ export async function createEndpoint(input: {
   alertEmail: string;
 }): Promise<WithSecret> {
   const answer = await people<{ secret: string }>('POST', '/v1/webhooks/endpoints', input);
-  return answer.ok ? { ok: true, secret: answer.data.secret } : { ok: false, message: answer.message };
+  return answer.ok
+    ? { ok: true, secret: answer.data.secret }
+    : { ok: false, message: answer.message };
 }
 
 export async function updateEndpoint(id: string, patch: Values): Promise<Outcome> {
@@ -123,13 +131,17 @@ export async function rotateEndpoint(id: string): Promise<WithSecret> {
     `/v1/webhooks/endpoints/${encodeURIComponent(id)}/rotate`,
     {},
   );
-  return answer.ok ? { ok: true, secret: answer.data.secret } : { ok: false, message: answer.message };
+  return answer.ok
+    ? { ok: true, secret: answer.data.secret }
+    : { ok: false, message: answer.message };
 }
 
 /* -------------------------------------------------------------- import -- */
 
 /** The file travels with every step: People keeps nothing between them (§14.2). */
-async function upload(path: string, form: FormData): Promise<{ ok: true; stage: unknown } | { ok: false; message: string }> {
+export type Staged = { ok: true; stage: unknown } | { ok: false; message: string };
+
+async function upload(path: string, form: FormData): Promise<Staged> {
   const file = form.get('file');
   if (!(file instanceof File)) return { ok: false, message: 'Choose a file' };
   const mapping = form.get('mapping');
@@ -141,15 +153,15 @@ async function upload(path: string, form: FormData): Promise<{ ok: true; stage: 
   return answer.ok ? { ok: true, stage: answer.data } : { ok: false, message: answer.message };
 }
 
-export async function proposeImport(form: FormData) {
+export async function proposeImport(form: FormData): Promise<Staged> {
   return upload('/v1/imports/proposal', form);
 }
 
-export async function dryRunImport(form: FormData) {
+export async function dryRunImport(form: FormData): Promise<Staged> {
   return upload('/v1/imports/dry-run', form);
 }
 
-export async function commitImport(form: FormData) {
+export async function commitImport(form: FormData): Promise<Staged> {
   return upload('/v1/imports', form);
 }
 
@@ -160,12 +172,16 @@ export async function requestExport(choice: {
   fields: readonly string[];
   asOf: string;
   format: 'xlsx' | 'csv';
-}): Promise<{ ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }> {
+}): Promise<
+  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }
+> {
   const answer = await people<{ links?: { name: string; url: string }[] }>(
     'POST',
     '/v1/exports',
     { format: choice.format, fields: choice.fields, asOf: choice.asOf },
     { 'idempotency-key': randomUUID() },
   );
-  return answer.ok ? { ok: true, links: answer.data.links ?? [] } : { ok: false, message: answer.message };
+  return answer.ok
+    ? { ok: true, links: answer.data.links ?? [] }
+    : { ok: false, message: answer.message };
 }

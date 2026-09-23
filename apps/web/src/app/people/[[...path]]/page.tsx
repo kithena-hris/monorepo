@@ -43,7 +43,9 @@ export default async function People({
 
   const tenant = await currentTenant();
   const name =
-    person.name === null ? displayName(person.workEmail) : `${person.name.given} ${person.name.family}`;
+    person.name === null
+      ? displayName(person.workEmail)
+      : `${person.name.given} ${person.name.family}`;
   return (
     <AppShell
       person={{ name, email: person.workEmail }}

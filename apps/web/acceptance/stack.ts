@@ -77,7 +77,9 @@ function start(
   // Not the test runner's environment: `VITEST` and `NODE_ENV=test` make a
   // Vite build transform nothing and a Next build refuse to run.
   const inherited = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'NODE_ENV' && key !== 'MODE'),
+    Object.entries(process.env).filter(
+      ([key]) => !key.startsWith('VITEST') && key !== 'NODE_ENV' && key !== 'MODE',
+    ),
   );
   const child = spawn(command, args, {
     cwd,
@@ -89,8 +91,8 @@ function start(
     log.push(chunk.toString());
     if (log.length > 200) log.shift();
   };
-  child.stdout?.on('data', keep);
-  child.stderr?.on('data', keep);
+  child.stdout.on('data', keep);
+  child.stderr.on('data', keep);
   return child;
 }
 
@@ -110,13 +112,27 @@ async function kill(child: ChildProcess | undefined): Promise<void> {
     }
   };
   signal('SIGTERM');
-  const exited = new Promise<boolean>((resolve) => child.once('exit', () => resolve(true)));
-  const timeout = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000));
+  const exited = new Promise<boolean>((resolve) =>
+    child.once('exit', () => {
+      resolve(true);
+    }),
+  );
+  const timeout = new Promise<boolean>((resolve) =>
+    setTimeout(() => {
+      resolve(false);
+    }, 3000),
+  );
   if (!(await Promise.race([exited, timeout]))) signal('SIGKILL');
 }
 
 /** Run to completion, bounded. */
-function run(command: string, args: readonly string[], cwd: string, ms: number, env: Record<string, string> = {}): Promise<void> {
+function run(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  ms: number,
+  env: Record<string, string> = {},
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const log: string[] = [];
     const child = start(command, args, cwd, env, log);
@@ -127,7 +143,12 @@ function run(command: string, args: readonly string[], cwd: string, ms: number, 
     child.once('exit', (code) => {
       clearTimeout(timer);
       if (code === 0) resolve();
-      else reject(new Error(`${command} ${args.join(' ')} exited ${String(code)}\n${log.join('').slice(-4000)}`));
+      else
+        reject(
+          new Error(
+            `${command} ${args.join(' ')} exited ${String(code)}\n${log.join('').slice(-4000)}`,
+          ),
+        );
     });
   });
 }
@@ -180,14 +201,20 @@ export async function startStack(): Promise<Stack> {
     ]);
     const peopleUrl = `http://127.0.0.1:${String(peoplePort)}`;
     children.push(
-      start(join(ROOT, 'node_modules/.bin/tsx'), ['services/people/src/main.ts'], ROOT, {
-        PEOPLE_PORT: String(peoplePort),
-        PEOPLE_DATABASE_URL: service.toString(),
-        PEOPLE_API_TOKEN: TOKEN,
-        PEOPLE_SECRET_KEYS: `k1:${randomBytes(32).toString('base64')}`,
-        OPENFGA_URL: fga.apiUrl,
-        LOG_LEVEL: 'warn',
-      }, logs['people'] ?? []),
+      start(
+        join(ROOT, 'node_modules/.bin/tsx'),
+        ['services/people/src/main.ts'],
+        ROOT,
+        {
+          PEOPLE_PORT: String(peoplePort),
+          PEOPLE_DATABASE_URL: service.toString(),
+          PEOPLE_API_TOKEN: TOKEN,
+          PEOPLE_SECRET_KEYS: `k1:${randomBytes(32).toString('base64')}`,
+          OPENFGA_URL: fga.apiUrl,
+          LOG_LEVEL: 'warn',
+        },
+        logs['people'] ?? [],
+      ),
     );
     await until('People', 60_000, async () => (await fetch(`${peopleUrl}/v1/openapi.json`)).ok);
 
@@ -218,7 +245,11 @@ export async function startStack(): Promise<Stack> {
     if (store === undefined) throw new Error('People did not create its OpenFGA store');
     const tuples = [
       { user: `user:${ADMIN.account}`, relation: 'account', object: `person:${ADMIN.person}` },
-      { user: `user:${EMPLOYEE.account}`, relation: 'account', object: `person:${EMPLOYEE.person}` },
+      {
+        user: `user:${EMPLOYEE.account}`,
+        relation: 'account',
+        object: `person:${EMPLOYEE.person}`,
+      },
       { user: `user:${ADMIN.account}`, relation: 'people_admin', object: `tenant:${TENANT}` },
       { user: `user:${ADMIN.account}`, relation: 'hr', object: `tenant:${TENANT}` },
     ];
@@ -230,9 +261,20 @@ export async function startStack(): Promise<Stack> {
     if (!wrote.ok) throw new Error(`OpenFGA refused the tuples: ${await wrote.text()}`);
 
     // Identity, as far as the shell reads it.
-    const sessions: Record<string, { account: string; email: string; name: { given: string; family: string } }> = {
-      [ADMIN.session]: { account: ADMIN.account, email: ADMIN.email, name: { given: 'Priya', family: 'Shah' } },
-      [EMPLOYEE.session]: { account: EMPLOYEE.account, email: EMPLOYEE.email, name: { given: 'Adam', family: 'Ruiz' } },
+    const sessions: Record<
+      string,
+      { account: string; email: string; name: { given: string; family: string } }
+    > = {
+      [ADMIN.session]: {
+        account: ADMIN.account,
+        email: ADMIN.email,
+        name: { given: 'Priya', family: 'Shah' },
+      },
+      [EMPLOYEE.session]: {
+        account: EMPLOYEE.account,
+        email: EMPLOYEE.email,
+        name: { given: 'Adam', family: 'Ruiz' },
+      },
     };
     const identity = createServer((request, response) => {
       const chunks: Buffer[] = [];
@@ -242,12 +284,21 @@ export async function startStack(): Promise<Stack> {
           response.writeHead(status, { 'content-type': 'application/json' });
           response.end(JSON.stringify(body));
         };
-        if (request.headers['x-internal-token'] !== TOKEN) return json(401, {});
+        if (request.headers['x-internal-token'] !== TOKEN) {
+          json(401, {});
+          return;
+        }
         if (request.url === '/api/internal/session' && request.method === 'POST') {
-          const body = JSON.parse(Buffer.concat(chunks).toString() || '{}') as { sessionId?: string; tenantId?: string };
+          const body = JSON.parse(Buffer.concat(chunks).toString() || '{}') as {
+            sessionId?: string;
+            tenantId?: string;
+          };
           const found = sessions[body.sessionId ?? ''];
-          if (found === undefined || body.tenantId !== TENANT) return json(401, {});
-          return json(200, {
+          if (found === undefined || body.tenantId !== TENANT) {
+            json(401, {});
+            return;
+          }
+          json(200, {
             accountId: found.account,
             identityId: randomUUID(),
             workEmail: found.email,
@@ -255,21 +306,25 @@ export async function startStack(): Promise<Stack> {
             timeZone: 'Europe/Madrid',
             amr: ['hwk'],
           });
+          return;
         }
         if (request.url === '/api/internal/tenant/acme') {
-          return json(200, {
+          json(200, {
             id: TENANT,
             slug: 'acme',
             status: 'active',
             branding: { displayName: 'Acme' },
             location: { city: 'Madrid', country: 'ES' },
           });
+          return;
         }
-        return json(404, {});
+        json(404, {});
       });
     });
     servers.push(identity);
-    await new Promise<void>((resolve) => identity.listen(identityPort, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => {
+      identity.listen(identityPort, '127.0.0.1', resolve);
+    });
 
     // The remote and the shell, as production builds.
     await run('pnpm', ['--filter', '@kithena/web-people', 'build'], ROOT, 240_000);
@@ -295,7 +350,13 @@ export async function startStack(): Promise<Stack> {
       KITHENA_ENTITLEMENTS: '["module.people"]',
     };
     if (process.env['ACCEPTANCE_SKIP_SHELL_BUILD'] !== '1') {
-      await run(join(ROOT, 'apps/web/node_modules/.bin/next'), ['build'], join(ROOT, 'apps/web'), 420_000, env);
+      await run(
+        join(ROOT, 'apps/web/node_modules/.bin/next'),
+        ['build'],
+        join(ROOT, 'apps/web'),
+        420_000,
+        env,
+      );
     }
     children.push(
       start(
@@ -321,13 +382,15 @@ export async function startStack(): Promise<Stack> {
       asPeople,
       stop: async () => {
         if (process.env['ACCEPTANCE_LOGS'] === '1') {
-          for (const [name, lines] of Object.entries(logs)) console.log(`--- ${name}\n${lines.join('').slice(-6000)}`);
+          for (const [name, lines] of Object.entries(logs))
+            console.log(`--- ${name}\n${lines.join('').slice(-6000)}`);
         }
         await stop();
       },
     };
   } catch (error) {
-    for (const [name, lines] of Object.entries(logs)) console.error(`--- ${name}\n${lines.join('').slice(-4000)}`);
+    for (const [name, lines] of Object.entries(logs))
+      console.error(`--- ${name}\n${lines.join('').slice(-4000)}`);
     await stop();
     throw error;
   }

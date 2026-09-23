@@ -45,7 +45,10 @@ const identity = {
 } as const;
 
 function field(
-  over: Omit<AttributeDefinitionInput, 'requiredness' | 'classificationSource' | 'origin' | 'label'> & {
+  over: Omit<
+    AttributeDefinitionInput,
+    'requiredness' | 'classificationSource' | 'origin' | 'label'
+  > & {
     readonly label: string;
     readonly required?: boolean;
   },

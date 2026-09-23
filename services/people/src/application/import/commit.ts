@@ -329,7 +329,10 @@ function report(input: DryRunInput, outcomes: readonly Outcome[]): Uint8Array {
  */
 export function blockedReport(
   file: Pick<DryRunInput['file'], 'headers' | 'keys'>,
-  failed: readonly { readonly row: Pick<ClassifiedRow, 'cells' | 'row'>; readonly reason: string }[],
+  failed: readonly {
+    readonly row: Pick<ClassifiedRow, 'cells' | 'row'>;
+    readonly reason: string;
+  }[],
 ): Uint8Array {
   const rows: string[][] = [[...file.headers, '__source_row', '__reason']];
   if (file.keys) rows.push([...file.keys, '__source_row', '__reason']);

@@ -27,8 +27,9 @@ beforeAll(async () => {
 }, 900_000);
 
 afterAll(async () => {
-  await browser?.close();
-  await stack?.stop();
+  // Either may be missing when `beforeAll` failed part way.
+  await (browser as Browser | undefined)?.close();
+  await (stack as Stack | undefined)?.stop();
 }, 60_000);
 
 async function signedIn(
@@ -53,7 +54,11 @@ async function signedIn(
 }
 
 /** Wait for a query to hold, bounded: the database is the record of what a screen did. */
-async function eventually<T>(what: string, read: () => Promise<T>, holds: (v: T) => boolean): Promise<T> {
+async function eventually<T>(
+  what: string,
+  read: () => Promise<T>,
+  holds: (v: T) => boolean,
+): Promise<T> {
   const deadline = Date.now() + 20_000;
   let last = await read();
   while (!holds(last)) {
@@ -86,12 +91,28 @@ async function inView(page: Page, name: string, form: string): Promise<void> {
           const chain: string[] = [];
           for (let n = el.parentElement; n; n = n.parentElement) {
             const cs = getComputedStyle(n);
-            if (cs.position === 'sticky' || /auto|scroll|hidden|clip/.test(cs.overflow) || cs.contain !== 'none' || cs.transform !== 'none' || cs.display === 'contents') {
+            if (
+              cs.position === 'sticky' ||
+              /auto|scroll|hidden|clip/.test(cs.overflow) ||
+              cs.contain !== 'none' ||
+              cs.transform !== 'none' ||
+              cs.display === 'contents'
+            ) {
               const r = n.getBoundingClientRect();
-              chain.push(`${n.tagName}.${n.className.slice(0, 60)} ${cs.position} bottom=${cs.bottom} ${cs.overflow} contain=${cs.contain} transform=${cs.transform} display=${cs.display} ${String(Math.round(r.top))}-${String(Math.round(r.bottom))}`);
+              chain.push(
+                `${n.tagName}.${n.className.slice(0, 60)} ${cs.position} bottom=${cs.bottom} ${cs.overflow} contain=${cs.contain} transform=${cs.transform} display=${cs.display} ${String(Math.round(r.top))}-${String(Math.round(r.bottom))}`,
+              );
             }
           }
-          return { inner: window.innerHeight, visual: window.visualViewport?.height, scrollY: window.scrollY, doc: document.documentElement.scrollHeight, html: getComputedStyle(document.documentElement).overflow, body: getComputedStyle(document.body).overflow, chain };
+          return {
+            inner: window.innerHeight,
+            visual: window.visualViewport?.height,
+            scrollY: window.scrollY,
+            doc: document.documentElement.scrollHeight,
+            html: getComputedStyle(document.documentElement).overflow,
+            body: getComputedStyle(document.body).overflow,
+            chain,
+          };
         });
         return JSON.stringify({ box, layout });
       },
@@ -125,9 +146,11 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await page.goto(`${stack.shell}/people/setup`);
 
     // The legal entity, as the back office recorded the company.
-    await expect.poll(() => page.getByRole('heading', { name: 'Confirm the legal entity' }).isVisible(), {
-      timeout: 30_000,
-    }).toBe(true);
+    await expect
+      .poll(() => page.getByRole('heading', { name: 'Confirm the legal entity' }).isVisible(), {
+        timeout: 30_000,
+      })
+      .toBe(true);
     expect(await page.getByRole('textbox', { name: /Registered name/ }).inputValue()).toBe('Acme');
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -148,20 +171,27 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await personal.getByRole('textbox', { name: /Legal family name/ }).fill('Shah');
     await inView(page, 'Save', 'Personal information');
     await personal.getByRole('button', { name: 'Save' }).click();
-    await eventually('the names', () => person(ADMIN.person), ([p]) => p?.family_name === 'Shah');
+    await eventually(
+      'the names',
+      () => person(ADMIN.person),
+      ([p]) => p?.family_name === 'Shah',
+    );
 
     // Abandoned here, before the identification section.
     await page.goto(`${stack.shell}/people`);
     const [partial] = await person(ADMIN.person);
     expect(partial).toMatchObject({ given_name: 'Priya', family_name: 'Shah' });
-    const secrets = await stack.sql`SELECT 1 FROM people.person_secret WHERE person_id = ${ADMIN.person}`;
+    const secrets =
+      await stack.sql`SELECT 1 FROM people.person_secret WHERE person_id = ${ADMIN.person}`;
     expect(secrets).toHaveLength(0);
 
     // Back tomorrow: the wizard resumes at the profile, and it is finished.
     await page.goto(`${stack.shell}/people/setup`);
     const identification = page.getByRole('form', { name: 'Identification & right to work' });
     await identification.waitFor({ timeout: 30_000 });
-    expect(await page.getByRole('textbox', { name: /Legal first name/ }).inputValue()).toBe('Priya');
+    expect(await page.getByRole('textbox', { name: /Legal first name/ }).inputValue()).toBe(
+      'Priya',
+    );
     await page.setViewportSize({ width: 390, height: 844 });
     await identification.getByRole('textbox', { name: /NIF \/ NIE/ }).focus();
     await keyboardUp(page);
@@ -208,9 +238,9 @@ function cells(line: string): string[] {
   let cell = '';
   let quoted = false;
   for (let i = 0; i < line.length; i += 1) {
-    const c = line[i];
+    const c = line.charAt(i);
     if (quoted) {
-      if (c === '"' && line[i + 1] === '"') {
+      if (c === '"' && line.charAt(i + 1) === '"') {
         cell += '"';
         i += 1;
       } else if (c === '"') quoted = false;
@@ -282,9 +312,13 @@ describe('PEO-055: an import with broken rows, fixed from the downloaded CSV', (
 
     await page.goto(`${stack.shell}/people/import`);
     await upload(page, 'people-blocked.csv', fixed);
-    await page.getByRole('button', { name: 'Review before importing' }).waitFor({ timeout: 30_000 });
+    await page
+      .getByRole('button', { name: 'Review before importing' })
+      .waitFor({ timeout: 30_000 });
     // No column needs a decision: the report's own columns are recognised and left out.
-    expect(await page.getByRole('button', { name: 'Review before importing' }).isEnabled()).toBe(true);
+    expect(await page.getByRole('button', { name: 'Review before importing' }).isEnabled()).toBe(
+      true,
+    );
     await page.getByRole('button', { name: 'Review before importing' }).click();
     await page.getByRole('button', { name: 'Import 2 rows' }).click();
     await page.getByText(/people-blocked\.csv is imported/).waitFor({ timeout: 30_000 });

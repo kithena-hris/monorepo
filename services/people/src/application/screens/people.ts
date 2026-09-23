@@ -83,7 +83,8 @@ export async function onboardingView(
     );
     return ok({
       firstName:
-        typeof view.attributes['preferred_name'] === 'string' && view.attributes['preferred_name'] !== ''
+        typeof view.attributes['preferred_name'] === 'string' &&
+        view.attributes['preferred_name'] !== ''
           ? view.attributes['preferred_name']
           : typeof view.attributes['given_name'] === 'string'
             ? view.attributes['given_name']
@@ -251,7 +252,12 @@ export async function directoryView(
             columns.flatMap((c) => {
               const value = p.attributes[c.key];
               if (value === undefined || value === null) return [];
-              const shown = c.typeConfig.kind === 'person_ref' ? names.get(String(value)) : toForm(value);
+              const shown =
+                c.typeConfig.kind === 'person_ref'
+                  ? typeof value === 'string'
+                    ? names.get(value)
+                    : undefined
+                  : toForm(value);
               return typeof shown === 'string' ? [[c.key, shown]] : [];
             }),
           ),
@@ -277,10 +283,17 @@ export async function directoryView(
           d.typeConfig.kind === 'select'
             ? d.typeConfig.options
                 .filter((o) => o.retiredAt === null)
-                .map((o) => ({ value: o.value as string, label: o.label.default }))
+                .map((o) => ({ value: o.value, label: o.label.default }))
             : [],
       })),
-      people: people.map(({ status: _status, ...p }) => p),
+      people: people.map((p) => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        avatarUrl: p.avatarUrl,
+        values: p.values,
+        missing: p.missing,
+      })),
       // An export is a read, so everybody may build one of what they can see.
       can: { import: everyone.isHr, export: true },
     });
@@ -328,7 +341,10 @@ export async function completenessView(
     const rows: CompletenessView['rows'][number][] = [];
     let waiting = 0;
     for (const person of listed.value) {
-      const verdict = await deps.service.access.completeness(tx, { ...asking, personId: person.id });
+      const verdict = await deps.service.access.completeness(tx, {
+        ...asking,
+        personId: person.id,
+      });
       if (!verdict.ok) continue;
       const hrs = verdict.value.missing.filter((m) => m.owners.includes('hr'));
       if (verdict.value.missing.some((m) => !m.owners.includes('hr'))) waiting += 1;
@@ -337,7 +353,10 @@ export async function completenessView(
       rows.push({
         personId: person.id,
         name: names.get(person.id) ?? 'Unnamed',
-        department: typeof person.attributes['department'] === 'string' ? person.attributes['department'] : null,
+        department:
+          typeof person.attributes['department'] === 'string'
+            ? person.attributes['department']
+            : null,
         manager: typeof manager === 'string' ? (names.get(manager) ?? null) : null,
         missing: hrs.map((m) => m.key),
       });
@@ -359,7 +378,7 @@ export async function completenessView(
               d.typeConfig.kind === 'select'
                 ? d.typeConfig.options
                     .filter((o) => o.retiredAt === null)
-                    .map((o) => ({ value: o.value as string, label: o.label.default }))
+                    .map((o) => ({ value: o.value, label: o.label.default }))
                 : d.typeConfig.kind === 'person_ref'
                   ? pickable(listed.value)
                   : [],
@@ -375,7 +394,10 @@ export async function completenessView(
 export async function saveGrid(
   deps: ScreenDeps,
   asking: Asking,
-  changes: readonly { readonly personId: string; readonly values: Readonly<Record<string, string>> }[],
+  changes: readonly {
+    readonly personId: string;
+    readonly values: Readonly<Record<string, string>>;
+  }[],
 ): Promise<Result<void>> {
   for (const change of changes) {
     const saved = await saveSection(deps, asking, change.personId, change.values);

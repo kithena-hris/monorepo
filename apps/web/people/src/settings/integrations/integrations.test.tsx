@@ -150,13 +150,22 @@ describe('Integrations', () => {
     render(<Integrations {...props({ onCreate })} />);
     await user.click(screen.getByRole('button', { name: 'Add endpoint' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByRole('textbox', { name: /URL/ }), 'https://hooks.example.com/in');
-    await user.type(within(dialog).getByRole('textbox', { name: /Events/ }), 'people.person.hired{Enter}');
+    await user.type(
+      within(dialog).getByRole('textbox', { name: /URL/ }),
+      'https://hooks.example.com/in',
+    );
+    await user.type(
+      within(dialog).getByRole('textbox', { name: /Events/ }),
+      'people.person.hired{Enter}',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));
     expect(onCreate).not.toHaveBeenCalled();
     expect(within(dialog).getByText('An email address to tell.')).toBeVisible();
 
-    await user.type(within(dialog).getByRole('textbox', { name: /Alert email/ }), 'ops@acme.example');
+    await user.type(
+      within(dialog).getByRole('textbox', { name: /Alert email/ }),
+      'ops@acme.example',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));
     expect(onCreate).toHaveBeenCalledWith({
       url: 'https://hooks.example.com/in',

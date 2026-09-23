@@ -107,8 +107,8 @@ export async function registryView(
         deps.schema.currentVersion(tx, asking.tenantId),
       ]);
       const fields = draft.attributes.map((a) => ({
-        key: a.key as string,
-        sectionKey: a.sectionKey as string,
+        key: a.key,
+        sectionKey: a.sectionKey,
         label: a.label.default,
         description: a.description?.default ?? null,
         dataType: a.dataType,
@@ -136,7 +136,7 @@ export async function registryView(
           .map((s) => {
             const mine = draft.attributes.filter((a) => a.sectionKey === s.key);
             return {
-              key: s.key as string,
+              key: s.key,
               label: s.label.default,
               visibility: s.defaultVisibility,
               ownership: [...new Set(mine.flatMap((a) => a.ownership))],
@@ -233,7 +233,9 @@ export interface FieldInput {
 function definitionOf(input: FieldInput, order: number): AttributeDefinitionInput {
   const choice = input.dataType === 'select' || input.dataType === 'multi_select';
   const secret =
-    input.piiKind === 'financial' || input.dataType === 'bank_account' || input.dataType === 'national_id';
+    input.piiKind === 'financial' ||
+    input.dataType === 'bank_account' ||
+    input.dataType === 'national_id';
   return {
     key: input.key === '' ? keyFrom(input.label) : input.key,
     sectionKey: input.sectionKey,
@@ -288,7 +290,11 @@ export async function saveField(
         editing === null
           ? draft.addAttribute(definition)
           : (() => {
-              const { key: _key, origin: _origin, order: _order, ...patch } = definition;
+              // A key, an origin and a place in the order are not an edit's to change.
+              const { key, origin, order, ...patch } = definition;
+              void key;
+              void origin;
+              void order;
               return draft.updateAttribute(editing, patch);
             })();
       if (!saved.ok) return saved;
@@ -398,13 +404,14 @@ export async function previewPublish(
               .map((a) => a.key as string),
           );
           const { diff, impact } = preview.value;
-          const changes = (['added', 'tightened', 'loosened', 'archived'] as const).flatMap((kind) =>
-            diff[kind].map((key) => ({
-              kind,
-              key,
-              summary: `${key} ${WORDS[kind]}`,
-              specialCategory: special.has(key),
-            })),
+          const changes = (['added', 'tightened', 'loosened', 'archived'] as const).flatMap(
+            (kind) =>
+              diff[kind].map((key) => ({
+                kind,
+                key,
+                summary: `${key} ${WORDS[kind]}`,
+                specialCategory: special.has(key),
+              })),
           );
           throw new Rollback(
             ok({
@@ -465,7 +472,9 @@ export function adviseClassification(field: {
   | { kind: 'suggest'; classification: string; piiKind: string; reason: string; floor: string }
   | { kind: 'fallback'; classification: string; piiKind: string; floor: string } {
   const words = `${field.label} ${field.description ?? ''}`.toLowerCase();
-  if (/health|medical|diagnos|disab|religio|ethnic|sexual|trade union|biometric|pregnan/u.test(words)) {
+  if (
+    /health|medical|diagnos|disab|religio|ethnic|sexual|trade union|biometric|pregnan/u.test(words)
+  ) {
     return {
       kind: 'protect',
       piiKind: 'health',
@@ -519,7 +528,10 @@ export interface SetupView {
     }[];
   }[];
   readonly published: number | null;
-  readonly profile: { readonly sections: readonly RecordSection[]; readonly values: FormValues } | null;
+  readonly profile: {
+    readonly sections: readonly RecordSection[];
+    readonly values: FormValues;
+  } | null;
 }
 
 const countryName = (code: string): string =>
@@ -542,8 +554,16 @@ export async function setupView(
         const own = await personOfViewer(deps, tx, asking);
         if (own.ok) {
           const view = await deps.service.access.read(tx, { ...asking, personId: own.value });
-          const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, own.value);
-          const verdict = await deps.service.access.completeness(tx, { ...asking, personId: own.value });
+          const relations = await deps.relations.relations(
+            tx,
+            asking.tenantId,
+            asking.viewer,
+            own.value,
+          );
+          const verdict = await deps.service.access.completeness(tx, {
+            ...asking,
+            personId: own.value,
+          });
           if (view.ok) {
             const sections = recordSections(
               published,
@@ -563,7 +583,7 @@ export async function setupView(
           const mine = pack.attributes.filter((a) => a.sectionKey === s.key);
           const required = mine.filter((a) => a.requiredness.mode !== 'never').length;
           return {
-            key: s.key as string,
+            key: s.key,
             label: s.label.default,
             summary: mine.map((a) => a.label.default).join(', '),
             required,
@@ -600,7 +620,9 @@ export async function confirmEntity(
   if (!/^[A-Z]{2}$/u.test(entity.country)) {
     return err(failure('VALUE_INVALID', 'A country is a two-letter code', ['country']));
   }
-  return run(deps.service, asking.tenantId, (tx) => asAdmin(deps, tx, asking, () => Promise.resolve(ok(undefined))));
+  return run(deps.service, asking.tenantId, (tx) =>
+    asAdmin(deps, tx, asking, () => Promise.resolve(ok(undefined))),
+  );
 }
 
 /**
@@ -631,9 +653,11 @@ export async function publishSetup(
         const kept = pack.sections.filter(
           (s) =>
             on.has(s.key) ||
-            pack.attributes.some((a) => a.sectionKey === s.key && a.requiredness.mode === 'conditional'),
+            pack.attributes.some(
+              (a) => a.sectionKey === s.key && a.requiredness.mode === 'conditional',
+            ),
         );
-        const keys = new Set(kept.map((s) => s.key as string));
+        const keys = new Set(kept.map((s) => s.key));
         const seeded = await seedCountryPack(tx, asking.tenantId, {
           sections: kept,
           attributes: pack.attributes.filter((a) => keys.has(a.sectionKey)),

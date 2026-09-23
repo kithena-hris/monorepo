@@ -24,7 +24,12 @@ import { currentPerson } from './session';
 
 export type PeopleAnswer<T> =
   | { readonly ok: true; readonly status: number; readonly data: T }
-  | { readonly ok: false; readonly status: number; readonly code: string; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly status: number;
+      readonly code: string;
+      readonly message: string;
+    };
 
 /** The deployment's modules, until tenants carry their own (see `.env.example`). */
 function entitlements(): string[] {
@@ -53,7 +58,8 @@ export async function people<T>(
       method,
       headers: {
         'content-type': 'application/json',
-        'x-internal-token': process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
+        'x-internal-token':
+          process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
         'x-kithena-principal': JSON.stringify({
           userId: person.accountId,
           tenantId,

@@ -4,7 +4,14 @@ import { createInstance, type ModuleFederation } from '@module-federation/runtim
 import * as Reach from '@reach/ui';
 import { Alert, Spinner } from '@reach/ui';
 import * as React from 'react';
-import { Component, useEffect, useState, type ComponentType, type JSX, type ReactNode } from 'react';
+import {
+  Component,
+  useEffect,
+  useState,
+  type ComponentType,
+  type JSX,
+  type ReactNode,
+} from 'react';
 import * as jsxRuntime from 'react/jsx-runtime';
 
 /*

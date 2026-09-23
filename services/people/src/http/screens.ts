@@ -135,7 +135,11 @@ const KEY = '([a-z][a-z0-9_]{0,63})';
 
 export function screenRoutes(deps: ScreenRouteDeps): Route[] {
   const write =
-    <T, R>(schema: z.ZodType<T>, act: (asking: Parameters<Route['handle']>[0], input: T, id: string) => Promise<Result<R>>, status = 200): Route['handle'] =>
+    <T, R>(
+      schema: z.ZodType<T>,
+      act: (asking: Parameters<Route['handle']>[0], input: T, id: string) => Promise<Result<R>>,
+      status = 200,
+    ): Route['handle'] =>
     async (asking, request, params) => {
       const input = body(schema, request.body);
       if (!input.ok) return refused(input.error);
@@ -157,13 +161,16 @@ export function screenRoutes(deps: ScreenRouteDeps): Route[] {
     {
       method: 'GET',
       pattern: new RegExp(`^/v1/views/profile/${UUID}$`),
-      handle: async (asking, _r, params) => answer(await profileView(deps, asking, params['id'] ?? '')),
+      handle: async (asking, _r, params) =>
+        answer(await profileView(deps, asking, params['id'] ?? '')),
     },
     {
       method: 'POST',
       pattern: /^\/v1\/views\/me\/sections$/,
       handle: write(Sections, async (asking, input) => {
-        const own = await run(deps.service, asking.tenantId, (tx) => personOfViewer(deps, tx, asking));
+        const own = await run(deps.service, asking.tenantId, (tx) =>
+          personOfViewer(deps, tx, asking),
+        );
         return own.ok ? saveSection(deps, asking, own.value, input.changed) : own;
       }),
     },
@@ -177,7 +184,10 @@ export function screenRoutes(deps: ScreenRouteDeps): Route[] {
       pattern: /^\/v1\/views\/directory$/,
       handle: async (asking, _r, _p, query) => {
         const filter = query.get('filter') ?? undefined;
-        if (filter !== undefined && !/^[a-z][a-z0-9_]*:[^,]+(,[a-z][a-z0-9_]*:[^,]+)*$/.test(filter)) {
+        if (
+          filter !== undefined &&
+          !/^[a-z][a-z0-9_]*:[^,]+(,[a-z][a-z0-9_]*:[^,]+)*$/.test(filter)
+        ) {
           return refused(failure('BAD_REQUEST', 'filter is key:value pairs', ['filter']));
         }
         return answer(
@@ -245,7 +255,11 @@ export function screenRoutes(deps: ScreenRouteDeps): Route[] {
     {
       method: 'POST',
       pattern: /^\/v1\/schema\/draft\/publish$/,
-      handle: write(RequiredFrom, (asking, input) => publishDraft(deps, asking, input.requiredFrom), 201),
+      handle: write(
+        RequiredFrom,
+        (asking, input) => publishDraft(deps, asking, input.requiredFrom),
+        201,
+      ),
     },
     {
       method: 'GET',
@@ -294,10 +308,14 @@ export function screenRoutes(deps: ScreenRouteDeps): Route[] {
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/webhooks/deliveries/${UUID}/replay$`),
-      handle: write(z.strictObject({}), async (asking, _input, id) => {
-        const replayed = await replayDelivery(deps, asking, id);
-        return replayed.ok ? ok({ deliveryId: replayed.value }) : replayed;
-      }, 201),
+      handle: write(
+        z.strictObject({}),
+        async (asking, _input, id) => {
+          const replayed = await replayDelivery(deps, asking, id);
+          return replayed.ok ? ok({ deliveryId: replayed.value }) : replayed;
+        },
+        201,
+      ),
     },
 
     /* import */
@@ -335,4 +353,3 @@ export function screenRoutes(deps: ScreenRouteDeps): Route[] {
 export function bodyLimit(path: string): number {
   return path.startsWith('/v1/imports') ? 140 * 1024 * 1024 : 256 * 1024;
 }
-

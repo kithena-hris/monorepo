@@ -59,7 +59,9 @@ let handle: (raw: unknown) => Promise<string>;
 let admin: ReturnType<typeof postgres>;
 
 const relations = (tenantId: string, accountId: string, personId: string) =>
-  inTenant(tenantId, ({ tx }) => fga.relations.relations(tx, tenantId, viewer(accountId), personId));
+  inTenant(tenantId, ({ tx }) =>
+    fga.relations.relations(tx, tenantId, viewer(accountId), personId),
+  );
 
 /** Debezium's job: every outbox row not yet handed over, in order, to the consumer. */
 let relayed = 0;
@@ -79,7 +81,11 @@ beforeAll(async () => {
   clients.push(admin);
   const dir = new URL('../../../../migrations/', import.meta.url);
   const files = (await readdir(dir))
-    .filter((f) => f.endsWith('.sql') && ((f.includes('_people_') && !f.includes('identity')) || f.includes('tenant_registry')))
+    .filter(
+      (f) =>
+        f.endsWith('.sql') &&
+        ((f.includes('_people_') && !f.includes('identity')) || f.includes('tenant_registry')),
+    )
     .sort();
   for (const file of files) {
     await drizzle(admin).execute(sql.raw(await readFile(new URL(file, dir), 'utf8')));
@@ -110,14 +116,23 @@ beforeAll(async () => {
     reader: drizzlePersonReader(),
     schemas: drizzleSchemaVersions(),
     relations: fga.relations,
-    secrets: drizzleSecretStore(staticKeyRing(keysFrom(`k1:${randomBytes(32).toString('base64')}`)), logger),
-    uniques: drizzleUniqueClaims(staticKeyRing(keysFrom(`k1:${randomBytes(32).toString('base64')}`))),
+    secrets: drizzleSecretStore(
+      staticKeyRing(keysFrom(`k1:${randomBytes(32).toString('base64')}`)),
+      logger,
+    ),
+    uniques: drizzleUniqueClaims(
+      staticKeyRing(keysFrom(`k1:${randomBytes(32).toString('base64')}`)),
+    ),
     clock: systemClock,
     newId: uuidv7,
   });
 
   const repo = drizzlePersonRepository();
-  const seed = (tenantId: string, who: { person: string; account: string }, managerId: string | null) =>
+  const seed = (
+    tenantId: string,
+    who: { person: string; account: string },
+    managerId: string | null,
+  ) =>
     inTenant(tenantId, ({ tx }) =>
       repo.create(
         tx,
