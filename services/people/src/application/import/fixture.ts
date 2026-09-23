@@ -1,3 +1,5 @@
+import type { PendingEvent } from '@kithena/domain-kit';
+
 import {
   define,
   inMemoryPeople,
@@ -5,7 +7,9 @@ import {
   versionOf,
   type InMemoryPeople,
 } from '../person/in-memory.js';
+import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
+import type { CommitDeps, ImportCounts, ImportLedger, RowScope } from './commit.js';
 
 /**
  * Priya's 412 rows (PRD §14.4, story 6), for the import tests.
@@ -206,3 +210,50 @@ export const asking = {
   viewer: HR,
   correlationId: '00000000-0000-4000-8000-0000000000c1',
 };
+
+/** The ledger's constraint, in memory: one import per tenant per checksum. */
+export function inMemoryLedger(): ImportLedger & {
+  readonly imports: Map<string, { importId: string; counts: ImportCounts | null }>;
+  readonly events: PendingEvent[];
+} {
+  const imports = new Map<string, { importId: string; counts: ImportCounts | null }>();
+  const events: PendingEvent[] = [];
+  return {
+    imports,
+    events,
+    claim(_tx, entry) {
+      const key = `${entry.tenantId}:${entry.checksum}`;
+      const held = imports.get(key);
+      if (held) return Promise.resolve({ claimed: false, importId: held.importId });
+      imports.set(key, { importId: entry.importId, counts: null });
+      return Promise.resolve({ claimed: true });
+    },
+    complete(_tx, _tenant, importId, counts) {
+      for (const entry of imports.values()) if (entry.importId === importId) entry.counts = counts;
+      return Promise.resolve();
+    },
+    publish(_tx, published) {
+      events.push(...published);
+      return Promise.resolve();
+    },
+  };
+}
+
+/** No savepoints in memory; a refused row writes nothing before it is refused. */
+export const directRowScope: RowScope = (tx, fn) => fn(tx);
+
+export function commitDeps(
+  store: InMemoryPeople,
+  ledger: ImportLedger = inMemoryLedger(),
+): CommitDeps {
+  return {
+    access: personAccess(store.deps),
+    schemas: store.deps.schemas,
+    relations: store.deps.relations,
+    people: store.deps.people,
+    clock: store.deps.clock,
+    newId: store.deps.newId,
+    ledger,
+    rowScope: directRowScope,
+  };
+}
