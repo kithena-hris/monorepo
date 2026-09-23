@@ -23,7 +23,6 @@ import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
-import { drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import {
   drizzlePeopleFacts,
   drizzleSchemaRepository,
