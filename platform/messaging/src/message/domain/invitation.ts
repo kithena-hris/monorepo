@@ -221,7 +221,10 @@ const COPY: Record<MessagePurpose, Copy> = {
       'That becomes your passkey. Nothing leaves your device.',
       `You sign in to ${company} the same way from then on.`,
     ],
-    expiry: ['This link works once and expires', 'If it has expired, ask your HR team for another.'],
+    expiry: [
+      'This link works once and expires',
+      'If it has expired, ask your HR team for another.',
+    ],
     caution: (company) => [
       `If you were not expecting this, or you do not recognise ${company}, do not use the link —`,
       'tell your HR team instead.',

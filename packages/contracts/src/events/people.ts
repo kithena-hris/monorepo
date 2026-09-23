@@ -87,15 +87,12 @@ export const ChangedAttribute = z
      * tenant, which is the right default for a field whose contents nobody
      * can predict at build time.
      */
-    value: z
-      .unknown()
-      .optional()
-      .register(policy, {
-        classification: 'confidential',
-        piiKind: 'none',
-        exportable: true,
-        aiEligible: false,
-      }),
+    value: z.unknown().optional().register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
   })
   .refine((a) => a.classification !== 'special-category' || a.value === undefined, {
     message: 'special-category values never travel on an event',
@@ -254,9 +251,7 @@ export const PersonIdentityLinked = defineEvent(
   z.object({
     personId: PersonId,
     identityAccountId: z.uuid().register(policy, asPublic()),
-    direction: z
-      .enum(['person_first', 'account_first'])
-      .register(policy, asPublic()),
+    direction: z.enum(['person_first', 'account_first']).register(policy, asPublic()),
   }),
 );
 
@@ -302,15 +297,12 @@ export const PersonProfileUpdated = defineEvent(
      * at build time. That makes the array a redaction path and a deny-list
      * entry for every tenant, which is the right default for a field whose
      * contents nobody can predict. */
-    changed: z
-      .array(ChangedAttribute)
-      .min(1)
-      .register(policy, {
-        classification: 'confidential',
-        piiKind: 'none',
-        exportable: true,
-        aiEligible: false,
-      }),
+    changed: z.array(ChangedAttribute).min(1).register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
     schemaVersion: SchemaVersion,
   }),
 );
@@ -557,6 +549,27 @@ export const PersonSyncedFromExternal = defineEvent(
   }),
 );
 
+/**
+ * A unique value turned out to be held by two people, found while re-keying
+ * unique claims under a new key (PEO-082).
+ *
+ * Which attribute and which two people, never the value: the claim store
+ * holds only a keyed hash, and this event must not become the place the value
+ * finally appears. The stale claim is left under the retiring key, so the
+ * value stays unique there until HR resolves it; the HR grid shows it too.
+ */
+export const UniqueClaimConflict = defineEvent(
+  'people.unique_claim.conflict',
+  1,
+  z.object({
+    attributeKey: AttributeKey,
+    /** Holds the value under the current key. */
+    heldBy: PersonId,
+    /** Holds the same value under the retiring key; not re-keyed. */
+    staleClaimBy: PersonId,
+  }),
+);
+
 /* ---------------------------------------------------------- import events -- */
 
 /**
@@ -616,6 +629,189 @@ export const ExportCompleted = defineEvent(
   }),
 );
 
+/* ----------------------------------------------------- calendar events -- */
+
+/*
+ * Legal entities, locations and tenant settings (PEO-099): the calendars
+ * every "today" in People is read on. Organisation configuration rather than
+ * anybody's personal data — a company's legal name and an office's time zone
+ * are on its letterhead — but classified all the same, because the codegen
+ * walk refuses anything that is not.
+ */
+
+const PlaceName = z.string().min(1).max(200).register(policy, asInternal());
+/** ISO 3166-1 alpha-2, upper case. */
+const CountryOf = z
+  .string()
+  .regex(/^[A-Z]{2}$/u)
+  .register(policy, asPublic());
+/** An IANA zone, validated against the runtime's database where it is written. */
+const ZoneName = z.string().min(1).register(policy, asPublic());
+const LocationId = z.uuid().register(policy, asPublic());
+
+export const LegalEntityCreated = defineEvent(
+  'people.legal_entity.created',
+  1,
+  z.object({
+    legalEntityId: LegalEntityId,
+    name: PlaceName,
+    country: CountryOf,
+    /** The entity's default zone: whose day its aggregates are counted on. */
+    timeZone: ZoneName,
+  }),
+);
+
+/** A rename, a new default zone, or archiving. The country never changes. */
+export const LegalEntityUpdated = defineEvent(
+  'people.legal_entity.updated',
+  1,
+  z.object({
+    legalEntityId: LegalEntityId,
+    name: PlaceName,
+    timeZone: ZoneName,
+    archived: z.boolean().register(policy, asPublic()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
+export const LocationCreated = defineEvent(
+  'people.location.created',
+  1,
+  z.object({
+    locationId: LocationId,
+    legalEntityId: LegalEntityId,
+    name: PlaceName,
+    country: CountryOf,
+    timeZone: ZoneName,
+    /** From when the first zone is in force. Also the envelope's `effectiveFrom`. */
+    effectiveFrom: CalendarDate,
+  }),
+);
+
+export const LocationUpdated = defineEvent(
+  'people.location.updated',
+  1,
+  z.object({
+    locationId: LocationId,
+    name: PlaceName,
+    archived: z.boolean().register(policy, asPublic()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
+/**
+ * A location's zone changed from a date, or a mistaken zone was corrected.
+ *
+ * Effective-dated like any fact: `effectiveFrom` is the calendar day it takes
+ * effect on, in the new zone; a correction names the row it `supersedes`.
+ */
+export const LocationZoneChanged = defineEvent(
+  'people.location.zone_changed',
+  1,
+  z.object({
+    locationId: LocationId,
+    zoneId: z.uuid().register(policy, asPublic()),
+    timeZone: ZoneName,
+    effectiveFrom: CalendarDate,
+    supersedes: z.uuid().nullable().register(policy, asPublic()),
+  }),
+);
+
+/** The tenant's default zone or cohort minimum changed. The minimum only ever rises. */
+export const TenantSettingsChanged = defineEvent(
+  'people.settings.changed',
+  1,
+  z.object({
+    defaultTimeZone: ZoneName,
+    cohortMinimum: z.int().min(10).register(policy, asInternal()),
+    fieldsChanged: z.array(z.string()).register(policy, asInternal()),
+  }),
+);
+
+/**
+ * Full values for finance: asked for, decided, issued once, downloaded once
+ * (PEO-088; §15.2). Finance never downloads a sensitive value directly — HR
+ * approves a named request, and the approval issues one file behind a link
+ * that works once. Every step carries the actor (on the envelope), the reason
+ * and the field keys; never a value, never a link.
+ */
+export const FullValuesRequested = defineEvent(
+  'people.export.full_values_requested',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    reason: z.string().max(500).register(policy, asFreeText()),
+    /** Undecided by then, it expires. */
+    expiresAt: Instant,
+  }),
+);
+
+export const FullValuesDecided = defineEvent(
+  'people.export.full_values_decided',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    decision: z.enum(['approved', 'rejected']).register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    reason: z.string().max(500).register(policy, asFreeText()),
+    note: z.string().max(500).nullable().register(policy, asFreeText()),
+  }),
+);
+
+export const FullValuesExpired = defineEvent(
+  'people.export.full_values_expired',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+  }),
+);
+
+export const FullValuesIssued = defineEvent(
+  'people.export.full_values_issued',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    exportId: z.uuid().register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    rowCount: z.int().nonnegative().register(policy, asInternal()),
+    linkExpiresAt: Instant,
+  }),
+);
+
+export const FullValuesDownloaded = defineEvent(
+  'people.export.full_values_downloaded',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    exportId: z.uuid().register(policy, asPublic()),
+    /** The link is a bearer link: who it was issued to, not who clicked. */
+    issuedTo: z.uuid().register(policy, asInternal()),
+  }),
+);
+
+/**
+ * A webhook endpoint was disabled because nothing reached it for 24 hours
+ * (§13.3, PEO-093).
+ *
+ * Raised in the transaction that disabled it, once however many deliveries hit
+ * the ceiling together. The tenant's own record that an integration stopped;
+ * the alert email beside it is best effort. No URL — a receiver's token can
+ * sit in its query — and no address.
+ */
+export const WebhookEndpointDisabled = defineEvent(
+  'people.webhook.endpoint_disabled',
+  1,
+  z.object({
+    endpointId: z.uuid().register(policy, asPublic()),
+    reason: z.enum(['delivery_ceiling']).register(policy, asPublic()),
+    /** The last HTTP status, or null when nothing answered at all. */
+    lastResponse: z.int().min(100).max(599).nullable().register(policy, asInternal()),
+    disabledAt: Instant,
+  }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -641,7 +837,20 @@ export const peopleEvents = [
   PersonMerged,
   PersonAnonymised,
   PersonSyncedFromExternal,
+  UniqueClaimConflict,
   ImportStarted,
   ImportCompleted,
   ExportCompleted,
+  LegalEntityCreated,
+  LegalEntityUpdated,
+  LocationCreated,
+  LocationUpdated,
+  LocationZoneChanged,
+  TenantSettingsChanged,
+  FullValuesRequested,
+  FullValuesDecided,
+  FullValuesExpired,
+  FullValuesIssued,
+  FullValuesDownloaded,
+  WebhookEndpointDisabled,
 ] as const;

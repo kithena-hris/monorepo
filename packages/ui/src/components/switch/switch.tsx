@@ -17,7 +17,8 @@ export function Switch({ className, ...props }: SwitchProps): JSX.Element {
   return (
     <SwitchPrimitive.Root
       className={cn(
-        'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full',
+        'peer relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full',
+        'tap-target',
         'border border-transparent bg-surface-active shadow-xs',
         'transition-[background-color,transform] duration-(--animate-duration-fast) ease-standard',
         // Confirms the press on pointer-down, before the state has flipped.

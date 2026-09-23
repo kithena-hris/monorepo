@@ -31,34 +31,33 @@ const registry = () =>
   createPolicyRegistry({
     staticRedaction: ['payload.secret'],
     staticAiDeny: ['payload.secret'],
-    unknownTenantRedaction: ['custom', '*.custom'],
+    unknownTenantRedaction: ['custom'],
   });
 
-describe('redaction paths', () => {
-  it('are the static set plus the tenant’s own, and nobody else’s', () => {
+describe('redaction', () => {
+  it('is the static paths plus the tenant’s own keys, and nobody else’s', () => {
     const r = registry();
     r.replace(ACME, [{ key: 'blood_type', policy: specialCategory }]);
     r.replace(GLOBEX, [{ key: 'shoe_size', policy: { ...internal, classification: 'confidential' } }]);
 
-    expect(r.redactionPaths(ACME)).toContain('payload.secret');
-    expect(r.redactionPaths(ACME)).toContain('*.blood_type');
-    expect(r.redactionPaths(ACME).some((p) => p.includes('shoe_size'))).toBe(false);
+    expect(r.redactionPaths(ACME)).toEqual(['payload.secret']);
+    expect([...r.redactionKeys(ACME)]).toEqual(['blood_type']);
+    expect([...r.redactionKeys(GLOBEX)]).toEqual(['shoe_size']);
   });
 
-  it('leave an internal field alone and catch an encrypted one whatever it is classified', () => {
+  it('leaves an internal field alone and catches an encrypted one whatever it is classified', () => {
     const r = registry();
     r.replace(ACME, [
       { key: 'desk', policy: internal },
       { key: 'iban', policy: internal, encrypted: true },
     ]);
-    expect(r.redactionPaths(ACME).some((p) => p.includes('desk'))).toBe(false);
-    expect(r.redactionPaths(ACME)).toContain('iban');
+    expect([...r.redactionKeys(ACME)]).toEqual(['iban']);
   });
 
-  it('fail closed for a tenant nobody loaded', () => {
+  it('fails closed for a tenant nobody loaded', () => {
     const r = registry();
     expect(r.isLoaded(ACME)).toBe(false);
-    expect(r.redactionPaths(ACME)).toEqual(['payload.secret', 'custom', '*.custom']);
+    expect([...r.redactionKeys(ACME)]).toEqual(['custom']);
   });
 
   it('refuse a key that is not a slug, rather than compile it into a path', () => {
@@ -96,5 +95,65 @@ describe('a tenant logger', () => {
     const { base, lines } = capture();
     registry().loggerFor(base, ACME).info({ person: { custom: { anything: 'x' } } }, 'unknown');
     expect(JSON.stringify(lines[0])).not.toContain('"x"');
+  });
+});
+
+describe('a tenant logger, at any depth', () => {
+  const VALUE = 'AB-negative';
+
+  /** `{ a: { a: … { blood_type } } }`, with the key at `depth` (1 = top level). */
+  function nested(depth: number): Record<string, unknown> {
+    let line: Record<string, unknown> = { blood_type: VALUE };
+    for (let i = 1; i < depth; i += 1) line = { a: line };
+    return line;
+  }
+
+  function logged(line: Record<string, unknown>, tenant = ACME): string {
+    const r = registry();
+    const { base, lines } = capture();
+    r.replace(ACME, [{ key: 'blood_type', policy: specialCategory }]);
+    r.replace(GLOBEX, []);
+    r.loggerFor(base, tenant).info(line, 'x');
+    return JSON.stringify(lines[0]);
+  }
+
+  it.each([1, 4, 7, 20])('redacts a denied key at depth %i', (depth) => {
+    const out = logged(nested(depth));
+    expect(out).not.toContain(VALUE);
+    expect(out).toContain('[redacted]');
+  });
+
+  it('redacts inside arrays and nested arrays', () => {
+    expect(logged({ changes: [{ blood_type: VALUE }] })).not.toContain(VALUE);
+    expect(logged({ batches: [[{ x: [{ blood_type: VALUE }] }]] })).not.toContain(VALUE);
+  });
+
+  it('still applies the static paths', () => {
+    expect(logged({ payload: { secret: 'hunter2' } })).not.toContain('hunter2');
+  });
+
+  it('does not apply another tenant’s keys', () => {
+    expect(logged(nested(7), GLOBEX)).toContain(VALUE);
+  });
+
+  it('never mutates what the caller logged', () => {
+    const line = { person: { blood_type: VALUE } };
+    logged(line);
+    expect(line.person.blood_type).toBe(VALUE);
+  });
+
+  it('redacts the bindings of every descendant, and keeps the walk under a child’s own formatter', () => {
+    const r = registry();
+    const { base, lines } = capture();
+    r.replace(ACME, [{ key: 'blood_type', policy: specialCategory }]);
+
+    const child = r.loggerFor(base, ACME).child({ person: { blood_type: VALUE } });
+    child.child({ deeper: [{ blood_type: VALUE }] }).info('bound');
+    child
+      .child({}, { formatters: { log: (o) => ({ ...o, extra: { blood_type: VALUE } }) } })
+      .info({ n: 1 }, 'own');
+
+    expect(lines).toHaveLength(2);
+    expect(JSON.stringify(lines)).not.toContain(VALUE);
   });
 });

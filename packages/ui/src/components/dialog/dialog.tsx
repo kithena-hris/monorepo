@@ -70,7 +70,7 @@ export function DialogContent({
         {showCloseButton ? (
           <DialogPrimitive.Close
             className={cn(
-              'absolute top-4 right-4 grid size-7 place-items-center rounded-sm text-fg-subtle',
+              'absolute top-4 right-4 grid size-7 place-items-center rounded-sm text-fg-subtle tap-target',
               'transition-colors hover:bg-surface-hover hover:text-fg',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
             )}

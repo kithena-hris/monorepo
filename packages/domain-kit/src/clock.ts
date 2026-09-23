@@ -25,21 +25,51 @@ export interface Clock {
   date(timeZone: string): CalendarDate;
 }
 
+// 'en-CA' with a short date style is ISO 8601 (YYYY-MM-DD), which is the one
+// locale that gives the calendar date the contracts want without formatting
+// parts back together by hand.
+const civil = (at: Date, timeZone: string): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone, dateStyle: 'short' }).format(at);
+
+/**
+ * The calendar day an instant falls on in a time zone. Pure.
+ *
+ * The one conversion from "when" to "which day". A date is not an instant: at
+ * 11:30 UTC on 1 March it is already the 2nd in Auckland, so every rule that
+ * compares a calendar date with "today" has to say whose today, and then ask
+ * this. Throws a `RangeError` for a zone the runtime does not know, which is a
+ * bug by the time it gets here: zones are validated where they are written.
+ */
+export function localDate(instant: string | Date, timeZone: string): CalendarDate {
+  return CalendarDate.parse(civil(typeof instant === 'string' ? new Date(instant) : instant, timeZone));
+}
+
+/**
+ * Whether the runtime knows this IANA zone.
+ *
+ * Asked of `Intl`, which throws for an unknown one, rather than of a copied
+ * list: the IANA database changes, and a copy refuses a real zone the day it
+ * falls behind. Offsets such as `UTC+2` are refused on purpose — an offset has
+ * no daylight saving, so it is wrong for half of every year somewhere.
+ */
+export function isTimeZone(value: string): boolean {
+  if (!/^[A-Za-z]+(?:\/[A-Za-z0-9_+-]+)*$/.test(value)) return false;
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: value }).resolvedOptions().timeZone !== '';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The two derivations every `Clock` shares, so an implementation only has to
  * answer "what time is it" and the branding is not re-derived per clock.
  */
 function brandedFrom(at: () => Date): Pick<Clock, 'today' | 'instant' | 'date'> {
-  // 'en-CA' with a short date style is ISO 8601 (YYYY-MM-DD), which is the one
-  // locale that gives the calendar date the contracts want without formatting
-  // parts back together by hand.
-  const civil = (timeZone: string): string =>
-    new Intl.DateTimeFormat('en-CA', { timeZone, dateStyle: 'short' }).format(at());
-
   return {
-    today: civil,
+    today: (timeZone) => civil(at(), timeZone),
     instant: () => Instant.parse(at().toISOString()),
-    date: (timeZone) => CalendarDate.parse(civil(timeZone)),
+    date: (timeZone) => localDate(at(), timeZone),
   };
 }
 

@@ -1,0 +1,524 @@
+import { TooltipProvider } from '@reach/ui';
+import { render, screen, within } from '@testing-library/react';
+import axe from 'axe-core';
+import type { ReactElement } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
+
+import { Analytics } from '../analytics/analytics';
+import { CompletenessGrid } from '../completeness/completeness-grid';
+import { Directory } from '../directory/directory';
+import { ExportBuilder } from '../export/export-builder';
+import { ImportFlow } from '../import/import-flow';
+import { Onboarding } from '../onboarding/onboarding';
+import { Profile } from '../profile/profile';
+import type { RecordField } from '../record/model';
+import { FieldRegistry } from '../settings/field-registry';
+import { Integrations } from '../settings/integrations/integrations';
+import { PublishDialog } from '../settings/publish';
+import { PeopleSetup } from '../setup/people-setup';
+
+/**
+ * Every screen at 390×844 with a coarse pointer and the real stylesheet
+ * (PRD §17.3): axe over the rendered page, contrast included, and every tap
+ * target measured against the 44px floor rather than eyeballed.
+ */
+
+const ok = () => Promise.resolve({ ok: true as const });
+const never = () => new Promise<never>(() => undefined);
+
+/** WCAG 2.5.8 and the iOS HIG: nothing a finger has to hit is smaller. */
+const FLOOR = 44;
+
+const TARGETS =
+  'button, a[href], input:not([type="hidden"]), select, textarea, [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="tab"]';
+
+/** Targets under the floor, by name and size. A `::before` hit area counts, as Reach draws one. */
+function underFloor(root: Element): string[] {
+  return [...root.querySelectorAll<HTMLElement>(TARGETS)].flatMap((el) => {
+    if (el.closest('[aria-hidden="true"]') !== null) return [];
+    // What a finger actually hits: a field's whole shell (the input fills it),
+    // or the card-sized label a `RadioCard` wraps its radio in.
+    const surface =
+      el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+        ? (el.parentElement ?? el)
+        : (el.closest('label') ?? el);
+    const box = surface.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) return [];
+    const hit = getComputedStyle(el, '::before');
+    const width = Math.max(box.width, Number.parseFloat(hit.width) || 0);
+    const height = Math.max(box.height, Number.parseFloat(hit.height) || 0);
+    if (width >= FLOOR - 0.5 && height >= FLOOR - 0.5) return [];
+    const name = el.getAttribute('aria-label') ?? el.textContent.trim().slice(0, 40);
+    return [
+      `${el.tagName.toLowerCase()} "${name}" ${String(Math.round(width))}×${String(Math.round(height))}`,
+    ];
+  });
+}
+
+async function violations(root: Element): Promise<string[]> {
+  const result = await axe.run(root, { rules: { region: { enabled: false } } });
+  return result.violations.map(
+    (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
+  );
+}
+
+function mount(ui: ReactElement) {
+  return render(ui, { wrapper: TooltipProvider });
+}
+
+/** At rest: a box mid-way through a scale-in reports the scaled size. */
+async function settled(): Promise<void> {
+  await Promise.all(
+    document
+      .getAnimations()
+      .filter((a) => a.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY)
+      .map((a) => a.finished.catch(() => undefined)),
+  );
+}
+
+async function checked(ui: ReactElement): Promise<void> {
+  mount(ui);
+  await settled();
+  const root = document.body;
+  expect(await violations(root)).toEqual([]);
+  expect(underFloor(root)).toEqual([]);
+}
+
+const field = (over: Partial<RecordField> & Pick<RecordField, 'key' | 'label'>): RecordField => ({
+  description: null,
+  dataType: 'text',
+  options: [],
+  required: false,
+  readOnly: false,
+  ...over,
+});
+
+describe('at 390×844, with a finger', () => {
+  it('uses the coarse control sizes', () => {
+    expect(matchMedia('(pointer: coarse)').matches).toBe(true);
+    expect(window.innerWidth).toBe(390);
+  });
+
+  it('the field registry', async () => {
+    await checked(
+      <FieldRegistry
+        load={{
+          status: 'ready',
+          data: {
+            published: { version: 3, publishedAt: '12 Sep' },
+            unpublishedChanges: 1,
+            sections: [
+              {
+                key: 'hr',
+                label: 'HR information',
+                visibility: ['hr'],
+                ownership: ['hr'],
+                origin: 'core',
+                fixed: false,
+              },
+            ],
+            fields: [
+              {
+                key: 'cost_centre',
+                sectionKey: 'hr',
+                label: 'Cost centre',
+                description: null,
+                dataType: 'select',
+                options: ['ENG-204'],
+                requiredness: 'always',
+                ownership: ['hr'],
+                visibility: ['hr'],
+                collectAt: 'hr_only',
+                classification: 'internal',
+                piiKind: 'none',
+                origin: 'tenant',
+                pending: 'added',
+              },
+            ],
+          },
+        }}
+        today="2026-09-22"
+        advise={never}
+        onReorderSections={ok}
+        onReorderFields={ok}
+        onAddSection={ok}
+        onSaveField={ok}
+        preview={never}
+        onPublish={ok}
+      />,
+    );
+  });
+
+  it('publishing, as a sheet from the bottom', async () => {
+    await checked(
+      <PublishDialog
+        open
+        onOpenChange={vi.fn()}
+        today="2026-09-22"
+        preview={() =>
+          Promise.resolve({
+            nextVersion: 4,
+            unchanged: false,
+            changes: [
+              {
+                kind: 'added',
+                key: 'cost_centre',
+                summary: 'Cost centre added',
+                specialCategory: false,
+              },
+            ],
+            impact: {
+              evaluated: 412,
+              becomingIncomplete: 88,
+              becomingComplete: 0,
+              forEmployees: 61,
+              forStaff: 27,
+            },
+            integrationsNotified: 3,
+          })
+        }
+        onPublish={ok}
+      />,
+    );
+    await screen.findByText('Become incomplete');
+    const dialog = screen.getByRole('dialog');
+    // Anchored to the bottom edge, not centred: read from the style rather than
+    // the box, which is mid-way through sliding in.
+    expect(getComputedStyle(dialog).bottom).toBe('0px');
+    expect(underFloor(dialog)).toEqual([]);
+  });
+
+  it('the setup wizard', async () => {
+    await checked(
+      <PeopleSetup
+        load={{
+          status: 'ready',
+          data: {
+            legalEntity: { name: 'Acme Iberia SL', country: 'ES' },
+            entityConfirmed: false,
+            countries: [{ code: 'ES', name: 'Spain' }],
+            packs: [],
+            published: null,
+            profile: null,
+          },
+        }}
+        onConfirmEntity={ok}
+        onPublish={ok}
+        onSaveProfile={ok}
+        onFinish={vi.fn()}
+      />,
+    );
+  });
+
+  it('a profile', async () => {
+    await checked(
+      <Profile
+        load={{
+          status: 'ready',
+          data: {
+            person: {
+              name: 'Adam Reyes',
+              summary: 'Support Engineer · Barcelona',
+              avatarUrl: null,
+              missing: 1,
+            },
+            sections: [
+              {
+                key: 'contact',
+                label: 'Contact',
+                visibility: ['self', 'hr'],
+                readsLogged: false,
+                fields: [field({ key: 'mobile', label: 'Mobile', dataType: 'phone' })],
+              },
+            ],
+            values: {},
+          },
+        }}
+        onSave={ok}
+      />,
+    );
+  });
+
+  it('the directory, as cards', async () => {
+    await checked(
+      <Directory
+        load={{
+          status: 'ready',
+          data: {
+            active: 2,
+            incomplete: 1,
+            columns: [{ key: 'job_title', label: 'Job title' }],
+            filterable: [
+              {
+                key: 'cost_centre',
+                label: 'Cost centre',
+                options: [{ value: 'ENG-204', label: 'ENG-204' }],
+              },
+            ],
+            people: [
+              {
+                id: 'a',
+                name: 'Adam Reyes',
+                email: null,
+                avatarUrl: null,
+                values: { job_title: 'Support Engineer' },
+                missing: 0,
+              },
+              {
+                id: 'l',
+                name: 'Lena Moreau',
+                email: null,
+                avatarUrl: null,
+                values: { job_title: 'Staff Engineer' },
+                missing: 2,
+              },
+            ],
+          },
+        }}
+        search=""
+        onSearchChange={vi.fn()}
+        filters={{}}
+        onFiltersChange={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    );
+    // A phone gets cards; the table is a desk's.
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Details for Lena Moreau' })).toBeVisible();
+  });
+
+  it('the completeness grid, as one card per person', async () => {
+    await checked(
+      <CompletenessGrid
+        load={{
+          status: 'ready',
+          data: {
+            since: 'Since version 4',
+            waiting: { people: 61, lastReminded: null },
+            completedThisWeek: 3,
+            fields: [
+              {
+                key: 'cost_centre',
+                label: 'Cost centre',
+                options: [{ value: 'ENG-204', label: 'ENG-204' }],
+              },
+            ],
+            rows: [
+              {
+                personId: 'l',
+                name: 'Lena Moreau',
+                department: 'Engineering',
+                manager: null,
+                missing: ['cost_centre'],
+              },
+              {
+                personId: 'j',
+                name: 'Joan Bosch',
+                department: 'Engineering',
+                manager: null,
+                missing: ['cost_centre'],
+              },
+            ],
+          },
+        }}
+        onSave={ok}
+      />,
+    );
+    screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
+    await userEvent.keyboard('{Tab}');
+    expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
+  });
+
+  it('integrations', async () => {
+    await checked(
+      <Integrations
+        load={{
+          status: 'ready',
+          data: {
+            schemaVersion: 4,
+            deliveries24h: 12,
+            events: ['people.person.hired'],
+            fields: [{ key: 'hire_date', label: 'Hire date', refused: null }],
+            endpoints: [
+              {
+                id: 'e1',
+                url: 'https://hooks.example.com/people',
+                enabled: true,
+                events: ['people.person.hired'],
+                allowlist: ['hire_date'],
+                retrying: 0,
+                problem: null,
+                lastDelivery: null,
+                secretRotated: null,
+              },
+            ],
+          },
+        }}
+        onCreate={() => Promise.resolve({ ok: true, secret: 's' })}
+        onUpdate={ok}
+        onRotate={() => Promise.resolve({ ok: true, secret: 's' })}
+      />,
+    );
+  });
+
+  it('the import review', async () => {
+    await checked(
+      <ImportFlow
+        load={{
+          status: 'ready',
+          data: {
+            step: 'review',
+            file: { name: 'people.xlsx', rows: 3, sheet: null },
+            dryRun: {
+              counts: { create: 2, update: 0, unchanged: 0, blocked: 1, duplicate: 0 },
+              incomplete: { count: 1, byField: [{ label: 'Cost centre', count: 1 }] },
+              ignoredColumns: [],
+              blocked: [{ row: 3, person: null, problem: 'No work email', cell: 'D3 — empty' }],
+            },
+          },
+        }}
+        onUpload={ok}
+        onMap={ok}
+        onCommit={ok}
+        onDownloadBlocked={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+  });
+
+  it('the export builder', async () => {
+    await checked(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: {
+            today: '2026-09-22',
+            who: [{ value: 'team', label: 'My team', count: 8 }],
+            sections: [
+              { key: 'work', label: 'Work', fields: [{ key: 'work_model', label: 'Work model' }] },
+            ],
+          },
+        }}
+        onExport={ok}
+      />,
+    );
+  });
+
+  it('analytics, with every chart’s numbers one tap away', async () => {
+    await checked(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: {
+            asOf: 'As of 22 Sep 2026',
+            source: 'snapshot',
+            sourceNote: 'snapshot taken 04:00 today',
+            headcount: {
+              value: 912,
+              change: 10,
+              trend: [
+                { label: 'Feb', value: 842 },
+                { label: 'Aug', value: 912 },
+              ],
+            },
+            attrition: null,
+            complete: { percent: 78.6, incomplete: 88 },
+            expiringIn90Days: 7,
+            movement: {
+              period: 'Feb – Aug',
+              opening: 842,
+              joiners: 128,
+              moves: 0,
+              leavers: 58,
+              closing: 912,
+            },
+            completenessBySection: [{ label: 'HR information', value: 99 }],
+            expiries: null,
+            funnel: [
+              { label: 'Invited', value: 128 },
+              { label: 'Complete', value: 61 },
+            ],
+          },
+        }}
+      />,
+    );
+    // No chart forces the page sideways; a time axis scrolls inside its own box.
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  });
+});
+
+describe('onboarding on a phone, keyboard up', () => {
+  it('completes a section end to end with Save reachable, and stopping keeps what was saved', async () => {
+    const onSave = vi.fn(ok);
+    mount(
+      <Onboarding
+        load={{
+          status: 'ready',
+          data: {
+            firstName: 'Adam',
+            saved: [],
+            values: {},
+            sections: [
+              {
+                key: 'emergency',
+                label: 'Emergency contacts',
+                ask: 'required',
+                visibility: ['self', 'hr'],
+                fields: [
+                  field({ key: 'contact_name', label: 'Their name', required: true }),
+                  field({
+                    key: 'relationship',
+                    label: 'Relationship',
+                    description: 'Partner, parent, friend',
+                  }),
+                  field({ key: 'contact_email', label: 'Their email', dataType: 'email' }),
+                  field({
+                    key: 'contact_phone',
+                    label: 'Phone number',
+                    dataType: 'phone',
+                    required: true,
+                  }),
+                ],
+              },
+              {
+                key: 'bank',
+                label: 'Bank details',
+                ask: 'required',
+                visibility: ['self', 'hr'],
+                fields: [
+                  field({ key: 'iban', label: 'IBAN', dataType: 'bank_account', required: true }),
+                ],
+              },
+            ],
+          },
+        }}
+        onSave={onSave}
+      />,
+    );
+    expect(await violations(document.body)).toEqual([]);
+    expect(underFloor(document.body)).toEqual([]);
+
+    // A software keyboard takes roughly the lower 40% of an 844px screen.
+    await page.viewport(390, 500);
+    const form = screen.getByRole('form', { name: 'Emergency contacts' });
+    await userEvent.type(within(form).getByLabelText(/Their name/), 'Marta Ortega');
+    await userEvent.type(within(form).getByLabelText(/Phone number/), '612345678');
+
+    const save = within(form).getByRole('button', { name: 'Save and continue' });
+    const box = save.getBoundingClientRect();
+    expect(box.top).toBeGreaterThanOrEqual(0);
+    expect(box.bottom).toBeLessThanOrEqual(window.innerHeight);
+    await userEvent.click(save);
+
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave).toHaveBeenCalledWith('emergency', {
+      contact_name: 'Marta Ortega',
+      contact_phone: expect.stringContaining('612345678') as unknown,
+    });
+    // Abandoned here: the second section is unsaved and the first is kept.
+    await screen.findByRole('form', { name: 'Bank details' });
+    expect(screen.getByText(/1 of 2 sections done/)).toBeVisible();
+    await page.viewport(390, 844);
+  });
+});

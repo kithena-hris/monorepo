@@ -681,7 +681,7 @@ Test-first, all of it. No drivers, no I/O.
   is visible without rebuilding the shell. **Do not skip this check** — if it
   fails, the federation is decoration.
 
-### [ ] PEO-047 — Field registry screens
+### [x] PEO-047 — Field registry screens
 
 - **Spec** PRD §9.1, §9.2 · design screens 2 and 3
 - **Files** `apps/web/people/src/settings/`
@@ -693,7 +693,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** reordering works by keyboard, `pnpm test:stories` is green, and
   no hand-rolled control appears in the diff.
 
-### [ ] PEO-048 — Publish and impact
+### [x] PEO-048 — Publish and impact
 
 - **Spec** PRD §9.3 · design screen 4
 - **Files** `apps/web/people/src/settings/publish.tsx`
@@ -715,7 +715,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a fresh tenant reaches a published version 1 and a complete
   first profile without touching an API by hand.
 
-### [ ] PEO-050 — Onboarding
+### [x] PEO-050 — Onboarding
 
 - **Spec** PRD §8.3 · design screen 5
 - **Files** `apps/web/people/src/onboarding/`
@@ -726,7 +726,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an acceptance test completes it end to end at 390×844 with a
   software keyboard raised, and abandoning mid-way leaves a partial record.
 
-### [ ] PEO-051 — Profile screens
+### [x] PEO-051 — Profile screens
 
 - **Spec** PRD §6.6 · design screen 6
 - **Files** `apps/web/people/src/profile/`
@@ -737,7 +737,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test renders the same person as HR and as a manager and
   asserts the manager's DOM contains none of the withheld labels.
 
-### [ ] PEO-052 — Directory
+### [x] PEO-052 — Directory
 
 - **Spec** PRD §13.1 · design screen 7
 - **Files** `apps/web/people/src/directory/`
@@ -748,7 +748,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** filtering on a tenant-defined indexed attribute over 50,000
   rows meets the 300 ms budget.
 
-### [ ] PEO-053 — Completeness grid
+### [x] PEO-053 — Completeness grid
 
 - **Spec** PRD §8.4 · design screen 8
 - **Files** `apps/web/people/src/completeness/`
@@ -760,7 +760,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** tabbing moves down the column and a bulk save emits one event
   per person.
 
-### [ ] PEO-054 — Integrations settings
+### [x] PEO-054 — Integrations settings
 
 - **Spec** PRD §13.3 · design screen 9
 - **Files** `apps/web/people/src/settings/integrations/`
@@ -784,7 +784,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an admin can take a broken file, fix the blocked rows from the
   downloaded CSV, and import them without re-mapping.
 
-### [ ] PEO-056 — Export builder
+### [x] PEO-056 — Export builder
 
 - **Spec** PRD §15.1 · design screen 11
 - **Files** `apps/web/people/src/export/`
@@ -796,7 +796,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a manager's builder cannot select a field their profile view
   withholds.
 
-### [ ] PEO-057 — Analytics screens
+### [x] PEO-057 — Analytics screens
 
 - **Spec** PRD §16 · design screen 12
 - **Files** `apps/web/people/src/analytics/`
@@ -807,7 +807,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** axe passes on every chart story and each chart's numbers are
   reachable as a table.
 
-### [ ] PEO-058 — The mobile pass
+### [x] PEO-058 — The mobile pass
 
 - **Spec** PRD §17 · design screen 13
 - **Files** across `apps/web/people/`
@@ -912,10 +912,15 @@ it is written down here rather than left in a PR description.
       `GET /api/internal/tenants/<id>/accounts` returning
       `{ accounts, nextCursor }`; identity must serve that shape or the
       caller changes. *(PRD §8.2)*
-- [ ] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
+- [x] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
       encrypted attribute cannot be unique without its plaintext sitting next
       to the ciphertext. Store a keyed hash instead; until then no national
       identifier in a country pack is marked unique. Found in PEO-059.
+      *Landed as `value_hash`, HMAC-SHA-256 under a per-tenant key derived
+      from the secrets' master key, for every attribute; rotation and the
+      backfill are one hourly job. The packs' identifiers are unique per
+      tenant. Dropping `normalised_value` is the contract step, once no claim
+      has a null `key_id` (see 20260924150000).*
 - [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs
@@ -928,9 +933,10 @@ it is written down here rather than left in a PR description.
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
       under the cap; confirm that is intended. *(PRD §8.4)* — Confirmed: day 1,
       then weekly. Messaging serves `POST /api/internal/messaging/notice`;
-      People's mailer is configured by `MESSAGING_URL`,
-      `MESSAGING_PEOPLE_TOKEN` and `APP_ORIGIN`, and the hourly sweep runs only
-      when it is.
+      People's mailer is configured by `MESSAGING_URL` and
+      `MESSAGING_PEOPLE_TOKEN`, and the hourly sweep runs only when it is. The
+      email names the company and links to its own origin (`TENANT_APP_BASE`,
+      from PEO-099's slug and name); a tenant without both waits.
 - [x] **PEO-085** Retention does not fully erase. `anonymise` clears current
       plain values only: encrypted values stay because `svc_people` has no
       DELETE on `people.person_secret`, and history keeps every past value
@@ -943,38 +949,68 @@ it is written down here rather than left in a PR description.
       gateway's deny list and the refresh on `people.schema.published` are
       exported but nothing calls them. Needs the Kafka consumer PEO-027 added
       and the tenant source in PEO-080. Found in PEO-034.
-- [ ] **PEO-087** Log redaction matches tenant fields four levels deep, and the
+- [x] **PEO-087** Log redaction matches tenant fields four levels deep, and the
       AI gateway checks structured `context` only, not free text in the
       instruction. Decide whether either needs to go further. Found in PEO-034
       and PEO-035.
-- [ ] **PEO-088** An audited way to read a secret for export. Encrypted fields
+- [x] **PEO-088** An audited way to read a secret for export. Encrypted fields
       are always masked in an export, but §15.2 lets finance see the full value
-      with a stated reason. Found in PEO-042. *(PRD §15.2)*
-- [ ] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
+      with a stated reason. Found in PEO-042. *(PRD §15.2)* *Replaced, by
+      product decision, with an approval: finance asks with a reason, HR
+      decides within seven days, an approval issues one single-use 24-hour
+      download, every step an event. A Temporal workflow per request; the
+      approval rules live in `domain/approval/` for PEO-077 to reuse.*
+- [x] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
       queue to hand exports over 2,000 rows to. Today the port has one
       in-memory implementation and nothing decides when to queue. Found in
-      PEO-043. *(PRD §15.1)*
+      PEO-043. *(PRD §15.1)* *Landed as an S3 adapter (SSE under the
+      service's own AES-GCM), BullMQ on Valkey keyed by export id, the
+      `people.export` ledger, an hourly bounded sweep, and `POST
+      /v1/exports` / `GET /v1/exports/{id}`. The export-ready email waits on
+      platform/messaging, as PEO-084's reminders do.*
 - [ ] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
       imported, a row matching an existing person does not change their
       `hire_date`, the import checksum is not on `people.import.started`, and a
       re-upload cannot re-serve the blocked-row report because it is not
       stored. Found in PEO-038 to PEO-041. *(PRD §14)*
-- [ ] **PEO-091** Export gaps: the Missing information sheet reflects today's
+- [x] **PEO-091** Export gaps: the Missing information sheet reflects today's
       completeness even for an `asOf` export, and grey not-applicable cells are
-      not rendered. Found in PEO-042. *(PRD §15.4)*
+      not rendered. Found in PEO-042. *(PRD §15.4)* *Status, employment type,
+      work model, legal entity and whether a secret exists are still read as
+      of today; none has a dated read yet.*
 - [ ] **PEO-092** Authorization and transport setup. OpenFGA has no client
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal
       token. Found in PEO-025 and PEO-030.
-- [ ] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
+- [x] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next
-      transaction. Found in PEO-032. *(PRD §13.3)*
-- [ ] **PEO-094** The People remote: no server-side rendering, Tailwind classes
-      used only by the remote may stay unstyled until the shell rebuilds, the
-      sidebar item is still disabled, and the remote's host needs `no-cache`
-      and CORS for `remoteEntry.js` and `routes.json`. Settle the CSS question
-      before PEO-047. Found in PEO-046.
+      transaction. Found in PEO-032. *(PRD §13.3)* — `people.webhook.endpoint_disabled`,
+      an alert email to the endpoint's `alert_email` (migration
+      20260924120100), a boot-and-every-minute poller, and a lease claim per
+      delivery.
+- [ ] **PEO-094** The People remote: no server-side rendering, and the
+      remote's host needs `no-cache` and CORS for `remoteEntry.js` and
+      `routes.json`. Found in PEO-046.
+      *Settled in PEO-047:* the CSS. The remote compiles its own utilities
+      (`apps/web/people/src/styles.css`, against `@reach/ui/theme.css`, no
+      preflight and no tokens) and `bundleAllCSS` loads them with the expose;
+      the shell no longer scans `apps/web/people`, so a class missing from the
+      remote's build fails in development too. Proven against an unchanged
+      production shell build: a remote-only class was styled, a rebuild of
+      the remote alone restyled it, and the same build without the remote's
+      stylesheet left it unstyled. The sidebar item is enabled.
+      *Still open:* SSR (the screen is client-only behind a spinner; the shell
+      is Next, not Modern.js) and the hosting headers.
+- [ ] **PEO-098** The shell hands People screens their data. The screens from
+      PEO-047 on are presentational: each takes a `Loadable` and async
+      callbacks as props, and `routes.json` lists none of them yet because the
+      shell has nothing to pass. Needs the router forwarding a principal
+      (PEO-092), a query per route that the shell runs and passes down, the
+      callbacks as server actions, and transports for what only the
+      application layer has today — draft edits, reorder, publish preview and
+      publish, the setup pack, import, export, analytics and webhook endpoint
+      management. Found in PEO-047.
 - [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
@@ -984,17 +1020,41 @@ it is written down here rather than left in a PR description.
       every reader uses the typed column, the same bug PEO-029 fixed for
       `hire_date`. A hire-date correction also does not re-evaluate status.
       Found in PEO-029. *(PRD §8.5)*
-- [ ] **PEO-097** Name drift at enrolment. Identity writes the name typed at
+- [x] **PEO-097** Name drift at enrolment. Identity writes the name typed at
       enrolment onto the account even after People has set one, and People
       only fills its own name when empty, so the two can differ until People's
-      next name change. Decide which wins. Found in PEO-029. *(PRD §5)*
+      next name change. Decide which wins. Found in PEO-029. *(PRD §5)* —
+      People's wins once it has written the account (`people_facts_at` set);
+      the typed name is still published on `profile_captured`.
+- [x] **PEO-100** Corrections that contradict the state. An active person whose
+      start date is corrected into the future stays active, and a person on
+      notice whose last working day is corrected into the past has nothing
+      asking HR to end the employment. *Decided: the first returns to
+      `pre_hire`; the second stays on notice and HR's grid gets a
+      `confirm_termination` row.* Found in PEO-096. *(PRD §8.1, §8.5)*
+- [x] **PEO-099** Whose day it is. Every "today" in People — required-from,
+      the reminder window, retention due dates, the daily snapshot, the
+      monthly self-ID publication — ran on UTC or on whatever zone a request
+      carried. Decided (option D): a time zone per legal entity and per
+      location, owned by People (`people.legal_entity`, `people.location`,
+      effective-dated `people.location_zone`), a tenant default and the cohort
+      minimum in `people.tenant_settings` (never lowerable, by trigger too).
+      A person's day is their location's, else their entity's, else their own,
+      else the tenant's; aggregates are counted per legal entity on its own
+      day and summed. One resolver (`Calendars`), one conversion
+      (`localDate`); the company wizard carries the first zone and country to
+      People on `identity.tenant.provisioned`, with the slug and name that
+      `identity.tenant.amended` keeps current. *(PRD §6.8, §8.4, §8.5, §9.4,
+      §10.2a, §11, §12, §16)*
+- [ ] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
+      sequence start. Found in PEO-099, which added the legal entity it hangs
+      off. *(PRD §7, §9.4, Appendix A)*
 
 ## Blocked, and by what
 
 | Ticket | Blocked on | Note |
 | --- | --- | --- |
 | PEO-027 | PEO-002 | People cannot see a name captured at enrolment until identity publishes it |
-| PEO-057 | PEO-001 | Two of its charts are written but not exported |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked |
 | PEO-045 | nothing technical | The cohort minimum default of 10 is a product decision; confirm before shipping |
 | PEO-037 | legal review | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |

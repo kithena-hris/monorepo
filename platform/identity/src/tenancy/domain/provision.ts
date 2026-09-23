@@ -1,4 +1,4 @@
-import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { err, failure, isTimeZone, ok, type Result } from '@kithena/domain-kit';
 import { imageIsOurs, type ImageHostPolicy } from './image-host.js';
 import {
   PostalAddress,
@@ -37,7 +37,20 @@ export interface ProvisionRequest {
   /** The larger picture, filling half of their login page. */
   readonly coverImageUrl: string | null;
   readonly address: PostalAddress;
+  /**
+   * The company's IANA zone: the default every "today" falls back to, and its
+   * first administrators' zone. People takes it, with the address's country,
+   * as the first legal entity (PEO-099). Absent means UTC.
+   */
+  readonly timeZone?: string;
 }
+
+/** What `checkProvisionable` hands on: the zone decided. */
+export type CheckedProvision = ProvisionRequest & { readonly timeZone: string };
+
+export const TimeZoneUnknown = failure('TIME_ZONE_UNKNOWN', 'That is not a time zone', [
+  'timeZone',
+]);
 
 export const SlugMalformed = failure('SLUG_MALFORMED', 'That is not a usable company name', [
   'slug',
@@ -70,8 +83,11 @@ export const ImageNotOurs = failure(
 export function checkProvisionable(
   request: ProvisionRequest,
   images: ImageHostPolicy,
-): Result<ProvisionRequest> {
+): Result<CheckedProvision> {
   if (request.displayName.trim() === '') return err(DisplayNameMissing);
+
+  const timeZone = request.timeZone ?? 'Etc/UTC';
+  if (!isTimeZone(timeZone)) return err(TimeZoneUnknown);
 
   if (!TenantSlug.safeParse(request.slug).success) return err(SlugMalformed);
 
@@ -113,5 +129,5 @@ export function checkProvisionable(
     }
   }
 
-  return ok({ ...request, admins: unique, address: shape.data });
+  return ok({ ...request, admins: unique, address: shape.data, timeZone });
 }

@@ -179,7 +179,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'relative -mb-px inline-flex items-center gap-2 px-3 py-2 text-base font-medium',
+        'relative -mb-px inline-flex touch:min-h-tap touch:min-w-tap justify-center items-center gap-2 px-3 py-2 text-base font-medium',
         // `shrink-0` so a strip that does not fit scrolls instead of squeezing
         // every label into the same cramped column.
         'text-fg-muted shrink-0 whitespace-nowrap',

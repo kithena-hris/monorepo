@@ -7,7 +7,9 @@ import { systemClock } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
 
 import { recomputeCompleteness } from '../../application/completeness/recompute.js';
+import { orgAdmin } from '../../application/org/org.js';
 import { drizzleCompletenessStore } from '../drizzle-completeness-store.js';
+import { drizzleOrgStore } from '../drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { peopleConsumer } from './handle.js';
@@ -55,7 +57,9 @@ export async function startConsumers(
       store: drizzleCompletenessStore(),
       clock: systemClock,
       newEventId: uuidv7,
+      calendars: drizzleOrgStore(),
     }),
+    org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
   });
 
   const consumer = new Kafka({ clientId: 'people', brokers: brokers.split(',') }).consumer({

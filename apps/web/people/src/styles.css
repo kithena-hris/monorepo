@@ -1,0 +1,22 @@
+/*
+ * This remote's own utilities, and nothing else.
+ *
+ * The shell's stylesheet is compiled when the shell is built, so a class that
+ * first appears in a remote deploy is not in it. This file is compiled with
+ * the remote instead and loaded with it (`bundleAllCSS` in `vite.config.ts`),
+ * so a screen can use a utility the shell has never seen.
+ *
+ * Utilities only. No preflight and no tokens: those are the shell's, and a
+ * second preflight arriving later in `@layer base` would reset its base rules.
+ * The theme comes from `@reach/ui/theme.css`, so every colour resolves to the
+ * page's `var(--reach-*)` tokens. Joining the shell's named layers keeps the
+ * precedence the same as if the shell had compiled these classes itself.
+ *
+ * Scoped to this remote's `src`: Reach's own classes are already in the
+ * shell's stylesheet, because Reach is the shell's copy.
+ */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@import '@reach/ui/theme.css';
+@source './';

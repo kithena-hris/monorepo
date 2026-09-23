@@ -34,8 +34,8 @@ const toggle = cva(
           'border border-border bg-surface text-fg-muted hover:bg-surface-hover data-[state=on]:border-accent data-[state=on]:bg-accent-subtle data-[state=on]:text-accent-fg',
       },
       size: {
-        sm: 'h-control-sm px-2 text-xs [&_svg]:size-3.5',
-        md: 'h-control-md px-3 text-base [&_svg]:size-4',
+        sm: 'h-control-sm touch:min-w-tap px-2 text-xs [&_svg]:size-3.5',
+        md: 'h-control-md touch:min-w-tap px-3 text-base [&_svg]:size-4',
         lg: 'h-control-lg px-4 text-md [&_svg]:size-[1.125rem]',
       },
       iconOnly: { true: 'aspect-square px-0', false: '' },

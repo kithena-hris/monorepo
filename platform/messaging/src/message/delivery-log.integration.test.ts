@@ -83,7 +83,7 @@ beforeAll(async () => {
     // should be the thing that notices.
     '20260821120000_tenant_registry.sql',
     '20260824090000_messaging.sql',
-    '20260924120000_messaging_notice_kinds.sql',
+    '20260924120100_people_webhook_alerts.sql',
   ]) {
     const path = new URL(`../../../../migrations/${file}`, import.meta.url);
     await admin.execute(sql.raw(await readFile(path, 'utf8')));
@@ -153,6 +153,12 @@ describe('recording an attempt', () => {
     );
     expect(refused.code).toBe('23514');
     expect(refused.constraint).toBe('delivery_status_known');
+  });
+
+  it('records a webhook alert under its own kind', async () => {
+    await expect(
+      log().record({ ...invitation(), kind: 'webhook_disabled' }),
+    ).resolves.not.toBeNull();
   });
 
   it('records a profile reminder under its own kind', async () => {

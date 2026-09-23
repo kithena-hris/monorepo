@@ -13,10 +13,13 @@ import { reconcile } from '../application/reconcile.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
+import { drizzleOrgStore } from './drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
+import { tenantAppBase, tenantCompanies } from './tenant-origin.js';
 import { knownTenants } from './tenants.js';
+import { claimRotation } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
 
 /**
@@ -33,8 +36,9 @@ import { tenantTransaction } from './unit-of-work.js';
  *   breakdowns are due (PEO-083): the monthly check lives here, and a month
  *   holds one publication per breakdown whoever runs it.
  * - **The reminder sweep**, hourly, only when a mailer is configured
- *   (PEO-084: `MESSAGING_URL`, `MESSAGING_PEOPLE_TOKEN` and `APP_ORIGIN`). A
- *   sweep without one would claim the week's reminder and send nothing.
+ *   (PEO-084: `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN`). A sweep without
+ *   one would claim the week's reminder and send nothing. Links go to the
+ *   tenant's own origin, from `TENANT_APP_BASE`.
  * - **Reconciliation** (§8.2, "People is bought later"), for a tenant within
  *   one tick of People first learning of it, then again once a day. It reads
  *   identity's account listing, so it runs only when `IDENTITY_URL` and a
@@ -84,6 +88,7 @@ export async function startBackground(
   const inTenant = tenantTransaction(db);
   const registry = options.registry ?? tenantPolicies;
   const schema = drizzleSchemaRepository();
+  const org = drizzleOrgStore();
 
   /*
    * A group per process, from the beginning of the topic. Every replica sees
@@ -135,11 +140,10 @@ export async function startBackground(
         inTenant(tenantId, async (scope) => {
           const version = await schema.currentVersion(scope.tx, tenantId);
           if (version === null) return;
-          // `ponytail: UTC day. People does not hold a tenant's calendar yet;
-          // the publish request carries one, the snapshot has nowhere to read it.`
+          // Each legal entity counted on its own day (PRD §6.8, §16).
           const definitions = version.document.attributes;
           const result = await takeSnapshot(
-            { facts: drizzlePeopleFacts(), clock: systemClock },
+            { facts: drizzlePeopleFacts(), clock: systemClock, calendars: org },
             scope,
             { definitions },
           );
@@ -147,9 +151,13 @@ export async function startBackground(
             logger.warn({ tenantId, code: result.error.code }, 'snapshot refused');
             return;
           }
-          // `ponytail: default cohort minimum. No tenant setting is stored yet;
-          // when one is, pass it here — it is the change threshold too.`
-          const published = await publishBreakdowns({ clock: systemClock }, scope, { definitions });
+          // The tenant's own minimum, which is the change threshold too.
+          const { cohortMinimum } = await org.settings(scope.tx, tenantId);
+          const published = await publishBreakdowns({ clock: systemClock, calendars: org }, scope, {
+            definitions,
+            cohortMinimum,
+            run: result.value,
+          });
           if (!published.ok) {
             logger.warn({ tenantId, code: published.error.code }, 'publication refused');
           } else if (published.value.published.length > 0) {
@@ -163,6 +171,12 @@ export async function startBackground(
     ),
   ];
 
+  jobs.push(
+    every(HOUR, () =>
+      forEachTenant('unique-claims', claimRotation(inTenant, env['PEOPLE_SECRET_KEYS'])),
+    ),
+  );
+
   const mailer = options.mailer ?? reminderMailerFrom(env);
   if (mailer === undefined) {
     logger.info('no reminder mailer; reminder sweep not scheduled');
@@ -172,11 +186,16 @@ export async function startBackground(
       store: drizzleCompletenessStore(),
       mailer,
       clock: systemClock,
+      calendars: org,
+      company: tenantCompanies(tenantAppBase(env), org),
     });
     jobs.push(
       every(HOUR, () =>
         forEachTenant('reminders', async (tenantId) => {
-          const { failed } = await sweep(tenantId);
+          const { failed, waiting } = await sweep(tenantId);
+          if (waiting) {
+            logger.info({ tenantId }, 'company not known yet; reminders wait for the next sweep');
+          }
           if (failed > 0) logger.warn({ tenantId, failed }, 'reminders failed to send');
         }),
       ),

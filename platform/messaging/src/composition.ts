@@ -78,15 +78,16 @@ export interface Config {
    */
   readonly authOrigin: string;
   /**
-   * The secret a module presents to ask for a notice, and the only origin a
-   * notice's link may point at — the tenant app, where a profile lives.
+   * The secret a module presents to ask for a notice, and the shape of origin
+   * a notice's link may point at — a company's own `<slug>.app…`, where its
+   * people sign in. `{slug}` marks the label.
    *
    * Separate from `internalToken` for the reason that one is separate from
    * `INTERNAL_API_TOKEN`: one secret per pair of services. Absent or empty,
    * the notice endpoint refuses everything.
    */
   readonly noticeToken?: string | undefined;
-  readonly appOrigin?: string | undefined;
+  readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
    *
@@ -287,9 +288,9 @@ export function compose(config: Config): RequestHandler {
     },
   });
 
-  if (!config.noticeToken || !config.appOrigin) {
+  if (!config.noticeToken || !config.tenantAppBase) {
     logger.warn(
-      { reason: 'no MESSAGING_PEOPLE_TOKEN or APP_ORIGIN' },
+      { reason: 'no MESSAGING_PEOPLE_TOKEN or TENANT_APP_BASE' },
       'notices refused: profile reminders will not be sent',
     );
   }
@@ -297,7 +298,7 @@ export function compose(config: Config): RequestHandler {
     sendNotice: sendNotice({
       transport,
       deliveries,
-      trustedLinkOrigin: config.appOrigin ?? '',
+      tenantAppBase: config.tenantAppBase ?? '',
       onRefusal: (reason, detail) => {
         logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
       },

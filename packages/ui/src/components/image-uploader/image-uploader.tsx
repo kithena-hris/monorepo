@@ -120,14 +120,20 @@ function toSafeImageSrc(value: string | null | undefined): string | null {
 
   let parsed: URL;
   try {
-    parsed = new URL(trimmed, typeof document === 'undefined' ? 'http://localhost/' : document.baseURI);
+    parsed = new URL(
+      trimmed,
+      typeof document === 'undefined' ? 'http://localhost/' : document.baseURI,
+    );
   } catch {
     return null;
   }
 
   if (!SAFE_IMAGE_SCHEMES.has(parsed.protocol)) return null;
   // A `data:` that is not a picture is a document, and a document runs.
-  if (parsed.protocol === 'data:' && !/^data:image\/(?:png|jpeg|jpg|gif|webp|avif|svg\+xml)[,;]/i.test(trimmed)) {
+  if (
+    parsed.protocol === 'data:' &&
+    !/^data:image\/(?:png|jpeg|jpg|gif|webp|avif|svg\+xml)[,;]/i.test(trimmed)
+  ) {
     return null;
   }
   return parsed.href;
@@ -604,9 +610,7 @@ export function AvatarUploader({
     <div
       className={cn(
         'flex gap-x-4 gap-y-3',
-        orientation === 'stacked'
-          ? 'flex-col items-start'
-          : 'flex-wrap items-center',
+        orientation === 'stacked' ? 'flex-col items-start' : 'flex-wrap items-center',
         className,
       )}
     >

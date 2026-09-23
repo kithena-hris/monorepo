@@ -72,7 +72,11 @@ export function Field({
         data-disabled={disabled || undefined}
         className={cn(
           'group/field flex gap-1.5',
-          orientation === 'vertical' ? 'flex-col' : 'flex-row items-center justify-between gap-4',
+          orientation === 'vertical'
+            ? 'flex-col'
+            : // A control beside its label is a row a thumb has to hit on its own;
+              // at the tap floor, two rows' hit areas never overlap.
+              'flex-row items-center justify-between gap-4 touch:min-h-tap',
           className,
         )}
         {...props}

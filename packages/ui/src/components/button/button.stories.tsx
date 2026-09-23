@@ -361,3 +361,24 @@ export const InContext: Story = {
     </div>
   ),
 };
+
+export const UnderAFinger: Story = {
+  name: 'Under a finger',
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          'Under a coarse pointer a `size="sm"` button is 36px tall: small enough to sit in a dense row, and too small for a thumb. Every button therefore carries `tap-target`, a `::before` centred on it that is at least the 44px tap floor (WCAG 2.2, 2.5.8), so the part a finger can hit grows while the part an eye sees does not.',
+          '',
+          "Under a mouse it does nothing, which is why this story looks like any other. The same utility is on `Checkbox`, `Switch`, `SelectTrigger`, the dialog and sheet close buttons, `SortableList`'s handle and a tag's remove button. A horizontal `Field` is at least the tap floor tall under a finger, so two rows' hit areas never overlap.",
+        ].join('\n'),
+      },
+    },
+  },
+  render: () => (
+    <div className="flex items-center gap-2">
+      <Button size="sm">Details</Button>
+      <Button size="sm" variant="ghost" aria-label="Add" startIcon={<Plus />} />
+    </div>
+  ),
+};

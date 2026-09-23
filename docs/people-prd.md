@@ -235,6 +235,14 @@ The rule this produces:
 > afterwards. The copies are reconciled by events in one direction only —
 > People publishes, identity consumes.**
 
+**Which name wins at enrolment.** The person types a name on the enrolment
+form. If People has not yet written the account's name, identity stores what
+was typed. If it has — `platform.account.people_facts_at` is set once People's
+first correction is applied — identity keeps People's and does not overwrite
+it. Either way identity publishes `identity.account.profile_captured` with what
+was typed, and People fills its own name from it only when its own is empty.
+A later correction from People still applies as usual, so the two cannot drift.
+
 That direction matters. A tenant with no People module keeps identity's copies
 as the only truth, which is exactly what `requiresPeopleSource` is for. A tenant
 with People gets one editing surface and one source of record, and the two rows
@@ -309,7 +317,7 @@ Every field on a definition, and why it exists:
 | `collectAt` | enum | `signup`, `enrolment`, `onboarding`, `hr_only`, `anytime` — which moment asks for it |
 | `classification` | `FieldPolicy` | The existing contract shape: classification, piiKind, exportable, aiEligible, retention |
 | `effectiveDated` | boolean | Whether a change to this value is a dated fact (salary, job title) or a correction (a typo in a phone number) |
-| `unique` | `none` \| `tenant` \| `legal_entity` | Employee number, national identifier, work email |
+| `unique` | `none` \| `tenant` \| `legal_entity` | Employee number (per legal entity), national identifier (per tenant: it names one human, and a tenant holds one record per human), work email. Enforced on a keyed hash of the normalised value, never the value, so an encrypted attribute may be unique too (§11.2) |
 | `encrypted` | boolean | Forced true for `piiKind: 'financial'` and for national identifiers. Value lives in `people.person_secret`, never in JSONB and never in an event |
 | `indexed` | boolean | Promotes the attribute to a generated column so it can be filtered and sorted at directory scale |
 | `includeInDirectory` | boolean | Appears in the searchable employee directory |
@@ -462,6 +470,64 @@ are explicit and are not tenant-configurable:
 - Never required. A `requiredness` of anything but `never` is refused by the
   domain.
 
+### 6.8 Legal entities, locations and whose day it is
+
+A calendar date is not an instant. "Required from the 1st", "last working day
+plus 48 months" and "headcount today" all compare a date with *today*, and at
+11:30 UTC on 1 March today is the 2nd in Auckland and still the 1st in Los
+Angeles. So People owns two small objects whose job is to say whose today it
+is, and one tenant setting as the last resort:
+
+```
+people.legal_entity   The employer of record. A name, a country, a default
+                      IANA time zone. The country decides which country pack
+                      and which numbering apply; the zone decides whose day the
+                      entity's aggregates are counted on.
+people.location       Where somebody works. A name, a country, a legal entity
+                      it belongs to, and an IANA time zone that is
+                      effective-dated: an office moving to the Canaries on
+                      1 April is on Canary time from midnight on 1 April,
+                      Canary time.
+people.tenant_settings  The tenant's default zone, the cohort minimum (§16.1),
+                      and a copy of the company's slug (`<slug>.app…`) and
+                      name from the back office, for links and reminders.
+```
+
+**A person's zone** is, in order: their `work_location`'s zone on that
+instant, else their `legal_entity`'s default, else their own `time_zone` (the
+copy identity holds, §5), else the tenant default. A location or entity the
+tenant does not have, or an own zone that is not an IANA zone, is skipped
+rather than trusted. A tenant nobody has configured runs on UTC.
+
+**An aggregate's day** is a legal entity's: a company-wide figure is counted
+per legal entity, each on that entity's own day at the moment of counting, and
+a tenant-wide figure is the sum of the per-entity figures. Somebody with no
+legal entity is counted on the tenant default's day. A location's zone never
+decides an aggregate, so an office in the Canaries does not split its Madrid
+entity's headcount across two days.
+
+What that means for the attributes that point at them:
+
+- `legal_entity` (`legal_entity_id`) and `work_location` (`location_id`) are
+  references to these rows. Setting either can move a person onto another
+  calendar, and the move takes effect for every person-level rule from the
+  next evaluation — nothing is back-dated by it.
+- `time_zone` stays identity's projection (§5). It is the person's own zone
+  and it only decides their day when neither their location nor their entity
+  does.
+- `employee_number` is unique per legal entity (Appendix A), which is why the
+  entity is a row with an id rather than a label.
+
+Zones are IANA names, validated against the runtime's own database (`Intl`)
+where they are written; an offset such as `UTC+2` is refused, because it has no
+daylight saving and is wrong for half of every year somewhere. A location's
+zone change is an effective-dated fact with the correction path of §8.5: a
+second change dated the same day supersedes the first. An entity's default
+zone and the tenant default are configuration, changed when recorded.
+
+Entities and locations are archived, never deleted: a person's history names
+them, and an archived entity still decides its people's day.
+
 ---
 
 ## 7. Who creates what, and where it lives
@@ -478,6 +544,8 @@ database the bytes end up in.
 | Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
 | Provisional person record | People, from `identity.account.provisioned` | Automatically, within the second | `people.person` |
 | Schema: sections, attributes, requiredness | HR admin (`people_admin`) | Settings, any time | `people.section`, `people.attribute_definition`, `people.schema_version` |
+| Legal entities, locations and their time zones (§6.8) | HR admin (`people_admin`); the first entity from the back office's company wizard | Tenant creation, then settings, any time | `people.legal_entity`, `people.location`, `people.location_zone` |
+| Tenant default time zone, cohort minimum | HR admin (`people_admin`); the default zone first from the company wizard | Tenant creation, then settings | `people.tenant_settings` |
 | Country pack defaults | Kithena | Tenant creation, by legal-entity country | Same tables, `origin: 'country_pack'` |
 | Personal information | The employee; HR may correct | Onboarding, then any time | `people.person`, `people.person_attribute_history` |
 | Identification, right to work | HR, with employee-supplied values | Onboarding | `people.person_secret` (encrypted) plus history |
@@ -512,9 +580,13 @@ Three rules make that table safe rather than merely descriptive:
 ### 8.1 Person states
 
 ```
+                   ┌───────────┐
+                   ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
      │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
+     │              │           │      │
+     │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
@@ -532,13 +604,40 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
 - **discarded** — a provisional record that was never a person. The only state
   that permits a hard delete, and only before confirmation.
 
+**A corrected date re-reads the state; it never ends employment.** The two
+definitions above are about dates, so a correction to one of those dates
+(§8.5) can make the state false, and it is re-read in both directions:
+
+- A **pre_hire** whose start date is corrected to today or earlier has started,
+  and becomes **active**.
+- An **active** person whose start date is corrected into the future has not
+  started, and returns to **pre_hire**. Everything that reads the state follows
+  it back: required fields are those of a pre-hire again, headcount stops
+  counting them, and identity learns the later start date, which is the date
+  it gates enrolment on.
+- A person on **notice** whose last working day is corrected to a date already
+  past **stays on notice**. Termination is a deliberate act, so HR gets a task
+  to confirm it, in the same grid as HR's missing fields (§8.4) rather than one
+  task per person. The task is read off the state and the date: it closes when
+  HR terminates or corrects the date forward.
+- **on_leave** and **terminated** keep their state whatever either date is
+  corrected to.
+
+Each move raises `status_changed` with reason `corrected`; §8.5 says what it
+is effective from.
+
 ### 8.2 The first employee
 
 The chicken-and-egg case the brief asked about specifically, in sequence:
 
 ```
-1. Ines creates the company in the back office.
+1. Ines creates the company in the back office, choosing its country (the
+   registered office's) and its time zone.
      platform.tenant row. No accounts, no people.
+     ──▶ identity.tenant.provisioned { slug, displayName, country, timeZone }
+     People takes the zone as the tenant default, a first legal entity in
+     that country and zone (§6.8), and the slug and name for its reminders.
+     The first administrators' accounts carry the same zone.
 
 2. Ines invites the first administrator by work email.
      POST /accounts on identity
@@ -560,7 +659,8 @@ The chicken-and-egg case the brief asked about specifically, in sequence:
 
 6. First sign-in lands on the People setup wizard, because the tenant has no
    published schema version:
-     a. Confirm the legal entity and its country.
+     a. Confirm the legal entity, its country and its time zone — already
+        there from step 1, and editable.
      b. Accept or adjust the country pack — the shipped sections and
         attributes for that country, pre-marked required where the law is not
         optional.
@@ -638,9 +738,14 @@ On publishing a schema version that adds or tightens a requirement:
    opens), then weekly until the profile is complete. Never more than one
    reminder email per person per week regardless of how many fields are
    missing — the cap is the rule, and it replaced an earlier day 1 / 3 / 7
-   schedule whose day 3 would have been a second email in the same week. The
-   email counts the missing details and names none of them; it links to the
-   person's own profile, where they read the list signed in.
+   schedule whose day 3 would have been a second email in the same week. It
+   is only ever sent between 09:00 and 18:00 on the person's own clock (§6.8)
+   — see below. The email is from the company by name and links to the
+   person's profile on the company's own origin (`<slug>.app…/people`), both
+   from People's copy of the tenant (§9.4); until People has heard both, the
+   reminder waits for a later sweep rather than going out unnamed or to
+   another origin. It counts the missing details and names none of them; the
+   person reads the list there, signed in.
 4. Missing **HR-owned** attributes become a task for HR, aggregated: "88 people
    are missing a cost centre" with a bulk-edit grid, not 88 separate tasks.
 5. The settings screen shows the impact **before** publishing: "This makes 88 of
@@ -650,6 +755,20 @@ The preview is the part that prevents the mistake. An HR admin who can see the
 consequence before committing will pick a sensible `requiredFrom` date; one who
 cannot will mark six fields required on a Friday afternoon and mail four hundred
 people.
+
+**Whose day `requiredFrom` is read on.** Each person's own (§6.8): a field
+required from the 24th is required in Bangalore at 01:30 on the 24th while it
+is still the 23rd in Madrid. The preview takes one instant, reads every
+person's day off it, and records the instant on the version
+(`schema_version.evaluated_at`); the recompute that runs later off
+`schema.published` replays that instant, so the number the admin was shown is
+the number that happens, whenever the event is consumed. A version published
+before the instant was recorded replays its one `evaluated_on` date.
+
+**When a reminder lands.** Between 09:00 and 18:00 on the person's own clock.
+The sweep runs hourly for every tenant, so without this a reminder reaches
+Auckland at 03:00 because it was morning in Europe. The one-per-week cap stays
+in hours (168), which needs no calendar at all.
 
 Completeness is exposed on the API and in reporting, so a customer who *wants*
 to gate something on it — an onboarding module, an access request — can do that
@@ -665,6 +784,11 @@ Per the repository rule, and it is load-bearing here rather than decorative:
 - A **correction** is a typed event carrying `supersedes`, never a silent update.
   A salary typo corrected three months later must not read as a pay cut followed
   by a raise.
+- A correction that moves the state (§8.1) raises `status_changed` beside the
+  `attribute_corrected` that carries `supersedes`, and names that event as its
+  cause. A start that arrived is effective from the corrected start date. A
+  start that had not is effective from the start date it corrects, the day the
+  record wrongly became active, so an "as of" read of that span says pre-hire.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
@@ -674,6 +798,16 @@ last March" in any sense payroll cares about.
 Every read of a person takes an optional `asOf` date. The default is today. A
 payroll run for March asks for March, and gets the org chart, the salary and the
 cost centre as they were, not as they are.
+
+"Today" is always the person's own day (§6.8), never the server's: the default
+`effectiveFrom` of a change, whether a new value is already in force, whether a
+hire date has arrived (so whether the hire is `active` or `pre_hire`), and a
+date field's past/future rule are all read on the calendar of the person being
+written — their location, else their legal entity, else their own zone, else
+the tenant's. A write that moves somebody to another office is judged on the
+calendar it moves them to. An import row is judged the same way, on the
+calendar of the person the row is about. An export's file date and its "As of"
+line are the tenant default's day, because one file has one date.
 
 ---
 
@@ -755,12 +889,24 @@ who is asking. A permissions matrix is a `Table` with a selection mode, not a
 
 The same screen area, separate tabs:
 
+- **Legal entities and locations** — each entity's country and default time
+  zone; each location's entity, country and time zone, with the date a zone
+  change takes effect (§6.8). The tenant's default zone sits here too, and the
+  company's slug and name, read-only: the back office owns them, and a
+  reminder uses them to link to `<slug>.app…` and to name the company. All of
+  it is `people_admin`'s to change and anybody's in the tenant to read, over
+  `GET/POST/PATCH /v1/legal-entities`, `/v1/locations`,
+  `POST /v1/locations/{id}/zones`, `GET/PATCH /v1/settings`, and the matching
+  GraphQL fields.
 - **Employee numbering** — format, prefix, sequence start, per legal entity.
 - **Directory** — which attributes are searchable, who may see the directory,
   whether photos show.
 - **Country packs** — which are enabled, per legal entity.
 - **Completeness and reminders** — reminder schedule, cap, who receives the HR
-  digest, minimum cohort size for aggregate reporting.
+  digest, minimum cohort size for aggregate reporting. The minimum starts at
+  10 and can be raised, never lowered: the domain refuses a lower number and a
+  trigger on `people.tenant_settings` refuses it again for any path that skips
+  the domain.
 - **Integrations** — webhook endpoints, subscribed events, per-endpoint field
   allowlists, signing secret rotation, delivery log and replay. See §13.
 - **Data protection** — retention per classification, DSAR export format, the
@@ -823,6 +969,33 @@ New:
 | `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
+
+### 10.2a Calendar events
+
+Legal entities, locations and settings (§6.8). Organisation configuration,
+never anybody's values, every field classified like any other.
+
+| Event | Payload highlights |
+| --- | --- |
+| `people.legal_entity.created` v1 | legalEntityId, name, country, default time zone |
+| `people.legal_entity.updated` v1 | legalEntityId, name, default time zone, archived, changed field names |
+| `people.location.created` v1 | locationId, legalEntityId, name, country, time zone, `effectiveFrom` |
+| `people.location.updated` v1 | locationId, name, archived, changed field names |
+| `people.location.zone_changed` v1 | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
+| `people.settings.changed` v1 | default time zone, cohort minimum, changed field names |
+
+`people.person.org_changed` already names the legal entity and location a
+person moved to; that event is what tells a consumer a person changed
+calendar.
+
+People also consumes two identity events, both about the company rather than
+anybody in it: `identity.tenant.provisioned` v1 (slug, display name, country,
+time zone — raised in the transaction that creates the tenant) and
+`identity.tenant.amended` v1 (slug, display name — raised when the back office
+renames or rebrands it). They are how People learns its default zone, its
+first legal entity and the company's slug and name without reading
+`platform.tenant`. The slug and name are a copy of the back office's facts,
+kept newest-`occurredAt`-wins, and raise no People event of their own.
 
 ### 10.3 What a payload may carry
 
@@ -891,12 +1064,34 @@ people.person_secret          (tenant_id, person_id, attribute_key,
                                created_at)                        -- separate RLS
 
 people.attribute_unique       (tenant_id, attribute_key, scope_id,
-                               normalised_value, person_id)
+                               value_hash bytea, key_id, person_id)
                                UNIQUE (tenant_id, attribute_key, scope_id,
-                                       normalised_value)
+                                       value_hash)      -- HMAC, never the value
 
 people.outbox                 -- same shape as platform.outbox
+
+-- Calendars (§6.8) -------------------------------------------------------------
+people.tenant_settings        (tenant_id PK, default_time_zone, cohort_minimum
+                               CHECK >= 10, slug, display_name, company_as_of,
+                               created_at, updated_at)
+                               -- a trigger refuses lowering cohort_minimum;
+                               -- slug and display_name are the back office's,
+                               -- copied from identity.tenant.*, newest wins
+people.legal_entity           (tenant_id, id, name, country char(2), time_zone,
+                               archived_at, created_at, updated_at)
+people.location               (tenant_id, id, legal_entity_id -> legal_entity,
+                               name, country char(2), archived_at, ...)
+people.location_zone          (tenant_id, id, location_id -> location,
+                               effective_from date, time_zone, supersedes,
+                               recorded_at)                   -- append-only
+people.schema_version         + evaluated_at timestamptz      -- see §8.4
 ```
+
+`people.person.legal_entity_id` and `location_id` carry no foreign key to the
+new tables: rows written before them hold ids nothing checked, and the
+resolver treats an id it cannot find as absent, which is the answer an FK
+would force anyway. Zones are checked for shape by the database and against
+the IANA database by the domain, because a CHECK cannot reach `Intl`.
 
 ### 11.2 Why this shape
 
@@ -920,12 +1115,35 @@ shape is done without touching what was recorded.
 
 **No runtime DDL, ever.** A uniqueness rule on a tenant-defined attribute is
 enforced by a row in `people.attribute_unique` with a real unique index over
-`(tenant_id, attribute_key, scope_id, normalised_value)`, written in the same
+`(tenant_id, attribute_key, scope_id, value_hash)`, written in the same
 transaction as the value. This is the point in the design most likely to be
 implemented as `CREATE INDEX` at runtime, and the reason not to is the repository
 rule that migrations are expand-contract only. Runtime DDL against a
 multi-tenant production database is an outage with a configuration screen in
 front of it.
+
+**A unique claim holds a keyed hash, never the value.** `value_hash` is
+HMAC-SHA-256 of the normalised value — a national identifier as its country's
+rule normalises it, anything else trimmed and casefolded — under a key derived
+per tenant, by HKDF, from the master key that wraps secrets. The derived key is
+never stored; `key_id` names the master key it came from. Every attribute is
+claimed this way, not only encrypted ones: a plaintext index of employee
+numbers is needless, and a plaintext index of national identifiers would be the
+ciphertext's plaintext stored beside it. An unkeyed hash is not enough — a NIF
+is 10^8 guesses. Rotating the master key re-computes every claim from its value
+(the person row, or the secret) in bounded, idempotent batches, normalised by
+the attribute's definition in the version the record was written under; until a
+claim is re-keyed, a claim is looked for under every key the deployment holds,
+behind a per-rule lock, so no duplicate slips in between. A write locks every
+rule it claims under first, in one order, so two writes naming the same
+attributes queue rather than deadlock. A new key is rolled out known before it
+is current (`.env.example` has the four steps), so no writer ever claims under
+a key another writer cannot look under; the rotation refuses to run when that
+step was skipped. A duplicate the rotation finds — two people already holding
+one value — is not a failure: the stale claim keeps its old key, so the value
+stays unique, and HR sees one `people.unique_claim.conflict` event and a
+`unique_conflict` row on the grid naming both people, never the value, until one
+of them changes it.
 
 **Secrets are not in the row.** Bank accounts, national identifiers and tax
 identifiers live in `people.person_secret` under envelope encryption, with their
@@ -972,16 +1190,67 @@ derived artifact computed from the union of both.**
 - `people.attribute_definition.classification` stores a `FieldPolicy` — the
   exact interface in `packages/contracts/src/classification.ts`. Not a parallel
   vocabulary.
-- The logging adapter builds its redaction paths from the static generated set
-  **plus** a per-tenant set loaded at boot and refreshed on
-  `people.schema.published`.
+- The logging adapter redacts the static generated set **plus** a per-tenant
+  set loaded at boot and refreshed on `people.schema.published`. The static
+  paths are fixed and Pino compiles them; a tenant's keys are matched **by key,
+  at any depth and inside arrays**, on every line and in every child logger's
+  bindings, by one copy-on-write walk. A log line is not a fixed shape, and a
+  field logged one level deeper than someone anticipated must not go out in
+  clear. The walk is bounded (depth 32, 10,000 objects) and closed at the
+  bound: what it did not look at is censored, never written. Its cost is a
+  budget, not a hope — a typical line costs under 1 µs more than one with no
+  tenant redaction at all.
 - The AI gateway's deny list is computed the same way. A prompt that would carry
   an attribute where `aiEligible: false` is refused by the gateway, not filtered
   by a caller.
+- **The gateway checks free text for values, not only context for keys.** A
+  value pasted into the instruction, or into a string under an innocent key,
+  is invisible to a key match. The caller names the people a prompt is about;
+  the gateway asks People for the current values of their denied attributes,
+  with the caller's field access applied, and refuses when any of them appears
+  in the text however it is cased, spaced, accented or punctuated —
+  `DE89 3704 0044…`, `123-45-6789` and `ab 12 34 56 c` all match their stored
+  form. It refuses, it never filters, and it never forwards. The values are
+  held in memory for the comparison only: never logged, never in the refusal.
+  - **The rule: only values the caller may read are checked.** People applies
+    the same field-level visibility (`visibleTo`) it applies to a profile
+    read, and a value the caller cannot see is never looked up. The reason is
+    the oracle: if every value were checked, "is she Catholic?" could be
+    answered by whether the prompt was refused, one guess at a time. A value
+    the caller cannot read did not come from us, so leaving it out costs the
+    check nothing the caller could have got here.
+  - **Short values are matched only next to their field's name.** A value
+    under 4 normalised characters with no digit — blood group `A`, `AB`, a
+    sex marker `F` — is an ordinary word, and refusing every prompt with "a"
+    in it would make the gateway useless without making anyone safer. Such a
+    value refuses a prompt only as a whole word within 3 words of one of its
+    own attribute's names, key or label in any locale: `blood group: A`,
+    `grupo sanguíneo AB`. Anywhere else it is ignored. (`SHORT_BELOW` and
+    `NAME_WINDOW` in `free-text.ts`.)
+  - **Dates are matched however they are written.** A stored calendar date
+    matches ISO (`1990-01-02`, `19900102`), day/month/year and
+    month/day/year with `/`, `-` or `.`, two- or four-digit years, with or
+    without leading zeros and ordinal suffixes, and with the month spelled
+    out or abbreviated in the country packs' languages — English, Spanish,
+    Catalan, German and Hindi (`2 January 1990`, `Jan 2, 1990`,
+    `2 de enero de 1990`, `2. Januar 1990`). A numeric date is read both ways
+    round: `01/02/1990` matches the 1st of February and the 2nd of January,
+    because which one the writer meant cannot be known and refusing both is
+    the safe side.
+  - A person who cannot be resolved refuses the prompt. Not knowing the values
+    is not evidence the text is clean.
+  - **A caller that names nobody** cannot have values checked, so any mention
+    of a denied field's key or label, in any locale, is refused, and the
+    refusal says so and says to name the subjects instead.
 - The DSAR manifest is generated per tenant, per request, from the published
   schema version the record was written under — which is why the version is
   stored on the person row.
-- Retention jobs read the same source.
+- Retention jobs read the same source, and erase a value's unique claim with
+  the value: a keyed hash of an erased identifier is still that identifier to
+  whoever holds the key. A retention due date — the last working day plus the
+  policy's months — is a calendar date, and whether it has arrived is read on
+  the leaver's own calendar (§6.8): it falls at midnight where they worked,
+  not where the server is.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that
@@ -1127,7 +1396,12 @@ GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
 POST   /v1/imports                     dry run, then commit
-GET    /v1/exports/{id}                including a DSAR package for one person
+POST   /v1/exports                     run now, or queue over 2,000 rows (202)
+GET    /v1/exports/{id}                the requester's own, links signed again; a DSAR package for one person
+GET    /v1/exports/files/{key}         a signed link, 24 hours; carries its own authority
+POST   /v1/exports/full-values         finance asks for sealed fields in full, with a reason
+GET    /v1/exports/full-values/{id}    the requester or HR; the one-use link to the requester only
+POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
 ```
 
 OpenAPI generated from the same Zod definitions, per the rule that a derived
@@ -1142,7 +1416,9 @@ the same application layer.
 | Signing | HMAC over the raw body with a per-endpoint secret, rotatable with an overlap window |
 | Ordering | Per person, guaranteed. Across people, not |
 | Delivery | At least once. Every payload carries `eventId`; consumers deduplicate on it |
-| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told |
+| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address is emailed through `platform/messaging` |
+| Alert address | Required when an endpoint is registered: a request without a valid one is refused, 400, naming `alertEmail`. An endpoint registered before this rule may have none and is told through the event alone |
+| Durability | The retry schedule is `next_attempt_at` on each delivery row. A bounded poller passes every known tenant on boot and every minute, so a retry pending across a restart resumes when it falls due. A pass claims a delivery with a short lease before sending, so two replicas never send one twice and a crash mid-send is a resend |
 | Replay | Any delivery re-sendable from the settings screen for the retention window |
 | Filtering | Per endpoint: which events, and which attributes within them (§10.3) |
 | Payload | The event envelope, unchanged, minus what the allowlist excludes |
@@ -1322,13 +1598,45 @@ Two rules bind it:
   an export button that forgot it.
 - **Every export is an event.** `people.export.completed` carries the actor,
   the attribute keys, the row count and the format. An export containing
-  financial or special-category attributes additionally requires a stated
-  reason, which is recorded with it.
+  financial attributes additionally requires a stated reason, which is
+  recorded with it. (Special-category attributes are never in an export to
+  need one; see §15.2.)
 
 Anything over 2,000 rows runs as a job. The file lands in object storage,
 encrypted, behind a signed link that expires in 24 hours and is delivered as a
 notification — never as an email attachment, because an email attachment is a
 copy of the employee register in a mailbox nobody controls.
+
+How that is built:
+
+- **The threshold is what the requester may list**, counted through the same
+  read the export is. A manager with a team of eight is never queued because
+  the company has ten thousand people.
+- **The job is a BullMQ job**, keyed by the export id, so a request retried by
+  the client is one job and a job retried by the queue is one export. Five
+  attempts with exponential backoff; a refusal — a field refused, a reason
+  missing — is final, because it would be refused again. A queued export that
+  needs a reason is refused **before** it is queued, not by a worker nobody is
+  watching.
+- **Storage is any S3-compatible bucket**, with two layers of encryption:
+  AES-256-GCM in the service before the bytes leave it, and the bucket's own
+  server-side encryption beneath. They fail differently — the bucket's key
+  protects a disk that leaves the data centre, the service's protects against a
+  bucket policy one checkbox too generous.
+- **The link is the service's, not the bucket's.** `GET /v1/exports/files/…`
+  checks an HMAC over the key and the expiry, and after 24 hours answers `410
+  Gone`. A presigned bucket URL would hand the requester ciphertext.
+- **Files are deleted after the link dies**, by a sweep that runs hourly and
+  removes at most a thousand files per run, so a backlog drains over several
+  runs instead of one long one.
+- **The notification is `people.export.completed`**, which still carries no
+  link. The requester — and only the requester — fetches the links from `GET
+  /v1/exports/{id}`, which signs them again from the file names and expiry in
+  the export ledger; no link is stored anywhere. An export-ready email waits on
+  `platform/messaging` gaining that message.
+- **Nothing configured is a supported mode.** With no bucket and no queue the
+  module keeps files in memory and runs large exports in-process, says so at
+  boot, and still boots alone.
 
 ### 15.2 Exporting a sheet that has extra attributes
 
@@ -1350,9 +1658,34 @@ order — the same order as the profile screen, so the file reads like the UI.
   marked `(archived)` in the label row. Their values still exist, so an export
   that silently omitted them would misreport what is held.
 - **Encrypted attributes** — bank accounts, national identifiers — export as
-  the masked form (`ES•• •••• 2291`) unless the exporter holds the finance
-  relation *and* states a reason, in which case the full value is exported and
-  the export is flagged in the audit log.
+  the masked form (`ES•• •••• 2291`), in every export, for everybody. **Finance
+  never downloads a full value directly**; it asks for one, and somebody else
+  says yes:
+  - **Finance asks** for a named export — the sealed fields it needs, and who —
+    and states why. Only the finance relation may ask, and a request must name
+    at least one sealed field; anything else it can simply export.
+  - **HR decides**, approving or rejecting, with an optional note. Only the HR
+    relation may decide, and **nobody decides their own request**, whatever
+    relations they hold; the database refuses it as well as the application.
+  - **Undecided after seven days, the request expires.** An expiry is an
+    answer, and is recorded as one; a decision arriving after it is refused.
+  - **An approval issues exactly one download**: one XLSX, built as the
+    requester reads — an approval unmasks what they asked for and widens
+    nothing else — behind a link that works **once** and for **24 hours**. The
+    second click is refused, and so is the first after a day. Only the
+    requester is given the link. Sealed values are read inside that build and
+    nowhere else: not cached, not logged, not stored.
+  - **Every step is an event** — `people.export.full_values_requested`,
+    `…_decided`, `…_expired`, `…_issued`, `…_downloaded`, and the ordinary
+    `people.export.completed` — carrying the actor, the reason and the field
+    keys, never a value and never a link. The download is recorded against the
+    person it was issued to, because a bearer link cannot say who clicked it.
+
+  The wait between asking and answering is a Temporal workflow, one per
+  request. It holds nothing: it wakes on the decision or when the week runs
+  out, and asks the request's row what to do. The same approval rules — a
+  stated reason, separation of duties, a deadline, a single use — are the
+  primitives the approval workflows on sensitive changes (Phase 3) will reuse.
 - **Special-category attributes never appear** in a standard export at all.
   They are reachable only through the DSAR path (§15.5), which runs as the
   subject rather than as a viewer.
@@ -1385,6 +1718,22 @@ empty string and from "not applicable at this company".
 | CSV | Empty cell. A `__missing_required` column lists the keys, comma-separated | Empty cell | Empty cell |
 | XLSX | Empty cell with an amber fill and a cell comment naming the field, plus a **Missing information** sheet listing person, field and who owns filling it | Empty cell, no fill | Cell shaded grey, comment "not required for this person" |
 | PDF | Prints **Not provided** in muted type, never a blank | Omitted entirely | Omitted entirely |
+
+**Which cells are which is judged on the export's day.** An export `asOf`
+March is a picture of March, gaps included: the values in force then — dated
+attributes replayed through history — against the schema version that was
+published then. Judged against today, a field made required in June would
+mark every March row as missing something nobody could have been asked for,
+and a gap closed in May would vanish from the March picture. The provenance
+sheet names the version the gaps were judged against, and a day before
+anything was published has no gaps at all. The Missing information sheet
+lists every gap on that day, including one in a field archived since, which
+therefore has no column.
+
+**Not applicable** is a blank that some rule could ask for but does not ask of
+this person on that day — a conditional rule that does not hold for them, or a
+requirement whose `requiredFrom` has not arrived. A field with no rule at all
+is optional, not "not applicable", and gets no fill.
 
 The PDF rule is the one that matters most. A blank line on a printed employee
 record is ambiguous between "we do not hold this", "the field did not exist"
@@ -1442,6 +1791,10 @@ Every chart obeys four rules without exception:
 2. **Cohort minimum.** Any breakdown touching special-category data returns
    "insufficient data" below the tenant's minimum (default 10, raisable, never
    lowerable). This applies to the chart, the tooltip and the underlying export.
+   The minimum is `people.tenant_settings.cohort_minimum`, set on the
+   Completeness and reminders tab (§9.4); a CHECK holds the floor of 10 and a
+   trigger refuses any UPDATE that lowers it, so a path that skips the domain
+   cannot lower it either. It is also the change threshold below.
    A minimum that holds on every reading still leaks across two — 14 people on
    Monday, 15 on Tuesday, and HR knows who started on Tuesday — so a
    special-category breakdown is **published**, never read live from the daily
@@ -1500,6 +1853,21 @@ number nobody can check, and it goes stale the moment it leaves.
 A daily snapshot table, `people.headcount_snapshot`, holds the aggregate
 dimensions per tenant per day: counts by department, location, status,
 employment type, tenure band and completeness. Charts read snapshots.
+
+**Whose day a snapshot counts.** Each legal entity's own (§6.8). The job
+reads one instant, files the run under the tenant default's date, and counts
+every person on their legal entity's date at that instant — headcount,
+joiners, leavers, tenure, expiries and the completeness grid's missing
+fields. Somebody with no legal entity is counted on the tenant's day. **A
+tenant-wide figure is the sum of per-entity figures, each on its own day**: at
+20:00 UTC on 31 March a joiner starting 1 April in Bangalore is already in the
+headcount and one starting 1 April in Madrid is not, and the tenant's number
+is their sum. Each entity's flow interval is the run's, anchored on its own
+day, so consecutive runs stay contiguous for every entity. The monthly
+special-category publication (§16.1) reads the run it follows, never a second
+reading of the clock, and counts "who changed since" on each entity's day at
+the publication's instant and at this run's. A requested `asOf` is a date and
+is the same date for everybody.
 
 Arbitrary `asOf` dates outside the snapshot grid fall back to replaying
 history, which is slower and is marked as such in the UI. Nothing is computed
@@ -1903,7 +2271,7 @@ deleted and cannot have their classification loosened.
 
 ### Identification & right to work
 
-`national_id` (country-typed, encrypted), `tax_id` (encrypted), `passport_number`
+`national_id` (country-typed, encrypted, unique per tenant), `tax_id` (encrypted), `passport_number`
 (encrypted), `passport_country`, `passport_expiry`, `visa_type`,
 `work_permit_number` (encrypted), `work_permit_expiry`,
 `right_to_work_checked_on`, `right_to_work_checked_by`, `driving_licence_number`

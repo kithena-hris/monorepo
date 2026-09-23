@@ -153,8 +153,8 @@ export const FINANCE: Viewer = {
 };
 export const MANAGER: Viewer = { accountId: MARCO_ACCOUNT, roles: new Set() };
 
-export function financeTenant(): InMemoryPeople {
-  const store = inMemoryPeople([register()]);
+export function financeTenant(versions: PublishedVersion[] = [register()]): InMemoryPeople {
+  const store = inMemoryPeople(versions);
   const person = (
     id: string,
     account: string | null,

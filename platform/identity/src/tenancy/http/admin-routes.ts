@@ -402,6 +402,8 @@ export function adminRoutes({
       themeId: typeof body['themeId'] === 'string' ? body['themeId'] : DEFAULT_THEME_ID,
       logoUrl: orNull('logoUrl'),
       coverImageUrl: orNull('coverImageUrl'),
+      // The company's zone (PEO-099). Absent is UTC, so an older client still works.
+      ...(typeof body['timeZone'] === 'string' ? { timeZone: body['timeZone'] } : {}),
       address: {
         country: typeof address['country'] === 'string' ? address['country'] : '',
         line1: typeof address['line1'] === 'string' ? address['line1'] : '',

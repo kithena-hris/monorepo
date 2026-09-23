@@ -2,6 +2,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { PendingEvent } from '@kithena/domain-kit';
 import type { AttributeDefinition, CalendarDate } from '@kithena/contracts';
 
+import type { Placement } from '../../domain/org/calendar.js';
 import type { CompletenessState } from '../../domain/person/completeness.js';
 
 /**
@@ -24,6 +25,8 @@ export interface CompletenessStore {
   ): Promise<{
     attributes: readonly AttributeDefinition[];
     evaluatedOn: CalendarDate | null;
+    /** The instant the preview evaluated at; null for a version from before PEO-099. */
+    evaluatedAt: string | null;
   } | null>;
 
   /**
@@ -51,22 +54,47 @@ export interface CompletenessStore {
   publish(tx: PostgresJsDatabase, events: readonly PendingEvent[]): Promise<void>;
 
   /**
-   * Claim up to `limit` reminders that are due at `now`, and mark them sent.
+   * Claim the reminders among `only` that are still due at `now`, and mark
+   * them sent.
    *
    * Due means the person has an employee-owned gap, an address to send to, and
    * was never reminded or was last reminded at or before `reminderDueBefore(now)`.
-   * Bounded so one transaction never holds a whole tenant's rows; the sweep
-   * claims batch after batch until one comes back short.
+   * The condition is repeated under the row lock, so two sweeps racing for the
+   * same person claim them once.
    */
   claimReminders(
     tx: PostgresJsDatabase,
     tenantId: string,
     now: Date,
-    limit: number,
+    /** Only these people: the due ones whose own clock says working hours. */
+    only: readonly string[],
   ): Promise<readonly Reminder[]>;
 
-  /** HR's gaps, one row per missing key — the grid, never a task per person. */
-  staffGrid(tx: PostgresJsDatabase, tenantId: string): Promise<readonly GridRow[]>;
+  /**
+   * One page of who `claimReminders` would claim at `now`, and where each
+   * sits, in person order after `page.after`. Claims nothing. Paged so one
+   * transaction never reads a whole tenant.
+   */
+  dueReminders(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    now: Date,
+    page: { readonly after: string | null; readonly limit: number },
+  ): Promise<readonly { readonly personId: string; readonly placement: Placement }[]>;
+
+  /**
+   * HR's work, one row per missing key — the grid, never a task per person.
+   *
+   * Also one `confirm_termination` row: people on notice whose last working
+   * day is before `today` (§8.1). Read off the record rather than stored, so
+   * it closes when HR terminates or corrects the date forward, with nothing
+   * to clear.
+   *
+   * And one `unique_conflict` row per attribute where a key rotation found a
+   * value two people hold (PEO-082), naming both. It closes when either of
+   * them changes the value and the next rotation re-keys the claim.
+   */
+  staffGrid(tx: PostgresJsDatabase, tenantId: string, today: string): Promise<readonly GridRow[]>;
 }
 
 export interface Gap {
@@ -84,6 +112,12 @@ export interface Reminder {
 }
 
 export interface GridRow {
+  /**
+   * `missing`: `key` has no value. `confirm_termination`: `key` is
+   * `last_working_day`, and it has passed. `unique_conflict`: `key` is unique
+   * and these people hold the same value.
+   */
+  readonly task: 'missing' | 'confirm_termination' | 'unique_conflict';
   readonly key: string;
   readonly personIds: readonly string[];
 }

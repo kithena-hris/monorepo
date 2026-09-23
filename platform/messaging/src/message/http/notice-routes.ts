@@ -19,9 +19,11 @@ const NoticeRequest = z.object({
   tenantId: z.uuid(),
   email: z.string().min(3),
   url: z.string().min(1),
+  companyName: z.string().min(1).max(120),
   dedupeKey: z.string().min(1).max(200),
   notice: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('profile_reminder'), missing: z.number().int().min(1).max(1000) }),
+    z.object({ kind: z.literal('webhook_disabled'), host: z.string().min(1).max(253) }),
   ]),
 });
 

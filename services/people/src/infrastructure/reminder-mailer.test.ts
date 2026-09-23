@@ -8,25 +8,22 @@ const reminder = {
   keys: ['emergency_contact', 'bank_holiday_region'],
   remindedAt: new Date('2026-09-23T09:00:00.000Z'),
 };
+const acme = { name: 'Acme Corp', origin: 'https://acme.app.kithena.com' };
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe('httpReminderMailer', () => {
-  it('asks messaging for one profile reminder, counting the gaps and naming none', async () => {
+  it('asks messaging for one reminder from the company, to its own origin, naming no field', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
       calls.push({ url, init });
       return Promise.resolve(new Response('{"messageId":"m"}', { status: 202 }));
     });
 
-    const mailer = httpReminderMailer({
-      baseUrl: 'http://messaging:4101',
-      token: 'people-token',
-      appOrigin: 'https://app.kithena.com',
-    });
-    await mailer.send('00000000-0000-4000-8000-00000000000a', reminder);
+    const mailer = httpReminderMailer({ baseUrl: 'http://messaging:4101', token: 'people-token' });
+    await mailer.send('00000000-0000-4000-8000-00000000000a', acme, reminder);
 
     const call = calls[0];
     if (call === undefined) throw new Error('expected a request');
@@ -36,7 +33,8 @@ describe('httpReminderMailer', () => {
     expect(JSON.parse(body)).toEqual({
       tenantId: '00000000-0000-4000-8000-00000000000a',
       email: 'ada@acme.example',
-      url: 'https://app.kithena.com/people',
+      url: 'https://acme.app.kithena.com/people',
+      companyName: 'Acme Corp',
       dedupeKey: `${reminder.personId}/2026-09-23T09:00:00.000Z`,
       notice: { kind: 'profile_reminder', missing: 2 },
     });
@@ -45,22 +43,16 @@ describe('httpReminderMailer', () => {
 
   it('rejects when messaging refuses, so the sweep counts it as failed', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve(new Response('{}', { status: 502 })));
-    const mailer = httpReminderMailer({ baseUrl: 'http://m', token: 't', appOrigin: 'http://a' });
-    await expect(mailer.send('t', reminder)).rejects.toThrow('502');
+    const mailer = httpReminderMailer({ baseUrl: 'http://m', token: 't' });
+    await expect(mailer.send('t', acme, reminder)).rejects.toThrow('502');
   });
 });
 
 describe('reminderMailerFrom', () => {
-  it('is nothing until messaging, its token and the app origin are all configured', () => {
-    expect(reminderMailerFrom({ MESSAGING_URL: 'http://m', MESSAGING_PEOPLE_TOKEN: 't' })).toBe(
-      undefined,
-    );
+  it('is nothing until messaging and its token are both configured', () => {
+    expect(reminderMailerFrom({ MESSAGING_URL: 'http://m' })).toBe(undefined);
     expect(
-      reminderMailerFrom({
-        MESSAGING_URL: 'http://m',
-        MESSAGING_PEOPLE_TOKEN: 't',
-        APP_ORIGIN: 'http://a',
-      }),
+      reminderMailerFrom({ MESSAGING_URL: 'http://m', MESSAGING_PEOPLE_TOKEN: 't' }),
     ).toBeDefined();
   });
 });

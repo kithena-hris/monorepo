@@ -1,11 +1,16 @@
 import { randomBytes } from 'node:crypto';
+import * as z from 'zod';
 import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm';
-import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
+import { TenantId, type AttributeDefinition } from '@kithena/contracts';
+import { publish } from '@kithena/db-kit';
+import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
 
+import type { SchemaVersions } from '../../application/person/ports.js';
 import type { InTenant } from '../../application/person/service.js';
 import { open, seal, type KeyRing } from '../envelope.js';
 import { vet, type EgressPolicy, type Poster } from './egress.js';
 import { filterFor, signatureHeader, type StoredEnvelope } from './payload.js';
+import { outbox } from '../tables.js';
 import { webhookDelivery, webhookEndpoint } from './tables.js';
 
 /**
@@ -19,8 +24,14 @@ import { webhookDelivery, webhookEndpoint } from './tables.js';
  *   Delivery  At least once. The envelope carries `eventId`, and so does a
  *             header, for the receiver to deduplicate on.
  *   Retry     Exponential from 30 seconds, until 24 hours after the first
- *             attempt; then the delivery fails, the endpoint is disabled and
- *             the tenant is told.
+ *             attempt; then the delivery fails, the endpoint is disabled,
+ *             `people.webhook.endpoint_disabled` is raised in the same
+ *             transaction, and the endpoint's alert address is emailed.
+ *   Durable   The schedule is the rows: `next_attempt_at` is written before
+ *             anything is sent. A pass claims a delivery by pushing that
+ *             forward by a lease, so two processes — or one restarted
+ *             mid-send — never send the same delivery at once, and a crash
+ *             mid-send is a resend once the lease runs out.
  *   Replay    A new delivery of a stored envelope, filtered against the
  *             allowlist as it is when it is sent — never as it was.
  */
@@ -34,9 +45,29 @@ export interface WebhookDeps {
   readonly egress: EgressPolicy;
   readonly clock: Clock;
   readonly newId: () => string;
-  /** The tenant is told an endpoint was disabled. */
-  readonly notify: (tenantId: string, endpointId: string, reason: string) => void;
+  /**
+   * After the disable has committed: the tenant's alert address is emailed.
+   * The event is the durable notice; this is best effort, and a failure here
+   * is the caller's to log.
+   */
+  readonly notify: (tenantId: string, disabled: DisabledEndpoint) => Promise<void> | void;
+  /** The version in force, which is what an allowlist may name. */
+  readonly schemas: SchemaVersions;
 }
+
+export interface DisabledEndpoint {
+  readonly endpointId: string;
+  readonly url: string;
+  readonly alertEmail: string | null;
+  readonly lastResponse: number;
+}
+
+/**
+ * How long a claimed delivery is held before another pass may take it.
+ * Longer than any send (the poster times out well inside it), so a live send
+ * is never doubled; short enough that a crash mid-send costs minutes.
+ */
+const LEASE_MS = 5 * 60 * 1000;
 
 const FIRST_RETRY_MS = 30_000;
 const MAX_RETRY_MS = 6 * 60 * 60 * 1000;
@@ -56,10 +87,19 @@ export function nextAttempt(firstAttempt: Date, attempts: number, now: Date): Da
 
 const secret = () => randomBytes(32).toString('base64url');
 
+/** `people.webhook_endpoint.alert_email` holds 3 to 320 characters. */
+const AlertEmail = z.email().max(320);
+
 export interface EndpointInput {
   readonly url: string;
   readonly events: readonly string[];
   readonly allowlist: readonly string[];
+  /**
+   * Emailed if the endpoint is disabled. Required for every new endpoint: the
+   * admin who registers a receiver names who hears when it stops. Endpoints
+   * created before this rule may hold null and are told through the event alone.
+   */
+  readonly alertEmail: string;
 }
 
 export interface WebhookService {
@@ -90,10 +130,58 @@ export interface WebhookService {
   nextDue(tenantId: string): Promise<Date | null>;
 }
 
+/**
+ * Whether every key may be named in an allowlist (§13.3).
+ *
+ * A key must exist in the version in force, so an allowlist cannot promise a
+ * field nobody defined. Special-category and encrypted attributes are refused
+ * outright: the first never travels on an event and the second never leaves
+ * the secret store, so naming either would be a promise the payload breaks —
+ * or, worse, one a later change quietly keeps. Checked here, in the one place
+ * every caller goes through, so the settings screen and any API get the same
+ * answer.
+ */
+export function allowable(
+  definitions: readonly AttributeDefinition[],
+  keys: readonly string[],
+): Result<void> {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  for (const key of keys) {
+    const definition = byKey.get(key);
+    if (definition === undefined) {
+      return err(
+        failure('FIELD_NOT_ALLOWED', `${key} is not a field in the published schema`, [
+          'allowlist',
+        ]),
+      );
+    }
+    if (definition.classification.classification === 'special-category') {
+      return err(
+        failure(
+          'FIELD_NOT_ALLOWED',
+          `${key} is special-category data and never leaves in a webhook`,
+          ['allowlist'],
+        ),
+      );
+    }
+    if (definition.encrypted) {
+      return err(
+        failure('FIELD_NOT_ALLOWED', `${key} is encrypted and never leaves in a webhook`, [
+          'allowlist',
+        ]),
+      );
+    }
+  }
+  return ok(undefined);
+}
+
 export function webhooks(deps: WebhookDeps): WebhookService {
   // An early answer for the settings screen. Not the defence: DNS can change
   // its mind, so `post` vets and pins again on every delivery.
-  const validate = async (input: Partial<EndpointInput>): Promise<Result<void>> => {
+  const validate = async (
+    tenantId: string,
+    input: Partial<EndpointInput>,
+  ): Promise<Result<void>> => {
     if (input.url !== undefined) {
       const target = await vet(input.url, deps.egress);
       if (!target.ok) return target;
@@ -101,12 +189,27 @@ export function webhooks(deps: WebhookDeps): WebhookService {
     if (input.events?.length === 0) {
       return err(failure('BAD_WEBHOOK_EVENTS', 'Subscribe to at least one event', ['events']));
     }
+    if (input.allowlist !== undefined && input.allowlist.length > 0) {
+      const version = await deps.inTenant(tenantId, ({ tx }) => deps.schemas.current(tx, tenantId));
+      const allowed = allowable(version?.document.attributes ?? [], input.allowlist);
+      if (!allowed.ok) return allowed;
+    }
+    if (input.alertEmail !== undefined && !AlertEmail.safeParse(input.alertEmail).success) {
+      return err(
+        failure(
+          'BAD_WEBHOOK_ALERT_EMAIL',
+          'Give an address to email if this endpoint is turned off',
+          ['alertEmail'],
+        ),
+      );
+    }
     return ok(undefined);
   };
 
   return {
     async createEndpoint(tenantId, input) {
-      const valid = await validate(input);
+      // Required by the type here; `validate` checks it is an address.
+      const valid = await validate(tenantId, input);
       if (!valid.ok) return valid;
       const id = deps.newId();
       const plaintext = secret();
@@ -118,6 +221,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
           url: input.url,
           events: [...input.events],
           allowlist: [...input.allowlist],
+          alertEmail: input.alertEmail,
           secretCiphertext: sealed.ciphertext,
           secretKeyId: sealed.keyId,
         }),
@@ -126,7 +230,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
     },
 
     async updateEndpoint(tenantId, id, patch) {
-      const valid = await validate(patch);
+      const valid = await validate(tenantId, patch);
       if (!valid.ok) return valid;
       const updated = await deps.inTenant(tenantId, ({ tx }) =>
         tx
@@ -135,6 +239,7 @@ export function webhooks(deps: WebhookDeps): WebhookService {
             ...(patch.url === undefined ? {} : { url: patch.url }),
             ...(patch.events === undefined ? {} : { events: [...patch.events] }),
             ...(patch.allowlist === undefined ? {} : { allowlist: [...patch.allowlist] }),
+            ...(patch.alertEmail === undefined ? {} : { alertEmail: patch.alertEmail }),
             ...(patch.enabled === true ? { disabledAt: null, disabledReason: null } : {}),
             ...(patch.enabled === false
               ? { disabledAt: deps.clock.now(), disabledReason: 'disabled by the tenant' }
@@ -204,6 +309,28 @@ export function webhooks(deps: WebhookDeps): WebhookService {
 
         let settled = 0;
         for (const { delivery, endpoint } of heads) {
+          /*
+           * Claimed before anything else. The head query read without a lock,
+           * so another process may have read the same row; only one of the two
+           * moves `next_attempt_at` from due to a lease, and the other moves on.
+           * That is what keeps a delivery to one send per pass across replicas,
+           * and a restart mid-send to a resend once the lease is up.
+           */
+          const claimed = await deps.inTenant(tenantId, ({ tx }) =>
+            tx
+              .update(webhookDelivery)
+              .set({ nextAttemptAt: new Date(now.getTime() + LEASE_MS) })
+              .where(
+                and(
+                  eq(webhookDelivery.id, delivery.id),
+                  eq(webhookDelivery.status, 'pending'),
+                  lte(webhookDelivery.nextAttemptAt, now),
+                ),
+              )
+              .returning({ id: webhookDelivery.id }),
+          );
+          if (claimed.length === 0) continue;
+
           const filtered = filterFor(delivery.envelope as StoredEnvelope, endpoint.allowlist);
 
           if (filtered === null) {
@@ -293,17 +420,30 @@ export function webhooks(deps: WebhookDeps): WebhookService {
           }
 
           const reason = `No successful delivery for 24 hours (last response ${String(status)})`;
-          await deps.inTenant(tenantId, async ({ tx }) => {
+          const disabled = await deps.inTenant(tenantId, async ({ tx }) => {
             await tx
               .update(webhookDelivery)
               .set({ status: 'failed', attempts, firstAttemptedAt: first, lastResponse: status })
               .where(eq(webhookDelivery.id, delivery.id));
-            await tx
+            // Conditional, so an endpoint is disabled — and the tenant told —
+            // once, however many deliveries reach the ceiling together.
+            const turnedOff = await tx
               .update(webhookEndpoint)
               .set({ disabledAt: now, disabledReason: reason, updatedAt: now })
-              .where(eq(webhookEndpoint.id, endpoint.id));
+              .where(and(eq(webhookEndpoint.id, endpoint.id), isNull(webhookEndpoint.disabledAt)))
+              .returning({ id: webhookEndpoint.id });
+            if (turnedOff.length === 0) return false;
+            await publish(tx, outbox, [disabledEvent(tenantId, endpoint.id, status, deps)]);
+            return true;
           });
-          deps.notify(tenantId, endpoint.id, reason);
+          if (disabled) {
+            await deps.notify(tenantId, {
+              endpointId: endpoint.id,
+              url: endpoint.url,
+              alertEmail: endpoint.alertEmail,
+              lastResponse: status,
+            });
+          }
           totals.failed += 1;
           settled += 1;
         }
@@ -359,6 +499,39 @@ export function webhooks(deps: WebhookDeps): WebhookService {
         });
         return ok(id);
       });
+    },
+  };
+}
+
+/**
+ * `people.webhook.endpoint_disabled`: the tenant is told, durably, in the
+ * transaction that disabled it. No URL and no address — a URL can carry a
+ * receiver's token in its query, and the event is a Kafka topic kept for years.
+ */
+function disabledEvent(
+  tenantId: string,
+  endpointId: string,
+  lastResponse: number,
+  deps: Pick<WebhookDeps, 'clock' | 'newId'>,
+): PendingEvent {
+  const at = deps.clock.instant();
+  return {
+    eventId: deps.newId(),
+    eventName: 'people.webhook.endpoint_disabled',
+    eventVersion: 1,
+    tenantId: TenantId.parse(tenantId),
+    occurredAt: at,
+    effectiveFrom: null,
+    aggregate: { type: 'WebhookEndpoint', id: endpointId, version: 1 },
+    actor: { kind: 'system', process: 'people-webhooks' },
+    correlationId: deps.newId(),
+    causationId: null,
+    payload: {
+      endpointId,
+      reason: 'delivery_ceiling',
+      // 0 is "no response at all": a refused connection or a timeout.
+      lastResponse: lastResponse === 0 ? null : lastResponse,
+      disabledAt: at,
     },
   };
 }

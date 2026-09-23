@@ -3,12 +3,15 @@ import {
   AccountProfileCaptured,
   AccountProvisioned,
   SchemaPublished,
+  TenantAmended,
+  TenantProvisioned,
   type EventDefinition,
   type EventEnvelope,
 } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
 import type { RecomputeCompleteness } from '../../application/completeness/recompute.js';
+import type { OrgAdmin } from '../../application/org/org.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
 import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
@@ -36,6 +39,8 @@ export interface ConsumerDeps {
   readonly inTenant: InTenantTransaction;
   readonly provisional: ProvisionalPeople;
   readonly recompute: RecomputeCompleteness;
+  /** Legal entities and settings, for the company the back office created (PEO-099). */
+  readonly org?: OrgAdmin;
 }
 
 const PROCESS = 'people.consumer';
@@ -96,6 +101,52 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           return 'rejected';
         }
         return 'applied';
+      }
+
+      /*
+       * A company the back office created: its default zone, a first legal
+       * entity in its country and zone, and its slug and name (PEO-099). Once:
+       * a tenant that already has an entity keeps what its admin made.
+       */
+      case TenantProvisioned.name: {
+        const event = parse(TenantProvisioned, raw);
+        if (!event || !deps.org) return event ? 'ignored' : 'rejected';
+        const { org } = deps;
+        const { payload } = event;
+        const adopted = await deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          await org.rememberCompany(tx, event.tenantId, {
+            slug: payload.slug,
+            displayName: payload.displayName,
+            asOf: event.occurredAt,
+          });
+          return org.adoptTenant(
+            tx,
+            { tenantId: event.tenantId, ...context(event) },
+            { name: payload.displayName, country: payload.country, timeZone: payload.timeZone },
+          );
+        });
+        if (!adopted.ok) {
+          // A country with no address rules yet, or a zone this runtime does
+          // not know: the slug and name are kept, the admin makes the entity.
+          logger.warn({ eventId: event.eventId, code: adopted.error.code }, 'tenant not adopted');
+          return 'rejected';
+        }
+        return adopted.value.created ? 'applied' : 'unchanged';
+      }
+
+      case TenantAmended.name: {
+        const event = parse(TenantAmended, raw);
+        if (!event || !deps.org) return event ? 'ignored' : 'rejected';
+        const { org } = deps;
+        const kept = await deps.inTenant(event.tenantId, ({ tx }) =>
+          org.rememberCompany(tx, event.tenantId, {
+            slug: event.payload.slug,
+            displayName: event.payload.displayName,
+            asOf: event.occurredAt,
+          }),
+        );
+        return kept ? 'applied' : 'unchanged';
       }
 
       default:

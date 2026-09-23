@@ -77,12 +77,12 @@ const routes = compose({
    */
   authOrigin: process.env['AUTH_ORIGIN'] ?? 'http://auth.app.localhost:3100',
   /*
-   * What People presents to ask for a profile reminder, and where the
-   * reminder's link may point. The default is the tenant app `just local`
-   * serves; a tenant's own subdomain is a different origin and is refused.
+   * What People presents to ask for a notice, and the shape of origin its link
+   * may point at: a company's own `<slug>.app…`, the default being the one
+   * `just local` serves.
    */
   noticeToken: process.env['MESSAGING_PEOPLE_TOKEN'],
-  appOrigin: process.env['APP_ORIGIN'] ?? 'http://app.localhost:3000',
+  tenantAppBase: process.env['TENANT_APP_BASE'] ?? 'http://{slug}.app.localhost:3000',
   allowLogTransport: process.env['NODE_ENV'] !== 'production',
   // Optional. Absent, nothing is recorded and the outcome lives in the response
   // and the structured log — a supported deployment, and the one `just

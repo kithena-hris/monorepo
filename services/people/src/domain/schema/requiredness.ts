@@ -60,8 +60,11 @@ export function evaluateRequiredness(
   rule: Requiredness,
   facts: PersonFacts,
   clock: Clock,
-  /** The zone the tenant's calendar runs in. A date is not an instant. */
-  timeZone = 'Etc/UTC',
+  /**
+   * Whose calendar "today" is read on — the person's (PRD §6.8). Required: a
+   * silent UTC default is the bug that put Auckland on yesterday.
+   */
+  timeZone: string,
 ): RequirednessVerdict {
   if (rule.mode === 'never') return NOT_REQUIRED;
 

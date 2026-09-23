@@ -93,17 +93,36 @@ A field a customer creates at runtime is not in the build-time walk, so
 `@kithena/telemetry`'s policy registry unions the generated sets with a
 per-tenant set that the People module loads at boot and replaces on
 `people.schema.published`. `tenantPolicies.loggerFor(logger, tenantId)` redacts
-that union; `aiGateway` refuses any prompt whose context carries a denied path
-or a tenant key with `aiEligible: false`. A tenant not yet loaded fails closed:
-its `custom` bag is redacted wholesale and its prompts are refused.
+that union: the generated paths through Pino, and the tenant's sensitive keys
+at any depth, inside arrays and in every child logger's bindings, through one
+walk over each line. The walk is bounded, and a line deeper or larger than the
+bound, or with a cycle in it, has that part censored rather than written.
+
+`aiGateway` refuses any prompt whose context carries a denied path or a tenant
+key with `aiEligible: false`. It also refuses one whose **free text** carries a
+denied value: the caller names the people the prompt is about, People returns
+the current values of their denied attributes that the caller may read, and a
+match however it is spaced, cased or punctuated refuses the prompt. A date
+matches in any common written form, and an ambiguous numeric date both ways
+round; a value of one to three letters matches only next to its own field's
+name. Values the caller may not read are not checked, so a refusal cannot be
+used to guess them. The values
+are held in memory for the comparison and never logged or returned. A caller
+that names nobody gets the stricter rule instead: any mention of a denied
+field's key or label is refused.
+
+A tenant not yet loaded fails closed: its `custom` bag is redacted wholesale
+and its prompts are refused.
 
 ## The known gap
 
 The DSAR export manifest is computed and printed by `pnpm codegen` but not
 written to a file; the People DSAR export reads the tenant's published schema
 version instead, which covers every attribute a person record can hold.
-Retention erases a due value from the person row, `people.person_secret` and
-every history row for that key. History rows are redacted (value NULL,
+Retention erases a due value from the person row, `people.person_secret`,
+its unique claim and every history row for that key. A unique claim never held
+the value: `people.attribute_unique` stores an HMAC under a per-tenant key
+derived from the secrets' master key, so a dump of it yields no identifier. History rows are redacted (value NULL,
 `redacted_at` and `redaction_reason` stamped) rather than deleted; the history
 trigger permits that one change and nothing else.
 

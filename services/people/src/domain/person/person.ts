@@ -254,7 +254,7 @@ export class Person extends AggregateRoot<string> {
    * data-entry ritual, and the intermediate state would be false the moment it
    * was written.
    */
-  hire(hireDate: string, facts: HireFacts, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
+  hire(hireDate: string, facts: HireFacts, ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'hired'));
 
     this.#hireDate = hireDate;
@@ -431,12 +431,20 @@ export class Person extends AggregateRoot<string> {
    * and every reader of it — on the wrong date.
    *
    * §8.1 defines `pre_hire` as a start date in the future and `active` as
-   * started, so a pre-hire whose corrected date has arrived is started, and
-   * says so with `status_changed` for reason `corrected`. Nothing else moves:
-   * §8.1 has no edge from `active` back to `pre_hire`, and a correction does
-   * not re-run the hire.
+   * started, so the correction re-reads which one the record is, both ways,
+   * with `status_changed` for reason `corrected`:
+   *
+   * - a pre-hire whose corrected start has arrived is started, from that date;
+   * - an active record whose corrected start is still to come never started,
+   *   and returns to `pre_hire` from the start date the correction supersedes —
+   *   the day it wrongly became active (§8.5).
+   *
+   * `ctx.causationId` should be the `attribute_corrected` event, which carries
+   * `supersedes`; `status_changed` has no field of its own for it. Nothing
+   * else moves: on leave or on notice stays put, and a correction does not
+   * re-run the hire.
    */
-  correctHireDate(hireDate: string, ctx: EventContext, timeZone = 'Etc/UTC'): Result<void> {
+  correctHireDate(hireDate: string, ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay !== null && this.#lastWorkingDay < hireDate) {
       return err(
@@ -447,9 +455,14 @@ export class Person extends AggregateRoot<string> {
         ),
       );
     }
+    const superseded = this.#hireDate;
     this.#hireDate = hireDate;
-    if (this.#status === 'pre_hire' && hireDate <= ctx.clock.date(timeZone)) {
-      return this.#moveTo('active', 'corrected', ctx);
+    const today = ctx.clock.date(timeZone);
+    if (this.#status === 'pre_hire' && hireDate <= today) {
+      return this.#moveTo('active', 'corrected', ctx, hireDate);
+    }
+    if (this.#status === 'active' && hireDate > today) {
+      return this.#moveTo('pre_hire', 'corrected', ctx, superseded ?? hireDate);
     }
     return ok(undefined);
   }
@@ -461,8 +474,11 @@ export class Person extends AggregateRoot<string> {
    * The aggregate's column, for the same reason as `hireDate`. The status is
    * left alone: §8.1 ends employment by an explicit transition to
    * `terminated`, not by a date passing, so correcting a notice period to one
-   * that has ended terminates nobody. A record with no last working day has
-   * none to correct; giving one is `giveNotice`.
+   * that has ended terminates nobody. The record stays on notice and HR is
+   * asked to confirm the termination — a row in HR's grid, read off the
+   * status and this date, so it clears itself when HR terminates or corrects
+   * the date forward. A record with no last working day has none to correct;
+   * giving one is `giveNotice`.
    */
   correctLastWorkingDay(lastWorkingDay: string): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
@@ -551,18 +567,23 @@ export class Person extends AggregateRoot<string> {
     return ok(undefined);
   }
 
-  #moveTo(next: PersonState, reason: StatusReason, ctx: EventContext): Result<void> {
+  #moveTo(
+    next: PersonState,
+    reason: StatusReason,
+    ctx: EventContext,
+    // A status change takes effect on the date the employment says, not on
+    // the day somebody typed it. `hireDate` is the one that matters for a
+    // hire, a correction passes its own, and everything else takes effect
+    // when recorded.
+    effectiveFrom: string | null = reason === 'hired' ? this.#hireDate : null,
+  ): Result<void> {
     const previous = this.#status;
     this.#status = next;
     this.#raise(
       'people.person.status_changed',
       { personId: this.id, previous, next, reason },
       ctx,
-      // A status change takes effect on the date the employment says, not on
-      // the day somebody typed it. `hireDate` is the one that matters here —
-      // for a hire, and for a correction that started somebody — and
-      // everything else takes effect when recorded.
-      reason === 'hired' || reason === 'corrected' ? this.#hireDate : null,
+      effectiveFrom,
     );
     return ok(undefined);
   }

@@ -67,7 +67,8 @@ export function assessCompleteness(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
   clock: Clock,
-  timeZone = 'Etc/UTC',
+  /** Whose calendar "today" is read on (PRD §6.8). Required: there is no safe default. */
+  timeZone: string,
 ): CompletenessVerdict {
   if (NOT_APPLICABLE.has(facts.status)) {
     return { state: 'not_applicable', missing: [], unevaluable: [] };
@@ -100,6 +101,31 @@ export function assessCompleteness(
     missing,
     unevaluable,
   };
+}
+
+/**
+ * The blanks that are blank because no rule asks for them of this person
+ * (PRD §15.4's "not applicable"): a field with a rule — conditional, or not in
+ * force yet on this day — that does not bite here, and no value.
+ *
+ * Separate from `assessCompleteness` because nothing but a rendering needs it:
+ * an export shades these grey so they read differently from a missing value
+ * and from an optional field nobody filled. A field with no rule at all
+ * (`never`) is optional, not "not applicable", and is not listed.
+ */
+export function notApplicable(
+  definitions: readonly AttributeDefinition[],
+  facts: PersonFacts,
+  clock: Clock,
+  /** Whose calendar "today" is read on (PRD §6.8). Required: there is no safe default. */
+  timeZone: string,
+): readonly string[] {
+  if (NOT_APPLICABLE.has(facts.status)) return [];
+  return definitions
+    .filter((d) => d.deprecatedAt === null && d.requiredness.mode !== 'never')
+    .filter((d) => !hasValue(facts.values[d.key]))
+    .filter((d) => !evaluateRequiredness(d.requiredness, facts, clock, timeZone).required)
+    .map((d) => d.key);
 }
 
 /**

@@ -11,6 +11,7 @@ import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
 import { buildExport, type ExportRequest } from './export.js';
 import { ADA, asking, financeTenant, HR, MANAGER, MARCO } from './fixture.js';
+import { utcCalendars } from '../org/org.js';
 
 const HR_RELATIONS = {
   isSelf: false,
@@ -27,9 +28,11 @@ async function exported(
   store = financeTenant(),
 ) {
   const deps = {
+    calendars: utcCalendars,
     access: personAccess(store.deps),
     schemas: store.deps.schemas,
     relations: store.deps.relations,
+    records: store.deps,
     clock: store.deps.clock,
   };
   const result = await buildExport(tx, deps, { ...asking(viewer), format: 'xlsx', ...over });
@@ -199,9 +202,11 @@ describe('who gets which columns', () => {
   it('refuses a special-category field by name, the same as an unknown one', async () => {
     const store = financeTenant();
     const deps = {
+      calendars: utcCalendars,
       access: personAccess(store.deps),
       schemas: store.deps.schemas,
       relations: store.deps.relations,
+      records: store.deps,
       clock: store.deps.clock,
     };
     for (const field of ['health_notes', 'no_such_field']) {

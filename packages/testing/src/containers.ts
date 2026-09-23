@@ -44,6 +44,40 @@ export async function startValkey(): Promise<{ url: string; stop: () => Promise<
 }
 
 /**
+ * MinIO, for object storage: the image `docker-compose.yml` runs.
+ *
+ * With a static KMS key, because server-side encryption (SSE-S3) is refused by
+ * a MinIO that has no KMS, and a test that skipped SSE would pass against a
+ * bucket production would not accept the request for.
+ */
+export async function startMinio(): Promise<{
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  stop: () => Promise<void>;
+}> {
+  const container = await new GenericContainer('quay.io/minio/minio:latest')
+    .withEnvironment({
+      MINIO_ROOT_USER: 'minio',
+      MINIO_ROOT_PASSWORD: 'minio123',
+      MINIO_KMS_SECRET_KEY: 'kithena-test:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
+    })
+    .withCommand(['server', '/data'])
+    .withExposedPorts(9000)
+    .withWaitStrategy(Wait.forHttp('/minio/health/ready', 9000))
+    .start();
+
+  return {
+    endpoint: `http://${container.getHost()}:${String(container.getMappedPort(9000))}`,
+    accessKeyId: 'minio',
+    secretAccessKey: 'minio123',
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
+/**
  * Redpanda, for a test that has to see a real consumer consume.
  *
  * A Kafka client connects to whatever address the broker advertises, and that

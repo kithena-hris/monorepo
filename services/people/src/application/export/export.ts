@@ -1,13 +1,15 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import ExcelJS from 'exceljs';
-import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
+import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import { exponentOf, fromMinor, MASK } from '../import/cells.js';
 import { writeCsv } from '../import/csv.js';
+import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
 import { PERSON_ID_COLUMN } from '../import/parse.js';
+import type { Calendars } from '../org/org.js';
 import type { Asking, PersonAccess, PersonView, SealedValue } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
 
@@ -66,10 +68,15 @@ export interface ExportDeps {
   readonly schemas: SchemaVersions;
   readonly relations: RelationsResolver;
   readonly clock: Clock;
+  /** The raw record and its history, for judging completeness on the export's day. */
+  readonly records: RecordDeps;
+  /** The tenant's calendar, for the file's date. */
+  readonly calendars: Calendars;
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const AMBER = 'FFFFC000';
+const GREY = 'FFD9D9D9';
 const PAGE = 500;
 
 /** The columns a standard export may ever carry, in profile order. */
@@ -91,13 +98,27 @@ export function exportableColumns(
 
 interface Row {
   readonly person: PersonView;
-  readonly missing: ReadonlySet<string>;
+  readonly judged: Judgement;
+}
+
+/**
+ * Sealed values to put in the file in full, for an approved request only
+ * (`full-values.ts`). Read cell by cell while the file is built and dropped
+ * with it: never cached, never logged, never returned anywhere but the file.
+ */
+export interface Reveal {
+  readonly keys: ReadonlySet<string>;
+  readonly value: (
+    tx: PostgresJsDatabase,
+    where: { tenantId: string; personId: string; attributeKey: string },
+  ) => Promise<string | null>;
 }
 
 export async function buildExport(
   tx: PostgresJsDatabase,
   deps: ExportDeps,
   request: ExportRequest,
+  reveal?: Reveal,
 ): Promise<Result<BuiltExport>> {
   const version = await deps.schemas.current(tx, request.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published to export'));
@@ -113,6 +134,19 @@ export async function buildExport(
     }
   }
   const wanted = request.fields ? new Set(request.fields) : null;
+
+  // A tenant-wide file, so the tenant's day (PRD §6.8): one date for
+  // everybody on it — the file's stamp, its "As of", and the day its gaps are
+  // judged on.
+  const calendar = await deps.calendars.load(tx, request.tenantId);
+  const stamp = localDate(deps.clock.instant(), calendar.defaultZone);
+
+  // Completeness is judged on the export's day, against the version in force
+  // then: an `asOf` export is a picture of that day, its gaps included.
+  const day = request.asOf ?? stamp;
+  const judgedBy = request.asOf
+    ? await versionInForce(tx, deps.schemas, request.tenantId, request.asOf, calendar.defaultZone)
+    : version;
   const requested = candidates.filter((d) => !wanted || wanted.has(d.key));
 
   // Every row through the read path, and the columns this viewer may read on
@@ -138,16 +172,43 @@ export async function buildExport(
         person.id,
       );
       for (const d of requested) if (visibleTo(d, relations)) readableKeys.add(d.key);
-      const gaps = await deps.access.completeness(tx, { ...request, personId: person.id });
-      rows.push({ person, missing: new Set(gaps.ok ? gaps.value.missing.map((m) => m.key) : []) });
+      const judged = judgedBy
+        ? await judge(
+            tx,
+            deps.records,
+            {
+              tenantId: request.tenantId,
+              personId: person.id,
+              day,
+              asOf: request.asOf !== undefined,
+            },
+            judgedBy,
+            relations,
+          )
+        : NOTHING_JUDGED;
+      rows.push({ person, judged });
     }
     after = page.value.next;
   } while (after !== null);
 
   const columns = requested.filter((d) => readableKeys.has(d.key));
+  if (reveal) {
+    const unsealed = columns.filter((d) => d.encrypted && reveal.keys.has(d.key));
+    for (const [i, r] of rows.entries()) {
+      const attributes = { ...r.person.attributes };
+      for (const d of unsealed) {
+        if (!isSealed(attributes[d.key])) continue;
+        attributes[d.key] = await reveal.value(tx, {
+          tenantId: request.tenantId,
+          personId: r.person.id,
+          attributeKey: d.key,
+        });
+      }
+      rows[i] = { ...r, person: { ...r.person, attributes } };
+    }
+  }
   const flat = columns.filter((d) => d.cardinality !== 'repeating');
   const repeating = columns.filter((d) => d.cardinality === 'repeating');
-  const stamp = deps.clock.instant().slice(0, 10);
 
   const files =
     request.format === 'csv'
@@ -156,7 +217,17 @@ export async function buildExport(
           {
             name: `people-${stamp}.xlsx`,
             mediaType: XLSX_TYPE,
-            bytes: await workbook(flat, repeating, rows, version, request, deps.clock, columns),
+            bytes: await workbook(
+              flat,
+              repeating,
+              rows,
+              version,
+              judgedBy,
+              request,
+              deps.clock,
+              columns,
+              stamp,
+            ),
           },
         ];
 
@@ -224,6 +295,12 @@ function xlsxCell(cell: ExcelJS.Cell, d: AttributeDefinition, value: unknown): v
   cell.value = text(value);
 }
 
+const isBlank = (v: unknown) =>
+  v === undefined ||
+  v === null ||
+  (typeof v === 'string' && v.trim() === '') ||
+  (Array.isArray(v) && v.length === 0);
+
 /* ------------------------------------------------------------------- csv -- */
 
 const MISSING_COLUMN = '__missing_required';
@@ -240,7 +317,7 @@ function csvFiles(
     ...rows.map((r) => [
       r.person.id,
       ...flat.map((d) => text(r.person.attributes[d.key])),
-      [...r.missing].filter((k) => flat.some((d) => d.key === k)).join(','),
+      [...r.judged.missing.keys()].filter((k) => flat.some((d) => d.key === k)).join(','),
     ]),
   ];
   const files: ExportFile[] = [
@@ -283,9 +360,11 @@ async function workbook(
   repeating: readonly AttributeDefinition[],
   rows: readonly Row[],
   version: PublishedVersion,
+  judgedBy: PublishedVersion | null,
   request: ExportRequest,
   clock: Clock,
   columns: readonly AttributeDefinition[],
+  today: string,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   const people = wb.addWorksheet('People', { views: [{ state: 'frozen', ySplit: 2 }] });
@@ -319,18 +398,25 @@ async function workbook(
       xlsxCell(cell, d, r.person.attributes[d.key]);
       const formula = validation.get(d.key);
       if (formula) cell.dataValidation = { type: 'list', allowBlank: true, formulae: [formula] };
-      if (r.missing.has(d.key)) {
+      if (r.judged.missing.has(d.key)) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AMBER } };
         cell.note = `Missing: ${d.label.default} is required`;
-        missingSheet.push([
-          r.person.id,
-          r.person.attributes['employee_number'] ?? '',
-          d.label.default,
-          d.key,
-          d.ownership.join(', '),
-        ]);
+      } else if (r.judged.notApplicable.has(d.key) && isBlank(r.person.attributes[d.key])) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREY } };
+        cell.note = 'not required for this person';
       }
     });
+    // Every gap on the day, not only the ones with a column today: a field
+    // required in March and archived since is still a gap in March.
+    for (const d of r.judged.missing.values()) {
+      missingSheet.push([
+        r.person.id,
+        r.person.attributes['employee_number'] ?? '',
+        d.label.default,
+        d.key,
+        d.ownership.join(', '),
+      ]);
+    }
   }
 
   for (const d of repeating) {
@@ -347,7 +433,7 @@ async function workbook(
   const about = wb.addWorksheet('About this export');
   for (const line of [
     ['Schema version', version.version],
-    ['As of', request.asOf ?? clock.date(request.timeZone ?? 'Etc/UTC')],
+    ['As of', request.asOf ?? today],
     [
       'Filter',
       request.filter ??
@@ -359,6 +445,10 @@ async function workbook(
     ['Exported by', request.viewer.accountId],
     ['Exported at', clock.instant()],
     ['Rows', rows.length],
+    [
+      'Missing information judged against schema version',
+      judgedBy?.version ?? 'none published then',
+    ],
   ]) {
     about.addRow(line);
   }

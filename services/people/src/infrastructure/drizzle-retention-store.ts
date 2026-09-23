@@ -3,7 +3,7 @@ import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { RetentionAttribute, RetentionStore } from '../application/retention/anonymise.js';
 import { publishedAttributes } from './policy-registry.js';
-import { person, personSecret } from './tables.js';
+import { attributeUnique, person, personSecret } from './tables.js';
 
 const outbox = outboxTable('people');
 
@@ -66,7 +66,17 @@ export function drizzleRetentionStore(): RetentionStore {
       ]);
       for (const s of secrets) held.add(s.key);
       for (const h of history) held.add(String(h['key']));
-      return { status: row.status, lastWorkingDay: row.lastWorkingDay, held };
+      const ownZone = (row.custom as Record<string, unknown> | null)?.['time_zone'];
+      return {
+        status: row.status,
+        lastWorkingDay: row.lastWorkingDay,
+        held,
+        placement: {
+          legalEntityId: row.legalEntityId,
+          locationId: row.locationId,
+          ownZone: typeof ownZone === 'string' ? ownZone : null,
+        },
+      };
     },
 
     async policies(tx, tenantId) {
@@ -104,6 +114,22 @@ export function drizzleRetentionStore(): RetentionStore {
             eq(personSecret.tenantId, tenantId),
             eq(personSecret.personId, personId),
             inArray(personSecret.attributeKey, [...keys]),
+          ),
+        );
+
+      /*
+       * The unique claim goes with the value (PEO-082). A keyed hash of an
+       * erased national identifier is still that person's identifier to
+       * whoever holds the key, and a claim held for a value nobody has would
+       * refuse it to the next person who does.
+       */
+      await tx
+        .delete(attributeUnique)
+        .where(
+          and(
+            eq(attributeUnique.tenantId, tenantId),
+            eq(attributeUnique.personId, personId),
+            inArray(attributeUnique.attributeKey, [...keys]),
           ),
         );
 

@@ -5,7 +5,7 @@ import { CalendarDate } from '@kithena/contracts';
 import type { CompletenessStore, GridRow, Reminder } from '../application/completeness/store.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
 import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
-import { outbox, person, schemaVersion } from './tables.js';
+import { outbox, person, schemaVersionEvaluated } from './tables.js';
 
 /**
  * `people.completeness_gap` and the `completeness` column, as SQL.
@@ -19,15 +19,25 @@ export function drizzleCompletenessStore(): CompletenessStore {
   return {
     async versionAt(tx, tenantId, version) {
       const rows = await tx
-        .select({ document: schemaVersion.document, evaluatedOn: schemaVersion.evaluatedOn })
-        .from(schemaVersion)
-        .where(and(eq(schemaVersion.tenantId, tenantId), eq(schemaVersion.version, version)))
+        .select({
+          document: schemaVersionEvaluated.document,
+          evaluatedOn: schemaVersionEvaluated.evaluatedOn,
+          evaluatedAt: schemaVersionEvaluated.evaluatedAt,
+        })
+        .from(schemaVersionEvaluated)
+        .where(
+          and(
+            eq(schemaVersionEvaluated.tenantId, tenantId),
+            eq(schemaVersionEvaluated.version, version),
+          ),
+        )
         .limit(1);
       const row = rows[0];
       if (!row) return null;
       return {
         attributes: (row.document as SchemaDocument).attributes,
         evaluatedOn: row.evaluatedOn === null ? null : CalendarDate.parse(row.evaluatedOn),
+        evaluatedAt: row.evaluatedAt?.toISOString() ?? null,
       };
     },
 
@@ -71,12 +81,36 @@ export function drizzleCompletenessStore(): CompletenessStore {
       await publish(tx, outbox, events);
     },
 
-    async claimReminders(tx, tenantId, now, limit) {
+    async dueReminders(tx, tenantId, now, page) {
+      const rows = await tx.execute(sql`
+        SELECT g.person_id, p.legal_entity_id, p.location_id, p.custom ->> 'time_zone' AS own_zone
+          FROM people.completeness_gap g
+          JOIN people.person p ON p.tenant_id = g.tenant_id AND p.id = g.person_id
+         WHERE g.tenant_id = ${tenantId}::uuid
+           AND p.work_email IS NOT NULL
+           AND cardinality(g.employee_keys) > 0
+           AND (g.reminded_at IS NULL
+                OR g.reminded_at <= ${reminderDueBefore(now).toISOString()}::timestamptz)
+           AND (${page.after}::uuid IS NULL OR g.person_id > ${page.after}::uuid)
+         ORDER BY g.person_id
+         LIMIT ${page.limit}
+      `);
+      return [...rows].map((row) => ({
+        personId: row['person_id'] as string,
+        placement: {
+          legalEntityId: row['legal_entity_id'] as string | null,
+          locationId: row['location_id'] as string | null,
+          ownZone: row['own_zone'] as string | null,
+        },
+      }));
+    },
+
+    async claimReminders(tx, tenantId, now, only) {
       /*
        * One statement, so the cap is a property of the row lock rather than of
-       * this process. The inner SELECT locks at most `limit` due rows and skips
-       * any another sweep holds; a row that sweep has since committed is
-       * re-checked against its new `reminded_at` under the lock and dropped.
+       * this process. A second sweep blocked on the same row re-reads it after
+       * the first commits, finds `reminded_at` is now, and claims nothing.
+       * `only` is one page of `dueReminders`, so the statement is bounded.
        */
       const dueBefore = reminderDueBefore(now).toISOString();
       const rows = await tx.execute(sql`
@@ -87,18 +121,10 @@ export function drizzleCompletenessStore(): CompletenessStore {
          WHERE g.tenant_id = ${tenantId}::uuid
            AND p.tenant_id = g.tenant_id
            AND p.id = g.person_id
-           AND g.person_id IN (
-             SELECT d.person_id
-               FROM people.completeness_gap d
-               JOIN people.person dp ON dp.tenant_id = d.tenant_id AND dp.id = d.person_id
-              WHERE d.tenant_id = ${tenantId}::uuid
-                AND dp.work_email IS NOT NULL
-                AND cardinality(d.employee_keys) > 0
-                AND (d.reminded_at IS NULL OR d.reminded_at <= ${dueBefore}::timestamptz)
-              ORDER BY d.person_id
-              LIMIT ${limit}
-                FOR UPDATE OF d SKIP LOCKED
-           )
+           AND p.work_email IS NOT NULL
+           AND cardinality(g.employee_keys) > 0
+           AND (g.reminded_at IS NULL OR g.reminded_at <= ${dueBefore}::timestamptz)
+           AND g.person_id = ANY(${`{${only.join(',')}}`}::uuid[])
         RETURNING g.person_id, p.work_email, g.employee_keys
       `);
       return [...rows].map((row): Reminder => ({
@@ -109,15 +135,37 @@ export function drizzleCompletenessStore(): CompletenessStore {
       }));
     },
 
-    async staffGrid(tx, tenantId) {
+    async staffGrid(tx, tenantId, today) {
+      /*
+       * The termination row is the status and the date, not a stored task:
+       * `people.person` already says both, and a stored copy would need
+       * clearing by every path that terminates or corrects.
+       */
       const rows = await tx.execute(sql`
-        SELECT key, array_agg(g.person_id ORDER BY g.person_id) AS person_ids
-          FROM people.completeness_gap g, unnest(g.staff_keys) AS key
-         WHERE g.tenant_id = ${tenantId}::uuid
-         GROUP BY key
-         ORDER BY key
+        SELECT task, key, array_agg(DISTINCT person_id ORDER BY person_id) AS person_ids
+          FROM (
+            SELECT 'missing' AS task, key, g.person_id
+              FROM people.completeness_gap g, unnest(g.staff_keys) AS key
+             WHERE g.tenant_id = ${tenantId}::uuid
+            UNION ALL
+            SELECT 'confirm_termination', 'last_working_day', p.id
+              FROM people.person p
+             WHERE p.tenant_id = ${tenantId}::uuid
+               AND p.status = 'notice'
+               AND p.last_working_day < ${today}::date
+            UNION ALL
+            -- Marked by the claim rotation (PEO-082), both people of each pair.
+            SELECT 'unique_conflict', u.attribute_key, pair.person_id
+              FROM people.attribute_unique u,
+                   unnest(ARRAY[u.person_id, u.conflict_with]) AS pair(person_id)
+             WHERE u.tenant_id = ${tenantId}::uuid
+               AND u.conflict_with IS NOT NULL
+          ) AS work
+         GROUP BY task, key
+         ORDER BY task DESC, key
       `);
       return [...rows].map((row): GridRow => ({
+        task: row['task'] as GridRow['task'],
         key: row['key'] as string,
         personIds: row['person_ids'] as string[],
       }));

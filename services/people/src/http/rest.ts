@@ -3,6 +3,16 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
+import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.js';
+import { linksOf } from '../application/export/job.js';
+import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
+import type { OrgAdmin } from '../application/org/org.js';
+import {
+  decideFullValues,
+  requestFullValues,
+  viewFullValues,
+  type FullValuesDeps,
+} from '../application/export/full-values.js';
 import type { Asking } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
@@ -99,13 +109,148 @@ export const ErrorBody = z.object({
   error: z.object({ code: z.string(), message: z.string(), path: z.array(z.string()).optional() }),
 });
 
+const FILTER = /^[a-z][a-z0-9_]*:[^,]+(,[a-z][a-z0-9_]*:[^,]+)*$/;
+
 export const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
   asOf: z.iso.date().optional(),
+  // ponytail: a value containing a comma cannot be filtered on. Take a
+  // repeated parameter when a tenant's option list needs one.
+  filter: z
+    .string()
+    .regex(FILTER)
+    .optional()
+    .describe(
+      'Equality on tenant-defined attributes, `key:value` pairs joined by commas, e.g. `cost_centre:ENG-204`. Only keys you can read on everybody; not with asOf.',
+    ),
 });
 
+/** `cost_centre:ENG-204,location:BCN` as a record. */
+export function filterIn(filter: string | undefined): Record<string, string> {
+  if (filter === undefined) return {};
+  return Object.fromEntries(
+    filter.split(',').map((pair) => {
+      const at = pair.indexOf(':');
+      return [pair.slice(0, at), pair.slice(at + 1)];
+    }),
+  );
+}
+
 export const AsOfQuery = z.object({ asOf: z.iso.date().optional() });
+
+export const CreateExportBody = z.strictObject({
+  format: z.enum(['csv', 'xlsx']),
+  fields: z.array(z.string()).max(500).optional(),
+  asOf: z.iso.date().optional(),
+  includeArchived: z.boolean().optional(),
+  personIds: z.array(z.uuid()).max(50_000).optional(),
+  filter: z.string().max(500).optional(),
+  /** Required when a financial field is in the file; recorded with the export. */
+  reason: z.string().max(500).optional(),
+});
+
+export const CreateFullValuesBody = z.strictObject({
+  /** Must include at least one sealed field; never a special-category one. */
+  fields: z.array(z.string()).min(1).max(500),
+  reason: z.string().max(500),
+  asOf: z.iso.date().optional(),
+  personIds: z.array(z.uuid()).max(50_000).optional(),
+  filter: z.string().max(500).optional(),
+});
+
+export const FullValuesDecisionBody = z.strictObject({
+  approve: z.boolean(),
+  note: z.string().max(500).optional(),
+});
+
+export const FullValuesBody = z.object({
+  id: z.uuid(),
+  state: z.enum(['pending', 'approved', 'rejected', 'expired', 'issued', 'downloaded']),
+  requestedBy: z.uuid(),
+  reason: z.string(),
+  attributeKeys: z.array(z.string()),
+  expiresAt: z.string(),
+  decidedBy: z.uuid().nullable(),
+  /** The one download: for the requester only, until used or 24 hours pass. */
+  link: z.url().nullable(),
+});
+
+export const ExportBody = z.object({
+  id: z.uuid(),
+  /** Queued exports (over 2,000 rows) complete later; ask again for the links. */
+  status: z.enum(['queued', 'completed', 'expired']),
+  rowCount: z.int().nullable(),
+  expiresAt: z.string().nullable(),
+  links: z.array(z.object({ name: z.string(), url: z.url() })),
+});
+
+/* Legal entities, locations and settings (PEO-099). Zones are IANA names. */
+
+export const SettingsBody = z.object({
+  defaultTimeZone: z.string(),
+  cohortMinimum: z.int().describe('Raisable, never lowerable; at least 10.'),
+  slug: z
+    .string()
+    .nullable()
+    .describe('Where the company signs in, <slug>.app…; the back office sets it, read-only here.'),
+  displayName: z.string().nullable().describe('The company name; the back office sets it.'),
+});
+
+export const PatchSettingsBody = z.strictObject({
+  defaultTimeZone: z.string().optional(),
+  cohortMinimum: z.int().optional(),
+});
+
+export const LegalEntityBody = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string(),
+  archived: z.boolean(),
+});
+
+export const CreateLegalEntityBody = z.strictObject({
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string(),
+});
+
+export const PatchLegalEntityBody = z.strictObject({
+  name: z.string().optional(),
+  timeZone: z.string().optional(),
+  archived: z.boolean().optional(),
+});
+
+export const LocationBody = z.object({
+  id: z.uuid(),
+  legalEntityId: z.uuid(),
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string().describe('The zone in force today.'),
+  zones: z.array(z.object({ effectiveFrom: z.iso.date(), timeZone: z.string() })),
+  archived: z.boolean(),
+});
+
+export const CreateLocationBody = z.strictObject({
+  legalEntityId: z.uuid(),
+  name: z.string(),
+  country: z.string().length(2),
+  timeZone: z.string(),
+  /** From when the zone is in force. Defaults to today in that zone. */
+  effectiveFrom: z.iso.date().optional(),
+});
+
+export const PatchLocationBody = z.strictObject({
+  name: z.string().optional(),
+  archived: z.boolean().optional(),
+});
+
+export const LocationZoneBody = z.strictObject({
+  timeZone: z.string(),
+  /** The day the new zone takes effect, in that zone. The same day again is a correction. */
+  effectiveFrom: z.iso.date(),
+});
 
 /* ------------------------------------------------------------- errors -- */
 
@@ -114,12 +259,18 @@ const STATUS: Record<string, number> = {
   NOT_ENTITLED: 403,
   FORBIDDEN: 403,
   FIELD_NOT_WRITABLE: 403,
+  FIELD_NOT_FILTERABLE: 403,
   NOT_FOUND: 404,
   SCHEMA_NOT_PUBLISHED: 409,
   UNIQUE_VALUE_TAKEN: 409,
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
+  APPROVAL_DECIDED: 409,
+  APPROVAL_EXPIRED: 409,
+  // A request missing what every webhook endpoint must carry. No route
+  // creates endpoints yet; this is the answer when one does (PEO-093).
+  BAD_WEBHOOK_ALERT_EMAIL: 400,
   UNAVAILABLE: 503,
 };
 
@@ -157,6 +308,13 @@ function json(body: string): Result<unknown> {
   }
 }
 
+/** The keys a caller sent, without the ones Zod left `undefined` (`exactOptionalPropertyTypes`). */
+function present<T extends object>(value: T): { [K in keyof T]?: Exclude<T[K], undefined> } {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>;
+  };
+}
+
 /** Opaque to the caller; today it is the last id, base64url. */
 const cursorOut = (id: string | null) =>
   id === null ? null : Buffer.from(id).toString('base64url');
@@ -169,6 +327,14 @@ export interface RestDeps {
   readonly service: PeopleService;
   readonly callerFrom: CallerFrom;
   readonly idempotency: IdempotencyStore;
+  /** Absent where nothing is wired to store a file; the routes then answer UNAVAILABLE. */
+  readonly exports?: { readonly deps: ExportJobDeps; readonly queue: ExportQueue };
+  /** Finance's full-values requests; the hooks wake the workflow after each commit. */
+  readonly fullValues?: {
+    readonly deps: FullValuesDeps;
+    started(tenantId: string, requestId: string, correlationId: string): Promise<void>;
+    decided(tenantId: string, requestId: string, correlationId: string): Promise<void>;
+  };
 }
 
 type Handler = (
@@ -274,6 +440,42 @@ export function restHandler(
       (view) => view,
     );
 
+  /** A legal entity, location or settings use case, in its own transaction. */
+  const inOrg = <T>(asking: Asking, fn: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<T>>) => {
+    const { org } = service;
+    return org
+      ? run(service, asking.tenantId, (tx) => fn(org, tx))
+      : Promise.resolve(err(failure('UNAVAILABLE', 'Legal entities and settings are not configured')));
+  };
+
+  /** Reads one back by id for a write's answer, and for its idempotent replay. */
+  const readOrg = async <T extends { id: string }>(
+    asking: Asking,
+    list: (org: OrgAdmin, tx: PostgresJsDatabase) => Promise<Result<readonly T[]>>,
+    id: string,
+  ) =>
+    respond(
+      await inOrg(asking, async (org, tx) => {
+        const all = await list(org, tx);
+        if (!all.ok) return all;
+        const found = all.value.find((x) => x.id === id);
+        return found ? ok(found) : err(failure('NOT_FOUND', 'Not found'));
+      }),
+      200,
+      (x) => x,
+    );
+
+  const readEntity = (asking: Asking, id: string) =>
+    readOrg(asking, (org, tx) => org.legalEntities(tx, asking), id);
+  const readLocation = (asking: Asking, id: string) =>
+    readOrg(asking, (org, tx) => org.locations(tx, asking), id);
+
+  /** Parse a JSON body against a schema, or the refusal to answer with. */
+  const bodyAs = <T>(schema: z.ZodType<T>, request: RestRequest): Result<T> => {
+    const body = json(request.body);
+    return body.ok ? parse(schema, body.value) : body;
+  };
+
   const readEntry = async (asking: Asking, personId: string, entryId: string) =>
     respond(
       await run(service, asking.tenantId, async (tx) => {
@@ -286,7 +488,174 @@ export function restHandler(
       (entry) => entry,
     );
 
+  /** The requester's own export, with its links signed again. Anyone else gets NOT_FOUND. */
+  const readExport = async (asking: Asking, exportId: string): Promise<RestResponse> => {
+    const exports = deps.exports;
+    if (!exports) return refused(failure('UNAVAILABLE', 'Exports are not configured'));
+    const entry = await run(service, asking.tenantId, async (tx) => {
+      const found = await exports.deps.ledger.find(tx, asking.tenantId, exportId);
+      return found?.requestedBy === asking.viewer.accountId
+        ? ok(found)
+        : err(failure('NOT_FOUND', 'No such export'));
+    });
+    if (!entry.ok) return refused(entry.error);
+    const e = entry.value;
+    if (e.status === 'queued') {
+      return {
+        status: 200,
+        body: { id: exportId, status: 'queued', rowCount: null, expiresAt: null, links: [] },
+      };
+    }
+    const expired = Date.parse(exports.deps.clock.instant()) >= Date.parse(e.expiresAt);
+    return {
+      status: 200,
+      body: {
+        id: exportId,
+        status: expired ? 'expired' : 'completed',
+        rowCount: e.rowCount,
+        expiresAt: e.expiresAt,
+        links: expired ? [] : await linksOf(exports.deps.store, e),
+      },
+    };
+  };
+
+  const readFullValues = async (asking: Asking, requestId: string): Promise<RestResponse> => {
+    const full = deps.fullValues;
+    if (!full) return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+    return respond(
+      await run(service, asking.tenantId, (tx) =>
+        viewFullValues(tx, full.deps, { ...asking, requestId }),
+      ),
+      200,
+      ({ request, state, link }) => ({
+        id: request.approval.id,
+        state,
+        requestedBy: request.approval.requestedBy,
+        reason: request.approval.reason,
+        attributeKeys: request.attributeKeys,
+        expiresAt: request.approval.expiresAt,
+        decidedBy: request.approval.decidedBy,
+        link,
+      }),
+    );
+  };
+
   const routes: Route[] = [
+    {
+      method: 'POST',
+      pattern: /^\/v1\/exports\/full-values$/,
+      handle: async (asking, request) => {
+        const full = deps.fullValues;
+        if (!full)
+          return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+        const body = json(request.body);
+        const input = body.ok ? parse(CreateFullValuesBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        const v = input.value;
+        const created: { id: string | null } = { id: null };
+        const answer = await idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            const made = await requestFullValues(tx, full.deps, {
+              ...asking,
+              fields: v.fields,
+              reason: v.reason,
+              ...(v.asOf ? { asOf: v.asOf } : {}),
+              ...(v.personIds ? { personIds: v.personIds } : {}),
+              ...(v.filter !== undefined ? { filter: v.filter } : {}),
+            });
+            if (!made.ok) return made;
+            created.id = made.value.approval.id;
+            return ok(made.value.approval.id);
+          },
+          (id) => readFullValues(asking, id),
+        );
+        const id = created.id;
+        if (id !== null && (answer.body as { id?: string } | null)?.id === id) {
+          await full.started(asking.tenantId, id, asking.correlationId);
+        }
+        return answer;
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/exports/full-values/${UUID}$`),
+      handle: (asking, _request, params) => readFullValues(asking, params['id'] ?? ''),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/exports/full-values/${UUID}/decision$`),
+      handle: async (asking, request, params) => {
+        const full = deps.fullValues;
+        if (!full)
+          return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+        const body = json(request.body);
+        const input = body.ok ? parse(FullValuesDecisionBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        const requestId = params['id'] ?? '';
+        const decided = await run(service, asking.tenantId, (tx) =>
+          decideFullValues(tx, full.deps, {
+            ...asking,
+            requestId,
+            approve: input.value.approve,
+            note: input.value.note ?? null,
+          }),
+        );
+        if (!decided.ok) return refused(decided.error);
+        await full.decided(asking.tenantId, requestId, asking.correlationId);
+        return readFullValues(asking, requestId);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/exports$/,
+      handle: async (asking, request) => {
+        const exports = deps.exports;
+        if (!exports) return refused(failure('UNAVAILABLE', 'Exports are not configured'));
+        const body = json(request.body);
+        const input = body.ok ? parse(CreateExportBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        // Handed to the queue only after the request's transaction commits, and
+        // only if this request's write is the one that won.
+        const pending: { job: QueuedExport | null } = { job: null };
+        const v = input.value;
+        const asked: ExportJobRequest = {
+          ...asking,
+          format: v.format,
+          ...(v.fields ? { fields: v.fields } : {}),
+          ...(v.asOf ? { asOf: v.asOf } : {}),
+          ...(v.includeArchived !== undefined ? { includeArchived: v.includeArchived } : {}),
+          ...(v.personIds ? { personIds: v.personIds } : {}),
+          ...(v.filter !== undefined ? { filter: v.filter } : {}),
+          ...(v.reason !== undefined ? { reason: v.reason } : {}),
+        };
+        const answer = await idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            const requested = await requestExport(tx, exports.deps, asked);
+            if (!requested.ok) return requested;
+            if (requested.value.status === 'queued') pending.job = requested.value.job;
+            return ok(requested.value.exportId);
+          },
+          (exportId) => readExport(asking, exportId),
+        );
+        const job = pending.job;
+        if (job !== null && (answer.body as { id?: string } | null)?.id === job.exportId) {
+          await exports.queue.enqueue(job);
+          return { ...answer, status: 202 };
+        }
+        return answer;
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/exports/${UUID}$`),
+      handle: (asking, _request, params) => readExport(asking, params['id'] ?? ''),
+    },
     {
       method: 'GET',
       pattern: /^\/v1\/schema$/,
@@ -361,6 +730,7 @@ export function restHandler(
               limit: q.value.limit,
               after: cursorIn(q.value.cursor),
               ...(q.value.asOf ? { asOf: q.value.asOf } : {}),
+              where: filterIn(q.value.filter),
             }),
           ),
           200,
@@ -479,6 +849,162 @@ export function restHandler(
           200,
           (verdict) => ({ state: verdict.state, missing: verdict.missing }),
         ),
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/settings$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
+    },
+    {
+      method: 'PATCH',
+      pattern: /^\/v1\/settings$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(PatchSettingsBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Settings are not configured'));
+            const saved = await service.org.updateSettings(tx, { ...asking, ...present(input.value) });
+            return saved.ok ? ok(asking.tenantId) : saved;
+          },
+          async () => respond(await inOrg(asking, (org, tx) => org.settings(tx, asking)), 200, (s) => s),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/legal-entities$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.legalEntities(tx, asking)), 200, (items) => ({
+          items,
+        })),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/legal-entities$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(CreateLegalEntityBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            const created = await service.org.createLegalEntity(tx, { ...asking, ...input.value });
+            return created.ok ? ok(created.value.id) : created;
+          },
+          (id) => readEntity(asking, id),
+        );
+      },
+    },
+    {
+      method: 'PATCH',
+      pattern: new RegExp(`^/v1/legal-entities/${UUID}$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(PatchLegalEntityBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Legal entities are not configured'));
+            const updated = await service.org.updateLegalEntity(tx, {
+              ...asking,
+              id,
+              ...present(input.value),
+            });
+            return updated.ok ? ok(id) : updated;
+          },
+          (resource) => readEntity(asking, resource),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/locations$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.locations(tx, asking)), 200, (items) => ({
+          items,
+        })),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/locations$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(CreateLocationBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Locations are not configured'));
+            const { effectiveFrom, ...place } = input.value;
+            const created = await service.org.createLocation(tx, {
+              ...asking,
+              ...place,
+              ...(effectiveFrom === undefined ? {} : { effectiveFrom }),
+            });
+            return created.ok ? ok(created.value.id) : created;
+          },
+          (id) => readLocation(asking, id),
+        );
+      },
+    },
+    {
+      method: 'PATCH',
+      pattern: new RegExp(`^/v1/locations/${UUID}$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(PatchLocationBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Locations are not configured'));
+            const updated = await service.org.updateLocation(tx, {
+              ...asking,
+              id,
+              ...present(input.value),
+            });
+            return updated.ok ? ok(id) : updated;
+          },
+          (resource) => readLocation(asking, resource),
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/locations/${UUID}/zones$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(LocationZoneBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Locations are not configured'));
+            const changed = await service.org.changeLocationZone(tx, {
+              ...asking,
+              id,
+              ...input.value,
+            });
+            return changed.ok ? ok(id) : changed;
+          },
+          (resource) => readLocation(asking, resource),
+        );
+      },
     },
   ];
 

@@ -39,7 +39,7 @@ export function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        'flex w-full items-center justify-between gap-2 rounded-md',
+        'relative flex w-full items-center justify-between gap-2 rounded-md tap-target',
         triggerSize[size],
         'border border-border bg-surface text-fg shadow-xs',
         'transition-[border-color,box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
