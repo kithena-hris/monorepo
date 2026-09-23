@@ -5,6 +5,7 @@ import { CalendarDate } from '@kithena/contracts';
 import type { CompletenessStore, GridRow, Reminder } from '../application/completeness/store.js';
 import type { CompletenessState } from '../domain/person/completeness.js';
 import type { SchemaDocument } from '../domain/schema/publish.js';
+import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
 import { outbox, person, schemaVersionEvaluated } from './tables.js';
 
 /**
@@ -90,7 +91,7 @@ export function drizzleCompletenessStore(): CompletenessStore {
       await publish(tx, outbox, events);
     },
 
-    async dueReminders(tx, tenantId, now) {
+    async dueReminders(tx, tenantId, now, page) {
       const rows = await tx.execute(sql`
         SELECT g.person_id, p.legal_entity_id, p.location_id, p.custom ->> 'time_zone' AS own_zone
           FROM people.completeness_gap g
@@ -99,7 +100,10 @@ export function drizzleCompletenessStore(): CompletenessStore {
            AND p.work_email IS NOT NULL
            AND cardinality(g.employee_keys) > 0
            AND (g.reminded_at IS NULL
-                OR g.reminded_at <= ${now.toISOString()}::timestamptz - interval '168 hours')
+                OR g.reminded_at <= ${reminderDueBefore(now).toISOString()}::timestamptz)
+           AND (${page.after}::uuid IS NULL OR g.person_id > ${page.after}::uuid)
+         ORDER BY g.person_id
+         LIMIT ${page.limit}
       `);
       return [...rows].map((row) => ({
         personId: row['person_id'] as string,
@@ -116,7 +120,9 @@ export function drizzleCompletenessStore(): CompletenessStore {
        * One statement, so the cap is a property of the row lock rather than of
        * this process. A second sweep blocked on the same row re-reads it after
        * the first commits, finds `reminded_at` is now, and claims nothing.
+       * `only` is one page of `dueReminders`, so the statement is bounded.
        */
+      const dueBefore = reminderDueBefore(now).toISOString();
       const rows = await tx.execute(sql`
         UPDATE people.completeness_gap g
            SET reminded_at = ${now.toISOString()}::timestamptz,
@@ -127,15 +133,15 @@ export function drizzleCompletenessStore(): CompletenessStore {
            AND p.id = g.person_id
            AND p.work_email IS NOT NULL
            AND cardinality(g.employee_keys) > 0
-           AND (g.reminded_at IS NULL
-                OR g.reminded_at <= ${now.toISOString()}::timestamptz - interval '168 hours')
-           AND (${only === undefined} OR g.person_id = ANY(${`{${(only ?? []).join(',')}}`}::uuid[]))
+           AND (g.reminded_at IS NULL OR g.reminded_at <= ${dueBefore}::timestamptz)
+           AND g.person_id = ANY(${`{${only.join(',')}}`}::uuid[])
         RETURNING g.person_id, p.work_email, g.employee_keys
       `);
       return [...rows].map((row): Reminder => ({
         personId: row['person_id'] as string,
         workEmail: row['work_email'] as string,
         keys: row['employee_keys'] as string[],
+        remindedAt: now,
       }));
     },
 

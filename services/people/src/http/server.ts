@@ -41,6 +41,11 @@ import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
+import {
+  NO_TENANT_APP_BASE,
+  tenantAppBase,
+  tenantCompanies,
+} from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
 import { callerFromHeaders } from './caller.js';
@@ -72,7 +77,12 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
     allowHttp:
       process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
   };
-  const alerts = webhookAlertMailerFrom(process.env);
+  // No base (production without a safe `TENANT_APP_BASE`): no alert email,
+  // the event alone — never a link to localhost.
+  const base = tenantAppBase(process.env);
+  if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
+  const alerts = base === null ? undefined : webhookAlertMailerFrom(process.env);
+  const companyOf = tenantCompanies(base ?? '', drizzleOrgStore());
   const hooks = webhooks({
     inTenant: raw,
     ring,
@@ -87,7 +97,13 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
         'webhook endpoint disabled',
       );
       if (alerts === undefined || disabled.alertEmail === null) return;
-      await alerts.send(tenantId, disabled).catch((cause: unknown) => {
+      // From the company, to its own origin — or not at all: the event stands.
+      const company = await raw(tenantId, ({ tx }) => companyOf(tx, tenantId));
+      if (company === null) {
+        logger.info({ tenantId }, 'company not known yet; webhook alert not emailed');
+        return;
+      }
+      await alerts.send(tenantId, company, disabled).catch((cause: unknown) => {
         logger.warn({ err: cause, tenantId, endpointId: disabled.endpointId }, 'alert not sent');
       });
     },

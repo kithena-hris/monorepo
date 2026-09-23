@@ -142,15 +142,23 @@ invitation is.
 {
   "tenantId": "…",
   "email": "ada@acme.example",
-  "url": "https://app.kithena.com/people",
+  "url": "https://acme.app.kithena.com/people",
+  "companyName": "Acme Corp",
   "dedupeKey": "<person id>/<claimed at>",
   "notice": { "kind": "profile_reminder", "missing": 3 }
 }
 ```
 
-The link must be on `APP_ORIGIN` — the tenant app, not the auth origin — or the
-notice is refused as `untrusted_link`, for the same open-redirect reason as the
-invitation's. `dedupeKey` is the caller's, hashed with the tenant before it
+**Every notice is from a company and points at that company's own origin.**
+`companyName` is required and goes in the subject, the heading copy and the
+footer: an HR email that will not say which employer sent it reads as
+phishing. The link must be on some company's origin under `TENANT_APP_BASE`
+(`https://{slug}.app.kithena.com`, `{slug}` marking the label — the same rule
+the auth origin uses to send somebody to their company) or the notice is
+refused as `untrusted_link`, for the same open-redirect reason as the
+invitation's. Messaging checks the shape; People picks the company, from its
+own copy of the tenant's slug and name (PEO-099), and sends nothing for a
+tenant it has not heard both for. `dedupeKey` is the caller's, hashed with the tenant before it
 becomes the provider's idempotency key, so a retry of one claim is one message.
 
 ### `profile_reminder` (PEO-084)
@@ -161,17 +169,25 @@ more than one a week however many fields are missing (PRD §8.4). The cap is
 People's, enforced by a conditional claim on `people.completeness_gap`, not
 this service's.
 
+Its window is the person's own clock: only between 09:00 and 18:00 in their
+zone (PRD §6.8). A tenant whose slug and name People has not heard yet is
+skipped whole and retried on the next sweep; nothing is claimed, so no week's
+reminder is lost to it.
+
 It says how many details are missing and names none of them. The keys are the
 tenant's schema and a value is personal data; an email is forwarded, and the
 person reads the list signed in on the page the button opens. The link is the
-person's own People area and carries no id.
+person's own People area on their company's origin, `<slug>.app…/people`, and
+carries no id.
 
 ### `webhook_disabled` (PEO-093)
 
 People sends it once, after the transaction that disables a webhook endpoint
 at its 24-hour ceiling commits, to the alert address the endpoint was
 registered with. It names the receiver's host and nothing after it — a path or
-a query can carry the receiver's own token — and links to People. The durable
+a query can carry the receiver's own token — names the company, and links to
+People on the company's own origin; for a tenant whose slug and name People
+has not heard yet, only the event is raised. The durable
 notice is `people.webhook.endpoint_disabled`; this email is best effort beside
 it, keyed on the endpoint so a retry is one message.
 
@@ -312,7 +328,7 @@ waiting to happen; the mark and the name carry their identity instead.
 | `RESEND_FROM`        | messaging | `Name <address@verified-domain>`.                                                      |
 | `RESEND_REPLY_TO`    | messaging | Optional, and worth setting. People answer these.                                      |
 | `MESSAGING_PEOPLE_TOKEN` | both (People) | Guards `/notice`. Absent on messaging: every notice is refused. Absent on People: no sweep. |
-| `APP_ORIGIN`         | both (People) | The tenant app. The only origin a notice may link to, and where People builds it.     |
+| `TENANT_APP_BASE`    | both (People) | `https://{slug}.app.kithena.com`. The only shape of origin a notice may link to, and how People builds a company's. Defaults to `http://{slug}.app.localhost:3000` in development only. In production it must be set and `https:`; otherwise both services log an error at boot and send no reminder or webhook alert (the events still go out). Deployed from the `TENANT_APP_BASE_STAGING` / `TENANT_APP_BASE_PRODUCTION` repository variables. |
 | `MESSAGING_URL`      | People    | Absent means reminders are not emailed and the sweep is not scheduled.                 |
 
 ### Before the first real send
