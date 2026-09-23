@@ -7,7 +7,7 @@ import {
   type PendingEvent,
   type Result,
 } from '@kithena/domain-kit';
-import { TenantId, type Actor } from '@kithena/contracts';
+import { TenantId, type Actor, type ChangedAttribute } from '@kithena/contracts';
 
 /**
  * One employment record, and the states it may be in.
@@ -248,6 +248,59 @@ export class Person extends AggregateRoot<string> {
   discard(ctx: EventContext): Result<void> {
     if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'discarded'));
     return this.#moveTo('discarded', 'discarded', ctx);
+  }
+
+  /**
+   * One or more attributes changed.
+   *
+   * A terminated record is a tombstone and a discarded one is withdrawn;
+   * neither is edited back into life. Corrections are the path for fixing a
+   * tombstone, and they are a different method.
+   */
+  updateProfile(
+    changed: readonly ChangedAttribute[],
+    schemaVersion: number,
+    ctx: EventContext,
+    effectiveFrom: string | null,
+  ): Result<void> {
+    if (this.#status === 'terminated' || this.#status === 'discarded') {
+      return err(InvalidTransition(this.#status, 'edited'));
+    }
+    if (changed.length === 0) {
+      return err(failure('NOTHING_CHANGED', 'An update has to change at least one attribute'));
+    }
+
+    this.#raise(
+      'people.person.profile_updated',
+      { personId: this.id, changed, schemaVersion },
+      ctx,
+      effectiveFrom,
+    );
+    return ok(undefined);
+  }
+
+  /**
+   * A fact recorded wrongly, corrected. Carries `supersedes`, never an update.
+   *
+   * Allowed on a terminated record, because a tombstone that is wrong is still
+   * read by an auditor. Refused on a discarded one, which holds nothing.
+   */
+  correctAttribute(
+    attribute: ChangedAttribute,
+    supersedes: string,
+    reason: string | null,
+    ctx: EventContext,
+    effectiveFrom: string,
+  ): Result<void> {
+    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
+
+    this.#raise(
+      'people.person.attribute_corrected',
+      { personId: this.id, attribute, supersedes, reason },
+      ctx,
+      effectiveFrom,
+    );
+    return ok(undefined);
   }
 
   /** A last working day before the hire date describes an employment nobody had. */

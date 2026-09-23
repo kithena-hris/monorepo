@@ -1,4 +1,4 @@
-import pino from 'pino';
+import pino, { type DestinationStream, type Logger as PinoLogger } from 'pino';
 // Generated at build time by @kithena/codegen from the Zod classification
 // registry. Every confidential and special-category field path lands here,
 // so a logged entity is masked even when someone forgets.
@@ -27,16 +27,29 @@ function activeSpan(): { traceId: string; spanId: string } | undefined {
   return globalThis.__otelActiveSpan?.();
 }
 
-export const logger = pino({
-  level: process.env['LOG_LEVEL'] ?? 'info',
-  redact: { paths: [...redactionPaths], censor: '[redacted]' },
-  formatters: {
-    log(object) {
-      // Correlate logs with traces without every call site remembering to.
-      const span = activeSpan();
-      return span ? { ...object, traceId: span.traceId, spanId: span.spanId } : object;
+/**
+ * A logger with the static redaction paths, writing to `destination`.
+ *
+ * Exported so a test can read what was written; everything else uses
+ * `logger`. Tenant-scoped redaction is `tenantPolicies.loggerFor(logger, id)`.
+ */
+export function createLogger(destination?: DestinationStream): PinoLogger {
+  return pino(
+    {
+      level: process.env['LOG_LEVEL'] ?? 'info',
+      redact: { paths: [...redactionPaths], censor: '[redacted]' },
+      formatters: {
+        log(object) {
+          // Correlate logs with traces without every call site remembering to.
+          const span = activeSpan();
+          return span ? { ...object, traceId: span.traceId, spanId: span.spanId } : object;
+        },
+      },
     },
-  },
-});
+    destination,
+  );
+}
+
+export const logger = createLogger();
 
 export type Logger = typeof logger;

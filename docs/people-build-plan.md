@@ -395,7 +395,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test publishes a version and asserts the preview
   count matches the count after the recompute in PEO-026.
 
-### [ ] PEO-025 — Reading and writing a person
+### [x] PEO-025 — Reading and writing a person
 
 - **Spec** PRD §6.6, §8.5
 - **Files** `services/people/src/application/person/`
@@ -406,7 +406,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test proves a manager's read of a salary attribute returns a
   result with no such key, through this layer rather than through a resolver.
 
-### [ ] PEO-026 — Completeness recompute and its events
+### [x] PEO-026 — Completeness recompute and its events
 
 - **Spec** PRD §8.4
 - **Files** `services/people/src/application/completeness/`
@@ -419,7 +419,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test publishes a tightening version over 400 seeded people
   and asserts both the event count and the one-email-per-week cap.
 
-### [ ] PEO-027 — The provisional person
+### [x] PEO-027 — The provisional person
 
 - **Spec** PRD §8.2, steps 3 and 5
 - **Files** `services/people/src/infrastructure/consumers/`
@@ -431,7 +431,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test provisions an account and sees a
   provisional person within a second, idempotent on `identityAccountId`.
 
-### [ ] PEO-028 — Reconciliation for tenants who buy People later
+### [x] PEO-028 — Reconciliation for tenants who buy People later
 
 - **Spec** PRD §8.2, "People is bought later"
 - **Files** `services/people/src/application/reconcile.ts`
@@ -457,7 +457,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Transports
 
-### [ ] PEO-030 — The GraphQL subgraph
+### [x] PEO-030 — The GraphQL subgraph
 
 - **Spec** PRD §13.1
 - **Files** `services/people/src/graphql/`
@@ -469,7 +469,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** `just supergraph` composes and a query for a redacted field
   returns a result without the key.
 
-### [ ] PEO-031 — REST v1
+### [x] PEO-031 — REST v1
 
 - **Spec** PRD §13.2
 - **Files** `services/people/src/http/`
@@ -481,7 +481,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a contract test runs the same authorization scenario through
   GraphQL and REST and asserts identical visible fields.
 
-### [ ] PEO-032 — Webhooks
+### [x] PEO-032 — Webhooks
 
 - **Spec** PRD §13.3
 - **Files** `services/people/src/infrastructure/webhooks/`
@@ -494,7 +494,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test proves a replay after an allowlist was narrowed does not
   resend the removed field.
 
-### [ ] PEO-033 — The published schema artifact
+### [x] PEO-033 — The published schema artifact
 
 - **Spec** PRD §13.4
 - **Files** `services/people/src/http/schema-artifact.ts`
@@ -507,7 +507,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Governance
 
-### [ ] PEO-034 — The runtime policy registry
+### [x] PEO-034 — The runtime policy registry
 
 - **Spec** PRD §12.2
 - **Files** `packages/telemetry/src/`, `services/people/src/infrastructure/`
@@ -519,7 +519,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test creates a tenant attribute, logs a value, and asserts it
   is redacted without a restart.
 
-### [ ] PEO-035 — The AI gateway deny list
+### [x] PEO-035 — The AI gateway deny list
 
 - **Spec** PRD §12.2
 - **Files** wherever the gateway's deny list is assembled
@@ -529,7 +529,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test asserts a prompt containing a tenant-defined
   special-category attribute is refused at the gateway.
 
-### [ ] PEO-036 — DSAR export
+### [x] PEO-036 — DSAR export
 
 - **Spec** PRD §12.2, §15.5
 - **Files** `services/people/src/application/dsar/`
@@ -542,7 +542,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** an integration test asserts 100% of exportable attributes
   including tenant-defined ones appear, in under 60 seconds.
 
-### [ ] PEO-037 — Retention targets
+### [x] PEO-037 — Retention targets
 
 - **Spec** PRD §6.2, §8.1
 - **Files** `services/people/src/application/retention/`
@@ -640,7 +640,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Analytics
 
-### [ ] PEO-044 — Snapshots
+### [x] PEO-044 — Snapshots
 
 - **Spec** PRD §16.4
 - **Files** `migrations/<ts>_people_snapshot.sql`,
@@ -653,7 +653,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a chart query over 50,000 seeded people returns in under
   400 ms.
 
-### [ ] PEO-045 — Analytics queries
+### [x] PEO-045 — Analytics queries
 
 - **Spec** PRD §16.1, §16.2
 - **Files** `services/people/src/application/analytics/`
