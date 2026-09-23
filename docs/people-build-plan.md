@@ -457,7 +457,7 @@ Test-first, all of it. No drivers, no I/O.
 
 ### Transports
 
-### [ ] PEO-030 — The GraphQL subgraph
+### [x] PEO-030 — The GraphQL subgraph
 
 - **Spec** PRD §13.1
 - **Files** `services/people/src/graphql/`
@@ -469,7 +469,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** `just supergraph` composes and a query for a redacted field
   returns a result without the key.
 
-### [ ] PEO-031 — REST v1
+### [x] PEO-031 — REST v1
 
 - **Spec** PRD §13.2
 - **Files** `services/people/src/http/`
@@ -481,7 +481,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a contract test runs the same authorization scenario through
   GraphQL and REST and asserts identical visible fields.
 
-### [ ] PEO-032 — Webhooks
+### [x] PEO-032 — Webhooks
 
 - **Spec** PRD §13.3
 - **Files** `services/people/src/infrastructure/webhooks/`
@@ -494,7 +494,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** a test proves a replay after an allowlist was narrowed does not
   resend the removed field.
 
-### [ ] PEO-033 — The published schema artifact
+### [x] PEO-033 — The published schema artifact
 
 - **Spec** PRD §13.4
 - **Files** `services/people/src/http/schema-artifact.ts`

@@ -64,7 +64,9 @@ describe('it owns the Person key', () => {
   it('defines Person with the fields it is the source of record for', async () => {
     const schema = await loadSchema();
     const person = fieldNamesOf(schema.getType('Person'), 'Person');
-    expect(person).toEqual(expect.arrayContaining(['id', 'givenName', 'familyName', 'workEmail']));
+    // Every registry value, names included, is one `attributes` entry: a
+    // field per attribute would answer `null` for one the viewer may not read.
+    expect(person).toEqual(expect.arrayContaining(['id', 'status', 'attributes']));
   });
 
   it('publishes Person as a federated entity', async () => {
