@@ -277,7 +277,7 @@ describe('full-values requests', () => {
       },
       idempotency: inMemoryIdempotency(),
       fullValues: {
-        deps: {
+        deps: { calendars: utcCalendars,
           access: service.access,
           schemas: service.schemas,
           relations: store.deps.relations,
