@@ -205,6 +205,7 @@ export function inMemoryPeople(
         ),
     },
     uniques: {
+      lock: () => Promise.resolve(),
       claim: () => Promise.resolve(ok(undefined)),
       release: () => Promise.resolve(),
     },

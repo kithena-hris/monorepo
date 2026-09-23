@@ -63,6 +63,11 @@ export interface KeyRing {
   current(): MasterKey;
   /** A key by id, for reading a row written before the last rotation. */
   byId(id: string): MasterKey | undefined;
+  /**
+   * Every key, current first. A unique claim is a keyed hash, and during a
+   * rotation a value has to be looked for under each key it may be held under.
+   */
+  all(): readonly MasterKey[];
 }
 
 export interface SealedSecret {
@@ -106,7 +111,19 @@ export function staticKeyRing(keys: readonly MasterKey[]): KeyRing {
   return {
     current: () => head as MasterKey,
     byId: (id) => byId.get(id),
+    all: () => keys,
   };
+}
+
+/** `id:base64,id:base64`, as `PEOPLE_SECRET_KEYS` holds them: the first is current. */
+export function keysFrom(value: string | undefined): MasterKey[] {
+  return (value ?? '')
+    .split(',')
+    .filter((pair) => pair.includes(':'))
+    .map((pair) => {
+      const [id = '', key = ''] = pair.split(':');
+      return { id, key: Buffer.from(key, 'base64') };
+    });
 }
 
 /**

@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Clock, type DomainFailure, type Result } from '@kithena/domain-kit';
 import type { Actor, AttributeDefinition, EmploymentType, WorkModel } from '@kithena/contracts';
@@ -26,6 +24,7 @@ import {
   Person,
   type EventContext,
 } from '../../domain/person/person.js';
+import { checkNationalId } from '../../country-packs/national-id.js';
 import { changedAttribute } from '../../domain/person/profile.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
@@ -186,11 +185,20 @@ const NotPublished = () =>
 const PersonNotFound = () => failure('NOT_FOUND', 'No such person');
 const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Normalised as `unique.ts` normalises, then hashed. */
-function digest(value: string): string {
-  return createHash('sha256')
-    .update(value.normalize('NFC').trim().toLocaleLowerCase('en'))
-    .digest('hex');
+/**
+ * The text a unique claim is keyed on.
+ *
+ * A national identifier as its country's rule normalises it, so `12345678 z`
+ * and `12345678Z` are one NIF rather than two people. Anything else as typed;
+ * `unique.ts` trims and casefolds it, then keys it with the tenant's HMAC key.
+ * The claim store never keeps this text.
+ */
+export function claimText(definition: AttributeDefinition, value: unknown): string {
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  const config = definition.typeConfig;
+  if (config.kind !== 'national_id') return text;
+  const checked = checkNationalId(config.country, config.scheme, text);
+  return checked.ok ? checked.value.normalised : text;
 }
 
 export function personAccess(deps: PersonAccessDeps): PersonAccess {
@@ -319,13 +327,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         ),
       );
     }
-    const text = typeof value === 'string' ? value : JSON.stringify(value);
     return deps.uniques.claim(tx, asking.tenantId, {
       ...where,
       scopeId,
-      // A claim row is plaintext. A sealed value is claimed by its digest, so
-      // uniqueness on a national identifier does not copy it out of the vault.
-      value: definition.encrypted ? digest(text) : text,
+      value: claimText(definition, value),
     });
   }
 
@@ -398,6 +403,19 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const legalEntityId =
       (accepted.find(([d]) => d.key === 'legal_entity_id')?.[1] as string | null | undefined) ??
       person.legalEntityId;
+
+    // Every rule this write claims under, locked in one order before the
+    // first claim, so two writes naming the same attributes in opposite
+    // orders queue rather than deadlock.
+    await deps.uniques.lock(
+      tx,
+      asking.tenantId,
+      accepted.flatMap(([d, v]) => {
+        if (d.uniqueScope === 'none' || v === null) return [];
+        const scopeId = d.uniqueScope === 'tenant' ? asking.tenantId : legalEntityId;
+        return scopeId === null ? [] : [{ attributeKey: d.key, scopeId }];
+      }),
+    );
 
     const eventId = deps.newId();
     const custom = new Map(Object.entries(person.custom));

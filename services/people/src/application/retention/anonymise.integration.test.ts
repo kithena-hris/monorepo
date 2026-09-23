@@ -15,6 +15,7 @@ import {
 } from '../../infrastructure/drizzle-schema-repository.js';
 import { staticKeyRing } from '../../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
+import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { anonymiseDue } from './anonymise.js';
@@ -32,6 +33,7 @@ const IBAN = 'ES9121000418450200051332';
 const PHONE_OLD = '+34 611 111 111';
 const PHONE = '+34 600 000 000';
 const clock = fixedClock('2026-09-22T09:00:00.000Z');
+const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 
 let stopPg: (() => Promise<void>) | undefined;
 let adminClient: ReturnType<typeof postgres> | undefined;
@@ -122,6 +124,7 @@ beforeAll(async () => {
     '20260922170000_people_person.sql',
     '20260923110000_people_completeness.sql',
     '20260923140000_people_retention.sql',
+    '20260924150000_people_unique_hash.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -164,7 +167,7 @@ beforeAll(async () => {
             ${JSON.stringify({ phone: PHONE, payslip_ref: 'P-1', pension_ref: 'DE-9', hobby: 'chess' })}::jsonb, 1)
   `);
   await inTenant(ACME, ({ tx }) =>
-    drizzleSecretStore(staticKeyRing([{ id: 'k1', key: randomBytes(32) }])).put(
+    drizzleSecretStore(ring).put(
       tx,
       { tenantId: ACME, personId: ADA, attributeKey: 'bank_account' },
       IBAN,
@@ -172,6 +175,15 @@ beforeAll(async () => {
   );
   const sealed = await admin.execute(sql`SELECT encode(ciphertext, 'base64') AS c FROM people.person_secret`);
   ciphertext = String([...sealed][0]?.['c']);
+
+  // Both unique: one is due, one a statutory floor still holds (PEO-082).
+  for (const [attributeKey, value] of [['bank_account', IBAN], ['pension_ref', 'DE-9']] as const) {
+    // eslint-disable-next-line no-await-in-loop -- two claims, in a test
+    const claimed = await inTenant(ACME, ({ tx }) =>
+      drizzleUniqueClaims(ring).claim(tx, ACME, { attributeKey, scopeId: ACME, value, personId: ADA }),
+    );
+    expect(claimed.ok).toBe(true);
+  }
 
   // A phone number, then a correction of it: both rows hold a value.
   await history(H_PHONE_OLD, 'phone', PHONE_OLD);
@@ -200,6 +212,10 @@ describe('anonymising a leaver', () => {
     // The last four of the account went with the row. Matched as the end of a
     // stored string: a bare `1332` also turns up in microsecond timestamps.
     expect(everything).not.toContain('1332"');
+
+    // The erased value's unique claim went with it; the kept one's stays.
+    const claims = await admin.execute(sql`SELECT attribute_key FROM people.attribute_unique`);
+    expect([...claims].map((c) => c['attribute_key'])).toEqual(['pension_ref']);
 
     const rows = await admin.execute(sql`SELECT family_name, custom FROM people.person`);
     const row = [...rows][0];

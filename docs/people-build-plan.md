@@ -912,10 +912,15 @@ it is written down here rather than left in a PR description.
       `GET /api/internal/tenants/<id>/accounts` returning
       `{ accounts, nextCursor }`; identity must serve that shape or the
       caller changes. *(PRD §8.2)*
-- [ ] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
+- [x] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
       encrypted attribute cannot be unique without its plaintext sitting next
       to the ciphertext. Store a keyed hash instead; until then no national
       identifier in a country pack is marked unique. Found in PEO-059.
+      *Landed as `value_hash`, HMAC-SHA-256 under a per-tenant key derived
+      from the secrets' master key, for every attribute; rotation and the
+      backfill are one hourly job. The packs' identifiers are unique per
+      tenant. Dropping `normalised_value` is the contract step, once no claim
+      has a null `key_id` (see 20260924150000).*
 - [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs

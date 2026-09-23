@@ -17,7 +17,7 @@ import {
   drizzleRelations,
   drizzleSchemaVersions,
 } from '../infrastructure/drizzle-person-reader.js';
-import { staticKeyRing, type MasterKey } from '../infrastructure/envelope.js';
+import { keysFrom, staticKeyRing } from '../infrastructure/envelope.js';
 import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
@@ -39,17 +39,6 @@ import { restHandler, type RestResponse } from './rest.js';
  * database behind it. Every operation then answers UNAVAILABLE rather than
  * pretending.
  */
-
-/** `id:base64,id:base64` — the first is the key new secrets are written under. */
-function keysFrom(value: string | undefined): MasterKey[] {
-  return (value ?? '')
-    .split(',')
-    .filter((pair) => pair.includes(':'))
-    .map((pair) => {
-      const [id = '', key = ''] = pair.split(':');
-      return { id, key: Buffer.from(key, 'base64') };
-    });
-}
 
 /** How often every known tenant's due deliveries are looked for. */
 const POLL_MS = 60_000;
@@ -143,7 +132,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       schemas,
       relations: drizzleRelations(),
       secrets: drizzleSecretStore(ring, logger),
-      uniques: drizzleUniqueClaims(),
+      uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,
     }),

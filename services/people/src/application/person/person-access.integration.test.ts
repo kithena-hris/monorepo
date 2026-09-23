@@ -83,14 +83,15 @@ let clients: ReturnType<typeof postgres>[] = [];
 let admin: ReturnType<typeof drizzle>;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
+const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 let ids = 0;
 const people = personAccess({
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
   relations: drizzleRelations(),
-  secrets: drizzleSecretStore(staticKeyRing([{ id: 'k1', key: randomBytes(32) }])),
-  uniques: drizzleUniqueClaims(),
+  secrets: drizzleSecretStore(ring),
+  uniques: drizzleUniqueClaims(ring),
   clock: fixedClock('2026-09-22T09:00:00.000Z'),
   newId: () => {
     ids += 1;
@@ -124,6 +125,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
+    '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));

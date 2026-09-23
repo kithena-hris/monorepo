@@ -104,7 +104,7 @@ export function drizzleCompletenessStore(): CompletenessStore {
        * clearing by every path that terminates or corrects.
        */
       const rows = await tx.execute(sql`
-        SELECT task, key, array_agg(person_id ORDER BY person_id) AS person_ids
+        SELECT task, key, array_agg(DISTINCT person_id ORDER BY person_id) AS person_ids
           FROM (
             SELECT 'missing' AS task, key, g.person_id
               FROM people.completeness_gap g, unnest(g.staff_keys) AS key
@@ -115,6 +115,13 @@ export function drizzleCompletenessStore(): CompletenessStore {
              WHERE p.tenant_id = ${tenantId}::uuid
                AND p.status = 'notice'
                AND p.last_working_day < ${today}::date
+            UNION ALL
+            -- Marked by the claim rotation (PEO-082), both people of each pair.
+            SELECT 'unique_conflict', u.attribute_key, pair.person_id
+              FROM people.attribute_unique u,
+                   unnest(ARRAY[u.person_id, u.conflict_with]) AS pair(person_id)
+             WHERE u.tenant_id = ${tenantId}::uuid
+               AND u.conflict_with IS NOT NULL
           ) AS work
          GROUP BY task, key
          ORDER BY task DESC, key

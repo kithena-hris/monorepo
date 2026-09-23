@@ -30,6 +30,7 @@ export default ModuleManifest.parse({
     'people.person.merged',
     'people.person.anonymised',
     'people.person.synced_from_external',
+    'people.unique_claim.conflict',
     'people.import.started',
     'people.import.completed',
     'people.export.completed',

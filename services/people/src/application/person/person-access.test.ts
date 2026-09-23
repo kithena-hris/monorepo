@@ -243,7 +243,7 @@ describe('the edges of a write', () => {
     expect(!result.ok && result.error.path).toEqual(['effectiveFrom']);
   });
 
-  it('claims a sealed unique value by digest, never by its plaintext', async () => {
+  it('claims a national identifier as its country normalises it', async () => {
     const nationalId = define({
       key: 'national_id',
       dataType: 'national_id',
@@ -263,6 +263,7 @@ describe('the edges of a write', () => {
     const people = personAccess({
       ...store.deps,
       uniques: {
+        lock: () => Promise.resolve(),
         claim: (_tx, _tenant, claim) => {
           claimed.push(claim.value);
           return Promise.resolve(ok(undefined));
@@ -276,13 +277,42 @@ describe('the edges of a write', () => {
         await people.update(tx, {
           ...asking(hr),
           personId: ADA,
-          changes: { national_id: '12345678Z' },
+          changes: { national_id: ' 12345678-z ' },
         })
       ).ok,
     ).toBe(true);
-    expect(claimed).toHaveLength(1);
-    expect(claimed[0]).toMatch(/^[0-9a-f]{64}$/);
-    expect(claimed[0]).not.toContain('12345678');
+    // Keyed and hashed by the claim store, which never keeps this text
+    // (`unique.integration.test.ts`); the application hands over one spelling.
+    expect(claimed).toEqual(['12345678Z']);
+  });
+
+  it('locks every rule it will claim under before the first claim', async () => {
+    const unique = (key: string) => define({ key, uniqueScope: 'tenant', visibility: ['hr'] });
+    const store = inMemoryPeople([versionOf(1, [unique('a_number'), unique('b_number')])]);
+    store.seed(ADA);
+    const calls: string[] = [];
+    const people = personAccess({
+      ...store.deps,
+      uniques: {
+        lock: (_tx, _tenant, rules) => {
+          calls.push(`lock ${rules.map((r) => r.attributeKey).join(',')}`);
+          return Promise.resolve();
+        },
+        claim: (_tx, _tenant, claim) => {
+          calls.push(`claim ${claim.attributeKey}`);
+          return Promise.resolve(ok(undefined));
+        },
+        release: () => Promise.resolve(),
+      },
+    });
+
+    const written = await people.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { b_number: 'B-1', a_number: 'A-1' },
+    });
+    expect(written.ok).toBe(true);
+    expect(calls).toEqual(['lock b_number,a_number', 'claim b_number', 'claim a_number']);
   });
 });
 
