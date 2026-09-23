@@ -98,6 +98,17 @@ module.exports = {
       to: { path: '^packages/ui/' },
     },
     {
+      name: 'remote-is-presentation-only',
+      severity: 'error',
+      comment:
+        'A remote renders what the shell hands it. It fetches nothing and never ' +
+        'sees the session, so it imports Reach and nothing else of ours: not a ' +
+        'contract, not the shell, not another remote. docs/build-plan.md, ' +
+        '"Rules the build enforces".',
+      from: { path: '^apps/web/((?!src/)[^/.]+)/' },
+      to: { path: '^(apps/(?!web/$1/)|packages/(?!ui/)|services/|platform/)' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       from: {},
