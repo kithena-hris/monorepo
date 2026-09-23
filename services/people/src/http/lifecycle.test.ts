@@ -57,7 +57,12 @@ function setup() {
     if (!answer) throw new Error('not a REST route');
     return answer;
   };
-  return { store, post };
+  const get = async (path: string, headers: Record<string, string> = {}) => {
+    const answer = await rest({ method: 'GET', url: `/v1/people/${path}`, headers, body: '' });
+    if (!answer) throw new Error('not a REST route');
+    return answer;
+  };
+  return { store, post, get };
 }
 
 const status = (answer: { body: unknown }) => (answer.body as { status?: string }).status;
@@ -121,6 +126,34 @@ describe('the lifecycle routes', () => {
     expect(store.events).toHaveLength(count);
 
     const notHr = await post(`${ADA}/access/end`, undefined, 'a3', { 'x-roles': 'people_admin' });
+    expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
+  });
+
+  it('rehires a leaver into a new period, and lists both (PEO-110)', async () => {
+    const { post, store, get } = setup();
+    const ada = store.rows.get(ADA);
+    if (ada) {
+      ada.fields = { ...ada.fields, givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.test' };
+    }
+    await post(`${ADA}/termination`, { lastWorkingDay: '2026-09-21', reason: 'resigned' }, 'r0');
+    const bad = await post(`${ADA}/rehire`, { startDate: '2026-09-21' }, 'r1');
+    expect(code(bad)).toBe('REHIRE_BEFORE_LAST_DAY');
+    const back = await post(`${ADA}/rehire`, { startDate: '2026-10-05' }, 'r2');
+    expect([back.status, status(back)]).toEqual([200, 'pre_hire']);
+    expect(store.events.map((e) => e.eventName)).toContain('people.person.hired');
+
+    const periods = await get(`${ADA}/employment-periods`);
+    expect(periods.status).toBe(200);
+    expect(
+      (periods.body as { items: { period: number; startedOn: string }[] }).items.map((p) => [
+        p.period,
+        p.startedOn,
+      ]),
+    ).toEqual([
+      [1, '2026-01-01'],
+      [2, '2026-10-05'],
+    ]);
+    const notHr = await get(`${ADA}/employment-periods`, { 'x-roles': 'people_admin' });
     expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
   });
 

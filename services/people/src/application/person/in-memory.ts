@@ -3,7 +3,7 @@ import { fixedClock, ok, type PendingEvent } from '@kithena/domain-kit';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
 import type { HistoryEntry } from '../../domain/person/history.js';
-import type { PersonSnapshot } from '../../domain/person/person.js';
+import type { EmploymentPeriodRow, Person, PersonSnapshot } from '../../domain/person/person.js';
 import {
   checksumOf,
   type PublishedVersion,
@@ -118,6 +118,11 @@ export function inMemoryPeople(
   const events: PendingEvent[] = [];
   const secrets = new Map<string, string>();
   let ids = 0;
+  const periods = new Map<string, EmploymentPeriodRow>();
+  const keepPeriod = (person: Person) => {
+    const row = person.drainPeriod();
+    if (row) periods.set(`${person.id}:${String(row.period)}`, row);
+  };
 
   const people: PersonRepository = {
     load: (_tx, _tenant, id) => Promise.resolve(rows.get(id)?.snapshot ?? null),
@@ -125,7 +130,15 @@ export function inMemoryPeople(
       Promise.resolve(
         [...rows.values()].find((r) => r.snapshot.identityAccountId === account)?.snapshot ?? null,
       ),
+    periods: (_tx, _tenant, personId) =>
+      Promise.resolve(
+        [...periods.entries()]
+          .filter(([k]) => k.startsWith(`${personId}:`))
+          .map(([, row]) => row)
+          .toSorted((a, b) => a.period - b.period),
+      ),
     create(_tx, person, fields) {
+      keepPeriod(person);
       rows.set(person.id, { snapshot: person.snapshot, fields: { custom: {}, ...fields } });
       history.push(...person.drainHistory().map((e) => ({ ...e, personId: person.id })));
       events.push(...person.drainEvents());
@@ -134,6 +147,7 @@ export function inMemoryPeople(
     save(_tx, person, change) {
       const row = rows.get(person.id);
       if (!row) throw new Error('save of a person that was never created');
+      keepPeriod(person);
       const set = Object.fromEntries(
         Object.entries(change?.fields ?? {}).filter(([, v]) => v !== undefined),
       );

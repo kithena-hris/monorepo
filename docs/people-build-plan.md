@@ -1172,11 +1172,25 @@ it is written down here rather than left in a PR description.
       stale event through `people_access_at`, remembering the status it
       suspended from in `access_ended_from` (20260924220100). A tenant
       without People is untouched.*
-- [ ] **PEO-110** Rehire: a new employment period on the same person record,
+- [x] **PEO-110** Rehire: a new employment period on the same person record,
       HR only, from `terminated`, refused when not eligible for rehire unless
       HR overrides with a reason. Identity reactivates the suspended account
       at the new start; retention runs from the latest period's end and a
       rehire cancels it. *(PRD §5, §7, §8.1, §8.5, §10.2, §12, §13)*
+      *An override raises its own audit event, `people.person.rehire_override`
+      (actor, person, period, reason), beside the reason kept on the period.*
+      *Landed as `people.employment_period` (20260924220200, backfilled with
+      period 1; a hired record with no row reads as period 1), written by the
+      repository beside the person row whenever a move changes the current
+      period; `Person.rehire` opening period n+1 with `status_changed`
+      (reason `rehired`), `hired` and a null `last_working_day` row from the
+      start; `people.person.access_restored` when the start comes (with the
+      rehire or from the hourly start job), which identity's consumer turns
+      into a reinstatement to `access_ended_from`. The employee number is
+      kept unless the entity rejoined numbers and its scheme would not write
+      it. Retention reads the record locked. `POST
+      /v1/people/{id}/rehire`, `GET /v1/people/{id}/employment-periods`,
+      `rehirePerson`, `employmentPeriods`.*
 - [ ] **PEO-111** Withdraw notice: HR returns a person on notice to the
       status they held before it, until their last working day has ended on
       their calendar, superseding the notice's last-working-day row.

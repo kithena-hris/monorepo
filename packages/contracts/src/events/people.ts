@@ -433,6 +433,7 @@ export const PersonStatusChanged = defineEvent(
         'end_of_contract',
         'discarded',
         'corrected',
+        'rehired',
       ])
       .register(policy, asInternal()),
   }),
@@ -480,6 +481,43 @@ export const PersonAccessEnded = defineEvent(
     lastWorkingDay: CalendarDate.nullable(),
     endedAt: Instant,
     trigger: z.enum(['last_working_day_ended', 'ended_by_hr']).register(policy, asInternal()),
+  }),
+);
+
+/**
+ * A rehired person's access came back with their new employment (PEO-110;
+ * PRD §5, §8.1). Identity reinstates an account it suspended on
+ * `access_ended` — to the status it was suspended from — and nothing else.
+ *
+ * Raised when the new employment starts on the person's own calendar: with
+ * the rehire when its start has already come, else by the hourly job that
+ * starts pre-hires. The envelope's `effectiveFrom` is the start date.
+ */
+export const PersonAccessRestored = defineEvent(
+  'people.person.access_restored',
+  1,
+  z.object({
+    personId: PersonId,
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
+    restoredAt: Instant,
+    reason: z.enum(['rehired']).register(policy, asInternal()),
+  }),
+);
+
+/**
+ * HR rehired somebody a termination marked not eligible for rehire (PEO-110):
+ * the audit record of overriding that judgement. Who did it is the envelope's
+ * `actor`; whom, which employment period it opened, and HR's stated reason.
+ * Nothing else about the person — the reason is HR's own words, classified as
+ * free text, and the new period keeps it too. Effective from the new start.
+ */
+export const PersonRehireOverride = defineEvent(
+  'people.person.rehire_override',
+  1,
+  z.object({
+    personId: PersonId,
+    period: z.int().min(1).register(policy, asInternal()),
+    reason: z.string().min(1).max(500).register(policy, asFreeText()),
   }),
 );
 
@@ -873,6 +911,8 @@ export const peopleEvents = [
   PersonStatusChanged,
   PersonTerminated,
   PersonAccessEnded,
+  PersonAccessRestored,
+  PersonRehireOverride,
   PersonProfileIncomplete,
   PersonProfileCompleted,
   PersonMerged,

@@ -40,6 +40,32 @@ export const TerminateBody = z.strictObject({
     ),
 });
 
+export const RehireBody = z.strictObject({
+  startDate: z.iso.date().describe('The new employment’s first day, on the person’s calendar.'),
+  legalEntityId: z.uuid().optional().describe('The legal entity they rejoin; their last one when absent.'),
+  overrideReason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .nullable()
+    .optional()
+    .describe('Required to rehire somebody marked not eligible for rehire; kept on the new period.'),
+});
+
+/** One employment on a person (PEO-110), as `GET /v1/people/{id}/employment-periods` answers. */
+export const EmploymentPeriodBody = z.object({
+  period: z.int().min(1),
+  legalEntityId: z.uuid().nullable(),
+  startedOn: z.iso.date(),
+  lastWorkingDay: z.iso.date().nullable(),
+  leavingReason: LeavingReasonBody.nullable(),
+  eligibleForRehire: z.boolean().nullable(),
+  noticeFrom: z.enum(['active', 'on_leave']).nullable(),
+  rehireOverrideReason: z.string().nullable(),
+});
+export const EmploymentPeriodsBody = z.object({ items: z.array(EmploymentPeriodBody) });
+
 export const NoBody = z.strictObject({});
 
 type On = Asking & { readonly personId: string };
@@ -105,6 +131,20 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
       'End a terminated person’s access now rather than at the end of their last working day; HR only',
     body: NoBody,
     run: (access, tx, on) => access.endAccess(tx, on),
+  }),
+  action({
+    path: 'rehire',
+    name: 'rehirePerson',
+    summary:
+      'Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only',
+    body: RehireBody,
+    run: (access, tx, on, input) =>
+      access.rehire(tx, {
+        ...on,
+        startDate: input.startDate,
+        ...(input.legalEntityId === undefined ? {} : { legalEntityId: input.legalEntityId }),
+        overrideReason: input.overrideReason ?? null,
+      }),
   }),
   action({
     path: 'leave/start',

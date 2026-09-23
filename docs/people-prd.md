@@ -271,9 +271,18 @@ moment and identity acts on it — the same one direction:
   signs in with the one they already have. Idempotent on the event and blind
   to a stale one (`people_access_at`, the `people_facts_at` guard for access).
   An account identity had already suspended for its own reason keeps it.
+- **A rehire gives it back (PEO-110).** When a rehired person's new employment
+  starts on their calendar — with the rehire if the start has come, else by
+  the same hourly job that starts pre-hires — People raises
+  `people.person.access_restored`, and identity reinstates the account to the
+  status People's suspension took it from (an invited account that never
+  enrolled goes back to invited). The same account, the same passkeys; the
+  new start reaches identity first on `identity_facts_changed`, so its
+  enrolment gate reads the new date. Identity's own suspensions are left for
+  an admin to lift.
 
-A tenant without People never raises the event, and its accounts end the way
-they always have — an admin suspends or terminates them in identity.
+A tenant without People never raises either event, and its accounts end the
+way they always have — an admin suspends or terminates them in identity.
 
 Everything else about a person — job, org, contract, pay, addresses, emergency
 contacts, documents, every tenant-defined attribute — is People's alone, and
@@ -610,33 +619,34 @@ The question the brief asked most directly. Read this table as: for each group o
 facts, who is capable of writing it, at which moment, and which service's
 database the bytes end up in.
 
-| Fact group                                                    | Created by                                                                                                        | At which moment                          | Lives in                                                                      |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
-| Tenant, slug, branding, auth policy                           | CX operator                                                                                                       | Back-office company creation             | `platform.tenant`, `platform.tenant_auth_policy`                              |
-| First account (work email, start date, time zone)             | CX operator                                                                                                       | Back-office invitation                   | `platform.account`                                                            |
-| Enrolment token                                               | Identity                                                                                                          | Invitation                               | `platform.enrolment_token` (hash only)                                        |
-| Legal name, preferred name, mobile, time zone                 | The person                                                                                                        | Enrolment, on the auth origin            | `platform.account`, projected into People                                     |
-| Provisional person record                                     | People, from `identity.account.provisioned`                                                                       | Automatically, within the second         | `people.person`                                                               |
-| Schema: sections, attributes, requiredness                    | HR admin (`people_admin`)                                                                                         | Settings, any time                       | `people.section`, `people.attribute_definition`, `people.schema_version`      |
-| Employee numbering schemes: prefix, width, next number (§9.4) | HR admin (`people_admin`)                                                                                         | Settings, any time                       | `people.employee_numbering`                                                   |
-| Legal entities, locations and their time zones (§6.8)         | HR admin (`people_admin`); the first entity from the back office's company wizard                                 | Tenant creation, then settings, any time | `people.legal_entity`, `people.location`, `people.location_zone`              |
-| Tenant default time zone, cohort minimum                      | HR admin (`people_admin`); the default zone first from the company wizard                                         | Tenant creation, then settings           | `people.tenant_settings`                                                      |
-| Country pack defaults                                         | Kithena                                                                                                           | Tenant creation, by legal-entity country | Same tables, `origin: 'country_pack'`                                         |
-| Personal information                                          | The employee; HR may correct                                                                                      | Onboarding, then any time                | `people.person`, `people.person_attribute_history`                            |
-| Identification, right to work                                 | HR, with employee-supplied values                                                                                 | Onboarding                               | `people.person_secret` (encrypted) plus history                               |
-| Emergency contacts                                            | The employee                                                                                                      | Onboarding, then any time                | `people.person` (JSONB, repeating) plus history                               |
-| HR information                                                | HR                                                                                                                | Hire, then on change                     | Typed columns plus history                                                    |
-| Employment terms                                              | HR                                                                                                                | Hire, then on change                     | Typed columns plus history                                                    |
-| Salary, variable pay                                          | HR or finance                                                                                                     | Hire, then effective-dated changes       | Typed columns, encrypted where financial, plus history                        |
-| Bank account, tax identifiers                                 | The employee                                                                                                      | Onboarding                               | `people.person_secret` only                                                   |
-| Public profile                                                | The employee                                                                                                      | Any time                                 | `people.person` plus history                                                  |
-| Employee number                                               | People, from the legal entity's numbering scheme (§9.4); HR or an import where it has none, or to set one by hand | Hire                                     | `people.person.employee_number`; the sequence in `people.employee_numbering`  |
-| Manager, org unit                                             | HR                                                                                                                | Hire, then on change                     | Typed columns; emits `manager_changed`                                        |
-| Onboarding checklist state                                    | System, from the Onboarding module or People's own minimal version                                                | Automatically                            | `people.person`                                                               |
-| Termination facts                                             | HR                                                                                                                | Offboarding                              | Typed columns; emits `terminated`                                             |
-| Assets                                                        | System, from an MDM integration, or HR                                                                            | Any time                                 | JSONB                                                                         |
-| Diversity self-ID                                             | The employee, only                                                                                                | Any time, voluntary                      | Separate encrypted store, aggregate-only reads                                |
-| External-sourced records                                      | An upstream HRIS                                                                                                  | Continuously                             | `people.person` with `sourceOfRecord: external`; emits `synced_from_external` |
+| Fact group | Created by | At which moment | Lives in |
+| --- | --- | --- | --- |
+| Tenant, slug, branding, auth policy | CX operator | Back-office company creation | `platform.tenant`, `platform.tenant_auth_policy` |
+| First account (work email, start date, time zone) | CX operator | Back-office invitation | `platform.account` |
+| Enrolment token | Identity | Invitation | `platform.enrolment_token` (hash only) |
+| Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
+| Provisional person record | People, from `identity.account.provisioned` | Automatically, within the second | `people.person` |
+| Schema: sections, attributes, requiredness | HR admin (`people_admin`) | Settings, any time | `people.section`, `people.attribute_definition`, `people.schema_version` |
+| Employee numbering schemes: prefix, width, next number (§9.4) | HR admin (`people_admin`) | Settings, any time | `people.employee_numbering` |
+| Legal entities, locations and their time zones (§6.8) | HR admin (`people_admin`); the first entity from the back office's company wizard | Tenant creation, then settings, any time | `people.legal_entity`, `people.location`, `people.location_zone` |
+| Tenant default time zone, cohort minimum | HR admin (`people_admin`); the default zone first from the company wizard | Tenant creation, then settings | `people.tenant_settings` |
+| Country pack defaults | Kithena | Tenant creation, by legal-entity country | Same tables, `origin: 'country_pack'` |
+| Personal information | The employee; HR may correct | Onboarding, then any time | `people.person`, `people.person_attribute_history` |
+| Identification, right to work | HR, with employee-supplied values | Onboarding | `people.person_secret` (encrypted) plus history |
+| Emergency contacts | The employee | Onboarding, then any time | `people.person` (JSONB, repeating) plus history |
+| HR information | HR | Hire, then on change | Typed columns plus history |
+| Employment terms | HR | Hire, then on change | Typed columns plus history |
+| Salary, variable pay | HR or finance | Hire, then effective-dated changes | Typed columns, encrypted where financial, plus history |
+| Bank account, tax identifiers | The employee | Onboarding | `people.person_secret` only |
+| Public profile | The employee | Any time | `people.person` plus history |
+| Employee number | People, from the legal entity's numbering scheme (§9.4); HR or an import where it has none, or to set one by hand | Hire | `people.person.employee_number`; the sequence in `people.employee_numbering` |
+| Manager, org unit | HR | Hire, then on change | Typed columns; emits `manager_changed` |
+| Onboarding checklist state | System, from the Onboarding module or People's own minimal version | Automatically | `people.person` |
+| Termination facts | HR | Offboarding | Typed columns; emits `terminated` |
+| Employment periods: each hire and rehire, its legal entity, last working day, leaving reason, rehire eligibility and any rehire override | People, from HR's hire, notice, termination and rehire (§8.1) | Hire, then each lifecycle move | `people.employment_period`, one row per employment; the dates also as `hire_date` / `last_working_day` history |
+| Assets | System, from an MDM integration, or HR | Any time | JSONB |
+| Diversity self-ID | The employee, only | Any time, voluntary | Separate encrypted store, aggregate-only reads |
+| External-sourced records | An upstream HRIS | Continuously | `people.person` with `sourceOfRecord: external`; emits `synced_from_external` |
 
 Three rules make that table safe rather than merely descriptive:
 
@@ -660,8 +670,8 @@ Three rules make that table safe rather than merely descriptive:
                    ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
-     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired, not built) ──▶ pre_hire
-     │              │           │      │            │
+     │              │           ├──▶ notice ──▶ terminated ──▶ rehired (new period) ──▶ pre_hire | active
+     │              │           │      │            │         access back when it starts (PEO-110)
      │              │           │      │            └ end of last working day, own calendar:
      │              │           │      │              access ends, on notice or terminated
      │              │           │      │              (identity suspends; PEO-109)
@@ -753,13 +763,32 @@ answered with the record and raises nothing.
   either path, a repeat is answered with the record.
 - **Discard** — `provisional` only, as the diagram says.
 
-Two edges of the diagram have no move yet. **Rehire** (`terminated → pre_hire`)
-is drawn and not built: the domain treats a terminated record as a tombstone,
-so a rehire needs a decision on whether it is a new record linked to the old
-or a new employment on the same one. **Withdrawing notice** is neither drawn
-nor built; today a resignation withdrawn is a correction of the last working
-day at best. Of these moves identity hears only the end of access (§5): it
-caches a start date, not an end, and suspends on `access_ended`.
+- **Rehire** (PEO-110) — `terminated` only, HR only. **One person, many
+  employments**: a new employment period on the same record, not a second
+  person, so the account, the history and the DSAR subject stay one. Each
+  period holds its start, legal entity, last working day, leaving reason and
+  HR's eligibility for rehire (`people.employment_period`). Refused when the
+  last period was marked not eligible, unless HR gives a reason, which the new
+  period keeps and which raises its own audit event,
+  `people.person.rehire_override` (the acting user on the envelope, the
+  person, the period, the reason — no other personal data); an unknown
+  eligibility is not a refusal. It starts after the
+  last working day, and is `pre_hire` until the start has begun on the
+  person's calendar, `active` from it. Raises `status_changed` (reason
+  `rehired`) and `hired` for the new period, both effective from the start,
+  `identity_facts_changed` with the new start, and `access_restored` when the
+  start comes (§5). History gains a `hire_date` row and a null
+  `last_working_day` row from the start, so an "as of" read in either period
+  answers for that period (§8.5). Completeness is re-judged.
+  **The employee number** is kept — it is the person's in the register and on
+  every document — unless the legal entity they rejoin numbers its people and
+  the number is not one its scheme would write; then they take that scheme's
+  next number, as a new hire there would. Someone with no number rejoining an
+  entity that numbers gets one. The old number stays in history.
+
+**Withdrawing notice** is neither drawn nor built; today a resignation
+withdrawn is a correction of the last working day at best. Identity hears the
+end of access and its return (§5): it caches a start date, not an end.
 
 A person on notice whose last working day has passed without HR terminating
 stays on notice — termination is HR's act — but **loses access at the end of
@@ -952,7 +981,11 @@ last March" in any sense payroll cares about.
 
 Every read of a person takes an optional `asOf` date. The default is today. A
 payroll run for March asks for March, and gets the org chart, the salary and the
-cost centre as they were, not as they are.
+cost centre as they were, not as they are. Across a rehire (§8.1) that holds
+per period: an "as of" inside the first employment reads its start and no end
+yet, one in the gap reads its start and its last working day, and one inside
+the second reads the new start and no end — the rehire's null
+`last_working_day` row is what closes the old end date at the new start.
 
 "Today" is always the person's own day (§6.8), never the server's: the default
 `effectiveFrom` of a change, whether a new value is already in force, whether a
@@ -1169,6 +1202,12 @@ New:
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
+| `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
+| `people.person.access_restored` v1 | A rehired person's new employment started (§5, §8.1): `restoredAt`, reason `rehired`, the account id. Identity reinstates on it |
+
+A rehire (§8.1) raises `status_changed` with the new reason `rehired` and a
+`hired` for the new period — the same event a first hire raises, whose
+`employment.from` is the new start.
 
 ### 10.2a Calendar events
 
@@ -1459,6 +1498,13 @@ derived artifact computed from the union of both.**
   policy's months — is a calendar date, and whether it has arrived is read on
   the leaver's own calendar (§6.8): it falls at midnight where they worked,
   not where the server is.
+- **Retention and rehire (PEO-110).** The clock runs from the end of the
+  person's **latest** employment period, never an earlier one: a person
+  rehired is not a leaver, so nothing is due, and a rehire before erasure
+  cancels it — the job reads the record locked and in the state the rehire
+  left it. When they leave again the clock starts afresh from the new last
+  working day. What erasure had already cleared stays cleared; a rehire of a
+  record whose name or work email is gone is refused until HR supplies them.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that
@@ -1588,9 +1634,10 @@ and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
 Extends federated types rather than owning what People does not own. The
 lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`
-(with `endAccessNow`), `endPersonAccess`, `startLeave`, `endLeave`,
+(with `endAccessNow`), `endPersonAccess`, `rehirePerson`, `startLeave`, `endLeave`,
 `discardPerson` — each answering with the person
-after, their arguments parsed by the same Zod body REST parses.
+after, their arguments parsed by the same Zod body REST parses. The query
+`employmentPeriods(personId)` lists a person's employments, HR only.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
 token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
@@ -1639,6 +1686,8 @@ GET    /v1/people/{id}/completeness    what is missing and who owns it
 POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
 POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
 POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
+POST   /v1/people/{id}/rehire          HR: a new employment period on the same record (§8.1)
+GET    /v1/people/{id}/employment-periods   HR: every employment, first first
 POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
 POST   /v1/people/{id}/leave/end       HR: back from leave today
 POST   /v1/people/{id}/discard         HR: a provisional record that was never a person

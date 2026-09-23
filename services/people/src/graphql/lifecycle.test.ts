@@ -95,6 +95,50 @@ describe('the lifecycle mutations', () => {
     expect(hr.events.filter((e) => e.eventName === 'people.person.access_ended')).toHaveLength(1);
   });
 
+  it('rehires a leaver and lists their employments (PEO-110)', async () => {
+    const store = wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
+    const ada = store.rows.get(ADA);
+    if (ada) {
+      ada.fields = { ...ada.fields, givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.test' };
+    }
+    await mutate(
+      `mutation { terminatePerson(personId: "${ADA}", lastWorkingDay: "2026-09-21", reason: resigned, eligibleForRehire: false) { status } }`,
+    );
+    const refused = await mutate(
+      `mutation { rehirePerson(personId: "${ADA}", startDate: "2026-10-05") { status } }`,
+    );
+    expect(refused.errors?.[0]?.extensions['code']).toBe('NOT_ELIGIBLE_FOR_REHIRE');
+    const back = await mutate(
+      `mutation { rehirePerson(personId: "${ADA}", startDate: "2026-10-05", overrideReason: "Role reopened") { status } }`,
+    );
+    expect(back.data?.['rehirePerson']).toEqual({ status: 'pre_hire' });
+
+    const response = await yoga.fetch('http://people.test/graphql', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: `{ employmentPeriods(personId: "${ADA}") { period startedOn lastWorkingDay eligibleForRehire rehireOverrideReason } }`,
+      }),
+    });
+    const periods = (await response.json()) as { data: { employmentPeriods: unknown[] } };
+    expect(periods.data.employmentPeriods).toEqual([
+      {
+        period: 1,
+        startedOn: '2026-01-01',
+        lastWorkingDay: '2026-09-21',
+        eligibleForRehire: false,
+        rehireOverrideReason: null,
+      },
+      {
+        period: 2,
+        startedOn: '2026-10-05',
+        lastWorkingDay: null,
+        eligibleForRehire: null,
+        rehireOverrideReason: 'Role reopened',
+      },
+    ]);
+  });
+
   it('discards a provisional record', async () => {
     wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
     const answer = await mutate(`mutation { discardPerson(personId: "${NEW}") { id status } }`);

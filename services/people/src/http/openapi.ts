@@ -29,7 +29,7 @@ import {
   SchemaVersionSummary,
   SettingsBody,
 } from './rest.js';
-import { LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
+import { EmploymentPeriodsBody, LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
 import {
   Advice,
   Entity,
@@ -64,6 +64,7 @@ const components = {
   Correction: CorrectionBody,
   HistoryEntry: HistoryEntryBody,
   HistoryPage: z.object({ items: z.array(HistoryEntryBody) }),
+  EmploymentPeriods: EmploymentPeriodsBody,
   Completeness: CompletenessBody,
   SchemaVersions: z.object({ items: z.array(SchemaVersionSummary) }),
   CreateExport: CreateExportBody,
@@ -362,6 +363,16 @@ export function openApiDocument(): Record<string, unknown> {
             { name: 'attribute', in: 'query', required: false, schema: { type: 'string' } },
           ],
           responses: { 200: { description: 'History', ...json('HistoryPage') }, ...failure },
+        },
+      },
+      '/v1/people/{id}/employment-periods': {
+        get: {
+          summary: 'Every employment on this person, first first (PEO-110); HR only',
+          parameters: [id],
+          responses: {
+            200: { description: 'Employment periods', ...json('EmploymentPeriods') },
+            ...failure,
+          },
         },
       },
       '/v1/people/{id}/corrections': {

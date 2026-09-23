@@ -41,7 +41,10 @@ export function drizzleRetentionStore(): RetentionStore {
         .select()
         .from(person)
         .where(and(eq(person.tenantId, tenantId), eq(person.id, personId)))
-        .limit(1);
+        .limit(1)
+        // Locked, so a rehire (PEO-110) committing beside this run is either
+        // seen — no longer terminated, nothing due — or waits for it.
+        .for('update');
       const row = rows[0];
       if (!row) return null;
 

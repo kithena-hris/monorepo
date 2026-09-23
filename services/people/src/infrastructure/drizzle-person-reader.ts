@@ -11,6 +11,7 @@ import type {
 import type { Arrivals, Leavers } from '../application/person/start.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
+import { toEmployment, withEmployment } from './drizzle-person-repository.js';
 import { person, schemaVersion } from './tables.js';
 
 /**
@@ -46,7 +47,7 @@ export function valuesOf(row: ValueColumns): Record<string, unknown> {
   return values;
 }
 
-function toRecord(row: Row): PersonRecord {
+function toRecord(row: Row & { employment: Record<string, unknown> | null }): PersonRecord {
   const custom = (row.custom ?? {}) as Record<string, unknown>;
   const values = valuesOf(row);
 
@@ -59,6 +60,7 @@ function toRecord(row: Row): PersonRecord {
       hireDate: row.hireDate,
       lastWorkingDay: row.lastWorkingDay,
       accessEndedAt: row.accessEndedAt?.toISOString() ?? null,
+      employment: toEmployment(row.employment),
     },
     values,
     custom,
@@ -122,7 +124,7 @@ export function drizzlePersonReader(): PersonReader {
   return {
     async record(tx, tenantId, personId, lock = false) {
       const query = tx
-        .select()
+        .select(withEmployment)
         .from(person)
         .where(and(eq(person.tenantId, tenantId), eq(person.id, personId)))
         .limit(1);
@@ -133,7 +135,7 @@ export function drizzlePersonReader(): PersonReader {
 
     async page(tx, tenantId, after, limit, where, search) {
       const rows = await tx
-        .select()
+        .select(withEmployment)
         .from(person)
         .where(
           and(matching(tenantId, where, search), after === null ? undefined : gt(person.id, after)),
