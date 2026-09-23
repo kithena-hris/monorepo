@@ -243,7 +243,7 @@ describe('the edges of a write', () => {
     expect(!result.ok && result.error.path).toEqual(['effectiveFrom']);
   });
 
-  it('claims a sealed unique value by digest, never by its plaintext', async () => {
+  it('claims a national identifier as its country normalises it', async () => {
     const nationalId = define({
       key: 'national_id',
       dataType: 'national_id',
@@ -276,13 +276,13 @@ describe('the edges of a write', () => {
         await people.update(tx, {
           ...asking(hr),
           personId: ADA,
-          changes: { national_id: '12345678Z' },
+          changes: { national_id: ' 12345678-z ' },
         })
       ).ok,
     ).toBe(true);
-    expect(claimed).toHaveLength(1);
-    expect(claimed[0]).toMatch(/^[0-9a-f]{64}$/);
-    expect(claimed[0]).not.toContain('12345678');
+    // Keyed and hashed by the claim store, which never keeps this text
+    // (`unique.integration.test.ts`); the application hands over one spelling.
+    expect(claimed).toEqual(['12345678Z']);
   });
 });
 
