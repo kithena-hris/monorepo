@@ -1,10 +1,13 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import type * as z from 'zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import { Kafka, type Producer } from 'kafkajs';
 import postgres from 'postgres';
-import { SchemaPublished } from '@kithena/contracts';
+import { SchemaPublished, type AccountsPage } from '@kithena/contracts';
 import { systemClock } from '@kithena/domain-kit';
 import {
   aiGateway,
@@ -242,6 +245,56 @@ describe('the running process', () => {
       expect(sent[0]).toMatchObject({ workEmail: 'ada@acme.test', keys: ['emergency_contact'] });
     } finally {
       await background?.stop();
+    }
+  });
+
+  it('reconciles a known tenant against identity’s account listing', async () => {
+    // Depends on the first test: ACME is known. The stub stands where identity
+    // would, serving one page in the contract's shape to the right token only.
+    const ACCOUNT = '00000000-0000-4000-8000-0000000000e7';
+    const TOKEN = 'people-identity-secret';
+    const asked: string[] = [];
+    const identity = createServer((request, response) => {
+      asked.push(request.url ?? '');
+      if (request.headers['x-internal-token'] !== TOKEN) {
+        response.writeHead(401).end();
+        return;
+      }
+      const page: z.input<typeof AccountsPage> = {
+        accounts: request.url?.startsWith(`/api/internal/tenants/${ACME}/accounts`)
+          ? [
+              {
+                accountId: ACCOUNT,
+                workEmail: 'reconciled@acme.test',
+                timeZone: 'Europe/Madrid',
+                employmentStart: '2026-01-01',
+                name: null,
+              },
+            ]
+          : [],
+        nextCursor: null,
+      };
+      response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(page));
+    });
+    await new Promise<void>((resolve) => identity.listen(0, '127.0.0.1', resolve));
+    const port = (identity.address() as AddressInfo).port;
+
+    const background = await startBackground({
+      ...env,
+      IDENTITY_URL: `http://127.0.0.1:${String(port)}`,
+      PEOPLE_IDENTITY_TOKEN: TOKEN,
+    });
+    try {
+      await until('the account becomes a provisional person', async () => {
+        const n = await count(sql`
+          SELECT count(*)::int AS n FROM people.person
+           WHERE identity_account_id = ${ACCOUNT}::uuid AND status = 'provisional'`);
+        return n === 1;
+      });
+      expect(asked).toContain(`/api/internal/tenants/${ACME}/accounts`);
+    } finally {
+      await background?.stop();
+      await new Promise((resolve) => identity.close(resolve));
     }
   });
 

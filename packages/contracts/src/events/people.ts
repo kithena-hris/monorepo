@@ -267,7 +267,12 @@ export const PersonHired = defineEvent(
     personId: PersonId,
     /** The account this person signs in with, when they have one. */
     identityAccountId: z.uuid().nullable().register(policy, asPublic()),
-    legalEntityId: LegalEntityId,
+    /**
+     * Null when the tenant's published schema has no legal entity attribute.
+     * Nothing had ever published this event when it was relaxed (PEO-095), so
+     * no consumer had seen it non-null.
+     */
+    legalEntityId: LegalEntityId.nullable(),
     name: PersonName,
     workEmail: z.email().register(policy, asContact()),
     employment: Period,

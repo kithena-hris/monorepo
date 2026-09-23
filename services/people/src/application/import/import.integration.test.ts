@@ -62,7 +62,6 @@ const deps: CommitDeps = {
   access: personAccess(personDeps),
   schemas: personDeps.schemas,
   relations: personDeps.relations,
-  people: personDeps.people,
   clock: personDeps.clock,
   newId: randomUUID,
   ledger: drizzleImportLedger(),
@@ -176,6 +175,95 @@ describe('an import over Postgres', () => {
         sql`SELECT count(*) AS n FROM people.outbox WHERE event_name = 'people.import.completed'`,
       ),
     ).toBe(2);
+  });
+
+  it('hires a provisional account it matches, telling identity once, and nothing on a re-import', async () => {
+    // §8.2: an account provisioned before the import, holding its email and
+    // the name typed at enrolment. The row confirms it, with a start date.
+    const LINKED = '00000000-0000-4000-8000-0000000000d2';
+    const ACCOUNT = '00000000-0000-4000-8000-0000000000b9';
+    await inTenant(TENANT, async ({ tx }) => {
+      await drizzlePersonRepository().create(
+        tx,
+        Person.rehydrate({
+          id: LINKED,
+          tenantId: TENANT,
+          status: 'provisional',
+          identityAccountId: ACCOUNT,
+          hireDate: '2026-11-01',
+          lastWorkingDay: null,
+        }),
+        { workEmail: 'linked@acme.test', givenName: 'Grace', familyName: 'Hopper' },
+      );
+    });
+    const events = (name: string) =>
+      count(
+        sql`SELECT count(*) AS n FROM people.outbox WHERE event_name = ${name} AND aggregate_id = ${LINKED}`,
+      );
+
+    const file = csv(HEADERS, [
+      ['Grace', 'Hopper', 'linked@acme.test', '2026-10-01', '', '', '', ''],
+    ]);
+    const first = await upload(file);
+    expect(first.ok && first.value.status === 'imported' && first.value.counts).toMatchObject({
+      updated: 1,
+    });
+    expect(await events('people.person.hired')).toBe(1);
+    expect(await events('people.person.identity_facts_changed')).toBe(1);
+    const [hired] = await admin.execute(
+      sql`SELECT envelope->'payload' AS payload FROM people.outbox WHERE event_name = 'people.person.hired' AND aggregate_id = ${LINKED}`,
+    );
+    expect(hired?.['payload']).toMatchObject({
+      identityAccountId: ACCOUNT,
+      employment: { from: '2026-10-01', to: null },
+      schemaVersion: 1,
+      sourceOfRecord: 'own',
+    });
+    const [row] = await admin.execute(
+      sql`SELECT status, hire_date::text AS hire_date FROM people.person WHERE id = ${LINKED}::uuid`,
+    );
+    expect(row).toMatchObject({ status: 'pre_hire', hire_date: '2026-10-01' });
+
+    const again = await upload(file);
+    expect(again.ok && again.value.status).toBe('already_imported');
+    expect(await events('people.person.hired')).toBe(1);
+    expect(await events('people.person.identity_facts_changed')).toBe(1);
+  });
+
+  it('tells identity once, with the final name, when a row renames and hires an account', async () => {
+    const RENAMED = '00000000-0000-4000-8000-0000000000d3';
+    const ACCOUNT = '00000000-0000-4000-8000-0000000000ba';
+    await inTenant(TENANT, async ({ tx }) => {
+      await drizzlePersonRepository().create(
+        tx,
+        Person.rehydrate({
+          id: RENAMED,
+          tenantId: TENANT,
+          status: 'provisional',
+          identityAccountId: ACCOUNT,
+          hireDate: '2026-11-01',
+          lastWorkingDay: null,
+        }),
+        { workEmail: 'renamed@acme.test', givenName: 'Kate', familyName: 'Jonson' },
+      );
+    });
+
+    const result = await upload(
+      csv(HEADERS, [['Katherine', 'Johnson', 'renamed@acme.test', '2026-10-01', '', '', '', '']]),
+    );
+    expect(result.ok && result.value.status === 'imported' && result.value.counts).toMatchObject({
+      updated: 1,
+    });
+    const facts = [
+      ...(await admin.execute(sql`
+        SELECT envelope->'payload' AS payload FROM people.outbox
+         WHERE event_name = 'people.person.identity_facts_changed' AND aggregate_id = ${RENAMED}`)),
+    ];
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.['payload']).toMatchObject({
+      name: { given: 'Katherine', family: 'Johnson' },
+      employmentStart: '2026-10-01',
+    });
   });
 
   it('keeps one tenant’s ledger from another', async () => {

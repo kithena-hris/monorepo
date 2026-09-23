@@ -126,6 +126,7 @@ export function inMemoryPeople(
       ),
     create(_tx, person, fields) {
       rows.set(person.id, { snapshot: person.snapshot, fields: { custom: {}, ...fields } });
+      history.push(...person.drainHistory().map((e) => ({ ...e, personId: person.id })));
       events.push(...person.drainEvents());
       return Promise.resolve();
     },
@@ -136,7 +137,12 @@ export function inMemoryPeople(
         Object.entries(change?.fields ?? {}).filter(([, v]) => v !== undefined),
       );
       rows.set(person.id, { snapshot: person.snapshot, fields: { ...row.fields, ...set } });
-      history.push(...(change?.history ?? []).map((e) => ({ ...e, personId: person.id })));
+      history.push(
+        ...[...(change?.history ?? []), ...person.drainHistory()].map((e) => ({
+          ...e,
+          personId: person.id,
+        })),
+      );
       events.push(...person.drainEvents());
       return Promise.resolve();
     },

@@ -512,9 +512,13 @@ Three rules make that table safe rather than merely descriptive:
 ### 8.1 Person states
 
 ```
+                   ┌───────────┐
+                   ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
      │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
+     │              │           │      │
+     │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
@@ -531,6 +535,28 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
   customers. Retention and anonymisation act on this state, on a schedule.
 - **discarded** — a provisional record that was never a person. The only state
   that permits a hard delete, and only before confirmation.
+
+**A corrected date re-reads the state; it never ends employment.** The two
+definitions above are about dates, so a correction to one of those dates
+(§8.5) can make the state false, and it is re-read in both directions:
+
+- A **pre_hire** whose start date is corrected to today or earlier has started,
+  and becomes **active**.
+- An **active** person whose start date is corrected into the future has not
+  started, and returns to **pre_hire**. Everything that reads the state follows
+  it back: required fields are those of a pre-hire again, headcount stops
+  counting them, and identity learns the later start date, which is the date
+  it gates enrolment on.
+- A person on **notice** whose last working day is corrected to a date already
+  past **stays on notice**. Termination is a deliberate act, so HR gets a task
+  to confirm it, in the same grid as HR's missing fields (§8.4) rather than one
+  task per person. The task is read off the state and the date: it closes when
+  HR terminates or corrects the date forward.
+- **on_leave** and **terminated** keep their state whatever either date is
+  corrected to.
+
+Each move raises `status_changed` with reason `corrected`; §8.5 says what it
+is effective from.
 
 ### 8.2 The first employee
 
@@ -584,6 +610,15 @@ Two cases this has to survive, and does:
   HTTP endpoint for the tenant's accounts — the same internal-token mechanism
   identity already uses to call messaging — and creates a provisional person per
   account. Idempotent on `identityAccountId`. Re-running it is a no-op.
+
+  The token is a secret of its own, `PEOPLE_IDENTITY_TOKEN`, for the reason
+  `MESSAGING_API_TOKEN` is: the listing is every work email and name in a
+  company, and the token every front end holds should not be enough to read
+  it. It falls back to `INTERNAL_API_TOKEN` until a deployment splits them.
+
+  **A terminated account is not listed.** It belongs to somebody who has left,
+  and its work email may already be held by a new account. A leaver who never
+  had a person record is not given a provisional one on the way out.
 - **People is never bought.** Identity's copies stay the only truth, no People
   event ever arrives to correct them, and nothing in identity's code path checks
   for the module's presence. This is what `requiresPeopleSource` exists to keep
@@ -652,6 +687,11 @@ Per the repository rule, and it is load-bearing here rather than decorative:
 - A **correction** is a typed event carrying `supersedes`, never a silent update.
   A salary typo corrected three months later must not read as a pay cut followed
   by a raise.
+- A correction that moves the state (§8.1) raises `status_changed` beside the
+  `attribute_corrected` that carries `supersedes`, and names that event as its
+  cause. A start that arrived is effective from the corrected start date. A
+  start that had not is effective from the start date it corrects, the day the
+  record wrongly became active, so an "as of" read of that span says pre-hire.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
@@ -784,6 +824,12 @@ tells it a new version exists and what changed at a summary level.
 Existing, kept, extended where noted:
 
 - `people.person.hired` — payload gains `schemaVersion` and `sourceOfRecord`.
+  `legalEntityId` is nullable: a tenant whose published schema has no legal
+  entity attribute has none to send, and §14.4 demands only the core fields the
+  schema defines. A webhook receives the hire itself — who, which account,
+  which version — always, and the name, work email, employment period, legal
+  entity, manager and org unit only where its allowlist names the attribute
+  each stands for, exactly as §10.3 filters `profile_updated`.
 - `people.person.manager_changed` — unchanged.
 - `people.person.terminated` — unchanged.
 - `people.person.synced_from_external` — unchanged; finally has a writer.
@@ -953,12 +999,58 @@ derived artifact computed from the union of both.**
 - `people.attribute_definition.classification` stores a `FieldPolicy` — the
   exact interface in `packages/contracts/src/classification.ts`. Not a parallel
   vocabulary.
-- The logging adapter builds its redaction paths from the static generated set
-  **plus** a per-tenant set loaded at boot and refreshed on
-  `people.schema.published`.
+- The logging adapter redacts the static generated set **plus** a per-tenant
+  set loaded at boot and refreshed on `people.schema.published`. The static
+  paths are fixed and Pino compiles them; a tenant's keys are matched **by key,
+  at any depth and inside arrays**, on every line and in every child logger's
+  bindings, by one copy-on-write walk. A log line is not a fixed shape, and a
+  field logged one level deeper than someone anticipated must not go out in
+  clear. The walk is bounded (depth 32, 10,000 objects) and closed at the
+  bound: what it did not look at is censored, never written. Its cost is a
+  budget, not a hope — a typical line costs under 1 µs more than one with no
+  tenant redaction at all.
 - The AI gateway's deny list is computed the same way. A prompt that would carry
   an attribute where `aiEligible: false` is refused by the gateway, not filtered
   by a caller.
+- **The gateway checks free text for values, not only context for keys.** A
+  value pasted into the instruction, or into a string under an innocent key,
+  is invisible to a key match. The caller names the people a prompt is about;
+  the gateway asks People for the current values of their denied attributes,
+  with the caller's field access applied, and refuses when any of them appears
+  in the text however it is cased, spaced, accented or punctuated —
+  `DE89 3704 0044…`, `123-45-6789` and `ab 12 34 56 c` all match their stored
+  form. It refuses, it never filters, and it never forwards. The values are
+  held in memory for the comparison only: never logged, never in the refusal.
+  - **The rule: only values the caller may read are checked.** People applies
+    the same field-level visibility (`visibleTo`) it applies to a profile
+    read, and a value the caller cannot see is never looked up. The reason is
+    the oracle: if every value were checked, "is she Catholic?" could be
+    answered by whether the prompt was refused, one guess at a time. A value
+    the caller cannot read did not come from us, so leaving it out costs the
+    check nothing the caller could have got here.
+  - **Short values are matched only next to their field's name.** A value
+    under 4 normalised characters with no digit — blood group `A`, `AB`, a
+    sex marker `F` — is an ordinary word, and refusing every prompt with "a"
+    in it would make the gateway useless without making anyone safer. Such a
+    value refuses a prompt only as a whole word within 3 words of one of its
+    own attribute's names, key or label in any locale: `blood group: A`,
+    `grupo sanguíneo AB`. Anywhere else it is ignored. (`SHORT_BELOW` and
+    `NAME_WINDOW` in `free-text.ts`.)
+  - **Dates are matched however they are written.** A stored calendar date
+    matches ISO (`1990-01-02`, `19900102`), day/month/year and
+    month/day/year with `/`, `-` or `.`, two- or four-digit years, with or
+    without leading zeros and ordinal suffixes, and with the month spelled
+    out or abbreviated in the country packs' languages — English, Spanish,
+    Catalan, German and Hindi (`2 January 1990`, `Jan 2, 1990`,
+    `2 de enero de 1990`, `2. Januar 1990`). A numeric date is read both ways
+    round: `01/02/1990` matches the 1st of February and the 2nd of January,
+    because which one the writer meant cannot be known and refusing both is
+    the safe side.
+  - A person who cannot be resolved refuses the prompt. Not knowing the values
+    is not evidence the text is clean.
+  - **A caller that names nobody** cannot have values checked, so any mention
+    of a denied field's key or label, in any locale, is refused, and the
+    refusal says so and says to name the subjects instead.
 - The DSAR manifest is generated per tenant, per request, from the published
   schema version the record was written under — which is why the version is
   stored on the person row.
@@ -1456,6 +1548,17 @@ Every chart obeys four rules without exception:
 2. **Cohort minimum.** Any breakdown touching special-category data returns
    "insufficient data" below the tenant's minimum (default 10, raisable, never
    lowerable). This applies to the chart, the tooltip and the underlying export.
+   A minimum that holds on every reading still leaks across two — 14 people on
+   Monday, 15 on Tuesday, and HR knows who started on Tuesday — so a
+   special-category breakdown is **published**, never read live from the daily
+   snapshot. A new one is published at most once per calendar month, on the
+   month's first run, and only when at least as many people as the cohort
+   minimum changed since the last (joined, left, or changed their answer);
+   otherwise the previous one keeps being served, unchanged. Before the first,
+   the answer is "insufficient data". Every count in a published breakdown is
+   rounded to the nearest 5, ties away from zero, after the minimum has been
+   checked on the true counts; the total is rounded on its own and is not the
+   sum of the rounded counts, and the result says so.
 3. **`asOf` is a first-class control.** History makes "what did the org look
    like in March" a parameter rather than a separate report.
 4. **Every chart ships its table.** Reach's `ChartDataTable` renders the
