@@ -25,6 +25,7 @@ import {
   type ChartContext,
   type Filters,
 } from './queries.js';
+import { publishBreakdowns, ROUNDING_NOTE } from './publish.js';
 import { takeSnapshot } from './snapshot.js';
 
 /**
@@ -139,6 +140,21 @@ async function snapshotOn(tenantId: string, day: string, defs = definitions) {
   );
 }
 
+/** The job's second step: publish whatever special-category breakdown is due. */
+async function publishOn(tenantId: string, day: string, defs = definitions) {
+  return inTenant(tenantId, (scope) =>
+    publishBreakdowns({ clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, { definitions: defs }),
+  );
+}
+
+/** Both steps, as the daily job runs them. */
+async function dailyJob(tenantId: string, day: string, defs = definitions) {
+  expect((await snapshotOn(tenantId, day, defs)).ok).toBe(true);
+  const published = await publishOn(tenantId, day, defs);
+  expect(published.ok).toBe(true);
+  return published.ok ? published.value.published : [];
+}
+
 function chart<T>(
   tenantId: string,
   viewer: ChartViewer,
@@ -183,6 +199,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922170000_people_person.sql',
     '20260923100000_people_snapshot.sql',
+    '20260923180000_people_published_breakdown.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -246,12 +263,14 @@ describe('tenant isolation', () => {
   it('forces row level security on every snapshot table', async () => {
     const result = await admin.execute(sql`
       SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
-       WHERE relnamespace = 'people'::regnamespace AND relname LIKE 'headcount_snapshot%'
+       WHERE relnamespace = 'people'::regnamespace
+         AND (relname LIKE 'headcount_snapshot%' OR relname = 'published_breakdown')
          AND relkind = 'r' ORDER BY relname`);
     expect([...result]).toEqual([
       { relname: 'headcount_snapshot', relrowsecurity: true, relforcerowsecurity: true },
       { relname: 'headcount_snapshot_measure', relrowsecurity: true, relforcerowsecurity: true },
       { relname: 'headcount_snapshot_run', relrowsecurity: true, relforcerowsecurity: true },
+      { relname: 'published_breakdown', relrowsecurity: true, relforcerowsecurity: true },
     ]);
   });
 
@@ -290,6 +309,9 @@ describe('the snapshot', () => {
       ok: true,
       value: { source: 'snapshot', cells: [{ keys: ['active'], count: 4 }] },
     });
+    // Not special-category: live, exact, and none of PEO-083's publication marks.
+    expect(d1.ok && d1.value).not.toHaveProperty('publishedAsOf');
+    expect(d1.ok && d1.value).not.toHaveProperty('rounded');
   });
 
   it('carries movements across a day nobody snapshotted, so the waterfall reconciles', async () => {
@@ -477,28 +499,78 @@ describe('a chart is a read', () => {
 });
 
 describe('the cohort minimum', () => {
-  const answered = (n: number, answer: string | undefined, offset: number): Seed[] =>
-    Array.from({ length: n }, (_, i) => ({
-      id: `00000000-0000-4000-8000-${String(offset + i).padStart(12, '0')}`,
+  let next = 1000;
+  /** `n` people hired on `hire`, each answering `answer`. */
+  const answered = (n: number, answer: string, hire = '2024-01-01'): Seed[] =>
+    Array.from({ length: n }, () => ({
+      id: `00000000-0000-4000-8000-${String(next++).padStart(12, '0')}`,
       tenantId: SELF_ID,
-      hire: '2024-01-01',
-      custom: answer === undefined ? {} : { ethnicity: answer },
+      hire,
+      custom: { ethnicity: answer },
     }));
+
+  const breakdown = (cohortMinimum?: number) =>
+    inTenant(SELF_ID, (scope) =>
+      selfIdBreakdown(
+        {
+          ...scope,
+          viewer: hr,
+          definitions,
+          ...(cohortMinimum === undefined ? {} : { cohortMinimum }),
+        },
+        { attributeKey: 'ethnicity' },
+      ),
+    );
+
+  /** What the live snapshot says on a day: the number PEO-083 stops anybody reading. */
+  const live = async (day: string) =>
+    [
+      ...(await admin.execute(sql`
+        SELECT bucket, count FROM people.headcount_snapshot_measure
+         WHERE tenant_id = ${SELF_ID}::uuid AND day = ${day}::date AND measure = 'self_id:ethnicity'
+         ORDER BY bucket`)),
+    ] as unknown as { bucket: string; count: number }[];
+
+  /** An employee changes their answer: history and the projection, as the write path does. */
+  async function changeAnswer(person: Seed, answer: string, on: string) {
+    await admin.execute(sql`
+      INSERT INTO people.person_attribute_history
+        (id, tenant_id, person_id, attribute_key, value, effective_from, recorded_at, actor)
+      VALUES (gen_random_uuid(), ${SELF_ID}, ${person.id}, 'ethnicity', ${JSON.stringify(answer)}::jsonb,
+              ${on}::date, ${`${on}T09:00:00.000Z`}::timestamptz,
+              ${JSON.stringify({ kind: 'system', process: 'test' })}::jsonb)`);
+    await admin.execute(sql`
+      UPDATE people.person SET custom = jsonb_set(custom, '{ethnicity}', ${JSON.stringify(answer)}::jsonb)
+       WHERE id = ${person.id}`);
+  }
+
+  const original = answered(9, 'a');
+  const marchJoiners = [
+    ...answered(1, 'a', '2026-03-10'),
+    ...answered(10, 'prefer_not_to_say', '2026-03-10'),
+  ];
 
   /*
    * The ticket's own line: nine people, and "insufficient data" through the
    * query, the tooltip and the export alike.
    */
   it('withholds a breakdown of nine people in the query, the tooltip and the export', async () => {
-    await seed(...answered(9, 'a', 1000));
-    await snapshotOn(SELF_ID, '2026-03-01');
+    await seed(...original);
+    // One of them answered through the write path, so history holds it.
+    await changeAnswer(original[0] as Seed, 'a', '2024-01-01');
+    expect(await dailyJob(SELF_ID, '2026-03-01')).toEqual(['self_id:ethnicity']);
 
-    const result = await chart(SELF_ID, hr, (ctx) =>
-      selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
-    );
+    const result = await breakdown();
     expect(result).toEqual({
       ok: true,
-      value: { asOf: '2026-03-01', status: 'insufficient_data', minimum: 10 },
+      value: {
+        asOf: '2026-03-01',
+        publishedAsOf: '2026-03-01',
+        rounded: 5,
+        note: ROUNDING_NOTE,
+        status: 'insufficient_data',
+        minimum: 10,
+      },
     });
     if (!result.ok) return;
     expect(chartTooltip(result.value, 'a')).toEqual({ bucket: 'a', value: 'insufficient data' });
@@ -511,18 +583,41 @@ describe('the cohort minimum', () => {
     ).not.toMatch(/\b9\b/);
   });
 
-  it('serves it once every answer, prefer-not-to-say included, reaches the minimum', async () => {
-    await seed(...answered(1, 'a', 1100), ...answered(10, 'prefer_not_to_say', 1200));
-    await snapshotOn(SELF_ID, '2026-03-02');
-
-    const result = await chart(SELF_ID, hr, (ctx) =>
-      selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
+  it('says "insufficient data" before anything is published, whatever the snapshot holds', async () => {
+    const other = await inTenant(GLOBEX, (scope) =>
+      selfIdBreakdown({ ...scope, viewer: hr, definitions }, { attributeKey: 'ethnicity' }),
     );
-    expect(result).toEqual({
+    expect(other).toMatchObject({
+      ok: true,
+      value: { asOf: null, publishedAsOf: null, status: 'insufficient_data' },
+    });
+  });
+
+  it('waits for the boundary: eleven joiners by the 12th are not published on the 12th', async () => {
+    await seed(...marchJoiners);
+    expect(await dailyJob(SELF_ID, '2026-03-12')).toEqual([]);
+    expect(await live('2026-03-12')).toEqual([
+      { bucket: 'a', count: 10 },
+      { bucket: 'prefer_not_to_say', count: 10 },
+    ]);
+    // The live snapshot would pass the minimum; the served breakdown is still the 1st's.
+    expect(await breakdown()).toMatchObject({
+      ok: true,
+      value: { publishedAsOf: '2026-03-01', status: 'insufficient_data' },
+    });
+  });
+
+  it('publishes at the boundary, every count and the total rounded', async () => {
+    expect(await dailyJob(SELF_ID, '2026-04-01')).toEqual(['self_id:ethnicity']);
+    expect(await breakdown()).toEqual({
       ok: true,
       value: {
-        asOf: '2026-03-02',
+        asOf: '2026-04-01',
+        publishedAsOf: '2026-04-01',
+        rounded: 5,
+        note: ROUNDING_NOTE,
         status: 'ok',
+        total: 20,
         cells: [
           { bucket: 'a', count: 10 },
           { bucket: 'prefer_not_to_say', count: 10 },
@@ -531,29 +626,87 @@ describe('the cohort minimum', () => {
     });
   });
 
-  it('counts the unanswered as a cell, so one blank withholds the lot', async () => {
-    await seed(...answered(1, undefined, 1300));
-    await snapshotOn(SELF_ID, '2026-03-03');
-    const result = await chart(SELF_ID, hr, (ctx) =>
-      selfIdBreakdown(ctx, { attributeKey: 'ethnicity' }),
-    );
-    expect(result).toMatchObject({ ok: true, value: { status: 'insufficient_data' } });
+  const tuesdayJoiner = answered(1, 'a', '2026-04-07');
+
+  /*
+   * The attack: 10 on Monday, 11 on Tuesday, and HR knows exactly one person
+   * started on Tuesday. The live snapshot moves; what is served does not.
+   */
+  it('serves the same breakdown before and after one self-identifying joiner', async () => {
+    await seed(...tuesdayJoiner);
+    await dailyJob(SELF_ID, '2026-04-06');
+    const monday = await breakdown();
+    await dailyJob(SELF_ID, '2026-04-07');
+    const tuesday = await breakdown();
+
+    expect((await live('2026-04-06')).find((c) => c.bucket === 'a')?.count).toBe(10);
+    expect((await live('2026-04-07')).find((c) => c.bucket === 'a')?.count).toBe(11);
+    expect(tuesday).toEqual(monday);
+    expect(tuesday).toMatchObject({ ok: true, value: { publishedAsOf: '2026-04-01' } });
+  });
+
+  it('gives the tooltip and the export the same published, rounded numbers as the chart', async () => {
+    const result = await breakdown();
+    if (!result.ok || result.value.status !== 'ok') throw new Error('expected a served breakdown');
+    const chartA = result.value.cells.find((c) => c.bucket === 'a')?.count;
+    expect(chartA).toBe(10);
+    expect(chartTooltip(result.value, 'a')).toEqual({ bucket: 'a', value: chartA });
+    expect(chartExport(result.value)).toEqual([
+      ['bucket', 'count'],
+      ['a', 10],
+      ['prefer_not_to_say', 10],
+      ['total', 20],
+      [ROUNDING_NOTE, ''],
+    ]);
+  });
+
+  const aprilJoiners = answered(6, 'a', '2026-04-20');
+
+  it('does not republish on nine changes', async () => {
+    // The Tuesday joiner, two changed answers and six more joiners: nine.
+    await changeAnswer(marchJoiners[1] as Seed, 'a', '2026-04-15');
+    await changeAnswer(marchJoiners[2] as Seed, 'a', '2026-04-15');
+    await seed(...aprilJoiners);
+    // Saving the answer one already had is not a change.
+    await changeAnswer(original[0] as Seed, 'a', '2026-04-16');
+
+    expect(await dailyJob(SELF_ID, '2026-05-01')).toEqual([]);
+    expect(await breakdown()).toMatchObject({ ok: true, value: { publishedAsOf: '2026-04-01' } });
+  });
+
+  it('republishes on the tenth, at the next boundary and not before', async () => {
+    await admin.execute(sql`
+      UPDATE people.person SET last_working_day = '2026-05-10' WHERE id = ${(original[1] as Seed).id}`);
+    expect(await dailyJob(SELF_ID, '2026-05-15')).toEqual([]);
+    expect(await breakdown()).toMatchObject({ ok: true, value: { publishedAsOf: '2026-04-01' } });
+
+    expect(await dailyJob(SELF_ID, '2026-06-01')).toEqual(['self_id:ethnicity']);
+    // At most once in a calendar month.
+    expect(await dailyJob(SELF_ID, '2026-06-02')).toEqual([]);
+  });
+
+  /*
+   * June's truth is 18 "a" and 8 "prefer not to say". Rounded, the 8 would
+   * read as 10: the minimum is checked before rounding, so it never does.
+   */
+  it('withholds on the true counts although rounding would lift a cell to 10', async () => {
+    expect(await live('2026-06-01')).toEqual([
+      { bucket: 'a', count: 18 },
+      { bucket: 'prefer_not_to_say', count: 8 },
+    ]);
+    const result = await breakdown();
+    expect(result).toMatchObject({
+      ok: true,
+      value: { publishedAsOf: '2026-06-01', status: 'insufficient_data', minimum: 10 },
+    });
+    expect(result.ok && result.value).not.toHaveProperty('cells');
+    expect(result.ok && result.value).not.toHaveProperty('total');
   });
 
   it('honours a raised minimum and ignores a lowered one', async () => {
-    const raised = await inTenant(SELF_ID, (scope) =>
-      selfIdBreakdown(
-        { ...scope, viewer: hr, definitions, cohortMinimum: 50 },
-        { attributeKey: 'ethnicity' },
-      ),
-    );
+    const raised = await breakdown(50);
     expect(raised).toMatchObject({ ok: true, value: { status: 'insufficient_data', minimum: 50 } });
-    const lowered = await inTenant(SELF_ID, (scope) =>
-      selfIdBreakdown(
-        { ...scope, viewer: hr, definitions, cohortMinimum: 1 },
-        { attributeKey: 'ethnicity' },
-      ),
-    );
+    const lowered = await breakdown(1);
     expect(lowered).toMatchObject({
       ok: true,
       value: { status: 'insufficient_data', minimum: 10 },
@@ -590,9 +743,27 @@ describe('the cohort minimum', () => {
         (ctx) => composition(ctx, { by: ['location'] }),
         tightened,
       );
+      // Nothing published yet: "insufficient data" rather than a live read.
       expect(result).toMatchObject({
         ok: true,
-        value: { status: 'insufficient_data', minimum: 10 },
+        value: { publishedAsOf: null, status: 'insufficient_data', minimum: 10 },
+      });
+    });
+
+    it('is read from its publication, not from the snapshot', async () => {
+      expect(await publishOn(ACME, D3, tightened)).toEqual({
+        ok: true,
+        value: { published: ['self_id:ethnicity', 'composition:location'] },
+      });
+      const result = await chart(
+        ACME,
+        hr,
+        (ctx) => composition(ctx, { by: ['location'] }),
+        tightened,
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        value: { asOf: D3, publishedAsOf: D3, rounded: 5, status: 'insufficient_data' },
       });
     });
 
@@ -650,7 +821,7 @@ describe('at 50,000 people', () => {
         FROM generate_series(1, 50000) AS i`);
 
     const start = performance.now();
-    expect((await snapshotOn(PERF, '2026-03-31')).ok).toBe(true);
+    expect(await dailyJob(PERF, '2026-03-31')).toEqual(['self_id:ethnicity']);
     console.info(
       `snapshot of 50,000 people took ${String(Math.round(performance.now() - start))} ms`,
     );

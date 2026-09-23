@@ -1423,6 +1423,17 @@ Every chart obeys four rules without exception:
 2. **Cohort minimum.** Any breakdown touching special-category data returns
    "insufficient data" below the tenant's minimum (default 10, raisable, never
    lowerable). This applies to the chart, the tooltip and the underlying export.
+   A minimum that holds on every reading still leaks across two — 14 people on
+   Monday, 15 on Tuesday, and HR knows who started on Tuesday — so a
+   special-category breakdown is **published**, never read live from the daily
+   snapshot. A new one is published at most once per calendar month, on the
+   month's first run, and only when at least as many people as the cohort
+   minimum changed since the last (joined, left, or changed their answer);
+   otherwise the previous one keeps being served, unchanged. Before the first,
+   the answer is "insufficient data". Every count in a published breakdown is
+   rounded to the nearest 5, ties away from zero, after the minimum has been
+   checked on the true counts; the total is rounded on its own and is not the
+   sum of the rounded counts, and the result says so.
 3. **`asOf` is a first-class control.** History makes "what did the org look
    like in March" a parameter rather than a separate report.
 4. **Every chart ships its table.** Reach's `ChartDataTable` renders the

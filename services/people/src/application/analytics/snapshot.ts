@@ -268,7 +268,9 @@ export async function takeSnapshot(
     .delete(snapshotMeasure)
     .where(and(eq(snapshotMeasure.tenantId, tenantId), eq(snapshotMeasure.day, day)));
   await tx.delete(snapshot).where(and(eq(snapshot.tenantId, tenantId), eq(snapshot.day, day)));
-  await tx.delete(snapshotRun).where(and(eq(snapshotRun.tenantId, tenantId), eq(snapshotRun.day, day)));
+  await tx
+    .delete(snapshotRun)
+    .where(and(eq(snapshotRun.tenantId, tenantId), eq(snapshotRun.day, day)));
 
   const [run] = await rows<{ flows_from: string }>(
     tx,
