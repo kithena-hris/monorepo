@@ -276,7 +276,12 @@ describe('round-tripping (§15.3)', () => {
     expect(store.history.map((h) => [h.personId, h.attributeKey, h.value])).toEqual([
       [ADA, 'cost_centre', 'CC-42'],
     ]);
-    expect(store.events.length).toBe(events + 1);
+    // The edit, and — a cost centre being where somebody sits — the org move
+    // OpenFGA's tuples are re-read from (PEO-092).
+    expect(store.events.slice(events).map((e) => e.eventName)).toEqual([
+      'people.person.profile_updated',
+      'people.person.org_changed',
+    ]);
     expect(store.secrets.get(`${ADA}:iban`)).toBe('ES9121000418450200051332');
   });
 });

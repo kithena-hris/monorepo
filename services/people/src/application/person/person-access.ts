@@ -629,6 +629,34 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     );
     if (!raised.ok) return raised;
 
+    // The reporting line and the org, as their own events: authorization is
+    // derived from them (PEO-092), and `profile_updated` carries no values.
+    const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+    const moved = (key: string) =>
+      projected.has(key) && text(projected.get(key)) !== text(person.values[key]);
+    if (moved('manager_id')) {
+      aggregate.moveManager(
+        text(person.values['manager_id']),
+        text(projected.get('manager_id')),
+        contextFor(asking, deps.newId()),
+        effectiveFrom,
+      );
+    }
+    if (['org_unit_id', 'cost_centre', 'legal_entity_id', 'location_id'].some(moved)) {
+      const now = (key: string) =>
+        text(projected.has(key) ? projected.get(key) : person.values[key]);
+      aggregate.moveOrg(
+        {
+          orgUnitId: now('org_unit_id'),
+          costCentre: now('cost_centre'),
+          legalEntityId: now('legal_entity_id'),
+          locationId: now('location_id'),
+        },
+        contextFor(asking, deps.newId()),
+        effectiveFrom,
+      );
+    }
+
     if (tellIdentity && [...projected.keys()].some((k) => IDENTITY_FACT_KEYS.has(k))) {
       shareIdentityFacts(
         aggregate,

@@ -2,6 +2,14 @@ import type * as z from 'zod';
 import {
   AccountProfileCaptured,
   AccountProvisioned,
+  PersonAnonymised,
+  PersonHired,
+  PersonIdentityLinked,
+  PersonManagerChanged,
+  PersonOrgChanged,
+  PersonProvisioned,
+  PersonStatusChanged,
+  PersonTerminated,
   SchemaPublished,
   TenantAmended,
   TenantProvisioned,
@@ -13,6 +21,7 @@ import { logger } from '@kithena/telemetry';
 import type { RecomputeCompleteness } from '../../application/completeness/recompute.js';
 import type { OrgAdmin } from '../../application/org/org.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
+import type { OpenFga } from '../openfga.js';
 import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
 import { captureProfile } from './identity.js';
@@ -39,9 +48,27 @@ export interface ConsumerDeps {
   readonly inTenant: InTenantTransaction;
   readonly provisional: ProvisionalPeople;
   readonly recompute: RecomputeCompleteness;
+  /** OpenFGA's tuples, kept in line with People's own events (PEO-092). Absent standalone. */
+  readonly authz?: Pick<OpenFga, 'sync'>;
   /** Legal entities and settings, for the company the back office created (PEO-099). */
   readonly org?: OrgAdmin;
 }
+
+/**
+ * People's own events that move who may see whom. Each one only says which
+ * person to look at again: `sync` reads the row, so order and redelivery
+ * cannot leave a stale tuple behind.
+ */
+const RELATIONAL: readonly { readonly name: string; readonly schema: z.ZodType }[] = [
+  PersonProvisioned,
+  PersonIdentityLinked,
+  PersonHired,
+  PersonManagerChanged,
+  PersonOrgChanged,
+  PersonStatusChanged,
+  PersonTerminated,
+  PersonAnonymised,
+];
 
 const PROCESS = 'people.consumer';
 
@@ -149,8 +176,21 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         return kept ? 'applied' : 'unchanged';
       }
 
-      default:
-        return 'ignored';
+      default: {
+        const relational = RELATIONAL.find((d) => d.name === name);
+        if (relational === undefined || deps.authz === undefined) return 'ignored';
+        const parsed = relational.schema.safeParse(raw);
+        if (!parsed.success) {
+          logger.warn({ eventName: relational.name }, 'event did not match its contract; skipped');
+          return 'rejected';
+        }
+        const event = parsed.data as EventEnvelope & { payload: { personId: string } };
+        const authz = deps.authz;
+        const synced = await deps.inTenant(event.tenantId, ({ tx }) =>
+          authz.sync(tx, event.tenantId, event.payload.personId),
+        );
+        return synced;
+      }
     }
   };
 }

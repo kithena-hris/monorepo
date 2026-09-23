@@ -114,6 +114,55 @@ export async function startRedpanda(): Promise<{ brokers: string; stop: () => Pr
   };
 }
 
+/**
+ * OpenFGA, the image `docker-compose.yml` runs, with its in-memory datastore.
+ *
+ * Memory rather than Postgres: the question a test asks is what the model
+ * answers for these tuples, and the datastore does not change the answer.
+ */
+export async function startOpenFga(): Promise<{ apiUrl: string; stop: () => Promise<void> }> {
+  const container = await new GenericContainer('openfga/openfga:latest')
+    .withCommand(['run'])
+    .withExposedPorts(8080)
+    .withWaitStrategy(Wait.forHttp('/healthz', 8080))
+    .start();
+
+  return {
+    apiUrl: `http://${container.getHost()}:${String(container.getMappedPort(8080))}`,
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
+/**
+ * The Cosmo Router, the image a deployment runs, with the given files copied in.
+ *
+ * `host.docker.internal` reaches the host on every platform, including a Linux
+ * CI runner where Docker does not add it by itself, so a subgraph or a JWKS
+ * served by the test process is reachable from inside.
+ */
+export async function startCosmoRouter(options: {
+  readonly files: readonly { readonly source: string; readonly target: string }[];
+  readonly env: Record<string, string>;
+}): Promise<{ url: string; stop: () => Promise<void> }> {
+  const container = await new GenericContainer('ghcr.io/wundergraph/cosmo/router:latest')
+    .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
+    .withCopyFilesToContainer([...options.files])
+    .withEnvironment(options.env)
+    .withExposedPorts(4000)
+    .withWaitStrategy(Wait.forHttp('/health/ready', 4000))
+    .withStartupTimeout(90_000)
+    .start();
+
+  return {
+    url: `http://${container.getHost()}:${String(container.getMappedPort(4000))}`,
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();

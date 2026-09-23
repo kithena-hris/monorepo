@@ -1109,7 +1109,7 @@ export function restHandler(
         body: { error: { code: 'METHOD_NOT_ALLOWED', message: request.method } },
       };
 
-    const asking = deps.callerFrom(request);
+    const asking = await deps.callerFrom(request);
     if (!asking.ok) return refused(asking.error);
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];

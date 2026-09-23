@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { callerFromHeaders } from './caller.js';
+import { callerFromHeaders, withTenantRoles } from './caller.js';
 
 const callerFrom = callerFromHeaders('router-secret');
 const principal = (over: Record<string, unknown> = {}) =>
@@ -47,5 +47,25 @@ describe('who is calling', () => {
       headers: { 'x-internal-token': '', 'x-kithena-principal': principal() },
     });
     expect(open.ok).toBe(false);
+  });
+
+  it('takes tenant roles from OpenFGA, never from the header, when OpenFGA decides (PEO-092)', async () => {
+    const asked: string[] = [];
+    const withRoles = withTenantRoles(callerFrom, (tenantId, accountId) => {
+      asked.push(`${tenantId} ${accountId}`);
+      return Promise.resolve(new Set(['people_admin']));
+    });
+    const routed = await withRoles({
+      headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal() },
+    });
+    expect(routed.ok && [...routed.value.viewer.roles]).toEqual(['people_admin']);
+    expect(asked).toEqual([
+      '00000000-0000-4000-8000-000000000001 00000000-0000-4000-8000-0000000000b1',
+    ]);
+
+    // Refused before OpenFGA is asked anything.
+    const forged = await withRoles({ headers: { 'x-kithena-principal': principal() } });
+    expect(forged.ok).toBe(false);
+    expect(asked).toHaveLength(1);
   });
 });

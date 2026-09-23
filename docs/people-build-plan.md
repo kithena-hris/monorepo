@@ -978,10 +978,24 @@ it is written down here rather than left in a PR description.
       not rendered. Found in PEO-042. *(PRD §15.4)* *Status, employment type,
       work model, legal entity and whether a secret exists are still read as
       of today; none has a dated read yet.*
-- [ ] **PEO-092** Authorization and transport setup. OpenFGA has no client
+- [x] **PEO-092** Authorization and transport setup. OpenFGA has no client
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal
-      token. Found in PEO-025 and PEO-030.
+      token. Found in PEO-025 and PEO-030. *Landed as People's own OpenFGA
+      store and model (`infrastructure/openfga.ts`; PRD §6.6 "As built"),
+      tuples synced from the row on each of People's person events, the first
+      person in a tenant granted `people_admin` and `hr`, and
+      `drizzleRelations` kept for `OPENFGA_URL` unset — which is what
+      `just standalone people` runs. `manager_changed` and `org_changed` are
+      now raised. The router verifies the JWT and sets the principal and the
+      internal token (`apps/gateway/config.yaml`, PRD §13.1); its config did
+      not boot on the current router and is fixed. Proven by
+      `openfga.integration.test.ts` (chain transitivity, a manager change
+      revoking the old chain through the outbox, HR scoped to its tenant) and
+      `router.integration.test.ts` (the shipped config in the real router in
+      front of the real subgraph). Still open: a role-management transport
+      for any grant after the first, and per-tenant entitlements, which
+      nothing in the platform stores.*
 - [x] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next

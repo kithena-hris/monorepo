@@ -626,6 +626,45 @@ describe('reading the facts off a record', () => {
   });
 });
 
+describe('the reporting line and the org, which authorization is derived from', () => {
+  const BOSS = '00000000-0000-4000-8000-0000000000a2';
+  const NEW_BOSS = '00000000-0000-4000-8000-0000000000a3';
+
+  it('raises manager_changed with both managers, effective when the move is', () => {
+    // OpenFGA's reporting-line tuples are rewritten from this event (PEO-092);
+    // `profile_updated` names the key and never the value, so it cannot.
+    const p = person({ status: 'active' });
+    expect(p.moveManager(BOSS, NEW_BOSS, ctx, '2026-10-01')).toBe(true);
+    const [event] = p.drainEvents();
+    expect(event).toMatchObject({
+      eventName: 'people.person.manager_changed',
+      effectiveFrom: '2026-10-01',
+      payload: { personId: PERSON, previousManagerId: BOSS, managerId: NEW_BOSS },
+    });
+  });
+
+  it('raises nothing when the manager did not move', () => {
+    const p = person({ status: 'active' });
+    expect(p.moveManager(BOSS, BOSS, ctx, null)).toBe(false);
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('raises org_changed with where the person now sits', () => {
+    const p = person({ status: 'active' });
+    const org = {
+      orgUnitId: '00000000-0000-4000-8000-0000000000f1',
+      costCentre: null,
+      legalEntityId: null,
+      locationId: null,
+    };
+    p.moveOrg(org, ctx, '2026-10-01');
+    expect(p.drainEvents()[0]).toMatchObject({
+      eventName: 'people.person.org_changed',
+      payload: { personId: PERSON, ...org },
+    });
+  });
+});
+
 describe('ending employment, and leave, on the person’s own calendar (PEO-108)', () => {
   const active = () => person({ status: 'active', hireDate: '2026-01-01' });
   // 2026-09-30T12:00Z is already 1 October in Auckland and still 30 September

@@ -23,6 +23,7 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
+    "@openfga/sdk": "^0.8.1",
     "@temporalio/client": "^1.22.0",
     "@temporalio/worker": "^1.22.0",
     "@temporalio/workflow": "^1.22.0",
@@ -40,6 +41,7 @@
     "@temporalio/testing": "^1.22.0",
     "fast-formula-parser": "1.0.19",
     "graphql": "^16.11.0",
+    "jose": "^6.2.8",
     "vitest": "^4.1.11"
   }
 }

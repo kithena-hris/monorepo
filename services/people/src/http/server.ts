@@ -19,6 +19,7 @@ import { orgAdmin } from '../application/org/org.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
+import type { RelationsResolver } from '../application/person/ports.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
@@ -39,6 +40,7 @@ import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
+import { openFgaFrom } from '../infrastructure/openfga.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import {
@@ -48,7 +50,7 @@ import {
 } from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks } from '../infrastructure/webhooks/webhooks.js';
-import { callerFromHeaders } from './caller.js';
+import { callerFromHeaders, withTenantRoles } from './caller.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestDeps, type RestResponse } from './rest.js';
@@ -64,6 +66,15 @@ import { restHandler, type RestDeps, type RestResponse } from './rest.js';
 
 /** How often every known tenant's due deliveries are looked for. */
 const POLL_MS = 60_000;
+
+/**
+ * OpenFGA when `OPENFGA_URL` is set; otherwise the org chart the rows
+ * describe and the roles the principal carries — the standalone answer, and
+ * what `just standalone people` runs.
+ */
+export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
+  return openFgaFrom(env)?.relations ?? drizzleRelations();
+}
 
 export function peopleService(databaseUrl: string, secretKeys: string | undefined): PeopleService {
   const db = drizzle(postgres(databaseUrl));
@@ -166,7 +177,7 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
       people: drizzlePersonRepository(),
       reader: drizzlePersonReader(),
       schemas,
-      relations: drizzleRelations(),
+      relations: relationsFrom(process.env),
       secrets: drizzleSecretStore(ring, logger),
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
@@ -207,7 +218,7 @@ function wireExports(service: PeopleService): {
     calendars: drizzleOrgStore(),
     access: service.access,
     schemas: service.schemas,
-    relations: drizzleRelations(),
+    relations: relationsFrom(process.env),
     clock: systemClock,
     records: {
       people: drizzlePersonRepository(),
@@ -340,9 +351,14 @@ export function wirePeople(server: Server): void {
   }
 
   const service = peopleService(url, process.env['PEOPLE_SECRET_KEYS']);
-  const callerFrom = callerFromHeaders(
+  const headers = callerFromHeaders(
     process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
   );
+  const fga = openFgaFrom(process.env);
+  const callerFrom =
+    fga === null
+      ? headers
+      : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
   configureGraphQL({ service, callerFrom });
 
   const exports = wireExports(service);

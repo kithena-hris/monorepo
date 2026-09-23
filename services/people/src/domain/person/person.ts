@@ -582,6 +582,43 @@ export class Person extends AggregateRoot<string> {
   }
 
   /**
+   * The reporting line moved. Returns whether it raised.
+   *
+   * Its own event because `profile_updated` names keys and never values, and
+   * OpenFGA's reporting-line tuple is rewritten from this one (PEO-092): the
+   * old chain loses the person the moment the new one gains them.
+   */
+  moveManager(
+    previous: string | null,
+    next: string | null,
+    ctx: EventContext,
+    effectiveFrom: string | null,
+  ): boolean {
+    if (previous === next) return false;
+    this.#raise(
+      'people.person.manager_changed',
+      { personId: this.id, previousManagerId: previous, managerId: next },
+      ctx,
+      effectiveFrom,
+    );
+    return true;
+  }
+
+  /** Where the person sits moved: org unit, cost centre, legal entity or location. */
+  moveOrg(
+    org: {
+      readonly orgUnitId: string | null;
+      readonly costCentre: string | null;
+      readonly legalEntityId: string | null;
+      readonly locationId: string | null;
+    },
+    ctx: EventContext,
+    effectiveFrom: string | null,
+  ): void {
+    this.#raise('people.person.org_changed', { personId: this.id, ...org }, ctx, effectiveFrom);
+  }
+
+  /**
    * The lifecycle dates written since the last drain, as history rows.
    *
    * A correction supersedes a history row, so a hire date or a last working
