@@ -734,7 +734,7 @@ async function move(
       ),
     );
   }
-  const { service, asking } = caller(ctx);
+  const { service, asking } = await caller(ctx);
   return unwrap(
     await run(service, asking.tenantId, async (tx) => {
       const view = await action.run(service.access, tx, { ...asking, personId }, parsed.data);
