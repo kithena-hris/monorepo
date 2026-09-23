@@ -29,6 +29,7 @@ import {
   SchemaVersionSummary,
   SettingsBody,
 } from './rest.js';
+import { LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
 
 /**
  * The OpenAPI document for REST v1, generated from the Zod schemas `rest.ts`
@@ -71,6 +72,35 @@ const components = {
   FullValues: FullValuesBody,
   Error: ErrorBody,
 } as const;
+
+/** PEO-108's moves, each body a component named for its mutation; the person after either way. */
+const lifecycleBodies = Object.fromEntries(
+  LIFECYCLE_ACTIONS.filter((a) => a.body !== NoBody).map((a) => [a.name, a.body]),
+);
+function lifecyclePaths(): Record<string, unknown> {
+  return Object.fromEntries(
+    LIFECYCLE_ACTIONS.map((a) => [
+      `/v1/people/{id}/${a.path}`,
+      {
+        post: {
+          summary: a.summary,
+          parameters: [id, idempotencyKey],
+          ...(Object.hasOwn(lifecycleBodies, a.name)
+            ? {
+                requestBody: {
+                  required: true,
+                  content: {
+                    'application/json': { schema: { $ref: `#/components/schemas/${a.name}` } },
+                  },
+                },
+              }
+            : {}),
+          responses: { 200: { description: 'The person after', ...json('Person') }, ...failure },
+        },
+      },
+    ]),
+  );
+}
 
 type Component = keyof typeof components;
 
@@ -299,10 +329,11 @@ export function openApiDocument(): Record<string, unknown> {
           responses: { 201: { description: 'The location after', ...json('Location') }, ...failure },
         },
       },
+      ...lifecyclePaths(),
     },
     components: {
       schemas: Object.fromEntries(
-        Object.entries(components).map(([name, schema]) => [
+        Object.entries({ ...components, ...lifecycleBodies }).map(([name, schema]) => [
           name,
           z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }),
         ]),
