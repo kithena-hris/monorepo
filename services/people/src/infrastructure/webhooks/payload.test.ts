@@ -47,6 +47,35 @@ describe('the facts identity caches, sent to an endpoint', () => {
   });
 });
 
+describe('a hire, sent to an endpoint', () => {
+  const payload = {
+    personId: '00000000-0000-4000-8000-0000000000a1',
+    identityAccountId: '00000000-0000-4000-8000-0000000000b1',
+    legalEntityId: '00000000-0000-4000-8000-0000000000e1',
+    name: { given: 'Ada', family: 'Lovelace', preferred: 'Countess' },
+    workEmail: 'ada@acme.test',
+    employment: { from: '2026-10-01', to: null },
+    status: 'pending',
+    managerId: null,
+    orgUnitId: null,
+    schemaVersion: 3,
+    sourceOfRecord: 'own',
+  };
+  const hired: StoredEnvelope = {
+    eventId: '01890000-0000-7000-8000-000000000004',
+    eventName: 'people.person.hired',
+    payload,
+  };
+
+  it('sends the fact of the hire, and only the values the endpoint may see', () => {
+    expect(filterFor(hired, ['hire_date', 'work_email'])?.payload).toEqual({
+      ...payload,
+      name: null,
+      legalEntityId: null,
+    });
+  });
+});
+
 describe('filtering for an endpoint', () => {
   it('keeps only allowlisted attributes of an update', () => {
     const out = filterFor(updated(['start_date', 'department', 'phone']), [

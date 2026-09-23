@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { ChangedAttribute } from '@kithena/contracts';
 import { fixedClock } from '@kithena/domain-kit';
 
-import { identityFactsOf, Person, type EventContext, type PersonSnapshot } from './person.js';
+import {
+  hireFactsOf,
+  identityFactsOf,
+  Person,
+  type EventContext,
+  type HireFacts,
+  type PersonSnapshot,
+} from './person.js';
 
 /**
  * The record's own state machine, which starts before employment does.
@@ -54,10 +61,21 @@ function snapshot(over: Partial<PersonSnapshot> = {}): PersonSnapshot {
 
 const person = (over: Partial<PersonSnapshot> = {}) => Person.rehydrate(snapshot(over));
 
+/** What `people.person.hired` carries beyond the aggregate's own columns. */
+const HIRED: HireFacts = {
+  legalEntityId: '00000000-0000-4000-8000-0000000000e1',
+  name: { given: 'Ada', family: 'Lovelace', preferred: null },
+  workEmail: 'ada@acme.test',
+  managerId: null,
+  orgUnitId: null,
+  schemaVersion: 3,
+  sourceOfRecord: 'own',
+};
+
 describe('the path a record actually takes', () => {
   it('runs provisional, pre-hire, active', () => {
     const p = person();
-    expect(p.hire('2026-10-01', ctx).ok).toBe(true);
+    expect(p.hire('2026-10-01', HIRED, ctx).ok).toBe(true);
     expect(p.status).toBe('pre_hire');
     expect(p.start(ctx).ok).toBe(true);
     expect(p.status).toBe('active');
@@ -67,7 +85,7 @@ describe('the path a record actually takes', () => {
     // A record entered for somebody who started last month. Making an admin
     // perform two transitions to catch up would be a data-entry ritual.
     const p = person();
-    expect(p.hire('2026-09-01', ctx).ok).toBe(true);
+    expect(p.hire('2026-09-01', HIRED, ctx).ok).toBe(true);
     expect(p.status).toBe('active');
   });
 
@@ -106,7 +124,7 @@ describe('the path a record actually takes', () => {
 describe('what is refused', () => {
   it('refuses to hire a record twice', () => {
     const p = person({ status: 'active', hireDate: '2026-01-01' });
-    const again = p.hire('2027-01-01', ctx);
+    const again = p.hire('2027-01-01', HIRED, ctx);
     expect(again.ok).toBe(false);
     if (again.ok) return;
     expect(again.error.code).toBe('INVALID_TRANSITION');
@@ -184,7 +202,7 @@ describe('discarding', () => {
 describe('what each transition raises', () => {
   it('raises one event per transition, in order', () => {
     const p = person();
-    p.hire('2026-10-01', ctx);
+    p.hire('2026-10-01', HIRED, ctx);
     p.start(ctx);
     p.giveNotice('2026-12-31', ctx);
     p.terminate('2026-12-31', ctx);
@@ -192,12 +210,14 @@ describe('what each transition raises', () => {
     const raised = p.drainEvents();
     expect(raised.map((e) => e.eventName)).toEqual([
       'people.person.status_changed',
+      'people.person.hired',
       'people.person.status_changed',
       'people.person.status_changed',
       'people.person.terminated',
     ]);
     expect(raised.map((e) => (e.payload as { previous?: string }).previous ?? 'n/a')).toEqual([
       'provisional',
+      'n/a',
       'pre_hire',
       'active',
       'n/a',
@@ -272,24 +292,177 @@ describe('the facts identity keeps a copy of', () => {
   });
 });
 
+describe('hiring', () => {
+  const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
+
+  it('says who was hired, under which schema version, and from which source', () => {
+    // §10.2: `hired` gains `schemaVersion` and `sourceOfRecord`, and names the
+    // account so identity needs no lookup to correct its copy.
+    const p = person();
+    p.hire('2026-10-01', HIRED, ctx);
+    const hired = p.drainEvents().find((e) => e.eventName === 'people.person.hired');
+    expect(hired).toMatchObject({
+      effectiveFrom: '2026-10-01',
+      payload: {
+        personId: PERSON,
+        identityAccountId: ACCOUNT,
+        legalEntityId: HIRED.legalEntityId,
+        name: HIRED.name,
+        workEmail: 'ada@acme.test',
+        employment: { from: '2026-10-01', to: null },
+        status: 'pending',
+        managerId: null,
+        orgUnitId: null,
+        schemaVersion: 3,
+        sourceOfRecord: 'own',
+      },
+    });
+  });
+
+  it('reads as active when the start date has already arrived', () => {
+    const p = person();
+    p.hire('2026-09-01', HIRED, ctx);
+    const hired = p.drainEvents().find((e) => e.eventName === 'people.person.hired');
+    expect(hired?.payload).toMatchObject({ status: 'active' });
+  });
+
+  it('names no account for a person without one', () => {
+    const p = person({ identityAccountId: null });
+    p.hire('2026-10-01', HIRED, ctx);
+    const hired = p.drainEvents().find((e) => e.eventName === 'people.person.hired');
+    expect(hired?.payload).toMatchObject({ identityAccountId: null });
+  });
+
+  it('raises nothing when the hire is refused', () => {
+    const p = person({ status: 'active', hireDate: '2026-01-01' });
+    p.hire('2026-10-01', HIRED, ctx);
+    expect(p.drainEvents()).toEqual([]);
+  });
+});
+
+describe('what a hire has to know', () => {
+  const values = {
+    given_name: 'Ada',
+    family_name: 'Lovelace',
+    work_email: 'ada@acme.test',
+    manager_id: '00000000-0000-4000-8000-0000000000a2',
+  };
+
+  it('reads the name, the email and the placement off the record', () => {
+    const facts = hireFactsOf(values, null, 3);
+    expect(facts.ok && facts.value).toEqual({
+      legalEntityId: null,
+      name: { given: 'Ada', family: 'Lovelace', preferred: null },
+      workEmail: 'ada@acme.test',
+      managerId: '00000000-0000-4000-8000-0000000000a2',
+      orgUnitId: null,
+      schemaVersion: 3,
+      sourceOfRecord: 'own',
+    });
+  });
+
+  it('refuses a hire with no name or no work email, and says which', () => {
+    // §14.4: there is no such thing as a person record without these.
+    const facts = hireFactsOf({ given_name: 'Ada' }, null, 3);
+    expect(!facts.ok && facts.error).toMatchObject({
+      code: 'HIRE_INCOMPLETE',
+      path: ['family_name', 'work_email'],
+    });
+  });
+});
+
 describe('correcting the hire date', () => {
   it('moves the date the record holds', () => {
     const p = person({ status: 'pre_hire', hireDate: '2026-10-01' });
-    expect(p.correctHireDate('2026-11-01').ok).toBe(true);
+    expect(p.correctHireDate('2026-11-01', ctx).ok).toBe(true);
     expect(p.hireDate).toBe('2026-11-01');
+    expect(p.status).toBe('pre_hire');
     // The correction's own event is `attribute_corrected`, raised by the caller.
     expect(p.drainEvents()).toEqual([]);
   });
 
+  it('starts a pre-hire whose corrected start date has already arrived', () => {
+    // §8.1: pre_hire is "a start date in the future", active is "started".
+    // A start date corrected into the past leaves nothing in the future.
+    const p = person({ status: 'pre_hire', hireDate: '2026-10-01' });
+    expect(p.correctHireDate('2026-09-01', ctx).ok).toBe(true);
+    expect(p.status).toBe('active');
+    const [moved] = p.drainEvents();
+    expect(moved).toMatchObject({
+      eventName: 'people.person.status_changed',
+      effectiveFrom: '2026-09-01',
+      payload: { previous: 'pre_hire', next: 'active', reason: 'corrected' },
+    });
+  });
+
+  it('counts today as arrived, in the tenant’s calendar', () => {
+    const p = person({ status: 'pre_hire', hireDate: '2026-10-01' });
+    p.correctHireDate('2026-09-22', ctx, 'Europe/Madrid');
+    expect(p.status).toBe('active');
+  });
+
+  it('does not move an active record back to pre-hire', () => {
+    // §8.1 has no edge from active back to pre_hire, so a start date
+    // corrected into the future leaves the status alone.
+    const p = person({ status: 'active', hireDate: '2026-01-01' });
+    expect(p.correctHireDate('2026-12-01', ctx).ok).toBe(true);
+    expect(p.status).toBe('active');
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('leaves a terminated record terminated', () => {
+    const p = person({ status: 'terminated', hireDate: '2026-01-01', lastWorkingDay: '2026-06-30' });
+    expect(p.correctHireDate('2026-02-01', ctx).ok).toBe(true);
+    expect(p.status).toBe('terminated');
+  });
+
   it('refuses a hire date after the last working day', () => {
     const p = person({ status: 'terminated', hireDate: '2026-01-01', lastWorkingDay: '2026-06-30' });
-    const late = p.correctHireDate('2026-07-01');
+    const late = p.correctHireDate('2026-07-01', ctx);
     expect(!late.ok && late.error.code).toBe('LAST_DAY_BEFORE_HIRE');
     expect(p.hireDate).toBe('2026-01-01');
   });
 
   it('refuses a discarded record, which holds nothing', () => {
-    expect(person({ status: 'discarded' }).correctHireDate('2026-10-01').ok).toBe(false);
+    expect(person({ status: 'discarded' }).correctHireDate('2026-10-01', ctx).ok).toBe(false);
+  });
+});
+
+describe('correcting the last working day', () => {
+  it('moves the date the record holds, and nothing else', () => {
+    // §8.1 ends employment by an explicit transition, not by a date passing,
+    // so a notice period corrected to have ended does not terminate anybody.
+    const p = person({ status: 'notice', hireDate: '2026-01-01', lastWorkingDay: '2026-12-31' });
+    expect(p.correctLastWorkingDay('2026-09-01').ok).toBe(true);
+    expect(p.lastWorkingDay).toBe('2026-09-01');
+    expect(p.status).toBe('notice');
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('corrects a tombstone, which an auditor still reads', () => {
+    const p = person({ status: 'terminated', hireDate: '2026-01-01', lastWorkingDay: '2026-06-30' });
+    expect(p.correctLastWorkingDay('2026-07-31').ok).toBe(true);
+    expect(p.lastWorkingDay).toBe('2026-07-31');
+  });
+
+  it('refuses a last working day before the hire date', () => {
+    const p = person({ status: 'notice', hireDate: '2026-06-01', lastWorkingDay: '2026-12-31' });
+    const early = p.correctLastWorkingDay('2026-05-31');
+    expect(!early.ok && early.error.code).toBe('LAST_DAY_BEFORE_HIRE');
+    expect(p.lastWorkingDay).toBe('2026-12-31');
+  });
+
+  it('refuses to invent one for a record that has none', () => {
+    // A last working day exists once notice is given; a correction supersedes
+    // one, it does not put an active employee on notice.
+    const early = person({ status: 'active', hireDate: '2026-01-01' }).correctLastWorkingDay(
+      '2026-12-31',
+    );
+    expect(!early.ok && early.error.code).toBe('NO_LAST_WORKING_DAY');
+  });
+
+  it('refuses a discarded record', () => {
+    expect(person({ status: 'discarded' }).correctLastWorkingDay('2026-10-01').ok).toBe(false);
   });
 });
 

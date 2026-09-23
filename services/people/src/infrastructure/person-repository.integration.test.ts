@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { fixedClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
-import { Person, type EventContext } from '../domain/person/person.js';
+import { Person, type EventContext, type HireFacts } from '../domain/person/person.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { tenantTransaction } from './unit-of-work.js';
 
@@ -58,6 +58,16 @@ function context(at = '2026-09-22T09:00:00.000Z'): EventContext {
     causationId: null,
   };
 }
+
+const HIRED: HireFacts = {
+  legalEntityId: null,
+  name: { given: 'Ada', family: 'Lovelace', preferred: null },
+  workEmail: 'ada@acme.test',
+  managerId: null,
+  orgUnitId: null,
+  schemaVersion: 1,
+  sourceOfRecord: 'own',
+};
 
 const provisional = (id = ADA, tenantId = ACME) =>
   Person.rehydrate({
@@ -126,17 +136,20 @@ describe('a write and its event', () => {
   it('commit together', async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', context());
+      person.hire('2026-09-01', HIRED, context());
       await repository.create(tx, person, { givenName: 'Ada', familyName: 'Lovelace' });
     });
 
-    expect(await counts()).toMatchObject({ people: 1, events: 1 });
+    expect(await counts()).toMatchObject({ people: 1, events: 2 });
 
-    const rows = await admin.execute(sql`SELECT event_name, aggregate_id FROM people.outbox`);
-    expect([...rows][0]).toMatchObject({
-      event_name: 'people.person.status_changed',
-      aggregate_id: ADA,
-    });
+    const rows = await admin.execute(
+      sql`SELECT event_name, aggregate_id FROM people.outbox ORDER BY event_id`,
+    );
+    expect([...rows].map((r) => r['event_name'])).toEqual([
+      'people.person.status_changed',
+      'people.person.hired',
+    ]);
+    expect([...rows][0]).toMatchObject({ aggregate_id: ADA });
   });
 
   it('roll back together, leaving neither the row nor the event', async () => {
@@ -145,7 +158,7 @@ describe('a write and its event', () => {
     await expect(
       inTenant(ACME, async ({ tx }) => {
         const person = provisional();
-        person.hire('2026-09-01', context());
+        person.hire('2026-09-01', HIRED, context());
         await repository.create(tx, person, { givenName: 'Ada', familyName: 'Lovelace' });
 
         // Something later in the same unit of work fails. A validation, a
@@ -161,7 +174,7 @@ describe('a write and its event', () => {
     await expect(
       inTenant(ACME, async ({ tx }) => {
         const first = provisional();
-        first.hire('2026-09-01', context());
+        first.hire('2026-09-01', HIRED, context());
         await repository.create(tx, first, { employeeNumber: 'E-1' });
 
         // Same employee number, same tenant. The partial unique index refuses
@@ -174,7 +187,7 @@ describe('a write and its event', () => {
           hireDate: null,
           lastWorkingDay: null,
         });
-        second.hire('2026-09-01', context());
+        second.hire('2026-09-01', HIRED, context());
         await repository.create(tx, second, { employeeNumber: 'E-1' });
       }),
     ).rejects.toThrow();
@@ -185,7 +198,7 @@ describe('a write and its event', () => {
   it('writes history, the row and the event as one', async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', context());
+      person.hire('2026-09-01', HIRED, context());
       await repository.create(tx, person);
     });
 
@@ -221,7 +234,7 @@ describe('the aggregate and the row', () => {
   beforeEach(async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', context());
+      person.hire('2026-09-01', HIRED, context());
       await repository.create(tx, person, { givenName: 'Ada', familyName: 'Lovelace' });
     });
   });
@@ -276,7 +289,7 @@ describe('the unit of work', () => {
   it('scopes every statement to one tenant', async () => {
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', context());
+      person.hire('2026-09-01', HIRED, context());
       await repository.create(tx, person);
     });
 
@@ -290,7 +303,7 @@ describe('the unit of work', () => {
     // tenant.
     await inTenant(ACME, async ({ tx }) => {
       const person = provisional();
-      person.hire('2026-09-01', context());
+      person.hire('2026-09-01', HIRED, context());
       await repository.create(tx, person);
     });
 

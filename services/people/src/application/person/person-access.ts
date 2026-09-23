@@ -20,6 +20,7 @@ import {
   type HistoryEntry,
 } from '../../domain/person/history.js';
 import {
+  hireFactsOf,
   IDENTITY_FACT_KEYS,
   identityFactsOf,
   Person,
@@ -129,6 +130,11 @@ export interface PersonAccess {
     }>,
   ): Promise<Result<HistoryEntry>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
+  /**
+   * Confirm a provisional record as an employee, from a start date. The one
+   * hire path: every transport and the import come through here.
+   */
+  hire(tx: Tx, asking: On<{ readonly hireDate: string }>): Promise<Result<PersonView>>;
 }
 
 const NotPublished = () =>
@@ -147,10 +153,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
   const today = (asking: Asking) => deps.clock.date(asking.timeZone ?? 'Etc/UTC') as string;
   const actorOf = (viewer: Viewer): Actor => ({ kind: 'user', userId: viewer.accountId });
 
-  function contextFor(asking: Asking, eventId: string): EventContext {
+  /** One event id when a history row names the event; a fresh one per event otherwise. */
+  function contextFor(asking: Asking, eventId?: string): EventContext {
     return {
       clock: deps.clock,
-      newEventId: () => eventId,
+      newEventId: eventId === undefined ? deps.newId : () => eventId,
       actor: actorOf(asking.viewer),
       correlationId: asking.correlationId,
       causationId: null,
@@ -599,6 +606,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }
 
       const day = today(asking);
+      const lifecycle = LIFECYCLE_KEYS.has(definition.key);
+      if (lifecycle && asking.value === null) {
+        return err(
+          failure('VALUE_INVALID', `${definition.key} is corrected, never cleared`, [
+            definition.key,
+          ]),
+        );
+      }
       const valid = validate(definition, asking.value, day);
       if (!valid.ok) return valid;
 
@@ -614,19 +629,32 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!corrected.ok) return corrected;
       const entry = corrected.value.at(-1) as HistoryEntry;
 
-      const inForce = definition.effectiveDated
-        ? valueAsOf(corrected.value, definition.key, day)
-        : currentValue(corrected.value, definition.key);
+      // A lifecycle date is the fact itself, not a value that comes into force
+      // on it: a pre-hire's start date is in the future and still the date the
+      // column holds. So the latest one moves the column, whatever its date.
+      const inForce =
+        definition.effectiveDated && !lifecycle
+          ? valueAsOf(corrected.value, definition.key, day)
+          : currentValue(corrected.value, definition.key);
 
       const custom = new Map(Object.entries(person.custom));
       const fields: Record<string, unknown> = {};
       const moves = inForce?.id === entry.id;
       const aggregate = Person.rehydrate(person.snapshot);
 
-      // The hire date is the aggregate's column, not a projection: written
-      // into `custom` it would leave the date every reader uses unchanged.
+      // The lifecycle's dates are the aggregate's columns, not a projection:
+      // written into `custom` they would leave the date every reader uses
+      // unchanged. A hire-date correction may start a pre-hire (§8.1), and
+      // that status change is its own event with its own id.
       if (moves && definition.key === 'hire_date') {
-        const moved = aggregate.correctHireDate(valid.value as string);
+        const moved = aggregate.correctHireDate(
+          valid.value as string,
+          contextFor(asking),
+          asking.timeZone,
+        );
+        if (!moved.ok) return moved;
+      } else if (moves && definition.key === 'last_working_day') {
+        const moved = aggregate.correctLastWorkingDay(valid.value as string);
         if (!moved.ok) return moved;
       } else if (moves) {
         project(fields, custom, definition.key, valid.value);
@@ -652,7 +680,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
       await deps.people.save(tx, aggregate, {
         fields:
-          moves && definition.key !== 'hire_date'
+          moves && !lifecycle
             ? {
                 ...(fields as PersonFields),
                 custom: Object.fromEntries(custom),
@@ -708,6 +736,53 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         return definition !== undefined && visibleTo(definition, relations);
       });
       return ok({ ...verdict, missing, unevaluable: [] });
+    },
+
+    /**
+     * Hire a provisional record: `status_changed`, `hired` and, for a linked
+     * person, `identity_facts_changed` — all through the outbox, in this
+     * transaction, each with its own id.
+     *
+     * §8.2 step 7: identity learns the confirmed start date and the name here,
+     * and a hire is where a new person's start date first exists to send.
+     */
+    async hire(
+      tx: Tx,
+      asking: Asking & { readonly personId: string; readonly hireDate: string },
+    ): Promise<Result<PersonView>> {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (!CALENDAR_DATE.test(asking.hireDate)) {
+        return err(failure('VALUE_INVALID', 'hireDate is a calendar date', ['hireDate']));
+      }
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR hires a person'));
+
+      const facts = hireFactsOf(person.values, person.legalEntityId, version.version);
+      if (!facts.ok) return facts;
+
+      const aggregate = Person.rehydrate(person.snapshot);
+      const hired = aggregate.hire(
+        asking.hireDate,
+        facts.value,
+        contextFor(asking),
+        asking.timeZone,
+      );
+      if (!hired.ok) return hired;
+      shareIdentityFacts(aggregate, asking, person.values, asking.hireDate);
+
+      await deps.people.save(tx, aggregate);
+
+      const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
+      if (!after) return err(PersonNotFound());
+      return ok(await view(tx, asking, after, version, relations));
     },
   };
 }

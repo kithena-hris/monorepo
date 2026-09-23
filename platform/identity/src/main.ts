@@ -107,6 +107,8 @@ const routes = await compose({
   ...(process.env['MESSAGING_API_TOKEN']
     ? { messagingToken: process.env['MESSAGING_API_TOKEN'] }
     : {}),
+  // The same, for People reading a tenant's accounts. See `Config.peopleToken`.
+  ...(process.env['PEOPLE_IDENTITY_TOKEN'] ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] } : {}),
 });
 
 const server = createServer((request, response) => {
