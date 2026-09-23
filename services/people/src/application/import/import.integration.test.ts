@@ -326,7 +326,7 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
             hireDate: '2026-01-01',
             lastWorkingDay: null,
           }),
-          { workEmail: email, givenName: 'P', familyName: String(id.slice(-1)) },
+          { workEmail: email, givenName: 'P', familyName: id.slice(-1) },
         );
       }
     });
@@ -373,9 +373,8 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
   it('deadlocks without a retry, and says so rather than throwing', async () => {
     const retried: string[] = [];
     const results = await race(1, 1, retried);
-    const lost = results.filter((r) => !r.ok);
-    expect(lost).toHaveLength(1);
-    expect(!lost[0]?.ok && lost[0]?.error.code).toBe('IMPORT_CONTENDED');
+    const lost = results.flatMap((r) => (r.ok ? [] : [r.error.code]));
+    expect(lost).toEqual(['IMPORT_CONTENDED']);
   });
 
   it('both commit when the loser is retried, each once', async () => {
