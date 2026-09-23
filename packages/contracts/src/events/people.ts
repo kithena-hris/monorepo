@@ -616,6 +616,69 @@ export const ExportCompleted = defineEvent(
   }),
 );
 
+/**
+ * Full values for finance: asked for, decided, issued once, downloaded once
+ * (PEO-088; §15.2). Finance never downloads a sensitive value directly — HR
+ * approves a named request, and the approval issues one file behind a link
+ * that works once. Every step carries the actor (on the envelope), the reason
+ * and the field keys; never a value, never a link.
+ */
+export const FullValuesRequested = defineEvent(
+  'people.export.full_values_requested',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    reason: z.string().max(500).register(policy, asFreeText()),
+    /** Undecided by then, it expires. */
+    expiresAt: Instant,
+  }),
+);
+
+export const FullValuesDecided = defineEvent(
+  'people.export.full_values_decided',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    decision: z.enum(['approved', 'rejected']).register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    reason: z.string().max(500).register(policy, asFreeText()),
+    note: z.string().max(500).nullable().register(policy, asFreeText()),
+  }),
+);
+
+export const FullValuesExpired = defineEvent(
+  'people.export.full_values_expired',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+  }),
+);
+
+export const FullValuesIssued = defineEvent(
+  'people.export.full_values_issued',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    exportId: z.uuid().register(policy, asPublic()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    rowCount: z.int().nonnegative().register(policy, asInternal()),
+    linkExpiresAt: Instant,
+  }),
+);
+
+export const FullValuesDownloaded = defineEvent(
+  'people.export.full_values_downloaded',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    exportId: z.uuid().register(policy, asPublic()),
+    /** The link is a bearer link: who it was issued to, not who clicked. */
+    issuedTo: z.uuid().register(policy, asInternal()),
+  }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -644,4 +707,9 @@ export const peopleEvents = [
   ImportStarted,
   ImportCompleted,
   ExportCompleted,
+  FullValuesRequested,
+  FullValuesDecided,
+  FullValuesExpired,
+  FullValuesIssued,
+  FullValuesDownloaded,
 ] as const;

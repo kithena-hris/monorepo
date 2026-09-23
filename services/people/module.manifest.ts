@@ -33,6 +33,11 @@ export default ModuleManifest.parse({
     'people.import.started',
     'people.import.completed',
     'people.export.completed',
+    'people.export.full_values_requested',
+    'people.export.full_values_decided',
+    'people.export.full_values_expired',
+    'people.export.full_values_issued',
+    'people.export.full_values_downloaded',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its
