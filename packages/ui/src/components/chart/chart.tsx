@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useId, useMemo, useState, type JSX, type ReactNode } from 'react';
+import {
+  useCallback,
+  useId,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
@@ -111,6 +119,39 @@ const bgTone: Record<ChartTone, string> = {
  * every chart still carries all of them, since a tooltip is announced once and
  * then gone.
  */
+/**
+ * Under a finger, an axis chart keeps every mark at the tap floor and scrolls
+ * sideways instead of squeezing them. Twelve months in 340px is twelve 28px
+ * targets and a smear; the same twelve at 44px each, in a strip that scrolls,
+ * is a chart a thumb can use. Under a mouse this is an ordinary block.
+ *
+ * `marks` is how many columns the plot draws; `pitch` is each column's width
+ * at the floor, gap included; `gutter` is whatever sits beside the columns (a
+ * value axis).
+ */
+function TouchScroll({
+  marks,
+  pitch = 2.75,
+  gutter = 0,
+  children,
+}: {
+  marks: number;
+  pitch?: number;
+  gutter?: number;
+  children: ReactNode;
+}): JSX.Element {
+  const style: CSSProperties & { '--chart-min': string } = {
+    '--chart-min': `${String(marks * pitch + gutter)}rem`,
+  };
+  return (
+    <div className="touch:overflow-x-auto touch:overscroll-x-contain">
+      <div className="touch:min-w-(--chart-min)" style={style}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ChartMark({
   content,
   children,
@@ -192,7 +233,7 @@ export function ChartLegend({
                   toggle(item.label);
                 }}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-sm text-fg-muted',
+                  'flex touch:min-h-tap items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-sm text-fg-muted',
                   'transition-colors duration-(--animate-duration-fast)',
                   'hover:bg-surface-hover hover:text-fg',
                   'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
@@ -420,122 +461,124 @@ export function BarChart({
         />
       ) : null}
 
-      {/*
-       * `items-stretch`, and every column is `h-full`. With `items-end` the
-       * columns were content-height, so the bars' percentage heights had
-       * nothing to resolve against and every bar collapsed to its 2px floor.
-       * A percentage height needs a parent with a definite height, every time.
-       */}
-      <div
-        className={cn(
-          'relative flex items-stretch gap-1.5 border-b border-border',
-          zoomable && 'cursor-crosshair touch-none select-none',
-        )}
-        style={{ height }}
-        {...(zoomable ? drag.handlers : {})}
-      >
-        <ChartMarquee marquee={drag.marquee} />
+      <TouchScroll marks={shown.length} pitch={3.125}>
+        {/*
+         * `items-stretch`, and every column is `h-full`. With `items-end` the
+         * columns were content-height, so the bars' percentage heights had
+         * nothing to resolve against and every bar collapsed to its 2px floor.
+         * A percentage height needs a parent with a definite height, every time.
+         */}
+        <div
+          className={cn(
+            'relative flex items-stretch gap-1.5 border-b border-border',
+            zoomable && 'cursor-crosshair touch-none select-none',
+          )}
+          style={{ height }}
+          {...(zoomable ? drag.handlers : {})}
+        >
+          <ChartMarquee marquee={drag.marquee} />
 
-        {reference ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-fg-subtle"
-            style={{ bottom: `${String((reference.value / max) * 100)}%` }}
-          >
-            <span className="absolute -top-4 right-0 text-2xs text-fg-subtle">
-              {reference.label}
-            </span>
-          </div>
-        ) : null}
-
-        {shown.map((point, index) => {
-          const percent = (point.value / max) * 100;
-          const selected = selectedIndex === index;
-          const readout = `${point.label}: ${format(point.value)}`;
-
-          const bar = (
-            <span
-              className={cn(
-                'block w-full origin-bottom rounded-t-sm',
-                'transition-[height,background-color,opacity] duration-(--animate-duration-slow) ease-standard',
-                'motion-safe:animate-grow-y',
-                bgTone[tone],
-                selected ? 'opacity-100' : 'opacity-80',
-                onSelect && 'group-hover:opacity-100 group-focus-visible:opacity-100',
-              )}
-              // A percentage so the bar rescales with the container rather than
-              // being recomputed, and `max(…, 2px)` so a zero stays visible,
-              // an absent bar and a bar of zero look identical otherwise, and
-              // they mean very different things.
-              style={{
-                height: `max(${String(percent)}%, 2px)`,
-                // Staggered, so a chart plots left to right rather than
-                // arriving in one frame.
-                animationDelay: `min(calc(${String(index)} * 40ms), 320ms)`,
-              }}
-            />
-          );
-
-          return (
+          {reference ? (
             <div
-              key={point.label}
-              className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1"
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-fg-subtle"
+              style={{ bottom: `${String((reference.value / max) * 100)}%` }}
             >
-              {showValues ? (
-                <span
-                  aria-hidden
-                  className="shrink-0 text-center text-2xs tabular-nums text-fg-muted"
-                >
-                  {format(point.value)}
-                </span>
-              ) : null}
-
-              {/* The plot area is what the percentage resolves against, so it
-                  is a flex child with a definite height of its own. */}
-              <div className="flex min-h-0 flex-1 items-end">
-                <ChartMark content={readout}>
-                  {onSelect ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSelect(point, index);
-                      }}
-                      aria-pressed={selected}
-                      className="group flex h-full w-full items-end rounded-t-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
-                    >
-                      <span className="sr-only">{readout}</span>
-                      {bar}
-                    </button>
-                  ) : (
-                    // Focusable even when it does nothing, so the tooltip is
-                    // reachable without a pointer. `role="img"` with a name
-                    // rather than a button, because it is not one.
-                    <span
-                      tabIndex={0}
-                      role="img"
-                      aria-label={readout}
-                      className="flex h-full w-full items-end rounded-t-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
-                    >
-                      {bar}
-                    </span>
-                  )}
-                </ChartMark>
-              </div>
+              <span className="absolute -top-4 right-0 text-2xs text-fg-subtle">
+                {reference.label}
+              </span>
             </div>
-          );
-        })}
-      </div>
+          ) : null}
 
-      <div aria-hidden className="mt-1.5 flex gap-1.5">
-        {shown.map((point) => (
-          <span
-            key={point.label}
-            className="min-w-0 flex-1 truncate text-center text-2xs text-fg-subtle"
-          >
-            {point.label}
-          </span>
-        ))}
-      </div>
+          {shown.map((point, index) => {
+            const percent = (point.value / max) * 100;
+            const selected = selectedIndex === index;
+            const readout = `${point.label}: ${format(point.value)}`;
+
+            const bar = (
+              <span
+                className={cn(
+                  'block w-full origin-bottom rounded-t-sm',
+                  'transition-[height,background-color,opacity] duration-(--animate-duration-slow) ease-standard',
+                  'motion-safe:animate-grow-y',
+                  bgTone[tone],
+                  selected ? 'opacity-100' : 'opacity-80',
+                  onSelect && 'group-hover:opacity-100 group-focus-visible:opacity-100',
+                )}
+                // A percentage so the bar rescales with the container rather than
+                // being recomputed, and `max(…, 2px)` so a zero stays visible,
+                // an absent bar and a bar of zero look identical otherwise, and
+                // they mean very different things.
+                style={{
+                  height: `max(${String(percent)}%, 2px)`,
+                  // Staggered, so a chart plots left to right rather than
+                  // arriving in one frame.
+                  animationDelay: `min(calc(${String(index)} * 40ms), 320ms)`,
+                }}
+              />
+            );
+
+            return (
+              <div
+                key={point.label}
+                className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1"
+              >
+                {showValues ? (
+                  <span
+                    aria-hidden
+                    className="shrink-0 text-center text-2xs tabular-nums text-fg-muted"
+                  >
+                    {format(point.value)}
+                  </span>
+                ) : null}
+
+                {/* The plot area is what the percentage resolves against, so it
+                  is a flex child with a definite height of its own. */}
+                <div className="flex min-h-0 flex-1 items-end">
+                  <ChartMark content={readout}>
+                    {onSelect ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSelect(point, index);
+                        }}
+                        aria-pressed={selected}
+                        className="group flex h-full w-full items-end rounded-t-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                      >
+                        <span className="sr-only">{readout}</span>
+                        {bar}
+                      </button>
+                    ) : (
+                      // Focusable even when it does nothing, so the tooltip is
+                      // reachable without a pointer. `role="img"` with a name
+                      // rather than a button, because it is not one.
+                      <span
+                        tabIndex={0}
+                        role="img"
+                        aria-label={readout}
+                        className="flex h-full w-full items-end rounded-t-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                      >
+                        {bar}
+                      </span>
+                    )}
+                  </ChartMark>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div aria-hidden className="mt-1.5 flex gap-1.5">
+          {shown.map((point) => (
+            <span
+              key={point.label}
+              className="min-w-0 flex-1 truncate text-center text-2xs text-fg-subtle"
+            >
+              {point.label}
+            </span>
+          ))}
+        </div>
+      </TouchScroll>
 
       {/* The whole series, not the window: zooming changes what is drawn, never
           what a screen reader can reach. */}
@@ -714,7 +757,7 @@ export function DonutChart({
                     onSelect(slice, index);
                   }}
                   className={cn(
-                    'flex w-full items-center gap-2 rounded-sm px-1 text-sm transition-colors',
+                    'flex w-full touch:min-h-tap items-center gap-2 rounded-sm px-1 text-sm transition-colors',
                     'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                     selected && 'bg-accent-subtle',
                   )}
@@ -866,179 +909,181 @@ export function TrendChart({
         />
       ) : null}
 
-      <div className="flex gap-2">
-        <div
-          aria-hidden
-          className="flex shrink-0 flex-col justify-between text-2xs tabular-nums text-fg-subtle"
-          style={{ height }}
-        >
-          {ticks.map((tick) => (
-            <span key={tick}>{format(Math.round(tick))}</span>
-          ))}
-        </div>
-
-        <div
-          className={cn(
-            'relative min-w-0 flex-1',
-            zoomable && 'cursor-crosshair touch-none select-none',
-          )}
-          style={{ height }}
-          {...(zoomable ? drag.handlers : {})}
-        >
-          <ChartMarquee marquee={drag.marquee} />
-
-          {/* Gridlines behind the plot, so a value can be read off the chart
-              without counting pixels against the axis. */}
-          <div aria-hidden className="absolute inset-0 flex flex-col justify-between">
+      <TouchScroll marks={shownPeriods.length} gutter={2.5}>
+        <div className="flex gap-2">
+          <div
+            aria-hidden
+            className="flex shrink-0 flex-col justify-between text-2xs tabular-nums text-fg-subtle"
+            style={{ height }}
+          >
             {ticks.map((tick) => (
-              <span key={tick} className="border-t border-border" />
+              <span key={tick}>{format(Math.round(tick))}</span>
             ))}
           </div>
 
-          <svg
-            aria-hidden
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            className="absolute inset-0 size-full"
+          <div
+            className={cn(
+              'relative min-w-0 flex-1',
+              zoomable && 'cursor-crosshair touch-none select-none',
+            )}
+            style={{ height }}
+            {...(zoomable ? drag.handlers : {})}
           >
-            {visible.map((entry) => {
-              const points = slice(entry.data);
-              const path = points
-                .map((point, index) => {
-                  const x = index * step;
-                  const y = 100 - ((point.value - min) / span) * 100;
-                  return `${index === 0 ? 'M' : 'L'} ${String(x)},${String(y)}`;
-                })
-                .join(' ');
-              return (
-                <g key={entry.label}>
-                  {area ? (
-                    <path
-                      d={`${path} L 100,100 L 0,100 Z`}
-                      className={cn(fillTone[entry.tone ?? 'accent'], 'opacity-15')}
-                      stroke="none"
-                    />
-                  ) : null}
-                  <path
-                    d={path}
-                    fill="none"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    vectorEffect="non-scaling-stroke"
-                    // `pathLength="1"` normalises the dash length, so one
-                    // keyframe draws a path of any actual length.
-                    pathLength={1}
-                    strokeDasharray={1}
-                    className={cn(
-                      strokeTone[entry.tone ?? 'accent'],
-                      'motion-safe:animate-draw-line',
-                    )}
-                  />
-                </g>
-              );
-            })}
-          </svg>
+            <ChartMarquee marquee={drag.marquee} />
 
-          {/*
-           * One hit column per period, over the whole plot height. Hovering a
-           * 2px line is a coordination test; hovering the column above it is
-           * not, and the column is also focusable, which the line could never
-           * be.
-           */}
-          <div className="absolute inset-0 flex">
-            {shownPeriods.map((period, index) => {
-              const active = hovered === index;
-              const readout = readoutFor(index);
-              return (
-                <ChartMark
-                  key={period}
-                  content={
-                    <span className="flex flex-col gap-0.5">
-                      <span className="font-medium">{period}</span>
-                      {Object.entries(readout).map(([name, value]) => (
-                        <span key={name} className="tabular-nums">
-                          {name}: {format(value)}
-                        </span>
-                      ))}
-                    </span>
-                  }
-                >
-                  <button
-                    type="button"
-                    aria-label={`${period}: ${Object.entries(readout)
-                      .map(([name, value]) => `${name} ${format(value)}`)
-                      .join(', ')}`}
-                    onFocus={() => {
-                      setHovered(index);
-                    }}
-                    onBlur={() => {
-                      setHovered(null);
-                    }}
-                    onMouseEnter={() => {
-                      setHovered(index);
-                    }}
-                    onMouseLeave={() => {
-                      setHovered(null);
-                    }}
-                    onClick={
-                      onSelect
-                        ? () => {
-                            onSelect({
-                              index: visibleWindow.start + index,
-                              label: period,
-                              values: readout,
-                            });
-                          }
-                        : undefined
-                    }
-                    className={cn(
-                      'relative h-full min-w-0 flex-1',
-                      onSelect ? 'cursor-pointer' : 'cursor-default',
-                      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-                    )}
-                  >
-                    <span
-                      aria-hidden
+            {/* Gridlines behind the plot, so a value can be read off the chart
+              without counting pixels against the axis. */}
+            <div aria-hidden className="absolute inset-0 flex flex-col justify-between">
+              {ticks.map((tick) => (
+                <span key={tick} className="border-t border-border" />
+              ))}
+            </div>
+
+            <svg
+              aria-hidden
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              className="absolute inset-0 size-full"
+            >
+              {visible.map((entry) => {
+                const points = slice(entry.data);
+                const path = points
+                  .map((point, index) => {
+                    const x = index * step;
+                    const y = 100 - ((point.value - min) / span) * 100;
+                    return `${index === 0 ? 'M' : 'L'} ${String(x)},${String(y)}`;
+                  })
+                  .join(' ');
+                return (
+                  <g key={entry.label}>
+                    {area ? (
+                      <path
+                        d={`${path} L 100,100 L 0,100 Z`}
+                        className={cn(fillTone[entry.tone ?? 'accent'], 'opacity-15')}
+                        stroke="none"
+                      />
+                    ) : null}
+                    <path
+                      d={path}
+                      fill="none"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                      // `pathLength="1"` normalises the dash length, so one
+                      // keyframe draws a path of any actual length.
+                      pathLength={1}
+                      strokeDasharray={1}
                       className={cn(
-                        'absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-border-strong',
-                        'transition-opacity duration-(--animate-duration-fast)',
-                        active ? 'opacity-100' : 'opacity-0',
+                        strokeTone[entry.tone ?? 'accent'],
+                        'motion-safe:animate-draw-line',
                       )}
                     />
-                    {visible.map((entry) => {
-                      const point = slice(entry.data)[index];
-                      if (!point) return null;
-                      return (
-                        <span
-                          key={entry.label}
-                          aria-hidden
-                          className={cn(
-                            'absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface',
-                            bgTone[entry.tone ?? 'accent'],
-                            'transition-[opacity,transform] duration-(--animate-duration-fast)',
-                            active ? 'scale-125 opacity-100' : 'opacity-0',
-                          )}
-                          style={{
-                            left: '50%',
-                            top: `${String(100 - ((point.value - min) / span) * 100)}%`,
-                          }}
-                        />
-                      );
-                    })}
-                  </button>
-                </ChartMark>
-              );
-            })}
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/*
+             * One hit column per period, over the whole plot height. Hovering a
+             * 2px line is a coordination test; hovering the column above it is
+             * not, and the column is also focusable, which the line could never
+             * be.
+             */}
+            <div className="absolute inset-0 flex">
+              {shownPeriods.map((period, index) => {
+                const active = hovered === index;
+                const readout = readoutFor(index);
+                return (
+                  <ChartMark
+                    key={period}
+                    content={
+                      <span className="flex flex-col gap-0.5">
+                        <span className="font-medium">{period}</span>
+                        {Object.entries(readout).map(([name, value]) => (
+                          <span key={name} className="tabular-nums">
+                            {name}: {format(value)}
+                          </span>
+                        ))}
+                      </span>
+                    }
+                  >
+                    <button
+                      type="button"
+                      aria-label={`${period}: ${Object.entries(readout)
+                        .map(([name, value]) => `${name} ${format(value)}`)
+                        .join(', ')}`}
+                      onFocus={() => {
+                        setHovered(index);
+                      }}
+                      onBlur={() => {
+                        setHovered(null);
+                      }}
+                      onMouseEnter={() => {
+                        setHovered(index);
+                      }}
+                      onMouseLeave={() => {
+                        setHovered(null);
+                      }}
+                      onClick={
+                        onSelect
+                          ? () => {
+                              onSelect({
+                                index: visibleWindow.start + index,
+                                label: period,
+                                values: readout,
+                              });
+                            }
+                          : undefined
+                      }
+                      className={cn(
+                        'relative h-full min-w-0 flex-1',
+                        onSelect ? 'cursor-pointer' : 'cursor-default',
+                        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-border-strong',
+                          'transition-opacity duration-(--animate-duration-fast)',
+                          active ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      {visible.map((entry) => {
+                        const point = slice(entry.data)[index];
+                        if (!point) return null;
+                        return (
+                          <span
+                            key={entry.label}
+                            aria-hidden
+                            className={cn(
+                              'absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface',
+                              bgTone[entry.tone ?? 'accent'],
+                              'transition-[opacity,transform] duration-(--animate-duration-fast)',
+                              active ? 'scale-125 opacity-100' : 'opacity-0',
+                            )}
+                            style={{
+                              left: '50%',
+                              top: `${String(100 - ((point.value - min) / span) * 100)}%`,
+                            }}
+                          />
+                        );
+                      })}
+                    </button>
+                  </ChartMark>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div aria-hidden className="mt-1.5 flex justify-between ps-8 text-2xs text-fg-subtle">
-        {shownPeriods.map((period) => (
-          <span key={period}>{period}</span>
-        ))}
-      </div>
+        <div aria-hidden className="mt-1.5 flex justify-between ps-8 text-2xs text-fg-subtle">
+          {shownPeriods.map((period) => (
+            <span key={period}>{period}</span>
+          ))}
+        </div>
+      </TouchScroll>
 
       {series.length > 1 ? (
         <ChartLegend
@@ -1209,7 +1254,7 @@ export function HorizontalBarChart({
                     onClick={() => {
                       onSelect(point, index);
                     }}
-                    className="flex w-full items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                    className="flex w-full touch:min-h-tap items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
                   >
                     <span className="sr-only">{readout}</span>
                     {row}
@@ -1589,9 +1634,10 @@ export function HeatmapChart({
                               : undefined
                           }
                           className={cn(
-                            // Grows where the pointer is a finger. 24px is a
-                            // comfortable mouse target and a missed tap.
-                            'size-6 touch:size-9 rounded-xs',
+                            // Grows where the pointer is a finger, to the tap
+                            // floor. 24px is a comfortable mouse target and a
+                            // missed tap; the table scrolls sideways instead.
+                            'size-6 touch:size-11 rounded-xs',
                             'transition-[opacity,transform] duration-(--animate-duration-normal)',
                             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                             onSelect && 'cursor-pointer hover:scale-110',
@@ -1740,7 +1786,7 @@ export function FunnelChart({
                       : undefined
                   }
                   className={cn(
-                    'mt-1 h-6 overflow-hidden rounded-sm bg-surface-sunken',
+                    'mt-1 h-6 touch:h-11 overflow-hidden rounded-sm bg-surface-sunken',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                     onSelect && 'cursor-pointer',
                     selectedIndex !== undefined && selectedIndex !== index && 'opacity-60',

@@ -464,7 +464,7 @@ export function FileUploader({
                         // `download` keeps the browser from rendering it inline.
                         rel="noopener noreferrer"
                         target="_blank"
-                        className="min-w-0 truncate text-base text-accent-fg underline underline-offset-2"
+                        className="min-w-0 truncate text-base text-accent-fg underline underline-offset-2 touch:inline-block touch:min-h-tap touch:min-w-tap touch:leading-11"
                       >
                         {name}
                       </a>

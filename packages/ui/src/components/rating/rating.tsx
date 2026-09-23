@@ -67,6 +67,17 @@ export interface RatingProps {
 
 const symbolSize = { sm: 'size-4', md: 'size-5', lg: 'size-7' } as const;
 const gapSize = { sm: 'gap-0.5', md: 'gap-1', lg: 'gap-1.5' } as const;
+/*
+ * Under a finger each symbol sits on a 44px pitch, and its hit area fills the
+ * pitch exactly: grown by half the gap on each side and to the floor top and
+ * bottom. Adjacent areas meet without overlapping, so a tap between two stars
+ * lands on the nearer one rather than on whichever comes later in the DOM.
+ */
+const touchPitch = {
+  sm: 'touch:gap-7 touch:[&>[role=radio]]:after:inset-[-0.875rem]',
+  md: 'touch:gap-6 touch:[&>[role=radio]]:after:inset-[-0.75rem]',
+  lg: 'touch:gap-4 touch:[&>[role=radio]]:after:inset-[-0.5rem]',
+} as const;
 // The `-fg` end of each ramp, not the base. A base tone is mixed to sit on its
 // own tinted background; amber-600 on white measures 2.76:1, and a filled star
 // is the one part of this control that has to be readable at a glance.
@@ -182,6 +193,7 @@ export function Rating({
         className={cn(
           'inline-flex rounded-sm',
           gapSize[size],
+          touchPitch[size],
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
           disabled && 'pointer-events-none opacity-55',
         )}
@@ -206,8 +218,9 @@ export function Rating({
                 'cursor-pointer',
                 // The tap floor as a pseudo-element: five 20px stars in a row
                 // are five targets a thumb cannot separate, and 44px stars
-                // would be a different design.
-                'relative touch:after:absolute touch:after:inset-y-[-0.6rem] touch:after:inset-x-[-0.15rem] touch:after:content-[""]',
+                // would be a different design. Its size is the group's
+                // `touchPitch`.
+                'relative touch:after:absolute touch:after:content-[""]',
                 'transition-[color,transform] duration-(--animate-duration-fast) ease-standard',
                 'hover:scale-110 active:scale-95',
                 active ? toneClass[tone] : 'text-icon-muted',

@@ -3,6 +3,7 @@ import {
   AutoGrid,
   Avatar,
   Button,
+  Card,
   DataTable,
   EmptyState,
   Field,
@@ -17,6 +18,7 @@ import {
   SelectValue,
   Stack,
   Stat,
+  useBreakpoint,
   type DataColumn,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -118,6 +120,41 @@ function Grid({
     if (result.ok) setEdits({});
   };
 
+  const wide = useBreakpoint('md');
+  const control = (r: GapRow): JSX.Element | null => {
+    if (field === undefined) return null;
+    const value = edits[r.personId]?.[field.key] ?? '';
+    const name = `${field.label} for ${r.name}`;
+    return field.options.length > 0 ? (
+      <Select
+        value={value}
+        onValueChange={(next) => {
+          set(r.personId, field.key, next);
+        }}
+      >
+        <SelectTrigger aria-label={name} size="sm">
+          <SelectValue placeholder="Choose" />
+        </SelectTrigger>
+        <SelectContent>
+          {field.options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : (
+      <Input
+        aria-label={name}
+        size="sm"
+        value={value}
+        onChange={(e) => {
+          set(r.personId, field.key, e.target.value);
+        }}
+      />
+    );
+  };
+
   const columns: DataColumn<GapRow>[] =
     field === undefined
       ? []
@@ -137,38 +174,7 @@ function Grid({
           {
             id: field.key,
             header: field.label,
-            cell: (r) => {
-              const value = edits[r.personId]?.[field.key] ?? '';
-              const name = `${field.label} for ${r.name}`;
-              return field.options.length > 0 ? (
-                <Select
-                  value={value}
-                  onValueChange={(next) => {
-                    set(r.personId, field.key, next);
-                  }}
-                >
-                  <SelectTrigger aria-label={name} size="sm">
-                    <SelectValue placeholder="Choose" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {field.options.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  aria-label={name}
-                  size="sm"
-                  value={value}
-                  onChange={(e) => {
-                    set(r.personId, field.key, e.target.value);
-                  }}
-                />
-              );
-            },
+            cell: control,
           },
         ];
 
@@ -238,13 +244,41 @@ function Grid({
             </Select>
           </Field>
           <p className="text-sm text-fg-muted">Tab moves down the column.</p>
-          <DataTable
-            label={field === undefined ? 'Missing values' : `Missing ${field.label}`}
-            rows={rows}
-            columns={columns}
-            rowId={(r) => r.personId}
-            empty={<EmptyState title="Nobody is missing this field" />}
-          />
+          {wide ? (
+            <DataTable
+              label={field === undefined ? 'Missing values' : `Missing ${field.label}`}
+              rows={rows}
+              columns={columns}
+              rowId={(r) => r.personId}
+              empty={<EmptyState title="Nobody is missing this field" />}
+            />
+          ) : rows.length === 0 ? (
+            <EmptyState title="Nobody is missing this field" />
+          ) : (
+            // On a phone, one card per person with the one field on it (§17.1).
+            // Still one control per card, so Tab still runs down the column.
+            <ul
+              className="flex flex-col gap-2"
+              aria-label={field === undefined ? 'Missing values' : `Missing ${field.label}`}
+            >
+              {rows.map((r) => (
+                <li key={r.personId}>
+                  <Card className="flex flex-col gap-2 p-3">
+                    <span className="flex items-center gap-2">
+                      <Avatar size="sm" name={r.name} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{r.name}</span>
+                        <span className="block truncate text-xs text-fg-muted">
+                          {[r.department, r.manager].filter((x) => x !== null).join(' · ')}
+                        </span>
+                      </span>
+                    </span>
+                    {control(r)}
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </Stack>

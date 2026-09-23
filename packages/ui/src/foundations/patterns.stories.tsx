@@ -941,7 +941,7 @@ export const AdvancedFilters: Story = {
                     onClick={() => {
                       setRules((current) => current.filter((r) => r.id !== rule.id));
                     }}
-                    className="grid size-5 place-items-center rounded-full hover:bg-surface-hover hover:text-fg"
+                    className="tap-target relative grid size-5 place-items-center rounded-full hover:bg-surface-hover hover:text-fg"
                   >
                     <X className="size-3" aria-hidden />
                   </button>

@@ -322,7 +322,7 @@ export function Calendar(props: CalendarProps): JSX.Element {
                         handleSelect(date);
                       }}
                       className={cn(
-                        'relative mx-auto grid size-9 place-items-center rounded-md text-sm tabular-nums',
+                        'relative mx-auto grid size-9 touch:size-11 place-items-center rounded-md text-sm tabular-nums',
                         'transition-colors duration-(--animate-duration-fast)',
                         'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
                         outsideMonth ? 'text-fg-subtle' : 'text-fg',

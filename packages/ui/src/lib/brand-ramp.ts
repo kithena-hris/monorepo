@@ -54,23 +54,20 @@ import type { CSSProperties } from 'react';
  * instead, which lands in the same place for the default hue and keeps the hue
  * honest for the ones where the gamut is much narrower.
  */
-export const BRAND_CURVE: readonly (readonly [
-  stop: number,
-  lightness: number,
-  chroma: number,
-])[] = [
-  [50, 0.97, 0.017],
-  [100, 0.944, 0.033],
-  [200, 0.897, 0.062],
-  [300, 0.827, 0.099],
-  [400, 0.732, 0.144],
-  [500, 0.638, 0.183],
-  [600, 0.567, 0.209],
-  [700, 0.503, 0.198],
-  [800, 0.435, 0.166],
-  [900, 0.382, 0.132],
-  [950, 0.269, 0.095],
-];
+export const BRAND_CURVE: readonly (readonly [stop: number, lightness: number, chroma: number])[] =
+  [
+    [50, 0.97, 0.017],
+    [100, 0.944, 0.033],
+    [200, 0.897, 0.062],
+    [300, 0.827, 0.099],
+    [400, 0.732, 0.144],
+    [500, 0.638, 0.183],
+    [600, 0.567, 0.209],
+    [700, 0.503, 0.198],
+    [800, 0.435, 0.166],
+    [900, 0.382, 0.132],
+    [950, 0.269, 0.095],
+  ];
 
 /**
  * The two brand values that are not on the eleven-stop scale.
@@ -89,14 +86,11 @@ export const BRAND_CURVE: readonly (readonly [
  *
  * Same shape as `BRAND_CURVE`, same drift check, same gamut clamp.
  */
-export const BRAND_WASHES: readonly (readonly [
-  name: string,
-  lightness: number,
-  chroma: number,
-])[] = [
-  ['wash', 0.31, 0.09],
-  ['wash-hover', 0.36, 0.11],
-];
+export const BRAND_WASHES: readonly (readonly [name: string, lightness: number, chroma: number])[] =
+  [
+    ['wash', 0.31, 0.09],
+    ['wash-hover', 0.36, 0.11],
+  ];
 
 /**
  * The most chroma this hue can hold at this lightness and stay in sRGB.

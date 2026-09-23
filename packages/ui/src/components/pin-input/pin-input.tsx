@@ -71,7 +71,7 @@ export interface PinInputProps {
 }
 
 const boxSize = {
-  md: 'size-10 text-md',
+  md: 'size-10 touch:size-11 text-md',
   lg: 'size-12 text-lg',
 } as const;
 

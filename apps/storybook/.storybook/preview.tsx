@@ -123,8 +123,10 @@ const withPlatform: Decorator = (Story, context) => {
   // Storybook types globals loosely, so these arrive as `unknown`. A typeof
   // check costs nothing and means a toolbar misconfigured to yield a non-string
   // cannot reach `setAttribute`.
-  const platform = typeof context.globals['platform'] === 'string' ? context.globals['platform'] : undefined;
-  const density = typeof context.globals['density'] === 'string' ? context.globals['density'] : undefined;
+  const platform =
+    typeof context.globals['platform'] === 'string' ? context.globals['platform'] : undefined;
+  const density =
+    typeof context.globals['density'] === 'string' ? context.globals['density'] : undefined;
 
   useEffect(() => {
     const root = document.documentElement;

@@ -117,8 +117,8 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
 
 const itemByLevel = {
   1: 'min-h-tap gap-3 px-3 text-base',
-  2: 'min-h-8 gap-2.5 px-2.5 text-sm',
-  3: 'min-h-7 gap-2 px-2 text-sm',
+  2: 'min-h-8 touch:min-h-tap gap-2.5 px-2.5 text-sm',
+  3: 'min-h-7 touch:min-h-tap gap-2 px-2 text-sm',
 } as const;
 
 export function NavItem({
@@ -300,7 +300,7 @@ export function NavGroup({
       <CollapsiblePrimitive.Root defaultOpen={defaultOpen}>
         <CollapsiblePrimitive.Trigger
           className={cn(
-            'group/nav-group flex min-h-8 w-full items-center gap-2 rounded-md px-3 text-start',
+            'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-md px-3 text-start',
             'text-2xs font-semibold tracking-wide text-fg-subtle uppercase',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
@@ -396,7 +396,7 @@ export function TertiaryNav({
                   onSelect?.(item.id);
                 }}
                 className={cn(
-                  'flex min-h-7 items-center gap-2 truncate text-sm',
+                  'flex min-h-7 touch:min-h-tap items-center gap-2 truncate text-sm',
                   'transition-[color,border-color,background-color] duration-(--animate-duration-fast) ease-standard',
                   orientation === 'vertical'
                     ? cn(

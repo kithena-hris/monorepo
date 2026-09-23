@@ -78,6 +78,10 @@ export function BreadcrumbLink({
     <Component
       className={cn(
         'truncate rounded-xs transition-colors hover:text-fg',
+        // A step is a target, not a word in a sentence: under a finger it is
+        // the tap floor tall and at least as wide. Grown by its line height rather
+        // than `tap-target`, because `truncate` would clip a pseudo-element.
+        'touch:inline-block touch:min-h-tap touch:min-w-tap touch:leading-11 touch:text-center',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
         className,
       )}

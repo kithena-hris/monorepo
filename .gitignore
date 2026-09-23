@@ -70,3 +70,7 @@ docker-compose.override.yml
 # Vercel target and .output for the plain Node one; only the first was ignored.
 .output
 .env*
+
+# What a failed browser test leaves behind: a screenshot and its attachments.
+__screenshots__
+.vitest-attachments

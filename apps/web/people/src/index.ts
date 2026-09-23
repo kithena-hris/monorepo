@@ -14,3 +14,4 @@ export { CompletenessGrid } from './completeness/completeness-grid';
 export { Integrations } from './settings/integrations/integrations';
 export { ImportFlow } from './import/import-flow';
 export { ExportBuilder } from './export/export-builder';
+export { Analytics } from './analytics/analytics';

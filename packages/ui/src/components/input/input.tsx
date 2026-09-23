@@ -122,7 +122,8 @@ export function Input({
         type={type}
         {...profile}
         className={cn(
-          'peer w-full min-w-0 bg-transparent text-inherit outline-none',
+          // The full height of the shell, so a tap on its padding lands in the field.
+          'peer w-full min-w-0 self-stretch bg-transparent text-inherit outline-none',
           'placeholder:text-fg-subtle',
           'disabled:cursor-not-allowed',
           // Chrome's autofill repaints the background; keep the token colour.
@@ -155,7 +156,7 @@ export function Textarea({
     <textarea
       rows={rows}
       className={cn(
-        'w-full rounded-md border border-border bg-surface px-3 py-2 text-base text-fg shadow-xs',
+        'w-full touch:min-h-tap rounded-md border border-border bg-surface px-3 py-2 text-base text-fg shadow-xs',
         'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
         'placeholder:text-fg-subtle',
         'focus-visible:border-border-focus focus-visible:ring-2 focus-visible:ring-border-focus/30',

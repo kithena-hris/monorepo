@@ -155,7 +155,7 @@ export function WaterfallChart({
                   : undefined
               }
               className={cn(
-                'absolute inset-x-0 rounded-xs transition-[opacity,filter] duration-(--animate-duration-fast)',
+                'tap-target absolute inset-x-0 rounded-xs transition-[opacity,filter] duration-(--animate-duration-fast)',
                 'motion-safe:animate-grow-y',
                 barTone[tone],
                 step.total === true ? 'origin-bottom' : rising ? 'origin-bottom' : 'origin-top',

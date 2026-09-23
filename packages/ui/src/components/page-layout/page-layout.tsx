@@ -339,9 +339,9 @@ export function PageLayout({
               unchanged and one with a header no longer pays for a strip of
               chrome above it.
             */}
-            {sidebarHeader ??
+            {(sidebarHeader ??
             (sidebarState.enabled &&
-              !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed)) ? (
+              !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
               <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 p-2 pb-0">
                 <div className="min-w-0 flex-1">{sidebarHeader}</div>
                 {sidebarState.enabled &&
@@ -550,7 +550,7 @@ function RailToggle({
           aria-label={name}
           onClick={onToggle}
           className={cn(
-            'pointer-events-auto grid size-6 place-items-center rounded-full',
+            'tap-target relative pointer-events-auto grid size-6 place-items-center rounded-full',
             'border border-border bg-surface text-fg-subtle shadow-sm',
             'transition-[color,background-color,transform] duration-(--animate-duration-fast) ease-standard',
             'hover:bg-surface-hover hover:text-fg active:scale-95',
