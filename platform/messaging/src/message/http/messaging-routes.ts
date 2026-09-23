@@ -71,7 +71,7 @@ const InvitationRequest = z.object({
 });
 
 /** A provider that said no is worth retrying. Everything else is not. */
-const STATUS: Record<SendRefusal, number> = {
+export const STATUS: Record<SendRefusal, number> = {
   address: 422,
   untrusted_link: 422,
   unrenderable: 422,
@@ -87,7 +87,7 @@ const STATUS: Record<SendRefusal, number> = {
  * `provider`, which is the one that says "try again" and is therefore the safe
  * direction to be wrong in.
  */
-function refusalOf(reason: string | undefined): SendRefusal {
+export function refusalOf(reason: string | undefined): SendRefusal {
   return reason !== undefined && reason in STATUS ? (reason as SendRefusal) : 'provider';
 }
 

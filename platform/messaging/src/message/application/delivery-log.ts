@@ -1,4 +1,5 @@
 import type { EmailAddress } from '../domain/address.js';
+import type { NoticeKind } from '../domain/notice.js';
 
 /**
  * What was sent, to whom, and what became of it.
@@ -21,7 +22,7 @@ import type { EmailAddress } from '../domain/address.js';
  * writes to the log — gets an implementation that does nothing, and the use
  * case cannot tell.
  */
-export type MessageKind = 'account_invitation';
+export type MessageKind = 'account_invitation' | NoticeKind;
 
 /**
  * Where a message got to.
