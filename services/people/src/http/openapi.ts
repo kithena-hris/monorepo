@@ -7,6 +7,9 @@ import {
   CreateExportBody,
   CreateLegalEntityBody,
   CreateLocationBody,
+  CreateFullValuesBody,
+  FullValuesBody,
+  FullValuesDecisionBody,
   CreatePersonBody,
   ExportBody,
   ErrorBody,
@@ -59,6 +62,9 @@ const components = {
   CreateLocation: CreateLocationBody,
   PatchLocation: PatchLocationBody,
   LocationZone: LocationZoneBody,
+  CreateFullValues: CreateFullValuesBody,
+  FullValuesDecision: FullValuesDecisionBody,
+  FullValues: FullValuesBody,
   Error: ErrorBody,
 } as const;
 
@@ -175,10 +181,37 @@ export function openApiDocument(): Record<string, unknown> {
           parameters: [idempotencyKey],
           requestBody: { required: true, ...json('CreateExport') },
           responses: {
-            201: { description: 'Completed, with links that expire in 24 hours', ...json('Export') },
+            201: {
+              description: 'Completed, with links that expire in 24 hours',
+              ...json('Export'),
+            },
             202: { description: 'Queued; ask for it by id', ...json('Export') },
             ...failure,
           },
+        },
+      },
+      '/v1/exports/full-values': {
+        post: {
+          summary:
+            'Finance asks for sealed fields in full, with a reason; HR decides within seven days',
+          parameters: [idempotencyKey],
+          requestBody: { required: true, ...json('CreateFullValues') },
+          responses: { 201: { description: 'Pending', ...json('FullValues') }, ...failure },
+        },
+      },
+      '/v1/exports/full-values/{id}': {
+        get: {
+          summary: 'A request, to its requester or HR; the one-use link only to the requester',
+          parameters: [id],
+          responses: { 200: { description: 'The request', ...json('FullValues') }, ...failure },
+        },
+      },
+      '/v1/exports/full-values/{id}/decision': {
+        post: {
+          summary: 'HR approves or rejects; an approval issues one download',
+          parameters: [id],
+          requestBody: { required: true, ...json('FullValuesDecision') },
+          responses: { 200: { description: 'The request', ...json('FullValues') }, ...failure },
         },
       },
       '/v1/exports/{id}': {

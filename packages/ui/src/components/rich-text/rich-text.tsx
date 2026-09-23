@@ -516,7 +516,7 @@ function RichTextToolbar({
               button.run(editor);
             }}
             className={cn(
-              'grid size-8 place-items-center rounded-sm text-fg-muted',
+              'grid size-8 touch:size-11 place-items-center rounded-sm text-fg-muted',
               'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
               'hover:bg-surface-hover hover:text-fg',
               'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
@@ -594,7 +594,7 @@ function LinkControls({
               onFocusIndex(startIndex);
             }}
             className={cn(
-              'grid size-8 place-items-center rounded-sm text-fg-muted',
+              'grid size-8 touch:size-11 place-items-center rounded-sm text-fg-muted',
               'transition-[background-color,color] duration-(--animate-duration-fast)',
               'hover:bg-surface-hover hover:text-fg',
               'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
@@ -648,7 +648,7 @@ function LinkControls({
           editor.chain().focus().extendMarkRange('link').unsetLink().run();
         }}
         className={cn(
-          'grid size-8 place-items-center rounded-sm text-fg-muted',
+          'grid size-8 touch:size-11 place-items-center rounded-sm text-fg-muted',
           'transition-[background-color,color] duration-(--animate-duration-fast)',
           'hover:bg-surface-hover hover:text-fg',
           'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',

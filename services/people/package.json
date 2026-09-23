@@ -23,6 +23,9 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
+    "@temporalio/client": "^1.22.0",
+    "@temporalio/worker": "^1.22.0",
+    "@temporalio/workflow": "^1.22.0",
     "bullmq": "^6.3.8",
     "drizzle-orm": "^0.45.2",
     "exceljs": "4.4.0",
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
+    "@temporalio/testing": "^1.22.0",
     "fast-formula-parser": "1.0.19",
     "graphql": "^16.11.0",
     "vitest": "^4.1.11"

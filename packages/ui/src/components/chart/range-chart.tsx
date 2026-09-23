@@ -3,6 +3,7 @@
 import type { JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { useCoarsePointer } from '../../lib/use-media-query';
 import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
 import type { ChartTone } from './chart';
@@ -90,13 +91,16 @@ export function RangeChart({
   label,
   valueLabel,
   format = (value) => String(value),
-  rowHeight = 34,
+  rowHeight: rowHeightProp = 34,
   labelWidth = 140,
   onSelect,
   selectedLabel,
   menuItems,
   className,
 }: RangeChartProps): JSX.Element {
+  // A band is its row less 16px; under a finger a row is at least 60px, so a
+  // band reaches the 44px tap floor.
+  const rowHeight = Math.max(rowHeightProp, useCoarsePointer() ? 60 : 0);
   // One scale for every row, so two bands can be compared by eye. Per-row
   // scales would make a narrow band look as wide as a broad one.
   const floor = Math.min(...data.flatMap((band) => [band.min, band.value ?? band.min]));

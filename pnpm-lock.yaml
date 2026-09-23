@@ -343,12 +343,21 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^5.0.0
         version: 5.2.0(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(less@4.9.0)(lightningcss@1.32.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
+      '@vitest/browser':
+        specifier: ^4.1.11
+        version: 4.1.11(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(less@4.9.0)(lightningcss@1.32.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))(vitest@4.1.11)
+      '@vitest/browser-playwright':
+        specifier: ^4.1.11
+        version: 4.1.11(playwright@1.62.1)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(less@4.9.0)(lightningcss@1.32.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))(vitest@4.1.11)
       axe-core:
         specifier: ^4.13.0
         version: 4.13.0
       jsdom:
         specifier: ^30.1.0
         version: 30.1.1
+      playwright:
+        specifier: ^1.55.0
+        version: 1.62.1
       react-dom:
         specifier: ^19.1.0
         version: 19.2.8(react@19.2.8)
@@ -774,6 +783,15 @@ importers:
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      '@temporalio/client':
+        specifier: ^1.22.0
+        version: 1.22.0
+      '@temporalio/worker':
+        specifier: ^1.22.0
+        version: 1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)
+      '@temporalio/workflow':
+        specifier: ^1.22.0
+        version: 1.22.0
       bullmq:
         specifier: ^6.3.8
         version: 6.3.8(ioredis@6.0.0)
@@ -802,6 +820,9 @@ importers:
       '@kithena/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@temporalio/testing':
+        specifier: ^1.22.0
+        version: 1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)
       fast-formula-parser:
         specifier: 1.0.19
         version: 1.0.19
@@ -5697,6 +5718,10 @@ packages:
     resolution: {integrity: sha512-X7NVa0Z6HK3l9irZR48FKwZ9w9YXetCdF2z2KCIRr0W7Kul64Wt9o5hwvSXShAtrZuCEEHH8WO/ffHTXxJieLg==}
     engines: {node: '>= 20.3.0'}
 
+  '@temporalio/testing@1.22.0':
+    resolution: {integrity: sha512-LWIVkJZHLKsuuXLeTZ9VuN6Sjt79BJTl9KKTQ84dOysPj+tMGTET8TEZasBhCuocS0qFGrh00c5e4RzXjfnLLA==}
+    engines: {node: '>= 20.3.0'}
+
   '@temporalio/worker@1.22.0':
     resolution: {integrity: sha512-axRHhUsovFlqDtXZxUnhRLV7WmC6qOMUCij13lw4glT5yRH62k8wIZqcT3naEfvLSzoDxjt2xM7me3VvTRSaow==}
     engines: {node: '>= 20.3.0'}
@@ -7825,9 +7850,6 @@ packages:
 
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
-
-  es-module-lexer@2.3.1:
-    resolution: {integrity: sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA==}
 
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
@@ -17093,6 +17115,30 @@ snapshots:
       long: 5.3.2
       protobufjs: 7.6.5
 
+  '@temporalio/testing@1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)':
+    dependencies:
+      '@temporalio/activity': 1.22.0
+      '@temporalio/client': 1.22.0
+      '@temporalio/common': 1.22.0
+      '@temporalio/core-bridge': 1.22.0
+      '@temporalio/proto': 1.22.0
+      '@temporalio/worker': 1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)
+      '@temporalio/workflow': 1.22.0
+    transitivePeerDependencies:
+      - '@minify-html/node'
+      - '@swc/css'
+      - '@swc/helpers'
+      - '@swc/html'
+      - clean-css
+      - cssnano
+      - csso
+      - esbuild
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - uglify-js
+      - webpack-cli
+
   '@temporalio/worker@1.22.0(@swc/helpers@0.5.23)(lightningcss@1.32.0)':
     dependencies:
       '@grpc/grpc-js': 1.14.4
@@ -17892,7 +17938,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/browser@4.1.11(vite@7.3.6(@types/node@22.20.1)(jiti@2.7.0)(less@4.9.0)(lightningcss@1.32.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))(vitest@4.1.11)':
     dependencies:
@@ -17927,7 +17972,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/coverage-v8@4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)':
     dependencies:
@@ -19607,8 +19651,6 @@ snapshots:
   es-module-lexer@1.5.0: {}
 
   es-module-lexer@1.7.0: {}
-
-  es-module-lexer@2.3.1: {}
 
   es-module-lexer@2.3.2: {}
 
@@ -24115,7 +24157,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11
@@ -24151,7 +24193,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11
@@ -24187,7 +24229,7 @@ snapshots:
       browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
-      es-module-lexer: 2.3.1
+      es-module-lexer: 2.3.2
       eslint-scope: 5.1.1
       events: 3.3.0
       graceful-fs: 4.2.11

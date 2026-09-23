@@ -1391,6 +1391,9 @@ POST   /v1/imports                     dry run, then commit
 POST   /v1/exports                     run now, or queue over 2,000 rows (202)
 GET    /v1/exports/{id}                the requester's own, links signed again; a DSAR package for one person
 GET    /v1/exports/files/{key}         a signed link, 24 hours; carries its own authority
+POST   /v1/exports/full-values         finance asks for sealed fields in full, with a reason
+GET    /v1/exports/full-values/{id}    the requester or HR; the one-use link to the requester only
+POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
 ```
 
 OpenAPI generated from the same Zod definitions, per the rule that a derived
@@ -1587,8 +1590,9 @@ Two rules bind it:
   an export button that forgot it.
 - **Every export is an event.** `people.export.completed` carries the actor,
   the attribute keys, the row count and the format. An export containing
-  financial or special-category attributes additionally requires a stated
-  reason, which is recorded with it.
+  financial attributes additionally requires a stated reason, which is
+  recorded with it. (Special-category attributes are never in an export to
+  need one; see §15.2.)
 
 Anything over 2,000 rows runs as a job. The file lands in object storage,
 encrypted, behind a signed link that expires in 24 hours and is delivered as a
@@ -1646,9 +1650,34 @@ order — the same order as the profile screen, so the file reads like the UI.
   marked `(archived)` in the label row. Their values still exist, so an export
   that silently omitted them would misreport what is held.
 - **Encrypted attributes** — bank accounts, national identifiers — export as
-  the masked form (`ES•• •••• 2291`) unless the exporter holds the finance
-  relation *and* states a reason, in which case the full value is exported and
-  the export is flagged in the audit log.
+  the masked form (`ES•• •••• 2291`), in every export, for everybody. **Finance
+  never downloads a full value directly**; it asks for one, and somebody else
+  says yes:
+  - **Finance asks** for a named export — the sealed fields it needs, and who —
+    and states why. Only the finance relation may ask, and a request must name
+    at least one sealed field; anything else it can simply export.
+  - **HR decides**, approving or rejecting, with an optional note. Only the HR
+    relation may decide, and **nobody decides their own request**, whatever
+    relations they hold; the database refuses it as well as the application.
+  - **Undecided after seven days, the request expires.** An expiry is an
+    answer, and is recorded as one; a decision arriving after it is refused.
+  - **An approval issues exactly one download**: one XLSX, built as the
+    requester reads — an approval unmasks what they asked for and widens
+    nothing else — behind a link that works **once** and for **24 hours**. The
+    second click is refused, and so is the first after a day. Only the
+    requester is given the link. Sealed values are read inside that build and
+    nowhere else: not cached, not logged, not stored.
+  - **Every step is an event** — `people.export.full_values_requested`,
+    `…_decided`, `…_expired`, `…_issued`, `…_downloaded`, and the ordinary
+    `people.export.completed` — carrying the actor, the reason and the field
+    keys, never a value and never a link. The download is recorded against the
+    person it was issued to, because a bearer link cannot say who clicked it.
+
+  The wait between asking and answering is a Temporal workflow, one per
+  request. It holds nothing: it wakes on the decision or when the week runs
+  out, and asks the request's row what to do. The same approval rules — a
+  stated reason, separation of duties, a deadline, a single use — are the
+  primitives the approval workflows on sensitive changes (Phase 3) will reuse.
 - **Special-category attributes never appear** in a standard export at all.
   They are reachable only through the DSAR path (§15.5), which runs as the
   subject rather than as a viewer.

@@ -244,7 +244,7 @@ export function TagsInput({
                   remove(index);
                 }}
                 className={cn(
-                  'grid size-4 shrink-0 place-items-center rounded-xs text-fg-subtle',
+                  'relative grid size-4 shrink-0 place-items-center rounded-xs text-fg-subtle tap-target',
                   'transition-colors hover:bg-surface-active hover:text-fg',
                 )}
               >

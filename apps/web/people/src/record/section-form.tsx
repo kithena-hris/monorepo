@@ -83,7 +83,9 @@ export function SectionForm({
             {refused}
           </Alert>
         )}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Sticky above the safe-area inset (§17.2): on a phone, "Save" is
+            never below the keyboard or behind a scroll. */}
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 bg-surface pt-3 pb-[calc(0.75rem+var(--spacing-safe-bottom))]">
           <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving">
             {submitLabel}
           </Button>
