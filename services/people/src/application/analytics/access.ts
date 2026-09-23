@@ -28,8 +28,7 @@ import { visibleTo, type ViewerRelations } from '../../domain/access/field-acces
  * claim about scope beyond the variant it was handed.
  */
 export type ChartViewer =
-  | { readonly kind: 'hr' }
-  | { readonly kind: 'manager'; readonly personId: string };
+  { readonly kind: 'hr' } | { readonly kind: 'manager'; readonly personId: string };
 
 /** The relations `visibleTo` reads, for somebody looking at a population. */
 export function relationsOf(viewer: ChartViewer): ViewerRelations {
@@ -112,13 +111,23 @@ export const COHORT_FLOOR = 10;
  * setting stored as 3, as 12.5 or as nothing at all never lowers it.
  */
 export function cohortMinimum(tenantSetting: number | undefined): number {
-  return tenantSetting !== undefined && Number.isInteger(tenantSetting) && tenantSetting > COHORT_FLOOR
+  return tenantSetting !== undefined &&
+    Number.isInteger(tenantSetting) &&
+    tenantSetting > COHORT_FLOOR
     ? tenantSetting
     : COHORT_FLOOR;
 }
 
 export type Suppressed<T> =
-  | { readonly status: 'ok'; readonly cells: readonly T[] }
+  | {
+      readonly status: 'ok';
+      readonly cells: readonly T[];
+      /**
+       * A published breakdown's population (PEO-083), rounded on its own.
+       * Never the sum of the rounded cells, so never add them up to get it.
+       */
+      readonly total?: number;
+    }
   | { readonly status: 'insufficient_data'; readonly minimum: number };
 
 /**
@@ -160,10 +169,19 @@ export function chartTooltip(
 
 /**
  * The rows a CSV or XLSX export of the chart carries (§16.3: exporting a chart
- * exports its data). The same result, so the same suppression.
+ * exports its data). The same result, so the same suppression — and for a
+ * published breakdown the same rounding, with its total and the note saying
+ * the total was rounded on its own, so a spreadsheet does not sum the cells.
  */
-export function chartExport(result: Suppressed<Cell>): readonly (readonly (string | number)[])[] {
+export function chartExport(
+  result: Suppressed<Cell> & { readonly note?: string },
+): readonly (readonly (string | number)[])[] {
   const header = ['bucket', 'count'];
   if (result.status !== 'ok') return [header, [INSUFFICIENT, '']];
-  return [header, ...result.cells.map((c) => [c.bucket, c.count])];
+  return [
+    header,
+    ...result.cells.map((c) => [c.bucket, c.count]),
+    ...(result.total === undefined ? [] : [['total', result.total]]),
+    ...(result.note === undefined ? [] : [[result.note, '']]),
+  ];
 }
