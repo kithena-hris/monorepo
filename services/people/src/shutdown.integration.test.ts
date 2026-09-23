@@ -36,7 +36,6 @@ beforeAll(async () => {
     .filter((f) => f === '20260821120000_tenant_registry.sql' || /^\d{14}_people_/.test(f))
     .toSorted();
   for (const file of files) {
-    // eslint-disable-next-line no-await-in-loop -- migrations apply in order
     await admin.unsafe(await readFile(new URL(file, migrations), 'utf8'));
   }
   await admin`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
@@ -71,7 +70,7 @@ async function boot(extra: Record<string, string> = {}): Promise<{
   child: ChildProcess;
   port: number;
   exited: Promise<number | null>;
-  log(): string;
+  log: () => string;
 }> {
   const port = await freePort();
   const inherited = Object.fromEntries(
@@ -87,8 +86,8 @@ async function boot(extra: Record<string, string> = {}): Promise<{
   const keep = (chunk: Buffer): void => {
     log = (log + chunk.toString()).slice(-4000);
   };
-  child.stdout?.on('data', keep);
-  child.stderr?.on('data', keep);
+  child.stdout.on('data', keep);
+  child.stderr.on('data', keep);
   const exited = new Promise<number | null>((resolve) => {
     child.once('exit', (code) => {
       resolve(code);
@@ -96,14 +95,12 @@ async function boot(extra: Record<string, string> = {}): Promise<{
   });
   const deadline = Date.now() + 60_000;
   for (;;) {
-    // eslint-disable-next-line no-await-in-loop -- polling for the listener
     const ok = await fetch(`http://127.0.0.1:${String(port)}/v1/openapi.json`)
       .then((r) => r.ok)
       .catch(() => false);
     if (ok) break;
     if (child.exitCode !== null) throw new Error(`People exited while booting:\n${log}`);
     if (Date.now() > deadline) throw new Error(`People did not come up:\n${log}`);
-    // eslint-disable-next-line no-await-in-loop -- polling for the listener
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   // Long enough for the consumers to join and the first background tick to run.
@@ -113,7 +110,7 @@ async function boot(extra: Record<string, string> = {}): Promise<{
 
 /** A GraphQL request whose body is sent in two halves, the second on demand. */
 function halfSent(port: number): {
-  finish(): void;
+  finish: () => void;
   answer: Promise<{ status: number; body: string }>;
 } {
   const body = JSON.stringify({ query: '{ __typename }' });
@@ -131,7 +128,9 @@ function halfSent(port: number): {
       },
       (res) => {
         let text = '';
-        res.on('data', (chunk: Buffer) => (text += chunk.toString()));
+        res.on('data', (chunk: Buffer) => {
+          text += chunk.toString();
+        });
         res.on('end', () => {
           resolve({ status: res.statusCode ?? 0, body: text });
         });
@@ -139,13 +138,27 @@ function halfSent(port: number): {
     );
     req.on('error', reject);
     req.write(body.slice(0, at));
-    finish = () => req.end(body.slice(at));
+    finish = () => {
+      req.end(body.slice(at));
+    };
   });
-  return { finish: () => finish(), answer };
+  return {
+    finish: () => {
+      finish();
+    },
+    answer,
+  };
 }
 
 const within = <T>(ms: number, p: Promise<T>): Promise<T | 'timeout'> =>
-  Promise.race([p, new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), ms))]);
+  Promise.race([
+    p,
+    new Promise<'timeout'>((r) => {
+      setTimeout(() => {
+        r('timeout');
+      }, ms);
+    }),
+  ]);
 
 describe('SIGTERM (PEO-118)', () => {
   it('answers the request in flight, refuses new ones, and exits 0', async () => {

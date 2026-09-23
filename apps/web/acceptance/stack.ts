@@ -142,7 +142,8 @@ function run(
     const log: string[] = [];
     const child = start(command, args, cwd, env, log);
     const timer = setTimeout(() => {
-      void kill(child);
+      // The timeout is the failure reported; a stuck child is SIGKILLed either way.
+      kill(child).catch(() => undefined);
       reject(new Error(`${command} ${args.join(' ')} took longer than ${String(ms / 1000)}s`));
     }, ms);
     child.once('exit', (code) => {
@@ -167,18 +168,14 @@ export async function startStack(): Promise<Stack> {
 
   const stop = async (): Promise<void> => {
     const stopped = await Promise.allSettled(
-      children.map((child) => kill(child, String(child.spawnargs.slice(-2).join(' ')))),
+      children.map((child) => kill(child, child.spawnargs.join(' '))),
     );
     for (const server of servers) server.close();
     await sql.end({ timeout: 5 }).catch(() => undefined);
     await Promise.allSettled([pg.stop(), fga.stop()]);
     // After everything else is down, so a failure still cleans up.
-    const stuck = stopped.filter((s) => s.status === 'rejected');
-    if (stuck.length > 0)
-      throw new AggregateError(
-        stuck.map((s) => s.reason),
-        'a server did not stop',
-      );
+    const stuck = stopped.flatMap((s) => (s.status === 'rejected' ? [s.reason as Error] : []));
+    if (stuck.length > 0) throw new AggregateError(stuck, 'a server did not stop');
   };
 
   try {
