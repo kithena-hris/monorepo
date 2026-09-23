@@ -588,7 +588,7 @@ Three rules make that table safe rather than merely descriptive:
                    ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
-     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired) ──▶ pre_hire
+     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired, not built) ──▶ pre_hire
      │              │           │      │
      │              │           │      └ last working day passed: HR confirms (a task, not a date)
      │              │           │
@@ -642,6 +642,43 @@ definitions above are about dates, so a correction to one of those dates
 
 Each move raises `status_changed` with reason `corrected`; §8.5 says what it
 is effective from.
+
+**HR moves a person; nobody else does.** Notice, termination, leave and
+discarding are HR's (§7 gives termination facts to HR), through one use case
+each that every transport calls (§13). A manager, the person themselves and a
+`people_admin` who is not also HR are refused. Each raises `status_changed`
+through the outbox in the write's transaction, writes the lifecycle's dated
+row where a date moved, and re-judges the person's completeness, because a
+requiredness predicate may name the state. "Today" is the person's own (§6.8).
+A request whose move has already happened — the same leave started, the same
+notice or termination with the same last working day, the same discard — is
+answered with the record and raises nothing.
+
+- **Leave** — `active → on_leave → active`, effective from today. Bringing back
+  somebody who was never away is refused, not answered.
+- **Notice** — from `active`, and from `on_leave` (somebody resigns during
+  parental leave without coming back first). Carries the last working day and
+  why: `resigned` by the person, `dismissed` or `end_of_contract` by the
+  employer. Effective from the day it is given; the last working day gets its
+  own dated row, which is what a later correction supersedes.
+- **Termination** — from `notice`, and directly from `active` or `on_leave`
+  when the last day is already behind them (a leaver recorded late). Only once
+  the last working day has begun on the person's calendar: before that they are
+  on notice, still working and still counted. A `pre_hire` who never started
+  is the exception and closes on their start date. Raises `status_changed`
+  with the typed reason, then `terminated` with HR's free-text note and
+  whether they are eligible for rehire, both effective from the last working
+  day — which is also where retention's clock starts (§12). The `confirm
+  termination` row closes on its own, being read off the status.
+- **Discard** — `provisional` only, as the diagram says.
+
+Two edges of the diagram have no move yet. **Rehire** (`terminated → pre_hire`)
+is drawn and not built: the domain treats a terminated record as a tombstone,
+so a rehire needs a decision on whether it is a new record linked to the old
+or a new employment on the same one. **Withdrawing notice** is neither drawn
+nor built; today a resignation withdrawn is a correction of the last working
+day at best. Identity hears nothing from these moves: it caches a start date,
+not an end, and ending an account when employment ends is not specified.
 
 ### 8.2 The first employee
 
@@ -932,7 +969,9 @@ The same screen area, separate tabs:
   ten letters, digits or hyphens), a width the sequence is zero-padded to
   (1–12 digits) and where it starts, so `ES-` and 5 from 100 write `ES-00100`,
   and grow past the width rather than wrapping. `GET/PUT
-  /v1/legal-entities/{id}/numbering`; each change raises
+  /v1/legal-entities/{id}/numbering`, and in GraphQL the `employeeNumbering`
+  query and `setEmployeeNumbering` mutation (the sequence a Float there,
+  because twelve digits do not fit a 32-bit Int); each change raises
   `people.employee_numbering.set`. An entity with a scheme numbers every
   person hired into it who has no number yet, in the hire's transaction: the
   entity's row is locked and incremented, so racing hires queue, and a hire
@@ -1429,7 +1468,10 @@ usable by a customer who never loads a Kithena screen.**
 The federated subgraph, thin, mapping domain failures to GraphQL errors. Person
 and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
-Extends federated types rather than owning what People does not own.
+Extends federated types rather than owning what People does not own. The
+lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`,
+`startLeave`, `endLeave`, `discardPerson` — each answering with the person
+after, their arguments parsed by the same Zod body REST parses.
 
 ### 13.2 REST (Phase 1)
 
@@ -1447,6 +1489,11 @@ PATCH  /v1/people/{id}                 partial, per-attribute authorization
 GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
+POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
+POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come
+POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
+POST   /v1/people/{id}/leave/end       HR: back from leave today
+POST   /v1/people/{id}/discard         HR: a provisional record that was never a person
 POST   /v1/imports                     dry run, then commit
 POST   /v1/exports                     run now, or queue over 2,000 rows (202)
 GET    /v1/exports/{id}                the requester's own, links signed again; a DSAR package for one person
