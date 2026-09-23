@@ -16,7 +16,7 @@ const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 const server = createServer((request, response) => {
   void yoga(request, response);
 });
-wirePeople();
+wirePeople(server);
 server.listen(4001, () => {
   logger.info({ module: manifest.key, port: 4001 }, 'subgraph listening');
 });

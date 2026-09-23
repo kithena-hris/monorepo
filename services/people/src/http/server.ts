@@ -1,3 +1,4 @@
+import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { systemClock } from '@kithena/domain-kit';
@@ -18,6 +19,9 @@ import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { callerFromHeaders } from './caller.js';
+import { drizzleIdempotency } from './idempotency.js';
+import { openApiDocument } from './openapi.js';
+import { restHandler, type RestResponse } from './rest.js';
 
 /**
  * The composition root for People's transports, called once from `main.ts`.
@@ -58,7 +62,32 @@ export function peopleService(databaseUrl: string, secretKeys: string | undefine
   };
 }
 
-export function wirePeople(): void {
+const MAX_BODY = 256 * 1024;
+
+async function bodyOf(request: IncomingMessage): Promise<string | null> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const buffer = chunk as Buffer;
+    size += buffer.length;
+    if (size > MAX_BODY) return null;
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+function send(response: ServerResponse, answer: RestResponse): void {
+  response.writeHead(answer.status, { 'content-type': 'application/json', ...answer.headers });
+  response.end(JSON.stringify(answer.body));
+}
+
+/**
+ * Put REST in front of the subgraph on the same port.
+ *
+ * `/v1/*` is REST and `/v1/openapi.json` its document; everything else goes
+ * to whichever listener `main.ts` installed, which is Yoga.
+ */
+export function wirePeople(server: Server): void {
   const url = process.env['PEOPLE_DATABASE_URL'];
   if (!url) {
     logger.warn({ module: 'people' }, 'PEOPLE_DATABASE_URL is not set; serving the schema only');
@@ -70,4 +99,55 @@ export function wirePeople(): void {
     process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
   );
   configureGraphQL({ service, callerFrom });
+
+  const rest = restHandler({ service, callerFrom, idempotency: drizzleIdempotency() });
+  const document = JSON.stringify(openApiDocument());
+  const [graphql] = server.listeners('request') as ((
+    request: IncomingMessage,
+    response: ServerResponse,
+  ) => void)[];
+  server.removeAllListeners('request');
+
+  server.on('request', (request: IncomingMessage, response: ServerResponse) => {
+    const path = request.url ?? '/';
+    if (!path.startsWith('/v1/')) {
+      graphql?.(request, response);
+      return;
+    }
+    if (path === '/v1/openapi.json') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(document);
+      return;
+    }
+    void (async () => {
+      try {
+        const body = await bodyOf(request);
+        if (body === null) {
+          send(response, {
+            status: 413,
+            body: { error: { code: 'TOO_LARGE', message: 'Body too large' } },
+          });
+          return;
+        }
+        const answer = await rest({
+          method: request.method ?? 'GET',
+          url: path,
+          headers: request.headers,
+          body,
+        });
+        send(
+          response,
+          answer ?? { status: 404, body: { error: { code: 'NOT_FOUND', message: path } } },
+        );
+      } catch (cause) {
+        logger.error({ err: cause, path }, 'people REST request failed');
+        if (!response.headersSent) {
+          send(response, {
+            status: 500,
+            body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+          });
+        }
+      }
+    })();
+  });
 }
