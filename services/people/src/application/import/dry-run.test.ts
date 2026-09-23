@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
-import { dryRun } from './dry-run.js';
+import { dryRun, type ClassifiedRow } from './dry-run.js';
 import { asking, csv, HEADERS, HR, priyasRows, priyasTenant } from './fixture.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
@@ -65,7 +65,9 @@ describe('Priya’s 412 rows (PRD §14.4)', () => {
     expect(dry.blockedBy).toEqual({ 'missing work_email': 11, 'invalid hire_date': 3 });
     expect(dry.incomplete).toEqual({ count: 88, byKey: { cost_centre: 61, home_address: 27 } });
     expect(
-      dry.rows.filter((r) => r.outcome === 'update').every((r) => r.matchedOn === 'work_email'),
+      dry.rows
+        .filter((r: ClassifiedRow) => r.outcome === 'update')
+        .every((r: ClassifiedRow) => r.matchedOn === 'work_email'),
     ).toBe(true);
 
     expect({
@@ -125,7 +127,7 @@ describe('the three outcomes, one at a time', () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.rows.map((r) => r.outcome)).toEqual(['create', 'blocked']);
+    expect(result.value.rows.map((r: ClassifiedRow) => r.outcome)).toEqual(['create', 'blocked']);
     expect(result.value.rows[1]).toMatchObject({
       row: 3,
       problems: [
