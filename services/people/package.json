@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
+    "fast-formula-parser": "1.0.19",
     "graphql": "^16.11.0",
     "vitest": "^4.1.11"
   }
