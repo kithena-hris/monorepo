@@ -545,8 +545,8 @@ describe('which name wins at enrolment', () => {
     expect(await nameOfAccount()).toEqual({ given: 'Augusta Ada', family: 'King' });
     const events = await admin.execute(sql`
       SELECT envelope FROM platform.outbox WHERE event_name = 'identity.account.profile_captured'`);
-    const payload = ([...events][0]?.['envelope'] as { payload: { name: unknown } }).payload;
-    expect(payload.name).toEqual({ given: 'Ada', family: 'Lovelace', preferred: null });
+    const envelope = [...events][0]?.['envelope'] as { payload: { name: unknown } } | undefined;
+    expect(envelope?.payload.name).toEqual({ given: 'Ada', family: 'Lovelace', preferred: null });
   });
 
   it('stores the typed name when People has never named the account', async () => {
