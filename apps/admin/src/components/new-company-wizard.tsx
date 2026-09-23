@@ -57,7 +57,15 @@ interface Draft {
   address: PostalAddress;
   admins: string[];
   themeId: string;
+  /** IANA. The company's default time zone and its first legal entity's (PEO-099). */
+  timeZone: string;
 }
+
+/** Every zone this browser knows. The identity service checks it again. */
+const TIME_ZONES = Intl.supportedValuesOf('timeZone').map((zone) => ({
+  value: zone,
+  label: zone.replaceAll('_', ' '),
+}));
 
 const EMPTY: Draft = {
   displayName: '',
@@ -67,6 +75,7 @@ const EMPTY: Draft = {
   address: { country: '', line1: '', line2: null, city: '', subdivision: null, postcode: null },
   admins: [],
   themeId: DEFAULT_THEME_ID,
+  timeZone: '',
 };
 
 const STEPS = [
@@ -164,6 +173,7 @@ export function NewCompanyWizard({
       if (draft.address.country === '') found['address.country'] = 'Choose a country.';
       if (draft.address.line1.trim() === '') found['address.line1'] = 'A street address is needed.';
       if (draft.address.city.trim() === '') found['address.city'] = 'A city or town is needed.';
+      if (draft.timeZone === '') found['timeZone'] = 'Choose the time zone the company works in.';
       // The country-dependent half comes from the contract, so a Dutch postcode
       // is judged by Dutch rules without this file knowing what those are.
       if (draft.address.country !== '') {
@@ -207,7 +217,8 @@ export function NewCompanyWizard({
         if (!r.ok && r.path?.[0]) {
           const field = r.path[0];
           setProblems({ [field]: r.message });
-          const owner = field.startsWith('address.') ? 1 : field === 'admins' ? 2 : 0;
+          const owner =
+            field.startsWith('address.') || field === 'timeZone' ? 1 : field === 'admins' ? 2 : 0;
           setStep(owner);
           setResult(null);
         }
@@ -263,7 +274,15 @@ export function NewCompanyWizard({
       ) : null}
 
       {step === 1 ? (
-        <AddressStep draft={draft} problems={problems} rules={rules} onChange={setAddress} />
+        <AddressStep
+          draft={draft}
+          problems={problems}
+          rules={rules}
+          onChange={setAddress}
+          onTimeZone={(zone) => {
+            set('timeZone', zone);
+          }}
+        />
       ) : null}
 
       {step === 2 ? (
@@ -523,11 +542,13 @@ function AddressStep({
   problems,
   rules,
   onChange,
+  onTimeZone,
 }: {
   draft: Draft;
   problems: Problems;
   rules: ReturnType<typeof countryRules>;
   onChange: <K extends keyof PostalAddress>(key: K, value: PostalAddress[K]) => void;
+  onTimeZone: (zone: string) => void;
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-5">
@@ -550,6 +571,25 @@ function AddressStep({
         />
         <FieldDescription>Everything below depends on this.</FieldDescription>
         <FieldError>{problems['address.country']}</FieldError>
+      </Field>
+
+      <Field invalid={Boolean(problems['timeZone'])}>
+        <FieldLabel>Time zone</FieldLabel>
+        <Combobox
+          label="Time zone"
+          options={TIME_ZONES}
+          value={draft.timeZone === '' ? null : draft.timeZone}
+          placeholder="Choose a time zone"
+          searchPlaceholder="Search time zones"
+          onChange={(value) => {
+            onTimeZone(typeof value === 'string' ? value : '');
+          }}
+        />
+        <FieldDescription>
+          Whose day &ldquo;today&rdquo; is for this company: when a start date arrives, when a
+          field becomes required. The first legal entity gets this zone and the country above.
+        </FieldDescription>
+        <FieldError>{problems['timeZone']}</FieldError>
       </Field>
 
       <fieldset disabled={rules === undefined} className="flex flex-col gap-5 disabled:opacity-50">

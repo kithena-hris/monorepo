@@ -79,15 +79,43 @@ export function drizzleOrgStore(): OrgStore {
         .from(tenantSettings)
         .where(eq(tenantSettings.tenantId, tenantId));
       return row
-        ? { defaultTimeZone: row.defaultTimeZone, cohortMinimum: row.cohortMinimum }
+        ? {
+            defaultTimeZone: row.defaultTimeZone,
+            cohortMinimum: row.cohortMinimum,
+            slug: row.slug,
+            displayName: row.displayName,
+          }
         : DEFAULT_SETTINGS;
     },
 
     async saveSettings(tx, tenantId, settings) {
+      const set = {
+        defaultTimeZone: settings.defaultTimeZone,
+        cohortMinimum: settings.cohortMinimum,
+      };
       await tx
         .insert(tenantSettings)
-        .values({ tenantId, ...settings })
-        .onConflictDoUpdate({ target: tenantSettings.tenantId, set: settings });
+        .values({ tenantId, ...set })
+        .onConflictDoUpdate({ target: tenantSettings.tenantId, set });
+    },
+
+    async saveCompany(tx, tenantId, company) {
+      const set = {
+        slug: company.slug,
+        displayName: company.displayName,
+        companyAsOf: new Date(company.asOf),
+      };
+      // Newer only: a rename delivered late never overwrites a later one.
+      const rows = await tx
+        .insert(tenantSettings)
+        .values({ tenantId, defaultTimeZone: 'Etc/UTC', cohortMinimum: 10, ...set })
+        .onConflictDoUpdate({
+          target: tenantSettings.tenantId,
+          set,
+          setWhere: sql`${tenantSettings.companyAsOf} IS NULL OR ${tenantSettings.companyAsOf} < ${company.asOf}::timestamptz`,
+        })
+        .returning({ tenantId: tenantSettings.tenantId });
+      return rows.length > 0;
     },
 
     async legalEntities(tx, tenantId) {

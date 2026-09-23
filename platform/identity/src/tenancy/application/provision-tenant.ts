@@ -81,6 +81,15 @@ export interface ProvisionScope {
    */
   enterTenant: (tenantId: string) => Promise<void>;
   /**
+   * Raises `identity.tenant.provisioned` into the outbox, in this
+   * transaction: the company exists if and only if the event does. People
+   * takes its default zone and first legal entity from it (PEO-099).
+   */
+  announce: (
+    tenantId: string,
+    tenant: { slug: string; displayName: string; country: string; timeZone: string },
+  ) => Promise<void>;
+  /**
    * Creates an invited account and returns its ids.
    *
    * Both of them. The identity id is what the enrolment page presents to the
@@ -105,6 +114,8 @@ export interface ProvisionScope {
   inviteAdmin: (
     tenantId: string,
     email: string,
+    /** The company's zone: a first administrator works where the company does. */
+    timeZone: string,
   ) => Promise<{
     accountId: string;
     identityId: string;
@@ -160,6 +171,12 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
 
       // Before any row scoped to this tenant.
       await scope.enterTenant(tenantId);
+      await scope.announce(tenantId, {
+        slug: checked.value.slug,
+        displayName: checked.value.displayName.trim(),
+        country: checked.value.address.country.toUpperCase(),
+        timeZone: checked.value.timeZone,
+      });
 
       const issued: {
         email: string;
@@ -168,7 +185,11 @@ export function provisionTenant(deps: ProvisionTenantDeps): ProvisionTenant {
         identityId: string;
       }[] = [];
       for (const email of checked.value.admins) {
-        const { token, expiresAt, identityId } = await scope.inviteAdmin(tenantId, email);
+        const { token, expiresAt, identityId } = await scope.inviteAdmin(
+          tenantId,
+          email,
+          checked.value.timeZone,
+        );
         issued.push({ email, token, expiresAt, identityId });
       }
 

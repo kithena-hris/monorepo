@@ -1015,7 +1015,7 @@ it is written down here rather than left in a PR description.
       asking HR to end the employment. *Decided: the first returns to
       `pre_hire`; the second stays on notice and HR's grid gets a
       `confirm_termination` row.* Found in PEO-096. *(PRD §8.1, §8.5)*
-- [ ] **PEO-099** Whose day it is. Every "today" in People — required-from,
+- [x] **PEO-099** Whose day it is. Every "today" in People — required-from,
       the reminder window, retention due dates, the daily snapshot, the
       monthly self-ID publication — ran on UTC or on whatever zone a request
       carried. Decided (option D): a time zone per legal entity and per
@@ -1026,7 +1026,8 @@ it is written down here rather than left in a PR description.
       else the tenant's; aggregates are counted per legal entity on its own
       day and summed. One resolver (`Calendars`), one conversion
       (`localDate`); the company wizard carries the first zone and country to
-      People on `identity.tenant.provisioned`. *(PRD §6.8, §8.4, §8.5, §9.4,
+      People on `identity.tenant.provisioned`, with the slug and name that
+      `identity.tenant.amended` keeps current. *(PRD §6.8, §8.4, §8.5, §9.4,
       §10.2a, §11, §12, §16)*
 - [ ] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
       sequence start. Found in PEO-099, which added the legal entity it hangs

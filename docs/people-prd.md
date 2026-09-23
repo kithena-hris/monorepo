@@ -488,7 +488,9 @@ people.location       Where somebody works. A name, a country, a legal entity
                       effective-dated: an office moving to the Canaries on
                       1 April is on Canary time from midnight on 1 April,
                       Canary time.
-people.tenant_settings  The tenant's default zone, and the cohort minimum (§16.1).
+people.tenant_settings  The tenant's default zone, the cohort minimum (§16.1),
+                      and a copy of the company's slug (`<slug>.app…`) and
+                      name from the back office, for links and reminders.
 ```
 
 **A person's zone** is, in order: their `work_location`'s zone on that
@@ -629,8 +631,13 @@ is effective from.
 The chicken-and-egg case the brief asked about specifically, in sequence:
 
 ```
-1. Ines creates the company in the back office.
+1. Ines creates the company in the back office, choosing its country (the
+   registered office's) and its time zone.
      platform.tenant row. No accounts, no people.
+     ──▶ identity.tenant.provisioned { slug, displayName, country, timeZone }
+     People takes the zone as the tenant default, a first legal entity in
+     that country and zone (§6.8), and the slug and name for its reminders.
+     The first administrators' accounts carry the same zone.
 
 2. Ines invites the first administrator by work email.
      POST /accounts on identity
@@ -652,7 +659,8 @@ The chicken-and-egg case the brief asked about specifically, in sequence:
 
 6. First sign-in lands on the People setup wizard, because the tenant has no
    published schema version:
-     a. Confirm the legal entity and its country.
+     a. Confirm the legal entity, its country and its time zone — already
+        there from step 1, and editable.
      b. Accept or adjust the country pack — the shipped sections and
         attributes for that country, pre-marked required where the law is not
         optional.
@@ -875,7 +883,9 @@ The same screen area, separate tabs:
 
 - **Legal entities and locations** — each entity's country and default time
   zone; each location's entity, country and time zone, with the date a zone
-  change takes effect (§6.8). The tenant's default zone sits here too. All of
+  change takes effect (§6.8). The tenant's default zone sits here too, and the
+  company's slug and name, read-only: the back office owns them, and a
+  reminder uses them to link to `<slug>.app…` and to name the company. All of
   it is `people_admin`'s to change and anybody's in the tenant to read, over
   `GET/POST/PATCH /v1/legal-entities`, `/v1/locations`,
   `POST /v1/locations/{id}/zones`, `GET/PATCH /v1/settings`, and the matching
@@ -970,6 +980,15 @@ never anybody's values, every field classified like any other.
 person moved to; that event is what tells a consumer a person changed
 calendar.
 
+People also consumes two identity events, both about the company rather than
+anybody in it: `identity.tenant.provisioned` v1 (slug, display name, country,
+time zone — raised in the transaction that creates the tenant) and
+`identity.tenant.amended` v1 (slug, display name — raised when the back office
+renames or rebrands it). They are how People learns its default zone, its
+first legal entity and the company's slug and name without reading
+`platform.tenant`. The slug and name are a copy of the back office's facts,
+kept newest-`occurredAt`-wins, and raise no People event of their own.
+
 ### 10.3 What a payload may carry
 
 The rule that keeps this safe as tenants invent fields:
@@ -1045,8 +1064,11 @@ people.outbox                 -- same shape as platform.outbox
 
 -- Calendars (§6.8) -------------------------------------------------------------
 people.tenant_settings        (tenant_id PK, default_time_zone, cohort_minimum
-                               CHECK >= 10, created_at, updated_at)
-                               -- a trigger refuses lowering cohort_minimum
+                               CHECK >= 10, slug, display_name, company_as_of,
+                               created_at, updated_at)
+                               -- a trigger refuses lowering cohort_minimum;
+                               -- slug and display_name are the back office's,
+                               -- copied from identity.tenant.*, newest wins
 people.legal_entity           (tenant_id, id, name, country char(2), time_zone,
                                archived_at, created_at, updated_at)
 people.location               (tenant_id, id, legal_entity_id -> legal_entity,

@@ -221,6 +221,10 @@ export const tenantSettings = people.table('tenant_settings', {
   tenantId: uuid('tenant_id').primaryKey(),
   defaultTimeZone: text('default_time_zone').notNull(),
   cohortMinimum: integer('cohort_minimum').notNull(),
+  /* 20260924170100: the company, as the back office last described it. */
+  slug: text('slug'),
+  displayName: text('display_name'),
+  companyAsOf: timestamp('company_as_of', { withTimezone: true }),
 });
 
 export const legalEntity = people.table('legal_entity', {

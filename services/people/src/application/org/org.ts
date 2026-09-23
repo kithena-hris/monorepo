@@ -57,12 +57,28 @@ export const fixedCalendars = (calendar: TenantCalendar): Calendars => ({
 export interface TenantSettings {
   readonly defaultTimeZone: string;
   readonly cohortMinimum: number;
+  /**
+   * `<slug>.app…`, where the company's people sign in, and its name, as the
+   * back office last described them (`identity.tenant.*`). Read-only here:
+   * the back office owns both. Null until People has heard of them.
+   */
+  readonly slug: string | null;
+  readonly displayName: string | null;
 }
 
 export const DEFAULT_SETTINGS: TenantSettings = {
   defaultTimeZone: 'Etc/UTC',
   cohortMinimum: COHORT_FLOOR,
+  slug: null,
+  displayName: null,
 };
+
+/** The company, as an `identity.tenant.*` event described it at `asOf`. */
+export interface Company {
+  readonly slug: string;
+  readonly displayName: string;
+  readonly asOf: string;
+}
 
 export interface LegalEntityView extends LegalEntity {
   readonly archived: boolean;
@@ -90,7 +106,14 @@ export interface ZoneRow {
 export interface OrgStore extends Calendars {
   /** The row, or the defaults for a tenant that has none yet. */
   settings(tx: Tx, tenantId: string): Promise<TenantSettings>;
-  saveSettings(tx: Tx, tenantId: string, settings: TenantSettings): Promise<void>;
+  /** The zone and the minimum; the company copy is `saveCompany`'s. */
+  saveSettings(
+    tx: Tx,
+    tenantId: string,
+    settings: Pick<TenantSettings, 'defaultTimeZone' | 'cohortMinimum'>,
+  ): Promise<void>;
+  /** Keep the company copy, unless the one held is newer. True when it was kept. */
+  saveCompany(tx: Tx, tenantId: string, company: Company): Promise<boolean>;
   /** Archived ones included, with the flag. */
   legalEntities(tx: Tx, tenantId: string): Promise<readonly LegalEntityView[]>;
   insertLegalEntity(tx: Tx, tenantId: string, entity: LegalEntity): Promise<void>;
@@ -174,6 +197,8 @@ export interface OrgAdmin {
     by: Writer,
     tenant: { readonly name: string; readonly country: string; readonly timeZone: string },
   ): Promise<Result<{ readonly created: boolean }>>;
+  /** The back office named or renamed the company. An older description is ignored. */
+  rememberCompany(tx: Tx, tenantId: string, company: Company): Promise<boolean>;
 }
 
 export function orgAdmin(deps: OrgDeps): OrgAdmin {
@@ -281,7 +306,7 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
         fieldsChanged,
       }),
     ]);
-    return ok(next);
+    return ok({ ...current, ...next });
   }
 
   return {
@@ -484,6 +509,13 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
       const created = await addLegalEntity(tx, by, checked.value);
       return created.ok ? ok({ created: true }) : created;
     },
+
+    /*
+     * A copy of the back office's facts rather than a People fact, so no
+     * People event: `identity.tenant.*` already said it, and a consumer
+     * wanting the company's name listens there.
+     */
+    rememberCompany: (tx, tenantId, company) => store.saveCompany(tx, tenantId, company),
   };
 }
 
