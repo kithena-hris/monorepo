@@ -59,6 +59,16 @@ type DateAttribute {
   value: String
 }
 
+"""An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`."""
+type EmployeeNumbering {
+  legalEntityId: ID
+  prefix: String
+  digits: Int
+
+  """The number the next hire in this entity is given."""
+  nextValue: Float
+}
+
 type HistoryEntry {
   id: ID
   attributeKey: String
@@ -132,6 +142,11 @@ type Mutation {
   correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String): HistoryEntry
 
   """
+  Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
+  """
+  setEmployeeNumbering(legalEntityId: ID!, prefix: String!, digits: Int!, start: Float!): EmployeeNumbering
+
+  """
   Put an active or on-leave person on notice until a last working day; HR only.
   """
   giveNotice(personId: ID!, lastWorkingDay: String!, reason: LeavingReason): Person
@@ -191,6 +206,9 @@ type Query {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   peopleSchema(version: Int): PeopleSchema
+
+  """Null for an entity that does not number its people."""
+  employeeNumbering(legalEntityId: ID!): EmployeeNumbering
 }
 
 type RepeatingAttribute {

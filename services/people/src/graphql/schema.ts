@@ -11,6 +11,7 @@ import type {
   OrgAdmin,
   TenantSettings,
 } from '../application/org/org.js';
+import type { NumberingView } from '../application/org/numbering.js';
 import type { Asking, PersonView } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from '../http/caller.js';
@@ -658,6 +659,53 @@ builder.mutationType({
     }),
   }),
 });
+
+/* -------------------------------------------------- employee numbering -- */
+
+/**
+ * PEO-101's scheme per legal entity, beside REST's `/numbering`. The sequence
+ * is a Float because a scheme may be twelve digits wide and an Int is 32 bits;
+ * `setNumbering` refuses anything but a whole number.
+ */
+const EmployeeNumberingRef = builder.objectRef<NumberingView>('EmployeeNumbering').implement({
+  description: 'An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`.',
+  fields: (t) => ({
+    legalEntityId: t.exposeID('legalEntityId'),
+    prefix: t.exposeString('prefix'),
+    digits: t.exposeInt('digits'),
+    nextValue: t.exposeFloat('nextValue', {
+      description: 'The number the next hire in this entity is given.',
+    }),
+  }),
+});
+
+builder.queryFields((t) => ({
+  employeeNumbering: t.field({
+    type: EmployeeNumberingRef,
+    nullable: true,
+    description: 'Null for an entity that does not number its people.',
+    args: { legalEntityId: t.arg.id({ required: true }) },
+    resolve: async (_root, args, ctx) =>
+      (await inOrg(ctx, (org, tx, asking) => org.numberings(tx, asking))).find(
+        (n) => n.legalEntityId === args.legalEntityId,
+      ) ?? null,
+  }),
+}));
+
+builder.mutationFields((t) => ({
+  setEmployeeNumbering: t.field({
+    type: EmployeeNumberingRef,
+    description: 'Set or change an entity’s scheme; people_admin only. Never moves the sequence back.',
+    args: {
+      legalEntityId: t.arg.id({ required: true }),
+      prefix: t.arg.string({ required: true }),
+      digits: t.arg.int({ required: true }),
+      start: t.arg.float({ required: true }),
+    },
+    resolve: (_root, args, ctx) =>
+      inOrg(ctx, (org, tx, asking) => org.setNumbering(tx, { ...asking, ...args })),
+  }),
+}));
 
 /* ---------------------------------------------------------- lifecycle -- */
 
