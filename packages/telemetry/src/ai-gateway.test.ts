@@ -88,10 +88,10 @@ describe('free text, with subjects named', () => {
   });
 
   it.each([
-    ['an IBAN split by spaces', 'Draft a payslip note for DE89 3704 0044 0532 0130 00'],
-    ['a NIF split by a dash', 'Check whether 12345678-z is valid'],
+    ['an IBAN split by spaces', 'Draft a payslip note for DE89 3704 0044 0532 0130 00', {}],
+    ['a NIF split by a dash', 'Check whether 12345678-z is valid', {}],
     ['a value in a string under an innocent key', 'Summarise', { notes: 'she is roman catholic' }],
-  ])('refuses %s, and sends nothing', async (_what, instruction, context = {}) => {
+  ] as [string, string, Record<string, unknown>][])('refuses %s, and sends nothing', async (_what, instruction, context) => {
     const { send, gateway } = loaded();
     const result = await gateway.complete(ACME, { instruction, context }, subjects);
     expect(result).toMatchObject({ ok: false, error: { code: 'AI_VALUE_DENIED' } });
@@ -157,12 +157,12 @@ describe('free text, with no subjects named', () => {
   }
 
   it.each([
-    ['its key', 'List everyone by blood_type'],
-    ['its key, spaced', 'List everyone by Blood Type'],
-    ['its label', 'what is their blood group?'],
-    ['a translated label', 'Quel est le groupe sanguin ?'],
+    ['its key', 'List everyone by blood_type', {}],
+    ['its key, spaced', 'List everyone by Blood Type', {}],
+    ['its label', 'what is their blood group?', {}],
+    ['a translated label', 'Quel est le groupe sanguin ?', {}],
     ['a label inside the context', 'Summarise', { question: 'BLOOD-GROUP' }],
-  ])('refuses a prompt naming the denied field by %s, and says why', async (_what, instruction, context = {}) => {
+  ] as [string, string, Record<string, unknown>][])('refuses a prompt naming the denied field by %s, and says why', async (_what, instruction, context) => {
     const { send, gateway } = loaded();
     const result = await gateway.complete(ACME, { instruction, context });
     expect(result).toMatchObject({ ok: false, error: { code: 'AI_FIELD_NAMED' } });

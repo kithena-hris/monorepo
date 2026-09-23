@@ -59,6 +59,8 @@ export async function loadTenantPolicies(
     key: a.key,
     policy: a.classification,
     encrypted: a.encrypted,
+    // Every locale, so "groupe sanguin" is caught as surely as "blood group".
+    labels: [a.label.default, ...Object.values(a.label.translations)],
   }));
   registry.replace(tenantId, fields);
 }

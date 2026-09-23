@@ -193,6 +193,8 @@ function redactingChild(
       formatters: { log: (o) => baseLog(scrub(o)) },
     },
   );
+  // Unbound on purpose: it is called with each descendant as `this`.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
   const makeChild = logger.child;
 
   logger.child = function child(this: Logger, bindings, options) {
