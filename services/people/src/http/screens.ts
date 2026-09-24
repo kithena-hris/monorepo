@@ -20,6 +20,7 @@ import {
   completenessView,
   directoryView,
   onboardingView,
+  pickerView,
   profileView,
   saveGrid,
   saveSection,
@@ -278,7 +279,29 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/completeness$/,
-      handle: async (asking) => answer(await completenessView(deps, asking)),
+      handle: async (asking, _r, _p, query) => {
+        const after = query.get('after') ?? undefined;
+        if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        }
+        return answer(await completenessView(deps, asking, { after: after ?? null }));
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/people-picker$/,
+      handle: async (asking, _r, _p, query) => {
+        const after = query.get('after') ?? undefined;
+        if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        }
+        return answer(
+          await pickerView(deps, asking, {
+            search: (query.get('search') ?? '').slice(0, 200),
+            after: after ?? null,
+          }),
+        );
+      },
     },
     {
       method: 'POST',

@@ -28,6 +28,7 @@ import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizz
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
+  drizzleGapTotals,
   drizzlePersonReader,
   drizzleRelations,
   drizzleSchemaVersions,
@@ -399,6 +400,7 @@ function screenDeps(
     clock: systemClock,
     calendars,
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
+    gapTotals: drizzleGapTotals(),
     schema,
     draft: drizzleDraftWriter(),
     publisher: publishSchema({

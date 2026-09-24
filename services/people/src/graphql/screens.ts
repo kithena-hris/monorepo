@@ -9,6 +9,7 @@ import type {
   CompletenessView,
   DirectoryView,
   OnboardingView,
+  PickerView,
   ProfileView,
 } from '../application/screens/people.js';
 import type { FormValue, RecordField, RecordSection } from '../application/screens/model.js';
@@ -303,6 +304,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         key: t.exposeString('key'),
         label: t.exposeString('label'),
         options: t.field({ type: [OptionRef], resolve: (f) => list(f.options) }),
+        person: t.exposeBoolean('person', {
+          description: 'A person reference: picked with peoplePicker, not from options',
+        }),
       }),
     });
   const GridRow = builder.objectRef<Completeness['rows'][number]>('CompletenessRow').implement({
@@ -319,8 +323,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       since: t.exposeString('since'),
       waiting: t.field({ type: Waiting, resolve: (v) => v.waiting }),
       completedThisWeek: t.exposeInt('completedThisWeek'),
+      toFill: t.exposeInt('toFill', { description: 'Over everybody, not only this page' }),
       fields: t.field({ type: [GridField], resolve: (v) => list(v.fields) }),
       rows: t.field({ type: [GridRow], resolve: (v) => list(v.rows) }),
+      next: t.exposeString('next', { nullable: true }),
+    }),
+  });
+  const Picker = builder.objectRef<PickerView>('PeoplePicker').implement({
+    description: 'People to pick from, a keyset page at a time (PEO-122).',
+    fields: (t) => ({
+      options: t.field({ type: [OptionRef], resolve: (v) => list(v.options) }),
+      next: t.exposeString('next', { nullable: true }),
     }),
   });
 
@@ -916,7 +929,27 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleCompleteness: t.field({
       type: CompletenessRef,
-      resolve: view<CompletenessView>(() => '/v1/views/completeness'),
+      args: { after: t.arg.id() },
+      resolve: (_root, args, ctx) =>
+        viaRest<CompletenessView>(
+          ctx,
+          'GET',
+          args.after
+            ? `/v1/views/completeness?after=${encodeURIComponent(args.after)}`
+            : '/v1/views/completeness',
+        ),
+    }),
+    peoplePicker: t.field({
+      type: Picker,
+      description: 'People whose name matches, as this viewer may read them.',
+      args: { search: t.arg.string(), after: t.arg.id() },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.search) query.set('search', args.search);
+        if (args.after) query.set('after', args.after);
+        const qs = query.toString();
+        return viaRest<PickerView>(ctx, 'GET', `/v1/views/people-picker${qs === '' ? '' : `?${qs}`}`);
+      },
     }),
     peopleRoleSettings: t.field({
       type: RoleSettings,
