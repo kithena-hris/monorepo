@@ -323,6 +323,73 @@ type HistoryEntry {
   supersedes: ID
 }
 
+type IdentifierCheck {
+  findings: [IdentifierFindingNotice!]
+}
+
+type IdentifierDecision {
+  reviewId: ID
+  personId: ID
+  attributeKey: String
+
+  """accepted or sent_back"""
+  state: String
+}
+
+"""What a country check found on a national identifier. Never the value."""
+type IdentifierFinding {
+  """ok, attention or mismatch"""
+  level: String
+  code: String
+  message: String
+}
+
+"""
+A warning on one field of a form: saved all the same, and reviewed by HR.
+"""
+type IdentifierFindingNotice {
+  key: String
+  label: String
+  level: String
+  code: String
+  message: String
+
+  """pending, accepted or none"""
+  review: String
+}
+
+"""The value in full, for HR deciding it. Audited."""
+type IdentifierRevealed {
+  attributeKey: String
+  value: String
+}
+
+enum IdentifierReviewDecision {
+  accept
+  send_back
+}
+
+"""A person’s own doubted identifier, still with HR or sent back to them."""
+type IdentifierReviewEntry {
+  key: String
+  label: String
+
+  """pending or sent_back"""
+  state: String
+  findings: [IdentifierFinding!]
+  note: String
+}
+
+type IdentifierReviewItem {
+  personId: ID
+  name: String
+  attributeKey: String
+  label: String
+  last4: String
+  findings: [IdentifierFinding!]
+  enteredAt: String
+}
+
 type ImportBlockedRow {
   row: Int
   person: String
@@ -572,8 +639,16 @@ type Mutation {
 
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, role: TenantRole!, reason: String!, idempotencyKey: String!): RoleHolder
-  saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): WriteOutcome
-  savePersonSection(personId: ID!, changed: [FormValueInput!]!, idempotencyKey: String!): WriteOutcome
+  saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): SectionSaved
+  savePersonSection(personId: ID!, changed: [FormValueInput!]!, idempotencyKey: String!): SectionSaved
+
+  """
+  HR decides a doubted identifier (PEO-125): accept is final; send_back asks the employee to correct it.
+  """
+  reviewIdentifier(personId: ID!, attributeKey: String!, decision: IdentifierReviewDecision!, note: String, idempotencyKey: String!): IdentifierDecision
+
+  """The doubted value in full, for HR deciding it (PEO-125). Audited."""
+  revealIdentifier(personId: ID!, attributeKey: String!): IdentifierRevealed
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): WriteOutcome
   confirmSetupEntity(name: String!, country: String!, idempotencyKey: String!): WriteOutcome
 
@@ -710,6 +785,11 @@ type PeopleHome {
   finance: Boolean
 }
 
+"""HR’s queue of doubted national identifiers, oldest first."""
+type PeopleIdentifierReviews {
+  items: [IdentifierReviewItem!]
+}
+
 type PeopleIntegrations {
   schemaVersion: Int
   deliveries24h: Int
@@ -723,6 +803,7 @@ type PeopleOnboarding {
   sections: [OnboardingSection!]
   values: [FormEntry!]
   saved: [String!]
+  reviews: [IdentifierReviewEntry!]
 }
 
 type PeopleOrganisation {
@@ -758,6 +839,11 @@ type PeopleProfile {
   Null unless the viewer is HR and there is somewhere to place the person.
   """
   placement: ProfilePlacement
+
+  """
+  Their doubted identifiers still open, on fields the viewer reads (PEO-125).
+  """
+  reviews: [IdentifierReviewEntry!]
 }
 
 type PeopleRegistry {
@@ -937,6 +1023,14 @@ type Query {
   peopleFullValues: PeopleFullValues
   fullValuesRequest(id: ID!): FullValuesRequest
 
+  """Doubted national identifiers waiting for HR (PEO-125); HR only."""
+  peopleIdentifierReviews: PeopleIdentifierReviews
+
+  """
+  What saving these values would be warned about; nothing is kept. No person id is "my record".
+  """
+  peopleIdentifierCheck(personId: ID, changed: [FormValueInput!]!): IdentifierCheck
+
   """What publishing the draft would do, from requiredFrom; rolled back."""
   peoplePublishPreview(requiredFrom: String!): PublishPreview
   peopleClassificationAdvice(label: String!, description: String, dataType: String!, sectionKey: String!, options: [String!]!): ClassificationAdvice
@@ -1028,6 +1122,15 @@ type SealedAttribute {
 type SealedEntry {
   key: String
   last4: String
+}
+
+type SectionSaved {
+  ok: Boolean
+
+  """
+  Warnings on national identifiers the save carried (PEO-125); saved all the same.
+  """
+  findings: [IdentifierFindingNotice!]
 }
 
 type SetupCountry {
