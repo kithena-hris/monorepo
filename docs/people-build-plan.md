@@ -1460,7 +1460,11 @@ it is written down here rather than left in a PR description.
       (20260924320000); idempotence itself comes from comparing history with
       the row, so a rerun, a second replica or a stale watermark writes
       nothing. A future transfer for somebody on notice is refused at the
-      write. Placement accepts any date; a retry of a scheduled one is a
+      write; one refused on its day (notice given since) is recorded once
+      by history row (`people.scheduled_refusal`), raises
+      `people.person.scheduled_change_refused` once, is never retried, and
+      is a `scheduled_change_refused` row on HR's grid until a correction or
+      new value for the key is recorded. Placement accepts any date; a retry of a scheduled one is a
       no-op. A corrected manager now raises `manager_changed` too. PEO-122's
       leftovers: the export builder offers fields from the published schema
       and the relations the viewer can hold (tenant roles, and self, manager

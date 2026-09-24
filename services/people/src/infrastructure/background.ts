@@ -25,6 +25,7 @@ import {
   drizzlePersonReader,
   drizzleRelations,
   drizzleScheduled,
+  drizzleScheduledRefusals,
   drizzleSchemaVersions,
 } from './drizzle-person-reader.js';
 import { keysFrom, staticKeyRing } from './envelope.js';
@@ -244,6 +245,7 @@ export async function startBackground(
             uniques: drizzleUniqueClaims(staticKeyRing(keys)),
             numbering: drizzleEmployeeNumbers(),
             completeness: lifecycleCompleteness,
+            refusals: drizzleScheduledRefusals(),
           }),
         });
   jobs.push(

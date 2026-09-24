@@ -352,6 +352,27 @@ describe('a value dated in the future, on its day (PEO-124)', () => {
     ]);
   });
 
+  it('says once that a scheduled value was refused on its day, with the code and never the value', () => {
+    const p = person({ status: 'notice' });
+    p.refuseScheduled(
+      { historyId: '01890000-0000-7000-8000-0000000000f1', attributeKey: 'legal_entity_id', code: 'TRANSFER_ON_NOTICE' },
+      ctx,
+      '2026-10-10',
+    );
+    expect(p.drainEvents()).toEqual([
+      expect.objectContaining({
+        eventName: 'people.person.scheduled_change_refused',
+        effectiveFrom: '2026-10-10',
+        payload: {
+          personId: PERSON,
+          historyId: '01890000-0000-7000-8000-0000000000f1',
+          attributeKey: 'legal_entity_id',
+          reason: 'TRANSFER_ON_NOTICE',
+        },
+      }),
+    ]);
+  });
+
   it('brings nothing into force on a tombstone, or with nothing to bring', () => {
     const gone = person({ status: 'terminated' });
     expect(gone.attributesInForce([title], 4, ctx, '2026-09-20').ok).toBe(false);

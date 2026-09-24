@@ -7,6 +7,7 @@ import type {
   PersonRecord,
   PersonSearch,
   RelationsResolver,
+  ScheduledRefusals,
   SchemaVersions,
 } from '../application/person/ports.js';
 import type { Arrivals, Leavers, Scheduled } from '../application/person/start.js';
@@ -281,6 +282,28 @@ export function drizzleScheduled(): Scheduled {
       await tx.execute(sql`
         UPDATE people.person SET applied_through = ${day}::date
          WHERE tenant_id = ${tenantId}::uuid AND id = ${personId}::uuid`);
+    },
+  };
+}
+
+/** `people.scheduled_refusal` (20260924320000): one row per refused history row. */
+export function drizzleScheduledRefusals(): ScheduledRefusals {
+  return {
+    async refused(tx, tenantId, personId) {
+      const rows = await tx.execute<{ id: string }>(sql`
+        SELECT history_id AS id FROM people.scheduled_refusal
+         WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid`);
+      return [...rows].map((r) => r.id);
+    },
+    async record(tx, tenantId, r) {
+      const rows = await tx.execute(sql`
+        INSERT INTO people.scheduled_refusal
+          (tenant_id, history_id, person_id, attribute_key, reason, refused_at)
+        VALUES (${tenantId}::uuid, ${r.historyId}::uuid, ${r.personId}::uuid, ${r.attributeKey},
+                ${r.reason}, ${r.refusedAt}::timestamptz)
+        ON CONFLICT DO NOTHING
+        RETURNING history_id`);
+      return [...rows].length > 0;
     },
   };
 }

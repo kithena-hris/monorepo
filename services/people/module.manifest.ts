@@ -18,6 +18,7 @@ export default ModuleManifest.parse({
     'people.person.hired',
     'people.person.profile_updated',
     'people.person.attribute_effective',
+    'people.person.scheduled_change_refused',
     'people.person.identity_facts_changed',
     'people.person.attribute_corrected',
     'people.person.job_changed',
