@@ -87,7 +87,8 @@ let inTenant: ReturnType<typeof tenantTransaction>;
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 let ids = 0;
-const people = personAccess({ calendars: utcCalendars,
+const people = personAccess({
+  calendars: utcCalendars,
   people: drizzlePersonRepository(),
   reader: drizzlePersonReader(),
   schemas: drizzleSchemaVersions(),
@@ -134,6 +135,7 @@ beforeAll(async () => {
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924320000_people_effective_through.sql',
+    '20260924330000_people_identifier_review.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -352,10 +354,16 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
     expect(hireRow).toMatchObject({ attribute_key: 'hire_date', value: '2026-03-01' });
 
     const given = await inTenantResult(inTenant, INITECH, (tx) =>
-      people.giveNotice(tx, { ...asking(hr, INITECH), personId: LIN, lastWorkingDay: '2026-12-31' }),
+      people.giveNotice(tx, {
+        ...asking(hr, INITECH),
+        personId: LIN,
+        lastWorkingDay: '2026-12-31',
+      }),
     );
     expect(given.ok && given.value.status).toBe('notice');
-    const noticeRow = (await lifecycleRows()).find((r) => r['attribute_key'] === 'last_working_day');
+    const noticeRow = (await lifecycleRows()).find(
+      (r) => r['attribute_key'] === 'last_working_day',
+    );
     expect(noticeRow).toMatchObject({ value: '2026-12-31' });
 
     const correct = (supersedes: unknown, value: string) =>
@@ -376,7 +384,11 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
         SELECT hire_date::text AS hire_date, last_working_day::text AS last_working_day, custom
           FROM people.person WHERE id = ${LIN}::uuid`)),
     ];
-    expect(row).toMatchObject({ hire_date: '2026-02-01', last_working_day: '2026-11-30', custom: {} });
+    expect(row).toMatchObject({
+      hire_date: '2026-02-01',
+      last_working_day: '2026-11-30',
+      custom: {},
+    });
     const corrections = (await lifecycleRows()).filter((r) => r['supersedes'] !== null);
     expect(corrections.map((r) => r['supersedes'])).toEqual([hireRow?.['id'], noticeRow?.['id']]);
   });
@@ -451,14 +463,20 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
 
     // Identity gates enrolment on the start date it caches, so it hears the new one.
     const facts = await eventsOf(SAM, 'people.person.identity_facts_changed');
-    expect(facts.at(-1)?.['envelope']).toMatchObject({ payload: { employmentStart: '2026-10-15' } });
+    expect(facts.at(-1)?.['envelope']).toMatchObject({
+      payload: { employmentStart: '2026-10-15' },
+    });
   });
 
   it('keeps a person on notice whose last day is corrected into the past, and asks HR to confirm', async () => {
     const KIM = '00000000-0000-4000-8000-0000000000a6';
     await hired(KIM, null, '2026-01-01');
     const given = await inTenantResult(inTenant, INITECH, (tx) =>
-      people.giveNotice(tx, { ...asking(hr, INITECH), personId: KIM, lastWorkingDay: '2026-12-31' }),
+      people.giveNotice(tx, {
+        ...asking(hr, INITECH),
+        personId: KIM,
+        lastWorkingDay: '2026-12-31',
+      }),
     );
     if (!given.ok) throw new Error(given.error.message);
     const lastDayRow = async () => {
@@ -469,13 +487,17 @@ describe('the lifecycle dates, hired and corrected over Postgres', () => {
       return String(row?.['id']);
     };
     const grid = () =>
-      inTenant(INITECH, ({ tx }) => drizzleCompletenessStore().staffGrid(tx, INITECH, '2026-09-22'));
+      inTenant(INITECH, ({ tx }) =>
+        drizzleCompletenessStore().staffGrid(tx, INITECH, '2026-09-22'),
+      );
     expect(await grid()).toEqual([]);
 
     const before = (await eventsOf(KIM, 'people.person.status_changed')).length;
     expect((await correctOn(KIM, await lastDayRow(), '2026-09-15')).ok).toBe(true);
 
-    const [row] = await admin.execute(sql`SELECT status FROM people.person WHERE id = ${KIM}::uuid`);
+    const [row] = await admin.execute(
+      sql`SELECT status FROM people.person WHERE id = ${KIM}::uuid`,
+    );
     expect(row?.['status']).toBe('notice');
     expect(await eventsOf(KIM, 'people.person.status_changed')).toHaveLength(before);
     expect(await eventsOf(KIM, 'people.person.terminated')).toEqual([]);

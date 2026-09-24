@@ -155,25 +155,28 @@ describe('failures', () => {
 });
 
 describe('every mutation (PEO-113)', () => {
-  it('takes a required idempotencyKey, but the two that only compute', () => {
+  it('takes a required idempotencyKey, but the three that only compute or read', () => {
     const unkeyed = Object.values(schema.getMutationType()?.getFields() ?? {})
       .filter((field) => {
         const key = field.args.find((a) => a.name === 'idempotencyKey');
         return key?.type.toString() !== 'String!';
       })
       .map((field) => field.name);
-    expect(unkeyed.toSorted()).toEqual(['dryRunImport', 'proposeImport']);
+    // revealIdentifier is an audited read (PEO-125): it changes nothing a retry could repeat.
+    expect(unkeyed.toSorted()).toEqual(['dryRunImport', 'proposeImport', 'revealIdentifier']);
   });
 
   it('never models a record as a field per attribute: its values are a keyed list', () => {
     const profile = schema.getType('PeopleProfile');
     const fields = profile !== undefined && 'getFields' in profile ? profile.getFields() : {};
-    // `calendar`, `employment` and `placement` are HR's (PEO-119, PEO-120, PEO-123), not attributes.
+    // `calendar`, `employment` and `placement` are HR's (PEO-119, PEO-120, PEO-123), and
+    // `reviews` the doubted identifiers still open (PEO-125): none is an attribute.
     expect(Object.keys(fields).toSorted()).toEqual([
       'calendar',
       'employment',
       'person',
       'placement',
+      'reviews',
       'sections',
       'values',
     ]);

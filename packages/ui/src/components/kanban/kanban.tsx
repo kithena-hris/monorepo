@@ -29,7 +29,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { GripVertical, MoreHorizontal, MoveRight, X } from 'lucide-react';
+import { Ellipsis, GripVertical, MoveRight, X } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -884,7 +884,7 @@ function KanbanSelectionBar<T extends { id: string }>({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="ghost" aria-label="More actions">
-                <MoreHorizontal className="size-4" aria-hidden />
+                <Ellipsis className="size-4" aria-hidden />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -1092,7 +1092,7 @@ function KanbanColumn<T extends { id: string }>({
               aria-label={`Actions for ${column.title}`}
               className="-me-1.5 -mt-1 shrink-0"
             >
-              <MoreHorizontal className="size-4" aria-hidden />
+              <Ellipsis className="size-4" aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

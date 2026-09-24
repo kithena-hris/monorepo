@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
-import { dryRun, type ClassifiedRow } from './dry-run.js';
+import { cellFindings, dryRun, type ClassifiedRow } from './dry-run.js';
 import { asking, attributes, csv, HEADERS, HR, priyasRows, priyasTenant } from './fixture.js';
 import { define, versionOf } from '../person/in-memory.js';
 import { UTC_CALENDAR } from '../../domain/org/calendar.js';
@@ -183,20 +183,32 @@ describe('a legal entity the schema asks for (PEO-123)', () => {
     store.versions.push(
       versionOf(2, [
         ...attributes,
-        define({ key: 'legal_entity_id', dataType: 'legal_entity_ref', typeConfig: { kind: 'legal_entity_ref' } }),
+        define({
+          key: 'legal_entity_id',
+          dataType: 'legal_entity_ref',
+          typeConfig: { kind: 'legal_entity_ref' },
+        }),
       ]),
     );
     const file = await parseUpload(csv(HEADERS, [row]));
     if (!file.ok) throw new Error(file.error.message);
     const version = store.versions.at(-1);
     if (!version) throw new Error('no version');
-    const proposed = await proposeMapping({ file: file.value, version, relations: HR_RELATIONS, advisor: null });
+    const proposed = await proposeMapping({
+      file: file.value,
+      version,
+      relations: HR_RELATIONS,
+      advisor: null,
+    });
     const mapping = resolveMapping(proposed, {}, version, HR_RELATIONS);
     if (!mapping.ok) throw new Error(mapping.error.message);
     const result = await dryRun(
       tx,
       {
-        calendars: fixedCalendars({ ...UTC_CALENDAR, entities: new Map(ids.map((id) => [id, entity(id)])) }),
+        calendars: fixedCalendars({
+          ...UTC_CALENDAR,
+          entities: new Map(ids.map((id) => [id, entity(id)])),
+        }),
         access: personAccess(store.deps),
         schemas: store.deps.schemas,
         relations: store.deps.relations,
@@ -216,7 +228,9 @@ describe('a legal entity the schema asks for (PEO-123)', () => {
   it('still blocks the row when there is more than one to choose from', async () => {
     const only = await withEntities([ES, PT]);
     expect(only?.outcome).toBe('blocked');
-    expect(only?.problems).toEqual([expect.objectContaining({ kind: 'missing', key: 'legal_entity_id' })]);
+    expect(only?.problems).toEqual([
+      expect.objectContaining({ kind: 'missing', key: 'legal_entity_id' }),
+    ]);
   });
 });
 
@@ -253,5 +267,44 @@ describe('who may run it', () => {
       mapping: [],
     });
     expect(!notHr.ok && notHr.error.code).toBe('FORBIDDEN');
+  });
+});
+
+describe('doubted national identifiers in a file (PEO-125; PRD §14.5)', () => {
+  const nif = define({
+    key: 'es_nif',
+    dataType: 'national_id',
+    typeConfig: { kind: 'national_id', country: 'ES', scheme: 'nif' },
+  });
+  const version = versionOf(1, [nif]);
+  const mapping = [
+    { index: 0, header: 'NIF', status: 'mapped', key: 'es_nif' },
+  ] as unknown as Parameters<typeof cellFindings>[1];
+  const row = (n: number, outcome: ClassifiedRow['outcome'], value: string) =>
+    ({ row: n, outcome, personId: null, changes: { es_nif: value } }) as unknown as ClassifiedRow;
+
+  it('lists each doubted cell by row and column, never the value, and blocks nothing', () => {
+    const found = cellFindings(version, mapping, [
+      row(2, 'create', '12345678Z'),
+      row(3, 'create', '12345678A'),
+      row(4, 'update', 'B12345678'),
+      row(5, 'blocked', '12345678A'),
+    ]);
+    expect(found).toEqual([
+      expect.objectContaining({
+        row: 3,
+        column: 'NIF',
+        key: 'es_nif',
+        level: 'mismatch',
+        code: 'check_mismatch',
+      }),
+      expect.objectContaining({
+        row: 4,
+        column: 'NIF',
+        level: 'attention',
+        code: 'holder_not_person',
+      }),
+    ]);
+    expect(JSON.stringify(found)).not.toContain('12345678A');
   });
 });

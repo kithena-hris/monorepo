@@ -44,11 +44,24 @@ const STAGE = `
         sheets { sheet key imported }
         corrections { row from to }
         blocked { row person problem cell }
+        findings { row cell label level message }
       }
       blockedCsv
     }
-    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv reportUrl }
+    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv reportUrl forReview }
   }`;
+
+/** A person's doubted identifiers still open (PEO-125). Never the value. */
+const REVIEW = `
+  fragment ReviewParts on IdentifierReviewEntry {
+    key label state findings { level code message } note
+  }`;
+
+/** What the country checks warned about, on a save or before one (PEO-125). */
+const FINDINGS = 'findings { key label level code message review }';
+
+/** The same, per grid cell: which person each is about. */
+const GRID_FINDINGS = 'findings { personId key label level code message review }';
 
 export const OPERATIONS = {
   /* ------------------------------------------------------------- reads -- */
@@ -58,8 +71,9 @@ export const OPERATIONS = {
       sections { key label visibility ask fields { ...RecordFieldParts } }
       values { ...EntryParts }
       saved
+      reviews { ...ReviewParts }
     }
-  }${RECORD_FIELD}${ENTRY}`,
+  }${RECORD_FIELD}${ENTRY}${REVIEW}`,
 
   Profile: `query Profile($personId: ID) {
     peopleProfile(personId: $personId) {
@@ -78,8 +92,23 @@ export const OPERATIONS = {
         entities { value label }
         locations { value label legalEntityId }
       }
+      reviews { ...ReviewParts }
     }
-  }${RECORD_FIELD}${ENTRY}`,
+  }${RECORD_FIELD}${ENTRY}${REVIEW}`,
+
+  IdentifierReviews: `query IdentifierReviews {
+    peopleIdentifierReviews {
+      items { personId name attributeKey label last4 findings { level code message } enteredAt }
+    }
+  }`,
+
+  GridCheck: `query GridCheck($changes: [GridChangeInput!]!) {
+    peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
+  }`,
+
+  IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
+    peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
+  }`,
 
   FullValues: `query FullValues {
     peopleFullValues {
@@ -230,11 +259,23 @@ export const OPERATIONS = {
 
   /* ------------------------------------------------------------ writes -- */
   SaveOwnSection: `mutation SaveOwnSection($changed: [FormValueInput!]!, $key: String!) {
-    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok }
+    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok ${FINDINGS} }
   }`,
 
   SavePersonSection: `mutation SavePersonSection($personId: ID!, $changed: [FormValueInput!]!, $key: String!) {
-    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok }
+    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok ${FINDINGS} }
+  }`,
+
+  ReviewIdentifier: `mutation ReviewIdentifier(
+    $personId: ID!, $attributeKey: String!, $decision: IdentifierReviewDecision!, $note: String, $key: String!
+  ) {
+    reviewIdentifier(
+      personId: $personId, attributeKey: $attributeKey, decision: $decision, note: $note, idempotencyKey: $key
+    ) { reviewId state }
+  }`,
+
+  RevealIdentifier: `mutation RevealIdentifier($personId: ID!, $attributeKey: String!) {
+    revealIdentifier(personId: $personId, attributeKey: $attributeKey) { attributeKey value }
   }`,
 
   PlacePerson: `mutation PlacePerson($personId: ID!, $legalEntityId: ID, $locationId: ID, $effectiveFrom: String, $key: String!) {
@@ -242,7 +283,7 @@ export const OPERATIONS = {
   }`,
 
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
-    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok }
+    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok ${GRID_FINDINGS} }
   }`,
 
   ConfirmSetupEntity: `mutation ConfirmSetupEntity($name: String!, $country: String!, $key: String!) {

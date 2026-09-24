@@ -7,7 +7,7 @@ import {
   Mail,
   Pencil,
   Star,
-  Trash2,
+  Trash,
   UserMinus,
 } from 'lucide-react';
 import { useState, type JSX } from 'react';
@@ -355,7 +355,7 @@ export const Disabled: Story = {
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem destructive>
-          <Trash2 aria-hidden />
+          <Trash aria-hidden />
           Delete draft offer
         </ContextMenuItem>
       </ContextMenuContent>

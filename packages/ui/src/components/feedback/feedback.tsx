@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
+import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -22,9 +22,9 @@ const alert = cva('flex gap-3 rounded-md border p-3.5 text-sm', {
 
 const alertIcon = {
   info: Info,
-  success: CheckCircle2,
-  warning: AlertTriangle,
-  danger: XCircle,
+  success: CircleCheck,
+  warning: TriangleAlert,
+  danger: CircleX,
 } as const;
 
 export interface AlertProps

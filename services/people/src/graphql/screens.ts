@@ -8,11 +8,18 @@ import type {
 import type {
   CompletenessView,
   DirectoryView,
+  IdentifierReviewsView,
   OnboardingView,
   PickerView,
   ProfileView,
 } from '../application/screens/people.js';
-import type { FormValue, RecordField, RecordSection } from '../application/screens/model.js';
+import type {
+  FormValue,
+  IdentifierFindingView,
+  IdentifierReviewEntry,
+  RecordField,
+  RecordSection,
+} from '../application/screens/model.js';
 import type { RolesView } from '../application/screens/roles.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
@@ -174,6 +181,71 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     resolveType: (e) => entryType(e.value),
   });
 
+  /* ------------------------------------------ doubted identifiers (PEO-125) -- */
+
+  type Finding = IdentifierReviewEntry['findings'][number];
+  const FindingRef = builder.objectRef<Finding>('IdentifierFinding').implement({
+    description: 'What a country check found on a national identifier. Never the value.',
+    fields: (t) => ({
+      level: t.exposeString('level', { description: 'ok, attention or mismatch' }),
+      code: t.exposeString('code'),
+      message: t.exposeString('message'),
+    }),
+  });
+  const FindingNoticeRef = builder
+    .objectRef<IdentifierFindingView>('IdentifierFindingNotice')
+    .implement({
+      description: 'A warning on one field of a form: saved all the same, and reviewed by HR.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        level: t.exposeString('level'),
+        code: t.exposeString('code'),
+        message: t.exposeString('message'),
+        review: t.exposeString('review', { description: 'pending, accepted or none' }),
+      }),
+    });
+  const ReviewEntryRef = builder
+    .objectRef<IdentifierReviewEntry>('IdentifierReviewEntry')
+    .implement({
+      description: 'A person’s own doubted identifier, still with HR or sent back to them.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        state: t.exposeString('state', { description: 'pending or sent_back' }),
+        findings: t.field({ type: [FindingRef], resolve: (r) => list(r.findings) }),
+        note: t.exposeString('note', { nullable: true }),
+      }),
+    });
+  const ReviewItemRef = builder
+    .objectRef<IdentifierReviewsView['items'][number]>('IdentifierReviewItem')
+    .implement({
+      fields: (t) => ({
+        personId: t.exposeID('personId'),
+        name: t.exposeString('name'),
+        attributeKey: t.exposeString('attributeKey'),
+        label: t.exposeString('label'),
+        last4: t.exposeString('last4', { nullable: true }),
+        findings: t.field({ type: [FindingRef], resolve: (r) => list(r.findings) }),
+        enteredAt: t.exposeString('enteredAt'),
+      }),
+    });
+  const ReviewsRef = builder
+    .objectRef<IdentifierReviewsView>('PeopleIdentifierReviews')
+    .implement({
+      description: 'HR’s queue of doubted national identifiers, oldest first.',
+      fields: (t) => ({
+        items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
+      }),
+    });
+  const FindingsRef = builder
+    .objectRef<{ findings: readonly IdentifierFindingView[] }>('IdentifierCheck')
+    .implement({
+      fields: (t) => ({
+        findings: t.field({ type: [FindingNoticeRef], resolve: (v) => list(v.findings) }),
+      }),
+    });
+
   /* --------------------------------------------------- people's screens -- */
 
   const Onboarding = builder.objectRef<OnboardingView>('PeopleOnboarding').implement({
@@ -182,6 +254,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       sections: t.field({ type: [OnboardingSectionRef], resolve: (v) => list(v.sections) }),
       values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
       saved: t.stringList({ resolve: (v) => list(v.saved) }),
+      reviews: t.field({ type: [ReviewEntryRef], resolve: (v) => list(v.reviews) }),
     }),
   });
 
@@ -262,6 +335,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'Null unless the viewer is HR and there is somewhere to place the person.',
         resolve: (v) => v.placement ?? null,
+      }),
+      reviews: t.field({
+        type: [ReviewEntryRef],
+        description: 'Their doubted identifiers still open, on fields the viewer reads (PEO-125).',
+        resolve: (v) => list(v.reviews),
       }),
     }),
   });
@@ -751,6 +829,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         to: t.exposeString('to'),
       }),
     });
+  const CellFindingRef = builder
+    .objectRef<DryRun['findings'][number]>('ImportCellFinding')
+    .implement({
+      description: 'A cell our checks doubt. Named by its reference, never by its value.',
+      fields: (t) => ({
+        row: t.exposeInt('row'),
+        cell: t.exposeString('cell'),
+        label: t.exposeString('label'),
+        level: t.exposeString('level'),
+        message: t.exposeString('message'),
+      }),
+    });
   const DryRunRef = builder.objectRef<DryRun>('ImportDryRun').implement({
     fields: (t) => ({
       counts: t.field({ type: Counts, resolve: (d) => d.counts }),
@@ -759,6 +849,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       sheets: t.field({ type: [Sheet], resolve: (d) => list(d.sheets) }),
       corrections: t.field({ type: [Correction], resolve: (d) => list(d.corrections) }),
       blocked: t.field({ type: [Blocked], resolve: (d) => list(d.blocked) }),
+      findings: t.field({
+        type: [CellFindingRef],
+        description: 'Doubted national identifiers, per cell: imported, then reviewed by HR (PEO-125).',
+        resolve: (d) => list(d.findings),
+      }),
     }),
   });
   const MapStage = builder.objectRef<Extract<Stage, { step: 'map' }>>('ImportMapStage').implement({
@@ -789,6 +884,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         blockedCsv: t.exposeString('blockedCsv'),
         reportUrl: t.exposeString('reportUrl', {
           description: 'The same report, stored sealed; a signed link that expires in a day.',
+        }),
+        forReview: t.exposeInt('forReview', {
+          description: 'Doubted national identifiers that imported and went to HR’s review.',
         }),
       }),
     });
@@ -1134,55 +1232,177 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     };
   };
 
+  /** What a section save answers: a retry answers `{ ok }` alone, so findings default to none. */
+  const saved = (answer: { findings?: readonly IdentifierFindingView[] } | null) => ({
+    ok: true as const,
+    findings: answer?.findings ?? [],
+  });
+  const SectionSaved = builder
+    .objectRef<{ ok: true; findings: readonly IdentifierFindingView[] }>('SectionSaved')
+    .implement({
+      fields: (t) => ({
+        ok: t.boolean({ resolve: () => true }),
+        findings: t.field({
+          type: [FindingNoticeRef],
+          description: 'Warnings on national identifiers the save carried (PEO-125); saved all the same.',
+          resolve: (v) => list(v.findings),
+        }),
+      }),
+    });
+  const Decided = builder
+    .objectRef<{ reviewId: string; personId: string; attributeKey: string; state: string }>(
+      'IdentifierDecision',
+    )
+    .implement({
+      fields: (t) => ({
+        reviewId: t.exposeID('reviewId'),
+        personId: t.exposeID('personId'),
+        attributeKey: t.exposeString('attributeKey'),
+        state: t.exposeString('state', { description: 'accepted or sent_back' }),
+      }),
+    });
+  const Revealed = builder
+    .objectRef<{ attributeKey: string; value: string }>('IdentifierRevealed')
+    .implement({
+      description: 'The value in full, for HR deciding it. Audited.',
+      fields: (t) => ({
+        attributeKey: t.exposeString('attributeKey'),
+        value: t.exposeString('value'),
+      }),
+    });
+  type GridFinding = IdentifierFindingView & { personId: string };
+  const GridFindingRef = builder.objectRef<GridFinding>('GridCellFinding').implement({
+    description: 'A grid cell our checks doubt (PEO-125): saved all the same, and reviewed by HR.',
+    fields: (t) => ({
+      personId: t.exposeID('personId'),
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      level: t.exposeString('level'),
+      code: t.exposeString('code'),
+      message: t.exposeString('message'),
+      review: t.exposeString('review', { description: 'pending, accepted, sent_back or none' }),
+    }),
+  });
+  const GridSaved = builder
+    .objectRef<{ ok: true; findings: readonly GridFinding[] }>('GridSaved')
+    .implement({
+      fields: (t) => ({
+        ok: t.boolean({ resolve: () => true }),
+        findings: t.field({ type: [GridFindingRef], resolve: (v) => list(v.findings) }),
+      }),
+    });
+  const GridChecked = builder
+    .objectRef<{ findings: readonly GridFinding[] }>('GridIdentifierCheck')
+    .implement({
+      fields: (t) => ({
+        findings: t.field({ type: [GridFindingRef], resolve: (v) => list(v.findings) }),
+      }),
+    });
+  /** The grid's cells as REST takes them. */
+  const gridChanges = (
+    changes: readonly { personId: string | number; values: readonly { key: string; value: string }[] }[],
+  ) =>
+    changes.map((c) => ({
+      personId: String(c.personId),
+      values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
+    }));
+  builder.queryField('peopleGridCheck', (t) =>
+    t.field({
+      type: GridChecked,
+      description: 'What saving these grid cells would be warned about (PEO-125); nothing is kept.',
+      args: { changes: t.arg({ type: [GridChange], required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ findings: GridFinding[] }>(ctx, 'POST', '/v1/views/completeness/identifier-check', {
+          body: { changes: gridChanges(args.changes) },
+        }),
+    }),
+  );
+  const IdentifierDecisionEnum = builder.enumType('IdentifierReviewDecision', {
+    values: ['accept', 'send_back'] as const,
+  });
+
   builder.mutationFields((t) => ({
     saveOwnSection: t.field({
-      type: Outcome,
+      type: SectionSaved,
       args: {
         changed: t.arg({ type: [FormValueInput], required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
-      resolve: async (_root, args, ctx) => {
-        await viaRest(ctx, 'POST', '/v1/views/me/sections', {
-          body: { changed: changed(args.changed) },
-          key: args.idempotencyKey,
-        });
-        return done();
-      },
+      resolve: async (_root, args, ctx) =>
+        saved(
+          await viaRest<{ findings?: IdentifierFindingView[] } | null>(
+            ctx,
+            'POST',
+            '/v1/views/me/sections',
+            { body: { changed: changed(args.changed) }, key: args.idempotencyKey },
+          ),
+        ),
     }),
     savePersonSection: t.field({
-      type: Outcome,
+      type: SectionSaved,
       args: {
         personId: t.arg.id({ required: true }),
         changed: t.arg({ type: [FormValueInput], required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
-      resolve: async (_root, args, ctx) => {
-        await viaRest(
+      resolve: async (_root, args, ctx) =>
+        saved(
+          await viaRest<{ findings?: IdentifierFindingView[] } | null>(
+            ctx,
+            'POST',
+            `/v1/views/people/${encodeURIComponent(args.personId)}/sections`,
+            { body: { changed: changed(args.changed) }, key: args.idempotencyKey },
+          ),
+        ),
+    }),
+    reviewIdentifier: t.field({
+      type: Decided,
+      description:
+        'HR decides a doubted identifier (PEO-125): accept is final; send_back asks the employee to correct it.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        attributeKey: t.arg.string({ required: true }),
+        decision: t.arg({ type: IdentifierDecisionEnum, required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, { personId, idempotencyKey, ...decision }, ctx) =>
+        viaRest<{ reviewId: string; personId: string; attributeKey: string; state: string }>(
           ctx,
           'POST',
-          `/v1/views/people/${encodeURIComponent(args.personId)}/sections`,
-          { body: { changed: changed(args.changed) }, key: args.idempotencyKey },
-        );
-        return done();
+          `/v1/people/${encodeURIComponent(personId)}/identifier-reviews`,
+          { body: sent(decision), key: idempotencyKey },
+        ),
+    }),
+    revealIdentifier: t.field({
+      type: Revealed,
+      description: 'The doubted value in full, for HR deciding it (PEO-125). Audited.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        attributeKey: t.arg.string({ required: true }),
       },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ attributeKey: string; value: string }>(
+          ctx,
+          'POST',
+          `/v1/people/${encodeURIComponent(args.personId)}/identifier-reviews/reveal`,
+          { body: { attributeKey: args.attributeKey } },
+        ),
     }),
     saveCompletenessGrid: t.field({
-      type: Outcome,
+      type: GridSaved,
       args: {
         changes: t.arg({ type: [GridChange], required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, args, ctx) => {
-        await viaRest(ctx, 'POST', '/v1/views/completeness', {
-          body: {
-            changes: args.changes.map((c) => ({
-              personId: c.personId,
-              values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
-            })),
-          },
-          key: args.idempotencyKey,
-        });
-        return done();
+        const answer = await viaRest<{ findings?: GridFinding[] } | null>(
+          ctx,
+          'POST',
+          '/v1/views/completeness',
+          { body: { changes: gridChanges(args.changes) }, key: args.idempotencyKey },
+        );
+        return { ok: true as const, findings: answer?.findings ?? [] };
       },
     }),
     confirmSetupEntity: t.field({
@@ -1445,6 +1665,29 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   }));
 
   builder.queryFields((t) => ({
+    peopleIdentifierReviews: t.field({
+      type: ReviewsRef,
+      description: 'Doubted national identifiers waiting for HR (PEO-125); HR only.',
+      resolve: view<IdentifierReviewsView>(() => '/v1/views/identifier-reviews'),
+    }),
+    peopleIdentifierCheck: t.field({
+      type: FindingsRef,
+      description:
+        'What saving these values would be warned about; nothing is kept. No person id is "my record".',
+      args: {
+        personId: t.arg.id(),
+        changed: t.arg({ type: [FormValueInput], required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ findings: IdentifierFindingView[] }>(
+          ctx,
+          'POST',
+          args.personId
+            ? `/v1/views/people/${encodeURIComponent(args.personId)}/identifier-check`
+            : '/v1/views/me/identifier-check',
+          { body: { changed: changed(args.changed) } },
+        ),
+    }),
     peoplePublishPreview: t.field({
       type: PreviewRef,
       description: 'What publishing the draft would do, from requiredFrom; rolled back.',

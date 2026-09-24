@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  AlertTriangle,
   File as FileIcon,
   FileArchive,
   FileImage,
@@ -9,7 +8,8 @@ import {
   FileText,
   Paperclip,
   RotateCcw,
-  Trash2,
+  Trash,
+  TriangleAlert,
   Upload,
   X,
 } from 'lucide-react';
@@ -516,7 +516,7 @@ export function FileUploader({
                     // identically-named buttons is forty identical entries in a
                     // screen reader's control list.
                     aria-label={item.status === 'uploading' ? `Cancel ${name}` : `Remove ${name}`}
-                    startIcon={item.status === 'uploading' ? <X /> : <Trash2 />}
+                    startIcon={item.status === 'uploading' ? <X /> : <Trash />}
                     onClick={() => {
                       remove(item);
                     }}
@@ -535,7 +535,7 @@ export function FileUploader({
               key={`${rejection.file.name}-${rejection.reason}`}
               className="flex items-start gap-2 text-xs font-medium text-danger-fg"
             >
-              <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
+              <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
               {rejection.message}
             </li>
           ))}

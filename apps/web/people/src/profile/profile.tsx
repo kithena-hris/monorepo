@@ -20,10 +20,11 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { Loaded, type Loadable, type Outcome } from '../load';
+import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
 import type { RecordSection, Values } from '../record/model';
+import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
 import { Employment, type EmploymentState, type LifecycleMove } from './employment';
 
@@ -57,6 +58,8 @@ export interface ProfileState {
    * null or absent for everybody else.
    */
   readonly placement?: PlacementState | null;
+  /** Their doubted identifiers still open, on fields the viewer reads (PEO-125). */
+  readonly reviews?: readonly IdentifierReview[];
 }
 
 export interface PlacementState {
@@ -79,6 +82,8 @@ export interface PlacementChange {
 export interface ProfileProps {
   readonly load: Loadable<ProfileState>;
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
+  /** What our checks would warn about a national identifier, before it is saved (PEO-125). */
+  readonly onCheck?: (sectionKey: string, changed: Values) => Promise<Checked>;
   /** A lifecycle move on this person (PEO-120); absent on one's own profile. */
   readonly onMove?: (move: LifecycleMove) => Promise<Outcome>;
   /** Move the person (PEO-123). Absent where the shell offers no move. */
@@ -100,6 +105,7 @@ export interface ProfileProps {
 export function Profile({
   load,
   onSave,
+  onCheck,
   onMove,
   onPlace,
   searchPeople,
@@ -107,7 +113,15 @@ export function Profile({
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
       <Loaded load={load} what="this profile">
-        {(state) => <Record state={state} onSave={onSave} onMove={onMove} onPlace={onPlace} />}
+        {(state) => (
+          <Record
+            state={state}
+            onSave={onSave}
+            onCheck={onCheck}
+            onMove={onMove}
+            onPlace={onPlace}
+          />
+        )}
       </Loaded>
     </PeopleSearch.Provider>
   );
@@ -116,11 +130,13 @@ export function Profile({
 function Record({
   state,
   onSave,
+  onCheck,
   onMove,
   onPlace,
 }: {
   readonly state: ProfileState;
   readonly onSave: ProfileProps['onSave'];
+  readonly onCheck: ProfileProps['onCheck'];
   readonly onMove: ProfileProps['onMove'];
   readonly onPlace: ProfileProps['onPlace'];
 }): JSX.Element {
@@ -149,6 +165,7 @@ function Record({
           )
         }
       />
+      <ReviewNotices reviews={state.reviews} />
       {state.calendar ? (
         <Employment
           state={{ calendar: state.calendar, employment: state.employment ?? null }}
@@ -190,6 +207,7 @@ function Record({
                 <SectionForm
                   section={section}
                   values={values}
+                  {...(onCheck === undefined ? {} : { onCheck })}
                   footer={
                     <Button
                       onClick={() => {

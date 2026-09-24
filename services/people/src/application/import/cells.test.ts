@@ -85,7 +85,10 @@ describe('the rest', () => {
       typeConfig: { kind: 'national_id' as const, country: 'ES', scheme: 'nif' },
     };
     expect(value(nif, '12345678-z')).toBe('12345678Z');
-    expect(value(nif, '12345678A')).toMatch(/^invalid/u);
+    // A wrong control letter imports, to be reviewed (PEO-125); a value that
+    // cannot be a NIF at all does not.
+    expect(value(nif, '12345678A')).toBe('12345678A');
+    expect(value(nif, '1234567Z')).toMatch(/^invalid/u);
   });
 
   it('maps a select by value or label, and refuses anything else', () => {

@@ -258,7 +258,9 @@ describe('leaving', () => {
       ),
     ).toMatchObject({ ended: 1 });
 
-    const periods = await as((tx) => at('2025-07-01T00:00:00.000Z').employmentPeriods(tx, on(KIRI)));
+    const periods = await as((tx) =>
+      at('2025-07-01T00:00:00.000Z').employmentPeriods(tx, on(KIRI)),
+    );
     expect(periods.ok && periods.value).toEqual([
       {
         period: 1,
@@ -349,14 +351,21 @@ describe('coming back', () => {
   });
 
   it('keeps both employments, and answers "as of" for either', async () => {
-    const periods = await as((tx) => at('2026-11-15T00:00:00.000Z').employmentPeriods(tx, on(KIRI)));
-    expect(periods.ok && periods.value.map((p) => [p.period, p.legalEntityId, p.startedOn, p.lastWorkingDay])).toEqual([
+    const periods = await as((tx) =>
+      at('2026-11-15T00:00:00.000Z').employmentPeriods(tx, on(KIRI)),
+    );
+    expect(
+      periods.ok &&
+        periods.value.map((p) => [p.period, p.legalEntityId, p.startedOn, p.lastWorkingDay]),
+    ).toEqual([
       [1, null, '2024-01-08', '2025-06-30'],
       [2, US, '2026-11-02', null],
     ]);
 
     const asOf = async (day: string) => {
-      const read = await as((tx) => at('2026-11-15T00:00:00.000Z').read(tx, { ...on(KIRI), asOf: day }));
+      const read = await as((tx) =>
+        at('2026-11-15T00:00:00.000Z').read(tx, { ...on(KIRI), asOf: day }),
+      );
       if (!read.ok) throw new Error(read.error.code);
       return [read.value.attributes['hire_date'], read.value.attributes['last_working_day']];
     };
@@ -420,7 +429,9 @@ describe('eligibility', () => {
     // She had no number and her entity numbers its people: its next, as a new hire.
     expect(overridden.ok && overridden.value.attributes['employee_number']).toBe('US0008');
 
-    const periods = await as((tx) => at('2026-12-02T00:00:00.000Z').employmentPeriods(tx, on(LUCY)));
+    const periods = await as((tx) =>
+      at('2026-12-02T00:00:00.000Z').employmentPeriods(tx, on(LUCY)),
+    );
     expect(periods.ok && periods.value.at(-1)).toMatchObject({
       period: 2,
       rehireOverrideReason: 'Dismissal overturned at tribunal',

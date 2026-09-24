@@ -194,6 +194,8 @@ export type CommitResult =
       readonly ignoredColumns: readonly string[];
       /** §14.5: which date dated facts took. */
       readonly effectiveFrom: DryRun['effectiveFrom'];
+      /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
+      readonly findings: DryRun['findings'];
     };
 
 interface Outcome {
@@ -317,6 +319,11 @@ export async function commitImport(
     reportUrl: await signReport(deps, input.tenantId, input.file.checksum, expiresAt),
     ignoredColumns: plan.ignoredColumns,
     effectiveFrom: plan.effectiveFrom,
+    findings: plan.findings.filter((f) =>
+      outcomes.some(
+        (o) => o.row.row === f.row && (o.written === 'created' || o.written === 'updated'),
+      ),
+    ),
   });
 }
 

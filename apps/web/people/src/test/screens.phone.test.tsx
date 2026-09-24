@@ -19,6 +19,7 @@ import { Organisation } from '../settings/organisation';
 import { WebhookLog } from '../settings/integrations/webhook-log';
 import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
+import { IdentifierReviews } from '../review/identifier-reviews';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
 
@@ -511,6 +512,37 @@ describe('at 390×844, with a finger', () => {
         }}
         onRequest={ok}
         onDecide={ok}
+      />,
+    );
+  });
+
+  it('identifiers to review, for HR (PEO-125)', async () => {
+    await checked(
+      <IdentifierReviews
+        load={{
+          status: 'ready',
+          data: {
+            items: [
+              {
+                personId: 'p1',
+                name: 'Lucía Ortega',
+                attributeKey: 'es_nif',
+                label: 'NIF / NIE',
+                last4: '678A',
+                findings: [
+                  {
+                    level: 'mismatch',
+                    code: 'check_mismatch',
+                    message: 'Matches the national format, but the control letter does not compute.',
+                  },
+                ],
+                enteredAt: '2026-09-24T09:00:00.000Z',
+              },
+            ],
+          },
+        }}
+        onDecide={ok}
+        onReveal={() => Promise.resolve({ ok: true as const, value: '12345678A' })}
       />,
     );
   });

@@ -4,11 +4,18 @@ import type { AttributeDefinition, WriterRole } from '@kithena/contracts';
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
+import type { AttributeFindings } from '../person/identifier-review.js';
 import type { Asking, PersonView } from '../person/person-access.js';
 import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
-import type { FormValue, FormValues, RecordField, RecordSection } from './model.js';
+import type {
+  FormValue,
+  FormValues,
+  IdentifierFindingView,
+  RecordField,
+  RecordSection,
+} from './model.js';
 
 /**
  * One person's record as a form: the sections and fields this viewer may
@@ -190,25 +197,90 @@ export function fromForm(definition: AttributeDefinition | undefined, value: unk
   }
 }
 
-/** Save one section of a record, from a form: only what changed, as one `profile_updated`. */
+/** A form's changed values as the write path takes them, and the definitions they name. */
+async function formChanges(
+  deps: ScreenDeps,
+  tx: Tx,
+  tenantId: string,
+  changed: Readonly<Record<string, unknown>>,
+): Promise<Result<{ changes: Record<string, unknown>; byKey: Map<string, AttributeDefinition> }>> {
+  const version = await deps.service.schemas.current(tx, tenantId);
+  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+  const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+  const changes: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(changed)) {
+    const written = fromForm(byKey.get(key), value);
+    if (written !== undefined) changes[key] = written;
+  }
+  return ok({ changes, byKey });
+}
+
+/** The findings worth a warning: anything worse than `ok`, labelled for a form (PEO-125). */
+function warnings(
+  byKey: ReadonlyMap<string, AttributeDefinition>,
+  found: readonly AttributeFindings[],
+): IdentifierFindingView[] {
+  return found.flatMap((a) =>
+    a.findings.flatMap((f) =>
+      f.level === 'ok'
+        ? []
+        : [
+            {
+              key: a.key,
+              label: byKey.get(a.key)?.label.default ?? a.key,
+              level: f.level,
+              code: f.code,
+              message: f.message,
+              review: a.review,
+            },
+          ],
+    ),
+  );
+}
+
+/**
+ * Save one section of a record, from a form: only what changed, as one
+ * `profile_updated`. Answered with what the country checks found on any
+ * national identifier it carried (PEO-125): saved all the same.
+ */
 export async function saveSection(
   deps: ScreenDeps,
   asking: Asking,
   personId: string,
   changed: Readonly<Record<string, unknown>>,
-): Promise<Result<void>> {
+): Promise<Result<{ readonly ok: true; readonly findings: readonly IdentifierFindingView[] }>> {
   return run(deps.service, asking.tenantId, async (tx) => {
-    const version = await deps.service.schemas.current(tx, asking.tenantId);
-    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
-    const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
-    const changes: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(changed)) {
-      const written = fromForm(byKey.get(key), value);
-      if (written !== undefined) changes[key] = written;
-    }
-    if (Object.keys(changes).length === 0) return ok(undefined);
+    const form = await formChanges(deps, tx, asking.tenantId, changed);
+    if (!form.ok) return form;
+    const { changes, byKey } = form.value;
+    if (Object.keys(changes).length === 0) return ok({ ok: true as const, findings: [] });
     const saved = await deps.service.access.update(tx, { ...asking, personId, changes });
-    return saved.ok ? ok(undefined) : saved;
+    return saved.ok
+      ? ok({ ok: true as const, findings: warnings(byKey, saved.value.findings ?? []) })
+      : saved;
+  });
+}
+
+/**
+ * What saving these values would be warned about, saving nothing (PEO-125):
+ * the form asks before it submits, so the warning comes while the value can
+ * still be looked at again.
+ */
+export async function checkSection(
+  deps: ScreenDeps,
+  asking: Asking,
+  personId: string,
+  changed: Readonly<Record<string, unknown>>,
+): Promise<Result<{ readonly findings: readonly IdentifierFindingView[] }>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const form = await formChanges(deps, tx, asking.tenantId, changed);
+    if (!form.ok) return form;
+    const found = await deps.service.access.checkIdentifiers(tx, {
+      ...asking,
+      personId,
+      values: form.value.changes,
+    });
+    return found.ok ? ok({ findings: warnings(form.value.byKey, found.value) }) : found;
   });
 }
 

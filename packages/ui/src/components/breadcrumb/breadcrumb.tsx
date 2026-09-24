@@ -1,4 +1,4 @@
-import { ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ChevronRight, Ellipsis } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { Slot } from '@radix-ui/react-slot';
@@ -122,7 +122,7 @@ export function BreadcrumbEllipsis({
 }: ComponentPropsWithoutRef<'span'> & { children?: ReactNode }): JSX.Element {
   return (
     <span className={cn('hidden text-fg-subtle max-sm:inline-flex', className)} {...props}>
-      {children ?? <MoreHorizontal className="size-4" />}
+      {children ?? <Ellipsis className="size-4" />}
       <span className="sr-only">Collapsed levels</span>
     </span>
   );

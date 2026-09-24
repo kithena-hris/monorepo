@@ -1,0 +1,1 @@
+{"version":1,"body":"query GridCheck($changes: [GridChangeInput!]!) {\n    peopleGridCheck(changes: $changes) { findings { personId key label level code message review } }\n  }"}

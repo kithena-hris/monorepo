@@ -171,4 +171,45 @@ describe('CompletenessGrid', () => {
     expect(screen.getByText('Nothing is missing')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('warns on a doubted identifier in its own cell, then saves it anyway (PEO-125)', async () => {
+    const user = fast();
+    const nif: CompletenessState = {
+      ...state,
+      fields: [{ key: 'es_nif', label: 'NIF', options: [], person: false }],
+      rows: [
+        { personId: 'j', name: 'Joan Bosch', department: null, manager: null, missing: ['es_nif'] },
+      ],
+    };
+    const finding = {
+      personId: 'j',
+      key: 'es_nif',
+      label: 'NIF',
+      level: 'mismatch' as const,
+      code: 'check_mismatch',
+      message: 'Matches the national format, but the control letter does not compute.',
+    };
+    const onCheck = vi.fn(() =>
+      Promise.resolve({ ok: true as const, findings: [{ ...finding, review: 'none' as const }] }),
+    );
+    const onSave = vi.fn(() =>
+      Promise.resolve({ ok: true as const, findings: [{ ...finding, review: 'pending' as const }] }),
+    );
+    const { container } = render(
+      <CompletenessGrid load={{ status: 'ready', data: nif }} onSave={onSave} onCheck={onCheck} />,
+    );
+    await user.type(screen.getByRole('textbox', { name: 'NIF for Joan Bosch' }), '12345678A');
+    await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'NIF for Joan Bosch' })).toHaveAccessibleDescription(
+      /control letter does not compute/,
+    );
+    expect(screen.getByText('Our checks suggest some of these may be wrong')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'j', values: { es_nif: '12345678A' } }]);
+    expect(await screen.findByText(/1 value our checks doubted went to HR's review/)).toBeInTheDocument();
+  });
 });

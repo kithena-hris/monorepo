@@ -14,6 +14,12 @@ import {
   ExportBody,
   ErrorBody,
   HistoryEntryBody,
+  CorrectionWriteBody,
+  IdentifierDecidedBody,
+  IdentifierRevealBody,
+  IdentifierRevealedBody,
+  IdentifierReviewBody,
+  IdentifierReviewDecisionBody,
   LegalEntityBody,
   ListQuery,
   LocationBody,
@@ -25,6 +31,7 @@ import {
   PatchSettingsBody,
   PersonBody,
   PersonPageBody,
+  PersonWriteBody,
   PutNumberingBody,
   SchemaVersionSummary,
   SettingsBody,
@@ -59,11 +66,18 @@ import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 const components = {
   Person: PersonBody,
+  PersonWrite: PersonWriteBody,
   PersonPage: PersonPageBody,
+  IdentifierReviews: z.object({ items: z.array(IdentifierReviewBody) }),
+  IdentifierReviewDecision: IdentifierReviewDecisionBody,
+  IdentifierDecided: IdentifierDecidedBody,
+  IdentifierReveal: IdentifierRevealBody,
+  IdentifierRevealed: IdentifierRevealedBody,
   CreatePerson: CreatePersonBody,
   PatchPerson: PatchPersonBody,
   Correction: CorrectionBody,
   HistoryEntry: HistoryEntryBody,
+  CorrectionWrite: CorrectionWriteBody,
   HistoryPage: z.object({ items: z.array(HistoryEntryBody) }),
   EmploymentPeriods: EmploymentPeriodsBody,
   Completeness: CompletenessBody,
@@ -170,6 +184,33 @@ function screenPaths(): Record<string, unknown> {
       post: screenWrite("Save a section of someone's record", 'SectionChanges', 200, 'Saved', {
         path: 'id',
       }),
+    },
+    '/v1/views/me/identifier-check': {
+      post: screenWrite(
+        'What saving these values would be warned about (PEO-125); nothing is kept',
+        'SectionChanges',
+        200,
+        '{ findings }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/people/{id}/identifier-check': {
+      post: screenWrite(
+        "What saving these values on someone's record would be warned about; nothing is kept",
+        'SectionChanges',
+        200,
+        '{ findings }',
+        { path: 'id', safe: true },
+      ),
+    },
+    '/v1/views/completeness/identifier-check': {
+      post: screenWrite(
+        "What saving these grid cells would be warned about (PEO-125); nothing is kept",
+        'CompletenessChanges',
+        200,
+        '{ findings }, each with its personId',
+        { safe: true },
+      ),
     },
     '/v1/views/completeness': {
       post: screenWrite(
@@ -343,7 +384,13 @@ export function openApiDocument(): Record<string, unknown> {
           summary: 'Create a person',
           parameters: [idempotencyKey],
           requestBody: { required: true, ...json('CreatePerson') },
-          responses: { 201: { description: 'Created', ...json('Person') }, ...failure },
+          responses: {
+            201: {
+              description: 'Created, with what the checks found on its national identifiers',
+              ...json('PersonWrite'),
+            },
+            ...failure,
+          },
         },
       },
       '/v1/people/{id}': {
@@ -356,7 +403,46 @@ export function openApiDocument(): Record<string, unknown> {
           summary: 'Change some attributes; each is authorized on its own',
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('PatchPerson') },
-          responses: { 200: { description: 'The person after', ...json('Person') }, ...failure },
+          responses: {
+            200: {
+              description:
+                'The person after, with what the checks found on each national identifier written; a doubted one is saved and goes to HR’s review',
+              ...json('PersonWrite'),
+            },
+            ...failure,
+          },
+        },
+      },
+      '/v1/identifier-reviews': {
+        get: {
+          summary: 'National identifiers our checks doubted, waiting for HR (PEO-125); HR only',
+          responses: {
+            200: { description: 'Oldest first', ...json('IdentifierReviews') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/people/{id}/identifier-reviews': {
+        post: {
+          summary:
+            'HR decides a doubted identifier: accept (final, never flagged again) or send_back to the employee',
+          parameters: [id, idempotencyKey],
+          requestBody: { required: true, ...json('IdentifierReviewDecision') },
+          responses: {
+            200: { description: 'The decision', ...json('IdentifierDecided') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/people/{id}/identifier-reviews/reveal': {
+        post: {
+          summary: 'The doubted value in full, for HR deciding it; audited, changes nothing',
+          parameters: [id],
+          requestBody: { required: true, ...json('IdentifierReveal') },
+          responses: {
+            200: { description: 'The value', ...json('IdentifierRevealed') },
+            ...failure,
+          },
         },
       },
       '/v1/people/{id}/history': {
@@ -385,7 +471,11 @@ export function openApiDocument(): Record<string, unknown> {
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('Correction') },
           responses: {
-            201: { description: 'The correction', ...json('HistoryEntry') },
+            201: {
+              description:
+                'The correction, with what the checks found if it corrected a national identifier',
+              ...json('CorrectionWrite'),
+            },
             ...failure,
           },
         },

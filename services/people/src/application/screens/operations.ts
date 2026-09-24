@@ -254,6 +254,17 @@ export type ImportStageView =
           /** `C14 — “x”` on the people sheet, `Languages!D7 — “x”` on another. */
           readonly cell: string;
         }[];
+        /**
+         * National identifiers our checks doubt (PEO-125), per cell: they
+         * import, and go to HR's review. The cell is named, never its value.
+         */
+        readonly findings: readonly {
+          readonly row: number;
+          readonly cell: string;
+          readonly label: string;
+          readonly level: 'attention' | 'mismatch';
+          readonly message: string;
+        }[];
       };
       /** The blocked rows as a file that imports once fixed, base64 CSV. */
       readonly blockedCsv: string;
@@ -267,6 +278,8 @@ export type ImportStageView =
       readonly blockedCsv: string;
       /** The same report, stored sealed; the link expires in a day. */
       readonly reportUrl: string;
+      /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
+      readonly forReview: number;
     };
 
 export interface ImportUpload {
@@ -426,6 +439,16 @@ export async function dryRunImport(
             cell: `${item.sheet}!${item.cell} — ${item.value === '' ? 'empty' : `“${item.value}”`}`,
           })),
         ],
+        findings: plan.findings.map((f) => {
+          const at = indexOf.get(f.column) ?? -1;
+          return {
+            row: f.row,
+            cell: at < 0 ? `row ${String(f.row)}` : `${column(at)}${String(f.row)}`,
+            label: byKey.get(f.key)?.label.default ?? f.key,
+            level: f.level,
+            message: f.message,
+          };
+        }),
       },
       blockedCsv: b64(
         blockedReport(
@@ -488,7 +511,7 @@ export async function commitImportView(
         : { ...failure('ALREADY_IMPORTED', 'This exact file has already been imported'), link },
     );
   }
-  const { counts, report, reportUrl } = committed.value;
+  const { counts, report, reportUrl, findings } = committed.value;
   return ok({
     step: 'done' as const,
     file: fileView(upload.name, planned.value.file),
@@ -497,6 +520,7 @@ export async function commitImportView(
     blocked: counts.blocked + counts.duplicate,
     blockedCsv: b64(report),
     reportUrl,
+    forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
   });
 }
 

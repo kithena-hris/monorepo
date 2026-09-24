@@ -1,1 +1,0 @@
-{"version":1,"body":"mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {\n    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok }\n  }"}

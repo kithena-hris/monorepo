@@ -223,10 +223,19 @@ describe('who may', () => {
 describe('a move inside the entity', () => {
   it('changes the office, dated, and no employment period', async () => {
     const moved = await place('2026-06-01T12:00:00.000Z', { locationId: BCN, costCentre: 'CC-9' });
-    expect(moved.ok && moved.value.attributes).toMatchObject({ location_id: BCN, legal_entity_id: ES });
+    expect(moved.ok && moved.value.attributes).toMatchObject({
+      location_id: BCN,
+      legal_entity_id: ES,
+    });
     expect((await events('people.person.org_changed')).at(-1)).toMatchObject({
       effectiveFrom: '2026-06-01',
-      payload: { personId: ANA, legalEntityId: ES, locationId: BCN, costCentre: 'CC-9', orgUnitId: null },
+      payload: {
+        personId: ANA,
+        legalEntityId: ES,
+        locationId: BCN,
+        costCentre: 'CC-9',
+        orgUnitId: null,
+      },
     });
     expect(await periods()).toEqual([[1, ES, '2024-01-08', null]]);
   });
@@ -245,7 +254,10 @@ describe('refusals', () => {
   it('refuses an archived office, a mismatch and an unknown entity', async () => {
     const archived = await place('2026-06-02T12:00:00.000Z', { locationId: OLD });
     expect(!archived.ok && archived.error.code).toBe('LOCATION_ARCHIVED');
-    const mismatch = await place('2026-06-02T12:00:00.000Z', { locationId: SFO, legalEntityId: ES });
+    const mismatch = await place('2026-06-02T12:00:00.000Z', {
+      locationId: SFO,
+      legalEntityId: ES,
+    });
     expect(!mismatch.ok && mismatch.error.code).toBe('LOCATION_NOT_IN_ENTITY');
     const unknown = await place('2026-06-02T12:00:00.000Z', {
       legalEntityId: '00000000-0000-4000-8000-0000000000e9',
@@ -293,7 +305,10 @@ describe('a transfer to another legal entity', () => {
       at('2026-09-24T12:00:00.000Z').history(tx, { ...on(), attributeKey: 'location_id' }),
     );
     const sfo = standing.ok ? standing.value.find((e) => e.value === SFO) : undefined;
-    const fixed = await place('2026-09-24T12:00:00.000Z', { locationId: LAX, effectiveFrom: '2026-09-01' });
+    const fixed = await place('2026-09-24T12:00:00.000Z', {
+      locationId: LAX,
+      effectiveFrom: '2026-09-01',
+    });
     expect(fixed.ok && fixed.value.attributes['location_id']).toBe(LAX);
     const corrected = await events('people.person.attribute_corrected');
     expect(corrected.at(-1)).toMatchObject({

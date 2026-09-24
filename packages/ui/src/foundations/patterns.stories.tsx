@@ -4,12 +4,12 @@ import {
   CalendarDays,
   Check,
   Download,
-  Filter,
-  Loader2,
+  Funnel,
+  LoaderCircle,
   Plus,
   Search,
   SlidersHorizontal,
-  Trash2,
+  Trash,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
@@ -810,7 +810,7 @@ export const AdvancedFilters: Story = {
                               variant="ghost"
                               aria-label={`Remove the ${config.label} rule`}
                               className="ms-auto"
-                              startIcon={<Trash2 />}
+                              startIcon={<Trash />}
                               onClick={() => {
                                 setRules((current) => current.filter((r) => r.id !== rule.id));
                               }}
@@ -1772,7 +1772,7 @@ export const LoadingAndFailure: Story = {
 
                 {state === 'empty' ? (
                   <EmptyState
-                    icon={<Filter />}
+                    icon={<Funnel />}
                     title="No payments in this period"
                     description="The August run has not been started. Payments appear here once it has been calculated."
                     action={<Button variant="primary">Start the August run</Button>}
@@ -1843,7 +1843,7 @@ export const LoadingAndFailure: Story = {
 
             {state === 'loading' ? (
               <p className="flex items-center gap-2 text-sm text-fg-muted">
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
                 Calculating 912 payments…
               </p>
             ) : null}

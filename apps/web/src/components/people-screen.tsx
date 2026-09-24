@@ -62,8 +62,8 @@ export function PeopleScreen({
 
   /** A write, then the page again from the server when it went through. */
   const thenRefresh =
-    <A extends unknown[]>(act: (...args: A) => Promise<Outcome>) =>
-    async (...args: A): Promise<Outcome> => {
+    <A extends unknown[], R extends Outcome>(act: (...args: A) => Promise<R>) =>
+    async (...args: A): Promise<R> => {
       const result = await act(...args);
       if (result.ok) refresh();
       return result;
@@ -98,11 +98,18 @@ export function PeopleScreen({
           },
         };
       case 'Onboarding':
-        return { load: loadable, onSave: thenRefresh(actions.saveOwnSection) };
+        return {
+          load: loadable,
+          onSave: thenRefresh(actions.saveOwnSection),
+          onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
+            actions.checkIdentifiers(null, sectionKey, changed),
+        };
       case 'Profile': {
         const id = params['id'];
         return {
           load: loadable,
+          onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
+            actions.checkIdentifiers(id ?? null, sectionKey, changed),
           onSave: thenRefresh(
             id === undefined
               ? actions.saveOwnSection
@@ -212,6 +219,7 @@ export function PeopleScreen({
         return {
           load: loadable,
           onSave: thenRefresh(actions.saveGrid),
+          onCheck: actions.checkGrid,
           searchPeople: actions.searchPeople,
           ...(next === null
             ? {}
@@ -272,6 +280,12 @@ export function PeopleScreen({
           load: loadable,
           onRequest: thenRefresh(actions.requestFullValues),
           onDecide: thenRefresh(actions.decideFullValues),
+        };
+      case 'IdentifierReviews':
+        return {
+          load: loadable,
+          onDecide: thenRefresh(actions.reviewIdentifier),
+          onReveal: actions.revealIdentifier,
         };
       case 'WebhookLog': {
         const next =
