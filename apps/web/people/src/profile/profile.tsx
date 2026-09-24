@@ -5,7 +5,7 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import { DisplayValue } from '../record/display';
 import type { RecordSection, Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
-import { Employment, type EmploymentState } from './employment';
+import { Employment, type EmploymentState, type LifecycleMove } from './employment';
 
 export interface ProfileSection extends RecordSection {
   /** Reading this section is audited, and the viewer is told so. */
@@ -30,11 +30,15 @@ export interface ProfileState {
   readonly values: Values;
   /** HR's alone: whose day it is for them (PEO-119). Absent or null for anybody else. */
   readonly calendar?: EmploymentState['calendar'] | null;
+  /** HR's alone, with the calendar: where they stand and every period (PEO-120). */
+  readonly employment?: EmploymentState['employment'];
 }
 
 export interface ProfileProps {
   readonly load: Loadable<ProfileState>;
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
+  /** A lifecycle move on this person (PEO-120); absent on one's own profile. */
+  readonly onMove?: (move: LifecycleMove) => Promise<Outcome>;
 }
 
 /**
@@ -47,10 +51,10 @@ export interface ProfileProps {
  * disclosure itself. This component renders what it is given and cannot
  * re-add a key the application layer removed.
  */
-export function Profile({ load, onSave }: ProfileProps): JSX.Element {
+export function Profile({ load, onSave, onMove }: ProfileProps): JSX.Element {
   return (
     <Loaded load={load} what="this profile">
-      {(state) => <Record state={state} onSave={onSave} />}
+      {(state) => <Record state={state} onSave={onSave} onMove={onMove} />}
     </Loaded>
   );
 }
@@ -58,9 +62,11 @@ export function Profile({ load, onSave }: ProfileProps): JSX.Element {
 function Record({
   state,
   onSave,
+  onMove,
 }: {
   readonly state: ProfileState;
   readonly onSave: ProfileProps['onSave'];
+  readonly onMove: ProfileProps['onMove'];
 }): JSX.Element {
   const [editing, setEditing] = useState<string | null>(null);
   const [values, setValues] = useState<Values>(state.values);
@@ -87,7 +93,12 @@ function Record({
           )
         }
       />
-      {state.calendar ? <Employment state={{ calendar: state.calendar }} /> : null}
+      {state.calendar ? (
+        <Employment
+          state={{ calendar: state.calendar, employment: state.employment ?? null }}
+          onMove={onMove}
+        />
+      ) : null}
       {sections.length === 0 ? (
         <EmptyState title="Nothing else to show" />
       ) : (

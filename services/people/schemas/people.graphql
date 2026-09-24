@@ -685,6 +685,9 @@ type PeopleProfile {
 
   """HR’s alone: their zone and today on it (PRD §6.8)."""
   calendar: PersonCalendar
+
+  """HR’s alone: their status and every employment period (PEO-120)."""
+  employment: ProfileEmployment
 }
 
 type PeopleRegistry {
@@ -745,6 +748,21 @@ type PersonCalendar {
 type PersonPage {
   nodes: [Person!]
   nextCursor: String
+}
+
+type ProfileEmployment {
+  status: String
+  periods: [ProfileEmploymentPeriod!]
+}
+
+type ProfileEmploymentPeriod {
+  period: Int
+  startedOn: String
+  lastWorkingDay: String
+  leavingReason: String
+  eligibleForRehire: Boolean
+  noticeFrom: String
+  rehireOverrideReason: String
 }
 
 type ProfilePerson {

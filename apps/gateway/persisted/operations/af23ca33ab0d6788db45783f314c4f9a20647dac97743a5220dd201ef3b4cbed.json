@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation GiveNotice($personId: ID!, $lastWorkingDay: String!, $reason: LeavingReason, $key: String!) {\n    giveNotice(personId: $personId, lastWorkingDay: $lastWorkingDay, reason: $reason, idempotencyKey: $key) { id }\n  }"}

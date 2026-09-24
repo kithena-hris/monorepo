@@ -1354,12 +1354,23 @@ it is written down here rather than left in a PR description.
       there, and a zone change to Kiritimati moving their day on HR's view of
       the profile. Placing them is SQL in the test, because nothing else can
       (PEO-123).*
-- [ ] **PEO-120** Lifecycle actions on the profile. PEO-108 to PEO-111 have
+- [x] **PEO-120** Lifecycle actions on the profile. PEO-108 to PEO-111 have
       transports and no screen: give and withdraw notice, terminate (with
       ending access now), start and end leave, discard a provisional record,
       rehire (with the not-eligible override and its reason), and the
       employment periods. HR only, on the profile, each keyed.
       *(PRD §8.1, §8.5, §10.2)*
+      *Landed as an Employment section on another person's profile, sent to
+      HR alone (`PeopleProfile.employment`: status and every period, beside
+      PEO-119's calendar): the periods table, and the moves the status allows,
+      each a dialog over the existing mutations, a refusal shown as People
+      worded it. Terminate asks the reason, a note, eligibility and whether to
+      end access now; a rehire of somebody marked not eligible asks why and
+      will not go without it, and is offered the day after the last working
+      day at the earliest. One's own profile shows the section without moves.
+      Proven by the acceptance test: HR terminates with access ended now
+      (`access_ended` in the outbox), then rehires, and period 2 is on the
+      screen and in `people.employment_period`.*
 - [ ] **PEO-121** Finance full values and the webhook delivery log on screen.
       PEO-088's request, decision and one download, and PEO-032/093's
       delivery log with replay, have transports and no screen; neither has a

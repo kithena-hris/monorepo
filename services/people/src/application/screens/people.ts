@@ -1,6 +1,8 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
+import type { EmploymentPeriodRow } from '../../domain/person/person.js';
+
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
@@ -142,6 +144,11 @@ export interface ProfileView {
   readonly values: FormValues;
   /** Whose day it is for them, and what day: HR's alone, absent for anybody else (PEO-119). */
   readonly calendar: { readonly today: string; readonly timeZone: string } | null;
+  /** HR's alone, beside the calendar: where they stand and every employment (PEO-120). */
+  readonly employment: {
+    readonly status: string;
+    readonly periods: readonly EmploymentPeriodRow[];
+  } | null;
 }
 
 /**
@@ -170,6 +177,9 @@ export async function profileView(
     if (!record.ok) return record;
     const { view, sections } = record.value;
     const calendar = await deps.service.access.calendar(tx, { ...asking, personId: id.value });
+    const periods = calendar.ok
+      ? await deps.service.access.employmentPeriods(tx, { ...asking, personId: id.value })
+      : null;
     const title = view.attributes['job_title'];
     const photo = view.attributes['photo'];
     return ok({
@@ -183,6 +193,7 @@ export async function profileView(
       sections: sections.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, sections),
       calendar: calendar.ok ? calendar.value : null,
+      employment: periods?.ok ? { status: view.status, periods: periods.value } : null,
     });
   });
 }

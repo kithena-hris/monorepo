@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation WithdrawNotice($personId: ID!, $key: String!) {\n    withdrawNotice(personId: $personId, idempotencyKey: $key) { id }\n  }"}

@@ -67,6 +67,12 @@ export const OPERATIONS = {
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
       calendar { today timeZone }
+      employment {
+        status
+        periods {
+          period startedOn lastWorkingDay leavingReason eligibleForRehire noticeFrom rehireOverrideReason
+        }
+      }
     }
   }${RECORD_FIELD}${ENTRY}`,
 
@@ -300,6 +306,44 @@ export const OPERATIONS = {
     setEmployeeNumbering(
       legalEntityId: $legalEntityId, prefix: $prefix, digits: $digits, start: $start, idempotencyKey: $key
     ) { legalEntityId }
+  }`,
+
+  GiveNotice: `mutation GiveNotice($personId: ID!, $lastWorkingDay: String!, $reason: LeavingReason, $key: String!) {
+    giveNotice(personId: $personId, lastWorkingDay: $lastWorkingDay, reason: $reason, idempotencyKey: $key) { id }
+  }`,
+
+  WithdrawNotice: `mutation WithdrawNotice($personId: ID!, $key: String!) {
+    withdrawNotice(personId: $personId, idempotencyKey: $key) { id }
+  }`,
+
+  TerminatePerson: `mutation TerminatePerson(
+    $personId: ID!, $lastWorkingDay: String!, $reason: LeavingReason!, $note: String,
+    $eligibleForRehire: Boolean, $endAccessNow: Boolean, $key: String!
+  ) {
+    terminatePerson(
+      personId: $personId, lastWorkingDay: $lastWorkingDay, reason: $reason, note: $note,
+      eligibleForRehire: $eligibleForRehire, endAccessNow: $endAccessNow, idempotencyKey: $key
+    ) { id }
+  }`,
+
+  EndPersonAccess: `mutation EndPersonAccess($personId: ID!, $key: String!) {
+    endPersonAccess(personId: $personId, idempotencyKey: $key) { id }
+  }`,
+
+  StartLeave: `mutation StartLeave($personId: ID!, $key: String!) {
+    startLeave(personId: $personId, idempotencyKey: $key) { id }
+  }`,
+
+  EndLeave: `mutation EndLeave($personId: ID!, $key: String!) {
+    endLeave(personId: $personId, idempotencyKey: $key) { id }
+  }`,
+
+  DiscardPerson: `mutation DiscardPerson($personId: ID!, $key: String!) {
+    discardPerson(personId: $personId, idempotencyKey: $key) { id }
+  }`,
+
+  RehirePerson: `mutation RehirePerson($personId: ID!, $startDate: String!, $overrideReason: String, $key: String!) {
+    rehirePerson(personId: $personId, startDate: $startDate, overrideReason: $overrideReason, idempotencyKey: $key) { id }
   }`,
 
   ProposeImport: `mutation ProposeImport($file: Upload!) {

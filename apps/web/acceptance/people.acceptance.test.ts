@@ -577,3 +577,47 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     await context.close();
   });
 });
+
+describe('PEO-120: HR terminates somebody, ending their access now, then rehires them', () => {
+  it('moves the record through both on the profile, each an event', async () => {
+    const [ada] = await stack.sql<{ id: string }[]>`
+      SELECT id FROM people.person WHERE work_email = 'ada@acme.example'`;
+    if (ada === undefined) throw new Error('Ada was not imported');
+    const status = async () =>
+      (await stack.sql<{ status: string }[]>`SELECT status FROM people.person WHERE id = ${ada.id}`)[0]
+        ?.status;
+    expect(await status()).toBe('active');
+
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/${ada.id}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Terminate' }).click();
+    const terminate = page.getByRole('dialog', { name: 'Terminate' });
+    await terminate.getByRole('combobox', { name: /Reason/ }).click();
+    await page.getByRole('option', { name: 'Dismissed' }).click();
+    await terminate.getByRole('checkbox', { name: 'End their access now' }).click();
+    await terminate.getByRole('button', { name: 'Terminate' }).click();
+    await eventually('the termination', status, (s) => s === 'terminated');
+    const ended = await stack.sql`
+      SELECT 1 FROM people.outbox
+       WHERE event_name = 'people.person.access_ended' AND envelope -> 'payload' ->> 'personId' = ${ada.id}`;
+    expect(ended).toHaveLength(1);
+
+    // The page comes back from People with the leaver's move offered.
+    await page.getByRole('button', { name: 'Rehire' }).click();
+    const rehire = page.getByRole('dialog', { name: 'Rehire' });
+    await rehire.getByRole('button', { name: 'Rehire' }).click();
+    // From the day after the last working day, which is still ahead: pre-hire.
+    await eventually('the rehire', status, (s) => s === 'pre_hire');
+    const periods = await stack.sql<{ period: number }[]>`
+      SELECT period FROM people.employment_period WHERE person_id = ${ada.id} ORDER BY period`;
+    expect(periods.map((p) => p.period)).toEqual([1, 2]);
+    await page
+      .getByRole('table', { name: 'Employment periods' })
+      .getByRole('cell', { name: '2', exact: true })
+      .waitFor({ timeout: 30_000 });
+    await context.close();
+  });
+});

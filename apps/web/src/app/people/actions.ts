@@ -253,6 +253,44 @@ export async function setNumbering(
   return outcome(people('SetEmployeeNumbering', { legalEntityId, ...scheme }));
 }
 
+/* ----------------------------------------------------------- lifecycle -- */
+
+type LeavingReason = 'resigned' | 'dismissed' | 'end_of_contract';
+
+/** One of a person's lifecycle moves (PEO-120), HR's, keyed per press. People decides whether it may. */
+export type LifecycleMove =
+  | { readonly kind: 'giveNotice'; readonly lastWorkingDay: string; readonly reason?: LeavingReason }
+  | { readonly kind: 'withdrawNotice' }
+  | {
+      readonly kind: 'terminate';
+      readonly lastWorkingDay: string;
+      readonly reason: LeavingReason;
+      readonly note?: string;
+      readonly eligibleForRehire?: boolean;
+      readonly endAccessNow?: boolean;
+    }
+  | { readonly kind: 'endAccess' }
+  | { readonly kind: 'startLeave' }
+  | { readonly kind: 'endLeave' }
+  | { readonly kind: 'discard' }
+  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string };
+
+const MOVES = {
+  giveNotice: 'GiveNotice',
+  withdrawNotice: 'WithdrawNotice',
+  terminate: 'TerminatePerson',
+  endAccess: 'EndPersonAccess',
+  startLeave: 'StartLeave',
+  endLeave: 'EndLeave',
+  discard: 'DiscardPerson',
+  rehire: 'RehirePerson',
+} as const;
+
+export async function moveLifecycle(personId: string, move: LifecycleMove): Promise<Outcome> {
+  const { kind, ...input } = move;
+  return outcome(people(MOVES[kind], { personId, ...given(input) }));
+}
+
 /* -------------------------------------------------------------- import -- */
 
 /** The file travels with every step: People keeps nothing between them (§14.2). */
