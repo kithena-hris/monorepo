@@ -1,7 +1,9 @@
 import { err, failure, isTimeZone, ok, type Result } from '@kithena/domain-kit';
 import { imageIsOurs, type ImageHostPolicy } from './image-host.js';
 import { checkEntitlements } from './entitlements.js';
+import { AdministratorRequired, ModuleNotEnabled } from './administrators.js';
 import {
+  ADMINISTERED_MODULES,
   type ModuleEntitlement,
   PostalAddress,
   ThemeId,
@@ -50,12 +52,22 @@ export interface ProvisionRequest {
    * has the deployment's list until somebody records one.
    */
   readonly entitlements?: readonly string[];
+  /**
+   * Who administers each administered module switched on here, by the email
+   * of one of `admins` (PEO-112). Required for each such module: nobody is a
+   * module's administrator because they were invited first.
+   */
+  readonly administrators?: Readonly<Record<string, string>>;
+  /** The back-office operator creating the company. */
+  readonly namedBy?: string | null;
 }
 
 /** What `checkProvisionable` hands on: the zone and the modules decided. */
-export type CheckedProvision = Omit<ProvisionRequest, 'entitlements'> & {
+export type CheckedProvision = Omit<ProvisionRequest, 'entitlements' | 'administrators'> & {
   readonly timeZone: string;
   readonly entitlements: readonly ModuleEntitlement[] | null;
+  /** Module → the administrator's email, one of `admins`. */
+  readonly administrators: readonly { entitlement: ModuleEntitlement; email: string }[];
 };
 
 export const TimeZoneUnknown = failure('TIME_ZONE_UNKNOWN', 'That is not a time zone', [
@@ -146,5 +158,26 @@ export function checkProvisionable(
     entitlements = modules.value;
   }
 
-  return ok({ ...request, admins: unique, address: shape.data, timeZone, entitlements });
+  const administrators: { entitlement: ModuleEntitlement; email: string }[] = [];
+  const asked = request.administrators ?? {};
+  for (const module of Object.keys(asked)) {
+    if (!(entitlements ?? []).some((e) => e === module)) return err(ModuleNotEnabled(module));
+  }
+  for (const entitlement of entitlements ?? []) {
+    if (!ADMINISTERED_MODULES.includes(entitlement)) continue;
+    const email = asked[entitlement]?.trim().toLowerCase();
+    if (email === undefined || !unique.includes(email)) {
+      return err(AdministratorRequired(entitlement));
+    }
+    administrators.push({ entitlement, email });
+  }
+
+  return ok({
+    ...request,
+    admins: unique,
+    address: shape.data,
+    timeZone,
+    entitlements,
+    administrators,
+  });
 }

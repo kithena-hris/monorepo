@@ -13,6 +13,8 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  *   software keyboard raised, and abandoning half way leaves a partial record.
  * - PEO-055: an admin takes a broken file, fixes the blocked rows from the
  *   downloaded CSV, and imports them without re-mapping.
+ * - PEO-112: the People administrator grants a role on the roles screen, with
+ *   a reason, and an employee cannot open it.
  * - Field-level absence: a field the viewer may not read is not in the HTML
  *   the shell sends, nor in what the remote draws.
  *
@@ -439,5 +441,41 @@ describe('PEO-055: an import with broken rows, fixed from the downloaded CSV', (
       'tom@acme.example',
     ]);
     await context.close();
+  });
+});
+
+describe('PEO-112: granting a role on the roles screen', () => {
+  it('grants Finance to an employee with a reason, audited; the employee cannot see the screen', async () => {
+    const context = await signedIn(ADMIN.session);
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/settings/roles`);
+    await page.getByRole('checkbox', { name: `Finance for ${EMPLOYEE.email}` }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('textbox', { name: /Reason/ }).fill('Covers payroll this quarter');
+    await dialog.getByRole('button', { name: 'Grant' }).click();
+    await eventually(
+      'the grant',
+      () =>
+        stack.sql<{ role: string }[]>`
+          SELECT role FROM people.role_grant WHERE account_id = ${EMPLOYEE.account}`,
+      (rows) => rows.some((r) => r.role === 'finance'),
+    );
+    const [event] = await stack.sql<{ payload: Record<string, unknown> }[]>`
+      SELECT envelope -> 'payload' AS payload FROM people.outbox
+       WHERE event_name = 'people.role.granted' AND envelope -> 'payload' ->> 'accountId' = ${EMPLOYEE.account}`;
+    expect(event?.payload).toEqual({
+      accountId: EMPLOYEE.account,
+      role: 'finance',
+      by: ADMIN.account,
+      via: 'people',
+      reason: 'Covers payroll this quarter',
+    });
+    await context.close();
+
+    const employee = await signedIn(EMPLOYEE.session);
+    const theirs = await employee.newPage();
+    await theirs.goto(`${stack.shell}/people/settings/roles`);
+    await theirs.getByText('Could not load the roles').waitFor({ timeout: 30_000 });
+    await employee.close();
   });
 });

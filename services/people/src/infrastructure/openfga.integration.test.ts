@@ -13,6 +13,8 @@ import { personAccess, type PersonAccess } from '../application/person/person-ac
 import { uuidv7 } from '../application/person/ids.js';
 import { recomputeCompleteness } from '../application/completeness/recompute.js';
 import { utcCalendars } from '../application/org/org.js';
+import { tenantRoles, type TenantRoles } from '../application/roles/roles.js';
+import { drizzleRoleStore } from './drizzle-role-store.js';
 import { Person } from '../domain/person/person.js';
 import { peopleConsumer } from './consumers/handle.js';
 import { drizzleProvisionalPeople } from './consumers/identity.js';
@@ -34,8 +36,10 @@ import { tenantTransaction, type InTenantTransaction } from './unit-of-work.js';
  *   Other manager                       (Acme)
  *   HR at Globex                        (Globex)
  *
- * The first person in each tenant administers it (§8.2), so Boss is Acme's HR
- * and Globex's first person is Globex's.
+ * Nobody administers a tenant for arriving first (PEO-112): the back office
+ * names Boss for Acme and Globex's HR for Globex, and every later role is
+ * granted through People's application layer and reaches OpenFGA through the
+ * outbox.
  */
 
 const ACME = '00000000-0000-4000-8000-00000000000a';
@@ -58,6 +62,23 @@ let fga: OpenFga;
 let access: PersonAccess;
 let handle: (raw: unknown) => Promise<string>;
 let admin: ReturnType<typeof postgres>;
+let roles: TenantRoles;
+
+/** The back office naming a People administrator, as identity's outbox writes it. */
+const named = (tenantId: string, accountId: string, n: number) => ({
+  eventId: `01890000-0000-7000-8000-${String(n).padStart(12, '0')}`,
+  eventName: 'identity.tenant.administrator_named',
+  eventVersion: 1,
+  tenantId,
+  occurredAt: '2026-09-24T09:00:00.000Z',
+  recordedAt: '2026-09-24T09:00:00.000Z',
+  effectiveFrom: null,
+  aggregate: { type: 'Tenant', id: tenantId, version: 1 },
+  actor: { kind: 'system', process: 'name-administrator' },
+  correlationId: '00000000-0000-4000-8000-00000000c0de',
+  causationId: null,
+  payload: { entitlement: 'module.people', accountId, namedBy: null },
+});
 
 const relations = (tenantId: string, accountId: string, personId: string) =>
   inTenant(tenantId, ({ tx }) =>
@@ -100,7 +121,9 @@ beforeAll(async () => {
   inTenant = tenantTransaction(drizzle(serviceClient));
 
   fga = openFga(openfga.apiUrl);
+  roles = tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 });
   handle = peopleConsumer({
+    roles,
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
     recompute: recomputeCompleteness({
@@ -150,7 +173,7 @@ beforeAll(async () => {
         { managerId },
       ),
     );
-  // In order: the first row in a tenant is its administrator.
+  // Boss first, which used to make Boss the administrator; it no longer does.
   await seed(ACME, BOSS, null);
   await seed(ACME, MANAGER, BOSS.person);
   await seed(ACME, EMPLOYEE, MANAGER.person);
@@ -177,6 +200,13 @@ beforeAll(async () => {
   ] as const) {
     await inTenant(tenantId, ({ tx }) => fga.sync(tx, tenantId, who.person));
   }
+  expect(await fga.roles(ACME, BOSS.account)).toEqual(new Set());
+
+  // The back office names each tenant's administrator (PEO-112).
+  expect(await handle(named(ACME, BOSS.account, 1))).toBe('applied');
+  expect(await handle(named(ACME, BOSS.account, 1))).toBe('unchanged');
+  expect(await handle(named(GLOBEX, GLOBEX_HR.account, 2))).toBe('applied');
+  await relay();
 }, 180_000);
 
 afterAll(async () => {
@@ -278,10 +308,26 @@ describe('OpenFGA relations for People', () => {
       isManager: false,
     });
 
-    await fga.role(ACME, MANAGER.account, 'finance', true);
-    await fga.role(ACME, MANAGER.account, 'finance', true);
+    const asBoss = {
+      tenantId: ACME,
+      viewer: { accountId: BOSS.account, roles: new Set<string>() },
+      correlationId: '00000000-0000-4000-8000-00000000c0df',
+    };
+    const change = { accountId: MANAGER.account, role: 'finance' as const, reason: 'Runs payroll' };
+    const grant = () => inTenant(ACME, ({ tx }) => roles.grant(tx, { ...asBoss, ...change }));
+    expect((await grant()).ok).toBe(true);
+    expect((await grant()).ok).toBe(true);
+    await relay();
     expect((await relations(ACME, MANAGER.account, OTHER.person)).isFinance).toBe(true);
-    await fga.role(ACME, MANAGER.account, 'finance', false);
+    expect(
+      await admin`SELECT count(*)::int AS n FROM people.outbox WHERE event_name = 'people.role.granted'
+                  AND envelope -> 'payload' ->> 'role' = 'finance'`,
+    ).toEqual([{ n: 1 }]);
+
+    expect((await inTenant(ACME, ({ tx }) => roles.revoke(tx, { ...asBoss, ...change }))).ok).toBe(
+      true,
+    );
+    await relay();
     expect((await relations(ACME, MANAGER.account, OTHER.person)).isFinance).toBe(false);
   });
 });

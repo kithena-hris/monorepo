@@ -219,6 +219,12 @@ export function PeopleScreen({
             return rotated;
           },
         };
+      case 'RoleSettings':
+        return {
+          load: loadable,
+          onGrant: thenRefresh(actions.grantRole),
+          onRevoke: thenRefresh(actions.revokeRole),
+        };
       case 'ExportBuilder':
         return {
           load: loadable,

@@ -166,7 +166,9 @@ export default async function Company({
     return {
       ok: false,
       message:
-        typeof failure.message === 'string' ? failure.message : 'That employee could not be invited.',
+        typeof failure.message === 'string'
+          ? failure.message
+          : 'That employee could not be invited.',
       ...(Array.isArray(failure.path)
         ? { path: failure.path.filter((p): p is string => typeof p === 'string') }
         : {}),
@@ -217,7 +219,12 @@ export default async function Company({
       const invitation = body as Invitation;
       revalidatePath(`/companies/${id}`);
       revalidatePath('/');
-      return { ok: true, kind: 'invited', enrolUrl: invitation.enrolUrl, expiresAt: invitation.expiresAt };
+      return {
+        ok: true,
+        kind: 'invited',
+        enrolUrl: invitation.enrolUrl,
+        expiresAt: invitation.expiresAt,
+      };
     }
 
     const failed = (body ?? {}) as { message?: unknown };
@@ -262,14 +269,18 @@ export default async function Company({
     };
   }
 
-  /** The modules the company bought, the whole list (PEO-114). */
-  async function saveModules(entitlements: string[]): Promise<SaveModulesResult> {
+  /** The modules the company bought, the whole list (PEO-114), and People's administrator (PEO-112). */
+  async function saveModules(
+    entitlements: string[],
+    administrators: Record<string, string>,
+  ): Promise<SaveModulesResult> {
     'use server';
 
-    if (!(await currentOperator())) return { ok: false, message: 'Your session has expired.' };
+    const operator = await currentOperator();
+    if (!operator) return { ok: false, message: 'Your session has expired.' };
     const { status, body } = await callIdentity(`/api/internal/admin/tenants/${id}/entitlements`, {
       method: 'PUT',
-      body: { entitlements },
+      body: { entitlements, administrators, operatorId: operator.operatorId },
     });
     if (status === 200) {
       revalidatePath(`/companies/${id}`);
@@ -280,6 +291,27 @@ export default async function Company({
       ok: false,
       message:
         typeof failed.message === 'string' ? failed.message : 'The modules could not be saved.',
+    };
+  }
+
+  /** Another People administrator, for a company that has People (PEO-112). */
+  async function nameAdministrator(accountId: string): Promise<SaveModulesResult> {
+    'use server';
+
+    const operator = await currentOperator();
+    if (!operator) return { ok: false, message: 'Your session has expired.' };
+    const { status, body } = await callIdentity(
+      `/api/internal/admin/tenants/${id}/administrators`,
+      {
+        method: 'POST',
+        body: { entitlement: 'module.people', accountId, operatorId: operator.operatorId },
+      },
+    );
+    if (status === 201) return { ok: true };
+    const failed = (body ?? {}) as { message?: unknown };
+    return {
+      ok: false,
+      message: typeof failed.message === 'string' ? failed.message : 'Nobody was named.',
     };
   }
 
@@ -315,7 +347,6 @@ export default async function Company({
           company.address.postcode,
           country?.name ?? company.address.country,
         ].filter((line): line is string => line !== null && line !== '');
-
 
   /**
    * Counts only, and that is the whole contract with the wizard.
@@ -533,7 +564,12 @@ export default async function Company({
             <CompanyModules
               recorded={company.entitlements}
               effective={company.effectiveEntitlements}
+              // Anybody who can still sign in, or will once they enrol.
+              accounts={company.people
+                .filter((p) => ['provisioned', 'invited', 'active'].includes(p.status))
+                .map((p) => ({ id: p.id, email: p.email }))}
               save={saveModules}
+              nameAdministrator={nameAdministrator}
             />
           }
         />

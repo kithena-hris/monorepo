@@ -262,6 +262,16 @@ tab (`PUT /api/internal/admin/tenants/<id>/entitlements`, the whole list).
   it is in it.
 - **The database refuses a malformed list** (`tenant_entitlements_shape`: the
   shape, no repeats), so a path that skips identity cannot store nonsense.
+- **Switching People on names its administrator (PEO-112).** People is in
+  `ADMINISTERED_MODULES`: the wizard asks which invited administrator runs it,
+  and the company page which existing account, and identity refuses the change
+  without one that can still sign in (`ADMINISTRATOR_REQUIRED`,
+  `ADMINISTRATOR_UNUSABLE`). The naming is `identity.tenant.administrator_named
+  { entitlement, accountId, namedBy }`, the operator in `namedBy`; People grants
+  `people_admin` and `hr` from it. `POST /api/internal/admin/tenants/<id>/administrators`
+  names another for a company that already has People — the recovery path when
+  a company has lost every administrator. Nobody is an administrator for having
+  been invited first, and every later role is the company's own to grant.
 
 ### Separation of duties at tenant creation
 

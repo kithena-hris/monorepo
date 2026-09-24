@@ -16,6 +16,8 @@ import { drizzleExportLedger } from '../application/export/ledger.js';
 import { keyOf, type ObjectStore } from '../application/export/object-store.js';
 import type { ExportQueue } from '../application/export/queue.js';
 import { orgAdmin } from '../application/org/org.js';
+import { tenantRoles } from '../application/roles/roles.js';
+import { drizzleRoleStore } from '../infrastructure/drizzle-role-store.js';
 import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
@@ -216,6 +218,7 @@ export function peopleService(
     }),
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
+    roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       kick(tenantId);
