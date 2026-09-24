@@ -43,6 +43,35 @@ export interface RecordSection {
   readonly fields: readonly RecordField[];
 }
 
+/**
+ * What a country check found on one national identifier a form carried
+ * (PEO-125): a warning, never a refusal. The message never repeats the value.
+ */
+export interface IdentifierFindingView {
+  readonly key: string;
+  readonly label: string;
+  readonly level: 'attention' | 'mismatch';
+  readonly code: string;
+  readonly message: string;
+  /** `pending`: HR will review it. `accepted`: HR already accepted this value. */
+  readonly review: 'pending' | 'accepted' | 'none';
+}
+
+/** A person's own doubted identifier, still waiting on somebody (PEO-125). */
+export interface IdentifierReviewEntry {
+  readonly key: string;
+  readonly label: string;
+  /** `pending`: with HR. `sent_back`: HR asked the employee to correct it. */
+  readonly state: 'pending' | 'sent_back';
+  readonly findings: readonly {
+    readonly level: string;
+    readonly code: string;
+    readonly message: string;
+  }[];
+  /** What HR wrote when sending it back. */
+  readonly note: string | null;
+}
+
 export interface Outcome {
   readonly ok: boolean;
   readonly message?: string;

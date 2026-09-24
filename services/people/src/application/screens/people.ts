@@ -6,13 +6,14 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import type { FormValues, RecordSection } from './model.js';
+import type { FormValues, IdentifierReviewEntry, RecordSection } from './model.js';
 import {
   formValues,
   nameOf,
   NOBODY,
   personOfViewer,
   recordSections,
+  checkSection,
   saveSection,
   toForm,
   type ScreenDeps,
@@ -107,6 +108,8 @@ export interface OnboardingView {
   })[];
   readonly values: FormValues;
   readonly saved: readonly string[];
+  /** Their doubted identifiers still open: with HR, or sent back to them (PEO-125). */
+  readonly reviews: readonly IdentifierReviewEntry[];
 }
 
 /** What a person is asked for after their first sign-in: never an `hr_only` field (§8.3). */
@@ -121,7 +124,7 @@ export async function onboardingView(
     if (!own.ok) return own;
     const record = await ownRecord(deps, tx, asking, own.value, askedOfEmployee);
     if (!record.ok) return record;
-    const { view, sections, version } = record.value;
+    const { view, sections, version, reviews } = record.value;
     const values = formValues(view, sections);
     const special = new Set(
       version.document.attributes
@@ -153,6 +156,7 @@ export async function onboardingView(
             s.fields.every((f) => !f.required || values[f.key] != null),
         )
         .map((s) => s.key),
+      reviews,
     });
   });
 }
@@ -178,7 +182,29 @@ async function ownRecord(
   const verdict = await deps.service.access.completeness(tx, { ...asking, personId });
   const missing = new Set(verdict.ok ? verdict.value.missing.map((m) => m.key) : []);
   const sections = recordSections(version, relations, include, missing, people);
-  return ok({ view: view.value, sections, version, missing: verdict.ok ? missing.size : null });
+  // The person's doubted identifiers still open, on fields this viewer reads (PEO-125).
+  const open = await deps.service.access.personReviews(tx, { ...asking, personId });
+  const labels = new Map(version.document.attributes.map((d) => [d.key as string, d.label.default]));
+  const reviews: IdentifierReviewEntry[] = (open.ok ? open.value : []).flatMap((r) =>
+    r.state === 'pending' || r.state === 'sent_back'
+      ? [
+          {
+            key: r.attributeKey,
+            label: labels.get(r.attributeKey) ?? r.attributeKey,
+            state: r.state,
+            findings: r.findings.filter((f) => f.level !== 'ok'),
+            note: r.state === 'sent_back' ? r.note : null,
+          },
+        ]
+      : [],
+  );
+  return ok({
+    view: view.value,
+    sections,
+    version,
+    missing: verdict.ok ? missing.size : null,
+    reviews,
+  });
 }
 
 /* ------------------------------------------------------------ profile -- */
@@ -205,6 +231,8 @@ export interface ProfileView {
    * the person is not a leaver.
    */
   readonly placement: PlacementView | null;
+  /** Their doubted identifiers still open, on fields this viewer reads (PEO-125). */
+  readonly reviews: readonly IdentifierReviewEntry[];
 }
 
 export interface PlacementView {
@@ -297,11 +325,58 @@ export async function profileView(
             locations,
           }
         : null,
+      reviews: record.value.reviews,
     });
   });
 }
 
-export { saveSection };
+export { checkSection, saveSection };
+
+/* ------------------------------------------------- identifier reviews -- */
+
+/** One doubted identifier in HR's queue. The value is never here: `last4`, or the audited reveal. */
+export interface IdentifierReviewItem {
+  readonly personId: string;
+  readonly name: string;
+  readonly attributeKey: string;
+  readonly label: string;
+  readonly last4: string | null;
+  readonly findings: readonly { readonly level: string; readonly code: string; readonly message: string }[];
+  readonly enteredAt: string;
+}
+
+export interface IdentifierReviewsView {
+  readonly items: readonly IdentifierReviewItem[];
+}
+
+/**
+ * HR's queue of doubted national identifiers (PEO-125; PRD §8.4), oldest
+ * first, each named as HR may read the person. HR's alone; the decision and
+ * the reveal are their own, audited, calls.
+ */
+export async function identifierReviewsView(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<Result<IdentifierReviewsView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const queue = await deps.service.access.identifierReviews(tx, asking);
+    if (!queue.ok) return queue;
+    const items: IdentifierReviewItem[] = [];
+    for (const r of queue.value) {
+      const person = await deps.service.access.read(tx, { ...asking, personId: r.personId });
+      items.push({
+        personId: r.personId,
+        name: (person.ok ? nameOf(person.value.attributes) : null) ?? 'Unnamed',
+        attributeKey: r.attributeKey,
+        label: r.label,
+        last4: r.last4,
+        findings: r.findings.filter((f) => f.level !== 'ok'),
+        enteredAt: r.createdAt,
+      });
+    }
+    return ok({ items });
+  });
+}
 
 /* ---------------------------------------------------------- directory -- */
 

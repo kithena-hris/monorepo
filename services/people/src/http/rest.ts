@@ -100,7 +100,62 @@ export const CompletenessBody = z.object({
   missing: z.array(
     z.object({ key: z.string(), sectionKey: z.string(), owners: z.array(z.string()) }),
   ),
+  attention: z
+    .array(z.string())
+    .describe('Keys holding a value HR sent back to be corrected (PEO-125): present, not missing.'),
 });
+
+/* ------------------------------------------------- identifier reviews -- */
+
+/** What a country check found (PEO-125). Never the value. */
+export const IdentifierFindingBody = z.object({
+  level: z.enum(['ok', 'attention', 'mismatch']),
+  code: z.string(),
+  message: z.string(),
+});
+
+export const IdentifierFindingsBody = z.object({
+  key: z.string(),
+  findings: z.array(IdentifierFindingBody),
+  pendingReview: z.boolean().describe('True while HR has this value to review.'),
+});
+
+/** A person after a write, with what the checks found on each national identifier it carried. */
+export const PersonWriteBody = PersonBody.extend({
+  identifierFindings: z
+    .array(IdentifierFindingsBody)
+    .describe(
+      'One entry per national identifier in the request. A warning, never a refusal: the value was saved.',
+    ),
+});
+
+export const IdentifierReviewBody = z.object({
+  id: z.uuid(),
+  personId: z.uuid(),
+  attributeKey: z.string(),
+  label: z.string(),
+  state: z.enum(['pending', 'accepted', 'sent_back', 'superseded']),
+  findings: z.array(IdentifierFindingBody),
+  createdAt: z.string(),
+  last4: z.string().nullable().describe('What a screen shows. The value only through /reveal.'),
+});
+
+export const IdentifierReviewDecisionBody = z.strictObject({
+  attributeKey: z.string().max(64),
+  decision: z.enum(['accept', 'send_back']),
+  note: z.string().max(500).nullable().optional(),
+});
+
+export const IdentifierDecidedBody = z.object({
+  reviewId: z.uuid(),
+  personId: z.uuid(),
+  attributeKey: z.string(),
+  state: z.enum(['accepted', 'sent_back']),
+});
+
+export const IdentifierRevealBody = z.strictObject({ attributeKey: z.string().max(64) });
+
+export const IdentifierRevealedBody = z.object({ attributeKey: z.string(), value: z.string() });
 
 export const SchemaVersionSummary = z.object({
   version: z.int(),
@@ -480,6 +535,47 @@ export function restRoutes(deps: RestDeps): Route[] {
       (view) => view,
     );
 
+  /**
+   * The person after a write, with what the country checks found on each
+   * national identifier the request carried (PEO-125). Read again rather than
+   * kept, so a retried request is answered the same way: the checks are pure,
+   * and whether HR still has a value to review is asked now.
+   */
+  const writtenPerson = async (
+    asking: Asking,
+    personId: string,
+    attributes: Readonly<Record<string, unknown>>,
+  ): Promise<RestResponse> => {
+    const person = await readPerson(asking, personId);
+    if (person.status >= 300) return person;
+    const found = await run(service, asking.tenantId, async (tx) => {
+      const checked = await service.access.checkIdentifiers(tx, {
+        ...asking,
+        personId,
+        values: attributes,
+      });
+      if (!checked.ok) return checked;
+      const open = await service.access.personReviews(tx, { ...asking, personId });
+      const pending = new Set(
+        (open.ok ? open.value : []).filter((r) => r.state === 'pending').map((r) => r.attributeKey),
+      );
+      return ok(
+        checked.value.map((a) => ({
+          key: a.key,
+          findings: a.findings,
+          pendingReview: pending.has(a.key),
+        })),
+      );
+    });
+    return {
+      ...person,
+      body: {
+        ...(person.body as Record<string, unknown>),
+        identifierFindings: found.ok ? found.value : [],
+      },
+    };
+  };
+
   /** A legal entity, location or settings use case, in its own transaction. */
   const inOrg = <T>(
     asking: Asking,
@@ -856,7 +952,7 @@ export function restRoutes(deps: RestDeps): Route[] {
             });
             return created.ok ? ok(created.value.id) : created;
           },
-          (id) => readPerson(asking, id),
+          (id) => writtenPerson(asking, id, input.value.attributes),
         );
       },
     },
@@ -891,7 +987,89 @@ export function restRoutes(deps: RestDeps): Route[] {
             });
             return updated.ok ? ok(personId) : updated;
           },
-          (id) => readPerson(asking, id),
+          (id) => writtenPerson(asking, id, input.value.attributes),
+        );
+      },
+    },
+    // Doubted national identifiers, for HR (PEO-125).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/identifier-reviews$/,
+      handle: async (asking) =>
+        respond(
+          await run(service, asking.tenantId, (tx) => service.access.identifierReviews(tx, asking)),
+          200,
+          (items) => ({
+            items: items.map((r) => ({
+              id: r.id,
+              personId: r.personId,
+              attributeKey: r.attributeKey,
+              label: r.label,
+              state: r.state,
+              findings: r.findings,
+              createdAt: r.createdAt,
+              last4: r.last4,
+            })),
+          }),
+        ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/people/${UUID}/identifier-reviews$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(IdentifierReviewDecisionBody, request);
+        if (!input.ok) return refused(input.error);
+        const personId = params['id'] ?? '';
+        const { attributeKey, decision } = input.value;
+        const decided = (reviewId: string): Promise<RestResponse> =>
+          Promise.resolve({
+            status: 200,
+            body: {
+              reviewId,
+              personId,
+              attributeKey,
+              state: decision === 'accept' ? 'accepted' : 'sent_back',
+            },
+          });
+        // Keyed like every write; a retry is answered with the decision as made.
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const reviewed = await service.access.reviewIdentifier(tx, {
+              ...asking,
+              personId,
+              attributeKey,
+              decision,
+              note: input.value.note ?? null,
+            });
+            return reviewed.ok ? ok(reviewed.value.id) : reviewed;
+          },
+          decided,
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/people/${UUID}/identifier-reviews/reveal$`),
+      // An audited read: it changes nothing a retry could repeat, so it takes no key.
+      safe: true,
+      handle: async (asking, request, params) => {
+        const input = bodyAs(IdentifierRevealBody, request);
+        if (!input.ok) return refused(input.error);
+        const { attributeKey } = input.value;
+        return respond(
+          await run(service, asking.tenantId, (tx) =>
+            service.access.revealIdentifier(tx, {
+              ...asking,
+              personId: params['id'] ?? '',
+              attributeKey,
+            }),
+          ),
+          200,
+          (value) => ({ attributeKey, value }),
         );
       },
     },
@@ -949,7 +1127,11 @@ export function restRoutes(deps: RestDeps): Route[] {
             service.access.completeness(tx, { ...asking, personId: params['id'] ?? '' }),
           ),
           200,
-          (verdict) => ({ state: verdict.state, missing: verdict.missing }),
+          (verdict) => ({
+            state: verdict.state,
+            missing: verdict.missing,
+            attention: verdict.attention ?? [],
+          }),
         ),
     },
     // Every employment on a person (PEO-110), HR only.

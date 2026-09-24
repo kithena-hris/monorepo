@@ -17,8 +17,10 @@ import {
   type IntegrationDeps,
 } from '../application/screens/operations.js';
 import {
+  checkSection,
   completenessView,
   directoryView,
+  identifierReviewsView,
   onboardingView,
   pickerView,
   profileView,
@@ -244,6 +246,33 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         );
         return own.ok ? saveSection(deps, asking, own.value, input.changed) : own;
       }),
+    },
+    // What saving would be warned about, saving nothing (PEO-125).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/me\/identifier-check$/,
+      safe: true,
+      handle: compute(Sections, async (asking, input) => {
+        const own = await run(deps.service, asking.tenantId, (tx) =>
+          personOfViewer(deps, tx, asking),
+        );
+        return own.ok ? checkSection(deps, asking, own.value, input.changed) : own;
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/people/${UUID}/identifier-check$`),
+      safe: true,
+      handle: async (asking, request, params) => {
+        const input = body(Sections, request.body);
+        if (!input.ok) return refused(input.error);
+        return answer(await checkSection(deps, asking, params['id'] ?? '', input.value.changed));
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/identifier-reviews$/,
+      handle: async (asking) => answer(await identifierReviewsView(deps, asking)),
     },
     {
       method: 'POST',
