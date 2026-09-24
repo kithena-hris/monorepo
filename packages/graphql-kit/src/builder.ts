@@ -22,9 +22,10 @@ import type { GraphQLContext } from './context.js';
 export function createBuilder<
   // `Record<string, never>` would be wrong here: intersected with the real
   // schema types it maps every other key to `never`, and each `t.field` call
-  // then reports its options as `never`. `Record<never, never>` is the empty
-  // object type this actually wants.
-  TTypes extends Record<string, unknown> = Record<never, never>,
+  // then reports its options as `never`. The default repeats the one key the
+  // intersection below already adds, which leaves it unchanged — the effect of
+  // an empty object type without spelling one.
+  TTypes extends Record<string, unknown> = { Context: GraphQLContext },
 >(): InstanceType<typeof SchemaBuilder<{ Context: GraphQLContext } & TTypes>> {
   type Types = { Context: GraphQLContext } & TTypes;
 
@@ -35,6 +36,12 @@ export function createBuilder<
   // subgraph passes a concrete `TTypes`, where the same options do check.
   const options = {
     plugins: [DirectivesPlugin, FederationPlugin, ZodPlugin],
+    // `@apollo/subgraph` 2.15 prints `_service.sdl` with graphql-tools'
+    // `printSchemaWithDirectives`, which reads extension directives only in
+    // its own `{ name: [args] }` shape. Pothos' default is an ordered array,
+    // which that printer renders as `@0(name: "key", …)` — and the router,
+    // which composes from that SDL, then fails to parse it.
+    directives: { useGraphQLToolsUnorderedDirectives: true },
   } as ConstructorParameters<typeof SchemaBuilder<Types>>[0];
 
   return new SchemaBuilder<Types>(options);

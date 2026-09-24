@@ -42,7 +42,6 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 /* ------------------------------------------------------------- records -- */
 
 export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Outcome> {
-  void sectionKey;
   return outcome(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
@@ -51,7 +50,6 @@ export async function savePersonSection(
   sectionKey: string,
   changed: Values,
 ): Promise<Outcome> {
-  void sectionKey;
   return outcome(people('SavePersonSection', { personId, changed: formInputs(changed) }));
 }
 
