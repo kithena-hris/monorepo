@@ -377,12 +377,24 @@ export function drizzleRelations(): RelationsResolver {
           SELECT id, manager_id, identity_account_id FROM people.person
            WHERE tenant_id = ${tenantId}::uuid AND id = ${personId}::uuid
         ),
+        -- Each step is one key lookup, whatever the statistics think of the
+        -- tenant. As a join, a tenant they have not seen looks empty, and
+        -- the planner scanned all of it once per step (20260924340000); the
+        -- LIMIT keeps the subquery from being flattened back into one. It
+        -- names no \`manager_id\` condition, which would fit
+        -- \`person_reports_idx\` as well as the key; the top of the chain
+        -- yields one null, which matches nobody and looks nobody up.
         chain(id, depth) AS (
           SELECT manager_id, 1 FROM target WHERE manager_id IS NOT NULL
           UNION
-          SELECT p.manager_id, c.depth + 1
-            FROM people.person p JOIN chain c ON p.id = c.id
-           WHERE p.tenant_id = ${tenantId}::uuid AND p.manager_id IS NOT NULL AND c.depth < 32
+          SELECT up.manager_id, c.depth + 1
+            FROM chain c
+           CROSS JOIN LATERAL (
+                   SELECT p.manager_id FROM people.person p
+                    WHERE p.tenant_id = ${tenantId}::uuid AND p.id = c.id
+                    LIMIT 1
+                 ) up
+           WHERE c.depth < 32
         )
         SELECT
           coalesce((SELECT identity_account_id = ${viewer.accountId}::uuid FROM target), false) AS is_self,
