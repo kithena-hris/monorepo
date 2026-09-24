@@ -27,7 +27,7 @@ import {
 } from '../../infrastructure/drizzle-schema-repository.js';
 import { staticKeyRing } from '../../infrastructure/envelope.js';
 import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
-import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
+import { claimRotation, drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 
 /**
@@ -42,7 +42,9 @@ const LUCIA = '00000000-0000-4000-8000-0000000000a1';
 const MARTA = '00000000-0000-4000-8000-0000000000a2';
 const LUCIA_ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
 const clock = fixedClock('2026-09-24T09:00:00.000Z');
-const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
+const K1 = { id: 'k1', key: randomBytes(32) };
+const K2 = { id: 'k2', key: randomBytes(32) };
+const ring = staticKeyRing([K1]);
 
 /** 12345678Z is the DNI; Z is its control letter, A is not. */
 const WRONG_NIF = '12345678A';
@@ -56,7 +58,9 @@ let inTenant: ReturnType<typeof tenantTransaction>;
 
 let ids = 0;
 const newId = () => `01890000-0000-7000-8000-${String((ids += 1)).padStart(12, '0')}`;
-const secrets = drizzleSecretStore(ring);
+/** What the secret store logged: a reveal is a line here, and only a reviewer's may be. */
+const logged: string[] = [];
+const secrets = drizzleSecretStore(ring, { info: (_fields, message) => logged.push(message) });
 const people = personAccess({
   calendars: utcCalendars,
   people: drizzlePersonRepository(),
@@ -279,7 +283,16 @@ describe('the reviewer accepting', () => {
   });
 
   it('is never asked again for the same value, however it is spaced', async () => {
+    logged.length = 0;
     const saved = await write(lucia, LUCIA, { es_nif: '12.345.678-a' });
+    // Recognised by its keyed hash: nothing was decrypted to compare.
+    expect(logged).not.toContain('secret revealed');
+    const [row] = [
+      ...(await admin.execute(sql`
+        SELECT value_hash, key_id FROM people.identifier_review WHERE state = 'accepted'`)),
+    ];
+    expect(row?.['key_id']).toBe('k1');
+    expect(String(row?.['value_hash'])).not.toContain('12345678');
     expect(saved.ok && saved.value.findings?.[0]?.review).toBe('accepted');
     const listed = await queue();
     expect(listed.ok && listed.value).toEqual([]);
@@ -344,5 +357,49 @@ describe('what is stored', () => {
       SELECT count(*)::int AS n FROM people.identifier_review WHERE person_id = ${MARTA}::uuid
     `);
     expect(Number([...rows][0]?.['n'])).toBe(0);
+  });
+});
+
+describe('a key rotation', () => {
+  it('re-keys an accepted value’s fingerprint, so the acceptance outlives the key', async () => {
+    // Marta's company PAN-like CIF: attention, accepted by HR.
+    expect((await write(hr, MARTA, { es_nif: 'B12345678' })).ok).toBe(true);
+    const accepted = await inTenantResult(inTenant, ACME, (tx) =>
+      people.reviewIdentifier(tx, {
+        ...as(hr),
+        personId: MARTA,
+        attributeKey: 'es_nif',
+        decision: 'accept',
+      }),
+    );
+    expect(accepted.ok).toBe(true);
+
+    const keys = [K2, K1].map((k) => `${k.id}:${k.key.toString('base64')}`).join(',');
+    await claimRotation(inTenant, keys, { clock, newEventId: newId })(ACME);
+    const [row] = [
+      ...(await admin.execute(sql`
+        SELECT key_id FROM people.identifier_review
+         WHERE person_id = ${MARTA}::uuid AND state = 'accepted'`)),
+    ];
+    expect(row?.['key_id']).toBe('k2');
+
+    // k1 gone: the same value, saved again, is still the one HR accepted.
+    const k2only = staticKeyRing([K2]);
+    const after = personAccess({
+      calendars: utcCalendars,
+      people: drizzlePersonRepository(),
+      reader: drizzlePersonReader(),
+      schemas: drizzleSchemaVersions(),
+      relations: drizzleRelations(),
+      secrets: drizzleSecretStore(staticKeyRing([K2, K1])),
+      reviews: drizzleIdentifierReviews(k2only, drizzleSecretStore(k2only)),
+      uniques: drizzleUniqueClaims(k2only),
+      clock,
+      newId,
+    });
+    const again = await inTenantResult(inTenant, ACME, (tx) =>
+      after.update(tx, { ...as(hr), personId: MARTA, changes: { es_nif: 'b-12345678' } }),
+    );
+    expect(again.ok && again.value.findings?.[0]?.review).toBe('accepted');
   });
 });
