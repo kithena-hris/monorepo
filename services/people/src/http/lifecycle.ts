@@ -67,7 +67,7 @@ export const PlacementBody = z
     effectiveFrom: z.iso
       .date()
       .optional()
-      .describe('On the person’s new calendar; today there when absent, never later.'),
+      .describe('On the person’s new calendar; today there when absent. A date ahead comes into force on its day.'),
   })
   .refine(
     (b) =>

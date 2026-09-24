@@ -65,8 +65,9 @@ export interface PersonReader {
    * `search` is a case-insensitive substring over the named core columns,
    * which the caller has likewise checked the viewer reads on everybody.
    *
-   * `gaps: 'staff'` narrows to people with a gap HR or Finance fills
-   * (`people.completeness_gap`): the completeness grid's pages (PEO-122).
+   * `gaps` narrows to people with a staff gap (`people.completeness_gap`)
+   * in one of these keys: the completeness grid's pages (PEO-122), which
+   * name the keys it shows so no page comes up short.
    */
   page(
     tx: PostgresJsDatabase,
@@ -75,7 +76,7 @@ export interface PersonReader {
     limit: number,
     where?: Readonly<Record<string, string>>,
     search?: PersonSearch,
-    gaps?: 'staff',
+    gaps?: readonly string[],
   ): Promise<readonly PersonRecord[]>;
 
   /** How many people `where` and `search` match, by status: the directory's summary. */
@@ -109,6 +110,26 @@ export interface RelationsResolver {
     viewer: Viewer,
     personId: string,
   ): Promise<ViewerRelations>;
+  /**
+   * Who the viewer is to everybody at once: the people they sign in as,
+   * manage directly, and have anywhere below them — OpenFGA's `ListObjects`,
+   * three questions for a whole page rather than one check per person.
+   * Absent, `relationsToMany` asks per person.
+   */
+  reach?(tx: PostgresJsDatabase, tenantId: string, viewer: Viewer): Promise<Reach>;
+}
+
+/** The person-level half of a viewer's relations, for everybody at once. */
+export interface Reach {
+  readonly self: ReadonlySet<string>;
+  readonly direct: ReadonlySet<string>;
+  readonly chain: ReadonlySet<string>;
+  /**
+   * False when a list hit the resolver's cap (OpenFGA answers at most 1,000
+   * objects), so a person in none of the sets may still be reached: ask them
+   * one at a time. Never read as a no.
+   */
+  readonly complete: boolean;
 }
 
 /** `drizzleSecretStore` satisfies this; the application never sees a ciphertext. */

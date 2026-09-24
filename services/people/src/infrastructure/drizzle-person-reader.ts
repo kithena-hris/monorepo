@@ -9,7 +9,7 @@ import type {
   RelationsResolver,
   SchemaVersions,
 } from '../application/person/ports.js';
-import type { Arrivals, Leavers } from '../application/person/start.js';
+import type { Arrivals, Leavers, Scheduled } from '../application/person/start.js';
 import type { GapTotals } from '../application/screens/record.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
@@ -100,7 +100,7 @@ function matching(
   tenantId: string,
   where: Readonly<Record<string, string>> | undefined,
   search: PersonSearch | undefined,
-  gaps?: 'staff',
+  gaps?: readonly string[],
 ): SQL | undefined {
   const text = search?.text.trim() ?? '';
   const keys = new Set(search?.keys ?? []);
@@ -123,9 +123,14 @@ function matching(
     // The gap row's key is the person's, so this is one index probe per row.
     gaps === undefined
       ? undefined
-      : sql`EXISTS (SELECT 1 FROM people.completeness_gap g
+      : gaps.length === 0
+        ? sql`false`
+        : sql`EXISTS (SELECT 1 FROM people.completeness_gap g
                    WHERE g.tenant_id = person.tenant_id AND g.person_id = person.id
-                     AND cardinality(g.staff_keys) > 0)`,
+                     AND g.staff_keys && ARRAY[${sql.join(
+                       gaps.map((k) => sql`${k}`),
+                       sql`, `,
+                     )}]::text[])`,
   );
 }
 
@@ -245,6 +250,41 @@ export function drizzleLeavers(): Leavers {
   };
 }
 
+/**
+ * People with a dated value scheduled ahead whose day may have come
+ * somewhere, past their watermark, earliest first (PEO-124).
+ * `person_history_scheduled_idx` holds only scheduled rows, and its predicate
+ * is repeated here word for word so the planner can use it. Raw SQL, like the
+ * watermark: `applied_through` is the job's alone, so `person` in `tables.ts`
+ * does not name it and no other read selects it (20260924320000).
+ */
+export function drizzleScheduled(): Scheduled {
+  return {
+    async due(tx, tenantId, onOrBefore, limit) {
+      const rows = await tx.execute<{ id: string }>(sql`
+        SELECT h.person_id AS id
+          FROM people.person_attribute_history h
+          JOIN people.person p ON p.tenant_id = h.tenant_id AND p.id = h.person_id
+         WHERE h.tenant_id = ${tenantId}::uuid
+           AND h.effective_from > (h.recorded_at AT TIME ZONE 'Etc/GMT+12')::date
+           AND h.effective_from <= ${onOrBefore}::date
+           AND h.attribute_key NOT IN ('hire_date', 'last_working_day')
+           AND (p.applied_through IS NULL OR h.effective_from > p.applied_through)
+           AND p.status NOT IN ('terminated', 'discarded')
+         GROUP BY h.person_id
+         ORDER BY min(h.effective_from), h.person_id
+         LIMIT ${limit}`);
+      return [...rows].map((r) => r.id);
+    },
+
+    async through(tx, tenantId, personId, day) {
+      await tx.execute(sql`
+        UPDATE people.person SET applied_through = ${day}::date
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${personId}::uuid`);
+    },
+  };
+}
+
 function toVersion(row: typeof schemaVersion.$inferSelect): PublishedVersion {
   return {
     version: row.version,
@@ -336,6 +376,31 @@ export function drizzleRelations(): RelationsResolver {
         isFinance: viewer.roles.has('finance'),
         isAdmin: viewer.roles.has('people_admin'),
       };
+    },
+
+    /** Who they are, their reports and everybody below them, in one walk down, bounded like the walk up. */
+    async reach(tx, tenantId, viewer) {
+      const rows = await tx.execute<{ kind: 'self' | 'direct' | 'chain'; id: string }>(sql`
+        WITH RECURSIVE me AS (
+          SELECT id FROM people.person
+           WHERE tenant_id = ${tenantId}::uuid AND identity_account_id = ${viewer.accountId}::uuid
+        ),
+        below(id, depth) AS (
+          SELECT id, 1 FROM people.person
+           WHERE tenant_id = ${tenantId}::uuid AND manager_id IN (SELECT id FROM me)
+          UNION
+          SELECT p.id, b.depth + 1
+            FROM people.person p JOIN below b ON p.manager_id = b.id
+           WHERE p.tenant_id = ${tenantId}::uuid AND b.depth < 32
+        )
+        SELECT 'self' AS kind, id FROM me
+        UNION ALL
+        SELECT 'direct', id FROM below WHERE depth = 1
+        UNION ALL
+        SELECT DISTINCT 'chain', id FROM below
+      `);
+      const of = (kind: string) => new Set([...rows].filter((r) => r.kind === kind).map((r) => r.id));
+      return { self: of('self'), direct: of('direct'), chain: of('chain'), complete: true };
     },
   };
 }

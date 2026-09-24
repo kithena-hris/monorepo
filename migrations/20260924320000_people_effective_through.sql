@@ -1,0 +1,45 @@
+-- A value dated in the future comes into force on its day (PRD §8.5, §11; PEO-124).
+--
+-- A write dated ahead is recorded in `person_attribute_history` at once and
+-- reaches the projection (`people.person`'s typed columns and `custom`) only
+-- when its `effective_from` has begun on the person's own calendar. An hourly,
+-- bounded job does that. Two things let it find the work and do it once.
+--
+-- ### `applied_through`, a watermark on the projection
+--
+-- The person's day the job last brought their projection up to: every dated
+-- value effective on or before it is in the row. History is append-only (a
+-- trigger refuses UPDATE; 20260922170000), so "applied" cannot be a mark on
+-- the history row — and a watermark is one date per person rather than one
+-- per value. It only narrows the candidates: the job itself compares the
+-- value in force with the one the row holds, so a rerun, a second replica or
+-- a watermark that is a day behind brings nothing in twice.
+--
+-- Null for every row written before this migration, and for every new one:
+-- null reads as "not yet visited", and the candidates are bounded by the
+-- index below rather than by the watermark, so nobody is revisited for a
+-- value that was in force when it was written.
+--
+-- ### The scheduled rows, as a partial index
+--
+-- Only rows dated after the day they were recorded — judged at UTC−12, the
+-- earliest date anywhere, since the person's own day is not on the row — ever
+-- need the job. `scheduled()` in `domain/person/history.ts` is the same
+-- predicate. They are a small share of history, so the index stays small and
+-- the job's hourly question is a range scan on it, not a scan of history.
+--
+-- Expand only: a nullable column and an index. `people.person` already carries
+-- ENABLE + FORCE row-level security and `person_tenant_isolation`, and
+-- `person_attribute_history` `history_tenant_isolation` (both 20260922170000,
+-- in the form 20260922140000_people_bootstrap.sql sets out); `svc_people`
+-- already holds SELECT and UPDATE on `people.person`, which covers a new column.
+
+ALTER TABLE people.person
+  ADD COLUMN IF NOT EXISTS applied_through date;
+
+COMMENT ON COLUMN people.person.applied_through IS
+  'The person''s day through which every dated value is in the projection (PEO-124). Null: not yet visited.';
+
+CREATE INDEX IF NOT EXISTS person_history_scheduled_idx
+  ON people.person_attribute_history (tenant_id, effective_from, person_id)
+  WHERE effective_from > (recorded_at AT TIME ZONE 'Etc/GMT+12')::date;

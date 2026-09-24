@@ -92,6 +92,9 @@ export const PEOPLE_AUTHORIZATION_MODEL = {
 /** The roles the tenant object carries. */
 const TENANT_ROLES = ['hr', 'finance', 'people_admin'] as const;
 
+/** The most objects one `ListObjects` returns by default; a list this long may be truncated. */
+const LIST_OBJECTS_CAP = 1000;
+
 /** A person in these states signs in as nobody: their account is ended or never was. */
 const GONE = new Set(['terminated', 'discarded']);
 
@@ -194,6 +197,31 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
           isHr: allowed('hr'),
           isFinance: allowed('finance'),
           isAdmin: allowed('admin'),
+        };
+      },
+
+      // `ListObjects` for each person-level relation: three questions for a
+      // page, whatever its size. OpenFGA answers at most 1,000 objects a call
+      // (its default `OPENFGA_LIST_OBJECTS_MAX_RESULTS`); a list that long
+      // may be cut short, so it is marked incomplete and whoever it misses is
+      // checked one at a time — a no is never inferred from a truncated list.
+      async reach(_tx, _tenantId, viewer) {
+        const fga = await client();
+        const user = `user:${viewer.accountId}`;
+        const list = async (relation: string) =>
+          (await fga.listObjects({ user, relation, type: 'person' })).objects.map((o) =>
+            o.slice('person:'.length),
+          );
+        const [self, direct, chain] = await Promise.all([
+          list('account'),
+          list('manager'),
+          list('manager_chain'),
+        ]);
+        return {
+          self: new Set(self),
+          direct: new Set(direct),
+          chain: new Set(chain),
+          complete: [self, direct, chain].every((l) => l.length < LIST_OBJECTS_CAP),
         };
       },
     },

@@ -786,6 +786,36 @@ export class Person extends AggregateRoot<string> {
   }
 
   /**
+   * Values recorded earlier with a future `effectiveFrom` came into force
+   * today, on the person's own calendar (PEO-124, §8.5).
+   *
+   * The write that recorded them raised `profile_updated` then, dated ahead,
+   * so a consumer could see the change was scheduled; this is the day it
+   * holds, and the projection has just moved to it. Same payload rules as
+   * `profile_updated` (§10.3). Refused on a tombstone, like an edit.
+   */
+  attributesInForce(
+    changed: readonly ChangedAttribute[],
+    schemaVersion: number,
+    ctx: EventContext,
+    effectiveFrom: string,
+  ): Result<void> {
+    if (this.#status === 'terminated' || this.#status === 'discarded') {
+      return err(InvalidTransition(this.#status, 'changed'));
+    }
+    if (changed.length === 0) {
+      return err(failure('NOTHING_CHANGED', 'Nothing came into force'));
+    }
+    this.#raise(
+      'people.person.attribute_effective',
+      { personId: this.id, identityAccountId: this.#identityAccountId, changed, schemaVersion },
+      ctx,
+      effectiveFrom,
+    );
+    return ok(undefined);
+  }
+
+  /**
    * A fact recorded wrongly, corrected. Carries `supersedes`, never an update.
    *
    * Allowed on a terminated record, because a tombstone that is wrong is still
