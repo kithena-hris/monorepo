@@ -38,7 +38,10 @@ jobs:
     name: production deploy
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 40, not 25: People's image is built on Fly's remote builder and the
+    # router's is built and started here, which together take minutes the
+    # Vercel-only job never needed.
+    timeout-minutes: 40
     # A GitHub Environment, for three reasons: the secrets here are production's
     # and no other job can read them, the approval rule on it means a deploy is
     # something a person chose rather than something a merge caused, and the
@@ -267,6 +270,228 @@ jobs:
           the messaging service was not deployed. Invitations will not be \
           emailed; enrolment links are still returned to the back-office."
 
+      # People, the router, the People remote — then the shell.
+      #
+      # Schema, then service, then client, one layer further out: People serves
+      # the subgraph, the router composes it, the remote renders against what
+      # the router serves, and the shell (`deploy web` below) loads the remote.
+      #
+      # People and the router run on Fly.io, not Vercel. People holds Kafka
+      # consumer groups, runs hourly jobs and drains on SIGTERM (PEO-118) — a
+      # function-per-request runtime has no process to hold any of that. The
+      # router is a Go binary with no serverless build at all.
+      # `docs/environments.md`, "People, the router and the remote", has the
+      # rest and the list of settings.
+      #
+      # Each is skipped with a warning while its app or project variable is
+      # unset, the way messaging is, so this merges before the apps exist.
+      - name: flyctl
+        if: vars.FLY_APP_PEOPLE_PRODUCTION != ''
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+        with:
+          # Pinned, like the Vercel CLI: this runs with a production token.
+          version: 0.4.87
+
+      # The image each app is on *before* this deploy, recorded first: Fly has
+      # no "promote the previous deployment", so rolling back is redeploying
+      # this image. Empty on an app with no machines yet.
+      #
+      # `PEOPLE_API_TOKEN` is staged onto both apps from one GitHub secret, so
+      # the token the router sends and the token People expects cannot drift
+      # apart. `printf` into `secrets import` rather than `secrets set NAME=…`,
+      # which would put the value in a process's argv. Every other People
+      # setting is a Fly secret set once by hand.
+      - name: deploy people
+        id: people
+        if: vars.FLY_APP_PEOPLE_PRODUCTION != ''
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
+          APP: ${{ vars.FLY_APP_PEOPLE_PRODUCTION }}
+        run: |
+          set -o pipefail
+          missing=
+          [ -z "$FLY_API_TOKEN" ] && missing="$missing FLY_API_TOKEN"
+          [ -z "$PEOPLE_API_TOKEN" ] && missing="$missing PEOPLE_API_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::missing production secret(s):$missing"
+            exit 1
+          fi
+          previous="$(flyctl machines list --app "$APP" --json | jq -r 'first(.[].config.image) // empty')"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          printf 'PEOPLE_API_TOKEN=%s\n' "$PEOPLE_API_TOKEN" \
+            | flyctl secrets import --stage --app "$APP"
+          flyctl deploy . --app "$APP" \
+            --config services/people/fly.toml \
+            --dockerfile services/people/Dockerfile \
+            --remote-only --yes
+
+      # `/v1/openapi.json` rather than `/health`. Yoga's `/health` answers with
+      # no database at all, and People without `PEOPLE_DATABASE_URL` still
+      # boots — serving the schema and nothing else. The REST routes are only
+      # mounted when the database is configured, so this is the check that a
+      # missing secret cannot pass.
+      - name: smoke test people
+        if: vars.FLY_APP_PEOPLE_PRODUCTION != ''
+        env:
+          APP: ${{ vars.FLY_APP_PEOPLE_PRODUCTION }}
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            "https://${APP}.fly.dev/v1/openapi.json" >/dev/null
+
+      # The supergraph is composed from `services/people/schemas/people.graphql`,
+      # the SDL People's build serves, routed to People over Fly's private
+      # network. It is baked into the image with the safelist, and the image is
+      # proven before it is pushed: `scripts/smoke.ts` starts it, and a
+      # persisted operation must pass while an unknown hash is refused. That
+      # cannot be asked of the live router — it refuses anything without a
+      # token identity minted for a signed-in session, which a workflow must
+      # never hold — so the image is where it is asked, and the image is what
+      # ships.
+      - name: build and test the router image
+        id: router-image
+        if: vars.FLY_APP_ROUTER_PRODUCTION != '' && vars.FLY_APP_PEOPLE_PRODUCTION != ''
+        working-directory: apps/gateway
+        env:
+          APP: ${{ vars.FLY_APP_ROUTER_PRODUCTION }}
+          PEOPLE_APP: ${{ vars.FLY_APP_PEOPLE_PRODUCTION }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          cat > graph.deploy.yaml <<EOF
+          version: 1
+          subgraphs:
+            - name: people
+              routing_url: http://${PEOPLE_APP}.internal:4001/graphql
+              schema:
+                file: ../../services/people/schemas/people.graphql
+          EOF
+          pnpm exec wgc router compose -i graph.deploy.yaml -o supergraph.json
+          image="registry.fly.io/${APP}:${SHA}"
+          docker build --tag "$image" .
+          pnpm exec tsx scripts/smoke.ts "$image"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      # The router's settings are staged as secrets, not passed as `--env`, so
+      # a rollback that redeploys the previous image keeps them. The audience
+      # and the entitlements must equal identity's own `AUTH_TOKEN_AUDIENCE`
+      # and `KITHENA_ENTITLEMENTS`: a different audience refuses every token.
+      - name: deploy the router
+        id: router
+        if: vars.FLY_APP_ROUTER_PRODUCTION != '' && vars.FLY_APP_PEOPLE_PRODUCTION != ''
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
+          APP: ${{ vars.FLY_APP_ROUTER_PRODUCTION }}
+          IMAGE: ${{ steps.router-image.outputs.image }}
+          AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_PRODUCTION }}
+          KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_PRODUCTION }}
+        run: |
+          set -o pipefail
+          missing=
+          [ -z "$AUTH_TOKEN_AUDIENCE" ] && missing="$missing AUTH_TOKEN_AUDIENCE_PRODUCTION"
+          [ -z "$KITHENA_ENTITLEMENTS" ] && missing="$missing KITHENA_ENTITLEMENTS_PRODUCTION"
+          if [ -n "$missing" ]; then
+            echo "::error::missing production variable(s):$missing"
+            exit 1
+          fi
+          previous="$(flyctl machines list --app "$APP" --json | jq -r 'first(.[].config.image) // empty')"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          flyctl auth docker
+          docker push "$IMAGE"
+          printf 'PEOPLE_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
+            "$PEOPLE_API_TOKEN" \
+            https://identity.kithena.com/.well-known/jwks.json \
+            "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" \
+            | flyctl secrets import --stage --app "$APP"
+          flyctl deploy --app "$APP" --config apps/gateway/fly.toml \
+            --image "$IMAGE" --yes
+
+      # Ready, and closed to a stranger. The safelist was proven on the image.
+      - name: smoke test the router
+        if: vars.FLY_APP_ROUTER_PRODUCTION != '' && vars.FLY_APP_PEOPLE_PRODUCTION != ''
+        env:
+          APP: ${{ vars.FLY_APP_ROUTER_PRODUCTION }}
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --max-time 30 \
+            "https://${APP}.fly.dev/health/ready" >/dev/null
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --retry 3 --retry-delay 5 --max-time 30 \
+            -X POST -H 'content-type: application/json' -d '{"query":"{__typename}"}' \
+            "https://${APP}.fly.dev/graphql")"
+          echo "an unauthenticated request answered $code"
+          if [ "$code" != "401" ]; then
+            echo "::error::the router did not refuse a request without a token"
+            exit 1
+          fi
+
+      # The People remote, built and signed here and uploaded as files.
+      #
+      # Signed in this job, with the private key from the production
+      # environment's secrets, and never by Vercel: the shell pins the public
+      # half and renders only a server build that verifies (PEO-115), which is
+      # what makes a compromise of the remote's host survivable. A key Vercel
+      # held would make that guarantee decorative. So this deploys `dist` as
+      # static files rather than letting Vercel build the project.
+      - name: build the people remote
+        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != ''
+        run: pnpm turbo run build --filter=@kithena/web-people...
+
+      # `sign` prints the manifest (two hashes) and nothing else, and exits
+      # non-zero naming the variable when the key is missing.
+      - name: sign the people remote
+        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != ''
+        env:
+          PEOPLE_REMOTE_SSR_SIGNING_KEY: ${{ secrets.PEOPLE_REMOTE_SSR_SIGNING_KEY }}
+        run: pnpm --filter @kithena/web-people sign
+
+      # The committed `vercel.json` travels with the files for its headers, less
+      # the keys that would have Vercel build or skip them.
+      - name: deploy the people remote
+        id: remote
+        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != ''
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
+        run: |
+          set -o pipefail
+          jq 'del(.ignoreCommand, .installCommand, .buildCommand, .outputDirectory)' \
+            apps/web/people/vercel.json > apps/web/people/dist/vercel.json
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/web/people/dist --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # On its custom domain, as the shell reaches it, with the headers the
+      # shell depends on and a signature that verifies under the key the shell
+      # is about to be given.
+      - name: smoke test the people remote
+        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != ''
+        env:
+          REMOTE: ${{ vars.PEOPLE_REMOTE_URL_PRODUCTION }}
+          PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
+        run: |
+          if [ -z "$REMOTE" ] || [ -z "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ]; then
+            echo "::error::PEOPLE_REMOTE_URL_PRODUCTION and PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION must be set with the remote's project"
+            exit 1
+          fi
+          node apps/web/people/scripts/smoke-deploy.mjs "$REMOTE" https://acme.app.kithena.com
+
+      - name: warn about what was not deployed
+        if: vars.FLY_APP_PEOPLE_PRODUCTION == '' || vars.FLY_APP_ROUTER_PRODUCTION == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION == ''
+        env:
+          PEOPLE: ${{ vars.FLY_APP_PEOPLE_PRODUCTION }}
+          ROUTER: ${{ vars.FLY_APP_ROUTER_PRODUCTION }}
+          REMOTE: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
+        run: |
+          [ -z "$PEOPLE" ] && echo "::warning::FLY_APP_PEOPLE_PRODUCTION is unset: People and the router were not deployed"
+          [ -z "$ROUTER" ] && echo "::warning::FLY_APP_ROUTER_PRODUCTION is unset: the router was not deployed"
+          [ -z "$REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION is unset: the People remote was not deployed"
+          true
+
       # The tenant app, which no workflow has ever deployed to production.
       #
       # `kithena-web-production` already owns `app.kithena.com` and
@@ -313,16 +538,28 @@ jobs:
       # domains of this project, so promoting the deployment is what points
       # them at it; aliasing each one by hand is what staging has to do because
       # it deploys as a preview.
+      #
+      # The shell's People settings are passed per deployment and read per
+      # request, so pointing the shell at a new remote or router never needs a
+      # rebuild. Each only when set: an unset one leaves whatever the project
+      # has, rather than overwriting it with nothing.
       - name: deploy web
         id: web
         env:
           VERCEL_PROJECT_ID: prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
+          PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_PRODUCTION }}
+          PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
+          ROUTER_APP: ${{ vars.FLY_APP_ROUTER_PRODUCTION }}
         run: |
           # `pipefail`, because this pipes into `tail`: without it the status
           # reported is `tail`'s, so a deploy that failed exits 0 here and
           # hands an empty URL to everything downstream.
           set -o pipefail
-          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          args=(--prod --yes --archive=tgz --token "$VERCEL_TOKEN")
+          [ -n "$PEOPLE_REMOTE_URL" ] && args+=(--env "PEOPLE_REMOTE_URL=$PEOPLE_REMOTE_URL")
+          [ -n "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "PEOPLE_REMOTE_SSR_PUBLIC_KEY=$PEOPLE_REMOTE_SSR_PUBLIC_KEY")
+          [ -n "$ROUTER_APP" ] && args+=(--env "ROUTER_URL=https://${ROUTER_APP}.fly.dev")
+          url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
             exit 1
@@ -474,6 +711,15 @@ jobs:
           DOCS_OUTCOME: ${{ steps.docs.outcome }}
           STORYBOOK_OUTCOME: ${{ steps.storybook.outcome }}
           IDENTITY_OUTCOME: ${{ steps.identity.outcome }}
+          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          REMOTE_PROJECT: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
+          ROUTER_OUTCOME: ${{ steps.router.outcome }}
+          ROUTER_APP: ${{ vars.FLY_APP_ROUTER_PRODUCTION }}
+          ROUTER_PREVIOUS: ${{ steps.router.outputs.previous }}
+          PEOPLE_OUTCOME: ${{ steps.people.outcome }}
+          PEOPLE_APP: ${{ vars.FLY_APP_PEOPLE_PRODUCTION }}
+          PEOPLE_PREVIOUS: ${{ steps.people.outputs.previous }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           rolled=()
           missing=()
@@ -501,11 +747,42 @@ jobs:
             rolled+=("$name -> $previous")
           }
 
+          # Fly keeps no "previous production deployment" to promote, so a Fly
+          # app is rolled back by redeploying the image its deploy step
+          # recorded before it replaced it. Attempted on `failure` as well as
+          # `success`: a Fly rollout that failed its health check can leave a
+          # machine on the new image, where a Vercel deploy that failed changed
+          # nothing. Redeploying the image already running is harmless.
+          roll_back_fly() {
+            local name="$1" outcome="$2" app="$3" config="$4" previous="$5"
+            if [ "$outcome" != "success" ] && [ "$outcome" != "failure" ]; then
+              echo "$name was not deployed by this run; nothing to roll back"
+              return 0
+            fi
+            # No image recorded: either the step failed before it deployed
+            # anything, or this was the app's first deploy.
+            if [ -z "$previous" ]; then
+              if [ "$outcome" = "success" ]; then
+                echo "::warning::$name has no previous image to roll back to"
+                missing+=("$name")
+              else
+                echo "$name failed before it deployed; nothing to roll back"
+              fi
+              return 0
+            fi
+            echo "::warning::rolling $name back to $previous"
+            flyctl deploy --app "$app" --config "$config" --image "$previous" --yes
+            rolled+=("$name -> $previous")
+          }
+
           roll_back storybook   "$STORYBOOK_OUTCOME" prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
           roll_back docs        "$DOCS_OUTCOME"      prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
           roll_back back-office "$ADMIN_OUTCOME"     prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
           roll_back auth        "$AUTH_OUTCOME"      prj_ms3cotgBZ4hrzEoSDKoUAGVjIhiZ
           roll_back tenant-app  "$WEB_OUTCOME"       prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
+          roll_back people-remote "$REMOTE_OUTCOME"  "$REMOTE_PROJECT"
+          roll_back_fly router  "$ROUTER_OUTCOME"    "$ROUTER_APP" apps/gateway/fly.toml    "$ROUTER_PREVIOUS"
+          roll_back_fly people  "$PEOPLE_OUTCOME"    "$PEOPLE_APP" services/people/fly.toml "$PEOPLE_PREVIOUS"
           roll_back identity    "$IDENTITY_OUTCOME"  prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
 
           if [ ${#rolled[@]} -eq 0 ] && [ ${#missing[@]} -eq 0 ]; then
