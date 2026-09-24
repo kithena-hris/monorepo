@@ -35,8 +35,13 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 
 /** The source with one floor's entry replaced by a reviewed one. Throws on anything it cannot do exactly. */
 export function markReviewed(source: string, floor: Floor, review: Review, today: string): string {
-  for (const [name, value] of Object.entries(review)) {
-    if (value.trim() === '') throw new Error(`--${name === 'reviewedOn' ? 'on' : name} is required`);
+  const given: readonly (readonly [string, string])[] = [
+    ['reviewer', review.reviewer],
+    ['on', review.reviewedOn],
+    ['reference', review.reference],
+  ];
+  for (const [flag, value] of given) {
+    if (value.trim() === '') throw new Error(`--${flag} is required`);
   }
   if (!DATE.test(review.reviewedOn) || Number.isNaN(Date.parse(review.reviewedOn))) {
     throw new Error('--on must be a calendar date, YYYY-MM-DD');
