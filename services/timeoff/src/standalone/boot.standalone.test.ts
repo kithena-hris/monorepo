@@ -82,6 +82,29 @@ describe('it contributes to the People Graph without owning it', () => {
     expect(query).toContain('_service');
   });
 
+  it('answers the two queries the router sends', async () => {
+    // Both fields are assembled by the federation plugin from pieces
+    // `@apollo/subgraph` used to export, and `_service.sdl` is printed by
+    // whichever printer that package ships. Composition reads the SDL and the
+    // router calls `_entities`; a regression in either composes or boots fine
+    // and fails only on the first cross-module query.
+    const schema = await loadSchema();
+    const fields = schema.getQueryType()?.getFields() ?? {};
+    // Only `schema` is read off the resolve info by the entities resolver.
+    const info = { schema } as never;
+
+    const service: unknown = await fields['_service']?.resolve?.(undefined, {}, {}, info);
+    expect(service).toMatchObject({ sdl: expect.stringContaining('@key(fields: "id")') });
+    expect(service).not.toMatchObject({ sdl: expect.stringContaining('@0(') });
+
+    const representations = [{ __typename: 'Person', id: 'person-1' }];
+    const entities: unknown = await fields['_entities']?.resolve?.(undefined, { representations }, {}, info);
+    expect(Array.isArray(entities)).toBe(true);
+    await expect(Promise.all(entities as unknown[])).resolves.toEqual([
+      { __typename: 'Person', id: 'person-1' },
+    ]);
+  });
+
   it('does not own the Person key', async () => {
     const schema = await loadSchema();
     // Owning `Person` would mean defining the fields People owns. Time Off
