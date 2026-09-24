@@ -273,8 +273,9 @@ describe('the lifecycle routes', () => {
       location_id: LIS,
     });
     const periods = await rest({ method: 'GET', url: `/v1/people/${ADA}/employment-periods`, headers: {}, body: '' });
+    if (!periods) throw new Error('not a REST route');
     expect(
-      (periods?.body as { items: { period: number; legalEntityId: string; lastWorkingDay: string | null }[] }).items.map(
+      (periods.body as { items: { period: number; legalEntityId: string; lastWorkingDay: string | null }[] }).items.map(
         (p) => [p.period, p.legalEntityId, p.lastWorkingDay],
       ),
     ).toEqual([

@@ -1691,7 +1691,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             corrections.push({ supersedes: standing.id, value });
           } else moves[key] = value;
         }
-        const { effectiveFrom: _asked, ...on } = asking;
+        const on = {
+          tenantId: asking.tenantId,
+          viewer: asking.viewer,
+          correlationId: asking.correlationId,
+          personId: asking.personId,
+        };
         if (Object.keys(moves).length > 0) {
           const moved = await update(tx, { ...on, changes: moves, effectiveFrom });
           if (!moved.ok) return moved;
