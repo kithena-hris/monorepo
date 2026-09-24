@@ -829,6 +829,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         to: t.exposeString('to'),
       }),
     });
+  const CellFindingRef = builder
+    .objectRef<DryRun['findings'][number]>('ImportCellFinding')
+    .implement({
+      description: 'A cell our checks doubt. Named by its reference, never by its value.',
+      fields: (t) => ({
+        row: t.exposeInt('row'),
+        cell: t.exposeString('cell'),
+        label: t.exposeString('label'),
+        level: t.exposeString('level'),
+        message: t.exposeString('message'),
+      }),
+    });
   const DryRunRef = builder.objectRef<DryRun>('ImportDryRun').implement({
     fields: (t) => ({
       counts: t.field({ type: Counts, resolve: (d) => d.counts }),
@@ -837,6 +849,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       sheets: t.field({ type: [Sheet], resolve: (d) => list(d.sheets) }),
       corrections: t.field({ type: [Correction], resolve: (d) => list(d.corrections) }),
       blocked: t.field({ type: [Blocked], resolve: (d) => list(d.blocked) }),
+      findings: t.field({
+        type: [CellFindingRef],
+        description: 'Doubted national identifiers, per cell: imported, then reviewed by HR (PEO-125).',
+        resolve: (d) => list(d.findings),
+      }),
     }),
   });
   const MapStage = builder.objectRef<Extract<Stage, { step: 'map' }>>('ImportMapStage').implement({
@@ -867,6 +884,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         blockedCsv: t.exposeString('blockedCsv'),
         reportUrl: t.exposeString('reportUrl', {
           description: 'The same report, stored sealed; a signed link that expires in a day.',
+        }),
+        forReview: t.exposeInt('forReview', {
+          description: 'Doubted national identifiers that imported and went to HR’s review.',
         }),
       }),
     });

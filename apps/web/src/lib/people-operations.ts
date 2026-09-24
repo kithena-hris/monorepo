@@ -44,10 +44,11 @@ const STAGE = `
         sheets { sheet key imported }
         corrections { row from to }
         blocked { row person problem cell }
+        findings { row cell label level message }
       }
       blockedCsv
     }
-    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv reportUrl }
+    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv reportUrl forReview }
   }`;
 
 /** A person's doubted identifiers still open (PEO-125). Never the value. */
