@@ -12,6 +12,7 @@ export { Profile } from './profile/profile';
 export { Directory } from './directory/directory';
 export { CompletenessGrid } from './completeness/completeness-grid';
 export { Integrations } from './settings/integrations/integrations';
+export { RoleSettings } from './settings/roles';
 export { ImportFlow } from './import/import-flow';
 export { ExportBuilder } from './export/export-builder';
 export { Analytics } from './analytics/analytics';

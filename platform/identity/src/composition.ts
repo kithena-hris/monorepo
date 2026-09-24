@@ -60,7 +60,11 @@ import { provisionTenant } from './tenancy/application/provision-tenant.js';
 import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
 import { adminRoutes } from './tenancy/http/admin-routes.js';
-import { setEntitlements } from './tenancy/application/set-entitlements.js';
+import {
+  nameAdministrator,
+  setEntitlements,
+  type ModulesDeps,
+} from './tenancy/application/set-entitlements.js';
 import { effectiveEntitlements } from './tenancy/domain/entitlements.js';
 
 const platformOutbox = outboxTable('platform');
@@ -468,7 +472,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
     eventName:
       | 'identity.tenant.provisioned'
       | 'identity.tenant.amended'
-      | 'identity.tenant.entitlements_changed',
+      | 'identity.tenant.entitlements_changed'
+      | 'identity.tenant.administrator_named',
     process: string,
     payload: Record<string, unknown>,
   ): Promise<void> => {
@@ -1101,6 +1106,58 @@ export async function compose(config: Config): Promise<RequestHandler> {
       ),
   });
 
+  const modules: ModulesDeps = {
+    inTenant: (tenantId, fn) =>
+      db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+        return fn({
+          modules: async () => {
+            const found = [
+              ...(await tx.execute(sql`
+                SELECT entitlements FROM platform.tenant WHERE id = ${tenantId}::uuid FOR UPDATE
+              `)),
+            ][0];
+            if (!found) return null;
+            const recorded = modulesOrNull(found['entitlements']);
+            return {
+              recorded,
+              effective: effectiveEntitlements(recorded, config.defaultEntitlements ?? []),
+            };
+          },
+          accountStatus: async (accountId) => {
+            if (!/^[0-9a-f-]{36}$/i.test(accountId)) return null;
+            const row = [
+              ...(await tx.execute(sql`
+                SELECT status FROM platform.account
+                 WHERE id = ${accountId}::uuid AND tenant_id = ${tenantId}::uuid
+              `)),
+            ][0];
+            return row ? text(row['status']) : null;
+          },
+          save: async (entitlements) => {
+            await tx.execute(sql`
+              UPDATE platform.tenant
+                 SET entitlements = ${textArray(entitlements)}, updated_at = now()
+               WHERE id = ${tenantId}::uuid
+            `);
+            await tenantEvent(
+              tx,
+              tenantId,
+              'identity.tenant.entitlements_changed',
+              'set-entitlements',
+              { entitlements },
+            );
+          },
+          name: (administrator, namedBy) =>
+            tenantEvent(tx, tenantId, 'identity.tenant.administrator_named', 'name-administrator', {
+              entitlement: administrator.entitlement,
+              accountId: administrator.accountId,
+              namedBy,
+            }),
+        });
+      }),
+  };
+
   const admin = adminRoutes({
     internalToken: config.internalToken,
     listTenants: async (page) => {
@@ -1353,39 +1410,13 @@ export async function compose(config: Config): Promise<RequestHandler> {
         }),
     }),
     /*
-     * The modules a company bought (PEO-114): the column and the event in one
-     * transaction, and neither when the list is what is already recorded.
-     * In the tenant's transaction only for the outbox, as `amend` is.
+     * The modules a company bought (PEO-114) and who administers them
+     * (PEO-112): the column and the events in one transaction, in the
+     * tenant's for the outbox and `platform.account`'s row isolation. The
+     * registry row is locked, so two operators saving at once queue.
      */
-    setEntitlements: setEntitlements({
-      write: (tenantId, entitlements) =>
-        db.transaction(async (tx) => {
-          await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
-          const found = [
-            ...(await tx.execute(sql`
-              SELECT entitlements FROM platform.tenant WHERE id = ${tenantId}::uuid FOR UPDATE
-            `)),
-          ][0];
-          if (!found) return 'unknown' as const;
-          const before = modulesOrNull(found['entitlements']);
-          if (before !== null && before.join() === entitlements.join()) {
-            return 'unchanged' as const;
-          }
-          await tx.execute(sql`
-            UPDATE platform.tenant
-               SET entitlements = ${textArray(entitlements)}, updated_at = now()
-             WHERE id = ${tenantId}::uuid
-          `);
-          await tenantEvent(
-            tx,
-            tenantId,
-            'identity.tenant.entitlements_changed',
-            'set-entitlements',
-            { entitlements },
-          );
-          return 'changed' as const;
-        }),
-    }),
+    setEntitlements: setEntitlements(modules),
+    nameAdministrator: nameAdministrator(modules),
     provision: provisionTenant({
       images,
       authOrigin: config.authOrigin,
@@ -1425,6 +1456,14 @@ export async function compose(config: Config): Promise<RequestHandler> {
             },
             announce: (tenantId, tenant) =>
               tenantEvent(tx, tenantId, 'identity.tenant.provisioned', 'provision-tenant', tenant),
+            nameAdministrator: (tenantId, administrator, namedBy) =>
+              tenantEvent(
+                tx,
+                tenantId,
+                'identity.tenant.administrator_named',
+                'provision-tenant',
+                { ...administrator, namedBy },
+              ),
             announceEntitlements: (tenantId, entitlements) =>
               tenantEvent(
                 tx,
