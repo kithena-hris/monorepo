@@ -20,9 +20,9 @@ overrides:
 packageExtensionsChecksum: sha256-thAFoqlnNg6v9+rdnLaJ/77N3ZUwSX/zfVyehov2sT4=
 
 patchedDependencies:
-  '@pothos/plugin-federation@4.5.0':
-    hash: 99b47e4baefe298d1daeb53eaa325d2578986bb2d47de007d58df21741207dab
-    path: patches/@pothos__plugin-federation@4.5.0.patch
+  '@pothos/plugin-federation@4.5.3':
+    hash: 9c9d041435b88af48bcc0f1a28ec1c303e915649154d3426bb7ed021359332c2
+    path: patches/@pothos__plugin-federation@4.5.3.patch
 
 importers:
 
@@ -451,8 +451,8 @@ importers:
   packages/graphql-kit:
     dependencies:
       '@apollo/subgraph':
-        specifier: ~2.14.3
-        version: 2.14.4(graphql@16.14.2)
+        specifier: ^2.15.1
+        version: 2.15.1(graphql@16.14.2)
       '@escape.tech/graphql-armor':
         specifier: ^3.2.0
         version: 3.2.0(@envelop/core@5.6.1)(@escape.tech/graphql-armor-types@0.7.0)
@@ -475,8 +475,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)
       '@pothos/plugin-federation':
-        specifier: ^4.3.0
-        version: 4.5.0(patch_hash=99b47e4baefe298d1daeb53eaa325d2578986bb2d47de007d58df21741207dab)(@apollo/subgraph@2.14.4(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)
+        specifier: ^4.5.3
+        version: 4.5.3(patch_hash=9c9d041435b88af48bcc0f1a28ec1c303e915649154d3426bb7ed021359332c2)(@apollo/subgraph@2.15.1(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)
       '@pothos/plugin-zod':
         specifier: ^4.3.1
         version: 4.3.1(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)(zod@4.4.3)
@@ -966,17 +966,11 @@ packages:
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
 
-  '@apollo/federation-internals@2.14.4':
-    resolution: {integrity: sha512-z8h/T0N4HROGY8o/l3WQZpj3OKNuPRt14Onm38aaksthDaw8z/nhz426USJVa50ZRU19LIN3RY28dE0tcTmCAQ==}
-    engines: {node: '>=18'}
+  '@apollo/subgraph@2.15.1':
+    resolution: {integrity: sha512-y9G5Mw5Pn/kW7u4IoyrmdFfDUe1A7s4vXYKvsqlXLO1xSYRANmVnHTRY90qGqR5Vohe79BZ/lMWDDXGsiiX+AQ==}
+    engines: {node: '>=22.0.0'}
     peerDependencies:
-      graphql: ^16.5.0
-
-  '@apollo/subgraph@2.14.4':
-    resolution: {integrity: sha512-voALjXu3aOp2vq3LXGom2yWgG/wDmH2CMuPrZVxG/TkqcNYFzmlESC4E/XI18qfGqnvWGjMckQ2EgwRwmLaJoQ==}
-    engines: {node: '>=14.15.0'}
-    peerDependencies:
-      graphql: ^16.5.0
+      graphql: ^16.11.0
 
   '@asamuzakjp/css-color@7.0.1':
     resolution: {integrity: sha512-C9duntabagkBZ1LebM7FKmphR4Q1pBclLxVbZETQV0akkFjV0ooFxo8FlvAQyKj9F6l8rEnmidgcTlpyxFYizg==}
@@ -4230,8 +4224,8 @@ packages:
       '@pothos/core': '*'
       graphql: ^16.10.0 || ^17.0.0
 
-  '@pothos/plugin-federation@4.5.0':
-    resolution: {integrity: sha512-mtzz8MKhKHGLPaMs1dQW+2mta8VffHr1qDRWqjYNqn2Z+INy7EzV4/kRDk+2MoqptERApMwmyBgFagAxfLQ0FA==}
+  '@pothos/plugin-federation@4.5.3':
+    resolution: {integrity: sha512-Oztdf6iFukU2LpSnPzEkc8f1OH0jJiJDfPceSLTDdvw3mG2QRAx3adRPm5JN8utb4nXCRbjqdbwvOAXT3KSQhQ==}
     peerDependencies:
       '@apollo/subgraph': ^2.0.0
       '@pothos/core': '*'
@@ -6130,9 +6124,6 @@ packages:
 
   '@types/use-sync-external-store@0.0.6':
     resolution: {integrity: sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg==}
-
-  '@types/uuid@9.0.8':
-    resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
 
   '@types/yargs-parser@21.0.3':
     resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}
@@ -8874,10 +8865,6 @@ packages:
 
   jose@6.2.8:
     resolution: {integrity: sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ==}
-
-  js-levenshtein@1.1.6:
-    resolution: {integrity: sha512-X2BB11YZtrRqY4EnQcLX5Rh373zbK4alC1FW7D7MBhL2gtcC17cTnr6DmfHZeS0s2rTHjUTMMHfG7gO8SSdw+g==}
-    engines: {node: '>=0.10.0'}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -12092,18 +12079,10 @@ snapshots:
     dependencies:
       graphql: 16.14.2
 
-  '@apollo/federation-internals@2.14.4(graphql@16.14.2)':
-    dependencies:
-      '@types/uuid': 9.0.8
-      chalk: 4.1.2
-      graphql: 16.14.2
-      js-levenshtein: 1.1.6
-      uuid: 11.1.1
-
-  '@apollo/subgraph@2.14.4(graphql@16.14.2)':
+  '@apollo/subgraph@2.15.1(graphql@16.14.2)':
     dependencies:
       '@apollo/cache-control-types': 1.0.3(graphql@16.14.2)
-      '@apollo/federation-internals': 2.14.4(graphql@16.14.2)
+      '@graphql-tools/utils': 12.0.1(graphql@16.14.2)
       graphql: 16.14.2
 
   '@asamuzakjp/css-color@7.0.1':
@@ -15635,9 +15614,9 @@ snapshots:
       '@pothos/core': 4.13.1(graphql@16.14.2)
       graphql: 16.14.2
 
-  '@pothos/plugin-federation@4.5.0(patch_hash=99b47e4baefe298d1daeb53eaa325d2578986bb2d47de007d58df21741207dab)(@apollo/subgraph@2.14.4(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)':
+  '@pothos/plugin-federation@4.5.3(patch_hash=9c9d041435b88af48bcc0f1a28ec1c303e915649154d3426bb7ed021359332c2)(@apollo/subgraph@2.15.1(graphql@16.14.2))(@pothos/core@4.13.1(graphql@16.14.2))(graphql@16.14.2)':
     dependencies:
-      '@apollo/subgraph': 2.14.4(graphql@16.14.2)
+      '@apollo/subgraph': 2.15.1(graphql@16.14.2)
       '@pothos/core': 4.13.1(graphql@16.14.2)
       graphql: 16.14.2
 
@@ -17640,8 +17619,6 @@ snapshots:
       '@types/node': 22.20.1
 
   '@types/use-sync-external-store@0.0.6': {}
-
-  '@types/uuid@9.0.8': {}
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -20917,8 +20894,6 @@ snapshots:
   jose@5.10.0: {}
 
   jose@6.2.8: {}
-
-  js-levenshtein@1.1.6: {}
 
   js-tokens@10.0.0: {}
 

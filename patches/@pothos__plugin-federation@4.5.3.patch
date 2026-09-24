@@ -1,0 +1,66 @@
+diff --git a/esm/schema-builder.js b/esm/schema-builder.js
+index 0247db23c4d2fe9f85ecf20f4b20b462f9834aa2..8a9953d42def51ddd93b016c3ca13277085a4859 100644
+--- a/esm/schema-builder.js
++++ b/esm/schema-builder.js
+@@ -1,11 +1,24 @@
+-import { printSubgraphSchema } from '@apollo/subgraph';
+-import { EntityType, entitiesField, serviceField } from '@apollo/subgraph/dist/types.js';
++import { entitiesResolver, printSubgraphSchema } from '@apollo/subgraph';
+ import SchemaBuilder from '@pothos/core';
+-import { GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLUnionType, isIntrospectionType, isObjectType, isOutputType, lexicographicSortSchema } from 'graphql';
++import { GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLScalarType, GraphQLString, GraphQLUnionType, isIntrospectionType, isObjectType, isOutputType, lexicographicSortSchema } from 'graphql';
+ import { ExternalEntityRef } from './external-ref.js';
+ import { replaceOutputFields, replaceOutputType } from './replace-output-types.js';
+ import { selectionShapeKey } from './types.js';
+ import { entityMapping, getUsedDirectives, mergeDirectives } from './util.js';
++// @apollo/subgraph 2.15 stopped exporting these from dist/types; rebuilt here
++// exactly as 2.14 defined them, resolving through the public entitiesResolver.
++const _Any = new GraphQLScalarType({ name: '_Any', serialize: (value)=>value });
++const _Service = new GraphQLObjectType({
++    name: '_Service',
++    fields: { sdl: { type: GraphQLString, description: 'The sdl representing the federated service capabilities. Includes federation directives, removes federation types, and includes rest of full schema after schema directives have been applied' } }
++});
++const EntityType = new GraphQLUnionType({ name: '_Entity', types: [] });
++const entitiesField = {
++    type: new GraphQLNonNull(new GraphQLList(EntityType)),
++    args: { representations: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(_Any))) } },
++    resolve: (_source, { representations }, context, info)=>entitiesResolver({ representations, context, info })
++};
++const serviceField = { type: new GraphQLNonNull(_Service) };
+ const schemaBuilderProto = SchemaBuilder.prototype;
+ export function hasResolvableKey(type) {
+     var _ref;
+diff --git a/lib/schema-builder.js b/lib/schema-builder.js
+index 51b3f0c692cf56ae4dd393c7edd99e90dcf3f626..3998214253d344b3fe6382252e5cef339c26cced 100644
+--- a/lib/schema-builder.js
++++ b/lib/schema-builder.js
+@@ -9,7 +9,6 @@ Object.defineProperty(exports, "hasResolvableKey", {
+     }
+ });
+ const _subgraph = require("@apollo/subgraph");
+-const _types = require("@apollo/subgraph/dist/types.js");
+ const _core = /*#__PURE__*/ _interop_require_default(require("@pothos/core"));
+ const _graphql = require("graphql");
+ const _externalref = require("./external-ref.js");
+@@ -21,6 +20,21 @@ function _interop_require_default(obj) {
+         default: obj
+     };
+ }
++const _types = {};
++// @apollo/subgraph 2.15 stopped exporting these from dist/types; rebuilt here
++// exactly as 2.14 defined them, resolving through the public entitiesResolver.
++const _Any = new _graphql.GraphQLScalarType({ name: '_Any', serialize: (value)=>value });
++const _Service = new _graphql.GraphQLObjectType({
++    name: '_Service',
++    fields: { sdl: { type: _graphql.GraphQLString, description: 'The sdl representing the federated service capabilities. Includes federation directives, removes federation types, and includes rest of full schema after schema directives have been applied' } }
++});
++_types.EntityType = new _graphql.GraphQLUnionType({ name: '_Entity', types: [] });
++_types.entitiesField = {
++    type: new _graphql.GraphQLNonNull(new _graphql.GraphQLList(_types.EntityType)),
++    args: { representations: { type: new _graphql.GraphQLNonNull(new _graphql.GraphQLList(new _graphql.GraphQLNonNull(_Any))) } },
++    resolve: (_source, { representations }, context, info)=>(0, _subgraph.entitiesResolver)({ representations, context, info })
++};
++_types.serviceField = { type: new _graphql.GraphQLNonNull(_Service) };
+ const schemaBuilderProto = _core.default.prototype;
+ function hasResolvableKey(type) {
+     var _ref;
