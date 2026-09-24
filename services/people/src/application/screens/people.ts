@@ -149,7 +149,28 @@ export interface ProfileView {
     readonly status: string;
     readonly periods: readonly EmploymentPeriodRow[];
   } | null;
+  /**
+   * Where the person sits, and where HR may move them (PEO-123). Null unless
+   * the viewer is HR, the schema has a legal entity or location to place, and
+   * the person is not a leaver.
+   */
+  readonly placement: PlacementView | null;
 }
+
+export interface PlacementView {
+  readonly legalEntityId: string | null;
+  readonly locationId: string | null;
+  /** The entities a person may be placed in: the live ones, and theirs. */
+  readonly entities: readonly { readonly value: string; readonly label: string }[];
+  readonly locations: readonly {
+    readonly value: string;
+    readonly label: string;
+    readonly legalEntityId: string;
+  }[];
+}
+
+/** The attributes the placement control writes (PEO-123). */
+const PLACED = new Set(['legal_entity_id', 'location_id']);
 
 /**
  * One person, as this viewer may see them. `personId` null is "my profile".
@@ -182,6 +203,38 @@ export async function profileView(
       : null;
     const title = view.attributes['job_title'];
     const photo = view.attributes['photo'];
+
+    // Entities and locations by name, and the placement control for HR.
+    const org = await deps.calendars.load(tx, asking.tenantId);
+    const at = (key: string) => {
+      const v = view.attributes[key];
+      return typeof v === 'string' ? v : null;
+    };
+    const entities = [...org.entities.values()]
+      .filter((e) => e.archived !== true || e.id === at('legal_entity_id'))
+      .map((e) => ({ value: e.id, label: e.name }));
+    const locations = [...org.locations.values()]
+      .filter((l) => l.archived !== true || l.id === at('location_id'))
+      .map((l) => ({ value: l.id, label: l.name, legalEntityId: l.legalEntityId }));
+    const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
+    const placeable =
+      relations.isHr &&
+      !['terminated', 'discarded'].includes(view.status) &&
+      sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
+    const named = sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => {
+        const options =
+          f.key === 'legal_entity_id'
+            ? entities
+            : f.key === 'location_id'
+              ? locations.map(({ value, label }) => ({ value, label }))
+              : f.options;
+        // Moved through the placement control, where the date and the transfer are.
+        return PLACED.has(f.key) && placeable ? { ...f, options, readOnly: true } : { ...f, options };
+      }),
+    }));
+
     return ok({
       person: {
         name: nameOf(view.attributes) ?? 'Unnamed',
@@ -190,10 +243,18 @@ export async function profileView(
         missing: record.value.missing,
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
-      sections: sections.map((s) => ({ ...s, readsLogged: false })),
-      values: formValues(view, sections),
       calendar: calendar.ok ? calendar.value : null,
       employment: periods?.ok ? { status: view.status, periods: periods.value } : null,
+      sections: named.map((s) => ({ ...s, readsLogged: false })),
+      values: formValues(view, named),
+      placement: placeable
+        ? {
+            legalEntityId: at('legal_entity_id'),
+            locationId: at('location_id'),
+            entities,
+            locations,
+          }
+        : null,
     });
   });
 }

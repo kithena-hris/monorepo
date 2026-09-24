@@ -721,6 +721,11 @@ type PeopleProfile {
 
   """HR’s alone: their status and every employment period (PEO-120)."""
   employment: ProfileEmployment
+
+  """
+  Null unless the viewer is HR and there is somewhere to place the person.
+  """
+  placement: ProfilePlacement
 }
 
 type PeopleRegistry {
@@ -783,6 +788,12 @@ type PersonPage {
   nextCursor: String
 }
 
+type PlacementLocation {
+  value: String
+  label: String
+  legalEntityId: String
+}
+
 type ProfileEmployment {
   status: String
   periods: [ProfileEmploymentPeriod!]
@@ -805,6 +816,14 @@ type ProfilePerson {
 
   """Null when the viewer may not judge this record’s completeness."""
   missing: Int
+}
+
+"""Where the person sits, and where HR may move them (PEO-123)."""
+type ProfilePlacement {
+  legalEntityId: String
+  locationId: String
+  entities: [FieldOption!]
+  locations: [PlacementLocation!]
 }
 
 type ProfileSection {
