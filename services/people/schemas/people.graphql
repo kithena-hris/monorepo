@@ -250,6 +250,26 @@ input FormValueInput {
   clear: Boolean
 }
 
+type FullValuesField {
+  key: String
+  label: String
+}
+
+type FullValuesListed {
+  id: ID
+  state: String
+  mine: Boolean
+  requestedBy: String
+  reason: String
+  fields: [String!]
+  requestedAt: String
+  expiresAt: String
+  note: String
+
+  """The one download, for the requester only, until used or 24 hours pass."""
+  link: String
+}
+
 """Finance asks, HR decides, one download (PEO-088)."""
 type FullValuesRequest {
   id: ID
@@ -644,6 +664,14 @@ type PeopleExportBuilder {
   sections: [ExportSection!]
 }
 
+"""Finance’s own requests for full values, or every one for HR (PEO-121)."""
+type PeopleFullValues {
+  canRequest: Boolean
+  canDecide: Boolean
+  fields: [FullValuesField!]
+  requests: [FullValuesListed!]
+}
+
 """Which of People’s areas this viewer’s roles open (PEO-119)."""
 type PeopleHome {
   hr: Boolean
@@ -842,6 +870,12 @@ type Query {
 
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
+
+  """
+  One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
+  """
+  peopleWebhookDeliveries(endpointId: ID!, after: ID): WebhookDeliveries
+  peopleFullValues: PeopleFullValues
   fullValuesRequest(id: ID!): FullValuesRequest
 
   """What publishing the draft would do, from requiredFrom; rolled back."""
@@ -986,6 +1020,32 @@ type TextEntry {
 
 """A file, sent as the GraphQL multipart request spec describes."""
 scalar Upload
+
+type WebhookDeliveries {
+  endpoint: WebhookDeliveryEndpoint
+  deliveries: [WebhookDelivery!]
+  next: ID
+}
+
+"""What was sent and how it went; never the body."""
+type WebhookDelivery {
+  id: ID
+  eventName: String
+
+  """pending, delivered, failed or skipped"""
+  status: String
+  attempts: Int
+  lastResponse: Int
+  createdAt: String
+  deliveredAt: String
+  replayOf: ID
+}
+
+type WebhookDeliveryEndpoint {
+  id: ID
+  url: String
+  enabled: Boolean
+}
 
 type WebhookEndpoint {
   id: ID

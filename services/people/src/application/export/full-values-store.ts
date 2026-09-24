@@ -90,6 +90,16 @@ export function drizzleFullValuesStore(): FullValuesStore {
       return row ? fromRow(row) : null;
     },
 
+    async list(tx, tenantId, where) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT * FROM people.full_values_request
+         WHERE tenant_id = ${tenantId}::uuid
+           AND (${where.requestedBy}::uuid IS NULL OR requested_by = ${where.requestedBy}::uuid)
+         ORDER BY id DESC
+         LIMIT ${where.limit}`);
+      return [...rows].map(fromRow);
+    },
+
     async update(tx, prior, next) {
       // Guarded on everything that moves, so a decision, an issue and a
       // download each win once.
@@ -124,6 +134,17 @@ export function inMemoryFullValuesStore(): FullValuesStore & {
       return Promise.resolve();
     },
     find: (_tx, tenantId, id) => Promise.resolve(rows.get(key(tenantId, id)) ?? null),
+    list: (_tx, tenantId, where) =>
+      Promise.resolve(
+        [...rows.values()]
+          .filter(
+            (q) =>
+              q.tenantId === tenantId &&
+              (where.requestedBy === null || q.approval.requestedBy === where.requestedBy),
+          )
+          .toSorted((a, b) => (a.approval.id < b.approval.id ? 1 : -1))
+          .slice(0, where.limit),
+      ),
     update(_tx, prior, next) {
       const k = key(prior.tenantId, prior.approval.id);
       const now = rows.get(k);

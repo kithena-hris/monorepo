@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { webhookDelivery, webhookEndpoint } from './tables.js';
@@ -18,6 +18,56 @@ export interface ListedEndpoint {
   readonly problem: string | null;
   readonly lastDelivery: string | null;
   readonly secretRotated: string | null;
+}
+
+/** One delivery as the log lists it (§13.3, PEO-121): what was sent and how it went, never the body. */
+export interface ListedDelivery {
+  readonly id: string;
+  readonly eventName: string;
+  /** pending, delivered, failed or skipped. */
+  readonly status: string;
+  readonly attempts: number;
+  readonly lastResponse: number | null;
+  readonly createdAt: string;
+  readonly deliveredAt: string | null;
+  readonly replayOf: string | null;
+}
+
+export const DELIVERY_PAGE = 50;
+
+/** One endpoint's deliveries, newest first, a keyset page at a time by `seq`. */
+export async function listDeliveries(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  endpointId: string,
+  after: string | null,
+): Promise<{ deliveries: readonly ListedDelivery[]; next: string | null }> {
+  const before = after === null || !/^\d{1,18}$/.test(after) ? null : Number(after);
+  const rows = await tx
+    .select()
+    .from(webhookDelivery)
+    .where(
+      and(
+        eq(webhookDelivery.tenantId, tenantId),
+        eq(webhookDelivery.endpointId, endpointId),
+        before === null ? undefined : lt(webhookDelivery.seq, before),
+      ),
+    )
+    .orderBy(desc(webhookDelivery.seq))
+    .limit(DELIVERY_PAGE);
+  return {
+    deliveries: rows.map((r) => ({
+      id: r.id,
+      eventName: r.eventName,
+      status: r.status,
+      attempts: r.attempts,
+      lastResponse: r.lastResponse,
+      createdAt: r.createdAt.toISOString(),
+      deliveredAt: r.deliveredAt?.toISOString() ?? null,
+      replayOf: r.replayOf,
+    })),
+    next: rows.length === DELIVERY_PAGE ? String(rows.at(-1)?.seq ?? '') : null,
+  };
 }
 
 export async function listEndpoints(

@@ -48,7 +48,7 @@ import {
 } from '../infrastructure/tenant-origin.js';
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
-import { listEndpoints } from '../infrastructure/webhooks/list.js';
+import { listDeliveries, listEndpoints } from '../infrastructure/webhooks/list.js';
 import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from '../application/import/ledger.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
@@ -411,6 +411,7 @@ function screenDeps(
     artifactUrl: (version) => `${base}/v1/schema/versions/${String(version)}`,
     webhooks: service.webhooks,
     listEndpoints,
+    listDeliveries,
     advisor: typesafeAttributeAdvisorFromEnv(process.env),
     commit: {
       ledger: drizzleImportLedger(),

@@ -1217,6 +1217,8 @@ remote's `routes.json`, fetched and wired by the shell:
 | `/people/setup`                 | setup wizard               |
 | `/people/settings/fields`       | field registry and publish |
 | `/people/settings/integrations` | integrations               |
+| `/people/settings/integrations/{id}` | an endpoint's delivery log and replay (PEO-121) |
+| `/people/full-values`           | full values: finance asks, HR decides (PEO-121) |
 | `/people/settings/roles`        | roles (PEO-112)            |
 | `/people/settings/organisation` | organisation (PEO-119)     |
 | `/people/onboarding`            | onboarding                 |
@@ -1251,6 +1253,16 @@ end leave, terminate (with the reason, a note, eligibility for rehire and
 ending access now), end access, discard a provisional record, and rehire
 (asking why when the last period says not eligible). People refuses anything
 else, and the screen shows the refusal.
+
+**The delivery log and full values, as built (PEO-121).** Each endpoint's
+card on the integrations screen opens its delivery log: newest first, fifty
+at a time, showing the event, the status, the attempts and the last HTTP
+status, and never a body. Each delivery has a Replay button, which sends the
+stored event again, filtered by the allowlist as it is now; the replay then
+appears in the log as a delivery of its own. Full values (§15.2) has one
+screen for both parties. Finance chooses from the masked, exportable fields,
+says why, and later downloads the one file, once. HR sees every request,
+approves or rejects it with a note, and is never handed the link.
 
 Directory, country packs, completeness and reminders (other than the cohort
 minimum) and data protection have no screen yet.

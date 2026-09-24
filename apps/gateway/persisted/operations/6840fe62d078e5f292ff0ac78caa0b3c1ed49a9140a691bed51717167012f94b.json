@@ -1,0 +1,1 @@
+{"version":1,"body":"query WebhookDeliveries($endpointId: ID!, $after: ID) {\n    peopleWebhookDeliveries(endpointId: $endpointId, after: $after) {\n      endpoint { id url enabled }\n      deliveries { id eventName status attempts lastResponse createdAt deliveredAt replayOf }\n      next\n    }\n  }"}

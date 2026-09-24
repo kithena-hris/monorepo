@@ -12,6 +12,7 @@ import {
   decideFullValues,
   requestFullValues,
   viewFullValues,
+  fullValuesScreen,
   type FullValuesDeps,
 } from '../application/export/full-values.js';
 import type { Asking } from '../application/person/person-access.js';
@@ -647,6 +648,20 @@ export function restRoutes(deps: RestDeps): Route[] {
           await full.started(asking.tenantId, id, asking.correlationId);
         }
         return answer;
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/exports\/full-values$/,
+      handle: async (asking) => {
+        const full = deps.fullValues;
+        if (!full)
+          return refused(failure('UNAVAILABLE', 'Full-values requests are not configured'));
+        return respond(
+          await run(service, asking.tenantId, (tx) => fullValuesScreen(tx, full.deps, asking)),
+          200,
+          (screen) => screen,
+        );
       },
     },
     {

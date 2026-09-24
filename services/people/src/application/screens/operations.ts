@@ -15,7 +15,7 @@ import {
   SchemaPublished,
 } from '@kithena/contracts';
 
-import type { ListedEndpoint } from '../../infrastructure/webhooks/list.js';
+import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhooks/list.js';
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import {
@@ -75,6 +75,12 @@ export interface IntegrationDeps extends ScreenDeps {
     tenantId: string,
     since: Date,
   ) => Promise<{ endpoints: readonly ListedEndpoint[]; deliveries: number }>;
+  readonly listDeliveries: (
+    tx: Tx,
+    tenantId: string,
+    endpointId: string,
+    after: string | null,
+  ) => Promise<{ deliveries: readonly ListedDelivery[]; next: string | null }>;
 }
 
 async function admin(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Result<void>> {
@@ -124,6 +130,36 @@ export async function integrationsView(
                 : null,
         })),
       endpoints: listed.endpoints,
+    });
+  });
+}
+
+export interface DeliveriesView {
+  readonly endpoint: { readonly id: string; readonly url: string; readonly enabled: boolean };
+  readonly deliveries: readonly ListedDelivery[];
+  /** The cursor for the older page; null on the last. */
+  readonly next: string | null;
+}
+
+/** One endpoint's delivery log (PEO-121): `people_admin`'s, as the endpoints are. */
+export async function deliveriesView(
+  deps: IntegrationDeps,
+  asking: Asking,
+  endpointId: string,
+  after: string | null,
+): Promise<Result<DeliveriesView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const allowed = await admin(deps, tx, asking);
+    if (!allowed.ok) return allowed;
+    const since = new Date(Date.parse(deps.clock.instant()) - 24 * 3_600_000);
+    const endpoint = (await deps.listEndpoints(tx, asking.tenantId, since)).endpoints.find(
+      (e) => e.id === endpointId,
+    );
+    if (endpoint === undefined) return err(failure('NOT_FOUND', 'No such endpoint'));
+    const page = await deps.listDeliveries(tx, asking.tenantId, endpointId, after);
+    return ok({
+      endpoint: { id: endpoint.id, url: endpoint.url, enabled: endpoint.enabled },
+      ...page,
     });
   });
 }

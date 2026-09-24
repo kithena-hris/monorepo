@@ -16,6 +16,8 @@ import type { RecordField } from '../record/model';
 import { FieldRegistry } from '../settings/field-registry';
 import { Integrations } from '../settings/integrations/integrations';
 import { Organisation } from '../settings/organisation';
+import { WebhookLog } from '../settings/integrations/webhook-log';
+import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
@@ -428,6 +430,78 @@ describe('at 390×844, with a finger', () => {
         onCreate={() => Promise.resolve({ ok: true, secret: 's' })}
         onUpdate={ok}
         onRotate={() => Promise.resolve({ ok: true, secret: 's' })}
+      />,
+    );
+  });
+
+  it('the webhook delivery log', async () => {
+    await checked(
+      <WebhookLog
+        load={{
+          status: 'ready',
+          data: {
+            endpoint: { id: 'e1', url: 'https://hooks.example.com/people', enabled: true },
+            deliveries: [
+              {
+                id: 'd1',
+                eventName: 'people.person.hired',
+                status: 'failed',
+                attempts: 12,
+                lastResponse: 500,
+                createdAt: '2026-09-24T09:00:00.000Z',
+                deliveredAt: null,
+                replayOf: null,
+              },
+            ],
+            next: 'x',
+          },
+        }}
+        onReplay={ok}
+        onBack={() => undefined}
+        onOlder={() => undefined}
+      />,
+    );
+  });
+
+  it('full values, for finance and for HR', async () => {
+    await checked(
+      <FullValues
+        load={{
+          status: 'ready',
+          data: {
+            canRequest: true,
+            canDecide: true,
+            fields: [{ key: 'es_nif', label: 'NIF / NIE' }],
+            requests: [
+              {
+                id: 'r1',
+                state: 'pending',
+                mine: false,
+                requestedBy: 'Adam Ruiz',
+                reason: 'September payroll',
+                fields: ['NIF / NIE'],
+                requestedAt: '2026-09-24T09:00:00.000Z',
+                expiresAt: '2026-10-01T09:00:00.000Z',
+                note: null,
+                link: null,
+              },
+              {
+                id: 'r2',
+                state: 'issued',
+                mine: true,
+                requestedBy: 'Priya Shah',
+                reason: 'Audit',
+                fields: ['NIF / NIE'],
+                requestedAt: '2026-09-23T09:00:00.000Z',
+                expiresAt: '2026-09-30T09:00:00.000Z',
+                note: null,
+                link: 'https://files.example.com/x',
+              },
+            ],
+          },
+        }}
+        onRequest={ok}
+        onDecide={ok}
       />,
     );
   });

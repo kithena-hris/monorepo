@@ -78,6 +78,8 @@ export interface IntegrationsProps {
     patch: Partial<EndpointInput> & { readonly enabled?: boolean },
   ) => Promise<Outcome>;
   readonly onRotate: (id: string) => Promise<WithSecret>;
+  /** Open an endpoint's delivery log (PEO-121). */
+  readonly onOpenLog?: (id: string) => void;
 }
 
 const REASON = {
@@ -117,6 +119,7 @@ function Endpoints({
   onCreate,
   onUpdate,
   onRotate,
+  onOpenLog,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
@@ -162,6 +165,13 @@ function Endpoints({
             state={state}
             refusedKeys={refusedLabels}
             onUpdate={onUpdate}
+            {...(onOpenLog === undefined
+              ? {}
+              : {
+                  onOpenLog: () => {
+                    onOpenLog(endpoint.id);
+                  },
+                })}
             onRotate={async () => {
               const rotated = await onRotate(endpoint.id);
               if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
@@ -190,12 +200,14 @@ function EndpointCard({
   refusedKeys,
   onUpdate,
   onRotate,
+  onOpenLog,
 }: {
   readonly endpoint: Endpoint;
   readonly state: IntegrationsState;
   readonly refusedKeys: readonly string[];
   readonly onUpdate: IntegrationsProps['onUpdate'];
   readonly onRotate: () => Promise<Outcome>;
+  readonly onOpenLog?: () => void;
 }): JSX.Element {
   const [events, setEvents] = useState(endpoint.events);
   const [allowlist, setAllowlist] = useState(endpoint.allowlist);
@@ -296,6 +308,11 @@ function EndpointCard({
           >
             Rotate signing secret
           </Button>
+          {onOpenLog === undefined ? null : (
+            <Button aria-label={`Delivery log for ${endpoint.url}`} onClick={onOpenLog}>
+              Delivery log
+            </Button>
+          )}
         </div>
       </Stack>
     </PageSection>

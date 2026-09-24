@@ -55,6 +55,10 @@ export interface Stack {
   readonly shellToken: string;
   /** People's REST, as the router would call it: for a test to check a result without a screen. */
   asPeople(account: string, path: string): Promise<unknown>;
+  /** OpenFGA tuples, as People's consumer writes them from its events; there is no Kafka here. */
+  writeTuples(tuples: readonly { user: string; relation: string; object: string }[]): Promise<void>;
+  /** A keyed write to People's REST, as the router would send it, for a test's setup. */
+  writeAsPeople(account: string, path: string, body: unknown): Promise<{ status: number; body: unknown }>;
   stop(): Promise<void>;
 }
 
@@ -268,6 +272,8 @@ export async function startStack(): Promise<Stack> {
           PEOPLE_API_TOKEN: PEOPLE_TOKEN,
           PEOPLE_SECRET_KEYS: `k1:${randomBytes(32).toString('base64')}`,
           OPENFGA_URL: fga.apiUrl,
+          // Where a signed download link points: People itself, for the test to fetch.
+          PEOPLE_EXPORT_LINK_BASE: `${peopleUrl}/v1/exports/files`,
           LOG_LEVEL: 'warn',
         },
         logs['people'] ?? [],
@@ -305,6 +311,28 @@ export async function startStack(): Promise<Stack> {
       async () => (await fetch(`${identityUrl}/.well-known/jwks.json`)).ok,
     );
 
+    const principal = (account: string) => ({
+      'x-internal-token': PEOPLE_TOKEN,
+      'x-kithena-principal': JSON.stringify({
+        userId: account,
+        tenantId: TENANT,
+        roles: [],
+        entitlements: ['module.people'],
+      }),
+      'x-correlation-id': randomUUID(),
+    });
+    const writeAsPeople = async (account: string, path: string, body: unknown) => {
+      const response = await fetch(`${peopleUrl}${path}`, {
+        method: 'POST',
+        headers: {
+          ...principal(account),
+          'content-type': 'application/json',
+          'idempotency-key': randomUUID(),
+        },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: (await response.json()) as unknown };
+    };
     const asPeople = async (account: string, path: string): Promise<unknown> => {
       const response = await fetch(`${peopleUrl}${path}`, {
         headers: {
@@ -340,12 +368,17 @@ export async function startStack(): Promise<Stack> {
       { user: `user:${ADMIN.account}`, relation: 'people_admin', object: `tenant:${TENANT}` },
       { user: `user:${ADMIN.account}`, relation: 'hr', object: `tenant:${TENANT}` },
     ];
-    const wrote = await fetch(`${fga.apiUrl}/stores/${store.id}/write`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ writes: { tuple_keys: tuples } }),
-    });
-    if (!wrote.ok) throw new Error(`OpenFGA refused the tuples: ${await wrote.text()}`);
+    const writeTuples = async (
+      keys: readonly { user: string; relation: string; object: string }[],
+    ): Promise<void> => {
+      const wrote = await fetch(`${fga.apiUrl}/stores/${store.id}/write`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ writes: { tuple_keys: keys } }),
+      });
+      if (!wrote.ok) throw new Error(`OpenFGA refused the tuples: ${await wrote.text()}`);
+    };
+    await writeTuples(tuples);
 
     // The router, from the file that ships, in front of People alone. The
     // production-only parts it cannot have here — the CDN, tracing — are
@@ -485,6 +518,8 @@ export async function startStack(): Promise<Stack> {
       peopleUrl,
       shellToken: SHELL_TOKEN,
       asPeople,
+      writeAsPeople,
+      writeTuples,
       stop: async () => {
         // A path: where to leave the servers' last output, for a failure to be read.
         const keep = process.env['ACCEPTANCE_LOGS'];

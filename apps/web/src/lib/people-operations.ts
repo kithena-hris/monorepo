@@ -76,6 +76,22 @@ export const OPERATIONS = {
     }
   }${RECORD_FIELD}${ENTRY}`,
 
+  FullValues: `query FullValues {
+    peopleFullValues {
+      canRequest canDecide
+      fields { key label }
+      requests { id state mine requestedBy reason fields requestedAt expiresAt note link }
+    }
+  }`,
+
+  WebhookDeliveries: `query WebhookDeliveries($endpointId: ID!, $after: ID) {
+    peopleWebhookDeliveries(endpointId: $endpointId, after: $after) {
+      endpoint { id url enabled }
+      deliveries { id eventName status attempts lastResponse createdAt deliveredAt replayOf }
+      next
+    }
+  }`,
+
   Home: `query Home {
     peopleHome { hr admin finance }
   }`,
@@ -257,6 +273,18 @@ export const OPERATIONS = {
 
   RotateWebhookSecret: `mutation RotateWebhookSecret($id: ID!, $key: String!) {
     rotateWebhookSecret(id: $id, idempotencyKey: $key) { id secret }
+  }`,
+
+  ReplayWebhookDelivery: `mutation ReplayWebhookDelivery($deliveryId: ID!, $key: String!) {
+    replayWebhookDelivery(deliveryId: $deliveryId, idempotencyKey: $key) { deliveryId }
+  }`,
+
+  RequestFullValues: `mutation RequestFullValues($fields: [String!]!, $reason: String!, $key: String!) {
+    requestFullValues(fields: $fields, reason: $reason, idempotencyKey: $key) { id }
+  }`,
+
+  DecideFullValues: `mutation DecideFullValues($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
+    decideFullValues(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { id }
   }`,
 
   GrantRole: `mutation GrantRole($accountId: ID!, $role: TenantRole!, $reason: String!, $key: String!) {

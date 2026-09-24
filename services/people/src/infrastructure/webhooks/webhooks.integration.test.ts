@@ -25,6 +25,7 @@ import { tenantTransaction } from '../unit-of-work.js';
 import { verifySignature } from './payload.js';
 import type { Poster } from './egress.js';
 import { webhooks } from './webhooks.js';
+import { listDeliveries } from './list.js';
 import { utcCalendars } from '../../application/org/org.js';
 
 /**
@@ -254,6 +255,15 @@ describe('a replay after the allowlist was narrowed', () => {
     expect(replayed?.body).not.toContain('Platform');
     // The same event, so the receiver can recognise it.
     expect(replayed?.headers['kithena-event-id']).toBe(first?.headers['kithena-event-id']);
+
+    // The log (PEO-121): newest first, the replay naming what it replayed.
+    const log = await inTenant(ACME, ({ tx }) => listDeliveries(tx, ACME, id, null));
+    expect(log.next).toBeNull();
+    expect(log.deliveries.map((d) => [d.status, d.replayOf])).toEqual([
+      ['delivered', deliveryId],
+      ['delivered', null],
+    ]);
+    expect(JSON.stringify(log)).not.toContain('Engineer');
   });
 });
 

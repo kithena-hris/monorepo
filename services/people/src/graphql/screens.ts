@@ -1,5 +1,6 @@
 import type {
   AnalyticsView,
+  DeliveriesView,
   ExportBuilderView,
   ImportStageView,
   IntegrationsView,
@@ -15,6 +16,7 @@ import type { RolesView } from '../application/screens/roles.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
 import type { ListedEndpoint } from '../infrastructure/webhooks/list.js';
+import type { FullValuesScreen } from '../application/export/full-values.js';
 import type { PeopleBuilder, RequestContext, ViaRest } from './builder.js';
 
 /**
@@ -789,6 +791,73 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
 
+  const DeliveryRef = builder
+    .objectRef<DeliveriesView['deliveries'][number]>('WebhookDelivery')
+    .implement({
+      description: 'What was sent and how it went; never the body.',
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        eventName: t.exposeString('eventName'),
+        status: t.exposeString('status', { description: 'pending, delivered, failed or skipped' }),
+        attempts: t.exposeInt('attempts'),
+        lastResponse: t.exposeInt('lastResponse', { nullable: true }),
+        createdAt: t.exposeString('createdAt'),
+        deliveredAt: t.exposeString('deliveredAt', { nullable: true }),
+        replayOf: t.exposeID('replayOf', { nullable: true }),
+      }),
+    });
+  const DeliveryEndpoint = builder
+    .objectRef<DeliveriesView['endpoint']>('WebhookDeliveryEndpoint')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        url: t.exposeString('url'),
+        enabled: t.exposeBoolean('enabled'),
+      }),
+    });
+  const DeliveriesRef = builder.objectRef<DeliveriesView>('WebhookDeliveries').implement({
+    fields: (t) => ({
+      endpoint: t.field({ type: DeliveryEndpoint, resolve: (d) => d.endpoint }),
+      deliveries: t.field({ type: [DeliveryRef], resolve: (d) => list(d.deliveries) }),
+      next: t.exposeID('next', { nullable: true }),
+    }),
+  });
+
+  type Screen = FullValuesScreen;
+  const FullValuesField = builder
+    .objectRef<Screen['fields'][number]>('FullValuesField')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
+    });
+  const FullValuesItem = builder
+    .objectRef<Screen['requests'][number]>('FullValuesListed')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        state: t.exposeString('state'),
+        mine: t.exposeBoolean('mine'),
+        requestedBy: t.exposeString('requestedBy', { nullable: true }),
+        reason: t.exposeString('reason'),
+        fields: t.stringList({ resolve: (r) => list(r.fields) }),
+        requestedAt: t.exposeString('requestedAt'),
+        expiresAt: t.exposeString('expiresAt'),
+        note: t.exposeString('note', { nullable: true }),
+        link: t.exposeString('link', {
+          nullable: true,
+          description: 'The one download, for the requester only, until used or 24 hours pass.',
+        }),
+      }),
+    });
+  const FullValuesScreenRef = builder.objectRef<Screen>('PeopleFullValues').implement({
+    description: 'Finance’s own requests for full values, or every one for HR (PEO-121).',
+    fields: (t) => ({
+      canRequest: t.exposeBoolean('canRequest'),
+      canDecide: t.exposeBoolean('canDecide'),
+      fields: t.field({ type: [FullValuesField], resolve: (s) => list(s.fields) }),
+      requests: t.field({ type: [FullValuesItem], resolve: (s) => list(s.requests) }),
+    }),
+  });
+
   /* ------------------------------------------------------------- queries -- */
 
   const view =
@@ -857,6 +926,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       args: { id: t.arg.id({ required: true }) },
       resolve: (_root, args, ctx) =>
         viaRest<ExportAnswer>(ctx, 'GET', `/v1/exports/${encodeURIComponent(args.id)}`),
+    }),
+    peopleWebhookDeliveries: t.field({
+      type: DeliveriesRef,
+      description: 'One endpoint’s delivery log, newest first, 50 at a time; people_admin only.',
+      args: { endpointId: t.arg.id({ required: true }), after: t.arg.id() },
+      resolve: (_root, args, ctx) =>
+        viaRest<DeliveriesView>(
+          ctx,
+          'GET',
+          `/v1/webhooks/endpoints/${encodeURIComponent(args.endpointId)}/deliveries${
+            args.after ? `?after=${encodeURIComponent(args.after)}` : ''
+          }`,
+        ),
+    }),
+    peopleFullValues: t.field({
+      type: FullValuesScreenRef,
+      resolve: view<Screen>(() => '/v1/exports/full-values'),
     }),
     fullValuesRequest: t.field({
       type: FullValues,

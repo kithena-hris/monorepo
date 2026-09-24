@@ -226,6 +226,9 @@ export function PeopleScreen({
             if (rotated.ok) refresh();
             return rotated;
           },
+          onOpenLog: (id: string) => {
+            go(`/people/settings/integrations/${id}`);
+          },
         };
       case 'RoleSettings':
         return {
@@ -235,6 +238,40 @@ export function PeopleScreen({
         };
       case 'PeopleHome':
         return { load: loadable };
+      case 'FullValues':
+        return {
+          load: loadable,
+          onRequest: thenRefresh(actions.requestFullValues),
+          onDecide: thenRefresh(actions.decideFullValues),
+        };
+      case 'WebhookLog': {
+        const next =
+          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
+            ? ((load.data as { next?: string | null }).next ?? null)
+            : null;
+        const here = `/people/settings/integrations/${params['id'] ?? ''}`;
+        return {
+          load: loadable,
+          onReplay: thenRefresh(actions.replayDelivery),
+          onBack: () => {
+            go('/people/settings/integrations');
+          },
+          ...(next === null
+            ? {}
+            : {
+                onOlder: () => {
+                  go(`${here}?after=${encodeURIComponent(next)}`);
+                },
+              }),
+          ...(search['after'] === undefined
+            ? {}
+            : {
+                onNewest: () => {
+                  go(here);
+                },
+              }),
+        };
+      }
       case 'Organisation':
         return {
           load: loadable,

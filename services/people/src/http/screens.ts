@@ -5,6 +5,7 @@ import {
   analyticsView,
   commitImportView,
   createEndpoint,
+  deliveriesView,
   dryRunImport,
   exportBuilderView,
   integrationsView,
@@ -404,6 +405,12 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         resource: (_asking, id) => id,
         again: endpoint,
       }),
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/webhooks/endpoints/${UUID}/deliveries$`),
+      handle: async (asking, _request, params, query) =>
+        answer(await deliveriesView(deps, asking, params['id'] ?? '', query.get('after'))),
     },
     {
       method: 'POST',
