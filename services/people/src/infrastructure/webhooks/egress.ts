@@ -78,6 +78,43 @@ export interface EgressPolicy {
   readonly isAllowed?: (address: string) => boolean;
 }
 
+/**
+ * The policy this process runs with, from its environment.
+ *
+ * Production (`NODE_ENV=production`) gets the real check and https only,
+ * whatever else is set. Off production two switches exist, each for a local
+ * receiver: `PEOPLE_WEBHOOKS_ALLOW_HTTP=1` for plain http, and
+ * `PEOPLE_WEBHOOKS_ALLOW_LOOPBACK=1` for 127.0.0.0/8 and ::1 — what the web
+ * acceptance suite's HTTPS receiver listens on, so no test posts to the
+ * internet. Loopback only: a private range, link-local or the metadata
+ * address stays refused even then.
+ */
+export function egressPolicyFrom(
+  env: Readonly<Record<string, string | undefined>>,
+  resolve: Resolver = systemResolver,
+): EgressPolicy {
+  const offProduction = env['NODE_ENV'] !== 'production';
+  const allowHttp = offProduction && env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1';
+  if (!offProduction || env['PEOPLE_WEBHOOKS_ALLOW_LOOPBACK'] !== '1') {
+    return { resolve, allowHttp };
+  }
+  return { resolve, allowHttp, isAllowed: (a) => isPublicAddress(a) || isLoopback(a) };
+}
+
+// Two lists for the reason `blockedV4` and `blockedV6` are two: a v4 rule also
+// matches the IPv4-mapped form, and `::ffff:127.0.0.1` stays refused like
+// every mapped address.
+const loopbackV4 = new BlockList();
+loopbackV4.addSubnet('127.0.0.0', 8, 'ipv4');
+const loopbackV6 = new BlockList();
+loopbackV6.addAddress('::1', 'ipv6');
+
+function isLoopback(address: string): boolean {
+  const family = isIP(address);
+  if (family === 4) return loopbackV4.check(address, 'ipv4');
+  return family === 6 && loopbackV6.check(address, 'ipv6');
+}
+
 export interface VettedTarget {
   readonly url: URL;
   readonly address: string;

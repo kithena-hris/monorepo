@@ -13,6 +13,7 @@ import { drizzleRelations } from '../../infrastructure/drizzle-person-reader.js'
 import { drizzlePeopleFacts } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { fixedCalendars } from '../org/org.js';
+import { relationsToMany } from '../person/person-access.js';
 import { chartExport, chartTooltip, type ChartViewer } from './access.js';
 import {
   attritionTrend,
@@ -891,7 +892,7 @@ describe('a tenant with entities in Madrid and Bangalore (PRD §6.8, §16)', () 
         calendar,
         at: '2026-03-31T20:00:00.000Z',
         everyone: HR_RELATIONS,
-        relations: (id) => drizzleRelations().relations(ctx.tx, TENANT, viewer, id),
+        relations: (ids) => relationsToMany(drizzleRelations(), ctx.tx, TENANT, viewer, ids),
       }),
     );
     expect(result).toMatchObject({ ok: true, value: { today: '2026-03-31', horizon: 90 } });
@@ -952,7 +953,7 @@ describe('the expiry timeline, live and item by item (PEO-122)', () => {
           calendar: UTC_CALENDAR,
           at: AT,
           everyone: account.roles.has('hr') ? HR_RELATIONS : NO_RELATIONS,
-          relations: (id) => drizzleRelations().relations(ctx.tx, TENANT, account, id),
+          relations: (ids) => relationsToMany(drizzleRelations(), ctx.tx, TENANT, account, ids),
         }),
       defs,
     );
@@ -1047,7 +1048,10 @@ describe('at 50,000 people', () => {
       `snapshot of 50,000 people took ${String(Math.round(performance.now() - start))} ms`,
     );
 
-    // A year of month-end runs behind it, copied rather than recomputed.
+    // A year of month-end runs behind it, copied rather than recomputed. Only
+    // the tenant-wide scope: the trend below reads nothing else, and copying
+    // every manager's chain eleven times was millions of rows — seconds on a
+    // laptop, past the 180 s hook limit on a two-core CI runner.
     await admin.execute(sql`
       WITH months AS (SELECT (DATE '2026-03-31' - make_interval(months => n))::date AS day
                         FROM generate_series(1, 11) AS n)
@@ -1059,7 +1063,8 @@ describe('at 50,000 people', () => {
              s.tenure_band, s.completeness, s.headcount, s.joiners, s.leavers
         FROM people.headcount_snapshot s
         JOIN people.headcount_snapshot_run r ON r.tenant_id = s.tenant_id AND r.day < DATE '2026-03-31'
-       WHERE s.tenant_id = ${PERF}::uuid AND s.day = DATE '2026-03-31'`);
+       WHERE s.tenant_id = ${PERF}::uuid AND s.day = DATE '2026-03-31'
+         AND s.scope_id = ${PERF}::uuid`);
     await admin.execute(sql`ANALYZE people.headcount_snapshot`);
   });
 

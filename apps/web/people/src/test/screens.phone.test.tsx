@@ -295,6 +295,9 @@ describe('at 390×844, with a finger', () => {
             numberings: [{ legalEntityId: 'e1', prefix: 'ES-', digits: 5, nextValue: 42 }],
             countries: [{ code: 'ES', name: 'Spain' }],
             timeZones: ['Etc/UTC', 'Europe/Madrid'],
+            retentionFloors: [
+              { floor: 'es-labour', months: 48, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
+            ],
           },
         }}
         onUpdateSettings={ok}

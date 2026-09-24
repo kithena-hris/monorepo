@@ -152,32 +152,42 @@ export function drizzleCompletenessStore(): CompletenessStore {
        * clearing by every path that terminates or corrects.
        */
       const rows = await tx.execute(sql`
-        SELECT task, key, array_agg(DISTINCT person_id ORDER BY person_id) AS person_ids
+        SELECT task, key, reason, array_agg(DISTINCT person_id ORDER BY person_id) AS person_ids
           FROM (
-            SELECT 'missing' AS task, key, g.person_id
+            SELECT 'missing' AS task, key, NULL::text AS reason, g.person_id
               FROM people.completeness_gap g, unnest(g.staff_keys) AS key
              WHERE g.tenant_id = ${tenantId}::uuid
             UNION ALL
-            SELECT 'confirm_termination', 'last_working_day', p.id
+            SELECT 'confirm_termination', 'last_working_day', NULL, p.id
               FROM people.person p
              WHERE p.tenant_id = ${tenantId}::uuid
                AND p.status = 'notice'
                AND p.last_working_day < ${today}::date
             UNION ALL
             -- Marked by the claim rotation (PEO-082), both people of each pair.
-            SELECT 'unique_conflict', u.attribute_key, pair.person_id
+            SELECT 'unique_conflict', u.attribute_key, NULL, pair.person_id
               FROM people.attribute_unique u,
                    unnest(ARRAY[u.person_id, u.conflict_with]) AS pair(person_id)
              WHERE u.tenant_id = ${tenantId}::uuid
                AND u.conflict_with IS NOT NULL
+            UNION ALL
+            -- Refused on its day (PEO-124) until HR records a newer row for the key.
+            SELECT 'scheduled_change_refused', r.attribute_key, r.reason, r.person_id
+              FROM people.scheduled_refusal r
+             WHERE r.tenant_id = ${tenantId}::uuid
+               AND NOT EXISTS (
+                 SELECT 1 FROM people.person_attribute_history h
+                  WHERE h.tenant_id = r.tenant_id AND h.person_id = r.person_id
+                    AND h.attribute_key = r.attribute_key AND h.recorded_at > r.refused_at)
           ) AS work
-         GROUP BY task, key
-         ORDER BY task DESC, key
+         GROUP BY task, key, reason
+         ORDER BY task DESC, key, reason
       `);
       return [...rows].map((row): GridRow => ({
         task: row['task'] as GridRow['task'],
         key: row['key'] as string,
         personIds: row['person_ids'] as string[],
+        ...(row['reason'] == null ? {} : { reason: row['reason'] as string }),
       }));
     },
   };

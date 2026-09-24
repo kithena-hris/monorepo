@@ -169,6 +169,7 @@ beforeAll(async () => {
     '20260924150000_people_unique_hash.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
+    '20260924320000_people_effective_through.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -399,6 +400,7 @@ describe('notice, then termination', () => {
           tenantId: ACME,
           personId: KIRI,
           actor: { kind: 'system', process: 'retention' },
+          mode: { kind: 'automated' },
           correlationId: '00000000-0000-4000-8000-0000000000c1',
         }),
       );

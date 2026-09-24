@@ -38,6 +38,10 @@ const state = (over: Partial<OrganisationState> = {}): OrganisationState => ({
     { code: 'GB', name: 'United Kingdom' },
   ],
   timeZones: ['Etc/UTC', 'Europe/London', 'Europe/Madrid', 'Pacific/Kiritimati'],
+  retentionFloors: [
+    { floor: 'es-labour', months: 48, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
+    { floor: 'de-labour', months: 72, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
+  ],
   ...over,
 });
 
@@ -133,6 +137,25 @@ describe('the organisation settings (PEO-119)', () => {
     await user.tab();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(p.onUpdateSettings).toHaveBeenCalledWith({ cohortMinimum: 12 });
+  });
+
+  it('marks every unreviewed retention floor pending legal review (PEO-126)', async () => {
+    const reviewed = state({
+      retentionFloors: [
+        { floor: 'es-labour', months: 48, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
+        { floor: 'de-labour', months: 72, status: 'reviewed', reviewedBy: 'A. Counsel', reviewedOn: '2026-10-01' },
+      ],
+    });
+    const { container } = render(<Organisation {...props({ load: { status: 'ready', data: reviewed } })} />);
+    await fast().click(screen.getByRole('tab', { name: 'Company' }));
+    const table = screen.getByRole('table', { name: 'Statutory retention floors' });
+    const spain = within(table).getByRole('row', { name: /Spain, labour records/ });
+    expect(within(spain).getByText('48 months')).toBeInTheDocument();
+    expect(within(spain).getByText('Pending legal review')).toBeInTheDocument();
+    const germany = within(table).getByRole('row', { name: /Germany/ });
+    expect(within(germany).getByText('Reviewed by A. Counsel on 2026-10-01')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Nothing is erased automatically/);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('shows anybody else the settings without a control', async () => {
