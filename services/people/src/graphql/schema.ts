@@ -133,11 +133,14 @@ const viaRest: ViaRest = async <T>(
   });
   if (answer === null) return fail(failure('NOT_FOUND', 'No such route'));
   if (answer.status >= 400) {
-    const refused = (answer.body as { error?: { code?: string; message?: string; path?: string[] } })
-      .error;
-    return fail(
-      failure(refused?.code ?? 'INTERNAL', refused?.message ?? 'People refused', refused?.path),
-    );
+    const refused = (
+      answer.body as {
+        error?: { code?: string; message?: string; path?: string[]; link?: string };
+      }
+    ).error;
+    const why = failure(refused?.code ?? 'INTERNAL', refused?.message ?? 'People refused', refused?.path);
+    // A re-uploaded import's answer is the stored report of the first (PEO-090).
+    return fail(refused?.link === undefined ? why : { ...why, link: refused.link });
   }
   return answer.body as T;
 };

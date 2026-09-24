@@ -320,12 +320,17 @@ type ImportDoneStage {
   updated: Int
   blocked: Int
   blockedCsv: String
+
+  """The same report, stored sealed; a signed link that expires in a day."""
+  reportUrl: String
 }
 
 type ImportDryRun {
   counts: ImportCounts
   incomplete: ImportIncomplete
   ignoredColumns: [String!]
+  sheets: [ImportSheet!]
+  corrections: [ImportHireDateCorrection!]
   blocked: [ImportBlockedRow!]
 }
 
@@ -333,6 +338,12 @@ type ImportFile {
   name: String
   rows: Int
   sheet: String
+}
+
+type ImportHireDateCorrection {
+  row: Int
+  from: String
+  to: String
 }
 
 type ImportIncomplete {
@@ -359,6 +370,15 @@ type ImportReviewStage {
 
   """The blocked rows, base64 CSV."""
   blockedCsv: String
+}
+
+"""
+A repeating attribute’s sheet; one not imported is listed, never dropped.
+"""
+type ImportSheet {
+  sheet: String
+  key: String
+  imported: Boolean
 }
 
 union ImportStage = ImportMapStage | ImportReviewStage | ImportDoneStage

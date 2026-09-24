@@ -91,11 +91,12 @@ headers:
 
 # People's refusal reaches the caller as People gave it: its code (FORBIDDEN,
 # LAST_ADMIN, IDEMPOTENCY_KEY_REUSED …), its message and the field it names
-# (`toGraphQLError`), which is what the tenant app shows. A People error carries
-# nothing else — never a stack — and only those two extensions pass.
+# (`toGraphQLError`), which is what the tenant app shows, and for a re-uploaded
+# import the signed link to the report the first one stored (PEO-090). A
+# People error carries nothing else — never a stack — and only those pass.
 subgraph_error_propagation:
   mode: pass-through
-  allowed_extension_fields: ['code', 'field']
+  allowed_extension_fields: ['code', 'field', 'link']
 
 # `complexity_limits`, not `complexity_calculation`: the router refuses to boot
 # on the old key (schema validation), which went unnoticed until PEO-092 first

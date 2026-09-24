@@ -41,11 +41,13 @@ const STAGE = `
         counts { create update unchanged blocked duplicate }
         incomplete { count byField { label count } }
         ignoredColumns
+        sheets { sheet key imported }
+        corrections { row from to }
         blocked { row person problem cell }
       }
       blockedCsv
     }
-    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv }
+    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv reportUrl }
   }`;
 
 export const OPERATIONS = {

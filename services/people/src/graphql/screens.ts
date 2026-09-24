@@ -638,11 +638,30 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       cell: t.exposeString('cell'),
     }),
   });
+  const Sheet = builder.objectRef<DryRun['sheets'][number]>('ImportSheet').implement({
+    description: 'A repeating attribute’s sheet; one not imported is listed, never dropped.',
+    fields: (t) => ({
+      sheet: t.exposeString('sheet'),
+      key: t.exposeString('key'),
+      imported: t.exposeBoolean('imported'),
+    }),
+  });
+  const Correction = builder
+    .objectRef<DryRun['corrections'][number]>('ImportHireDateCorrection')
+    .implement({
+      fields: (t) => ({
+        row: t.exposeInt('row'),
+        from: t.exposeString('from', { nullable: true }),
+        to: t.exposeString('to'),
+      }),
+    });
   const DryRunRef = builder.objectRef<DryRun>('ImportDryRun').implement({
     fields: (t) => ({
       counts: t.field({ type: Counts, resolve: (d) => d.counts }),
       incomplete: t.field({ type: Incomplete, resolve: (d) => d.incomplete }),
       ignoredColumns: t.stringList({ resolve: (d) => list(d.ignoredColumns) }),
+      sheets: t.field({ type: [Sheet], resolve: (d) => list(d.sheets) }),
+      corrections: t.field({ type: [Correction], resolve: (d) => list(d.corrections) }),
       blocked: t.field({ type: [Blocked], resolve: (d) => list(d.blocked) }),
     }),
   });
@@ -672,6 +691,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         updated: t.exposeInt('updated'),
         blocked: t.exposeInt('blocked'),
         blockedCsv: t.exposeString('blockedCsv'),
+        reportUrl: t.exposeString('reportUrl', {
+          description: 'The same report, stored sealed; a signed link that expires in a day.',
+        }),
       }),
     });
   const ImportStage = builder.unionType('ImportStage', {

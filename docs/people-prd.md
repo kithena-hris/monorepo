@@ -1838,7 +1838,8 @@ lifecycle moves, legal entities, locations, numbering and settings.
   router.
 - **People's refusal, as People gave it.** The router passes a subgraph's
   error through (`subgraph_error_propagation: pass-through`) with only its
-  `code` and `field` extensions, so the screen shows People's own sentence;
+  `code`, `field` and `link` extensions (`link`: a repeated import's stored
+  report, PEO-090), so the screen shows People's own sentence;
   a People error never carries more than that (`toGraphQLError`).
 
 ### 13.2 REST (Phase 1)
