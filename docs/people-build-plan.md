@@ -1371,7 +1371,7 @@ it is written down here rather than left in a PR description.
       Proven by the acceptance test: HR terminates with access ended now
       (`access_ended` in the outbox), then rehires, and period 2 is on the
       screen and in `people.employment_period`.*
-- [ ] **PEO-121** Finance full values and the webhook delivery log on screen.
+- [x] **PEO-121** Finance full values and the webhook delivery log on screen.
       PEO-088's request, decision and one download, and PEO-032/093's
       delivery log with replay, have transports and no screen; neither has a
       list to read from. *(PRD §13.3, §15.2)*
