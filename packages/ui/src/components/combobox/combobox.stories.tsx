@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Building2, MapPin } from 'lucide-react';
+import { BuildingComplex, MapPin } from 'lucide-react';
 import { useState } from 'react';
 
 import { Avatar } from '../avatar/avatar';
@@ -326,13 +326,13 @@ export const WithIcons: Story = {
               value: 'madrid',
               label: 'Madrid. Gran Vía',
               description: 'Hybrid · 3 days on site',
-              icon: <Building2 />,
+              icon: <BuildingComplex />,
             },
             {
               value: 'berlin',
               label: 'Berlin. Mitte',
               description: 'Hybrid · 2 days on site',
-              icon: <Building2 />,
+              icon: <BuildingComplex />,
             },
             {
               value: 'remote-es',

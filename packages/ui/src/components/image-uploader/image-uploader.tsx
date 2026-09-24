@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ImagePlus, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { ImagePlus, RotateCcw, Trash, TriangleAlert, Upload } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -475,7 +475,7 @@ export function ImageUploader({
                   onClick={() => {
                     remove(image);
                   }}
-                  startIcon={<Trash2 />}
+                  startIcon={<Trash />}
                 />
               </div>
             </li>
@@ -490,7 +490,7 @@ export function ImageUploader({
               key={`${rejection.file.name}-${rejection.reason}`}
               className="flex items-start gap-2 text-xs font-medium text-danger-fg"
             >
-              <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
+              <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
               {rejection.message}
             </li>
           ))}
@@ -717,7 +717,7 @@ export function AvatarUploader({
             <Button
               size="sm"
               variant="ghost"
-              startIcon={<Trash2 />}
+              startIcon={<Trash />}
               onClick={() => {
                 // Only a locally created object URL is ours to revoke. `src`
                 // belongs to the caller and may still be on screen elsewhere.

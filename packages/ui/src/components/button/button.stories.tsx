@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ArrowRight, Check, Download, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, Download, Plus, Trash } from 'lucide-react';
 
 import { Button } from './button';
 
@@ -237,7 +237,7 @@ export const WithIcons: Story = {
       <Button {...args} variant="ghost" endIcon={<ArrowRight />}>
         Continue
       </Button>
-      <Button {...args} variant="secondary" startIcon={<Trash2 />} aria-label="Delete record">
+      <Button {...args} variant="secondary" startIcon={<Trash />} aria-label="Delete record">
         {null}
       </Button>
     </div>

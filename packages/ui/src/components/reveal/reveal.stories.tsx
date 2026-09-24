@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Trash2, X } from 'lucide-react';
+import { Trash, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '../badge/badge';
@@ -208,7 +208,7 @@ export const SelectionBar: Story = {
               {selected.length} selected
             </p>
             <Separator orientation="vertical" className="h-5" />
-            <Button size="sm" variant="destructive" startIcon={<Trash2 />}>
+            <Button size="sm" variant="destructive" startIcon={<Trash />}>
               Delete
             </Button>
             <Button
