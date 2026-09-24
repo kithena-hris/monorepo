@@ -366,6 +366,52 @@ describe('PEO-117: the directory searches and filters in People', () => {
   });
 });
 
+describe('PEO-123: HR moves a person to an office in another zone', () => {
+  it('places Adam from his profile, and his day becomes the office’s', async () => {
+    const dayIn = (zone: string) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(new Date());
+    // An office whose day is not Madrid's right now: Kiritimati runs a day
+    // ahead of Madrid from 10:00 UTC until 22:00, Pago Pago a day behind it
+    // the rest of the time.
+    const zone = dayIn('Pacific/Kiritimati') !== dayIn('Europe/Madrid') ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago';
+    const [entity] = await stack.sql<{ id: string }[]>`
+      SELECT id FROM people.legal_entity WHERE tenant_id = ${TENANT} LIMIT 1`;
+    if (entity === undefined) throw new Error('the setup wizard left no legal entity');
+    const office = '00000000-0000-4000-8000-0000000000f7';
+    await stack.sql`INSERT INTO people.location (tenant_id, id, legal_entity_id, name, country)
+                    VALUES (${TENANT}, ${office}, ${entity.id}, 'Island office', 'ES')`;
+    await stack.sql`INSERT INTO people.location_zone (tenant_id, id, location_id, effective_from, time_zone)
+                    VALUES (${TENANT}, gen_random_uuid(), ${office}, '2020-01-01', ${zone})`;
+
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`);
+    const form = page.getByRole('form', { name: 'Placement' });
+    await form.waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    await form.getByRole('combobox', { name: /Work location/ }).click();
+    await page.getByRole('option', { name: 'Island office' }).click();
+    await form.getByRole('button', { name: 'Move' }).click();
+
+    await eventually(
+      'the placement',
+      () => stack.sql<{ location_id: string | null; legal_entity_id: string | null }[]>`
+        SELECT location_id, legal_entity_id FROM people.person WHERE id = ${EMPLOYEE.person}`,
+      ([p]) => p?.location_id === office,
+    );
+    const [moved] = await stack.sql<{ effective: string; payload: Record<string, unknown> }[]>`
+      SELECT envelope ->> 'effectiveFrom' AS effective, envelope -> 'payload' AS payload
+        FROM people.outbox
+       WHERE aggregate_id = ${EMPLOYEE.person} AND event_name = 'people.person.org_changed'
+       ORDER BY created_at DESC LIMIT 1`;
+    // The move is dated on the office's calendar, not Madrid's.
+    expect(moved?.effective).toBe(dayIn(zone));
+    expect(moved?.effective).not.toBe(dayIn('Europe/Madrid'));
+    expect(moved?.payload).toMatchObject({ locationId: office, legalEntityId: entity.id });
+    await context.close();
+  });
+});
+
 /** A CSV row into cells, quotes and all. */
 function cells(line: string): string[] {
   const out: string[] = [];
