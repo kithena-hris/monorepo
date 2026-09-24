@@ -1,22 +1,26 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { createServer, type Server } from 'node:http';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as netServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { startOpenFga, startPostgres } from '@kithena/testing';
+import { startCosmoRouter, startOpenFga, startPostgres } from '@kithena/testing';
 
 /**
- * The tenant app as a person meets it, for the acceptance tests (PEO-098).
+ * The tenant app as a person meets it, for the acceptance tests (PEO-098,
+ * PEO-113).
  *
- * Real: Postgres with every People migration, OpenFGA, the People service,
- * the People remote from a production build, and the shell from a production
- * build (`next build`, `next start`). Stubbed: identity, and only its two
- * internal routes the shell reads — the session and the tenant registry —
- * the method PEO-046 used. Everything is bounded and everything is stopped in
- * `stop()`, whatever state the run ended in.
+ * Real, all of it: Postgres with every migration, OpenFGA, identity (the
+ * sessions, the tenant registry and the access token it issues the shell),
+ * the Cosmo Router from `apps/gateway/config.yaml`, the People service, the
+ * People remote from a production build, and the shell from a production
+ * build (`next build`, `next start`). The shell reaches People only through
+ * the router, with identity's token; it is given no address or token for
+ * People, and People's internal token is not the shell's. Everything is
+ * bounded and everything is stopped in `stop()`, whatever state the run
+ * ended in.
  */
 
 export const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -24,21 +28,32 @@ export const TENANT = '00000000-0000-4000-8000-00000000ac00';
 export const ADMIN = {
   person: '00000000-0000-4000-8000-0000000000a1',
   account: '00000000-0000-4000-8000-0000000000b1',
-  session: 'admin-session',
+  identity: '00000000-0000-4000-8000-0000000000c1',
+  session: '00000000-0000-4000-8000-0000000000d1',
   email: 'priya@acme.example',
 };
 export const EMPLOYEE = {
   person: '00000000-0000-4000-8000-0000000000a2',
   account: '00000000-0000-4000-8000-0000000000b2',
-  session: 'employee-session',
+  identity: '00000000-0000-4000-8000-0000000000c2',
+  session: '00000000-0000-4000-8000-0000000000d2',
   email: 'adam@acme.example',
 };
-const TOKEN = 'acceptance-internal-token';
+/** What the shell holds: identity's internal token, and nothing of People's. */
+const SHELL_TOKEN = 'acceptance-shell-token';
+/** What only the router holds for People (`PEOPLE_API_TOKEN`). */
+const PEOPLE_TOKEN = 'acceptance-people-token';
+const AUDIENCE = 'kithena-router';
 
 export interface Stack {
   readonly shell: string;
   readonly sql: postgres.Sql;
-  /** People's REST, as a principal: for a test to check a result without a screen. */
+  /** The shell's environment as it was started, for a test to read. */
+  readonly shellEnv: Readonly<Record<string, string>>;
+  /** People's own address: for a test to show it refuses anybody but the router. */
+  readonly peopleUrl: string;
+  readonly shellToken: string;
+  /** People's REST, as the router would call it: for a test to check a result without a screen. */
   asPeople(account: string, path: string): Promise<unknown>;
   stop(): Promise<void>;
 }
@@ -75,10 +90,15 @@ function start(
   log: string[],
 ): ChildProcess {
   // Not the test runner's environment: `VITEST` and `NODE_ENV=test` make a
-  // Vite build transform nothing and a Next build refuse to run.
+  // Vite build transform nothing and a Next build refuse to run. Nor a People
+  // address or token from the caller's shell: each process is told its own.
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
-      ([key]) => !key.startsWith('VITEST') && key !== 'NODE_ENV' && key !== 'MODE',
+      ([key]) =>
+        !key.startsWith('VITEST') &&
+        !key.startsWith('PEOPLE_API') &&
+        key !== 'NODE_ENV' &&
+        key !== 'MODE',
     ),
   );
   const child = spawn(command, args, {
@@ -99,10 +119,10 @@ function start(
 /**
  * Stop a process group with SIGTERM, and wait for it to exit.
  *
- * Every server here exits on SIGTERM — People drains and closes its pools
- * (PEO-118), Next and Vite always have. One that is still running after the
- * wait is a bug this suite reports: it is SIGKILLed so no run leaves a server
- * behind, and the rejection fails the run.
+ * Every server here exits on SIGTERM — People and identity drain and close
+ * their pools (PEO-118), Next and Vite always have. One that is still running
+ * after the wait is a bug this suite reports: it is SIGKILLed so no run
+ * leaves a server behind, and the rejection fails the run.
  */
 async function kill(child: ChildProcess | undefined, name = 'a process'): Promise<void> {
   if (child?.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
@@ -161,8 +181,14 @@ function run(
 
 export async function startStack(): Promise<Stack> {
   const children: ChildProcess[] = [];
-  const servers: Server[] = [];
-  const logs: Record<string, string[]> = { people: [], remote: [], shell: [] };
+  const logs: Record<string, string[]> = {
+    people: [],
+    identity: [],
+    remote: [],
+    shell: [],
+  };
+  let router: Awaited<ReturnType<typeof startCosmoRouter>> | undefined;
+  let dir = '';
   const [pg, fga] = await Promise.all([startPostgres(), startOpenFga()]);
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
@@ -170,29 +196,45 @@ export async function startStack(): Promise<Stack> {
     const stopped = await Promise.allSettled(
       children.map((child) => kill(child, child.spawnargs.join(' '))),
     );
-    for (const server of servers) server.close();
+    await router?.stop().catch(() => undefined);
     await sql.end({ timeout: 5 }).catch(() => undefined);
     await Promise.allSettled([pg.stop(), fga.stop()]);
+    if (dir !== '') await rm(dir, { recursive: true, force: true });
     // After everything else is down, so a failure still cleans up.
     const stuck = stopped.flatMap((s) => (s.status === 'rejected' ? [s.reason as Error] : []));
     if (stuck.length > 0) throw new AggregateError(stuck, 'a server did not stop');
   };
 
   try {
-    // Every People migration, and the tenant registry the first one names.
+    // Every migration: identity runs against the same database, with the
+    // service roles `tools/scripts/init-db.sql` creates first.
+    for (const role of ['svc_identity', 'svc_messaging']) {
+      await sql.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
+    }
     const migrations = join(ROOT, 'migrations');
-    for (const file of (await readdir(migrations))
-      .filter(
-        (f) =>
-          f.endsWith('.sql') &&
-          ((f.includes('_people_') && !f.includes('identity')) || f.includes('tenant_registry')),
-      )
-      .sort()) {
+    for (const file of (await readdir(migrations)).filter((f) => f.endsWith('.sql')).sort()) {
       await sql.unsafe(await readFile(join(migrations, file), 'utf8'));
     }
     await sql`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
 
-    // What identity's provisioning would have left behind: two people, one
+    // What the back office leaves behind: the company, two accounts, and a
+    // signed-in session for each — the rows a passkey sign-in writes.
+    await sql`INSERT INTO platform.tenant (id, slug, display_name, address_city, address_country)
+              VALUES (${TENANT}, 'acme', 'Acme', 'Madrid', 'ES')`;
+    for (const [who, given, family] of [
+      [ADMIN, 'Priya', 'Shah'],
+      [EMPLOYEE, 'Adam', 'Ruiz'],
+    ] as const) {
+      await sql`INSERT INTO platform.identity (id) VALUES (${who.identity})`;
+      await sql`INSERT INTO platform.account (id, tenant_id, identity_id, status, work_email, time_zone,
+                                             employment_start, session_limit, given_name, family_name)
+                VALUES (${who.account}, ${TENANT}, ${who.identity}, 'active', ${who.email},
+                        'Europe/Madrid', '2026-01-01', 4, ${given}, ${family})`;
+      await sql`INSERT INTO platform.session (id, tenant_id, account_id, slot, expires_at, amr)
+                VALUES (${who.session}, ${TENANT}, ${who.account}, 1, now() + interval '1 day', ARRAY['hwk'])`;
+    }
+
+    // What identity's provisioning would have left in People: two people, one
     // of them the administrator the operator invited first.
     await sql`INSERT INTO people.person (id, tenant_id, identity_account_id, status, work_email)
               VALUES (${ADMIN.person}, ${TENANT}, ${ADMIN.account}, 'provisional', ${ADMIN.email})`;
@@ -223,7 +265,7 @@ export async function startStack(): Promise<Stack> {
         {
           PEOPLE_PORT: String(peoplePort),
           PEOPLE_DATABASE_URL: service.toString(),
-          PEOPLE_API_TOKEN: TOKEN,
+          PEOPLE_API_TOKEN: PEOPLE_TOKEN,
           PEOPLE_SECRET_KEYS: `k1:${randomBytes(32).toString('base64')}`,
           OPENFGA_URL: fga.apiUrl,
           LOG_LEVEL: 'warn',
@@ -231,12 +273,42 @@ export async function startStack(): Promise<Stack> {
         logs['people'] ?? [],
       ),
     );
+
+    // Identity, as `main.ts` runs it, signing access tokens for the router.
+    const signingKey = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({
+      format: 'jwk',
+    });
+    children.push(
+      start(
+        join(ROOT, 'node_modules/.bin/tsx'),
+        ['platform/identity/src/main.ts'],
+        ROOT,
+        {
+          NODE_ENV: 'test',
+          IDENTITY_PORT: String(identityPort),
+          IDENTITY_DATABASE_URL: pg.url,
+          INTERNAL_API_TOKEN: SHELL_TOKEN,
+          AUTH_SIGNING_KEY: JSON.stringify(signingKey),
+          AUTH_ISSUER: `http://127.0.0.1:${String(identityPort)}`,
+          AUTH_TOKEN_AUDIENCE: AUDIENCE,
+          KITHENA_ENTITLEMENTS: '["module.people"]',
+          LOG_LEVEL: 'warn',
+        },
+        logs['identity'] ?? [],
+      ),
+    );
+    const identityUrl = `http://127.0.0.1:${String(identityPort)}`;
     await until('People', 60_000, async () => (await fetch(`${peopleUrl}/v1/openapi.json`)).ok);
+    await until(
+      'identity',
+      60_000,
+      async () => (await fetch(`${identityUrl}/.well-known/jwks.json`)).ok,
+    );
 
     const asPeople = async (account: string, path: string): Promise<unknown> => {
       const response = await fetch(`${peopleUrl}${path}`, {
         headers: {
-          'x-internal-token': TOKEN,
+          'x-internal-token': PEOPLE_TOKEN,
           'x-kithena-principal': JSON.stringify({
             userId: account,
             tenantId: TENANT,
@@ -250,8 +322,8 @@ export async function startStack(): Promise<Stack> {
     };
 
     // People creates its OpenFGA store on first use; then the tuples its
-    // consumer writes from `people.person.provisioned` (PEO-092), which has
-    // no Kafka to arrive through here.
+    // consumer writes from `people.person.provisioned` and `people.role.*`
+    // (PEO-092, PEO-112), which have no Kafka to arrive through here.
     await asPeople(ADMIN.account, '/v1/views/setup');
     const stores = (await (await fetch(`${fga.apiUrl}/stores`)).json()) as {
       stores: { id: string; name: string }[];
@@ -275,72 +347,59 @@ export async function startStack(): Promise<Stack> {
     });
     if (!wrote.ok) throw new Error(`OpenFGA refused the tuples: ${await wrote.text()}`);
 
-    // Identity, as far as the shell reads it.
-    const sessions: Record<
-      string,
-      { account: string; email: string; name: { given: string; family: string } }
-    > = {
-      [ADMIN.session]: {
-        account: ADMIN.account,
-        email: ADMIN.email,
-        name: { given: 'Priya', family: 'Shah' },
+    // The router, from the file that ships, in front of People alone. The
+    // production-only parts it cannot have here — the CDN, tracing — are
+    // turned off by an override; the persisted-operation safelist stays on,
+    // with the shell's operations as `apps/gateway` generates them.
+    dir = await mkdtemp(join(tmpdir(), 'kithena-acceptance-'));
+    await writeFile(
+      join(dir, 'graph.yaml'),
+      [
+        'version: 1',
+        'subgraphs:',
+        '  - name: people',
+        `    routing_url: http://host.docker.internal:${String(peoplePort)}/graphql`,
+        '    schema:',
+        `      file: ${join(ROOT, 'services/people/schemas/people.graphql')}`,
+      ].join('\n'),
+    );
+    await run(
+      join(ROOT, 'apps/gateway/node_modules/.bin/wgc'),
+      ['router', 'compose', '-i', join(dir, 'graph.yaml'), '-o', join(dir, 'supergraph.json')],
+      ROOT,
+      120_000,
+    );
+    await writeFile(
+      join(dir, 'override.yaml'),
+      [
+        'execution_config:',
+        '  file:',
+        '    path: /etc/router/supergraph.json',
+        'telemetry:',
+        '  tracing:',
+        '    enabled: false',
+        '  metrics:',
+        '    otlp:',
+        '      enabled: false',
+        '    prometheus:',
+        '      enabled: false',
+      ].join('\n'),
+    );
+    router = await startCosmoRouter({
+      files: [
+        { source: join(ROOT, 'apps/gateway/config.yaml'), target: '/etc/router/config.yaml' },
+        { source: join(dir, 'override.yaml'), target: '/etc/router/override.yaml' },
+        { source: join(dir, 'supergraph.json'), target: '/etc/router/supergraph.json' },
+      ],
+      env: {
+        CONFIG_PATH: '/etc/router/config.yaml,/etc/router/override.yaml',
+        AUTH_JWKS_URL: `http://host.docker.internal:${String(identityPort)}/.well-known/jwks.json`,
+        AUTH_TOKEN_AUDIENCE: AUDIENCE,
+        PEOPLE_API_TOKEN: PEOPLE_TOKEN,
+        KITHENA_ENTITLEMENTS: '["module.people"]',
+        // Verifies a config downloaded from the CDN; this one is a file.
+        GRAPH_SIGN_KEY: 'x'.repeat(32),
       },
-      [EMPLOYEE.session]: {
-        account: EMPLOYEE.account,
-        email: EMPLOYEE.email,
-        name: { given: 'Adam', family: 'Ruiz' },
-      },
-    };
-    const identity = createServer((request, response) => {
-      const chunks: Buffer[] = [];
-      request.on('data', (c: Buffer) => chunks.push(c));
-      request.on('end', () => {
-        const json = (status: number, body: unknown) => {
-          response.writeHead(status, { 'content-type': 'application/json' });
-          response.end(JSON.stringify(body));
-        };
-        if (request.headers['x-internal-token'] !== TOKEN) {
-          json(401, {});
-          return;
-        }
-        if (request.url === '/api/internal/session' && request.method === 'POST') {
-          const body = JSON.parse(Buffer.concat(chunks).toString() || '{}') as {
-            sessionId?: string;
-            tenantId?: string;
-          };
-          const found = sessions[body.sessionId ?? ''];
-          if (found === undefined || body.tenantId !== TENANT) {
-            json(401, {});
-            return;
-          }
-          json(200, {
-            accountId: found.account,
-            identityId: randomUUID(),
-            workEmail: found.email,
-            name: { ...found.name, preferred: null },
-            timeZone: 'Europe/Madrid',
-            amr: ['hwk'],
-            // The company's modules, as identity answers them (PEO-114).
-            entitlements: ['module.people'],
-          });
-          return;
-        }
-        if (request.url === '/api/internal/tenant/acme') {
-          json(200, {
-            id: TENANT,
-            slug: 'acme',
-            status: 'active',
-            branding: { displayName: 'Acme' },
-            location: { city: 'Madrid', country: 'ES' },
-          });
-          return;
-        }
-        json(404, {});
-      });
-    });
-    servers.push(identity);
-    await new Promise<void>((resolve) => {
-      identity.listen(identityPort, '127.0.0.1', resolve);
     });
 
     // The remote and the shell, as production builds. The remote's server
@@ -366,12 +425,11 @@ export async function startStack(): Promise<Stack> {
     await until('the remote', 30_000, async () => (await fetch(`${remote}/routes.json`)).ok);
 
     const env = {
-      INTERNAL_API_URL: `http://127.0.0.1:${String(identityPort)}`,
-      INTERNAL_API_TOKEN: TOKEN,
+      INTERNAL_API_URL: identityUrl,
+      INTERNAL_API_TOKEN: SHELL_TOKEN,
+      ROUTER_URL: router.url,
       TENANT_HOST_SUFFIX: 'app.localhost',
       PEOPLE_REMOTE_URL: remote,
-      PEOPLE_API_URL: peopleUrl,
-      PEOPLE_API_TOKEN: TOKEN,
       PEOPLE_REMOTE_SSR_PUBLIC_KEY: signing.publicKey
         .export({ format: 'der', type: 'spki' })
         .toString('base64'),
@@ -416,6 +474,9 @@ export async function startStack(): Promise<Stack> {
     return {
       shell,
       sql,
+      shellEnv: env,
+      peopleUrl,
+      shellToken: SHELL_TOKEN,
       asPeople,
       stop: async () => {
         // A path: where to leave the servers' last output, for a failure to be read.

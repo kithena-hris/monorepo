@@ -17,8 +17,10 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  *   a reason, and an employee cannot open it.
  * - Field-level absence: a field the viewer may not read is not in the HTML
  *   the shell sends, nor in what the remote draws.
+ * - PEO-113: all of it through identity's token and the router; the shell has
+ *   no way into People of its own, and People refuses what the shell holds.
  *
- * `stack.ts` has what is real and what is stubbed.
+ * `stack.ts` has what is real: all of it.
  */
 
 let stack: Stack;
@@ -137,6 +139,32 @@ async function keyboardUp(page: Page): Promise<void> {
     if (focused instanceof HTMLElement) focused.scrollIntoView({ block: 'center' });
   });
 }
+
+describe('PEO-113: the shell reaches People only through the router', () => {
+  it('is configured with the router and identity, and nothing of People', () => {
+    const env = stack.shellEnv;
+    expect(Object.keys(env).filter((key) => key.startsWith('PEOPLE_API'))).toEqual([]);
+    expect(Object.values(env).some((value) => value.includes(new URL(stack.peopleUrl).port))).toBe(
+      false,
+    );
+    expect(env['ROUTER_URL']).toBeDefined();
+  });
+
+  it('holds nothing People accepts: its internal token and a principal are refused', async () => {
+    const direct = await fetch(`${stack.peopleUrl}/v1/views/profile`, {
+      headers: {
+        'x-internal-token': stack.shellToken,
+        'x-kithena-principal': JSON.stringify({
+          userId: ADMIN.account,
+          tenantId: TENANT,
+          roles: [],
+          entitlements: ['module.people'],
+        }),
+      },
+    });
+    expect(direct.status).toBe(401);
+  });
+});
 
 describe('PEO-049: the setup wizard, on a phone', () => {
   it('publishes version 1 and saves the first profile a section at a time, keyboard up', async () => {
