@@ -20,6 +20,7 @@ import {
   Input,
   NumberField,
   PageHeader,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -78,6 +79,15 @@ export interface Numbering {
   readonly nextValue: number;
 }
 
+/** A statutory retention floor and its legal review (PEO-126). Law, the same for every tenant. */
+export interface RetentionFloor {
+  readonly floor: string;
+  readonly months: number;
+  readonly status: 'unreviewed' | 'reviewed';
+  readonly reviewedBy: string | null;
+  readonly reviewedOn: string | null;
+}
+
 export interface OrganisationState {
   readonly canManage: boolean;
   readonly settings: {
@@ -91,6 +101,7 @@ export interface OrganisationState {
   readonly numberings: readonly Numbering[];
   readonly countries: readonly { readonly code: string; readonly name: string }[];
   readonly timeZones: readonly string[];
+  readonly retentionFloors: readonly RetentionFloor[];
 }
 
 export interface OrganisationProps {
@@ -186,7 +197,10 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
           <Numberings state={state} onEdit={setEditing} />
         </TabsContent>
         <TabsContent value="company">
-          <Company state={state} onSave={props.onUpdateSettings} />
+          <Stack gap={6}>
+            <Company state={state} onSave={props.onUpdateSettings} />
+            <RetentionFloors floors={state.retentionFloors} />
+          </Stack>
         </TabsContent>
       </Tabs>
       {editing === null ? null : (
@@ -904,5 +918,62 @@ function Company({
         ) : null}
       </Stack>
     </form>
+  );
+}
+
+const FLOOR_NAMES: Readonly<Record<string, string>> = {
+  'es-labour': 'Spain, labour records',
+  'de-labour': 'Germany, labour records',
+  'eu-payroll': 'EU, payroll and tax records',
+};
+
+/**
+ * The statutory floors a leaver's record is kept for, and whether counsel has
+ * reviewed each (PEO-126). Read-only here: a floor is law, and marking one
+ * reviewed is an operator's action, never a tenant's.
+ */
+function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[] }): JSX.Element {
+  const pending = floors.some((f) => f.status === 'unreviewed');
+  return (
+    <PageSection
+      title="Statutory retention"
+      description="The least time the law keeps a leaver’s records. A longer retention policy on a field wins; a shorter one does not."
+    >
+      <Stack gap={4}>
+        {pending ? (
+          <Alert tone="warning" title="Pending legal review">
+            These periods have not yet been confirmed by counsel. Nothing is erased automatically
+            under a period pending review; HR can still erase one person’s record by hand, with a
+            stated reason.
+          </Alert>
+        ) : null}
+        <Table aria-label="Statutory retention floors">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Records</TableHead>
+              <TableHead>Kept after leaving</TableHead>
+              <TableHead>Legal review</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {floors.map((f) => (
+              <TableRow key={f.floor}>
+                <TableCell>{FLOOR_NAMES[f.floor] ?? f.floor}</TableCell>
+                <TableCell>{`${String(f.months)} months`}</TableCell>
+                <TableCell>
+                  {f.status === 'reviewed' ? (
+                    <Badge tone="success">
+                      {`Reviewed by ${f.reviewedBy ?? 'counsel'}${f.reviewedOn === null ? '' : ` on ${f.reviewedOn}`}`}
+                    </Badge>
+                  ) : (
+                    <Badge tone="warning">Pending legal review</Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Stack>
+    </PageSection>
   );
 }

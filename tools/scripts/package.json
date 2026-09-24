@@ -9,6 +9,7 @@
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
     "promote-attribute": "tsx src/promote-attribute.ts",
+    "review-retention-floor": "tsx src/review-retention-floor.ts",
     "test:integration": "vitest run --config vitest.integration.ts"
   },
   "dependencies": {

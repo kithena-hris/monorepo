@@ -1,4 +1,6 @@
-import type { Classification, FieldPolicy, RetentionPolicy } from '@kithena/contracts';
+import type { Classification, FieldPolicy } from '@kithena/contracts';
+
+import { STATUTORY_FLOOR_MONTHS, type StatutoryFloor } from '../../domain/retention/floors.js';
 
 /**
  * When a leaver's values may be anonymised (PRD §6.2, §8.1).
@@ -14,29 +16,17 @@ import type { Classification, FieldPolicy, RetentionPolicy } from '@kithena/cont
  * law from configuration.
  */
 
-/**
- * Months each floor holds a record after employment ends.
- *
- * `ponytail: one number per jurisdiction, and these need a lawyer's sign-off
- * before a customer relies on them. es-labour: 4 years, the LISOS art. 21
- * limitation for labour infringements. de-labour: 6 years, HGB §257 for
- * business correspondence. eu-payroll: 10 years, the longest tax-record
- * retention among the member states we sell to (e.g. AO §147).`
- */
-export const STATUTORY_FLOOR_MONTHS: Readonly<
-  Record<NonNullable<RetentionPolicy['statutoryFloor']>, number>
-> = {
-  'es-labour': 48,
-  'de-labour': 72,
-  'eu-payroll': 120,
-};
-
 export interface RetentionDecision {
   readonly key: string;
   readonly classification: Classification;
   /** The first day the value may be cleared. */
   readonly dueOn: string;
   readonly under: 'tenant_policy' | 'statutory_floor';
+  /**
+   * The floor the attribute names, whichever period won: the due date is
+   * only as sound as the floor it was compared with (PEO-126).
+   */
+  readonly floor: StatutoryFloor | null;
 }
 
 const daysIn = (year: number, month: number): number =>
@@ -76,6 +66,7 @@ export function dueForAnonymisation(
       classification: policy.classification,
       dueOn,
       under: floor > retention.monthsAfterTermination ? 'statutory_floor' : 'tenant_policy',
+      floor: retention.statutoryFloor ?? null,
     });
   }
 

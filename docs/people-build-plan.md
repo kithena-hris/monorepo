@@ -931,7 +931,9 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-074** Duplicate detection and merge. A merge is **always** a human
       decision, and it is additive — both histories survive, the absorbed
       record becomes a tombstone pointing at the survivor. _(PRD §12.4)_
-- [ ] **PEO-075** Automated anonymisation on retention expiry. _(PRD §8.1)_
+- [ ] **PEO-075** Automated anonymisation on retention expiry. **Blocked until
+      counsel reviews the floors** (PEO-126): `mayErase` refuses automated
+      erasure under an unreviewed floor. _(PRD §8.1, §12)_
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
 - [ ] **PEO-077** Approval workflows on sensitive changes, via Temporal.
 - [ ] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
@@ -1508,6 +1510,22 @@ it is written down here rather than left in a PR description.
       expiry window are `relationsToMany` — OpenFGA `ListObjects` for self,
       manager and chain (`RelationsResolver.reach`), a per-person check only
       for whoever a list capped at 1,000 may have missed.*
+- [x] **PEO-126** Product decision: keep the statutory retention floors
+      (es-labour 48 months, de-labour 72, eu-payroll 120) but mark each
+      unreviewed, pending counsel, and block automated erasure until counsel
+      signs off. *(PRD §12)* *Landed as `FLOOR_REVIEWS` beside
+      `STATUTORY_FLOOR_MONTHS` in `domain/retention/floors.ts`, every floor
+      `unreviewed`; `mayErase` refuses an `automated` erasure relying on an
+      unreviewed floor and lets HR act `manual`ly with a stated reason;
+      `anonymiseDue` takes the mode and refuses with
+      `RETENTION_FLOOR_UNREVIEWED`, clearing nothing; a manual run's reason
+      rides `people.person.anonymised` as `manualReason`.
+      `peopleOrganisation.retentionFloors` and a "Pending legal review" table
+      on the organisation settings' Company tab. Reviewing a floor is `pnpm
+      --filter @kithena/scripts review-retention-floor`, whose commit is the
+      audit record. No migration.* *Still open:* no transport calls a manual
+      `anonymiseDue` yet — HR's by-hand erasure needs a route and a control
+      on the profile when PEO-075 is built.
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*
@@ -1521,3 +1539,4 @@ it is written down here rather than left in a PR description.
 | PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
+| PEO-075 | counsel reviews the floors | Automated erasure refuses an unreviewed floor (PEO-126); HR may erase one person by hand, with a stated reason |
