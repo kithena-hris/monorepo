@@ -699,13 +699,12 @@ type PeopleOrganisation {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   numberings: [EmployeeNumbering!]
-  settings: PeopleSettings
-  timeZones: [String!]
-
   """
   The statutory retention floors and their legal review; law, the same for every tenant.
   """
   retentionFloors: [RetentionFloor!]
+  settings: PeopleSettings
+  timeZones: [String!]
 }
 
 """People to pick from, a keyset page at a time (PEO-122)."""
@@ -962,14 +961,14 @@ type RepeatingAttribute {
 type RetentionFloor {
   floor: String
   months: Int
-  status: RetentionFloorStatus
   reviewedBy: String
   reviewedOn: String
+  status: RetentionFloorStatus
 }
 
 enum RetentionFloorStatus {
-  unreviewed
   reviewed
+  unreviewed
 }
 
 """An account and the tenant roles it holds."""
