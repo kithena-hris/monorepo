@@ -21,7 +21,7 @@
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
-    "@simplewebauthn/server": "^13.3.2",
+    "@simplewebauthn/server": "^14.0.2",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^6.0.0",
     "jose": "^6.0.0",
@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
-    "@vercel/node": "^6.0.0",
+    "@vercel/node": "^14.0.0",
     "vitest": "^4.1.11"
   }
 }
