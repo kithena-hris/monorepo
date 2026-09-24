@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -52,7 +53,8 @@ import { parseUpload } from './parse.js';
  * took 75 s and 4 s.
  */
 
-const N = 500;
+// PEOPLE_IMPORT_SCALE_N measures a bigger run by hand; CI runs 500.
+const N = Number(process.env['PEOPLE_IMPORT_SCALE_N'] ?? 500);
 const TENANT = '00000000-0000-4000-8000-0000000000f1';
 /** Who already had accounts before the import: whom everybody reports to. */
 const HEADS = Array.from(
@@ -86,10 +88,11 @@ const version = versionOf(1, [
   }),
 ]);
 
-let stopPg: (() => Promise<void>) | undefined;
-const clients: ReturnType<typeof postgres>[] = [];
-let admin: ReturnType<typeof drizzle>;
-let inTenant: ReturnType<typeof tenantTransaction>;
+interface Database {
+  readonly admin: ReturnType<typeof drizzle>;
+  readonly inTenant: ReturnType<typeof tenantTransaction>;
+  readonly stop: () => Promise<void>;
+}
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 const clock = fixedClock('2026-09-22T09:00:00.000Z');
@@ -127,12 +130,15 @@ const deps: CommitDeps = {
 const migration = (file: string): Promise<string> =>
   readFile(new URL(`../../../../../migrations/${file}`, import.meta.url), 'utf8');
 
-beforeAll(async () => {
+/**
+ * The module's tables, and the people who already had accounts. With
+ * `analyzed`, the statistics are taken now, while the tables hold those eight
+ * people: a deployment that has run for a while before its big import.
+ */
+async function boot(analyzed: boolean): Promise<Database> {
   const pg = await startPostgres();
-  stopPg = pg.stop;
   const adminClient = postgres(pg.url, { max: 1 });
-  clients.push(adminClient);
-  admin = drizzle(adminClient);
+  const admin = drizzle(adminClient);
   for (const file of [
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
@@ -141,6 +147,7 @@ beforeAll(async () => {
     '20260924220000_people_access_end.sql',
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
+    '20260924350000_people_unique_key_lookup.sql',
     '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',
@@ -158,8 +165,7 @@ beforeAll(async () => {
   // One connection: the plans the import's checks run on are the ones it
   // made while the table was small, as a pooled connection's would be.
   const serviceClient = postgres(asService.toString(), { max: 1 });
-  clients.push(serviceClient);
-  inTenant = tenantTransaction(drizzle(serviceClient));
+  const inTenant = tenantTransaction(drizzle(serviceClient));
 
   await inTenant(TENANT, async ({ tx }) => {
     await drizzleSchemaRepository().appendVersion(tx, TENANT, version, [], '2026-09-01');
@@ -179,14 +185,42 @@ beforeAll(async () => {
       );
     }
   });
-}, 180_000);
+  if (analyzed) await admin.execute(sql`ANALYZE`);
+  return {
+    admin,
+    inTenant,
+    stop: async () => {
+      await serviceClient.end();
+      await adminClient.end();
+      await pg.stop();
+    },
+  };
+}
 
-afterAll(async () => {
-  for (const c of clients) await c.end();
-  await stopPg?.();
-});
+/**
+ * Index entries and sequentially scanned rows this transaction has read on a
+ * table, the foreign-key checks' included: they run in this backend too.
+ */
+async function rowsRead(tx: PostgresJsDatabase, table: string): Promise<number> {
+  const [read] = await tx.execute<{ n: number }>(sql`
+    SELECT (coalesce(sum(pg_stat_get_xact_tuples_returned(indexrelid)), 0)
+            + pg_stat_get_xact_tuples_returned(${table}::regclass))::int AS n
+      FROM pg_index WHERE indrelid = ${table}::regclass`);
+  return read?.n ?? 0;
+}
 
-describe(`a new tenant's first import of ${N.toLocaleString('en')} people`, () => {
+describe.each([
+  { when: 'the statistics have never been taken', analyzed: false },
+  { when: 'the statistics were taken at eight people', analyzed: true },
+])(`a new tenant's first import of ${N.toLocaleString('en')} people, when $when`, ({ analyzed }) => {
+  let db: Database;
+  beforeAll(async () => {
+    db = await boot(analyzed);
+  }, 180_000);
+  afterAll(async () => {
+    await db.stop();
+  });
+
   it('looks each row up by key, managers and all', async () => {
     const rows = Array.from({ length: N }, (_, i) => [
       `Given${String(i)}`,
@@ -209,30 +243,29 @@ describe(`a new tenant's first import of ${N.toLocaleString('en')} people`, () =
     if (!mapping.ok) throw new Error(mapping.error.message);
 
     let entriesRead = 0;
+    let claimEntriesRead = 0;
     const start = performance.now();
-    const result = await inTenantResult(inTenant, TENANT, async (tx) => {
+    const result = await inTenantResult(db.inTenant, TENANT, async (tx) => {
       const imported = await commitImport(tx, deps, {
         ...asking,
         tenantId: TENANT,
         file: file.value,
         mapping: mapping.value,
       });
-      // Every index entry this transaction read on `people.person`, the
-      // foreign-key checks' included: they run in this backend too.
-      const [read] = await tx.execute<{ n: number }>(sql`
-        SELECT coalesce(sum(pg_stat_get_xact_tuples_returned(indexrelid)), 0)::int AS n
-          FROM pg_index WHERE indrelid = 'people.person'::regclass`);
-      entriesRead = read?.n ?? 0;
+      entriesRead = await rowsRead(tx, 'people.person');
+      // Each row claims its work email: a release and a check, both by key.
+      claimEntriesRead = await rowsRead(tx, 'people.attribute_unique');
       return imported;
     });
     const ms = performance.now() - start;
     console.info(
       `importing ${N.toLocaleString('en')} people took ${String(Math.round(ms))} ms ` +
-        `and read ${(entriesRead / N).toFixed(0)} person index entries a row`,
+        `and read ${(entriesRead / N).toFixed(0)} person entries a row ` +
+        `and ${(claimEntriesRead / N).toFixed(1)} claim entries a row`,
     );
 
     expect(result.ok && result.value.status === 'imported' && result.value.counts.created).toBe(N);
-    const [reporting] = await admin.execute<{ n: number }>(
+    const [reporting] = await db.admin.execute<{ n: number }>(
       sql`SELECT count(*)::int AS n FROM people.person
            WHERE tenant_id = ${TENANT}::uuid AND manager_id IS NOT NULL`,
     );
@@ -240,5 +273,10 @@ describe(`a new tenant's first import of ${N.toLocaleString('en')} people`, () =
     // A key lookup reads one or two entries; a row writes a dozen checked
     // rows. A check that walks the tenant reads everybody imported so far.
     expect(entriesRead / N).toBeLessThan(100);
+    // A row's claim reads nothing: the person holds no claim to release, and
+    // nobody holds the value. What is read is a fixed ~5,000 while the plans
+    // settle, whatever N is. Walking the attribute's claims reads everybody
+    // imported so far: 470 a row at 500 people, 980 at 1,000.
+    expect(claimEntriesRead / N).toBeLessThan(25);
   }, 600_000);
 });
