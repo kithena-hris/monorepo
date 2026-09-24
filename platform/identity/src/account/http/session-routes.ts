@@ -58,6 +58,12 @@ export interface SessionRoutesDeps {
     preferredName: string | null;
     timeZone: string | null;
   } | null>;
+  /**
+   * The modules the company holds (PEO-114): its own list, else the
+   * deployment's. The tenant app shows a module's navigation only when it is
+   * here, and says so to the module in the principal it forwards.
+   */
+  readonly entitlementsOf: (tenantId: string) => Promise<readonly string[]>;
   readonly issueHandoff: IssueHandoff;
   readonly redeemHandoff: RedeemHandoff;
   readonly revoke: RevokeSession;
@@ -67,6 +73,7 @@ export function sessionRoutes({
   authenticate,
   internalToken,
   profileOf,
+  entitlementsOf,
   issueHandoff,
   redeemHandoff,
   revoke,
@@ -143,7 +150,10 @@ export function sessionRoutes({
     // for all four, and the differences are only useful to somebody probing.
     if (!session.ok) return json(401, {});
 
-    const profile = await profileOf(tenantId, session.value.accountId);
+    const [profile, entitlements] = await Promise.all([
+      profileOf(tenantId, session.value.accountId),
+      entitlementsOf(tenantId),
+    ]);
 
     return json(200, {
       accountId: session.value.accountId,
@@ -166,6 +176,7 @@ export function sessionRoutes({
             },
       timeZone: profile?.timeZone ?? null,
       amr: session.value.amr,
+      entitlements,
       authenticatedAt: session.value.authenticatedAt,
       expiresAt: session.value.expiresAt,
     });

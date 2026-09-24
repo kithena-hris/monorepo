@@ -28,6 +28,8 @@ export default async function People({
 }): Promise<JSX.Element> {
   const person = await currentPerson();
   if (person === null) redirect('/login');
+  // A company that did not buy People has no People screens (PEO-114).
+  if (!person.entitlements.includes('module.people')) notFound();
 
   const { path = [] } = await params;
   const route = await peopleRoute(['/people', ...path].join('/'));
@@ -60,6 +62,7 @@ export default async function People({
       person={{ name, email: person.workEmail }}
       companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
       logoUrl={tenant?.branding.logoUrl ?? null}
+      entitlements={person.entitlements}
     >
       <PeopleScreen
         route={

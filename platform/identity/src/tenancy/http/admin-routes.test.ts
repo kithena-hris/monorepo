@@ -30,6 +30,8 @@ function detailOf(overrides: Partial<TenantDetail> = {}): TenantDetail {
     brandingPublic: true,
     address: null,
     people: [],
+    entitlements: null,
+    effectiveEntitlements: [],
     ...overrides,
   };
 }
@@ -71,7 +73,10 @@ function request(url: string, token: string | null = TOKEN): IncomingMessage {
   } as unknown as IncomingMessage;
 }
 
-function routes(tenantDetail: (id: string) => Promise<TenantDetail | null>) {
+function routes(
+  tenantDetail: (id: string) => Promise<TenantDetail | null>,
+  over: Partial<Parameters<typeof adminRoutes>[0]> = {},
+) {
   return adminRoutes({
     internalToken: TOKEN,
     listTenants: () => Promise.resolve({ tenants: [], nextCursor: null }),
@@ -83,8 +88,68 @@ function routes(tenantDetail: (id: string) => Promise<TenantDetail | null>) {
     provision: vi.fn() as never,
     amend: vi.fn() as never,
     invite: vi.fn() as never,
+    setEntitlements: vi.fn() as never,
+    ...over,
   });
 }
+
+/** A PUT with a JSON body, readable the way `readJsonBody` reads one. */
+function put(url: string, body: unknown): IncomingMessage {
+  const chunks = [Buffer.from(JSON.stringify(body))];
+  return {
+    url,
+    method: 'PUT',
+    headers: { 'x-internal-token': TOKEN },
+    [Symbol.asyncIterator]: () => chunks.values(),
+  } as unknown as IncomingMessage;
+}
+
+describe('recording the modules a company bought (PEO-114)', () => {
+  const path = `/api/internal/admin/tenants/${ID}/entitlements`;
+
+  it('records the list and answers with the company as stored', async () => {
+    const setEntitlements = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        value: { entitlements: ['module.people' as const], changed: true },
+      }),
+    );
+    const { response, status, body } = fakeResponse();
+    await routes(
+      () =>
+        Promise.resolve(
+          detailOf({ entitlements: ['module.people'], effectiveEntitlements: ['module.people'] }),
+        ),
+      { setEntitlements },
+    )(put(path, { entitlements: ['module.people'] }), response);
+
+    expect(setEntitlements).toHaveBeenCalledWith(ID, ['module.people']);
+    expect(status()).toBe(200);
+    expect(body()).toMatchObject({ entitlements: ['module.people'] });
+  });
+
+  it('refuses a body that is not a list of strings', async () => {
+    const { response, status } = fakeResponse();
+    await routes(() => Promise.resolve(detailOf()))(put(path, { entitlements: 'module.people' }), response);
+    expect(status()).toBe(400);
+  });
+
+  it('passes on the domain refusal with its code', async () => {
+    const setEntitlements = vi.fn(() =>
+      Promise.resolve({
+        ok: false as const,
+        error: { code: 'ENTITLEMENT_UNKNOWN', message: 'no', path: ['entitlements'] },
+      }),
+    );
+    const { response, status, body } = fakeResponse();
+    await routes(() => Promise.resolve(detailOf()), { setEntitlements })(
+      put(path, { entitlements: ['module.nope'] }),
+      response,
+    );
+    expect(status()).toBe(422);
+    expect(body()).toMatchObject({ code: 'ENTITLEMENT_UNKNOWN' });
+  });
+});
 
 describe('the company detail route', () => {
   it('answers 200 with the company when it exists', async () => {

@@ -30,6 +30,7 @@ import { currentOperator } from '../../../lib/session';
 import { CompanyDetailTabs } from '../../../components/company-detail-tabs';
 import type { EmployeeActionResult } from '../../../components/employee-actions';
 import { AddressCard } from '../../../components/address-card';
+import { CompanyModules, type SaveModulesResult } from '../../../components/company-modules';
 import { CompanySummaryTile } from '../../../components/company-summary-tile';
 import type { Invitation, InviteResult } from '../../../components/invite-employee-form';
 
@@ -59,6 +60,9 @@ interface Detail {
     postcode: string | null;
   } | null;
   people: { id: string; email: string; status: string; createdAt: string }[];
+  /** The modules recorded for the company, or null for none recorded (PEO-114). */
+  entitlements: string[] | null;
+  effectiveEntitlements: string[];
 }
 
 export default async function Company({
@@ -255,6 +259,27 @@ export default async function Company({
         typeof failed.message === 'string'
           ? failed.message
           : 'That invitation could not be cancelled.',
+    };
+  }
+
+  /** The modules the company bought, the whole list (PEO-114). */
+  async function saveModules(entitlements: string[]): Promise<SaveModulesResult> {
+    'use server';
+
+    if (!(await currentOperator())) return { ok: false, message: 'Your session has expired.' };
+    const { status, body } = await callIdentity(`/api/internal/admin/tenants/${id}/entitlements`, {
+      method: 'PUT',
+      body: { entitlements },
+    });
+    if (status === 200) {
+      revalidatePath(`/companies/${id}`);
+      return { ok: true };
+    }
+    const failed = (body ?? {}) as { message?: unknown };
+    return {
+      ok: false,
+      message:
+        typeof failed.message === 'string' ? failed.message : 'The modules could not be saved.',
     };
   }
 
@@ -504,6 +529,13 @@ export default async function Company({
                 }
           }
           invite={invite}
+          modules={
+            <CompanyModules
+              recorded={company.entitlements}
+              effective={company.effectiveEntitlements}
+              save={saveModules}
+            />
+          }
         />
       </div>
     </Container>

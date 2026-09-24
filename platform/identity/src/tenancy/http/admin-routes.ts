@@ -7,6 +7,7 @@ import { presentsInternalToken, readJsonBody } from '../../shared/internal-token
 import type { InviteAccount } from '../application/invite-account.js';
 import type { AmendTenant } from '../application/amend-tenant.js';
 import type { ProvisionTenant } from '../application/provision-tenant.js';
+import type { SetEntitlements } from '../application/set-entitlements.js';
 
 /**
  * What the back-office needs from the registry.
@@ -39,6 +40,13 @@ const DETAIL =
  */
 const INVITATIONS =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/invitations$/i;
+
+/**
+ * `/api/internal/admin/tenants/<uuid>/entitlements`, put: the modules the
+ * company bought, the whole list (PEO-114).
+ */
+const ENTITLEMENTS =
+  /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/entitlements$/i;
 
 /**
  * `/api/internal/admin/tenants/<uuid>/accounts/<uuid>/invitation`, deleted.
@@ -93,6 +101,10 @@ export interface TenantDetail {
     readonly postcode: string | null;
   } | null;
   readonly people: readonly TenantPerson[];
+  /** The modules recorded for the company, or null: none recorded (PEO-114). */
+  readonly entitlements: readonly string[] | null;
+  /** What it holds: the recorded list, else the deployment's. */
+  readonly effectiveEntitlements: readonly string[];
 }
 
 export interface TenantCursor {
@@ -119,6 +131,7 @@ export interface AdminRoutesDeps {
   readonly provision: ProvisionTenant;
   readonly amend: AmendTenant;
   readonly invite: InviteAccount;
+  readonly setEntitlements: SetEntitlements;
   /**
    * Withdraws an outstanding invitation: the links stop working and the
    * never-used account goes with them.
@@ -141,6 +154,7 @@ export function adminRoutes({
   provision,
   amend,
   invite,
+  setEntitlements,
   withdrawInvitation,
   internalToken,
 }: AdminRoutesDeps) {
@@ -149,7 +163,10 @@ export function adminRoutes({
     const detail = DETAIL.exec(path);
     const invitations = INVITATIONS.exec(path);
     const accountInvitation = ACCOUNT_INVITATION.exec(path);
-    if (path !== LIST && !detail && !invitations && !accountInvitation) return false;
+    const entitlements = ENTITLEMENTS.exec(path);
+    if (path !== LIST && !detail && !invitations && !accountInvitation && !entitlements) {
+      return false;
+    }
 
     if (!presentsInternalToken(request, internalToken)) {
       response.writeHead(401).end();
@@ -162,6 +179,33 @@ export function adminRoutes({
         .end(JSON.stringify(body));
       return true;
     };
+
+    if (entitlements) {
+      if (request.method !== 'PUT') {
+        response.writeHead(405, { allow: 'PUT' }).end();
+        return true;
+      }
+      const asked = (await readJsonBody(request)) as Record<string, unknown> | null;
+      const list = asked?.['entitlements'];
+      if (!Array.isArray(list) || list.some((e) => typeof e !== 'string')) {
+        return json(400, {
+          code: 'ENTITLEMENTS_MALFORMED',
+          message: 'Send the whole list of modules, as strings',
+          path: ['entitlements'],
+        });
+      }
+      const tenantId = entitlements[1] ?? '';
+      const set = await setEntitlements(tenantId, list as string[]);
+      if (!set.ok) {
+        return json(set.error.code === 'TENANT_UNKNOWN' ? 404 : 422, {
+          code: set.error.code,
+          message: set.error.message,
+          path: set.error.path ?? [],
+        });
+      }
+      const found = await tenantDetail(tenantId);
+      return found ? json(200, found) : json(404, {});
+    }
 
     if (accountInvitation) {
       // DELETE, because that is what it does: the links stop working and the
@@ -404,6 +448,13 @@ export function adminRoutes({
       coverImageUrl: orNull('coverImageUrl'),
       // The company's zone (PEO-099). Absent is UTC, so an older client still works.
       ...(typeof body['timeZone'] === 'string' ? { timeZone: body['timeZone'] } : {}),
+      // The modules bought (PEO-114). Absent: none recorded, the deployment's
+      // list applies. Present, it is checked whole by the domain.
+      ...(Array.isArray(body['entitlements'])
+        ? {
+            entitlements: body['entitlements'].filter((e): e is string => typeof e === 'string'),
+          }
+        : {}),
       address: {
         country: typeof address['country'] === 'string' ? address['country'] : '',
         line1: typeof address['line1'] === 'string' ? address['line1'] : '',

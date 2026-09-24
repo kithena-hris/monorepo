@@ -26,10 +26,11 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, type JSX } from 'react';
 
 import type { Delivery } from '../lib/delivery';
+import { ModulesPicker } from './modules-picker';
 import { ThemePicker } from './theme-picker';
 
 /**
- * Adding a company, in four steps.
+ * Adding a company, in five steps.
  *
  * A wizard rather than one long form because the four groups need different
  * things from the person filling them in: a name is typed, an address is
@@ -59,6 +60,8 @@ interface Draft {
   themeId: string;
   /** IANA. The company's default time zone and its first legal entity's (PEO-099). */
   timeZone: string;
+  /** The modules the company bought (PEO-114), recorded with the company. */
+  entitlements: string[];
 }
 
 /** Every zone this browser knows. The identity service checks it again. */
@@ -76,12 +79,14 @@ const EMPTY: Draft = {
   admins: [],
   themeId: DEFAULT_THEME_ID,
   timeZone: '',
+  entitlements: [],
 };
 
 const STEPS = [
   { id: 'identity', label: 'Company', description: 'Name and images' },
   { id: 'address', label: 'Address', description: 'Registered office' },
   { id: 'admins', label: 'Administrators', description: 'Who can sign in' },
+  { id: 'modules', label: 'Modules', description: 'What they bought' },
   { id: 'theme', label: 'Theme', description: 'Their accent colour' },
 ] as const;
 
@@ -218,7 +223,13 @@ export function NewCompanyWizard({
           const field = r.path[0];
           setProblems({ [field]: r.message });
           const owner =
-            field.startsWith('address.') || field === 'timeZone' ? 1 : field === 'admins' ? 2 : 0;
+            field.startsWith('address.') || field === 'timeZone'
+              ? 1
+              : field === 'admins'
+                ? 2
+                : field.startsWith('entitlements') || field.startsWith('administrators')
+                  ? 3
+                  : 0;
           setStep(owner);
           setResult(null);
         }
@@ -296,6 +307,16 @@ export function NewCompanyWizard({
       ) : null}
 
       {step === 3 ? (
+        <ModulesStep
+          selected={draft.entitlements}
+          problem={problems['entitlements']}
+          onChange={(entitlements) => {
+            set('entitlements', entitlements);
+          }}
+        />
+      ) : null}
+
+      {step === 4 ? (
         <ThemePicker
           selected={draft.themeId}
           onChange={(id) => {
@@ -343,6 +364,32 @@ export function NewCompanyWizard({
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The modules the company bought (PEO-114). Recorded with the company and
+ * sent to every module; none ticked is a company that bought none, which is
+ * an answer the back office can change on the company's page.
+ */
+function ModulesStep({
+  selected,
+  problem,
+  onChange,
+}: {
+  selected: readonly string[];
+  problem: string | undefined;
+  onChange: (next: string[]) => void;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-fg-muted text-sm">
+        Only what is ticked appears in the company&apos;s app. It can be changed later on the
+        company&apos;s page.
+      </p>
+      <ModulesPicker selected={selected} onChange={onChange} />
+      {problem === undefined ? null : <Alert tone="danger">{problem}</Alert>}
     </div>
   );
 }

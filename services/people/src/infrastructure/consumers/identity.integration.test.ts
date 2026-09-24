@@ -59,6 +59,7 @@ beforeAll(async () => {
     '20260923160000_people_tenant.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
+    '20260924270100_people_entitlements.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -357,5 +358,36 @@ describe('identity.tenant.* (PEO-099)', () => {
     expect(await handle(renamed('Acme Iberia', '2026-09-25T09:00:00.000Z'))).toBe('applied');
     expect(await handle(renamed('Acme Old', '2026-09-24T09:00:00.000Z'))).toBe('unchanged');
     expect(await settings()).toMatchObject({ display_name: 'Acme Iberia' });
+  });
+});
+
+describe('identity.tenant.entitlements_changed (PEO-114)', () => {
+  const changed = (entitlements: string[], occurredAt: string) => ({
+    ...envelope('identity.tenant.entitlements_changed', { entitlements }),
+    occurredAt,
+    effectiveFrom: null,
+    aggregate: { type: 'Tenant', id: ACME, version: 1 },
+  });
+  const kept = async () =>
+    [
+      ...(await admin.execute(sql`
+        SELECT entitlements FROM people.tenant_settings WHERE tenant_id = ${ACME}::uuid`)),
+    ][0]?.['entitlements'];
+
+  beforeEach(async () => {
+    await admin.execute(sql`DELETE FROM people.tenant_settings`);
+  });
+
+  it('keeps the company’s modules, and ignores a change delivered after a later one', async () => {
+    expect(await handle(changed(['module.people'], '2026-09-25T09:00:00.000Z'))).toBe('applied');
+    expect(await handle(changed([], '2026-09-24T09:00:00.000Z'))).toBe('unchanged');
+    expect(await kept()).toEqual(['module.people']);
+    expect(await handle(changed([], '2026-09-26T09:00:00.000Z'))).toBe('applied');
+    expect(await kept()).toEqual([]);
+  });
+
+  it('refuses a module that does not exist, keeping nothing', async () => {
+    expect(await handle(changed(['module.crypto'], '2026-09-25T09:00:00.000Z'))).toBe('rejected');
+    expect(await kept()).toBeUndefined();
   });
 });

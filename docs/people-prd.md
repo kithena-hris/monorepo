@@ -622,6 +622,7 @@ database the bytes end up in.
 | Fact group | Created by | At which moment | Lives in |
 | --- | --- | --- | --- |
 | Tenant, slug, branding, auth policy | CX operator | Back-office company creation | `platform.tenant`, `platform.tenant_auth_policy` |
+| Modules the company bought (entitlements) | CX operator | The company wizard, then the company page, any time | `platform.tenant.entitlements`; People's copy in `people.tenant_settings` from `identity.tenant.entitlements_changed` |
 | First account (work email, start date, time zone) | CX operator | Back-office invitation | `platform.account` |
 | Enrolment token | Identity | Invitation | `platform.enrolment_token` (hash only) |
 | Legal name, preferred name, mobile, time zone | The person | Enrolment, on the auth origin | `platform.account`, projected into People |
@@ -829,6 +830,9 @@ The chicken-and-egg case the brief asked about specifically, in sequence:
      People takes the zone as the tenant default, a first legal entity in
      that country and zone (§6.8), and the slug and name for its reminders.
      The first administrators' accounts carry the same zone.
+     Ines ticks the modules the company bought (PEO-114).
+     ──▶ identity.tenant.entitlements_changed { entitlements }
+     People keeps the list; the tenant app shows only what is on it.
 
 2. Ines invites the first administrator by work email.
      POST /accounts on identity
@@ -1683,22 +1687,17 @@ only beside the second. `apps/gateway/config.yaml` holds the rules, and
 real router in front of the real subgraph: a verified token reads, no token
 and a foreign token are refused, and a principal a client sends is overwritten.
 
-Entitlements are one list per deployment until tenants carry their own;
-nothing in the platform stores a tenant's modules yet.
-
-**Through the router (PEO-092).** The Cosmo Router verifies the caller's
-token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
-without one. It then _sets_ — never propagates — two headers on the request to
-People: `x-kithena-principal`, built from the token's `sub` and `tid` with no
-roles (roles are OpenFGA tuples) and the deployment's `KITHENA_ENTITLEMENTS`,
-and `x-internal-token`, People's `PEOPLE_API_TOKEN`. People trusts the first
-only beside the second. `apps/gateway/config.yaml` holds the rules, and
-`services/people/src/http/router.integration.test.ts` boots that file in the
-real router in front of the real subgraph: a verified token reads, no token
-and a foreign token are refused, and a principal a client sends is overwritten.
-
-Entitlements are one list per deployment until tenants carry their own;
-nothing in the platform stores a tenant's modules yet.
+**Entitlements are per company (PEO-114).** The back office records which
+modules a company bought on `platform.tenant.entitlements` and raises
+`identity.tenant.entitlements_changed` with the whole list; People keeps a copy
+in `people.tenant_settings` (newest `occurredAt` wins). Every transport's caller
+check reads that copy first, so a recorded list — empty included — beats any
+list a caller forwards, and a company that dropped People is refused with
+`NOT_ENTITLED` whatever the router says. Only a company with nothing recorded
+falls back to the forwarded list, which is the deployment's
+`KITHENA_ENTITLEMENTS`: a default, never an override. The tenant app reads the
+effective list from identity's session answer and shows a module's area only
+when it is on it.
 
 ### 13.2 REST (Phase 1)
 

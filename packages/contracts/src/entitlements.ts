@@ -1,7 +1,55 @@
 import * as z from 'zod';
+import { asPublic, policy } from './classification.js';
+import { ModuleKey } from './module.js';
 
 export const EntitlementKey = z.string().brand<'EntitlementKey'>();
 export type EntitlementKey = z.infer<typeof EntitlementKey>;
+
+/**
+ * A module a tenant may have bought: `module.<key>` (PEO-114).
+ *
+ * Derived from `ModuleKey`, so a module that does not exist cannot be sold.
+ * Which modules a tenant holds is the back office's to record, in
+ * `platform.tenant.entitlements`; a tenant with none recorded has the
+ * deployment's list (`KITHENA_ENTITLEMENTS`), which is a default and nothing
+ * more. A company fact, not personal data.
+ */
+export const ModuleEntitlement = z
+  .templateLiteral(['module.', ModuleKey])
+  .register(policy, asPublic());
+export type ModuleEntitlement = z.infer<typeof ModuleEntitlement>;
+
+/** The modules Kithena ships today: what the back office offers to switch on. */
+export const OFFERED_MODULES: readonly ModuleEntitlement[] = ['module.people', 'module.timeoff'];
+
+/**
+ * Modules that cannot be switched on without naming who administers them
+ * (PEO-112). The back office names an existing account; the module grants it
+ * its administrator role from `identity.tenant.administrator_named`. Nobody
+ * is an administrator because they happened to be first.
+ */
+export const ADMINISTERED_MODULES: readonly ModuleEntitlement[] = ['module.people'];
+
+/**
+ * A list of modules from configuration or storage: the known ones, once
+ * each, in a stable order. Anything else is dropped rather than trusted.
+ */
+export function moduleEntitlements(values: readonly unknown[]): ModuleEntitlement[] {
+  const known = values.filter(
+    (v): v is ModuleEntitlement => ModuleEntitlement.safeParse(v).success,
+  );
+  return [...new Set(known)].toSorted();
+}
+
+/** `KITHENA_ENTITLEMENTS`, a JSON array; anything unparseable is no modules. */
+export function deploymentEntitlements(raw: string | undefined): ModuleEntitlement[] {
+  try {
+    const parsed: unknown = JSON.parse(raw ?? '[]');
+    return Array.isArray(parsed) ? moduleEntitlements(parsed) : [];
+  } catch {
+    return [];
+  }
+}
 
 export const MeterKey = z.enum([
   'active_employees',

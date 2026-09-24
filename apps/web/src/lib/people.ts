@@ -31,16 +31,6 @@ export type PeopleAnswer<T> =
       readonly message: string;
     };
 
-/** The deployment's modules, until tenants carry their own (see `.env.example`). */
-function entitlements(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(process.env['KITHENA_ENTITLEMENTS'] ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((e): e is string => typeof e === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
 export async function people<T>(
   method: 'GET' | 'POST' | 'PUT' | 'PATCH',
   path: string,
@@ -64,7 +54,9 @@ export async function people<T>(
           userId: person.accountId,
           tenantId,
           roles: [],
-          entitlements: entitlements(),
+          // The company's modules as identity answered on this request
+          // (PEO-114); People prefers its own recorded copy when it has one.
+          entitlements: person.entitlements,
         }),
         'x-correlation-id': randomUUID(),
         // Every People write is keyed (PEO-116); one key per action, so a

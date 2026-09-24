@@ -65,6 +65,7 @@ beforeAll(async () => {
     '20260923120000_people_webhooks.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
+    '20260924270100_people_entitlements.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -170,6 +171,28 @@ describe('the booted service', () => {
       headers: { 'x-kithena-principal': headers(HR_ACCOUNT, ['hr'])['x-kithena-principal'] },
     });
     expect(response.status).toBe(401);
+  });
+
+  it('refuses a company the back office recorded without People, whatever is forwarded (PEO-114)', async () => {
+    const OTHER = '00000000-0000-4000-8000-00000000000b';
+    const asOther = {
+      ...headers(HR_ACCOUNT, ['hr']),
+      'x-kithena-principal': JSON.stringify({
+        userId: HR_ACCOUNT,
+        tenantId: OTHER,
+        roles: ['hr'],
+        entitlements: ['module.people'],
+      }),
+    };
+    const read = () => fetch(`${base}/v1/people`, { headers: asOther });
+    expect((await read()).status).not.toBe(403);
+    await clients[0]?.unsafe(
+      `INSERT INTO people.tenant_settings (tenant_id, default_time_zone, cohort_minimum, entitlements, entitlements_as_of)
+       VALUES ('${OTHER}', 'Etc/UTC', 10, ARRAY['module.timeoff'], now())`,
+    );
+    const refused = await read();
+    expect(refused.status).toBe(403);
+    expect(await refused.json()).toMatchObject({ error: { code: 'NOT_ENTITLED' } });
   });
 
   it('serves its OpenAPI document', async () => {

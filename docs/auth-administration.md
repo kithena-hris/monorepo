@@ -242,6 +242,27 @@ erroring. The counts are eventually consistent, which for an internal dashboard
 is not merely acceptable but preferable — it means a slow back-office query can
 never contend with a customer's request path.
 
+### Which modules a company bought (PEO-114)
+
+The back-office records it, because it owns the company. `platform.tenant.entitlements`
+is a `text[]` of `module.<key>` (the keys are `ModuleKey` in `packages/contracts`),
+set in the company wizard's **Modules** step and on the company page's **Modules**
+tab (`PUT /api/internal/admin/tenants/<id>/entitlements`, the whole list).
+
+- **Null means nothing recorded.** The company then has the deployment's list,
+  `KITHENA_ENTITLEMENTS`, which is a default and never an override. An empty
+  array is a recorded answer — bought nothing — and is not the same as null.
+- **Every change is an event**, `identity.tenant.entitlements_changed`, carrying
+  the whole list after the change, raised in the same transaction as the write
+  and only when the list moved. A module keeps its own copy from it; no module
+  reads `platform.tenant`. People keeps it on `people.tenant_settings` and
+  judges every request by it, ahead of any list a caller forwards.
+- **The tenant app learns it from the session.** `/api/internal/session`
+  answers with the effective list, and the shell shows a module's area only when
+  it is in it.
+- **The database refuses a malformed list** (`tenant_entitlements_shape`: the
+  shape, no repeats), so a path that skips identity cannot store nonsense.
+
 ### Separation of duties at tenant creation
 
 CX creates the tenant and names the first HR admin. **CX must not be able to

@@ -13,6 +13,7 @@ import {
   type Result,
 } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
+import { moduleEntitlements, type ModuleEntitlement } from '@kithena/contracts';
 
 import { startSession } from './account/application/start-session.js';
 import {
@@ -57,6 +58,8 @@ import { provisionTenant } from './tenancy/application/provision-tenant.js';
 import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
 import { adminRoutes } from './tenancy/http/admin-routes.js';
+import { setEntitlements } from './tenancy/application/set-entitlements.js';
+import { effectiveEntitlements } from './tenancy/domain/entitlements.js';
 
 const platformOutbox = outboxTable('platform');
 
@@ -142,6 +145,12 @@ export interface Config {
    * should not be enough to read it. Falls back to `internalToken` when unset.
    */
   readonly peopleToken?: string | undefined;
+  /**
+   * The deployment's modules, `KITHENA_ENTITLEMENTS` (PEO-114): what a company
+   * with no list of its own holds. A default, never an override — a company
+   * the back office recorded a list for has that list.
+   */
+  readonly defaultEntitlements?: readonly ModuleEntitlement[] | undefined;
 }
 
 export type RequestHandler = (
@@ -168,6 +177,22 @@ function text(value: unknown): string {
 
 function textOrNull(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
+}
+
+/** A `text[]` column as recorded modules, or null where none are (PEO-114). */
+function modulesOrNull(value: unknown): ModuleEntitlement[] | null {
+  return Array.isArray(value) ? moduleEntitlements(value) : null;
+}
+
+/**
+ * A list as a `text[]` parameter, or SQL null. Through JSON because a bare
+ * array parameter is spread by the driver, and an empty list must stay an
+ * empty array: "bought nothing" is not "nothing recorded".
+ */
+function textArray(list: readonly string[] | null) {
+  return list === null
+    ? sql`NULL::text[]`
+    : sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(list)}::jsonb))`;
 }
 
 /**
@@ -407,9 +432,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
   const tenantEvent = async (
     tx: PostgresJsDatabase,
     tenantId: string,
-    eventName: 'identity.tenant.provisioned' | 'identity.tenant.amended',
+    eventName:
+      | 'identity.tenant.provisioned'
+      | 'identity.tenant.amended'
+      | 'identity.tenant.entitlements_changed',
     process: string,
-    payload: Record<string, string>,
+    payload: Record<string, unknown>,
   ): Promise<void> => {
     const ctx = systemContext(process);
     await publishToOutbox(tx, platformOutbox, [
@@ -508,8 +536,24 @@ export async function compose(config: Config): Promise<RequestHandler> {
     },
   };
 
+  /**
+   * The modules a company holds (PEO-114): its own list, else the
+   * deployment's. `platform.tenant` carries no row-level security, so a bare
+   * read is correct here.
+   */
+  const entitlementsOf = async (tenantId: string): Promise<ModuleEntitlement[]> => {
+    const rows = await db.execute(sql`
+      SELECT entitlements FROM platform.tenant WHERE id = ${tenantId}::uuid
+    `);
+    return effectiveEntitlements(
+      modulesOrNull([...rows][0]?.['entitlements']),
+      config.defaultEntitlements ?? [],
+    );
+  };
+
   const sessions = sessionRoutes({
     internalToken: config.internalToken,
+    entitlementsOf,
     issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
     redeemHandoff: redeemHandoff({ store: handoffStore, clock: systemClock }),
     authenticate: authenticate({
@@ -1089,7 +1133,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     tenantDetail: async (id) => {
       const rows = await db.execute(sql`
         SELECT id, slug, display_name, status, created_at, theme_id,
-               logo_url, cover_image_url, branding_public,
+               logo_url, cover_image_url, branding_public, entitlements,
                address_country, address_line1,
                address_line2, address_city, address_subdivision, address_postcode
           FROM platform.tenant
@@ -1139,6 +1183,11 @@ export async function compose(config: Config): Promise<RequestHandler> {
         coverImageUrl: textOrNull(row['cover_image_url']),
         brandingPublic: row['branding_public'] !== false,
         address,
+        entitlements: modulesOrNull(row['entitlements']),
+        effectiveEntitlements: effectiveEntitlements(
+          modulesOrNull(row['entitlements']),
+          config.defaultEntitlements ?? [],
+        ),
         people: [...people].map((person) => ({
           id: String(person['id']),
           email: String(person['work_email']),
@@ -1261,6 +1310,40 @@ export async function compose(config: Config): Promise<RequestHandler> {
         return true;
         }),
     }),
+    /*
+     * The modules a company bought (PEO-114): the column and the event in one
+     * transaction, and neither when the list is what is already recorded.
+     * In the tenant's transaction only for the outbox, as `amend` is.
+     */
+    setEntitlements: setEntitlements({
+      write: (tenantId, entitlements) =>
+        db.transaction(async (tx) => {
+          await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+          const found = [
+            ...(await tx.execute(sql`
+              SELECT entitlements FROM platform.tenant WHERE id = ${tenantId}::uuid FOR UPDATE
+            `)),
+          ][0];
+          if (!found) return 'unknown' as const;
+          const before = modulesOrNull(found['entitlements']);
+          if (before !== null && before.join() === entitlements.join()) {
+            return 'unchanged' as const;
+          }
+          await tx.execute(sql`
+            UPDATE platform.tenant
+               SET entitlements = ${textArray(entitlements)}, updated_at = now()
+             WHERE id = ${tenantId}::uuid
+          `);
+          await tenantEvent(
+            tx,
+            tenantId,
+            'identity.tenant.entitlements_changed',
+            'set-entitlements',
+            { entitlements },
+          );
+          return 'changed' as const;
+        }),
+    }),
     provision: provisionTenant({
       images,
       authOrigin: config.authOrigin,
@@ -1277,14 +1360,16 @@ export async function compose(config: Config): Promise<RequestHandler> {
                 INSERT INTO platform.tenant (
                   slug, display_name, theme_id, logo_url, cover_image_url,
                   address_country, address_line1, address_line2,
-                  address_city, address_subdivision, address_postcode
+                  address_city, address_subdivision, address_postcode,
+                  entitlements
                 )
                 VALUES (
                   ${input.slug}, ${input.displayName}, ${input.themeId},
                   ${input.logoUrl}, ${input.coverImageUrl},
                   ${input.address.country.toUpperCase()}, ${input.address.line1},
                   ${input.address.line2}, ${input.address.city},
-                  ${input.address.subdivision}, ${input.address.postcode}
+                  ${input.address.subdivision}, ${input.address.postcode},
+                  ${textArray(input.entitlements)}
                 )
                 RETURNING id
               `);
@@ -1298,6 +1383,14 @@ export async function compose(config: Config): Promise<RequestHandler> {
             },
             announce: (tenantId, tenant) =>
               tenantEvent(tx, tenantId, 'identity.tenant.provisioned', 'provision-tenant', tenant),
+            announceEntitlements: (tenantId, entitlements) =>
+              tenantEvent(
+                tx,
+                tenantId,
+                'identity.tenant.entitlements_changed',
+                'provision-tenant',
+                { entitlements },
+              ),
             inviteAdmin: async (tenantId, email, timeZone) => {
               const ctx = systemContext('provision-tenant');
               const commissioned = await commissionAccount(
