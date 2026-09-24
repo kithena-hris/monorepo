@@ -604,13 +604,27 @@ PEOPLE_EXPORT_BUCKET=kithena-exports
 PEOPLE_EXPORT_LINK_BASE=https://api.kithena.com/v1/exports/files
 PEOPLE_EXPORT_ENCRYPTION_KEY=<base64 32 bytes>
 PEOPLE_EXPORT_SIGNING_KEY=<base64 32 bytes>
-S3_ENDPOINT=https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
-S3_REGION=<region>
-S3_ACCESS_KEY_ID=…
-S3_SECRET_ACCESS_KEY=…
-# Uploads: Cloudflare R2 — endpoint, region (auto), bucket, access key and
-# secret, under the names the direct-uploads change gives them.
+PEOPLE_EXPORT_S3_ENDPOINT=https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
+PEOPLE_EXPORT_S3_REGION=<region>
+PEOPLE_EXPORT_S3_ACCESS_KEY_ID=<customer secret key id>
+PEOPLE_EXPORT_S3_SECRET_ACCESS_KEY=<customer secret key>
+# Oracle's S3 API takes SSE-C only; Oracle encrypts every object at rest anyway.
+PEOPLE_EXPORT_SSE=none
+# Uploads: Cloudflare R2, written by the browser with a presigned PUT
+PEOPLE_UPLOAD_BUCKET=kithena-uploads
+PEOPLE_UPLOAD_S3_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
+PEOPLE_UPLOAD_S3_REGION=auto
+PEOPLE_UPLOAD_S3_ACCESS_KEY_ID=…
+PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY=…
+# R2 does not implement x-amz-server-side-encryption on PutObject; it
+# encrypts every object at rest anyway.
+PEOPLE_UPLOAD_SSE=none
+PEOPLE_UPLOAD_CORS_ORIGINS=https://*.app.kithena.com
 ```
+
+The two stores' settings are separate on purpose (`PEOPLE_UPLOAD_*` for R2,
+`PEOPLE_EXPORT_*` for Oracle); neither falls back to a plain `S3_*` here, so
+leave `S3_*` out.
 
 Export links are People's own signed URLs, never the bucket's: People reads
 the object and decrypts it on `GET /v1/exports/files/…`, which is why that one
@@ -738,13 +752,11 @@ well. The error names the setting, never its value.
 - **The outbox relay.** Debezium is not deployed anywhere yet, so People's
   outbox rows are written and nothing publishes them. It would be one more
   container on this VM.
-- **Oracle and `x-amz-server-side-encryption`.** People asks for `AES256`
-  server-side encryption on every export object (`infrastructure/s3-blobs.ts`).
-  Oracle's S3 Compatibility API documents SSE-C and SSE-KMS and encrypts
-  everything at rest regardless, but does not list that header; if the first
-  export fails with `NotImplemented` or `InvalidArgument`, that header is the
-  cause, and it needs to become optional in People. Not verifiable without an
-  account.
+- **Server-side encryption headers.** Neither provider takes the SSE-S3
+  header People sends by default — Oracle's S3 API supports SSE-C only, R2
+  lists it as not implemented on PutObject — and both encrypt at rest on their
+  own, so the template sets `PEOPLE_EXPORT_SSE=none` and `PEOPLE_UPLOAD_SSE=none`.
+  Worth confirming on the first staging export and upload.
 
 ## Local
 
