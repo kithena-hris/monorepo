@@ -33,6 +33,24 @@ type AnalyticsComplete {
   incomplete: Int
 }
 
+type AnalyticsExpiries {
+  today: String
+  items: [AnalyticsExpiry!]
+}
+
+"""
+One dated value about to lapse, shown only when the viewer reads it on that person.
+"""
+type AnalyticsExpiry {
+  """work_permit, fixed_term, probation or certification"""
+  kind: String
+  personId: ID
+  name: String
+
+  """A calendar date, on the person's own day"""
+  day: String
+}
+
 type AnalyticsHeadcount {
   value: Int
   change: Int
@@ -97,6 +115,9 @@ type CompletenessField {
   key: String
   label: String
   options: [FieldOption!]
+
+  """A person reference: picked with peoplePicker, not from options"""
+  person: Boolean
 }
 
 type CompletenessRow {
@@ -630,6 +651,7 @@ type PeopleAnalytics {
   attrition: AnalyticsAttrition
   complete: AnalyticsComplete
   expiringIn90Days: Int
+  expiries: AnalyticsExpiries
   movement: AnalyticsMovement
   completenessBySection: [AnalyticsPoint!]
 }
@@ -638,8 +660,12 @@ type PeopleCompleteness {
   since: String
   waiting: CompletenessWaiting
   completedThisWeek: Int
+
+  """Over everybody, not only this page"""
+  toFill: Int
   fields: [CompletenessField!]
   rows: [CompletenessRow!]
+  next: String
 }
 
 type PeopleDirectory {
@@ -709,6 +735,12 @@ type PeopleOrganisation {
   """The countries an entity or a location may be in."""
   countries: [OrgCountry!]
   timeZones: [String!]
+}
+
+"""People to pick from, a keyset page at a time (PEO-122)."""
+type PeoplePicker {
+  options: [FieldOption!]
+  next: String
 }
 
 type PeopleProfile {
@@ -884,7 +916,10 @@ type Query {
   """One person as the viewer may see them; no id is "my profile"."""
   peopleProfile(personId: ID): PeopleProfile
   peopleDirectory(search: String, filter: String, after: ID): PeopleDirectory
-  peopleCompleteness: PeopleCompleteness
+  peopleCompleteness(after: ID): PeopleCompleteness
+
+  """People whose name matches, as this viewer may read them."""
+  peoplePicker(search: String, after: ID): PeoplePicker
   peopleRoleSettings: PeopleRoleSettings
   peopleRegistry: PeopleRegistry
   peopleSetup: PeopleSetup

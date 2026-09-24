@@ -27,29 +27,74 @@ import {
  * for the reason it is absent from REST: the same call made the decision.
  */
 
-/** How many people a picker or the grid reads. The directory pages instead (PEO-117). */
-const PAGE = 200;
-
-/** Everybody this viewer may list, up to `PAGE`, as the list call authorizes them. */
-async function everybody(
-  deps: ScreenDeps,
-  tx: Tx,
-  asking: Asking,
-  where?: Readonly<Record<string, string>>,
-): Promise<Result<readonly PersonView[]>> {
-  const page = await deps.service.access.list(tx, {
-    ...asking,
-    limit: PAGE,
-    ...(where === undefined ? {} : { where }),
-  });
-  return page.ok ? ok(page.value.items) : page;
-}
-
 /** People as the options of a person picker: who this viewer can see, by name. */
 function pickable(people: readonly PersonView[]): { value: string; label: string }[] {
   return people.flatMap((p) => {
     const name = nameOf(p.attributes);
     return name === null ? [] : [{ value: p.id, label: name }];
+  });
+}
+
+/**
+ * The people a record's person fields name, as picker options: each read as
+ * this viewer may read them, so a name they cannot see is not offered. The
+ * rest of the picker is searched a page at a time (`pickerView`).
+ */
+async function named(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  ids: Iterable<string>,
+): Promise<{ value: string; label: string }[]> {
+  const options: { value: string; label: string }[] = [];
+  for (const personId of new Set(ids)) {
+    const read = await deps.service.access.read(tx, { ...asking, personId });
+    if (read.ok) options.push(...pickable([read.value]));
+  }
+  return options;
+}
+
+/** The ids a record's person fields hold. */
+function referenced(
+  definitions: readonly AttributeDefinition[],
+  attributes: Readonly<Record<string, unknown>>,
+): string[] {
+  return definitions
+    .filter((d) => d.typeConfig.kind === 'person_ref')
+    .map((d) => attributes[d.key])
+    .filter((v): v is string => typeof v === 'string');
+}
+
+/* ------------------------------------------------------------- picker -- */
+
+/** A picker's page. Twenty is what a list under a text box shows. */
+export const PICKER_PAGE = 20;
+
+export interface PickerView {
+  readonly options: readonly { readonly value: string; readonly label: string }[];
+  /** The cursor for the page after this one; null on the last page. */
+  readonly next: string | null;
+}
+
+/**
+ * People to pick from, a page at a time (PEO-122): the same keyset list and
+ * the same search as the directory (PEO-117), so a picker reaches the
+ * 50,000th person by typing their name, and names only who this viewer reads.
+ */
+export async function pickerView(
+  deps: ScreenDeps,
+  asking: Asking,
+  query: { readonly search: string; readonly after?: string | null },
+): Promise<Result<PickerView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const listed = await deps.service.access.list(tx, {
+      ...asking,
+      ...(query.search.trim() === '' ? {} : { search: query.search }),
+      after: query.after ?? null,
+      limit: PICKER_PAGE,
+    });
+    if (!listed.ok) return listed;
+    return ok({ options: pickable(listed.value.items), next: listed.value.next });
   });
 }
 
@@ -118,12 +163,17 @@ async function ownRecord(
   asking: Asking,
   personId: string,
   include: (d: AttributeDefinition) => boolean,
-  people: readonly { value: string; label: string }[] = [],
 ) {
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
   const view = await deps.service.access.read(tx, { ...asking, personId });
   if (!view.ok) return view;
+  const people = await named(
+    deps,
+    tx,
+    asking,
+    referenced(version.document.attributes, view.value.attributes),
+  );
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
   const verdict = await deps.service.access.completeness(tx, { ...asking, personId });
   const missing = new Set(verdict.ok ? verdict.value.missing.map((m) => m.key) : []);
@@ -186,15 +236,7 @@ export async function profileView(
   return run(deps.service, asking.tenantId, async (tx) => {
     const id = personId === null ? await personOfViewer(deps, tx, asking) : ok(personId);
     if (!id.ok) return id;
-    const listed = await everybody(deps, tx, asking);
-    const record = await ownRecord(
-      deps,
-      tx,
-      asking,
-      id.value,
-      () => true,
-      listed.ok ? pickable(listed.value) : [],
-    );
+    const record = await ownRecord(deps, tx, asking, id.value, () => true);
     if (!record.ok) return record;
     const { view, sections } = record.value;
     const calendar = await deps.service.access.calendar(tx, { ...asking, personId: id.value });
@@ -403,10 +445,14 @@ export interface CompletenessView {
   readonly since: string;
   readonly waiting: { readonly people: number; readonly lastReminded: string | null };
   readonly completedThisWeek: number;
+  /** HR's missing values over everybody, not only this page. */
+  readonly toFill: number;
   readonly fields: readonly {
     readonly key: string;
     readonly label: string;
     readonly options: readonly { readonly value: string; readonly label: string }[];
+    /** A person reference: picked by searching people (`pickerView`), not from `options`. */
+    readonly person: boolean;
   }[];
   readonly rows: readonly {
     readonly personId: string;
@@ -415,37 +461,61 @@ export interface CompletenessView {
     readonly manager: string | null;
     readonly missing: readonly string[];
   }[];
+  /** The cursor for the page after this one; null on the last page. */
+  readonly next: string | null;
 }
+
+/** A grid page: the directory's size, so it costs what a directory page does. */
+export const GRID_PAGE = DIRECTORY_PAGE;
 
 /**
  * HR's grid over exactly the missing cells HR owns (§8.4). Employee-owned
  * gaps are counted, not shown: they are the employee's task and reminder.
+ *
+ * Paged by keyset over the people with a gap HR or Finance fills (PEO-122),
+ * through `PersonAccess.list`, so page 1,000 costs what page 1 does; the
+ * totals and the field list are over everybody, from the gap rows.
  */
 export async function completenessView(
   deps: ScreenDeps,
   asking: Asking,
+  query: { readonly after?: string | null } = {},
 ): Promise<Result<CompletenessView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     if (!everyone.isHr) return err(failure('FORBIDDEN', 'The completeness grid is HR’s'));
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
-    const listed = await everybody(deps, tx, asking);
+    const listed = await deps.service.access.list(tx, {
+      ...asking,
+      gaps: 'staff',
+      after: query.after ?? null,
+      limit: GRID_PAGE,
+    });
     if (!listed.ok) return listed;
-    const names = new Map(pickable(listed.value).map((p) => [p.value, p.label]));
+    const page = listed.value.items;
     const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+    const hrs = (key: string) => byKey.get(key)?.ownership.includes('hr') === true;
+    const totals = await deps.gapTotals(tx, asking.tenantId);
+    const managers = page
+      .map((p) => p.attributes['manager_id'])
+      .filter((m): m is string => typeof m === 'string');
+    const names = new Map(
+      [...pickable(page), ...(await named(deps, tx, asking, managers))].map((p) => [
+        p.value,
+        p.label,
+      ]),
+    );
 
     const rows: CompletenessView['rows'][number][] = [];
-    let waiting = 0;
-    for (const person of listed.value) {
+    for (const person of page) {
       const verdict = await deps.service.access.completeness(tx, {
         ...asking,
         personId: person.id,
       });
       if (!verdict.ok) continue;
-      const hrs = verdict.value.missing.filter((m) => m.owners.includes('hr'));
-      if (verdict.value.missing.some((m) => !m.owners.includes('hr'))) waiting += 1;
-      if (hrs.length === 0) continue;
+      const missing = verdict.value.missing.filter((m) => m.owners.includes('hr'));
+      if (missing.length === 0) continue;
       const manager = person.attributes['manager_id'];
       rows.push({
         personId: person.id,
@@ -455,16 +525,17 @@ export async function completenessView(
             ? person.attributes['department']
             : null,
         manager: typeof manager === 'string' ? (names.get(manager) ?? null) : null,
-        missing: hrs.map((m) => m.key),
+        missing: missing.map((m) => m.key),
       });
     }
-    const keys = [...new Set(rows.flatMap((r) => r.missing))];
+    const staff = totals.staff.filter((s) => hrs(s.key));
     return ok({
       since: `Since version ${String(version.version)} was published on ${version.publishedAt.slice(0, 10)}`,
       // ponytail: reminders are not sent yet (PEO-084), so nobody has been reminded.
-      waiting: { people: waiting, lastReminded: null },
+      waiting: { people: totals.waiting, lastReminded: null },
       completedThisWeek: 0,
-      fields: keys.flatMap((key) => {
+      toFill: staff.reduce((n, s) => n + s.people, 0),
+      fields: staff.flatMap(({ key }) => {
         const d = byKey.get(key);
         if (d === undefined) return [];
         return [
@@ -476,13 +547,13 @@ export async function completenessView(
                 ? d.typeConfig.options
                     .filter((o) => o.retiredAt === null)
                     .map((o) => ({ value: o.value, label: o.label.default }))
-                : d.typeConfig.kind === 'person_ref'
-                  ? pickable(listed.value)
-                  : [],
+                : [],
+            person: d.typeConfig.kind === 'person_ref',
           },
         ];
       }),
       rows,
+      next: listed.value.next,
     });
   });
 }

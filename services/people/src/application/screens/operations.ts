@@ -21,7 +21,7 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import {
   attritionTrend,
   completeness,
-  expiries,
+  expiryTimeline,
   headcountTrend,
   movementWaterfall,
 } from '../analytics/queries.js';
@@ -604,7 +604,16 @@ export interface AnalyticsView {
   } | null;
   readonly completenessBySection:
     readonly { readonly label: string; readonly value: number }[] | null;
-  readonly expiries: null;
+  /** The timeline's items (PEO-122); null when the viewer may see no kind of expiry. */
+  readonly expiries: {
+    readonly today: string;
+    readonly items: readonly {
+      readonly kind: string;
+      readonly personId: string;
+      readonly name: string | null;
+      readonly day: string;
+    }[];
+  } | null;
   readonly funnel: null;
 }
 
@@ -616,7 +625,8 @@ const minusMonths = (day: string, n: number): string => {
 
 /**
  * The analytics landing (§16.2): headcount, attrition, completeness,
- * expiries and the movement of the last month, from the snapshots.
+ * the movement of the last month, from the snapshots; the expiries live,
+ * item by item (PEO-122).
  *
  * HR sees the tenant; a manager sees their chain; anybody else is refused.
  * The cohort minimum and field authorization are the queries' own.
@@ -647,7 +657,17 @@ export async function analyticsView(
     const attrition = await attritionTrend(ctx, { from: minusMonths(today, 1), to: today });
     const latest = attrition.ok ? attrition.value.points.at(-1) : undefined;
     const states = await completeness(ctx, { asOf: today });
-    const expiring = await expiries(ctx, { asOf: today });
+    const expiring = await expiryTimeline(ctx, {
+      calendar: await deps.calendars.load(tx, asking.tenantId),
+      at: deps.clock.instant(),
+      everyone,
+      relations: (personId) =>
+        deps.relations.relations(tx, asking.tenantId, asking.viewer, personId),
+    });
+    const expiries =
+      expiring.ok && expiring.value.kinds.length > 0
+        ? { today: expiring.value.today, items: expiring.value.items }
+        : null;
     const moved = await movementWaterfall(ctx, { from: minusMonths(today, 1), to: today });
 
     const total = states.ok ? states.value.states.complete + states.value.states.incomplete : 0;
@@ -690,9 +710,8 @@ export async function analyticsView(
               incomplete: states.value.states.incomplete,
             }
           : null,
-      expiringIn90Days: expiring.ok
-        ? expiring.value.expiries.reduce((n, e) => n + e.count, 0)
-        : null,
+      // The items drawn, so the tile and the chart cannot disagree by a hidden one.
+      expiringIn90Days: expiries === null ? null : expiries.items.length,
       movement: moved.ok
         ? {
             period: `${minusMonths(today, 1)} to ${today}`,
@@ -707,9 +726,9 @@ export async function analyticsView(
         bySection.size === 0
           ? null
           : [...bySection].map(([key, value]) => ({ label: sectionLabel.get(key) ?? key, value })),
-      // ponytail: the expiry timeline and the onboarding funnel are drawn by
-      // the screen but have no query shaped for them yet; absent, not empty.
-      expiries: null,
+      expiries,
+      // ponytail: the onboarding funnel is drawn by the screen but has no
+      // query shaped for it yet; absent, not empty.
       funnel: null,
     });
   });

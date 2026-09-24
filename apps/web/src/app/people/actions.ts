@@ -83,6 +83,20 @@ export async function saveGrid(
   );
 }
 
+/**
+ * People a person field may name, found by name over everybody, as the
+ * person signed in may read them (PEO-122). The picker's first page: typing
+ * more narrows it.
+ */
+export async function searchPeople(
+  text: string,
+): Promise<readonly { readonly value: string; readonly label: string }[]> {
+  const answer = await people<{ options: { value: string; label: string }[] }>('PeoplePicker', {
+    search: text.slice(0, 200),
+  });
+  return answer.ok ? answer.data.options : [];
+}
+
 /* --------------------------------------------------------------- setup -- */
 
 export async function confirmEntity(entity: { name: string; country: string }): Promise<Outcome> {

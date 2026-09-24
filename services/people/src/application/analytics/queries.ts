@@ -3,12 +3,17 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo } from '../../domain/access/field-access.js';
+import type { ViewerRelations } from '../../domain/access/field-access.js';
+import { entityDays, type TenantCalendar } from '../../domain/org/calendar.js';
 import {
   authorizeFields,
   cohortMinimum,
+  expiryKinds,
+  readableExpiries,
   relationsOf,
   scopeOf,
   type ChartViewer,
+  type ExpiryItem,
   type Suppressed,
 } from './access.js';
 import {
@@ -22,6 +27,8 @@ import {
   cubeAt,
   DIMENSIONS,
   EXPIRIES,
+  EXPIRY_HORIZON_DAYS,
+  expiringWithin,
   measuresAt,
   rows,
   type Dimension,
@@ -590,15 +597,7 @@ export async function expiries(
     readonly expiries: readonly { kind: ExpiryKind; day: string; count: number }[];
   }>
 > {
-  const relations = relationsOf(ctx.viewer);
-  const readableKinds = (Object.keys(EXPIRIES) as ExpiryKind[]).filter((kind) => {
-    const definition = ctx.definitions.find((d) => d.key === EXPIRIES[kind]);
-    return (
-      definition !== undefined &&
-      definition.classification.classification !== 'special-category' &&
-      visibleTo(definition, relations)
-    );
-  });
+  const readableKinds = expiryKinds(ctx.definitions, ctx.viewer);
   if (readableKinds.length === 0) return ok({ source: 'snapshot', expiries: [] });
 
   const measures = sql.join(
@@ -617,6 +616,96 @@ export async function expiries(
       day: r.bucket,
       count: r.count,
     })),
+  });
+}
+
+export interface ExpiryTimeline {
+  /** The tenant's day at the instant read: the "today" line. */
+  readonly today: string;
+  readonly horizon: number;
+  /** The kinds this viewer may be shown; none means the chart is not theirs. */
+  readonly kinds: readonly ExpiryKind[];
+  /** Each on the person's legal entity's day, earliest first. */
+  readonly items: readonly ExpiryItem[];
+}
+
+/**
+ * What is about to expire, item by item (§16.2, PEO-122): who, what and when,
+ * over the next `horizon` days, each person's window on their legal entity's
+ * day at one instant (§16.4).
+ *
+ * **Live, not from the snapshot.** The snapshot holds counts per kind per day
+ * and never a person, and this chart's point is the person: a copy of who
+ * holds which permit would be a second store of personal data to retain,
+ * export and erase, and a day stale for the one chart that is operational.
+ * The read is bounded by the window, not the tenant, and `snapshot.ts` owns
+ * the SQL, as it owns every other read of `people.person` here.
+ *
+ * Each item is authorized on its person: `relations` is the question a
+ * profile read asks, and `readableExpiries` drops what it refuses.
+ */
+export async function expiryTimeline(
+  ctx: ChartContext,
+  request: {
+    readonly calendar: TenantCalendar;
+    /** The instant; every person's day is read off it. */
+    readonly at: string;
+    readonly horizon?: number;
+    /** The viewer's tenant-wide relations: who they are to nobody in particular. */
+    readonly everyone: ViewerRelations;
+    readonly relations: (personId: string) => Promise<ViewerRelations>;
+  },
+): Promise<Result<ExpiryTimeline>> {
+  const horizon = request.horizon ?? EXPIRY_HORIZON_DAYS;
+  if (!Number.isInteger(horizon) || horizon < 1 || horizon > 366) {
+    return err(failure('INVALID_HORIZON', 'Look ahead between 1 and 366 days', ['horizon']));
+  }
+  const days = entityDays(request.calendar, request.at);
+  const kinds = expiryKinds(ctx.definitions, ctx.viewer);
+  if (kinds.length === 0) return ok({ today: days.fallback, horizon, kinds, items: [] });
+
+  const root = ctx.viewer.kind === 'manager' ? ctx.viewer.personId : null;
+  const found = await rows<{
+    person_id: string;
+    kind: ExpiryKind;
+    day: string;
+    given_name: string | null;
+    family_name: string | null;
+    preferred_name: string | null;
+  }>(ctx.tx, expiringWithin(ctx.tenantId, days, horizon, kinds, root));
+
+  /*
+   * A relation to somebody only ever adds scopes to the tenant-wide ones, so
+   * when those already read every field an item shows — HR, usually — no
+   * person's relations can change the answer and none is asked for. A
+   * manager's are asked per person in the window.
+   * ponytail: one lookup per person then, as `list` does per page; batch it
+   * with OpenFGA's ListObjects.
+   */
+  const shown = [...kinds.map((k) => EXPIRIES[k]), 'given_name', 'family_name', 'preferred_name'];
+  const settled = shown.every((key) => {
+    const definition = ctx.definitions.find((d) => d.key === key);
+    return definition === undefined || visibleTo(definition, request.everyone);
+  });
+  const relations = new Map<string, ViewerRelations>();
+  for (const id of new Set(found.map((f) => f.person_id))) {
+    relations.set(id, settled ? request.everyone : await request.relations(id));
+  }
+  const candidates = found.map((f) => ({
+    personId: f.person_id,
+    kind: f.kind,
+    day: f.day,
+    names: {
+      given_name: f.given_name,
+      family_name: f.family_name,
+      preferred_name: f.preferred_name,
+    },
+  }));
+  return ok({
+    today: days.fallback,
+    horizon,
+    kinds,
+    items: readableExpiries(candidates, ctx.definitions, relations),
   });
 }
 

@@ -13,6 +13,7 @@ import { drizzleProvisionalPeople } from '../../infrastructure/consumers/identit
 import { drizzleCompletenessStore } from '../../infrastructure/drizzle-completeness-store.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../../infrastructure/drizzle-org-store.js';
 import {
+  drizzleGapTotals,
   drizzlePersonReader,
   drizzleRelations,
   drizzleScheduled,
@@ -445,6 +446,7 @@ describe('who a viewer is to many people, in a handful of questions', () => {
       clock: fixedClock(TODAY),
       personOf: drizzlePersonReader().personOf,
       calendars: drizzleOrgStore(),
+      gapTotals: drizzleGapTotals(),
     };
     const offered = async (viewer: Viewer) => {
       const view = await exportBuilderView(deps, { tenantId: ACME, viewer, correlationId: id(902) });

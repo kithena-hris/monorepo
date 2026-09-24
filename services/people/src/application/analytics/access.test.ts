@@ -6,9 +6,13 @@ import {
   chartExport,
   chartTooltip,
   cohortMinimum,
+  expiryKinds,
+  readableExpiries,
   suppressSmallCohorts,
   type ChartViewer,
+  type ExpiryCandidate,
 } from './access.js';
+import type { ViewerRelations } from '../../domain/access/field-access.js';
 
 /**
  * Who may draw which chart, and the cohort minimum.
@@ -182,5 +186,83 @@ describe('the tooltip and the export', () => {
       ['a', 14],
       ['prefer_not_to_say', 11],
     ]);
+  });
+});
+
+describe('the expiry timeline, item by item (PEO-122)', () => {
+  const expiring = [
+    define({ key: 'work_permit_expiry', visibility: ['self', 'hr'] }),
+    define({ key: 'contract_end' }),
+    define({ key: 'probation_end', visibility: ['hr'] }),
+    define({ key: 'given_name', visibility: ['directory'] }),
+    define({ key: 'family_name', visibility: ['directory'] }),
+  ];
+  const none: ViewerRelations = {
+    isSelf: false,
+    isManager: false,
+    isInManagerChain: false,
+    isHr: false,
+    isFinance: false,
+    isAdmin: false,
+  };
+  const names = { given_name: 'Sana', family_name: 'Khan', preferred_name: null };
+  const candidate = (over: Partial<ExpiryCandidate>): ExpiryCandidate => ({
+    personId: 'p1',
+    kind: 'work_permit',
+    day: '2026-10-24',
+    names,
+    ...over,
+  });
+  const chain = { ...none, isManager: true, isInManagerChain: true };
+
+  it('offers a kind only when its field is published and readable at the viewer’s level', () => {
+    expect(expiryKinds(expiring, hr)).toEqual(['work_permit', 'fixed_term', 'probation']);
+    // A manager reads contract ends in their chain; permits and probation are HR's.
+    expect(expiryKinds(expiring, manager)).toEqual(['fixed_term']);
+    expect(expiryKinds([special('work_permit_expiry')], hr)).toEqual([]);
+  });
+
+  it('keeps an item only when this viewer reads that field on that person', () => {
+    const items = readableExpiries(
+      [
+        candidate({}),
+        candidate({ kind: 'fixed_term', day: '2026-11-01' }),
+        candidate({ personId: 'p2' }),
+      ],
+      expiring,
+      new Map([
+        ['p1', chain],
+        ['p2', { ...none, isSelf: true }],
+      ]),
+    );
+    // p1's permit is HR's and theirs, so their manager sees only the contract.
+    expect(items).toEqual([
+      { personId: 'p1', kind: 'fixed_term', day: '2026-11-01', name: 'Sana Khan' },
+      { personId: 'p2', kind: 'work_permit', day: '2026-10-24', name: 'Sana Khan' },
+    ]);
+  });
+
+  it('drops a person nobody resolved relations for, and a special-category field', () => {
+    expect(readableExpiries([candidate({})], expiring, new Map())).toEqual([]);
+    expect(
+      readableExpiries(
+        [candidate({})],
+        [special('work_permit_expiry')],
+        new Map([['p1', { ...none, isHr: true }]]),
+      ),
+    ).toEqual([]);
+  });
+
+  it('names a person only by what the viewer may read of their name', () => {
+    const hidden = expiring.map((d) =>
+      d.key === 'family_name' ? define({ key: 'family_name', visibility: ['hr'] }) : d,
+    );
+    const [item] = readableExpiries(
+      [candidate({ kind: 'fixed_term', names: { ...names, preferred_name: 'Sanu' } })],
+      hidden,
+      new Map([['p1', chain]]),
+    );
+    // No preferred-name field is published, so it is not read either.
+    expect(item?.name).toBe('Sana');
   });
 });

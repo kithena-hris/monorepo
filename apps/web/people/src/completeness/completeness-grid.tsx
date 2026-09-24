@@ -24,13 +24,16 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { PeopleSearch, PersonPicker, type SearchPeople } from '../record/attribute-input';
 
 /** An HR-owned field somebody is missing. */
 export interface GapField {
   readonly key: string;
   readonly label: string;
-  /** The choices, for a list or a reference; empty for free text. */
+  /** The choices, for a list; empty for free text and for a person. */
   readonly options: readonly { readonly value: string; readonly label: string }[];
+  /** A person reference: picked by searching people, not from `options`. */
+  readonly person: boolean;
 }
 
 export interface GapRow {
@@ -48,6 +51,8 @@ export interface CompletenessState {
   /** Employee-owned gaps: reminders, not this grid. */
   readonly waiting: { readonly people: number; readonly lastReminded: string | null };
   readonly completedThisWeek: number;
+  /** HR's missing values over everybody, not only this page. */
+  readonly toFill: number;
   readonly fields: readonly GapField[];
   readonly rows: readonly GapRow[];
 }
@@ -61,6 +66,12 @@ export interface GridSave {
 export interface CompletenessGridProps {
   readonly load: Loadable<CompletenessState>;
   readonly onSave: (changes: readonly GridSave[]) => Promise<Outcome>;
+  /** Finds people for a person field, by name, over everybody (PEO-122). */
+  readonly searchPeople?: SearchPeople;
+  /** Present when there are more people after this page (PEO-122). */
+  readonly onNextPage?: () => void;
+  /** Present when this is not the first page. */
+  readonly onFirstPage?: () => void;
 }
 
 /**
@@ -74,20 +85,27 @@ export interface CompletenessGridProps {
  * into one on click. A save sends one change per person, however many fields
  * were filled for them, so each person raises one `profile_updated`.
  */
-export function CompletenessGrid({ load, onSave }: CompletenessGridProps): JSX.Element {
+export function CompletenessGrid({
+  load,
+  searchPeople,
+  ...props
+}: CompletenessGridProps): JSX.Element {
   return (
-    <Loaded load={load} what="the missing information">
-      {(state) => <Grid state={state} onSave={onSave} />}
-    </Loaded>
+    <PeopleSearch.Provider value={searchPeople ?? null}>
+      <Loaded load={load} what="the missing information">
+        {(state) => <Grid state={state} {...props} />}
+      </Loaded>
+    </PeopleSearch.Provider>
   );
 }
 
 function Grid({
   state,
   onSave,
-}: {
+  onNextPage,
+  onFirstPage,
+}: Omit<CompletenessGridProps, 'load' | 'searchPeople'> & {
   readonly state: CompletenessState;
-  readonly onSave: CompletenessGridProps['onSave'];
 }): JSX.Element {
   const [fieldKey, setFieldKey] = useState(state.fields[0]?.key ?? '');
   // personId → key → value, across every field the admin has worked through.
@@ -125,6 +143,19 @@ function Grid({
     if (field === undefined) return null;
     const value = edits[r.personId]?.[field.key] ?? '';
     const name = `${field.label} for ${r.name}`;
+    if (field.person) {
+      return (
+        <PersonPicker
+          label={name}
+          size="sm"
+          value={value}
+          known={[]}
+          onChange={(next) => {
+            set(r.personId, field.key, next);
+          }}
+        />
+      );
+    }
     return field.options.length > 0 ? (
       <Select
         value={value}
@@ -200,7 +231,7 @@ function Grid({
         }
       />
       <AutoGrid minItemWidth="12rem" gap={3}>
-        <Stat label="Yours to fill" value={state.rows.reduce((n, r) => n + r.missing.length, 0)} />
+        <Stat label="Yours to fill" value={state.toFill} />
         <Stat label="Waiting on employees" value={state.waiting.people} />
         <Stat label="Completed this week" value={state.completedThisWeek} />
       </AutoGrid>
@@ -280,6 +311,12 @@ function Grid({
             </ul>
           )}
         </>
+      )}
+      {onNextPage === undefined && onFirstPage === undefined ? null : (
+        <nav aria-label="Pages of people" className="flex justify-end gap-2">
+          {onFirstPage === undefined ? null : <Button onClick={onFirstPage}>First page</Button>}
+          {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}
+        </nav>
       )}
     </Stack>
   );

@@ -141,6 +141,11 @@ export interface PersonAccess {
       readonly where?: Readonly<Record<string, string>>;
       /** A substring of a name or work email. See `searchable`. */
       readonly search?: string;
+      /**
+       * Only people with a gap HR or Finance fills in: the completeness grid
+       * (PEO-122). HR's alone, since who is missing what is itself a read.
+       */
+      readonly gaps?: 'staff';
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
   /** How many people `list` would page through for the same `where` and `search`. */
@@ -1282,12 +1287,17 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly asOf?: string;
         readonly where?: Readonly<Record<string, string>>;
         readonly search?: string;
+        readonly gaps?: 'staff';
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const query = await narrowing(tx, asking, version);
       if (!query.ok) return query;
+      if (asking.gaps !== undefined) {
+        const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+        if (!everyone.isHr) return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
+      }
       const rows = await deps.reader.page(
         tx,
         asking.tenantId,
@@ -1295,6 +1305,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.limit,
         query.value.where,
         query.value.search,
+        asking.gaps,
       );
       const related = await relationsToMany(
         deps.relations,

@@ -88,8 +88,8 @@ export const VIEWS = {
     ...absentIfNull(v, ['legalEntity']),
     profile: v.profile === null ? null : record(v.profile),
   }),
-  // Figures the view model always has as null, and GraphQL does not carry.
-  Analytics: (v: Json) => ({ ...v, expiries: null, funnel: null }),
+  // A figure the view model always has as null, and GraphQL does not carry.
+  Analytics: (v: Json) => ({ ...v, funnel: null }),
   Advice: (v: Json) => absentIfNull(v, ['classification', 'reason', 'floor']),
   ImportStage: stage,
 } as const;

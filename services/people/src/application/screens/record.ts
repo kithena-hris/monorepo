@@ -29,6 +29,16 @@ export interface ScreenDeps {
   readonly personOf: (tx: Tx, tenantId: string, accountId: string) => Promise<string | null>;
   /** Whose day "today" is (PEO-099). */
   readonly calendars: Calendars;
+  /** The completeness grid's totals over everybody (PEO-122). */
+  readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
+}
+
+/** HR's share of the completeness grid, counted over everybody (PEO-122). */
+export interface GapTotals {
+  /** People with a gap only they fill in: reminders, not the grid. */
+  readonly waiting: number;
+  /** Per key HR or Finance fills in, how many people are missing it. */
+  readonly staff: readonly { readonly key: string; readonly people: number }[];
 }
 
 /** Today on the tenant's default calendar: the day a screen about everybody is drawn for. */

@@ -1,0 +1,1 @@
+{"version":1,"body":"query PeoplePicker($search: String, $after: ID) {\n    peoplePicker(search: $search, after: $after) {\n      options { value label }\n      next\n    }\n  }"}

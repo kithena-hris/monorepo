@@ -124,13 +124,22 @@ export const OPERATIONS = {
     }
   }`,
 
-  Completeness: `query Completeness {
-    peopleCompleteness {
+  Completeness: `query Completeness($after: ID) {
+    peopleCompleteness(after: $after) {
       since
       waiting { people lastReminded }
       completedThisWeek
-      fields { key label options { value label } }
+      toFill
+      fields { key label options { value label } person }
       rows { personId name department manager missing }
+      next
+    }
+  }`,
+
+  PeoplePicker: `query PeoplePicker($search: String, $after: ID) {
+    peoplePicker(search: $search, after: $after) {
+      options { value label }
+      next
     }
   }`,
 
@@ -195,6 +204,7 @@ export const OPERATIONS = {
       attrition { percent leavers formula }
       complete { percent incomplete }
       expiringIn90Days
+      expiries { today items { kind personId name day } }
       movement { period opening joiners moves leavers closing }
       completenessBySection { label value }
     }

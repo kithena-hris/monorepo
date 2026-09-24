@@ -9,6 +9,7 @@ const state: CompletenessState = {
   since: 'Since version 4 was published on 22 Sep',
   waiting: { people: 61, lastReminded: '2 days ago' },
   completedThisWeek: 34,
+  toFill: 4,
   fields: [
     {
       key: 'cost_centre',
@@ -17,8 +18,9 @@ const state: CompletenessState = {
         { value: 'ENG-204', label: 'ENG-204' },
         { value: 'ENG-201', label: 'ENG-201' },
       ],
+      person: false,
     },
-    { key: 'desk', label: 'Desk', options: [] },
+    { key: 'desk', label: 'Desk', options: [], person: false },
   ],
   rows: [
     {
@@ -104,6 +106,53 @@ describe('CompletenessGrid', () => {
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
     expect(await screen.findByText('ENG-201 was retired')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save 1 change' })).toBeEnabled();
+  });
+
+  it('counts over everybody, and pages rather than stopping at the first people (PEO-122)', async () => {
+    const user = fast();
+    const onNextPage = vi.fn();
+    const { container } = render(
+      <CompletenessGrid
+        load={{ status: 'ready', data: { ...state, toFill: 4210 } }}
+        onSave={vi.fn()}
+        onNextPage={onNextPage}
+        onFirstPage={vi.fn()}
+      />,
+    );
+    // The stat is People's count over every page, not this page's three rows.
+    expect(screen.getByText('4210')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(onNextPage).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'First page' })).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('picks a person by searching People, not from a list it was handed', async () => {
+    const user = fast();
+    const searchPeople = vi.fn((text: string) =>
+      Promise.resolve(text === 'ing' ? [{ value: 'i', label: 'Ingrid Sø' }] : []),
+    );
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <CompletenessGrid
+        load={{
+          status: 'ready',
+          data: {
+            ...state,
+            fields: [{ key: 'manager', label: 'Manager', options: [], person: true }],
+            rows: state.rows.slice(0, 1).map((r) => ({ ...r, missing: ['manager'] })),
+          },
+        }}
+        onSave={onSave}
+        searchPeople={searchPeople}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Manager for Lena Moreau' }));
+    await user.type(screen.getByRole('combobox', { name: 'Manager for Lena Moreau search' }), 'ing');
+    await user.click(await screen.findByRole('option', { name: 'Ingrid Sø' }));
+    expect(searchPeople).toHaveBeenLastCalledWith('ing');
+    await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'l', values: { manager: 'i' } }]);
   });
 
   it('has loading, error and nothing-missing states', async () => {
