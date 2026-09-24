@@ -1270,6 +1270,53 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         value: t.exposeString('value'),
       }),
     });
+  type GridFinding = IdentifierFindingView & { personId: string };
+  const GridFindingRef = builder.objectRef<GridFinding>('GridCellFinding').implement({
+    description: 'A grid cell our checks doubt (PEO-125): saved all the same, and reviewed by HR.',
+    fields: (t) => ({
+      personId: t.exposeID('personId'),
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      level: t.exposeString('level'),
+      code: t.exposeString('code'),
+      message: t.exposeString('message'),
+      review: t.exposeString('review', { description: 'pending, accepted, sent_back or none' }),
+    }),
+  });
+  const GridSaved = builder
+    .objectRef<{ ok: true; findings: readonly GridFinding[] }>('GridSaved')
+    .implement({
+      fields: (t) => ({
+        ok: t.boolean({ resolve: () => true }),
+        findings: t.field({ type: [GridFindingRef], resolve: (v) => list(v.findings) }),
+      }),
+    });
+  const GridChecked = builder
+    .objectRef<{ findings: readonly GridFinding[] }>('GridIdentifierCheck')
+    .implement({
+      fields: (t) => ({
+        findings: t.field({ type: [GridFindingRef], resolve: (v) => list(v.findings) }),
+      }),
+    });
+  /** The grid's cells as REST takes them. */
+  const gridChanges = (
+    changes: readonly { personId: string | number; values: readonly { key: string; value: string }[] }[],
+  ) =>
+    changes.map((c) => ({
+      personId: String(c.personId),
+      values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
+    }));
+  builder.queryField('peopleGridCheck', (t) =>
+    t.field({
+      type: GridChecked,
+      description: 'What saving these grid cells would be warned about (PEO-125); nothing is kept.',
+      args: { changes: t.arg({ type: [GridChange], required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ findings: GridFinding[] }>(ctx, 'POST', '/v1/views/completeness/identifier-check', {
+          body: { changes: gridChanges(args.changes) },
+        }),
+    }),
+  );
   const IdentifierDecisionEnum = builder.enumType('IdentifierReviewDecision', {
     values: ['accept', 'send_back'] as const,
   });
@@ -1343,22 +1390,19 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         ),
     }),
     saveCompletenessGrid: t.field({
-      type: Outcome,
+      type: GridSaved,
       args: {
         changes: t.arg({ type: [GridChange], required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, args, ctx) => {
-        await viaRest(ctx, 'POST', '/v1/views/completeness', {
-          body: {
-            changes: args.changes.map((c) => ({
-              personId: c.personId,
-              values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
-            })),
-          },
-          key: args.idempotencyKey,
-        });
-        return done();
+        const answer = await viaRest<{ findings?: GridFinding[] } | null>(
+          ctx,
+          'POST',
+          '/v1/views/completeness',
+          { body: { changes: gridChanges(args.changes) }, key: args.idempotencyKey },
+        );
+        return { ok: true as const, findings: answer?.findings ?? [] };
       },
     }),
     confirmSetupEntity: t.field({

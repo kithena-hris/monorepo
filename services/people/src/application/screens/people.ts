@@ -6,7 +6,12 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import type { FormValues, IdentifierReviewEntry, RecordSection } from './model.js';
+import type {
+  FormValues,
+  IdentifierFindingView,
+  IdentifierReviewEntry,
+  RecordSection,
+} from './model.js';
 import {
   formValues,
   nameOf,
@@ -636,17 +641,48 @@ export async function completenessView(
 }
 
 /** The grid's bulk save: one write, and so one event, per person. */
+/** A grid cell's warning: which person, and what the checks found there (PEO-125). */
+export type GridFinding = IdentifierFindingView & { readonly personId: string };
+
+type GridChanges = readonly {
+  readonly personId: string;
+  readonly values: Readonly<Record<string, string>>;
+}[];
+
+/**
+ * The grid's bulk save: one section save per person, so every value goes
+ * through the same write path as a form — a doubted national identifier is
+ * saved, queued for HR and answered with its findings per cell (PEO-125).
+ */
 export async function saveGrid(
   deps: ScreenDeps,
   asking: Asking,
-  changes: readonly {
-    readonly personId: string;
-    readonly values: Readonly<Record<string, string>>;
-  }[],
-): Promise<Result<void>> {
+  changes: GridChanges,
+): Promise<Result<{ readonly ok: true; readonly findings: readonly GridFinding[] }>> {
+  const findings: GridFinding[] = [];
   for (const change of changes) {
     const saved = await saveSection(deps, asking, change.personId, change.values);
     if (!saved.ok) return saved;
+    findings.push(...saved.value.findings.map((f) => ({ ...f, personId: change.personId })));
   }
-  return ok(undefined);
+  return ok({ ok: true as const, findings });
+}
+
+/**
+ * What saving these cells would be warned about, saving nothing: the grid
+ * asks before it saves, as a form does, and a retried save is answered from
+ * it — the one function either way.
+ */
+export async function checkGrid(
+  deps: ScreenDeps,
+  asking: Asking,
+  changes: GridChanges,
+): Promise<Result<{ readonly findings: readonly GridFinding[] }>> {
+  const findings: GridFinding[] = [];
+  for (const change of changes) {
+    const found = await checkSection(deps, asking, change.personId, change.values);
+    if (!found.ok) return found;
+    findings.push(...found.value.findings.map((f) => ({ ...f, personId: change.personId })));
+  }
+  return ok({ findings });
 }

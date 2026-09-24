@@ -203,6 +203,15 @@ function screenPaths(): Record<string, unknown> {
         { path: 'id', safe: true },
       ),
     },
+    '/v1/views/completeness/identifier-check': {
+      post: screenWrite(
+        "What saving these grid cells would be warned about (PEO-125); nothing is kept",
+        'CompletenessChanges',
+        200,
+        '{ findings }, each with its personId',
+        { safe: true },
+      ),
+    },
     '/v1/views/completeness': {
       post: screenWrite(
         "The completeness grid's bulk save; one write per person",

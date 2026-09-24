@@ -33,6 +33,7 @@ const SAFE = [
   'POST /v1/views/me/identifier-check',
   'POST /v1/views/people/{id}/identifier-check',
   'POST /v1/people/{id}/identifier-reviews/reveal',
+  'POST /v1/views/completeness/identifier-check',
 ];
 
 const callerFrom: CallerFrom = () =>
