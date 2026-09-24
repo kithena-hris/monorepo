@@ -13,6 +13,7 @@ import { drizzleRelations } from '../../infrastructure/drizzle-person-reader.js'
 import { drizzlePeopleFacts } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { fixedCalendars } from '../org/org.js';
+import { relationsToMany } from '../person/person-access.js';
 import { chartExport, chartTooltip, type ChartViewer } from './access.js';
 import {
   attritionTrend,
@@ -891,7 +892,7 @@ describe('a tenant with entities in Madrid and Bangalore (PRD §6.8, §16)', () 
         calendar,
         at: '2026-03-31T20:00:00.000Z',
         everyone: HR_RELATIONS,
-        relations: (id) => drizzleRelations().relations(ctx.tx, TENANT, viewer, id),
+        relations: (ids) => relationsToMany(drizzleRelations(), ctx.tx, TENANT, viewer, ids),
       }),
     );
     expect(result).toMatchObject({ ok: true, value: { today: '2026-03-31', horizon: 90 } });
@@ -952,7 +953,7 @@ describe('the expiry timeline, live and item by item (PEO-122)', () => {
           calendar: UTC_CALENDAR,
           at: AT,
           everyone: account.roles.has('hr') ? HR_RELATIONS : NO_RELATIONS,
-          relations: (id) => drizzleRelations().relations(ctx.tx, TENANT, account, id),
+          relations: (ids) => relationsToMany(drizzleRelations(), ctx.tx, TENANT, account, ids),
         }),
       defs,
     );

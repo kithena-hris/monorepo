@@ -133,6 +133,7 @@ beforeAll(async () => {
     '20260923110000_people_completeness.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
+    '20260924320000_people_effective_through.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -627,7 +628,7 @@ describe('the directory at 50,000 people', () => {
     it('pages every person HR owes a value, and nobody else, within the budget', async () => {
       const pageOf = (after: string | null) =>
         inTenantResult(inTenant, PERF, (tx) =>
-          people.list(tx, { ...asking(hr, PERF), gaps: 'staff', after, limit: 50 }),
+          people.list(tx, { ...asking(hr, PERF), gaps: ['cost_centre'], after, limit: 50 }),
         );
       const first = await timed('a completeness grid page', () => pageOf(null));
       expect(first.ok && first.value.items).toHaveLength(50);
@@ -652,9 +653,27 @@ describe('the directory at 50,000 people', () => {
       expect(totals).toEqual({ waiting: 5000, staff: [{ key: 'cost_centre', people: 2000 }] });
     });
 
+    it('selects by the keys the grid shows, so a Finance-only gap fills no HR page', async () => {
+      await admin.execute(sql`
+        INSERT INTO people.completeness_gap (tenant_id, person_id, schema_version, employee_keys, staff_keys)
+        SELECT ${PERF}::uuid, md5('dir' || i)::uuid, 1, '{}', ARRAY['iban']
+          FROM generate_series(1, 3) AS i`);
+      const pageOf = (gaps: readonly string[]) =>
+        inTenantResult(inTenant, PERF, (tx) =>
+          people.list(tx, { ...asking(hr, PERF), gaps, limit: 50 }),
+        );
+      const finance = await pageOf(['iban']);
+      expect(finance.ok && finance.value.items).toHaveLength(3);
+      const hrs = await pageOf(['cost_centre']);
+      const ids = new Set(hrs.ok ? hrs.value.items.map((p) => p.id) : []);
+      expect(finance.ok && finance.value.items.some((p) => ids.has(p.id))).toBe(false);
+      const none = await pageOf([]);
+      expect(none.ok && none.value.items).toHaveLength(0);
+    });
+
     it('lists who is missing what to HR only', async () => {
       const page = await inTenantResult(inTenant, PERF, (tx) =>
-        people.list(tx, { ...asking(viewer(ADA_ACCOUNT), PERF), gaps: 'staff', limit: 50 }),
+        people.list(tx, { ...asking(viewer(ADA_ACCOUNT), PERF), gaps: ['cost_centre'], limit: 50 }),
       );
       expect(page.ok ? 'listed' : page.error.code).toBe('FORBIDDEN');
     });

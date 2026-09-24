@@ -1416,11 +1416,9 @@ it is written down here rather than left in a PR description.
       search, 20 a page), and a profile sends only the people its person
       fields name. `everybody()` is gone. No migration. Acceptance: HR sees
       a permit expiring in 30 days, a manager outside the chain does not,
-      and sees their own report's.* *Still open:* the export builder decides
-      which fields to offer from the first 200 people; the timeline has no
-      past `asOf` (a past day is the snapshot's counts); a manager at the
-      top of a 50,000-person chain asks one relation per person in the
-      window.
+      and sees their own report's.* *Still open:* the timeline has no past
+      `asOf` (a past day is the snapshot's counts). The export builder's
+      sample and the per-person relations closed in PEO-124.
 - [x] **PEO-123** Nothing places a person at a location or in a legal entity
       from a screen or an import: `location_id` and `legal_entity_id` are
       typed columns (§6.8) but no published attribute names them (the core
@@ -1430,7 +1428,7 @@ it is written down here rather than left in a PR description.
       its picker, and the transfer semantics (§8.5). Found in PEO-119.
       *(PRD §6.8, §7, §8.1, §8.5, §10.2)* *Landed as `PersonAccess.place`,
       HR only: entity, location, org unit and cost centre from a date on the
-      new calendar (today there by default, never later), a location moving
+      new calendar (today there by default; a date ahead from PEO-124), a location moving
       its entity with it, archived ones refused, a same-day repeat a
       correction carrying `supersedes`; `POST /v1/people/{id}/placement`,
       `placePerson`, and the placement control beside Employment on the
@@ -1440,6 +1438,44 @@ it is written down here rather than left in a PR description.
       `update`, so a form or an import transfers the same way. The number
       follows the rehire rule. `legal_entity_id` and `location_id`
       (`location_ref`, new) in the core pack, effective-dated. No migration.*
+- [x] **PEO-124** A value dated in the future came into force on no day. It
+      was stored in history correctly, but nothing moved the projection, the
+      person's calendar, completeness, analytics, OpenFGA or the events
+      consumers act on when its date arrived, so PEO-123 refused future
+      placements. Found in PEO-123. Also PEO-122's three leftovers.
+      *(PRD §8.5, §10.2, §11.1, §11.2, §15.1, §16.2)* *Landed as an hourly,
+      bounded, idempotent job beside the start job
+      (`bringDueIntoForce` → `PersonAccess.bringIntoForce`): people with a
+      row dated after the day it was recorded anywhere (`scheduled()`, at
+      UTC−12) and now arrived on their own calendar — the one the value
+      takes them to — have what history holds in force that day (`arrived()`:
+      latest wins, a correction in place of what it superseded) written into
+      their row, with `people.person.attribute_effective` (new, classified
+      like `profile_updated`, filtered for webhooks the same way),
+      `manager_changed` (OpenFGA's consumer moves the tuple from it: the new
+      manager gains access on the day), `org_changed` and the PEO-123
+      transfer and renumbering, identity's facts and a completeness
+      re-judge, each dated the value's own day. The write raises
+      `profile_updated` at once with the future `effectiveFrom`, as §10's
+      envelope means. Applied-ness: `people.person.applied_through`, a
+      per-person watermark, and a partial index over scheduled history rows
+      (20260924320000); idempotence itself comes from comparing history with
+      the row, so a rerun, a second replica or a stale watermark writes
+      nothing. A future transfer for somebody on notice is refused at the
+      write; one refused on its day (notice given since) is recorded once
+      by history row (`people.scheduled_refusal`), raises
+      `people.person.scheduled_change_refused` once, is never retried, and
+      is a `scheduled_change_refused` row on HR's grid until a correction or
+      new value for the key is recorded. Placement accepts any date; a retry of a scheduled one is a
+      no-op. A corrected manager now raises `manager_changed` too. PEO-122's
+      leftovers: the export builder offers fields from the published schema
+      and the relations the viewer can hold (tenant roles, and self, manager
+      and chain where `reach` finds somebody), counting everybody; the grid
+      selects people by the HR-owned keys it shows (`list({ gaps: keys })`),
+      so no page comes up short; relations for a page, an export and the
+      expiry window are `relationsToMany` — OpenFGA `ListObjects` for self,
+      manager and chain (`RelationsResolver.reach`), a per-person check only
+      for whoever a list capped at 1,000 may have missed.*
 - [x] **PEO-126** Product decision: keep the statutory retention floors
       (es-labour 48 months, de-labour 72, eu-payroll 120) but mark each
       unreviewed, pending counsel, and block automated erasure until counsel
