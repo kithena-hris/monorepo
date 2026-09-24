@@ -11,7 +11,8 @@ import {
 import type { Blobs } from '../application/export/object-store.js';
 
 /**
- * Export files in an S3-compatible bucket: S3, R2, or MinIO locally.
+ * Export files in an S3-compatible bucket: Oracle Object Storage, R2, or
+ * SeaweedFS locally.
  *
  * What arrives here is already AES-256-GCM ciphertext (`sealedObjectStore`);
  * the bucket encrypts it again with SSE-S3. Two layers because they fail
@@ -34,7 +35,7 @@ export interface S3Config {
   readonly bucket: string;
   readonly accessKeyId: string;
   readonly secretAccessKey: string;
-  /** MinIO wants path-style; AWS accepts it. */
+  /** A local store wants path-style; AWS accepts it. */
   readonly forcePathStyle?: boolean;
 }
 

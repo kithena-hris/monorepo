@@ -33,7 +33,7 @@ regexes = [
   # value in `.env.example` ever needs to be secret, the file is wrong, not the
   # scanner.
   '''dev-only-key''',
-  '''minio123''',
+  '''kithena-dev-secret''',
   '''postgres://kithena:kithena@localhost''',
   # Vercel project and organisation identifiers in the deploy workflow. These
   # name a project; they do not authorise anything. The token that does is a
