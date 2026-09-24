@@ -28,19 +28,18 @@ export async function seedCountryPack(
   const { sections, attributes } = applied.value;
 
   if (sections.length > 0) {
-    await tx
-      .insert(section)
-      .values(
-        sections.map((s: Section) => ({
-          tenantId,
-          key: s.key,
-          labels: s.label,
-          ord: s.order,
-          visibility: [...s.defaultVisibility],
-          origin: s.origin,
-        })),
-      )
-      .onConflictDoNothing();
+    // Built before `values()`, not inside it: TypeScript 7 checks the callback
+    // against the insert's overloads and, depending on the order it reaches
+    // this file, reads `Section` as an index signature (TS4111).
+    const rows = sections.map((s: Section) => ({
+      tenantId,
+      key: s.key,
+      labels: s.label,
+      ord: s.order,
+      visibility: [...s.defaultVisibility],
+      origin: s.origin,
+    }));
+    await tx.insert(section).values(rows).onConflictDoNothing();
   }
 
   if (attributes.length > 0) {
