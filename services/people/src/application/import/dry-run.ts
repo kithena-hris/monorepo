@@ -18,6 +18,7 @@ import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { EmployeeNumbers } from '../org/numbering.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { Calendars } from '../org/org.js';
+import { checkIdentifier } from '../person/identifier-review.js';
 import type { PersonAccess, PersonView } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions, Viewer } from '../person/ports.js';
 import { coerceCell, coerceDate, isMasked, type DateOrder } from './cells.js';
@@ -111,7 +112,48 @@ export interface BlockedItem {
   readonly reason: string;
 }
 
+/**
+ * A national identifier in a row that will import, which our checks doubt
+ * (PEO-125; PRD §14.5). Listed per cell, never blocking: the row imports and
+ * the value goes to HR's review. The message never repeats the value.
+ */
+export interface CellFinding {
+  readonly row: number;
+  readonly column: string;
+  readonly key: string;
+  readonly personId: string | null;
+  readonly level: 'attention' | 'mismatch';
+  readonly code: string;
+  readonly message: string;
+}
+
+/** The doubted identifiers among the rows that will import. */
+export function cellFindings(
+  version: PublishedVersion,
+  mapping: readonly ColumnMapping[],
+  rows: readonly ClassifiedRow[],
+): readonly CellFinding[] {
+  const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+  const found: CellFinding[] = [];
+  for (const r of rows) {
+    if (r.outcome !== 'create' && r.outcome !== 'update') continue;
+    for (const [key, value] of Object.entries(r.changes)) {
+      const definition = byKey.get(key);
+      const checked = definition ? checkIdentifier(definition, value) : null;
+      if (!checked?.ok || checked.value === null) continue;
+      const column = mapping.find((m) => m.status === 'mapped' && m.key === key)?.header ?? key;
+      for (const f of checked.value.findings) {
+        if (f.level === 'ok') continue;
+        found.push({ row: r.row, column, key, personId: r.personId, ...f, level: f.level });
+      }
+    }
+  }
+  return found;
+}
+
 export interface DryRun {
+  /** Doubted national identifiers, per cell. Imported all the same, then reviewed by HR. */
+  readonly findings: readonly CellFinding[];
   readonly rowsRead: number;
   readonly counts: Readonly<Record<RowOutcome, number>>;
   /** "missing work_email" → 11, "invalid hire_date" → 3. */
@@ -343,6 +385,7 @@ export async function dryRun(
   }
 
   return ok({
+    findings: cellFindings(version, input.mapping, rows),
     rowsRead: rows.length,
     counts,
     blockedBy,
@@ -418,7 +461,11 @@ function rowClassifier(
       (idCell ? existing.byId.get(cell(idCell)) : undefined) ??
       existing.byEmail.get(lower(first.coerced['work_email']) ?? '') ??
       existing.byNumber.get(lower(first.coerced['employee_number']) ?? '');
-    const zone = personZone(calendar, placementOf({ ...matched?.attributes, ...first.coerced }), at);
+    const zone = personZone(
+      calendar,
+      placementOf({ ...matched?.attributes, ...first.coerced }),
+      at,
+    );
     const personDay = localDate(at, zone);
     const { found: problems, coerced: values } =
       personDay === tenantDay ? first : coerceRow(personDay);
@@ -522,7 +569,11 @@ function rowClassifier(
     if (!person) {
       // A company with one legal entity has one answer to "which entity"
       // (PEO-123): a new person's missing cell takes it rather than blocking.
-      if (onlyEntity !== null && byKey.has('legal_entity_id') && values['legal_entity_id'] === undefined) {
+      if (
+        onlyEntity !== null &&
+        byKey.has('legal_entity_id') &&
+        values['legal_entity_id'] === undefined
+      ) {
         values['legal_entity_id'] = onlyEntity;
       }
       for (const key of coreRequired) {
