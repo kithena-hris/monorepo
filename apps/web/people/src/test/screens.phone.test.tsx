@@ -578,7 +578,13 @@ describe('at 390×844, with a finger', () => {
               closing: 912,
             },
             completenessBySection: [{ label: 'HR information', value: 99 }],
-            expiries: null,
+            expiries: {
+              today: '2026-09-22',
+              items: [
+                { kind: 'work_permit', personId: 's', name: 'Sana Khan', day: '2026-10-22' },
+                { kind: 'probation', personId: 'r', name: 'Rui Dias', day: '2026-11-03' },
+              ],
+            },
             funnel: [
               { label: 'Invited', value: 128 },
               { label: 'Complete', value: 61 },
@@ -589,6 +595,9 @@ describe('at 390×844, with a finger', () => {
     );
     // No chart forces the page sideways; a time axis scrolls inside its own box.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+    // The expiry lanes are the taller, finger-sized ones a coarse pointer gets (PEO-122).
+    const lane = screen.getAllByTitle('Sana Khan')[0]?.parentElement;
+    expect(lane?.getBoundingClientRect().height).toBeGreaterThanOrEqual(56);
   });
 });
 

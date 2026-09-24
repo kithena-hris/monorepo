@@ -605,6 +605,24 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       closing: t.exposeInt('closing'),
     }),
   });
+  type Expiries = NonNullable<A['expiries']>;
+  const Expiry = builder.objectRef<Expiries['items'][number]>('AnalyticsExpiry').implement({
+    description: 'One dated value about to lapse, shown only when the viewer reads it on that person.',
+    fields: (t) => ({
+      kind: t.exposeString('kind', {
+        description: 'work_permit, fixed_term, probation or certification',
+      }),
+      personId: t.exposeID('personId'),
+      name: t.exposeString('name', { nullable: true }),
+      day: t.exposeString('day', { description: "A calendar date, on the person's own day" }),
+    }),
+  });
+  const ExpiryTimeline = builder.objectRef<Expiries>('AnalyticsExpiries').implement({
+    fields: (t) => ({
+      today: t.exposeString('today'),
+      items: t.field({ type: [Expiry], resolve: (e) => list(e.items) }),
+    }),
+  });
   const Analytics = builder.objectRef<A>('PeopleAnalytics').implement({
     description:
       'A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).',
@@ -616,6 +634,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       attrition: t.field({ type: Attrition, nullable: true, resolve: (v) => v.attrition }),
       complete: t.field({ type: Complete, nullable: true, resolve: (v) => v.complete }),
       expiringIn90Days: t.exposeInt('expiringIn90Days', { nullable: true }),
+      expiries: t.field({ type: ExpiryTimeline, nullable: true, resolve: (v) => v.expiries }),
       movement: t.field({ type: Movement, nullable: true, resolve: (v) => v.movement }),
       completenessBySection: t.field({
         type: [Point],

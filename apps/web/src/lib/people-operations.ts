@@ -190,6 +190,7 @@ export const OPERATIONS = {
       attrition { percent leavers formula }
       complete { percent incomplete }
       expiringIn90Days
+      expiries { today items { kind personId name day } }
       movement { period opening joiners moves leavers closing }
       completenessBySection { label value }
     }
