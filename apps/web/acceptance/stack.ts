@@ -219,8 +219,8 @@ export async function startStack(): Promise<Stack> {
 
     // What the back office leaves behind: the company, two accounts, and a
     // signed-in session for each — the rows a passkey sign-in writes.
-    await sql`INSERT INTO platform.tenant (id, slug, display_name, address_city, address_country)
-              VALUES (${TENANT}, 'acme', 'Acme', 'Madrid', 'ES')`;
+    await sql`INSERT INTO platform.tenant (id, slug, display_name, address_line1, address_city, address_country)
+              VALUES (${TENANT}, 'acme', 'Acme', 'Calle Mayor 1', 'Madrid', 'ES')`;
     for (const [who, given, family] of [
       [ADMIN, 'Priya', 'Shah'],
       [EMPLOYEE, 'Adam', 'Ruiz'],
