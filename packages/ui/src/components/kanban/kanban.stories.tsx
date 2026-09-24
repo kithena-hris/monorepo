@@ -10,7 +10,7 @@ import {
   Plus,
   Star,
   ThumbsDown,
-  Trash2,
+  Trash,
   UserCheck,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -1204,7 +1204,7 @@ export const Sections: Story = {
       {
         id: 'delete',
         label: 'Delete the section',
-        icon: <Trash2 />,
+        icon: <Trash />,
         destructive: true,
         // Disabled rather than hidden. A board with no columns is not a state
         // worth supporting, and a greyed command with a reason beside it

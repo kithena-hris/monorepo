@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { MoreHorizontal } from 'lucide-react';
+import { Ellipsis } from 'lucide-react';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
@@ -164,7 +164,7 @@ export const Composed: Story = {
             <CardDescription>Principal Engineer &middot; Platform</CardDescription>
           </div>
         </div>
-        <Button variant="ghost" size="sm" startIcon={<MoreHorizontal />} aria-label="More actions">
+        <Button variant="ghost" size="sm" startIcon={<Ellipsis />} aria-label="More actions">
           {null}
         </Button>
       </CardHeader>

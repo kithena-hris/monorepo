@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CalendarDays, Home, Menu, Search, Users, Wallet } from 'lucide-react';
+import { CalendarDays, House, Menu, Search, Users, Wallet } from 'lucide-react';
 import { useState, type JSX } from 'react';
 
 import { Avatar } from '../components/avatar/avatar';
@@ -266,7 +266,7 @@ export const AppShell: Story = {
   render: function ShellStory() {
     const [tab, setTab] = useState('people');
     const nav = [
-      { id: 'home', label: 'Overview', icon: Home },
+      { id: 'home', label: 'Overview', icon: House },
       { id: 'people', label: 'People', icon: Users },
       { id: 'leave', label: 'Time off', icon: CalendarDays },
       { id: 'payroll', label: 'Payroll', icon: Wallet },

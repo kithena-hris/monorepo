@@ -1,13 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import {
-  ArrowRightLeft,
-  Clock,
-  Columns3,
-  FileDown,
-  MoreHorizontal,
-  Trash2,
-  UserPen,
-} from 'lucide-react';
+import { ArrowRightLeft, Clock, Columns3, Ellipsis, FileDown, Trash, UserPen } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '../button/button';
@@ -114,7 +106,7 @@ export const RowActions: Story = {
   render: (args) => (
     <DropdownMenu {...args}>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" startIcon={<MoreHorizontal />} aria-label="Row actions">
+        <Button variant="secondary" startIcon={<Ellipsis />} aria-label="Row actions">
           {null}
         </Button>
       </DropdownMenuTrigger>
@@ -148,7 +140,7 @@ export const RowActions: Story = {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem destructive>
-          <Trash2 />
+          <Trash />
           Offboard
         </DropdownMenuItem>
       </DropdownMenuContent>
