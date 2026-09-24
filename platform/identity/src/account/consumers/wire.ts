@@ -6,7 +6,7 @@ import {
   PersonAccessRestored,
   PersonIdentityFactsChanged,
 } from '@kithena/contracts';
-import { withTenant } from '@kithena/db-kit';
+import { kafkaConfigFrom, withTenant, type KafkaClientConfig } from '@kithena/db-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
 import { peopleConsumer } from './people.js';
@@ -21,15 +21,17 @@ import { peopleConsumer } from './people.js';
  * long-lived consumer belongs to the node server.
  */
 export function wirePeopleConsumer(databaseUrl: string, env = process.env): void {
-  const brokers = env['KAFKA_BROKERS'];
-  if (brokers === undefined || brokers === '') {
+  // Throws on a half-configured SASL or TLS setting: a boot that fails, not a
+  // consumer that connects without the credentials it was meant to have.
+  const kafka = kafkaConfigFrom(env, 'identity');
+  if (kafka === null) {
     logger.info('KAFKA_BROKERS unset; not consuming People corrections');
     return;
   }
 
   // A consumer that failed to connect is a process to restart, not a service
   // quietly serving stale names.
-  const started = start(databaseUrl, brokers);
+  const started = start(databaseUrl, kafka);
   started.catch((error: unknown) => {
     logger.error({ err: error }, 'identity consumer failed');
     process.exit(1);
@@ -38,12 +40,12 @@ export function wirePeopleConsumer(databaseUrl: string, env = process.env): void
   onShutdown('people corrections consumer', async () => (await started)());
 }
 
-async function start(databaseUrl: string, brokers: string): Promise<() => Promise<void>> {
+async function start(databaseUrl: string, kafka: KafkaClientConfig): Promise<() => Promise<void>> {
   const client = postgres(databaseUrl, { max: 2 });
   const db = drizzle(client);
   const handle = peopleConsumer((tenantId, fn) => withTenant(db, tenantId, fn));
 
-  const consumer = new Kafka({ clientId: 'identity', brokers: brokers.split(',') }).consumer({
+  const consumer = new Kafka(kafka).consumer({
     groupId: 'identity',
   });
   await consumer.connect();
