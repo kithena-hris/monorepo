@@ -1,6 +1,7 @@
 import { createHash, createHmac, hkdfSync } from 'node:crypto';
 
-import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { unionAll } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { TenantId, type AttributeDefinition } from '@kithena/contracts';
 import { outboxTable, publish } from '@kithena/db-kit';
@@ -29,8 +30,8 @@ import type { InTenantTransaction } from './unit-of-work.js';
  * Uniqueness on a tenant-defined attribute, without runtime DDL.
  *
  * A customer who marks "Works council id" unique gets a real unique index
- * enforcing it — the one over `(tenant_id, attribute_key, scope_id,
- * value_hash)` on `people.attribute_unique`. Claiming a value is an INSERT
+ * enforcing it — the one over `(value_hash, tenant_id, attribute_key,
+ * scope_id)` on `people.attribute_unique`. Claiming a value is an INSERT
  * into that table in the same transaction as the value itself, so the claim
  * and the value commit together or not at all.
  *
@@ -260,23 +261,29 @@ export function drizzleUniqueClaims(ring: KeyRing): UniqueClaims {
       // the value, or the unkeyed digest a sealed value was claimed by.
       const current = ring.current();
       const hashes = ring.all().map((key) => claimHash(key, tenantId, request, normalisedValue));
-      const legacy = [normalisedValue, createHash('sha256').update(normalisedValue).digest('hex')];
+      const digest = createHash('sha256').update(normalisedValue).digest('hex');
 
-      const held = await tx
-        .select({ personId: attributeUnique.personId })
-        .from(attributeUnique)
-        .where(
-          and(
-            eq(attributeUnique.tenantId, tenantId),
-            eq(attributeUnique.attributeKey, request.attributeKey),
-            eq(attributeUnique.scopeId, request.scopeId),
-            or(
-              inArray(attributeUnique.valueHash, hashes),
-              inArray(attributeUnique.normalisedValue, legacy),
+      // One arm per form, each a lookup of one key in a unique index
+      // (20260924350000). Not an `OR`, and not `= ANY(…)`: for a tenant the
+      // statistics have not seen, either lets the planner walk the tenant's
+      // claims instead, and a first import did that for every row.
+      const holder = (match: SQL) =>
+        tx
+          .select({ personId: attributeUnique.personId })
+          .from(attributeUnique)
+          .where(
+            and(
+              eq(attributeUnique.tenantId, tenantId),
+              eq(attributeUnique.attributeKey, request.attributeKey),
+              eq(attributeUnique.scopeId, request.scopeId),
+              match,
             ),
-          ),
-        )
-        .limit(1);
+          );
+      const held = await unionAll(
+        holder(eq(attributeUnique.normalisedValue, normalisedValue)),
+        holder(eq(attributeUnique.normalisedValue, digest)),
+        ...hashes.map((hash) => holder(eq(attributeUnique.valueHash, hash))),
+      ).limit(1);
 
       const existing = held[0];
       if (existing) {

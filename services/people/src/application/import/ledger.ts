@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 import { err, type DomainFailure } from '@kithena/domain-kit';
 
@@ -27,7 +28,10 @@ export function drizzleImportLedger(): ImportLedger {
                 ${entry.actorId}::uuid, ${entry.rowCount})
         ON CONFLICT (tenant_id, checksum) DO NOTHING
         RETURNING id`);
-      if ([...inserted].length > 0) return { claimed: true };
+      if ([...inserted].length > 0) {
+        await planForKeyLookups(tx);
+        return { claimed: true };
+      }
 
       const existing = await tx.execute<{ id: string }>(sql`
         SELECT id FROM people.import
@@ -46,6 +50,34 @@ export function drizzleImportLedger(): ImportLedger {
 
     publish: (tx, events) => publish(tx, outbox, events),
   };
+}
+
+/**
+ * Plan the rest of the import for what it is: thousands of key lookups.
+ *
+ * A plan cached while `people.person` or `people.attribute_unique` had been
+ * analyzed at a page or two is a sequential scan, and no index shape changes
+ * that: the statistics say the table is tiny, and the density they imply
+ * keeps saying so as it grows. The foreign-key checks and the claim lookups
+ * then each read every row the import has written, until the next ANALYZE —
+ * which cannot come while the import's one transaction is open. That is a
+ * deployment with a few dozen people importing its first thousands.
+ *
+ * Every statement the import runs per row is a lookup by key, so a sequential
+ * scan is never the right plan for one. `DISCARD PLANS` drops the plans this
+ * connection cached before, the foreign-key checks' included, so they are
+ * made again under the setting. `SET LOCAL` ends with the transaction; plans
+ * made during it last until the ANALYZE the import triggers, and are the
+ * index plans the grown table wants. Neither needs a privilege.
+ *
+ * Replanning each time the table grows fourfold (the other option) needs a
+ * counter in the row loop and still scans: the tiny table's density keeps the
+ * estimate low until a replan lands past ~1,000 rows, and by then the import
+ * has read 2.6 million rows it did not need.
+ */
+async function planForKeyLookups(tx: PostgresJsDatabase): Promise<void> {
+  await tx.execute(sql`SET LOCAL enable_seqscan = off`);
+  await tx.execute(sql`DISCARD PLANS`);
 }
 
 /**
