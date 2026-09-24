@@ -3,7 +3,9 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 import { err, type DomainFailure } from '@kithena/domain-kit';
 
+import type { UploadIntent } from '../../domain/import/upload.js';
 import type { ImportLedger, ReportIndex, RowScope } from './commit.js';
+import type { UploadIntents } from './upload.js';
 
 /**
  * The import ledger, over `people.import`.
@@ -124,6 +126,80 @@ export function drizzleReportIndex(): ReportIndex {
         DELETE FROM people.import_report
          WHERE tenant_id = ${tenantId}::uuid
            AND checksum IN (SELECT jsonb_array_elements_text(${JSON.stringify(checksums)}::jsonb))`);
+    },
+  };
+}
+
+/**
+ * Upload intents, over `people.import_upload`
+ * (`migrations/20260924360000_people_import_upload.sql`). Never the file.
+ */
+export function drizzleUploadIntents(): UploadIntents {
+  type Row = {
+    tenant_id: string;
+    id: string;
+    actor_id: string;
+    name: string;
+    size: string | number;
+    object_key: string;
+    created_at: string | Date;
+    url_expires_at: string | Date;
+    expires_at: string | Date;
+    checksum: string | null;
+  };
+  const iso = (at: string | Date) => new Date(at).toISOString();
+  const intent = (r: Row): UploadIntent => ({
+    id: r.id,
+    tenantId: r.tenant_id,
+    actorId: r.actor_id,
+    purpose: 'import',
+    name: r.name,
+    size: Number(r.size),
+    objectKey: r.object_key,
+    createdAt: iso(r.created_at),
+    urlExpiresAt: iso(r.url_expires_at),
+    expiresAt: iso(r.expires_at),
+    checksum: r.checksum,
+  });
+  return {
+    async save(tx, u) {
+      await tx.execute(sql`
+        INSERT INTO people.import_upload
+          (tenant_id, id, actor_id, purpose, name, size, object_key,
+           created_at, url_expires_at, expires_at)
+        VALUES (${u.tenantId}::uuid, ${u.id}::uuid, ${u.actorId}::uuid, ${u.purpose}, ${u.name},
+                ${u.size}, ${u.objectKey}, ${u.createdAt}::timestamptz,
+                ${u.urlExpiresAt}::timestamptz, ${u.expiresAt}::timestamptz)`);
+    },
+
+    async find(tx, tenantId, id) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT tenant_id, id, actor_id, name, size, object_key,
+               created_at, url_expires_at, expires_at, checksum
+          FROM people.import_upload
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid`);
+      const row = [...rows][0];
+      return row === undefined ? null : intent(row);
+    },
+
+    async complete(tx, tenantId, id, checksum) {
+      await tx.execute(sql`
+        UPDATE people.import_upload SET checksum = ${checksum}
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid`);
+    },
+
+    async release(tx, tenantId, actorId, now) {
+      const rows = await tx.execute<{ object_key: string }>(sql`
+        DELETE FROM people.import_upload
+         WHERE tenant_id = ${tenantId}::uuid
+           AND (actor_id = ${actorId}::uuid OR expires_at <= ${now}::timestamptz)
+        RETURNING object_key`);
+      return [...rows].map((r) => r.object_key);
+    },
+
+    async remove(tx, tenantId, id) {
+      await tx.execute(sql`
+        DELETE FROM people.import_upload WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid`);
     },
   };
 }

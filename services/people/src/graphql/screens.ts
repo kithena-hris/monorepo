@@ -3,6 +3,7 @@ import type {
   DeliveriesView,
   ExportBuilderView,
   ImportStageView,
+  ImportUploadView,
   IntegrationsView,
 } from '../application/screens/operations.js';
 import type {
@@ -45,9 +46,6 @@ import type { PeopleBuilder, RequestContext, ViaRest } from './builder.js';
  * `fields`, as it is from the REST view. `EmptyEntry` is a readable field with
  * nothing in it, which the viewer may know.
  */
-
-/** Import files are capped at 100 MB (PEO-038); the router and Yoga are sized for it. */
-export const IMPORT_MAX_BYTES = 100 * 1024 * 1024;
 
 type Builder = PeopleBuilder;
 
@@ -869,7 +867,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       step: t.exposeString('step'),
       file: t.field({ type: FileRef, resolve: (s) => s.file }),
       dryRun: t.field({ type: DryRunRef, resolve: (s) => s.dryRun }),
-      blockedCsv: t.exposeString('blockedCsv', { description: 'The blocked rows, base64 CSV.' }),
+      blockedUrl: t.exposeString('blockedUrl', {
+        nullable: true,
+        description:
+          'The blocked rows as a CSV that imports once fixed: a signed link that expires with the upload or in a day. Null when nothing is blocked.',
+      }),
     }),
   });
   const DoneStage = builder
@@ -881,7 +883,6 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         created: t.exposeInt('created'),
         updated: t.exposeInt('updated'),
         blocked: t.exposeInt('blocked'),
-        blockedCsv: t.exposeString('blockedCsv'),
         reportUrl: t.exposeString('reportUrl', {
           description: 'The same report, stored sealed; a signed link that expires in a day.',
         }),
@@ -890,6 +891,26 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
       }),
     });
+  const UploadHeader = builder
+    .objectRef<{ readonly name: string; readonly value: string }>('ImportUploadHeader')
+    .implement({
+      fields: (t) => ({ name: t.exposeString('name'), value: t.exposeString('value') }),
+    });
+  const UploadTarget = builder.objectRef<ImportUploadView>('ImportUploadTarget').implement({
+    description:
+      'Where the browser puts the file: a presigned PUT, straight to storage, for exactly this file, once.',
+    fields: (t) => ({
+      uploadId: t.exposeID('uploadId'),
+      url: t.exposeString('url'),
+      method: t.exposeString('method'),
+      headers: t.field({
+        type: [UploadHeader],
+        description: 'Send exactly these; each is signed. A browser sets content-length itself.',
+        resolve: (u) => Object.entries(u.headers).map(([name, value]) => ({ name, value })),
+      }),
+      expiresAt: t.exposeString('expiresAt'),
+    }),
+  });
   const ImportStage = builder.unionType('ImportStage', {
     types: [MapStage, ReviewStage, DoneStage],
     resolveType: (s) =>
@@ -1217,20 +1238,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       ]),
     );
 
-  const upload = async (file: File, mapping?: readonly { column: number; key?: string | null | undefined }[]) => {
-    if (file.size > IMPORT_MAX_BYTES) {
-      throw new Error('An import is at most 100 MB');
-    }
-    return {
-      name: file.name,
-      file: Buffer.from(await file.arrayBuffer()).toString('base64'),
-      ...(mapping === undefined
-        ? {}
-        : {
-            mapping: Object.fromEntries(mapping.map((m) => [m.column, m.key ?? null])),
-          }),
-    };
-  };
+  const importStep = (
+    uploadId: string,
+    mapping: readonly { column: number; key?: string | null | undefined }[],
+  ) => ({
+    uploadId,
+    mapping: Object.fromEntries(mapping.map((m) => [m.column, m.key ?? null])),
+  });
 
   /** What a section save answers: a retry answers `{ ok }` alone, so findings default to none. */
   const saved = (answer: { findings?: readonly IdentifierFindingView[] } | null) => ({
@@ -1575,23 +1589,41 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           { body: {}, key: args.idempotencyKey },
         ),
     }),
-    proposeImport: t.field({
+    startImportUpload: t.field({
+      type: UploadTarget,
+      description:
+        'Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.',
+      args: {
+        name: t.arg.string({ required: true }),
+        size: t.arg.int({ required: true, description: 'Bytes, exactly: the PUT is signed for this length.' }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ImportUploadView>(ctx, 'POST', '/v1/imports/uploads', {
+          body: { name: args.name, size: args.size },
+        }),
+    }),
+    completeImportUpload: t.field({
       type: ImportStage,
-      description: 'Upload → the proposed mapping. Changes nothing, so takes no key.',
-      args: { file: t.arg({ type: 'Upload', required: true }) },
-      resolve: async (_root, args, ctx) =>
-        viaRest<Stage>(ctx, 'POST', '/v1/imports/proposal', { body: await upload(args.file) }),
+      description: 'The file is uploaded: check it, then the proposed mapping. Changes nothing else.',
+      args: { uploadId: t.arg.id({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<Stage>(
+          ctx,
+          'POST',
+          `/v1/imports/uploads/${encodeURIComponent(args.uploadId)}/complete`,
+          { body: {} },
+        ),
     }),
     dryRunImport: t.field({
       type: ImportStage,
       description: 'The five counts and the blocked rows. Changes nothing, so takes no key.',
       args: {
-        file: t.arg({ type: 'Upload', required: true }),
+        uploadId: t.arg.id({ required: true }),
         mapping: t.arg({ type: [ColumnInput], required: true }),
       },
-      resolve: async (_root, args, ctx) =>
+      resolve: (_root, args, ctx) =>
         viaRest<Stage>(ctx, 'POST', '/v1/imports/dry-run', {
-          body: await upload(args.file, args.mapping),
+          body: importStep(args.uploadId, args.mapping),
         }),
     }),
     commitImport: t.field({
@@ -1599,13 +1631,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       description:
         'Import. A retry of the same key is refused ALREADY_IMPORTED: the report is not kept.',
       args: {
-        file: t.arg({ type: 'Upload', required: true }),
+        uploadId: t.arg.id({ required: true }),
         mapping: t.arg({ type: [ColumnInput], required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
-      resolve: async (_root, args, ctx) =>
+      resolve: (_root, args, ctx) =>
         viaRest<Stage>(ctx, 'POST', '/v1/imports', {
-          body: await upload(args.file, args.mapping),
+          body: importStep(args.uploadId, args.mapping),
           key: args.idempotencyKey,
         }),
     }),

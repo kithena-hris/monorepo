@@ -394,43 +394,69 @@ export async function moveLifecycle(personId: string, move: LifecycleMove): Prom
 
 /* -------------------------------------------------------------- import -- */
 
-/** The file travels with every step: People keeps nothing between them (§14.2). */
+/**
+ * An import never sends its file through here: the browser PUTs it straight
+ * to storage (PRD §14.2), and these carry only where, and which upload. A
+ * Vercel function refuses a body over 4.5 MB, and an import may be 100 MB.
+ */
+export type UploadTarget =
+  | {
+      readonly ok: true;
+      readonly uploadId: string;
+      readonly url: string;
+      readonly method: string;
+      /** Signed: the browser sends exactly these. */
+      readonly headers: Readonly<Record<string, string>>;
+    }
+  | { readonly ok: false; readonly message: string };
+
+export async function startImportUpload(file: {
+  name: string;
+  size: number;
+}): Promise<UploadTarget> {
+  const answer = await people<{
+    uploadId: string;
+    url: string;
+    method: string;
+    headers: { name: string; value: string }[];
+  }>('StartImportUpload', { name: file.name.slice(0, 255), size: file.size });
+  if (!answer.ok) return { ok: false, message: answer.message };
+  return {
+    ok: true,
+    uploadId: answer.data.uploadId,
+    url: answer.data.url,
+    method: answer.data.method,
+    headers: Object.fromEntries(answer.data.headers.map((h) => [h.name, h.value])),
+  };
+}
+
 export type Staged = { ok: true; stage: unknown } | { ok: false; message: string };
 
-async function upload(
-  name: 'ProposeImport' | 'DryRunImport' | 'CommitImport',
-  form: FormData,
+const staged = async (answer: Promise<PeopleAnswer<Record<string, unknown>>>): Promise<Staged> => {
+  const a = await answer;
+  return a.ok ? { ok: true, stage: VIEWS.ImportStage(a.data) } : { ok: false, message: a.message };
+};
+
+const columns = (mapping: Readonly<Record<number, string | null>>) =>
+  Object.entries(mapping).map(([column, key]) => ({ column: Number(column), key }));
+
+/** The file is in storage: People checks it, and proposes the mapping. */
+export async function completeImportUpload(uploadId: string): Promise<Staged> {
+  return staged(people('CompleteImportUpload', { uploadId }));
+}
+
+export async function dryRunImport(
+  uploadId: string,
+  mapping: Readonly<Record<number, string | null>>,
 ): Promise<Staged> {
-  const file = form.get('file');
-  if (!(file instanceof File)) return { ok: false, message: 'Choose a file' };
-  const mapping = form.get('mapping');
-  const columns =
-    typeof mapping === 'string'
-      ? Object.entries(JSON.parse(mapping) as Record<string, string | null>).map(
-          ([column, key]) => ({ column: Number(column), key }),
-        )
-      : [];
-  // Sent as a multipart upload through the router, the file as it was chosen.
-  const answer = await people<Record<string, unknown>>(
-    name,
-    name === 'ProposeImport' ? {} : { mapping: columns },
-    file,
-  );
-  return answer.ok
-    ? { ok: true, stage: VIEWS.ImportStage(answer.data) }
-    : { ok: false, message: answer.message };
+  return staged(people('DryRunImport', { uploadId, mapping: columns(mapping) }));
 }
 
-export async function proposeImport(form: FormData): Promise<Staged> {
-  return upload('ProposeImport', form);
-}
-
-export async function dryRunImport(form: FormData): Promise<Staged> {
-  return upload('DryRunImport', form);
-}
-
-export async function commitImport(form: FormData): Promise<Staged> {
-  return upload('CommitImport', form);
+export async function commitImport(
+  uploadId: string,
+  mapping: Readonly<Record<number, string | null>>,
+): Promise<Staged> {
+  return staged(people('CommitImport', { uploadId, mapping: columns(mapping) }));
 }
 
 /* -------------------------------------------------------------- export -- */

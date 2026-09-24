@@ -4,12 +4,13 @@ import { failure, ok, type Result } from '@kithena/domain-kit';
 import {
   analyticsView,
   commitImportView,
+  completeImportUpload,
   createEndpoint,
   deliveriesView,
   dryRunImport,
   exportBuilderView,
   integrationsView,
-  proposeImport,
+  startImportUpload,
   replayDelivery,
   rotateEndpoint,
   updateEndpoint,
@@ -125,10 +126,14 @@ export const EndpointBody = z.strictObject({
   alertEmail: z.string().max(320),
 });
 export const EndpointPatch = EndpointBody.partial().extend({ enabled: z.boolean().optional() });
-export const Upload = z.strictObject({
+/** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
+export const UploadStart = z.strictObject({
   name: z.string().max(255),
-  /** The file, base64. The same bytes every step: nothing is kept between them. */
-  file: z.base64(),
+  size: z.int().min(1),
+});
+/** A step after the upload: which upload, and the mapping once there is one. */
+export const ImportStepBody = z.strictObject({
+  uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
 });
 
@@ -140,9 +145,8 @@ function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
   return value.ok ? parse(schema, value.value) : value;
 }
 
-const upload = (input: z.infer<typeof Upload>) => ({
-  name: input.name,
-  bytes: new Uint8Array(Buffer.from(input.file, 'base64')),
+const importStep = (input: z.infer<typeof ImportStepBody>) => ({
+  uploadId: input.uploadId,
   ...(input.mapping === undefined
     ? {}
     : {
@@ -526,21 +530,32 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
 
     /* import */
     {
+      // Where to put the file: a presigned PUT, straight to storage (§14.2).
+      // Unkeyed: a retry is a fresh upload, and the earlier one is let go.
       method: 'POST',
-      pattern: /^\/v1\/imports\/proposal$/,
+      pattern: /^\/v1\/imports\/uploads$/,
       safe: true,
-      handle: compute(Upload, (asking, input) => proposeImport(deps, asking, upload(input))),
+      handle: compute(UploadStart, (asking, input) => startImportUpload(deps, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/imports/uploads/${UUID}/complete$`),
+      safe: true,
+      handle: async (asking, _request, params) =>
+        answer(await completeImportUpload(deps, asking, params['id'] ?? '')),
     },
     {
       method: 'POST',
       pattern: /^\/v1\/imports\/dry-run$/,
       safe: true,
-      handle: compute(Upload, (asking, input) => dryRunImport(deps, asking, upload(input))),
+      handle: compute(ImportStepBody, (asking, input) =>
+        dryRunImport(deps, asking, importStep(input)),
+      ),
     },
     {
       method: 'POST',
       pattern: /^\/v1\/imports$/,
-      handle: write(Upload, (asking, input) => commitImportView(deps, asking, upload(input)), {
+      handle: write(ImportStepBody, (asking, input) => commitImportView(deps, asking, importStep(input)), {
         status: 201,
         // The report is not kept (PEO-090), so a retry is told it went through.
         again: () =>
@@ -569,7 +584,5 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   ];
 }
 
-/** How big a request body may be: an import carries its file, base64. */
-export function bodyLimit(path: string): number {
-  return path.startsWith('/v1/imports') ? 140 * 1024 * 1024 : 256 * 1024;
-}
+/** How big a request body may be. No file comes this way: an import's goes to storage (§14.2). */
+export const BODY_LIMIT = 256 * 1024;

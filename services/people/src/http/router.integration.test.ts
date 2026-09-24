@@ -52,8 +52,9 @@ import { wirePeople } from './server.js';
  *
  * PEO-113: the safelist stays on, reading the tenant app's generated
  * operations (`apps/gateway/persisted/`) plus the ones this file sends itself;
- * an import file passes as a multipart upload larger than the old 5 MB limit;
- * People's own error code reaches the caller.
+ * no file passes through it — an import's goes straight to storage and the
+ * router carries only where to put it — and People's own error code reaches
+ * the caller.
  */
 
 const run = promisify(execFile);
@@ -468,21 +469,26 @@ describe('the tenant app through the router (PEO-113)', () => {
     expect(body.errors?.[0]?.extensions?.code).toBe('PERSISTED_QUERY_NOT_FOUND');
   });
 
-  it('carries an import file larger than the old 5 MB limit to People, and People’s own refusal back', async () => {
-    const query = await shellOperation('ProposeImport');
-    const row = 'someone@acme.example,Engineer\n';
-    const csv = `work_email,job_title\n${row.repeat(Math.ceil((6 * 1024 * 1024) / row.length))}`;
+  it('carries an import’s upload request, never its file, and People’s own refusal back', async () => {
+    const query = await shellOperation('StartImportUpload');
+    const response = await asShell(await shellToken(), query, {
+      name: 'people.csv',
+      // Six megabytes, declared: the bytes go to storage, not through here.
+      size: 6 * 1024 * 1024,
+    });
+    const body = (await response.json()) as {
+      errors?: { message: string; extensions?: { code?: string } }[];
+    };
+    // Ada is not HR, and the router forwards no roles without OpenFGA: People
+    // refuses the import itself.
+    expect(body.errors?.[0]?.extensions?.code, JSON.stringify(body)).toBe('FORBIDDEN');
+    expect(body.errors?.[0]?.message).toBe('Only HR imports people');
+  });
+
+  it('refuses a multipart request: the router takes no file uploads', async () => {
     const form = new FormData();
-    form.set(
-      'operations',
-      JSON.stringify({
-        query,
-        variables: { file: null },
-        extensions: { persistedQuery: { version: 1, sha256Hash: sha256(query) } },
-      }),
-    );
-    form.set('map', JSON.stringify({ '0': ['variables.file'] }));
-    form.set('0', new File([csv], 'people.csv', { type: 'text/csv' }));
+    form.set('operations', JSON.stringify({ query: '{ __typename }', variables: {} }));
+    form.set('map', '{}');
     const response = await fetch(`${url}/graphql`, {
       method: 'POST',
       headers: {
@@ -491,12 +497,7 @@ describe('the tenant app through the router (PEO-113)', () => {
       },
       body: form,
     });
-    const body = (await response.json()) as {
-      errors?: { message: string; extensions?: { code?: string } }[];
-    };
-    // Ada is not HR, and the router forwards no roles without OpenFGA: People
-    // refuses the import itself — which it can only do once the file arrived.
-    expect(body.errors?.[0]?.extensions?.code, JSON.stringify(body)).toBe('FORBIDDEN');
-    expect(body.errors?.[0]?.message).toBe('Only HR imports people');
+    const body = (await response.json().catch(() => null)) as { data?: unknown } | null;
+    expect(body?.data ?? null).toBeNull();
   });
 });

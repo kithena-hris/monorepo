@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fixedClock, ok } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
@@ -23,7 +23,14 @@ import { define, versionOf } from '../person/in-memory.js';
 import { inTenantResult, personAccess, type PersonAccessDeps } from '../person/person-access.js';
 import { commitImport, commitImportRetrying, type CommitDeps, type RowScope } from './commit.js';
 import { asking, attributes, csv, HEADERS, priyasRows } from './fixture.js';
-import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from './ledger.js';
+import {
+  drizzleImportLedger,
+  drizzleReportIndex,
+  drizzleRowScope,
+  drizzleUploadIntents,
+} from './ledger.js';
+import type { UploadStore } from './upload.js';
+import { openUpload } from '../../domain/import/upload.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
 import { utcCalendars } from '../org/org.js';
@@ -108,6 +115,7 @@ beforeAll(async () => {
     '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',
     '20260924250000_people_import_report.sql',
+    '20260924360000_people_import_upload.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
   ]) {
@@ -445,6 +453,25 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
       }
     };
     const idempotency = drizzleIdempotency();
+    // The upload bucket, as the browser leaves it: the file under its key.
+    const files = new Map<string, Uint8Array>();
+    const uploadStore: UploadStore = {
+      presignPut: () => Promise.reject(new Error('no browser in this test')),
+      read: (key) => {
+        const bytes = files.get(key);
+        return Promise.resolve(
+          bytes === undefined
+            ? null
+            : { bytes, checksum: createHash('sha256').update(bytes).digest('hex') },
+        );
+      },
+      remove: (key) => {
+        files.delete(key);
+        return Promise.resolve();
+      },
+      purge: () => Promise.resolve(0),
+    };
+    const intents = drizzleUploadIntents();
     const service = (): PeopleService =>
       ({
         access: deps.access,
@@ -472,6 +499,7 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
             calendars: utcCalendars,
             reports: deps.reports,
           },
+          uploads: { store: uploadStore, intents },
         } as unknown as ScreenRouteDeps,
         idempotency,
       ),
@@ -485,15 +513,31 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
       ['', '', 'p2@acme.test', '', `B-${String(round)}`],
       ['Bo', 'Bee', `b${String(round)}@acme.test`, '2026-03-01', ''],
     ];
-    const commit = (key: string, rows: string[][]): RestRequest => ({
-      method: 'POST',
-      url: '/v1/imports',
-      headers: { 'idempotency-key': key },
-      body: JSON.stringify({
+    /** The file uploaded and completed (§14.2), then the commit naming it. */
+    const commit = async (key: string, rows: string[][]): Promise<RestRequest> => {
+      const bytes = csv(headers, rows);
+      const opened = openUpload({
+        id: randomUUID(),
+        tenantId: CONTENDED,
+        actorId: who.viewer.accountId,
         name: 'people.csv',
-        file: Buffer.from(csv(headers, rows)).toString('base64'),
-      }),
-    });
+        size: bytes.byteLength,
+        now: personDeps.clock.instant(),
+      });
+      if (!opened.ok) throw new Error(opened.error.message);
+      const upload = opened.value;
+      files.set(upload.objectKey, bytes);
+      await inTenant(CONTENDED, async ({ tx }) => {
+        await intents.save(tx, upload);
+        await intents.complete(tx, CONTENDED, upload.id, createHash('sha256').update(bytes).digest('hex'));
+      });
+      return {
+        method: 'POST',
+        url: '/v1/imports',
+        headers: { 'idempotency-key': key },
+        body: JSON.stringify({ uploadId: upload.id }),
+      };
+    };
 
     const tally = async () => ({
       people: await count(
@@ -516,9 +560,11 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
     it('deadlocks for real, retries in a savepoint, and commits each key with its import', async () => {
       deadlocks.length = 0;
       const before = await tally();
-      const first = rest(commit('race-3-a', rowsA(3)));
+      // Both uploaded first, so the two commits start as far apart as before.
+      const [a, b] = [await commit('race-3-a', rowsA(3)), await commit('race-3-b', rowsB(3))];
+      const first = rest(a);
       await pause(150);
-      const second = rest(commit('race-3-b', rowsB(3)));
+      const second = rest(b);
       const answers = await Promise.all([first, second]);
 
       // Not a pass by luck: Postgres chose a victim at least once.
@@ -548,8 +594,9 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
       expect(after.numbers - before.numbers).toBe(won);
       expect(after.imports - before.imports).toBe(won);
 
-      // A retry of a key that won is answered and imports nothing again.
-      const again = await rest(commit('race-3-a', rowsA(3)));
+      // A retry of a key that won — the same request, naming the same upload —
+      // is answered and imports nothing again.
+      const again = await rest(a);
       if (answers[0]?.status === 201) {
         expect(again?.body).toMatchObject({ error: { code: 'ALREADY_IMPORTED' } });
       }
@@ -566,7 +613,7 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
         return idempotent(
           { service: service(), idempotency },
           who,
-          commit(key, rows),
+          await commit(key, rows),
           201,
           async (tx) => {
             const done = await sharing({ tx, tenantId: CONTENDED }, () =>

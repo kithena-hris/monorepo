@@ -4,7 +4,7 @@ import {
   Badge,
   Button,
   DataTable,
-  Dropzone,
+  FileUploader,
   PageHeader,
   Select,
   SelectContent,
@@ -15,6 +15,7 @@ import {
   Stat,
   Stepper,
   type DataColumn,
+  type UploadItem,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -97,9 +98,16 @@ export type ImportStage =
       readonly forReview?: number;
     };
 
+/** PRD §14.5: 100 MB per file. The server holds it to that; this saves the wait. */
+export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
+
 export interface ImportFlowProps {
   readonly load: Loadable<ImportStage>;
-  readonly onUpload: (file: File) => Promise<Outcome>;
+  /**
+   * Upload the file — straight to storage, never through the app's server —
+   * reporting how much has gone, 0 to 100, as it goes; then check it.
+   */
+  readonly onUpload: (file: File, progress: (percent: number) => void) => Promise<Outcome>;
   /** Column index → attribute key, or null to ignore it. */
   readonly onMap: (mapping: Readonly<Record<number, string | null>>) => Promise<Outcome>;
   readonly onCommit: () => Promise<Outcome>;
@@ -186,21 +194,35 @@ function Refused({ message }: { readonly message: string | null }): JSX.Element 
 }
 
 function Upload({ onUpload }: { readonly onUpload: ImportFlowProps['onUpload'] }): JSX.Element {
-  const [busy, refused, attempt] = useAttempt();
+  const [items, setItems] = useState<readonly UploadItem[]>([]);
+  const change = (id: string, patch: Partial<UploadItem>): void => {
+    setItems((list) => list.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  };
+  const send = (item: UploadItem): void => {
+    change(item.id, { status: 'uploading', progress: 0 });
+    void onUpload(item.file, (percent) => {
+      change(item.id, { progress: percent });
+    }).then((outcome) => {
+      // Success moves the flow on to the mapping, and this list goes with it.
+      if (!outcome.ok) change(item.id, { status: 'error', error: outcome.message });
+    });
+  };
   return (
-    <Stack gap={4}>
-      <Dropzone
-        label="Drop a spreadsheet, or choose one"
-        hint="CSV or Excel, up to 50,000 rows. A file exported from here imports back without mapping."
-        accept=".csv,.tsv,.xlsx"
-        disabled={busy}
-        onFiles={(files) => {
-          const [file] = files;
-          if (file !== undefined) void attempt(() => onUpload(file));
-        }}
-      />
-      <Refused message={refused} />
-    </Stack>
+    <FileUploader
+      label="Drop a spreadsheet, or choose one"
+      hint="CSV or Excel, up to 50,000 rows or 100 MB. A file exported from here imports back without mapping."
+      accept={['.csv', '.tsv', '.xlsx']}
+      maxSize={MAX_IMPORT_BYTES}
+      maxFiles={1}
+      multiple={false}
+      value={items}
+      onChange={(next) => {
+        setItems(next);
+        const added = next.find((i) => i.status === 'pending');
+        if (added !== undefined) send(added);
+      }}
+      onRetry={send}
+    />
   );
 }
 

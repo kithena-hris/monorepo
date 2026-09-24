@@ -37,9 +37,46 @@ export interface S3Config {
   readonly secretAccessKey: string;
   /** A local store wants path-style; AWS accepts it. */
   readonly forcePathStyle?: boolean;
+  /**
+   * Whether to ask for SSE-S3 (`x-amz-server-side-encryption: AES256`) on
+   * each write. `AES256` by default; `none` for a provider that encrypts at
+   * rest on its own and refuses the header — Oracle Object Storage, whose S3
+   * API takes only SSE-C (docs/environments.md).
+   */
+  readonly sse?: Sse;
+}
+
+export type Sse = 'AES256' | 'none';
+
+/** `<prefix>_SSE`: `AES256` (the default) or `none`. Anything else is a mistake to stop on. */
+export function sseFrom(env: NodeJS.ProcessEnv, prefix: string): Sse {
+  const value = env[`${prefix}_SSE`] ?? 'AES256';
+  if (value !== 'AES256' && value !== 'none') {
+    throw new Error(`${prefix}_SSE must be AES256 or none, not ${value}`);
+  }
+  return value;
 }
 
 const MAX_PAGES = 10;
+
+/**
+ * One store's endpoint and credentials: `<prefix>_S3_ENDPOINT`, `_REGION`,
+ * `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`, each falling back to the plain
+ * `S3_*` — so a laptop's one local store serves both stores from one set, and
+ * production gives each its own provider (uploads on R2, exports on Oracle).
+ */
+export function s3ConfigFrom(env: NodeJS.ProcessEnv, prefix: string, bucket: string): S3Config {
+  const get = (name: string) => env[`${prefix}_S3_${name}`] ?? env[`S3_${name}`];
+  const endpoint = get('ENDPOINT');
+  return {
+    bucket,
+    region: get('REGION') ?? 'us-east-1',
+    ...(endpoint ? { endpoint } : {}),
+    accessKeyId: get('ACCESS_KEY_ID') ?? '',
+    secretAccessKey: get('SECRET_ACCESS_KEY') ?? '',
+    sse: sseFrom(env, prefix),
+  };
+}
 
 export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client } {
   const client = new S3Client({
@@ -61,7 +98,7 @@ export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client }
           Body: body,
           ContentType: 'application/octet-stream',
           Metadata: { 'media-type': mediaType },
-          ServerSideEncryption: 'AES256',
+          ...(config.sse === 'none' ? {} : { ServerSideEncryption: 'AES256' as const }),
         }),
       );
     },

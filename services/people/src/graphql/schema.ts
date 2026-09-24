@@ -23,7 +23,7 @@ import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
-import { defineScreens, IMPORT_MAX_BYTES } from './screens.js';
+import { defineScreens } from './screens.js';
 
 export type { RequestContext } from './builder.js';
 
@@ -1144,13 +1144,13 @@ export const schema = builder.toSubGraphSchema({
 
 /**
  * How People's Yoga is served, wherever it is (`main.ts`, the router test).
- * An import's file comes as a multipart upload of up to 100 MB (PEO-038), so
- * the body may be that and its two small JSON parts; Yoga's default is 25 MB.
+ * No file comes this way: an import's goes straight to storage (§14.2), so the
+ * body is JSON and Yoga's own limit stands.
  */
 export const yogaOptions = {
   schema,
   graphqlEndpoint: '/graphql',
-  maxRequestBodySize: IMPORT_MAX_BYTES + 1024 * 1024,
+  multipart: false,
   maskedErrors: {
     // Yoga loads graphql's CommonJS build and `toGraphQLError` its ESM one, so
     // Yoga's `instanceof` took every domain refusal for an unexpected error and

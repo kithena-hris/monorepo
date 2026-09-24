@@ -7,7 +7,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createYoga } from 'graphql-yoga';
-import { startPostgres } from '@kithena/testing';
+import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
+import { startObjectStore, startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
 import { Person } from '../domain/person/person.js';
@@ -30,6 +31,7 @@ const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
 const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
 
 let stopPg: (() => Promise<void>) | undefined;
+let stopObjects: (() => Promise<void>) | undefined;
 const clients: ReturnType<typeof postgres>[] = [];
 let server: Server;
 let base = '';
@@ -49,8 +51,20 @@ const migration = (file: string): Promise<string> =>
   readFile(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8');
 
 beforeAll(async () => {
-  const pg = await startPostgres();
+  const [pg, objects] = await Promise.all([startPostgres(), startObjectStore()]);
   stopPg = pg.stop;
+  stopObjects = objects.stop;
+  // The bucket an import is uploaded to, straight from the browser (§14.2).
+  await new S3Client({
+    endpoint: objects.endpoint,
+    region: 'us-east-1',
+    forcePathStyle: true,
+    credentials: { accessKeyId: objects.accessKeyId, secretAccessKey: objects.secretAccessKey },
+  }).send(new CreateBucketCommand({ Bucket: 'uploads' }));
+  process.env['PEOPLE_UPLOAD_BUCKET'] = 'uploads';
+  process.env['PEOPLE_UPLOAD_S3_ENDPOINT'] = objects.endpoint;
+  process.env['PEOPLE_UPLOAD_S3_ACCESS_KEY_ID'] = objects.accessKeyId;
+  process.env['PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY'] = objects.secretAccessKey;
   const adminClient = postgres(pg.url, { max: 1 });
   clients.push(adminClient);
   const admin = drizzle(adminClient);
@@ -68,6 +82,7 @@ beforeAll(async () => {
     '20260924270100_people_entitlements.sql',
     '20260924270200_people_role_grant.sql',
     '20260924330000_people_identifier_review.sql',
+    '20260924360000_people_import_upload.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -140,6 +155,7 @@ afterAll(async () => {
   if (listening) await new Promise((resolve) => listening.close(resolve));
   for (const c of clients) await c.end();
   await stopPg?.();
+  await stopObjects?.();
 });
 
 describe('the booted service', () => {
@@ -356,35 +372,61 @@ describe('the screens over GraphQL', () => {
     expect(unkeyed.errors).toBeDefined();
   });
 
-  it('takes an import file as a multipart upload, as the router forwards it', async () => {
-    const form = new FormData();
-    form.set(
-      'operations',
-      JSON.stringify({
-        query: `mutation ($file: Upload!) { proposeImport(file: $file) {
-          __typename ... on ImportMapStage { step file { name rows } columns { header status } }
-        } }`,
-        variables: { file: null },
-      }),
+  it('takes an import through storage: the browser PUTs the file, GraphQL carries none', async () => {
+    const graphAs = async (query: string, variables: Record<string, unknown>) =>
+      (await (
+        await fetch(`${base}/graphql`, {
+          method: 'POST',
+          headers: headers(HR_ACCOUNT, ['hr']),
+          body: JSON.stringify({ query, variables }),
+        })
+      ).json()) as { data?: Record<string, unknown>; errors?: unknown };
+
+    const file = new TextEncoder().encode('work_email,job_title\nnew@acme.example,Engineer\n');
+    const started = await graphAs(
+      `mutation ($name: String!, $size: Int!) {
+        startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } }
+      }`,
+      { name: 'people.csv', size: file.byteLength },
     );
-    form.set('map', JSON.stringify({ '0': ['variables.file'] }));
-    form.set(
-      '0',
-      new File(['work_email,job_title\nnew@acme.example,Engineer\n'], 'people.csv', {
-        type: 'text/csv',
-      }),
+    expect(started.errors).toBeUndefined();
+    const target = started.data?.['startImportUpload'] as {
+      uploadId: string;
+      url: string;
+      method: string;
+      headers: { name: string; value: string }[];
+    };
+    const put = await fetch(target.url, {
+      method: target.method,
+      headers: Object.fromEntries(
+        target.headers.filter((h) => h.name !== 'content-length').map((h) => [h.name, h.value]),
+      ),
+      body: file,
+    });
+    expect(put.status).toBe(200);
+
+    const completed = await graphAs(
+      `mutation ($id: ID!) { completeImportUpload(uploadId: $id) {
+        __typename ... on ImportMapStage { step file { name rows } }
+      } }`,
+      { id: target.uploadId },
     );
-    // The multipart boundary is fetch's to set: no JSON content type.
-    const hr = Object.fromEntries(
-      Object.entries(headers(HR_ACCOUNT, ['hr'])).filter(([name]) => name !== 'content-type'),
-    );
-    const response = await fetch(`${base}/graphql`, { method: 'POST', headers: hr, body: form });
-    const body = (await response.json()) as { data?: { proposeImport: unknown }; errors?: unknown };
-    expect(body.errors).toBeUndefined();
-    expect(body.data?.proposeImport).toMatchObject({
+    expect(completed.errors).toBeUndefined();
+    expect(completed.data?.['completeImportUpload']).toMatchObject({
       __typename: 'ImportMapStage',
       step: 'map',
       file: { name: 'people.csv', rows: 1 },
     });
+  });
+
+  it('takes no multipart request at all: no file comes through GraphQL', async () => {
+    const form = new FormData();
+    form.set('operations', JSON.stringify({ query: '{ __typename }', variables: {} }));
+    form.set('map', '{}');
+    const hr = Object.fromEntries(
+      Object.entries(headers(HR_ACCOUNT, ['hr'])).filter(([name]) => name !== 'content-type'),
+    );
+    const response = await fetch(`${base}/graphql`, { method: 'POST', headers: hr, body: form });
+    expect(response.ok).toBe(false);
   });
 });
