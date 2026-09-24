@@ -2,7 +2,7 @@
 
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
+import { CircleCheck, CircleX, Info, TriangleAlert, X } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -56,9 +56,9 @@ const toast = cva(
 
 const toneIcon = {
   neutral: Info,
-  success: CheckCircle2,
-  warning: AlertTriangle,
-  danger: XCircle,
+  success: CircleCheck,
+  warning: TriangleAlert,
+  danger: CircleX,
   info: Info,
 } as const;
 

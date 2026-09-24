@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Home, Slash } from 'lucide-react';
+import { House, Slash } from 'lucide-react';
 
 import {
   Breadcrumb,
@@ -98,7 +98,7 @@ export const Collapsing: Story = {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink href="#" aria-label="Home">
-            <Home className="size-3.5" aria-hidden />
+            <House className="size-3.5" aria-hidden />
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />

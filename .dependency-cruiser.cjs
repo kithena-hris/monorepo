@@ -104,8 +104,9 @@ module.exports = {
         'A remote renders what the shell hands it. It fetches nothing and never ' +
         'sees the session, so it imports Reach and nothing else of ours: not a ' +
         'contract, not the shell, not another remote. docs/build-plan.md, ' +
-        '"Rules the build enforces".',
-      from: { path: '^apps/web/((?!src/)[^/.]+)/' },
+        '"Rules the build enforces". `acceptance/` is the shell\'s end-to-end ' +
+        'harness, not a remote: it boots the whole stack and has to import it.',
+      from: { path: '^apps/web/((?!src/|acceptance/)[^/.]+)/' },
       to: { path: '^(apps/(?!web/$1/)|packages/(?!ui/)|services/|platform/)' },
     },
     {
@@ -160,10 +161,28 @@ module.exports = {
     },
   ],
   options: {
-    doNotFollow: { path: 'node_modules' },
+    /*
+     * A workspace package's `dist/` is where an import of `@kithena/contracts`
+     * lands, so it must stay in the graph as a *target* or every rule written
+     * against `^packages/...` sees nothing. Not following it keeps it from being
+     * a source: no chunk graph, no orphans, only the edge that crossed a line.
+     */
+    doNotFollow: { path: ['node_modules', '^packages/[^/]+/dist/'] },
     // Build output is not architecture. A bundler's chunk graph is circular by
     // construction and says nothing about how the source is layered.
-    exclude: { path: '(^|/)(dist|\\.next|storybook-static|\\.turbo)/' },
+    exclude: {
+      path: '(^|/)(\\.next|storybook-static|\\.turbo)/|^(apps|platform|services|tools)/.*/dist/',
+    },
+    /*
+     * Without these a bare specifier is resolved by `main` alone, and
+     * `@reach/ui` has no `main`: it ships source through `exports`. Every
+     * import of it came back unresolvable, so the design-system rules matched
+     * nothing and passed.
+     */
+    enhancedResolveOptions: {
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'require', 'node', 'default', 'types'],
+    },
     tsConfig: { fileName: 'tsconfig.json' },
     tsPreCompilationDeps: true,
   },

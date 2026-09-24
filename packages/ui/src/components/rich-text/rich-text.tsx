@@ -5,9 +5,6 @@ import TextAlign from '@tiptap/extension-text-align';
 import { EditorContent, useEditor, type Editor, type UseEditorOptions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Bold,
   Code,
   Heading2,
@@ -21,6 +18,9 @@ import {
   Quote,
   Redo2,
   Strikethrough,
+  TextAlignCenter,
+  TextAlignEnd,
+  TextAlignStart,
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-react';
@@ -248,21 +248,21 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
     {
       id: 'align-left',
       label: 'Align left',
-      icon: <AlignLeft />,
+      icon: <TextAlignStart />,
       run: (editor) => editor.chain().focus().setTextAlign('left').run(),
       active: (editor) => editor.isActive({ textAlign: 'left' }),
     },
     {
       id: 'align-center',
       label: 'Align centre',
-      icon: <AlignCenter />,
+      icon: <TextAlignCenter />,
       run: (editor) => editor.chain().focus().setTextAlign('center').run(),
       active: (editor) => editor.isActive({ textAlign: 'center' }),
     },
     {
       id: 'align-right',
       label: 'Align right',
-      icon: <AlignRight />,
+      icon: <TextAlignEnd />,
       run: (editor) => editor.chain().focus().setTextAlign('right').run(),
       active: (editor) => editor.isActive({ textAlign: 'right' }),
     },

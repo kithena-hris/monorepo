@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Bell, CalendarDays, Home, Menu, Search, Settings, Users, Wallet } from 'lucide-react';
+import { Bell, CalendarDays, House, Menu, Search, Settings, Users, Wallet } from 'lucide-react';
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { Avatar } from '../components/avatar/avatar';
@@ -192,7 +192,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const nav = [
-  { id: 'home', label: 'Overview', icon: Home },
+  { id: 'home', label: 'Overview', icon: House },
   { id: 'people', label: 'People', icon: Users },
   { id: 'leave', label: 'Time off', icon: CalendarDays, badge: '7' },
   { id: 'payroll', label: 'Payroll', icon: Wallet },
