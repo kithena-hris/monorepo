@@ -11,6 +11,8 @@ const review = (state: IdentifierReview['state']): IdentifierReview => ({
   personId: 'p1',
   attributeKey: 'es_nif',
   historyId: 'h1',
+  valueHash: 'hash',
+  keyId: 'k1',
   findings: [mismatch],
   state,
   createdAt: '2026-09-24T08:00:00.000Z',

@@ -64,7 +64,7 @@ const people = personAccess({
   schemas: drizzleSchemaVersions(),
   relations: drizzleRelations(),
   secrets,
-  reviews: drizzleIdentifierReviews(secrets),
+  reviews: drizzleIdentifierReviews(ring, secrets),
   uniques: drizzleUniqueClaims(ring),
   clock,
   newId,

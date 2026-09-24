@@ -7,7 +7,6 @@ import {
 } from '@kithena/contracts';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
-import { currentValue } from '../../domain/person/history.js';
 import {
   decideReview,
   isOpen,
@@ -16,13 +15,7 @@ import {
   type ReviewDecision,
   type ReviewFinding,
 } from '../../domain/person/identifier-review.js';
-import {
-  checkNationalId,
-  normaliseNationalId,
-  type NationalIdCheck,
-} from '../../country-packs/national-id.js';
-import type { PersonRepository } from '../person-repository.js';
-import type { PersonRecord } from './ports.js';
+import { checkNationalId, type NationalIdCheck } from '../../country-packs/national-id.js';
 
 /**
  * HR's review of the national identifiers our checks doubted (PEO-125; PRD
@@ -63,28 +56,35 @@ export interface IdentifierReviews {
   /** Write the decision only if the review is still pending. False when somebody decided first. */
   decide(tx: Tx, tenantId: string, next: IdentifierReview): Promise<boolean>;
   publish(tx: Tx, events: readonly PendingEvent[]): Promise<void>;
-  /** `drizzleSecretStore.reveal`: the audited read of a sealed value. */
+  /**
+   * A keyed hash of a normalised value, under the current key: what a review
+   * stores to be recognised again. Never reversible, never the value.
+   */
+  fingerprint(
+    tenantId: string,
+    attributeKey: string,
+    normalised: string,
+  ): { readonly valueHash: string; readonly keyId: string };
+  /** Whether this normalised value is the one a review is about. A hash comparison: nothing is decrypted. */
+  matches(tenantId: string, review: IdentifierReview, normalised: string): boolean;
+  /**
+   * `drizzleSecretStore.reveal`: the audited read of a sealed value. Called
+   * only when a reviewer asks to see one (`reveal` below), never to compare.
+   */
   reveal(
     tx: Tx,
     where: { tenantId: string; personId: string; attributeKey: string },
   ): Promise<string | null>;
 }
 
-/** What the checks found on one identifier a write carried. */
+/** Where a value stands with HR: the latest review of this very value, if any. */
+export type ReviewStanding = 'pending' | 'accepted' | 'sent_back' | 'none';
+
+/** What the checks found on one identifier, and where that value stands with HR. */
 export interface AttributeFindings {
   readonly key: string;
   readonly findings: readonly ReviewFinding[];
-  /** `pending`: HR will review it. `accepted`: already accepted, not asked again. */
-  readonly review: 'pending' | 'accepted' | 'none';
-}
-
-/** What a write decided about one identifier, before anything was stored. */
-export interface IdentifierPlan {
-  readonly definition: AttributeDefinition;
-  readonly findings: readonly ReviewFinding[];
-  readonly supersede: boolean;
-  readonly open: boolean;
-  readonly accepted: boolean;
+  readonly review: ReviewStanding;
 }
 
 /**
@@ -105,87 +105,108 @@ export function checkIdentifier(
       );
 }
 
+/** One identifier a write carries: its definition and the check of its new value (null: cleared). */
+export type Carried = readonly [AttributeDefinition, NationalIdCheck | null];
+
 /**
- * What a write does to each identifier's reviews, decided before the value is
- * stored: whether the one being replaced was accepted is read off the value
- * still in place.
+ * Where each checked value stands with HR: the state of the latest review of
+ * that attribute when its fingerprint is this value's, else `none`. The one
+ * answer every transport gives — a write's response, a retry's replay and the
+ * check a form makes before it saves — so the three cannot disagree.
  */
-export async function planReviews(
+export async function findingsFor(
   tx: Tx,
-  deps: { readonly reviews: IdentifierReviews; readonly people: PersonRepository },
+  reviews: IdentifierReviews | undefined,
   tenantId: string,
-  person: PersonRecord,
-  written: readonly (readonly [AttributeDefinition, NationalIdCheck | null])[],
-): Promise<readonly IdentifierPlan[]> {
-  const plans: IdentifierPlan[] = [];
-  for (const [definition, check] of written) {
-    const where = { tenantId, personId: person.snapshot.id, attributeKey: definition.key };
-    const latest = await deps.reviews.latest(tx, tenantId, where.personId, where.attributeKey);
-    let same = false;
-    if (latest?.state === 'accepted' && check !== null) {
-      // The accepted value is the one in place only if nothing was written since.
-      const history = await deps.people.history(tx, tenantId, where.personId, definition.key);
-      if (currentValue(history, definition.key)?.id === latest.historyId) {
-        const prior = definition.encrypted
-          ? await deps.reviews.reveal(tx, where)
-          : person.values[definition.key];
-        same = typeof prior === 'string' && normaliseNationalId(prior) === check.normalised;
-      }
-    }
-    const findings = check?.findings ?? [];
-    const plan = onIdentifierWritten({ findings, latest, sameAsLatest: same });
-    plans.push({
-      definition,
-      findings,
-      ...plan,
-      accepted: latest?.state === 'accepted' && same,
+  personId: string,
+  carried: readonly Carried[],
+): Promise<readonly AttributeFindings[]> {
+  const found: AttributeFindings[] = [];
+  for (const [definition, check] of carried) {
+    if (check === null) continue;
+    const latest = reviews ? await reviews.latest(tx, tenantId, personId, definition.key) : null;
+    const mine = latest !== null && reviews?.matches(tenantId, latest, check.normalised) === true;
+    found.push({
+      key: definition.key,
+      findings: check.findings,
+      review: !mine || latest.state === 'superseded' ? 'none' : latest.state,
     });
   }
-  return plans;
+  return found;
 }
 
-/** Apply the plans once the history rows they point at exist. */
-export async function applyReviews(
+/** One write's identifiers, gated: what it will do to their reviews, and doing it. */
+export interface IdentifierGate {
+  /** Supersede and open reviews, once the history rows they point at exist. */
+  apply(tx: Tx, historyIds: ReadonlyMap<string, string>): Promise<void>;
+  /** After `apply`: what the caller is told, as `findingsFor` answers. */
+  findings(tx: Tx): Promise<readonly AttributeFindings[]>;
+}
+
+/**
+ * **The one path every write of a national identifier takes** (PEO-125): an
+ * edit, a hire, an import row, a grid cell, a correction. Decided before the
+ * value is stored, applied after its history row is written.
+ *
+ * Whether the value is the one HR accepted is a comparison of keyed hashes
+ * (`matches`): nothing is decrypted, so nothing reads as a reveal.
+ */
+export async function gateIdentifiers(
   tx: Tx,
   deps: {
-    readonly reviews: IdentifierReviews;
+    readonly reviews: IdentifierReviews | undefined;
     readonly clock: Clock;
     readonly newId: () => string;
   },
   tenantId: string,
   personId: string,
-  plans: readonly IdentifierPlan[],
-  historyIds: ReadonlyMap<string, string>,
-): Promise<void> {
-  for (const plan of plans) {
-    const key = plan.definition.key;
-    if (plan.supersede) await deps.reviews.supersede(tx, tenantId, personId, key);
-    const historyId = historyIds.get(key);
-    if (!plan.open || historyId === undefined) continue;
-    await deps.reviews.insert(tx, tenantId, {
-      id: deps.newId(),
-      personId,
-      attributeKey: key,
-      historyId,
-      findings: plan.findings,
-      state: 'pending',
-      createdAt: deps.clock.instant(),
-      decidedBy: null,
-      decidedAt: null,
-      note: null,
-    });
+  carried: readonly Carried[],
+): Promise<IdentifierGate> {
+  const { reviews } = deps;
+  const plans: {
+    readonly carried: Carried;
+    readonly supersede: boolean;
+    readonly open: boolean;
+  }[] = [];
+  if (reviews) {
+    for (const entry of carried) {
+      const [definition, check] = entry;
+      const latest = await reviews.latest(tx, tenantId, personId, definition.key);
+      const same =
+        latest !== null && check !== null && reviews.matches(tenantId, latest, check.normalised);
+      plans.push({
+        carried: entry,
+        ...onIdentifierWritten({ findings: check?.findings ?? [], latest, sameAsLatest: same }),
+      });
+    }
   }
+  return {
+    async apply(at, historyIds) {
+      if (!reviews) return;
+      for (const plan of plans) {
+        const [definition, check] = plan.carried;
+        const key = definition.key;
+        if (plan.supersede) await reviews.supersede(at, tenantId, personId, key);
+        const historyId = historyIds.get(key);
+        if (!plan.open || historyId === undefined || check === null) continue;
+        await reviews.insert(at, tenantId, {
+          id: deps.newId(),
+          personId,
+          attributeKey: key,
+          historyId,
+          ...reviews.fingerprint(tenantId, key, check.normalised),
+          findings: check.findings,
+          state: 'pending',
+          createdAt: deps.clock.instant(),
+          decidedBy: null,
+          decidedAt: null,
+          note: null,
+        });
+      }
+    },
+    findings: (at) => findingsFor(at, reviews, tenantId, personId, carried),
+  };
 }
-
-/** What a write tells its caller about each identifier it carried. */
-export const findingsOf = (plans: readonly IdentifierPlan[]): readonly AttributeFindings[] =>
-  plans
-    .filter((p) => p.findings.length > 0)
-    .map((p) => ({
-      key: p.definition.key,
-      findings: p.findings,
-      review: p.open ? 'pending' : p.accepted ? 'accepted' : 'none',
-    }));
 
 /* ------------------------------------------------------------ reviewing -- */
 

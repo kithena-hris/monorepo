@@ -60,15 +60,14 @@ import type {
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
 import {
-  applyReviews,
   checkIdentifier,
   decide as decideIdentifier,
-  findingsOf,
-  planReviews,
+  findingsFor,
+  gateIdentifiers,
   reveal as revealIdentifier,
   reviewable,
   type AttributeFindings,
-  type IdentifierPlan,
+  type Carried,
   type IdentifierReviews,
   type ReviewItem,
 } from './identifier-review.js';
@@ -211,7 +210,7 @@ export interface PersonAccess {
       readonly value: unknown;
       readonly reason: string | null;
     }>,
-  ): Promise<Result<HistoryEntry>>;
+  ): Promise<Result<CorrectedEntry>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
   /**
    * Confirm a provisional record as an employee, from a start date. The one
@@ -335,6 +334,9 @@ export interface PersonAccess {
   /** The value under review in full, for HR deciding it: audited. */
   revealIdentifier(tx: Tx, asking: On<{ readonly attributeKey: string }>): Promise<Result<string>>;
 }
+
+/** A correction's new row, and what the checks found if it was a national identifier (PEO-125). */
+export type CorrectedEntry = HistoryEntry & { readonly findings: readonly AttributeFindings[] };
 
 /** A placement, as HR asks for it. An absent field is not changed; null clears it. */
 export interface PlacementChange {
@@ -619,20 +621,43 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     };
   }
 
-  /** Validate one proposed value against its definition, or say which key is wrong. */
-  function validate(definition: AttributeDefinition, value: unknown, day: string): Result<unknown> {
+  /**
+   * Validate one proposed value against its definition, or say which key is
+   * wrong. Every write path — `update` and `correct` — admits a value here and
+   * nowhere else, so a national identifier is always judged by its country's
+   * rule (PEO-125): refused only when it cannot be the identifier at all, and
+   * otherwise carried with its check for `gateIdentifiers`.
+   */
+  function validate(
+    definition: AttributeDefinition,
+    value: unknown,
+    day: string,
+  ): Result<{ readonly value: unknown; readonly check: NationalIdCheck | null }> {
     if (value === null) {
       return definition.encrypted
         ? err(failure('VALUE_INVALID', `${definition.key} cannot be cleared`, [definition.key]))
-        : ok(null);
+        : ok({ value: null, check: null });
     }
     const parsed = valueSchemaFor(definition, day).safeParse(value);
     if (!parsed.success) {
       const reason = parsed.error.issues[0]?.message ?? 'invalid';
       return err(failure('VALUE_INVALID', `${definition.key}: ${reason}`, [definition.key]));
     }
-    return ok(parsed.data);
+    const checked = checkIdentifier(definition, parsed.data);
+    return checked.ok ? ok({ value: parsed.data, check: checked.value }) : checked;
   }
+
+  /** The identifiers a write carries, gated: the one path to their reviews (PEO-125). */
+  const carried = (admitted: readonly (readonly [AttributeDefinition, NationalIdCheck | null])[]) =>
+    admitted.filter(([d]) => d.typeConfig.kind === 'national_id');
+  const gate = (tx: Tx, tenantId: string, personId: string, admitted: readonly Carried[]) =>
+    gateIdentifiers(
+      tx,
+      { reviews: deps.reviews, clock: deps.clock, newId: deps.newId },
+      tenantId,
+      personId,
+      carried(admitted),
+    );
 
   /**
    * Tell identity, in the same transaction, when a fact it caches moved.
@@ -823,20 +848,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // Every value checked before anything is written, so a bad sixth field
     // does not leave five claims behind.
     const accepted: [AttributeDefinition, unknown][] = [];
-    // National identifiers, judged by their country's rule (PEO-125): refused
-    // only when they cannot be the identifier at all.
-    const identifiers: [AttributeDefinition, NationalIdCheck | null][] = [];
+    const checks: Carried[] = [];
     for (const [key, proposed] of Object.entries(allowed)) {
       const definition = byKey.get(key);
       if (!definition) continue; // partitionWrites refused unknown keys already
       const valid = validate(definition, proposed, day);
       if (!valid.ok) return valid;
-      const checked = checkIdentifier(definition, valid.value);
-      if (!checked.ok) return checked;
-      if (definition.typeConfig.kind === 'national_id') {
-        identifiers.push([definition, checked.value]);
-      }
-      accepted.push([definition, valid.value]);
+      checks.push([definition, valid.value.check]);
+      accepted.push([definition, valid.value.value]);
     }
 
     const legalEntityId =
@@ -886,25 +905,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }),
     );
 
-    // What each identifier does to its reviews, read before the value it
-    // replaces is overwritten.
-    const reviews = deps.reviews;
-    const plans: readonly IdentifierPlan[] = reviews
-      ? await planReviews(
-          tx,
-          { reviews, people: deps.people },
-          asking.tenantId,
-          person,
-          identifiers,
-        )
-      : identifiers.map(([definition, check]) => ({
-          definition,
-          findings: check?.findings ?? [],
-          supersede: false,
-          open: false,
-          accepted: false,
-        }));
-    const findings = findingsOf(plans);
+    // What each identifier does to its reviews, decided before it is stored.
+    const identifiers = await gate(tx, asking.tenantId, asking.personId, checks);
 
     const eventId = deps.newId();
     const custom = new Map(Object.entries(person.custom));
@@ -1035,16 +1037,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       },
       history,
     });
-    if (reviews) {
-      await applyReviews(
-        tx,
-        { reviews, clock: deps.clock, newId: deps.newId },
-        asking.tenantId,
-        asking.personId,
-        plans,
-        historyIds,
-      );
-    }
+    await identifiers.apply(tx, historyIds);
+    const findings = await identifiers.findings(tx);
     await rejudge(tx, asking, asking.personId, eventId);
 
     // Moved from one entity to another: the new entity's number, when its
@@ -1549,7 +1543,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly value: unknown;
         readonly reason: string | null;
       },
-    ): Promise<Result<HistoryEntry>> {
+    ): Promise<Result<CorrectedEntry>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
@@ -1600,8 +1594,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           ]),
         );
       }
-      const valid = validate(definition, asking.value, day);
-      if (!valid.ok) return valid;
+      const admitted = validate(definition, asking.value, day);
+      if (!admitted.ok) return admitted;
+      const valid = { value: admitted.value.value };
+      // A correction is a write like any other: a doubted identifier is
+      // checked and queued for HR by the same gate (PEO-125).
+      const identifiers = await gate(tx, asking.tenantId, asking.personId, [
+        [definition, admitted.value.check],
+      ]);
 
       const eventId = deps.newId();
       const corrected = correct(history, {
@@ -1708,8 +1708,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             : {},
         history: [entry],
       });
+      await identifiers.apply(tx, new Map([[definition.key, entry.id]]));
+      const findings = await identifiers.findings(tx);
       await rejudge(tx, asking, asking.personId, eventId);
-      return ok(entry);
+      return ok({ ...entry, findings });
     },
 
     /** What is missing, limited to what this viewer may know exists. */
@@ -1782,15 +1784,16 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const definitions = version.document.attributes;
       const { allowed } = partitionWrites(definitions, asking.values, relations);
       const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-      const found: AttributeFindings[] = [];
+      const checks: Carried[] = [];
       for (const [key, value] of Object.entries(allowed)) {
         const definition = byKey.get(key);
         if (!definition || value === null) continue;
         const checked = checkIdentifier(definition, value);
         if (!checked.ok) return checked;
-        if (checked.value) found.push({ key, findings: checked.value.findings, review: 'none' });
+        checks.push([definition, checked.value]);
       }
-      return ok(found);
+      // The same answer a write gives, and a retry of it replays (PEO-125).
+      return ok(await findingsFor(tx, deps.reviews, asking.tenantId, asking.personId, carried(checks)));
     },
 
     async identifierReviews(tx, asking) {

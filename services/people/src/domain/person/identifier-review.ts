@@ -30,6 +30,13 @@ export interface IdentifierReview {
   readonly attributeKey: string;
   /** The history row that wrote the value under review. Never changed. */
   readonly historyId: string;
+  /**
+   * A keyed hash of the value under review and the master key it was taken
+   * under: how a later write tells the same value from another without
+   * reading any plaintext (PEO-125). Never the value.
+   */
+  readonly valueHash: string;
+  readonly keyId: string;
   readonly findings: readonly ReviewFinding[];
   readonly state: ReviewState;
   readonly createdAt: string;

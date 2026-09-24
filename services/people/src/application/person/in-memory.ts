@@ -14,6 +14,8 @@ import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
 import type { PersonRecord, PersonSearch } from './ports.js';
+import type { IdentifierReviews } from './identifier-review.js';
+import type { IdentifierReview } from '../../domain/person/identifier-review.js';
 import { utcCalendars } from '../org/org.js';
 
 /**
@@ -102,6 +104,8 @@ export interface InMemoryPeople {
   readonly history: (HistoryEntry & { personId: string })[];
   readonly events: PendingEvent[];
   readonly secrets: Map<string, string>;
+  /** Doubted national identifiers' reviews (PEO-125), oldest first. */
+  readonly reviews: IdentifierReview[];
   readonly versions: PublishedVersion[];
   seed(
     id: string,
@@ -121,6 +125,7 @@ export function inMemoryPeople(
   const history: (HistoryEntry & { personId: string })[] = [];
   const events: PendingEvent[] = [];
   const secrets = new Map<string, string>();
+  const reviews: IdentifierReview[] = [];
   let ids = 0;
   const periods = new Map<string, EmploymentPeriodRow>();
   const keepPeriod = (person: Person) => {
@@ -261,6 +266,7 @@ export function inMemoryPeople(
             .map(([k, v]) => ({ attributeKey: k.slice(personId.length + 1), last4: v.slice(-4) })),
         ),
     },
+    reviews: inMemoryReviews(reviews),
     uniques: {
       lock: () => Promise.resolve(),
       claim: () => Promise.resolve(ok(undefined)),
@@ -294,5 +300,45 @@ export function inMemoryPeople(
     });
   }
 
-  return { deps, rows, history, events, secrets, seed, versions };
+  return { deps, rows, history, events, secrets, reviews, seed, versions };
+}
+
+/**
+ * Reviews in memory. The fingerprint is the normalised value in the clear —
+ * a test double; the real one is a keyed hash (`drizzle-identifier-reviews`).
+ */
+function inMemoryReviews(rows: IdentifierReview[]): IdentifierReviews {
+  const of = (personId: string, key: string) =>
+    rows.filter((r) => r.personId === personId && r.attributeKey === key);
+  const open = (r: IdentifierReview) => r.state === 'pending' || r.state === 'sent_back';
+  return {
+    latest: (_tx, _tenant, personId, key) => Promise.resolve(of(personId, key).at(-1) ?? null),
+    open: (_tx, _tenant, personId) =>
+      Promise.resolve(rows.filter((r) => r.personId === personId && open(r))),
+    pending: (_tx, _tenant, limit) =>
+      Promise.resolve(rows.filter((r) => r.state === 'pending').slice(0, limit)),
+    insert(_tx, _tenant, review) {
+      rows.push(review);
+      return Promise.resolve();
+    },
+    supersede(_tx, _tenant, personId, key) {
+      for (const [i, r] of rows.entries()) {
+        if (r.personId === personId && r.attributeKey === key && open(r)) {
+          rows[i] = { ...r, state: 'superseded' };
+        }
+      }
+      return Promise.resolve();
+    },
+    decide(_tx, _tenant, next) {
+      const i = rows.findIndex((r) => r.id === next.id && r.state === 'pending');
+      if (i < 0) return Promise.resolve(false);
+      rows[i] = next;
+      return Promise.resolve(true);
+    },
+    publish: () => Promise.resolve(),
+    fingerprint: (_tenant, key, normalised) => ({ valueHash: `${key}:${normalised}`, keyId: 'k1' }),
+    matches: (_tenant, review, normalised) =>
+      review.valueHash === `${review.attributeKey}:${normalised}`,
+    reveal: () => Promise.resolve(null),
+  };
 }

@@ -19,7 +19,8 @@
 -- The findings are codes, levels and messages, none of which repeats the
 -- identifier (`national-id.ts` guarantees it and a unit test holds it). The
 -- value itself stays sealed in `people.person_secret`; a reviewer who must see
--- it goes through the audited reveal.
+-- it goes through the audited reveal. Whether a later write carries the value
+-- HR accepted is a keyed-hash comparison (`value_hash`), never a decryption.
 
 CREATE TABLE people.identifier_review (
   tenant_id      uuid NOT NULL,
@@ -30,6 +31,13 @@ CREATE TABLE people.identifier_review (
   history_id     uuid NOT NULL,
   -- `[{ level, code, message }]`: what the check found. Never the value.
   findings       jsonb NOT NULL,
+  -- HMAC-SHA-256 of the normalised value, under a key derived per tenant from
+  -- the master key `key_id` names, as `attribute_unique` keys its claims
+  -- (PEO-082). How a later write tells whether it carries the value HR
+  -- accepted without decrypting anything; a dump of it tests no guess
+  -- without the master key. The claim rotation re-keys it.
+  value_hash     text NOT NULL,
+  key_id         text NOT NULL,
   state          text NOT NULL DEFAULT 'pending',
   created_at     timestamptz NOT NULL,
   decided_by     uuid,

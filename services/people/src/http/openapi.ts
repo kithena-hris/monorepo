@@ -14,6 +14,7 @@ import {
   ExportBody,
   ErrorBody,
   HistoryEntryBody,
+  CorrectionWriteBody,
   IdentifierDecidedBody,
   IdentifierRevealBody,
   IdentifierRevealedBody,
@@ -76,6 +77,7 @@ const components = {
   PatchPerson: PatchPersonBody,
   Correction: CorrectionBody,
   HistoryEntry: HistoryEntryBody,
+  CorrectionWrite: CorrectionWriteBody,
   HistoryPage: z.object({ items: z.array(HistoryEntryBody) }),
   EmploymentPeriods: EmploymentPeriodsBody,
   Completeness: CompletenessBody,
@@ -460,7 +462,11 @@ export function openApiDocument(): Record<string, unknown> {
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('Correction') },
           responses: {
-            201: { description: 'The correction', ...json('HistoryEntry') },
+            201: {
+              description:
+                'The correction, with what the checks found if it corrected a national identifier',
+              ...json('CorrectionWrite'),
+            },
             ...failure,
           },
         },

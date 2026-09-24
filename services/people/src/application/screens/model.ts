@@ -54,7 +54,7 @@ export interface IdentifierFindingView {
   readonly code: string;
   readonly message: string;
   /** `pending`: HR will review it. `accepted`: HR already accepted this value. */
-  readonly review: 'pending' | 'accepted' | 'none';
+  readonly review: 'pending' | 'accepted' | 'sent_back' | 'none';
 }
 
 /** A person's own doubted identifier, still waiting on somebody (PEO-125). */

@@ -117,7 +117,9 @@ export const IdentifierFindingBody = z.object({
 export const IdentifierFindingsBody = z.object({
   key: z.string(),
   findings: z.array(IdentifierFindingBody),
-  pendingReview: z.boolean().describe('True while HR has this value to review.'),
+  review: z
+    .enum(['pending', 'accepted', 'sent_back', 'none'])
+    .describe('Where this value stands with HR: the latest review of this very value, or none.'),
 });
 
 /** A person after a write, with what the checks found on each national identifier it carried. */
@@ -127,6 +129,11 @@ export const PersonWriteBody = PersonBody.extend({
     .describe(
       'One entry per national identifier in the request. A warning, never a refusal: the value was saved.',
     ),
+});
+
+/** A correction's new row, with what the checks found if it was a national identifier. */
+export const CorrectionWriteBody = HistoryEntryBody.extend({
+  identifierFindings: z.array(IdentifierFindingsBody),
 });
 
 export const IdentifierReviewBody = z.object({
@@ -548,25 +555,9 @@ export function restRoutes(deps: RestDeps): Route[] {
   ): Promise<RestResponse> => {
     const person = await readPerson(asking, personId);
     if (person.status >= 300) return person;
-    const found = await run(service, asking.tenantId, async (tx) => {
-      const checked = await service.access.checkIdentifiers(tx, {
-        ...asking,
-        personId,
-        values: attributes,
-      });
-      if (!checked.ok) return checked;
-      const open = await service.access.personReviews(tx, { ...asking, personId });
-      const pending = new Set(
-        (open.ok ? open.value : []).filter((r) => r.state === 'pending').map((r) => r.attributeKey),
-      );
-      return ok(
-        checked.value.map((a) => ({
-          key: a.key,
-          findings: a.findings,
-          pendingReview: pending.has(a.key),
-        })),
-      );
-    });
+    const found = await run(service, asking.tenantId, (tx) =>
+      service.access.checkIdentifiers(tx, { ...asking, personId, values: attributes }),
+    );
     return {
       ...person,
       body: {
@@ -642,13 +633,24 @@ export function restRoutes(deps: RestDeps): Route[] {
     return body.ok ? parse(schema, body.value) : body;
   };
 
+  /**
+   * One history entry, and — a correction of a national identifier being a
+   * write like any other (PEO-125) — what the checks found on its value,
+   * recomputed so a retry answers as the first request did.
+   */
   const readEntry = async (asking: Asking, personId: string, entryId: string) =>
     respond(
       await run(service, asking.tenantId, async (tx) => {
         const entries = await service.access.history(tx, { ...asking, personId });
         if (!entries.ok) return entries;
         const entry = entries.value.find((e) => e.id === entryId);
-        return entry ? ok(entry) : err(failure('NOT_FOUND', 'No such history entry'));
+        if (!entry) return err(failure('NOT_FOUND', 'No such history entry'));
+        const found = await service.access.checkIdentifiers(tx, {
+          ...asking,
+          personId,
+          values: { [entry.attributeKey]: entry.value },
+        });
+        return ok({ ...entry, identifierFindings: found.ok ? found.value : [] });
       }),
       200,
       (entry) => entry,

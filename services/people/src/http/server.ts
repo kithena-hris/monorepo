@@ -203,7 +203,7 @@ export function peopleService(
       relations: relationsFrom(process.env),
       secrets,
       // Doubted national identifiers, queued for HR (PEO-125).
-      reviews: drizzleIdentifierReviews(secrets),
+      reviews: drizzleIdentifierReviews(ring, secrets),
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,
