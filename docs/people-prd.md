@@ -2577,6 +2577,27 @@ already.
 | How is pay distributed?                         | `RangeChart` for band ranges with the actuals inside them; `ScatterChart` for pay against tenure              | Requires the finance relation. Compa-ratio against band midpoint is the relation; a raw salary list is not analysis                   |
 | What does the workforce look like in aggregate? | Bar charts over voluntary self-ID                                                                             | Cohort minimum enforced everywhere, per §6.7. Never per person, never to a manager                                                    |
 
+**The expiry timeline, as built (PEO-122).** One lane per person, one
+milestone per item — work permit (`work_permit_expiry`), fixed-term contract
+(`contract_end`), probation (`probation_end`) and certification (any
+`certification_expiry` in a repeating group) — over the next 90 days, with
+the "Expiring in 90 days" tile counting exactly the items drawn. Each item's
+window is the person's legal entity's day at one instant (§16.4). It is **read
+live rather than from the snapshot**: the snapshot holds counts per kind per
+day and never a person, and a person-level copy would be a second store of
+personal data to retain, export and erase, a day stale on the one chart that
+is operational. The read is bounded by the window, not the tenant (under
+400 ms at 50,000 people). A chart is a read, item by item: a kind shows only
+when its field is published, not special-category and readable at the
+viewer's level; an item shows only when the viewer reads that field **on that
+person** (the relation a profile read asks); a name shows only as far as the
+viewer reads it. A withheld item is absent, never a blank bar, so neither the
+chart nor the tile has a gap that counts it. A manager's timeline is their
+chain. No `asOf` yet: the timeline is "from now", and a past date is answered
+by the snapshot's counts (`expiries`). `peopleAnalytics.expiries` over
+GraphQL; the screen draws it with `TimelineChart`, its own screen-reader
+table and the visible table one tap away.
+
 ### 16.3 Segments, saved views and delivery
 
 Filters are the directory's filters — one filter model across the directory,
@@ -2616,7 +2637,8 @@ is the same date for everybody.
 Arbitrary `asOf` dates outside the snapshot grid fall back to replaying
 history, which is slower and is marked as such in the UI. Nothing is computed
 by scanning every person on every page load, and no chart query touches the
-person table directly.
+person table directly — except the expiry timeline's, whose items name
+people and which is read live for the reason §16.2 gives.
 
 ---
 

@@ -17,6 +17,8 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  *   a reason, and an employee cannot open it.
  * - Field-level absence: a field the viewer may not read is not in the HTML
  *   the shell sends, nor in what the remote draws.
+ * - PEO-122: HR sees a permit about to expire; a manager outside the chain
+ *   does not, and sees their own report's.
  * - PEO-113: all of it through identity's token and the router; the shell has
  *   no way into People of its own, and People refuses what the shell holds.
  *
@@ -363,6 +365,80 @@ describe('PEO-117: the directory searches and filters in People', () => {
     await page.goto(`${stack.shell}/people/directory?filter=es_nif:1`);
     await expect.poll(text, { timeout: 30_000 }).toContain('You cannot filter people by es_nif');
     await context.close();
+  });
+});
+
+describe('PEO-122: what is about to expire, to whom', () => {
+  it('shows HR a permit expiring in 30 days; a manager outside the chain does not see it', async () => {
+    // A permit the holder, their chain and HR may read, published as the
+    // administrator publishes a field.
+    const drafted = await stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/attributes', {
+      input: {
+        key: 'work_permit_expiry',
+        sectionKey: 'employment',
+        label: 'Work permit expiry',
+        description: null,
+        dataType: 'date',
+        options: [],
+        requiredness: 'never',
+        ownership: ['hr'],
+        collectAt: 'hr_only',
+        visibility: ['self', 'manager_chain', 'hr'],
+        classification: 'confidential',
+        piiKind: 'none',
+        classificationSource: 'human',
+      },
+      editing: null,
+    });
+    expect(drafted).toMatchObject({ status: 200, body: { ok: true } });
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const published = await stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/publish', {
+      requiredFrom: day(0),
+    });
+    expect(published.status).toBe(201);
+
+    // Sana reports to Priya; Rui reports to Adam. Adam manages, and not Sana.
+    const SANA = '00000000-0000-4000-8000-0000000000a5';
+    const RUI = '00000000-0000-4000-8000-0000000000a6';
+    for (const [id, given, family, manager, expiry] of [
+      [SANA, 'Sana', 'Khan', ADMIN.person, day(30)],
+      [RUI, 'Rui', 'Dias', EMPLOYEE.person, day(20)],
+    ] as const) {
+      await stack.sql`
+        INSERT INTO people.person (id, tenant_id, status, hire_date, given_name, family_name,
+                                   manager_id, completeness, custom)
+        VALUES (${id}, ${TENANT}, 'active', '2025-01-01', ${given}, ${family}, ${manager},
+                'complete', ${stack.sql.json({ work_permit_expiry: expiry })})`;
+    }
+    await stack.writeTuples([
+      { user: `person:${ADMIN.person}`, relation: 'reports_to', object: `person:${SANA}` },
+      { user: `person:${EMPLOYEE.person}`, relation: 'reports_to', object: `person:${RUI}` },
+    ]);
+
+    const numbers = async (session: string): Promise<string> => {
+      const context = await signedIn(session);
+      const page = await context.newPage();
+      await page.goto(`${stack.shell}/people/analytics`);
+      // The innermost section holding the heading: ancestors come first.
+      const section = page
+        .locator('section', { has: page.getByRole('heading', { name: 'What expires next' }) })
+        .last();
+      await section.getByRole('button', { name: 'Show the numbers' }).click({ timeout: 30_000 });
+      const table = section.getByRole('table', { name: 'What expires next: the numbers' });
+      const text = await table.innerText();
+      await context.close();
+      return text.replaceAll(/\s+/g, ' ');
+    };
+
+    const hr = await numbers(ADMIN.session);
+    expect(hr).toContain(`Sana Khan: Work permit ${day(30)}`);
+    expect(hr).toContain(`Rui Dias: Work permit ${day(20)}`);
+
+    // Adam's chain is Rui. Sana's permit is not on his timeline, nor a gap for it.
+    const manager = await numbers(EMPLOYEE.session);
+    expect(manager).toContain(`Rui Dias: Work permit ${day(20)}`);
+    expect(manager).not.toContain('Sana');
   });
 });
 
