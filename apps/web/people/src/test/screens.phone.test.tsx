@@ -236,11 +236,31 @@ describe('at 390×844, with a finger', () => {
             ],
             values: {},
             calendar: { today: '2026-09-25', timeZone: 'Pacific/Kiritimati' },
+            employment: {
+              status: 'active',
+              periods: [
+                {
+                  period: 1,
+                  startedOn: '2026-01-01',
+                  lastWorkingDay: null,
+                  leavingReason: null,
+                  eligibleForRehire: null,
+                  noticeFrom: null,
+                  rehireOverrideReason: null,
+                },
+              ],
+            },
           },
         }}
         onSave={ok}
+        onMove={ok}
       />,
     );
+    // HR's termination, as a dialog over it.
+    await userEvent.click(screen.getByRole('button', { name: 'Terminate' }));
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    expect(underFloor(document.body)).toEqual([]);
   });
 
   it('People home', async () => {

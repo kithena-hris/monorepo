@@ -109,6 +109,14 @@ export function PeopleScreen({
               : (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
                   actions.savePersonSection(id, sectionKey, changed),
           ),
+          // Only another person's record: nobody moves their own employment.
+          ...(id === undefined
+            ? {}
+            : {
+                onMove: thenRefresh((move: actions.LifecycleMove) =>
+                  actions.moveLifecycle(id, move),
+                ),
+              }),
         };
       }
       case 'Directory': {

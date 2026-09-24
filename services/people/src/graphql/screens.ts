@@ -198,6 +198,26 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     .implement({
       fields: (t) => ({ today: t.exposeString('today'), timeZone: t.exposeString('timeZone') }),
     });
+  type Employment = NonNullable<ProfileView['employment']>;
+  const ProfilePeriod = builder
+    .objectRef<Employment['periods'][number]>('ProfileEmploymentPeriod')
+    .implement({
+      fields: (t) => ({
+        period: t.exposeInt('period'),
+        startedOn: t.exposeString('startedOn'),
+        lastWorkingDay: t.string({ nullable: true, resolve: (p) => p.lastWorkingDay }),
+        leavingReason: t.string({ nullable: true, resolve: (p) => p.leavingReason }),
+        eligibleForRehire: t.boolean({ nullable: true, resolve: (p) => p.eligibleForRehire }),
+        noticeFrom: t.string({ nullable: true, resolve: (p) => p.noticeFrom }),
+        rehireOverrideReason: t.string({ nullable: true, resolve: (p) => p.rehireOverrideReason }),
+      }),
+    });
+  const ProfileEmployment = builder.objectRef<Employment>('ProfileEmployment').implement({
+    fields: (t) => ({
+      status: t.exposeString('status'),
+      periods: t.field({ type: [ProfilePeriod], resolve: (e) => list(e.periods) }),
+    }),
+  });
   const Profile = builder.objectRef<ProfileView>('PeopleProfile').implement({
     fields: (t) => ({
       person: t.field({ type: ProfilePerson, resolve: (v) => v.person }),
@@ -208,6 +228,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'HR’s alone: their zone and today on it (PRD §6.8).',
         resolve: (v) => v.calendar,
+      }),
+      employment: t.field({
+        type: ProfileEmployment,
+        nullable: true,
+        description: 'HR’s alone: their status and every employment period (PEO-120).',
+        resolve: (v) => v.employment,
       }),
     }),
   });

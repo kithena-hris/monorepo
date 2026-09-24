@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation EndLeave($personId: ID!, $key: String!) {\n    endLeave(personId: $personId, idempotencyKey: $key) { id }\n  }"}

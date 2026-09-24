@@ -1221,7 +1221,7 @@ remote's `routes.json`, fetched and wired by the shell:
 | `/people/settings/organisation` | organisation (PEO-119)     |
 | `/people/onboarding`            | onboarding                 |
 | `/people/me`                    | my own profile             |
-| `/people/{id}`                  | someone else's profile     |
+| `/people/{id}`                  | someone else's profile; HR's lifecycle moves (PEO-120) |
 | `/people/directory`             | directory                  |
 | `/people/completeness`          | completeness grid          |
 | `/people/import`                | import                     |
@@ -1242,6 +1242,15 @@ one. People's home (`/people`) lists every area the viewer's roles open,
 settings included, so no URL has to be typed. HR sees on each profile whose
 day it is for that person (their zone, and today on it), which every
 lifecycle move runs on.
+
+**Lifecycle moves, as built (PEO-120).** They are not a settings tab: they
+sit on the person's profile, in an Employment section that only HR is sent.
+It shows their day, their status and every employment period, and offers the
+moves §8.1 allows from the current status: give or withdraw notice, start or
+end leave, terminate (with the reason, a note, eligibility for rehire and
+ending access now), end access, discard a provisional record, and rehire
+(asking why when the last period says not eligible). People refuses anything
+else, and the screen shows the refusal.
 
 Directory, country packs, completeness and reminders (other than the cohort
 minimum) and data protection have no screen yet.
