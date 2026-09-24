@@ -1,7 +1,7 @@
 # The Cosmo Router, as deployed: the pinned image with this directory baked in.
 #
 # Built by the deploy workflows with `apps/gateway` as the context, after they
-# have composed `supergraph.json` against the environment's People URL
+# have composed `supergraph.json` against People's Compose name on the VM
 # (`graph.deploy.yaml` is written by the workflow, never committed). Nothing
 # here is fetched at runtime — no control plane, no CDN — so the image the
 # smoke test ran is the image that serves.

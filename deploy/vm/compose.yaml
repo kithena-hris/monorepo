@@ -1,0 +1,225 @@
+# The backends on one VM: People, the Cosmo Router and what they lean on.
+#
+# One Compose project per environment, started by `deploy.sh` from
+# `/etc/kithena/<env>/`, which holds this file, `secrets.env` and `state.env`
+# (the interpolation below: the tunnel token; the image tags and the VM
+# Postgres passwords) and the two service env files. That directory is
+# root-only and every file in it 0600; nothing secret is in an image or in
+# this repository.
+#
+# Nothing publishes a port. The router is reached through `cloudflared`, which
+# dials out to Cloudflare, so the VM needs no inbound rule at all. People,
+# Temporal, OpenFGA, Redpanda and Valkey are reachable only on this project's
+# network. The Postgres here holds People's data (database `kithena`, the
+# `people` schema, as `svc_people`) as well as Temporal's and OpenFGA's state.
+# Identity's data stays on Neon.
+#
+# Every image is multi-arch with linux/arm64 and pinned. `docs/environments.md`
+# "Hosting" has the memory budget these limits add up to and the staging
+# override (`compose.staging.yaml`) that shrinks them.
+
+services:
+  people:
+    image: ${PEOPLE_IMAGE:?PEOPLE_IMAGE is set by deploy.sh}
+    restart: unless-stopped
+    env_file: people.env
+    # The addresses inside this project. `people.env` carries everything else,
+    # including any `KAFKA_*` SASL/TLS settings, which pass straight through.
+    environment:
+      NODE_ENV: production
+      KAFKA_BROKERS: redpanda:9092
+      TEMPORAL_ADDRESS: temporal:7233
+      OPENFGA_URL: http://openfga:8080
+      VALKEY_URL: redis://valkey:6379
+      # `svc_people`: NOBYPASSRLS, so every tenant policy applies. `deploy.sh
+      # migrate` gives it LOGIN and this password after the migrations create it.
+      PEOPLE_DATABASE_URL: postgres://svc_people:${PEOPLE_DB_PASSWORD:?PEOPLE_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+    # The drain (PEO-118) is allowed 10 s; Compose's default is 10 s too, which
+    # would SIGKILL it at the finish line.
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4001/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      # Generous: a failure inside `start_period` does not count, and a first
+      # success ends it. Node starting inside a check is itself a second.
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      start_interval: 3s
+      retries: 3
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+      temporal: { condition: service_healthy }
+      openfga: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 1g, cpus: '1.0' }
+
+  # Distroless: no shell to run a healthcheck in. `deploy.sh` asks
+  # `/health/ready` from the People container instead.
+  router:
+    image: ${ROUTER_IMAGE:?ROUTER_IMAGE is set by deploy.sh}
+    restart: unless-stopped
+    env_file: router.env
+    depends_on:
+      people: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 384m, cpus: '1.0' }
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1@sha256:b269e8abd07a5bf6f3f4be65d5050b2174eca89c56a0241a8ff32a16aec454e4
+    restart: unless-stopped
+    # A remotely managed tunnel, routed in the Cloudflare dashboard: `api.<domain>`
+    # to `http://router:4000`, plus the one People path a browser must reach
+    # directly, the signed, expiring export links (`/v1/exports/files/*`).
+    # `docs/environments.md` "Hosting" has both rules.
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is unset}
+    healthcheck:
+      test: ['CMD', 'cloudflared', 'tunnel', '--metrics', '127.0.0.1:2000', 'ready']
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits: { memory: 128m, cpus: '0.5' }
+
+  # Single node, dev-container mode: no fsync tuning, no minimum memory, one
+  # core. Right for one tenant; Redpanda Cloud is the move when it is not.
+  redpanda:
+    image: redpandadata/redpanda:v26.2.3@sha256:9e83cfa99278f30d0133271c26bf670cd69c94ffa6ba0b42830dd0c3bd9dcfd9
+    restart: unless-stopped
+    command:
+      - redpanda start
+      - --mode dev-container
+      - --smp 1
+      - --memory ${REDPANDA_MEMORY:-768M}
+      - --reserve-memory 0M
+      - --kafka-addr internal://0.0.0.0:9092
+      - --advertise-kafka-addr internal://redpanda:9092
+    volumes: [redpanda:/var/lib/redpanda/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'rpk cluster health | grep -q "Healthy:.*true"']
+      interval: 10s
+      retries: 20
+    deploy:
+      resources:
+        limits: { memory: 1g, cpus: '1.0' }
+
+  # People's data, and Temporal's and OpenFGA's state. Three users, each with
+  # its own database; `kithena` is the superuser and is used by nothing that
+  # serves a request except Temporal and OpenFGA. People's database is owned by
+  # `migrator` (runs the migrations, BYPASSRLS like Neon's owner) and read by
+  # `svc_people`, both set up by `deploy.sh migrate`. Password auth (the
+  # image's scram default for anything not on the socket), never published.
+  postgres:
+    image: postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kithena
+      POSTGRES_PASSWORD: ${VM_POSTGRES_PASSWORD:?VM_POSTGRES_PASSWORD is set by deploy.sh}
+      POSTGRES_DB: openfga
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kithena -d openfga']
+      interval: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits: { memory: 1536m, cpus: '1.0' }
+
+  # One-shot, run by `deploy.sh migrate` and never by `up`: the repository's
+  # migrations applied to People's database (`atlas.hcl` env `vm`), with the
+  # Atlas version the Neon step pins. `MIGRATIONS_DIR` is the copy the workflow
+  # put on the VM.
+  migrate:
+    image: arigaio/atlas:0.37.0@sha256:743af0284db9d3f992e2cca57ea50bcfd02155e9c833e7758003b099fac99eba
+    profiles: [migrate]
+    working_dir: /repo
+    volumes:
+      - ${MIGRATIONS_DIR:-./migrations}:/repo/migrations:ro
+      - ${MIGRATIONS_DIR:-./migrations}/../atlas.hcl:/repo/atlas.hcl:ro
+    command: migrate apply --env vm
+    environment:
+      DATABASE_URL: postgres://migrator:${MIGRATOR_PASSWORD:-unset}@postgres:5432/kithena?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # ponytail: auto-setup is Temporal's single-binary image and applies its own
+  # schema on boot. The move off it is Temporal Cloud, not a hand-run cluster.
+  temporal:
+    image: temporalio/auto-setup:1.29.7@sha256:f14912b699cf73015ad5c4fc18d522d4b014db90e794039214dfb7c022c2644f
+    restart: unless-stopped
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: kithena
+      POSTGRES_PWD: ${VM_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ['CMD', 'temporal', 'operator', 'cluster', 'health', '--address', 'temporal:7233']
+      interval: 10s
+      start_period: 60s
+      retries: 20
+    depends_on:
+      postgres: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 768m, cpus: '1.0' }
+
+  openfga-migrate:
+    image: openfga/openfga:v1.21.0@sha256:2113c664a486b5da8d7a2cdab479e0d4e30639c80fd2c000540f645c1dbc1e55
+    command: migrate
+    environment: &openfga
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://kithena:${VM_POSTGRES_PASSWORD}@postgres:5432/openfga?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # People finds or creates its store and model on first use
+  # (`infrastructure/openfga.ts`), so `OPENFGA_STORE_ID` can stay unset.
+  openfga:
+    image: openfga/openfga:v1.21.0@sha256:2113c664a486b5da8d7a2cdab479e0d4e30639c80fd2c000540f645c1dbc1e55
+    restart: unless-stopped
+    command: run
+    environment:
+      <<: *openfga
+      OPENFGA_PLAYGROUND_ENABLED: 'false'
+    healthcheck:
+      test: ['CMD', 'grpc_health_probe', '-addr=127.0.0.1:8081']
+      interval: 10s
+      retries: 10
+    depends_on:
+      openfga-migrate: { condition: service_completed_successfully }
+    deploy:
+      resources:
+        limits: { memory: 256m, cpus: '0.5' }
+
+  # BullMQ's queue: `noeviction`, or a full cache silently drops jobs, and an
+  # append-only file so a restart keeps them.
+  valkey:
+    image: valkey/valkey:8.1-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
+    restart: unless-stopped
+    command: valkey-server --appendonly yes --maxmemory ${VALKEY_MAXMEMORY:-192mb} --maxmemory-policy noeviction
+    volumes: [valkey:/data]
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits: { memory: 256m, cpus: '0.5' }
+
+volumes:
+  redpanda:
+  postgres:
+  valkey:
