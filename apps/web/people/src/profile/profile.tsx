@@ -1,4 +1,23 @@
-import { Avatar, Badge, Button, EmptyState, PageHeader, PageSection, Stack } from '@reach/ui';
+import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  DatePicker,
+  EmptyState,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
+  PageHeader,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Stack,
+} from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
@@ -32,6 +51,28 @@ export interface ProfileState {
   readonly calendar?: EmploymentState['calendar'] | null;
   /** HR's alone, with the calendar: where they stand and every period (PEO-120). */
   readonly employment?: EmploymentState['employment'];
+  /**
+   * Where the person sits and where they may go (PEO-123), for HR only;
+   * null or absent for everybody else.
+   */
+  readonly placement?: PlacementState | null;
+}
+
+export interface PlacementState {
+  readonly legalEntityId: string | null;
+  readonly locationId: string | null;
+  readonly entities: readonly { readonly value: string; readonly label: string }[];
+  readonly locations: readonly {
+    readonly value: string;
+    readonly label: string;
+    readonly legalEntityId: string;
+  }[];
+}
+
+export interface PlacementChange {
+  readonly legalEntityId?: string | null;
+  readonly locationId?: string | null;
+  readonly effectiveFrom?: string;
 }
 
 export interface ProfileProps {
@@ -39,6 +80,8 @@ export interface ProfileProps {
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
   /** A lifecycle move on this person (PEO-120); absent on one's own profile. */
   readonly onMove?: (move: LifecycleMove) => Promise<Outcome>;
+  /** Move the person (PEO-123). Absent where the shell offers no move. */
+  readonly onPlace?: (placement: PlacementChange) => Promise<Outcome>;
 }
 
 /**
@@ -51,10 +94,10 @@ export interface ProfileProps {
  * disclosure itself. This component renders what it is given and cannot
  * re-add a key the application layer removed.
  */
-export function Profile({ load, onSave, onMove }: ProfileProps): JSX.Element {
+export function Profile({ load, onSave, onMove, onPlace }: ProfileProps): JSX.Element {
   return (
     <Loaded load={load} what="this profile">
-      {(state) => <Record state={state} onSave={onSave} onMove={onMove} />}
+      {(state) => <Record state={state} onSave={onSave} onMove={onMove} onPlace={onPlace} />}
     </Loaded>
   );
 }
@@ -63,10 +106,12 @@ function Record({
   state,
   onSave,
   onMove,
+  onPlace,
 }: {
   readonly state: ProfileState;
   readonly onSave: ProfileProps['onSave'];
   readonly onMove: ProfileProps['onMove'];
+  readonly onPlace: ProfileProps['onPlace'];
 }): JSX.Element {
   const [editing, setEditing] = useState<string | null>(null);
   const [values, setValues] = useState<Values>(state.values);
@@ -98,6 +143,10 @@ function Record({
           state={{ calendar: state.calendar, employment: state.employment ?? null }}
           onMove={onMove}
         />
+      ) : null}
+      {/* Where they work, beside their employment (PEO-123). */}
+      {state.placement && onPlace ? (
+        <PlacementSection placement={state.placement} onPlace={onPlace} />
       ) : null}
       {sections.length === 0 ? (
         <EmptyState title="Nothing else to show" />
@@ -165,5 +214,127 @@ function Record({
         })
       )}
     </Stack>
+  );
+}
+
+/**
+ * Move somebody (PEO-123): a location, which names its legal entity, from a
+ * date. A different entity is a transfer — People closes one employment
+ * period and opens the next — so the screen says so before HR presses it.
+ */
+function PlacementSection({
+  placement,
+  onPlace,
+}: {
+  readonly placement: PlacementState;
+  readonly onPlace: (placement: PlacementChange) => Promise<Outcome>;
+}): JSX.Element {
+  const [entity, setEntity] = useState(placement.legalEntityId ?? '');
+  const [location, setLocation] = useState(placement.locationId ?? '');
+  const [from, setFrom] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const offices = placement.locations.filter((l) => entity === '' || l.legalEntityId === entity);
+  const transfer =
+    entity !== '' && placement.legalEntityId !== null && entity !== placement.legalEntityId;
+  const unchanged =
+    entity === (placement.legalEntityId ?? '') && location === (placement.locationId ?? '');
+
+  return (
+    <PageSection surface title="Placement">
+      <form
+        noValidate
+        aria-label="Placement"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setSaving(true);
+          setRefused(null);
+          void onPlace({
+            legalEntityId: entity === '' ? null : entity,
+            locationId: location === '' ? null : location,
+            ...(from === null ? {} : { effectiveFrom: from }),
+          }).then((outcome) => {
+            setSaving(false);
+            if (!outcome.ok) setRefused(outcome.message);
+          });
+        }}
+      >
+        <Stack gap={4}>
+          <Field>
+            <FieldLabel>Legal entity</FieldLabel>
+            <Select
+              value={entity}
+              onValueChange={(next) => {
+                setEntity(next);
+                if (!placement.locations.some((l) => l.value === location && l.legalEntityId === next)) {
+                  setLocation('');
+                }
+              }}
+            >
+              <FieldControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose" />
+                </SelectTrigger>
+              </FieldControl>
+              <SelectContent>
+                {placement.entities.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>Work location</FieldLabel>
+            <Select
+              value={location}
+              onValueChange={(next) => {
+                setLocation(next);
+                const office = placement.locations.find((l) => l.value === next);
+                if (office) setEntity(office.legalEntityId);
+              }}
+            >
+              <FieldControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose" />
+                </SelectTrigger>
+              </FieldControl>
+              <SelectContent>
+                {offices.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>Their day is this location’s, from the date below.</FieldDescription>
+          </Field>
+          <DatePicker label="Effective from" value={from} onChange={setFrom} />
+          {transfer ? (
+            <Alert tone="info" title="This is a transfer">
+              Their employment in the current legal entity ends the day before, and a new one
+              starts on this date. Service is continuous.
+            </Alert>
+          ) : null}
+          {refused === null ? null : (
+            <Alert tone="danger" title="Not moved">
+              {refused}
+            </Alert>
+          )}
+          <div>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={unchanged}
+              loading={saving}
+              loadingLabel="Moving"
+            >
+              Move
+            </Button>
+          </div>
+        </Stack>
+      </form>
+    </PageSection>
   );
 }

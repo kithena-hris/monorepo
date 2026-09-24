@@ -123,8 +123,9 @@ export function inMemoryPeople(
   let ids = 0;
   const periods = new Map<string, EmploymentPeriodRow>();
   const keepPeriod = (person: Person) => {
-    const row = person.drainPeriod();
-    if (row) periods.set(`${person.id}:${String(row.period)}`, row);
+    for (const row of [person.drainClosedPeriod(), person.drainPeriod()]) {
+      if (row) periods.set(`${person.id}:${String(row.period)}`, row);
+    }
   };
 
   const people: PersonRepository = {

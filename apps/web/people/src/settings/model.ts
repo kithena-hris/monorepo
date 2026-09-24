@@ -46,6 +46,7 @@ export const DATA_TYPES = [
   'person_ref',
   'org_unit_ref',
   'legal_entity_ref',
+  'location_ref',
   'document_ref',
   'image',
 ] as const;

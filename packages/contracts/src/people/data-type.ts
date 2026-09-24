@@ -40,6 +40,7 @@ export const AttributeDataType = z.enum([
   'person_ref',
   'org_unit_ref',
   'legal_entity_ref',
+  'location_ref',
   'document_ref',
   'image',
   // Registered as a policy-bearing leaf because an event carries this enum
@@ -235,6 +236,7 @@ export const AttributeTypeConfig = z.discriminatedUnion('kind', [
   plain('person_ref'),
   plain('org_unit_ref'),
   plain('legal_entity_ref'),
+  plain('location_ref'),
 
   /**
    * A reference to a document, never the bytes.

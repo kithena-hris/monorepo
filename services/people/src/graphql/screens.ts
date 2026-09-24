@@ -220,6 +220,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       periods: t.field({ type: [ProfilePeriod], resolve: (e) => list(e.periods) }),
     }),
   });
+  type Placement = NonNullable<ProfileView['placement']>;
+  const PlacementLocation = builder
+    .objectRef<Placement['locations'][number]>('PlacementLocation')
+    .implement({
+      fields: (t) => ({
+        value: t.exposeString('value'),
+        label: t.exposeString('label'),
+        legalEntityId: t.exposeString('legalEntityId'),
+      }),
+    });
+  const PlacementRef = builder.objectRef<Placement>('ProfilePlacement').implement({
+    description: 'Where the person sits, and where HR may move them (PEO-123).',
+    fields: (t) => ({
+      legalEntityId: t.exposeString('legalEntityId', { nullable: true }),
+      locationId: t.exposeString('locationId', { nullable: true }),
+      entities: t.field({ type: [OptionRef], resolve: (p) => list(p.entities) }),
+      locations: t.field({ type: [PlacementLocation], resolve: (p) => list(p.locations) }),
+    }),
+  });
   const Profile = builder.objectRef<ProfileView>('PeopleProfile').implement({
     fields: (t) => ({
       person: t.field({ type: ProfilePerson, resolve: (v) => v.person }),
@@ -236,6 +255,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'HR’s alone: their status and every employment period (PEO-120).',
         resolve: (v) => v.employment,
+      }),
+      placement: t.field({
+        type: PlacementRef,
+        nullable: true,
+        description: 'Null unless the viewer is HR and there is somewhere to place the person.',
+        resolve: (v) => v.placement ?? null,
       }),
     }),
   });

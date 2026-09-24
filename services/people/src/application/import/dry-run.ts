@@ -375,6 +375,8 @@ function rowClassifier(
   const mapped = input.mapping.filter((m) => m.status === 'mapped' && m.key !== null);
   const columnOf = (key: string) => mapped.find((m) => m.key === key);
   const coreRequired = CORE_IDENTITY.filter((k) => k === 'hire_date' || byKey.has(k));
+  const live = [...calendar.entities.values()].filter((e) => e.archived !== true);
+  const onlyEntity = live.length === 1 ? (live[0]?.id ?? null) : null;
   const order = input.dateOrder ?? 'iso';
   const seen = new Map<string, number>();
 
@@ -518,6 +520,11 @@ function rowClassifier(
     }
 
     if (!person) {
+      // A company with one legal entity has one answer to "which entity"
+      // (PEO-123): a new person's missing cell takes it rather than blocking.
+      if (onlyEntity !== null && byKey.has('legal_entity_id') && values['legal_entity_id'] === undefined) {
+        values['legal_entity_id'] = onlyEntity;
+      }
       for (const key of coreRequired) {
         const present = key === 'hire_date' ? hireDate !== null : values[key] !== undefined;
         if (present) continue;

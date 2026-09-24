@@ -131,6 +131,7 @@ function scalarFor(definition: AttributeDefinition, today: string): z.ZodType {
     case 'person_ref':
     case 'org_unit_ref':
     case 'legal_entity_ref':
+    case 'location_ref':
       return z.uuid();
     case 'document_ref':
     case 'image':

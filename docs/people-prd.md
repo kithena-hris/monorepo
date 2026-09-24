@@ -403,7 +403,7 @@ classify.
 `date`, `datetime`, `duration`, `select`, `multi_select`, `tags`, `email`,
 `phone`, `url`, `country`, `currency`, `language`, `time_zone`, `address`,
 `national_id`, `bank_account`, `person_ref`, `org_unit_ref`,
-`legal_entity_ref`, `document_ref`, `image`.
+`legal_entity_ref`, `location_ref`, `document_ref`, `image`.
 
 Four of these carry country-specific behaviour and are not generic strings:
 
@@ -620,6 +620,21 @@ What that means for the attributes that point at them:
   references to these rows. Setting either can move a person onto another
   calendar, and the move takes effect for every person-level rule from the
   next evaluation — nothing is back-dated by it.
+- **Placing a person (PEO-123)** is HR's (§7), through one use case every
+  transport calls (`POST /v1/people/{id}/placement`, `placePerson`, the
+  placement control on the profile): legal entity, work location, org unit
+  and cost centre, effective from a date on the calendar the move takes them
+  to — today there by default, never later, because nothing yet brings a
+  future-dated value into force on its day. A location names its entity, so
+  a location in another entity moves the entity too, and an entity change
+  leaves no location of the old one behind; archived entities and locations
+  take nobody new. It writes the dated rows, raises `org_changed` (§10.2),
+  re-judges completeness and moves the person onto the new calendar from the
+  effective date. A move between legal entities is a transfer (§8.5). The
+  core pack defines `legal_entity_id` (`legal_entity_ref`) and `location_id`
+  (`location_ref`, a data type of its own), both effective-dated and
+  HR-owned; on the profile HR changes them through the placement control
+  rather than the section form, because only it carries the date.
 - `time_zone` stays identity's projection (§5). It is the person's own zone
   and it only decides their day when neither their location nor their entity
   does.
@@ -1058,6 +1073,31 @@ Per the repository rule, and it is load-bearing here rather than decorative:
   `access_restored` is effective that day and caused by the
   `attribute_corrected` that carries `supersedes`. The span between the old
   day's end and the correction stays a span without access — it was one.
+
+**Transfers (PEO-123).** A change of legal entity for somebody employed
+elsewhere in the tenant is a **transfer**: the employer of record changed, so
+the current employment period (§8.1) ends the day before the effective date
+and a new one opens on it, in the new entity, with **continuous service** —
+the hire date, the seniority date, the status and access belong to the
+employment and do not move, and the closed period carries no leaving reason.
+A location, org unit or cost-centre change inside the entity is not a period
+change. Nothing to leave and the period itself moves instead: a pre-hire who
+has not started, somebody with no entity yet, or a date on or before the
+current period's first day. Somebody on notice is refused — they are leaving,
+not moving — and a leaver's next employment is a rehire. The **employee
+number** follows the rehire rule (§8.1): kept unless the new entity numbers
+its people and its scheme would not write it, then that scheme's next. Every
+writer of `legal_entity_id` — the placement, a form, an import — moves the
+period the same way. A consumer learns of it from `org_changed`, which names
+the new entity; the periods are read from `GET
+/v1/people/{id}/employment-periods`.
+
+**A placement dated the same day as the one standing is a correction**: a row
+carrying `supersedes` and `attribute_corrected`, as for a location's zone
+(§6.8), and for a legal entity it re-places the period that began that day
+rather than opening another. A placement dated earlier than today but after
+the standing row is a move recorded late — both dates, like the promotion
+above — not a correction.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
@@ -2217,6 +2257,10 @@ Of the 389 rows that will import, 88 will be incomplete.
   27  missing Home address  (required in Spain)
 ```
 
+A company with **one** live legal entity has one answer to "which entity", so
+a new person's row with no legal entity takes it rather than blocking
+(PEO-123); with two or more, the cell is required as above.
+
 That last pair of lines is the point: the admin learns, before committing, that
 a successful import still leaves 88 people to chase — and that this is normal
 rather than a failure.
@@ -3171,6 +3215,7 @@ export const AttributeDataType = z.enum([
   'person_ref',
   'org_unit_ref',
   'legal_entity_ref',
+  'location_ref',
   'document_ref',
   'image',
 ]);

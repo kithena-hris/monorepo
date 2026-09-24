@@ -64,7 +64,7 @@ export function drizzleOrgStore(): OrgStore {
         entities: new Map(
           entities.map((e) => [
             e.id,
-            { id: e.id, name: e.name, country: e.country, timeZone: e.timeZone },
+            { id: e.id, name: e.name, country: e.country, timeZone: e.timeZone, archived: e.archived },
           ]),
         ),
         locations: new Map(
@@ -76,6 +76,7 @@ export function drizzleOrgStore(): OrgStore {
               name: l.name,
               country: l.country,
               zones: effectiveZones(zones.get(l.id) ?? []),
+              archived: l.archivedAt !== null,
             },
           ]),
         ),
