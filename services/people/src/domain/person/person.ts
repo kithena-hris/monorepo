@@ -976,16 +976,22 @@ export class Person extends AggregateRoot<string> {
    * notice, where the employment is ending rather than moving, and for a
    * leaver, whose next employment is a rehire. Raises nothing itself: the
    * caller raises `org_changed`, which names the new entity.
+   *
+   * `previous` is the entity the record held before this write: a period
+   * from before periods existed has none of its own and is read as that one.
    */
   place(
     legalEntityId: string | null,
     effectiveFrom: string,
+    previous: string | null = null,
   ): Result<'transferred' | 'placed' | 'unchanged'> {
     if (this.#status === 'terminated' || this.#status === 'discarded') {
       return err(InvalidTransition(this.#status, 'placed'));
     }
-    const current = this.#employment;
-    if (current === null || current.legalEntityId === legalEntityId) return ok('unchanged');
+    const period = this.#employment;
+    if (period === null) return ok('unchanged');
+    const current = { ...period, legalEntityId: period.legalEntityId ?? previous };
+    if (current.legalEntityId === legalEntityId) return ok('unchanged');
     const began = current.startedOn ?? this.#hireDate;
     if (
       current.legalEntityId === null ||

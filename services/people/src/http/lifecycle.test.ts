@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ok } from '@kithena/domain-kit';
 
-import { inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
+import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
+import { fixedCalendars } from '../application/org/org.js';
 import { personAccess } from '../application/person/person-access.js';
 import { inMemoryIdempotency } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
@@ -213,6 +214,77 @@ describe('the lifecycle routes', () => {
     expect(code(extra)).toBe('BAD_REQUEST');
     const keyless = await post(`${ADA}/leave/start`, undefined, '');
     expect(code(keyless)).toBe('IDEMPOTENCY_KEY_REQUIRED');
+  });
+
+  it('places a person, a new entity as a transfer (PEO-123)', async () => {
+    const ES = '00000000-0000-4000-8000-0000000000e1';
+    const PT = '00000000-0000-4000-8000-0000000000e2';
+    const LIS = '00000000-0000-4000-8000-0000000000d1';
+    const store = inMemoryPeople([
+      versionOf(1, [
+        define({ key: 'legal_entity_id', dataType: 'legal_entity_ref', typeConfig: { kind: 'legal_entity_ref' }, effectiveDated: true }),
+        define({ key: 'location_id', effectiveDated: true }),
+      ]),
+    ]);
+    store.seed(ADA, { fields: { legalEntityId: ES } });
+    const calendars = fixedCalendars({
+      defaultZone: 'Etc/UTC',
+      entities: new Map([
+        [ES, { id: ES, name: 'Acme ES', country: 'ES', timeZone: 'Europe/Madrid' }],
+        [PT, { id: PT, name: 'Acme PT', country: 'PT', timeZone: 'Europe/Lisbon' }],
+      ]),
+      locations: new Map([
+        [LIS, { id: LIS, legalEntityId: PT, name: 'Lisbon', country: 'PT', zones: [{ effectiveFrom: '2020-01-01' as never, timeZone: 'Europe/Lisbon' }] }],
+      ]),
+    });
+    const rest = restHandler({
+      service: {
+        access: personAccess({ ...store.deps, calendars }),
+        schemas: store.deps.schemas,
+        inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+      },
+      callerFrom: (request) =>
+        ok({
+          tenantId: TENANT,
+          viewer: { accountId: HR, roles: new Set(String(request.headers['x-roles'] ?? 'hr').split(',')) },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        }),
+      idempotency: inMemoryIdempotency(),
+    });
+    const post = async (body: unknown, key: string, roles = 'hr') => {
+      const answer = await rest({
+        method: 'POST',
+        url: `/v1/people/${ADA}/placement`,
+        headers: { 'idempotency-key': key, 'x-roles': roles },
+        body: JSON.stringify(body),
+      });
+      if (!answer) throw new Error('not a REST route');
+      return answer;
+    };
+
+    expect(code(await post({}, 'p0'))).toBe('BAD_REQUEST');
+    const notHr = await post({ locationId: LIS }, 'p1', 'people_admin');
+    expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
+
+    const moved = await post({ locationId: LIS, effectiveFrom: '2026-09-01' }, 'p2');
+    expect(moved.status).toBe(200);
+    expect((moved.body as { attributes: Record<string, unknown> }).attributes).toMatchObject({
+      legal_entity_id: PT,
+      location_id: LIS,
+    });
+    const periods = await rest({ method: 'GET', url: `/v1/people/${ADA}/employment-periods`, headers: {}, body: '' });
+    expect(
+      (periods?.body as { items: { period: number; legalEntityId: string; lastWorkingDay: string | null }[] }).items.map(
+        (p) => [p.period, p.legalEntityId, p.lastWorkingDay],
+      ),
+    ).toEqual([
+      [1, ES, '2026-08-31'],
+      [2, PT, null],
+    ]);
+    // The same key again is a replay, not a second move.
+    const count = store.events.length;
+    expect((await post({ locationId: LIS, effectiveFrom: '2026-09-01' }, 'p2')).status).toBe(200);
+    expect(store.events).toHaveLength(count);
   });
 
   it('is in the OpenAPI document, each body generated from the schema the route parses', () => {

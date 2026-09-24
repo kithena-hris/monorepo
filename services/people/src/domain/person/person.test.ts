@@ -1164,6 +1164,18 @@ describe('placement and transfer (PEO-123)', () => {
     expect(p.drainClosedPeriod()).toBeNull();
   });
 
+  it('reads the entity a record from before periods was in off the record itself', () => {
+    // Period 1 synthesised with no entity; the record says Spain.
+    const p = person({ status: 'active', hireDate: '2024-01-08' });
+    const placed = p.place(PT, '2026-10-01', ES);
+    expect(placed.ok && placed.value).toBe('transferred');
+    expect(p.drainClosedPeriod()).toMatchObject({ period: 1, legalEntityId: ES, lastWorkingDay: '2026-09-30' });
+    expect(person({ status: 'active', hireDate: '2024-01-08' }).place(ES, '2026-10-01', ES)).toEqual({
+      ok: true,
+      value: 'unchanged',
+    });
+  });
+
   it('closes the old period on the last day of a month across a year end', () => {
     const p = employed();
     p.place(PT, '2027-01-01');

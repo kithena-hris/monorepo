@@ -839,6 +839,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const placed = aggregate.place(
         text(projected.get('legal_entity_id')),
         dated ? effectiveFrom : day,
+        text(person.values['legal_entity_id']),
       );
       if (!placed.ok) return placed;
       renumber =
@@ -1425,7 +1426,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         // the date it did, and a legal entity re-places the period (PEO-123).
         if (ORG_KEYS.includes(definition.key)) {
           if (definition.key === 'legal_entity_id') {
-            const placed = aggregate.place(textOf(valid.value), target.effectiveFrom);
+            const placed = aggregate.place(
+              textOf(valid.value),
+              target.effectiveFrom,
+              textOf(person.values['legal_entity_id']),
+            );
             if (!placed.ok) return placed;
           }
           aggregate.moveOrg(

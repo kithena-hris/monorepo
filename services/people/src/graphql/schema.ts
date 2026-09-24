@@ -983,6 +983,29 @@ builder.mutationFields((t) => ({
     resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
       move(ctx, 'rehirePerson', personId, sent(rest), key),
   }),
+  placePerson: t.field({
+    type: Person,
+    description:
+      'Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      legalEntityId: t.arg.id(),
+      locationId: t.arg.id(),
+      orgUnitId: t.arg.id(),
+      costCentre: t.arg.string(),
+      effectiveFrom: t.arg.string(),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
+      // An explicit null clears a field; an absent one leaves it.
+      move(
+        ctx,
+        'placePerson',
+        personId,
+        Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)),
+        key,
+      ),
+  }),
   endPersonAccess: t.field({
     type: Person,
     description:

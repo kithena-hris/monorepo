@@ -53,6 +53,31 @@ export const RehireBody = z.strictObject({
     .describe('Required to rehire somebody marked not eligible for rehire; kept on the new period.'),
 });
 
+const nullableId = z.uuid().nullable().optional();
+
+/** Where a person sits (PEO-123). An absent field is not changed; null clears it. */
+export const PlacementBody = z
+  .strictObject({
+    legalEntityId: nullableId.describe(
+      'The employer of record. A different one is a transfer: a new employment period from effectiveFrom.',
+    ),
+    locationId: nullableId.describe('The work location. One in another legal entity moves the entity with it.'),
+    orgUnitId: nullableId,
+    costCentre: z.string().trim().min(1).max(100).nullable().optional(),
+    effectiveFrom: z.iso
+      .date()
+      .optional()
+      .describe('On the person’s new calendar; today there when absent, never later.'),
+  })
+  .refine(
+    (b) =>
+      b.legalEntityId !== undefined ||
+      b.locationId !== undefined ||
+      b.orgUnitId !== undefined ||
+      b.costCentre !== undefined,
+    { message: 'Name at least one of legalEntityId, locationId, orgUnitId or costCentre' },
+  );
+
 /** One employment on a person (PEO-110), as `GET /v1/people/{id}/employment-periods` answers. */
 export const EmploymentPeriodBody = z.object({
   period: z.int().min(1),
@@ -152,6 +177,18 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
         startDate: input.startDate,
         ...(input.legalEntityId === undefined ? {} : { legalEntityId: input.legalEntityId }),
         overrideReason: input.overrideReason ?? null,
+      }),
+  }),
+  action({
+    path: 'placement',
+    name: 'placePerson',
+    summary:
+      'Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only',
+    body: PlacementBody,
+    run: (access, tx, on, input) =>
+      access.place(tx, {
+        ...on,
+        ...Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined)),
       }),
   }),
   action({

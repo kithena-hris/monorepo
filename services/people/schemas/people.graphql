@@ -526,6 +526,11 @@ type Mutation {
   rehirePerson(personId: ID!, startDate: String!, legalEntityId: ID, overrideReason: String, idempotencyKey: String!): Person
 
   """
+  Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
+  """
+  placePerson(personId: ID!, legalEntityId: ID, locationId: ID, orgUnitId: ID, costCentre: String, effectiveFrom: String, idempotencyKey: String!): Person
+
+  """
   End a terminated person’s access now rather than at the end of their last working day; HR only.
   """
   endPersonAccess(personId: ID!, idempotencyKey: String!): Person
