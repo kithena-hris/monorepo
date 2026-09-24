@@ -5,11 +5,14 @@
 # Run as root by `kithena-backup.timer` (installed by `bootstrap.sh`). For each
 # environment running on this VM:
 #
-#   <env>/<date>/postgres.sql.gz   pg_dumpall of the VM Postgres: Temporal's
+#   <env>/<date>/people.dump       pg_dump -Fc of People's database, `kithena`:
+#                                  every tenant's employee records
+#   <env>/<date>/postgres.sql.gz   pg_dumpall of the rest: the roles, Temporal's
 #                                  workflows and OpenFGA's tuples
 #   <env>/<date>/topics.txt.gz     every `kithena.*` topic, one record a line
 #
-# Application data is not here: it is Neon's, and Neon keeps its own history.
+# Nightly is the recovery point: there is no point-in-time restore for People's
+# data on this VM. Identity's data is Neon's, which keeps its own history.
 # Retention is the bucket's lifecycle rule, not this script.
 # `docs/environments.md` "Backups" has the restore.
 #
@@ -44,7 +47,12 @@ for dir in "$root"/*/; do
   pg="kithena-$env-postgres-1" rp="kithena-$env-redpanda-1"
   docker container inspect "$pg" "$rp" >/dev/null 2>&1 || continue
   echo "backing up $env"
-  docker exec "$pg" pg_dumpall -U kithena --clean --if-exists \
+  # Custom format: compressed, and `pg_restore` can take one table back out.
+  if docker exec "$pg" psql -U kithena -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'kithena'" | grep -q 1; then
+    docker exec "$pg" pg_dump -U kithena -d kithena -Fc \
+      | upload "$env/$date/people.dump" || { echo "::error::$env people" >&2; status=1; }
+  fi
+  docker exec "$pg" pg_dumpall -U kithena --clean --if-exists --exclude-database=kithena \
     | gzip | upload "$env/$date/postgres.sql.gz" || { echo "::error::$env postgres" >&2; status=1; }
   # Named, not `--regex`, which rpk refuses beside `--offset :end` (stop at the
   # current end rather than wait for more). Base64 so a binary key or value

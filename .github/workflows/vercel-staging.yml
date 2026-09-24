@@ -283,9 +283,10 @@ jobs:
           mkdir -p ~/.ssh
           printf 'Host vm\n  HostName %s\n  User deploy\n  StrictHostKeyChecking accept-new\n' \
             "$VM_HOST" > ~/.ssh/config
-          ssh vm 'mkdir -p kithena'
-          scp -q deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
-            deploy/vm/deploy.sh deploy/vm/backup.sh vm:kithena/
+          # `migrations/` replaced whole, so the copy is exactly this commit's.
+          ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
+          scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
+            deploy/vm/deploy.sh deploy/vm/backup.sh atlas.hcl migrations vm:kithena/
           ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/staging
           put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/staging/$1"; }
           printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN" | put people.env
@@ -296,9 +297,19 @@ jobs:
           printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env
           echo "$GH_TOKEN" | ssh vm sudo docker login ghcr.io -u "$ACTOR" --password-stdin
 
-      # Pulled, started, healthy, and serving `/v1/openapi.json` — mounted only
-      # once `PEOPLE_DATABASE_URL` is set, so a missing secret fails here where
-      # Yoga's `/health` would pass. `deploy.sh` asks it from inside People.
+      # People's database is the VM's Postgres, not Neon, so the same
+      # migrations the step above applied to Neon for identity are applied
+      # there too, before People deploys: the order stays migrations, then
+      # People. `deploy.sh migrate` runs the pinned Atlas in a one-shot
+      # container on the Compose network.
+      - name: migrate the VM database
+        if: vars.ROUTER_URL_STAGING != ''
+        run: ssh vm sudo bash kithena/deploy.sh staging migrate
+
+      # Pulled, started, healthy, serving `/v1/openapi.json` (mounted only once
+      # People has a database, where Yoga's `/health` would pass without one),
+      # and reaching that database as `svc_people`. `deploy.sh` asks both from
+      # inside People.
       - name: deploy people
         id: people
         if: vars.ROUTER_URL_STAGING != ''

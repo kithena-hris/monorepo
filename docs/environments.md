@@ -341,14 +341,26 @@ identity and messaging stay Vercel functions.
 │   cloudflared ──▶ router :4000 ──▶ people :4001 ──┬─▶ redpanda :9092       │
 │        └──── /v1/exports/files/* ─────────▶┘      ├─▶ temporal :7233 ─┐    │
 │                                                    ├─▶ openfga  :8080 ─┤    │
-│                                                    └─▶ valkey   :6379  │    │
-│                                                        postgres :5432 ◀┘    │
+│                                                    ├─▶ valkey   :6379  │    │
+│                                                    └─▶ postgres :5432 ◀┘    │
+│                                   (People's data as svc_people; Temporal;   │
+│                                    OpenFGA — one server, three databases)   │
 │  (kithena-staging: the same again, opt-in, smaller)                         │
 │  tailscaled ◀── GitHub Actions deploys, founder SSH (tailnet only)         │
 └──────────────────────────────────────┬──────────────────────────────────────┘
-          Neon Postgres (app data, svc_people) ◀┘ ├─▶ Oracle Object Storage (exports, backups)
-                                                   └─▶ Cloudflare R2 (browser uploads)
+                                        ├─▶ Oracle Object Storage (exports, backups)
+                                        └─▶ Cloudflare R2 (browser uploads)
+
+    identity (Vercel function) ──▶ Neon Postgres (platform schema, svc_identity)
 ```
+
+**People's data lives in the VM's Postgres; identity's stays on Neon.** Identity
+is request-driven and Neon lets it sleep between requests. People is a
+long-running process that polls its own tables every minute (due webhook
+deliveries) and every five (reconciliation), which would keep a Neon Free
+compute awake around the clock: ~182 CU-hours a month against Neon Free's 100,
+and the compute suspended from about the 16th. On the VM it costs nothing
+extra.
 
 Only the router is public, as `api.<domain>`, plus the one People path a
 browser has to open directly: the signed, expiring export links. Everything
@@ -376,12 +388,31 @@ change's job.
   (`tag:ci`), copies `deploy/vm/` to `~deploy/kithena`, writes the settings
   from the GitHub environment into root-only 0600 files on stdin, logs the VM
   into GHCR with the job's own token (expires with the job) and runs
-  `deploy.sh <env> people <image>`, then `deploy.sh <env> router <image>`.
+  `deploy.sh <env> migrate`, then `deploy.sh <env> people <image>`, then
+  `deploy.sh <env> router <image>`.
+- **People's migrations** — the repository has one migration directory, one
+  `atlas.sum` and one revision table, not a directory per module, and People's
+  migrations lean on objects outside `people` (`platform.touch_updated_at()`
+  on every `updated_at` trigger; a guarded check of `messaging.delivery`). So
+  the split is by database, not by file: the workflow's existing step lints and
+  applies the whole directory to Neon, where identity reads `platform`, and
+  `deploy.sh migrate` applies the same directory to the VM's `kithena`
+  database, where People reads `people`. Each database carries schemas nobody
+  there uses, empty. `deploy.sh migrate` makes sure the database and its roles
+  exist — `migrator` (owner, runs migrations, `CREATEROLE BYPASSRLS`, not a
+  superuser: the same powers Neon's owner has), the service roles NOLOGIN as
+  the "atlas dev roles" step creates them — then runs Atlas 0.37.0 (the version
+  the Neon step pins, as a digest-pinned container) with `atlas.hcl`'s `vm`
+  environment, then gives `svc_people` its login. `svc_people` stays
+  `NOBYPASSRLS` and every `people` table `FORCE ROW LEVEL SECURITY`, as the
+  migrations make it. Expand-contract still: a rollback never runs it.
   `deploy.sh` records the image it replaces, pulls, starts the service, waits
   for its healthcheck and then checks it properly: People must serve
-  `/v1/openapi.json` (only mounted once `PEOPLE_DATABASE_URL` is set, so a
-  missing secret fails here where `/health` would pass); the router must
-  answer `/health/ready`.
+  `/v1/openapi.json` (only mounted once `PEOPLE_DATABASE_URL` is set, where
+  `/health` would pass without it) and then query `people.tenant` through its
+  own URL as `svc_people` — the pool connects lazily, and a wrong password
+  was shown to fail here and nowhere earlier; the router must answer
+  `/health/ready`.
 - **The router, from outside** — `ROUTER_URL/health/ready` through the tunnel,
   and a request without a token must get 401. The safelist was proven on the
   image; the live router refuses anything without a token identity minted for
@@ -406,7 +437,7 @@ before any of this exists.
 **Staging is opt-in.** It is a second Compose project on the same VM
 (`kithena-staging`, `compose.staging.yaml`, its own tunnel and volumes) and it
 only deploys once `ROUTER_URL_STAGING` is set. With one person testing, leaving
-it unset is the default; see "Neon" below for the second reason.
+it unset is the default: it would take another 3.7 GB of the VM's 12.
 
 #### Memory budget
 
@@ -418,15 +449,16 @@ environment with nothing to do. `bootstrap.sh` adds 4 GB of swap as headroom.
 | people | 1 GB | 768 MB |
 | router | 384 MB | 256 MB |
 | redpanda (`--memory 768M` / `512M`) | 1 GB | 768 MB |
-| postgres (Temporal, OpenFGA) | 768 MB | 512 MB |
+| postgres (People's data, Temporal, OpenFGA) | 1.5 GB | 1 GB |
 | temporal (auto-setup) | 768 MB | 512 MB |
 | openfga | 256 MB | 192 MB |
 | valkey (`maxmemory` 192 MB / 96 MB, `noeviction`) | 256 MB | 128 MB |
 | cloudflared | 128 MB | 128 MB |
-| **Total** | **4.5 GB** | **3.2 GB** |
+| **Total** | **5.3 GB** | **3.7 GB** |
 
-7.7 GB for both against the VM's 12 GB, leaving the OS and Docker a couple of
-gigabytes. CPU limits are caps on 2 OCPUs, deliberately oversubscribed.
+9 GB for both against the VM's 12 GB, leaving the OS and Docker about three,
+plus the swap. Measured idle, Postgres used 150 MB of its 1.5 GB with People's
+schema migrated. CPU limits are caps on 2 OCPUs, deliberately oversubscribed.
 
 #### The $0 bill of materials
 
@@ -434,7 +466,8 @@ gigabytes. CPU limits are caps on 2 OCPUs, deliberately oversubscribed.
 | --- | --- | --- |
 | People, router, Redpanda, Temporal, OpenFGA, Valkey | **Oracle Cloud Always Free**, one `VM.Standard.A1.Flex` | 1,500 OCPU-hours and 9,000 GB-hours a month of A1 = **2 OCPU / 12 GB** (the current grant; older write-ups, and the plan this was first sized for, say 4 OCPU / 24 GB). 200 GB block storage in total, 10 TB/month egress. **Idle reclaim:** an Always Free instance whose CPU (95th percentile), network *and* memory all stay under 20% for 7 days may be stopped — this stack at rest is ~2 GB of 12, under the line. **Upgrading the account to Pay As You Go removes the reclaim** and is still billed $0 while usage stays inside the Always Free limits; do it, and set a budget alert at $1. |
 | Public HTTPS for the router | **Cloudflare Tunnel** (Zero Trust Free) | Free, no bandwidth charge; the VM opens no inbound port. |
-| App database | **Neon Free** | 100 CU-hours per project a month, 0.5 GB storage per project, 5 GB egress; scale-to-zero after 5 minutes cannot be disabled. Running out suspends the compute until next month; over storage blocks writes. **See "Neon" below.** |
+| People's database | **The VM's Postgres** | Inside the VM's disk and memory above; no separate bill. No point-in-time restore — see "Backups". |
+| Identity's database | **Neon Free** (unchanged) | 100 CU-hours per project a month, 0.5 GB storage, 5 GB egress; scale-to-zero after 5 minutes. Identity is request-driven and sleeps, so it sits well inside the hours. |
 | Export files, nightly backups | **Oracle Object Storage** (Always Free, same account) via its S3 Compatibility API | 20 GB across tiers (10 GB Standard on a PAYG account), 50,000 API requests a month, egress inside the 10 TB. |
 | Browser uploads (imports, up to 100 MB) | **Cloudflare R2** Free | 10 GB-month storage, 1M Class A and 10M Class B operations a month, no egress fees. |
 | Frontends, identity, messaging | **Vercel Hobby** | 100 deployments a day — every PR run spends several, one per project. **No deployment protection on production or a custom domain** (the API refuses `ssoProtection` there), which is why the back-office's own check is its only door. Hobby is non-commercial use only: the first paying customer is the trigger for Pro. |
@@ -442,26 +475,6 @@ gigabytes. CPU limits are caps on 2 OCPUs, deliberately oversubscribed.
 | Images | **GHCR** | Container registry storage and bandwidth are currently free; the published Packages allowance on GitHub Free is 500 MB storage and 1 GB/month transfer for private packages, if that ever applies. Measured: People's image is ~520 MB uncompressed, most of it one layer that changes every commit; the router's per-commit layers are under 1 MB. Five versions of each are kept (`delete-package-versions`). Pulls by Actions are free. **Making both packages public** (the repository is public and the images hold no secret) takes them out of any quota for good. |
 | CI | **GitHub Actions**, public repository | Standard runners, including `ubuntu-24.04-arm`, free. |
 | Private access | **Tailscale Personal** | 3 users, 100 devices; CI joins as an ephemeral node per run. |
-
-#### Neon, and why staging is off
-
-People polls every tenant's due webhook deliveries once a minute
-(`POLL_MS` in `http/server.ts`) and its outbox reconciliation every five
-minutes. Either keeps a Neon compute from ever reaching its five idle minutes,
-so a People process pinned to the Free plan holds 0.25 CU around the clock:
-~182 CU-hours a month against 100, and the project's compute is suspended
-from about the 16th until the month turns. Staging's branch shares the same
-100 hours, so a staging People would halve that again.
-
-That is a conflict between two decisions, not something a config file here can
-resolve. The ways out, cheapest first: lengthen or make idle-aware the two
-polls (a People change), run the app database on the VM's Postgres too until
-there is revenue, or move Neon to a paid plan. Until one is chosen, expect
-Neon to run out mid-month once People is deployed against it.
-
-People connects to Neon's **direct** endpoint, not `-pooler`, as it did before
-this moved: it is a long-lived process with its own pool, and it prepares
-statements.
 
 #### Why Tailscale for deploys
 
@@ -573,11 +586,12 @@ Same names in both environments, different values.
 `PEOPLE_ENV` — one multi-line secret, so a setting People gains later (the
 Kafka SASL/TLS settings, the uploads bucket) is a secret edit, not a workflow
 change. What each does is in `.env.example`. `KAFKA_BROKERS`,
-`TEMPORAL_ADDRESS`, `OPENFGA_URL` and `VALKEY_URL` are **not** in it: they are
-the Compose network's addresses, set in `compose.yaml`.
+`TEMPORAL_ADDRESS`, `OPENFGA_URL`, `VALKEY_URL` and `PEOPLE_DATABASE_URL` are
+**not** in it: they are the Compose network's addresses, set in
+`compose.yaml`, and the database password is generated on the VM by
+`deploy.sh` and never leaves it.
 
 ```dotenv
-PEOPLE_DATABASE_URL=postgres://svc_people:…@<neon direct host>/kithena?sslmode=require
 PEOPLE_SECRET_KEYS=k1:<base64 32 bytes>
 IDENTITY_URL=https://identity.kithena.com
 PEOPLE_IDENTITY_TOKEN=…
@@ -621,22 +635,47 @@ workflow.
 #### Backups and restore
 
 `kithena-backup.timer` runs `backup.sh` at 03:30 UTC for every environment on
-the VM: `pg_dumpall` of the VM Postgres (Temporal's workflows, OpenFGA's
-tuples) to `<env>/<date>/postgres.sql.gz`, and every `kithena.*` topic to
-`<env>/<date>/topics.txt.gz`, one record per line (`topic key value`, key and
-value base64; headers are not kept). Retention is the bucket's 30-day rule.
-Neon is not in it: Neon keeps its own history (point-in-time restore,
-a short window on Free). `journalctl -u kithena-backup` has the last run.
+the VM:
 
-Restore, on the VM, as root, with the environment's project stopped except the
-two containers involved:
+- `<env>/<date>/people.dump` — `pg_dump -Fc` of People's database: every
+  tenant's employee records, with its owner, grants, policies and Atlas's
+  revision table.
+- `<env>/<date>/postgres.sql.gz` — `pg_dumpall` of everything else: the roles,
+  Temporal's workflows, OpenFGA's tuples.
+- `<env>/<date>/topics.txt.gz` — every `kithena.*` topic, one record per line
+  (`topic key value`, key and value base64; headers are not kept).
+
+Retention is the bucket's 30-day rule. `journalctl -u kithena-backup` has the
+last run. Identity's data is not in it: it is Neon's, which keeps its own
+history.
+
+**There is no point-in-time restore for People's data.** The recovery point is
+the last nightly dump: a disk lost at 03:00 loses almost a day of HR changes.
+That is the price of $0 and is acceptable while the founder is the only user.
+It stops being acceptable with the first customer, and the fix is the move in
+"Scaling later": Neon (paid) or RDS, both of which have point-in-time restore.
+The move is a `pg_dump` from here and a `pg_restore` there, then
+`PEOPLE_DATABASE_URL` pointed at the new host (as `svc_people`, the direct
+endpoint rather than a pooler — People keeps a pool of its own and prepares
+statements) and the workflow's migrate step pointed at it instead of the VM.
+
+Restore, on the VM, as root. First the helper:
 
 ```bash
 env=production; day=2026-09-24; p=kithena-$env
 aws() { docker run --rm -i --env-file /etc/kithena/backup.env amazon/aws-cli:2.31.0 \
   --endpoint-url "$(sed -n 's/^BACKUP_S3_ENDPOINT=//p' /etc/kithena/backup.env)" "$@"; }
 
-# The VM Postgres: Temporal and OpenFGA, into a fresh or current volume.
+# People's database. Roles must exist: on a fresh volume, restore
+# postgres.sql.gz (below) first, or run `deploy.sh $env migrate` once.
+docker compose -p $p stop people
+docker exec $p-postgres-1 psql -q -U kithena -d postgres \
+  -c 'DROP DATABASE IF EXISTS kithena WITH (FORCE)' -c 'CREATE DATABASE kithena OWNER migrator'
+aws s3 cp "s3://kithena-backups/$env/$day/people.dump" - \
+  | docker exec -i $p-postgres-1 pg_restore -U kithena -d kithena --exit-on-error
+docker compose -p $p start people
+
+# The rest of the VM Postgres: roles, Temporal and OpenFGA.
 docker compose -p $p stop people temporal openfga
 aws s3 cp "s3://kithena-backups/$env/$day/postgres.sql.gz" - \
   | gunzip | docker exec -i $p-postgres-1 psql -q -U kithena -d postgres
@@ -647,9 +686,12 @@ docker exec -i $p-redpanda-1 rpk topic produce -f '%t %k{base64} %v{base64}\n' <
 ```
 
 Then `deploy.sh` the current images again (or re-run the workflow) to bring
-everything back up. Both halves were exercised locally: a dump restored into
-an empty Postgres with OpenFGA's store and Temporal's namespaces intact, and
-records round-tripped through the line format.
+everything back up. All three were exercised locally: People's database
+wiped and restored from the dump with its rows, its 43 revisions, `migrator`
+as owner and FORCE'd RLS on all 30 tables, then People healthy on it and
+`deploy.sh migrate` a no-op; the rest restored into an empty Postgres with
+OpenFGA's store and Temporal's namespaces intact; and records round-tripped
+through the line format.
 
 #### Scaling later
 
@@ -664,7 +706,8 @@ host or a URL, not a rewrite.
 | Temporal → Temporal Cloud | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted. |
 | OpenFGA → Okta FGA or a managed OpenFGA | Tuple volume or availability outgrows one container | `OPENFGA_URL`, `OPENFGA_STORE_ID` and credentials. |
 | Valkey → managed (Upstash, ElastiCache, Aiven) | Export queue durability matters beyond one disk | `VALKEY_URL`. |
-| Neon Free → Neon Launch/Scale | The CU-hour ceiling above, 0.5 GB of data, or the first customer | The plan. Same connection string. |
+| People's database: VM Postgres → Neon (paid) or RDS | The first customer (for point-in-time restore), or data or load the VM's disk and memory cannot carry | `pg_dump` here, `pg_restore` there; `PEOPLE_DATABASE_URL` in `PEOPLE_ENV` (and out of `compose.yaml`); the migrate step pointed at the new host. Not Neon Free: People's polling would exhaust its hours. |
+| Identity's database: Neon Free → Launch/Scale | 0.5 GB of data, the CU-hour ceiling, or the first customer | The plan. Same connection string. |
 | Oracle Object Storage and R2 → AWS S3 | Egress to AWS workloads, a customer's region or compliance requirement, or one provider for both | The two sets of S3 settings: endpoint unset, AWS region, keys. Bucket CORS and lifecycle rules recreated on S3. |
 | Vercel Hobby → Pro | The first paying customer (Hobby is non-commercial), or production needs deployment protection | The plan. |
 

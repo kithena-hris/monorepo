@@ -3,15 +3,16 @@
 # One Compose project per environment, started by `deploy.sh` from
 # `/etc/kithena/<env>/`, which holds this file, `secrets.env` and `state.env`
 # (the interpolation below: the tunnel token; the image tags and the VM
-# Postgres password) and the two service env files. That directory is
+# Postgres passwords) and the two service env files. That directory is
 # root-only and every file in it 0600; nothing secret is in an image or in
 # this repository.
 #
 # Nothing publishes a port. The router is reached through `cloudflared`, which
 # dials out to Cloudflare, so the VM needs no inbound rule at all. People,
 # Temporal, OpenFGA, Redpanda and Valkey are reachable only on this project's
-# network. Application data is Neon; the Postgres here holds Temporal's and
-# OpenFGA's own state and nothing a tenant typed.
+# network. The Postgres here holds People's data (database `kithena`, the
+# `people` schema, as `svc_people`) as well as Temporal's and OpenFGA's state.
+# Identity's data stays on Neon.
 #
 # Every image is multi-arch with linux/arm64 and pinned. `docs/environments.md`
 # "Hosting" has the memory budget these limits add up to and the staging
@@ -30,6 +31,9 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       OPENFGA_URL: http://openfga:8080
       VALKEY_URL: redis://valkey:6379
+      # `svc_people`: NOBYPASSRLS, so every tenant policy applies. `deploy.sh
+      # migrate` gives it LOGIN and this password after the migrations create it.
+      PEOPLE_DATABASE_URL: postgres://svc_people:${PEOPLE_DB_PASSWORD:?PEOPLE_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
     # The drain (PEO-118) is allowed 10 s; Compose's default is 10 s too, which
     # would SIGKILL it at the finish line.
     stop_grace_period: 30s
@@ -49,6 +53,7 @@ services:
       start_interval: 3s
       retries: 3
     depends_on:
+      postgres: { condition: service_healthy }
       redpanda: { condition: service_healthy }
       temporal: { condition: service_healthy }
       openfga: { condition: service_healthy }
@@ -110,8 +115,12 @@ services:
       resources:
         limits: { memory: 1g, cpus: '1.0' }
 
-  # Temporal's and OpenFGA's state. Not Neon: Temporal polls constantly and
-  # would keep a free Neon compute awake around the clock.
+  # People's data, and Temporal's and OpenFGA's state. Three users, each with
+  # its own database; `kithena` is the superuser and is used by nothing that
+  # serves a request except Temporal and OpenFGA. People's database is owned by
+  # `migrator` (runs the migrations, BYPASSRLS like Neon's owner) and read by
+  # `svc_people`, both set up by `deploy.sh migrate`. Password auth (the
+  # image's scram default for anything not on the socket), never published.
   postgres:
     image: postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
     restart: unless-stopped
@@ -126,7 +135,24 @@ services:
       retries: 20
     deploy:
       resources:
-        limits: { memory: 768m, cpus: '1.0' }
+        limits: { memory: 1536m, cpus: '1.0' }
+
+  # One-shot, run by `deploy.sh migrate` and never by `up`: the repository's
+  # migrations applied to People's database (`atlas.hcl` env `vm`), with the
+  # Atlas version the Neon step pins. `MIGRATIONS_DIR` is the copy the workflow
+  # put on the VM.
+  migrate:
+    image: arigaio/atlas:0.37.0@sha256:743af0284db9d3f992e2cca57ea50bcfd02155e9c833e7758003b099fac99eba
+    profiles: [migrate]
+    working_dir: /repo
+    volumes:
+      - ${MIGRATIONS_DIR:-./migrations}:/repo/migrations:ro
+      - ${MIGRATIONS_DIR:-./migrations}/../atlas.hcl:/repo/atlas.hcl:ro
+    command: migrate apply --env vm
+    environment:
+      DATABASE_URL: postgres://migrator:${MIGRATOR_PASSWORD:-unset}@postgres:5432/kithena?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
 
   # ponytail: auto-setup is Temporal's single-binary image and applies its own
   # schema on boot. The move off it is Temporal Cloud, not a hand-run cluster.

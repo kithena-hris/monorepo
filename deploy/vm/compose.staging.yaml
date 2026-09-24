@@ -12,7 +12,7 @@ services:
   redpanda:
     deploy: { resources: { limits: { memory: 768m, cpus: '0.5' } } }
   postgres:
-    deploy: { resources: { limits: { memory: 512m, cpus: '0.5' } } }
+    deploy: { resources: { limits: { memory: 1g, cpus: '0.5' } } }
   temporal:
     deploy: { resources: { limits: { memory: 512m, cpus: '0.5' } } }
   openfga:
