@@ -624,8 +624,8 @@ What that means for the attributes that point at them:
   transport calls (`POST /v1/people/{id}/placement`, `placePerson`, the
   placement control on the profile): legal entity, work location, org unit
   and cost centre, effective from a date on the calendar the move takes them
-  to — today there by default, never later, because nothing yet brings a
-  future-dated value into force on its day. A location names its entity, so
+  to — today there by default; a date ahead is recorded now and comes into
+  force on its day (§8.5, PEO-124). A location names its entity, so
   a location in another entity moves the entity too, and an entity change
   leaves no location of the old one behind; archived entities and locations
   take nobody new. It writes the dated rows, raises `org_changed` (§10.2),
@@ -1099,6 +1099,41 @@ rather than opening another. A placement dated earlier than today but after
 the standing row is a move recorded late — both dates, like the promotion
 above — not a correction.
 
+**A value dated in the future, and its day (PEO-124).** Any effective-dated
+attribute may be written with an `effectiveFrom` after today on the person's
+calendar — a manager change from next Monday, a transfer on the 1st, a
+placement, a correction of either. The write records the history row at once
+and **does not move the projection** (§11.2): the person's row, their
+calendar, completeness, analytics and OpenFGA go on reading the value in force
+today. It raises `profile_updated` at once, with the future date on the
+envelope's `effectiveFrom` — which is exactly what §10's envelope means by the
+two dates, `occurredAt` recorded now and `effectiveFrom` in force then — so a
+consumer can see the change is scheduled; a consumer that acts only on what is
+in force waits for the day.
+
+On the day, an hourly job in the same shape as the start job (§8.1) brings it
+in: a person with a row dated ahead whose date has begun **on their own
+calendar** — the calendar the value takes them to, for a location or entity
+move — has the value in force that day written into their row, in
+effective-date order, the latest winning and a correction in place of what it
+superseded. Then what a present-dated write does, each event effective from
+the value's own date: `people.person.attribute_effective` (§10.2) naming the
+keys, `manager_changed` (OpenFGA's consumer rewrites the reporting tuple from
+it, so a new manager gains access on the day and not before), `org_changed`
+and, for a new legal entity, the transfer (the period closes the day before
+and opens on it, and the number follows the rehire rule), identity's facts,
+and a completeness re-judge. A second run, or a second replica, finds nothing
+to do: what is brought in is what history holds and the row does not. A move
+the domain would refuse on the day — a transfer for somebody who has since
+given notice — is refused for that person and logged each hour until HR
+corrects the scheduled value; a transfer already refused at the write (on
+notice then) is never scheduled. The lifecycle's own dates (`hire_date`,
+`last_working_day`) are not this job's: their columns hold the date itself,
+and the start and access jobs act on them.
+
+A value dated in the past is unchanged: in force at once, unless something
+later is already in force.
+
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
 there is no "as of" query for it, because a phone number had no value "as of
@@ -1365,6 +1400,7 @@ New:
 | `people.person.provisioned` v1 | A provisional record was created from an account |
 | `people.person.identity_linked` v1 | A person and an identity account were connected, in either direction |
 | `people.person.profile_updated` v1 | One or more attributes changed. See §10.3 for what travels |
+| `people.person.attribute_effective` v1 | Values written earlier with a future `effectiveFrom` came into force today on the person's calendar (§8.5, PEO-124). Same payload and §10.3 rules as `profile_updated`; the domain's own events (`manager_changed`, `org_changed`) are raised beside it, dated the same |
 | `people.person.attribute_corrected` v1 | A correction carrying `supersedes` |
 | `people.person.job_changed` v1 | Title, level, job family — effective-dated |
 | `people.person.org_changed` v1 | Org unit, cost centre, legal entity, location |
@@ -1468,6 +1504,7 @@ people.person                 (id, tenant_id, identity_account_id,
                                schema_version int,
                                completeness text,
                                source_of_record text,
+                               applied_through date,   -- PEO-124, see §11.2
                                created_at, updated_at)
 
 people.person_attribute_history (id uuidv7, tenant_id, person_id, attribute_key,
@@ -1528,6 +1565,20 @@ append-only history row and an outbox row in the same transaction. `asOf` reads
 replay history. If the person row and the history disagree, the history wins and
 the projection is rebuilt — which is also how a schema migration to a new field
 shape is done without touching what was recorded.
+
+**The projection holds what is in force today, and catches up on each day
+(PEO-124).** A row dated ahead is history until its date begins on the
+person's calendar; the hourly job (§8.5) then writes it into the projection.
+Which rows need it is a predicate on the row, not a flag, because history is
+append-only: a row dated after the day it was recorded anywhere on Earth
+(judged at UTC−12, since the person's day is not on the row) was scheduled,
+and a partial index (`person_history_scheduled_idx`) holds only those.
+`people.person.applied_through` is a watermark — the person's day through
+which every dated value is in the row — that takes a person off the job's
+list until their next scheduled row; it narrows the candidates and nothing
+more, since the job brings in only what history holds in force and the row
+does not. Nothing else reads it. One date per person rather than a mark per
+value, and no UPDATE of history.
 
 **No runtime DDL, ever.** A uniqueness rule on a tenant-defined attribute is
 enforced by a row in `people.attribute_unique` with a real unique index over
@@ -2378,7 +2429,11 @@ Two rules bind it:
   screen.** A manager exporting their team gets the fields a manager can read
   and no others. There is no "export everything" that bypasses the check — an
   export is a read, and the most common way a permission model is defeated is
-  an export button that forgot it.
+  an export button that forgot it. The builder offers a field when the
+  published schema lets the viewer read it through some relation they hold —
+  their tenant roles, and self, manager or chain where they have somebody to
+  hold it to — never from a sample of people (PEO-124); the export checks
+  again person by person.
 - **Every export is an event.** `people.export.completed` carries the actor,
   the attribute keys, the row count and the format. An export containing
   financial attributes additionally requires a stated reason, which is
@@ -2637,7 +2692,10 @@ viewer's level; an item shows only when the viewer reads that field **on that
 person** (the relation a profile read asks); a name shows only as far as the
 viewer reads it. A withheld item is absent, never a blank bar, so neither the
 chart nor the tile has a gap that counts it. A manager's timeline is their
-chain. No `asOf` yet: the timeline is "from now", and a past date is answered
+chain, and who they are to each person in the window is asked once for the
+window — OpenFGA's `ListObjects` for self, manager and chain — not per person
+(PEO-124). Every chart reads the projection, so a value dated ahead (§8.5)
+counts from its day: the hourly job moves it, and the next snapshot sees it. No `asOf` yet: the timeline is "from now", and a past date is answered
 by the snapshot's counts (`expiries`). `peopleAnalytics.expiries` over
 GraphQL; the screen draws it with `TimelineChart`, its own screen-reader
 table and the visible table one tap away.
