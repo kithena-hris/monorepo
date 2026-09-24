@@ -316,6 +316,8 @@ export async function startStack(): Promise<Stack> {
             name: { ...found.name, preferred: null },
             timeZone: 'Europe/Madrid',
             amr: ['hwk'],
+            // The company's modules, as identity answers them (PEO-114).
+            entitlements: ['module.people'],
           });
           return;
         }
@@ -366,7 +368,6 @@ export async function startStack(): Promise<Stack> {
       PEOPLE_REMOTE_URL: remote,
       PEOPLE_API_URL: peopleUrl,
       PEOPLE_API_TOKEN: TOKEN,
-      KITHENA_ENTITLEMENTS: '["module.people"]',
       PEOPLE_REMOTE_SSR_PUBLIC_KEY: signing.publicKey
         .export({ format: 'der', type: 'spki' })
         .toString('base64'),

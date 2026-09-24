@@ -1260,6 +1260,32 @@ it is written down here rather than left in a PR description.
       body, and `writes.contract.test.ts` fails when a state-changing route
       lacks either. The shell sends a key per action. Found in PEO-098.
       _(PRD §13.2, §17.2)_
+- [ ] **PEO-112** Roles, properly. The first person in a tenant became
+      `people_admin` and `hr`, which is wrong when People is switched on after
+      accounts exist, and nothing could grant a role after that. Needs the back
+      office naming the first People administrator when it switches People on
+      (the only bootstrap), and grant and revoke through People's application
+      layer — `people_admin` only, never the last `people_admin`, never
+      oneself — written to OpenFGA, idempotent, each an audited event; REST
+      with Idempotency-Key, GraphQL, and a settings screen. Found in PEO-092.
+      *(PRD §4, §6.6, §7, §8.2, §9.4, §13)*
+- [ ] **PEO-113** The shell goes through the router. Identity can mint a token
+      but nothing issues one, so the shell calls People directly with the
+      internal token and a principal it builds itself. Needs identity issuing a
+      short-lived access token to the shell's server for the signed-in session
+      (never the browser), key rotation through the JWKS, the shell calling the
+      router, and the direct path removed. Found in PEO-098. *(PRD §13)*
+- [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
+      one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
+      *Landed as `platform.tenant.entitlements` (20260924270000; null is
+      "nothing recorded", so the deployment's `KITHENA_ENTITLEMENTS` is a
+      default only), set in the company wizard's Modules step and on the
+      company page (`PUT /api/internal/admin/tenants/{id}/entitlements`), each
+      change `identity.tenant.entitlements_changed` with the whole list.
+      People keeps a copy in `people.tenant_settings` (20260924270100) and
+      every transport's caller check prefers it to the forwarded list. The
+      shell reads the effective list from the session answer and shows only
+      the areas the company bought.*
 
 ## Blocked, and by what
 

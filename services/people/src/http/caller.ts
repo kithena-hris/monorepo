@@ -50,34 +50,70 @@ export function withTenantRoles(
   };
 }
 
+type Forwarded = z.infer<typeof Forwarded>;
+
+/** The principal the router forwarded, if the router is the one that sent it. */
+function forwardedFrom(request: HeaderCarrier, internalToken: string): Result<Forwarded> {
+  if (!presentsInternalToken(request, internalToken)) {
+    return err(failure('UNAUTHENTICATED', 'This service is reached through the router'));
+  }
+  const raw = request.headers['x-kithena-principal'];
+  let parsed: z.ZodSafeParseResult<Forwarded>;
+  try {
+    parsed = Forwarded.safeParse(typeof raw === 'string' ? JSON.parse(raw) : null);
+  } catch {
+    return err(failure('UNAUTHENTICATED', 'The forwarded principal is not JSON'));
+  }
+  if (!parsed.success) return err(failure('UNAUTHENTICATED', 'No principal was forwarded'));
+  return ok(parsed.data);
+}
+
+function askingFrom(
+  request: HeaderCarrier,
+  principal: Forwarded,
+  entitlements: readonly string[],
+): Result<Asking> {
+  if (!entitlements.includes('module.people')) {
+    return err(failure('NOT_ENTITLED', 'This workspace does not include People'));
+  }
+  const correlation = request.headers['x-correlation-id'];
+  return ok({
+    tenantId: principal.tenantId,
+    viewer: { accountId: principal.userId, roles: new Set(principal.roles) },
+    correlationId:
+      typeof correlation === 'string' && z.uuid().safeParse(correlation).success
+        ? correlation
+        : randomUUID(),
+  });
+}
+
+/** Entitled by the list the caller forwarded: standalone, and the tests. */
 export function callerFromHeaders(
   internalToken: string,
 ): (request: HeaderCarrier) => Result<Asking> {
   return (request) => {
-    if (!presentsInternalToken(request, internalToken)) {
-      return err(failure('UNAUTHENTICATED', 'This service is reached through the router'));
-    }
+    const principal = forwardedFrom(request, internalToken);
+    return principal.ok
+      ? askingFrom(request, principal.value, principal.value.entitlements)
+      : principal;
+  };
+}
 
-    const raw = request.headers['x-kithena-principal'];
-    let parsed: z.ZodSafeParseResult<z.infer<typeof Forwarded>>;
-    try {
-      parsed = Forwarded.safeParse(typeof raw === 'string' ? JSON.parse(raw) : null);
-    } catch {
-      return err(failure('UNAUTHENTICATED', 'The forwarded principal is not JSON'));
-    }
-    if (!parsed.success) return err(failure('UNAUTHENTICATED', 'No principal was forwarded'));
-    if (!parsed.data.entitlements.includes('module.people')) {
-      return err(failure('NOT_ENTITLED', 'This workspace does not include People'));
-    }
-
-    const correlation = request.headers['x-correlation-id'];
-    return ok({
-      tenantId: parsed.data.tenantId,
-      viewer: { accountId: parsed.data.userId, roles: new Set(parsed.data.roles) },
-      correlationId:
-        typeof correlation === 'string' && z.uuid().safeParse(correlation).success
-          ? correlation
-          : randomUUID(),
-    });
+/**
+ * Entitled by what the back office recorded for the company (PEO-114), kept
+ * from `identity.tenant.entitlements_changed`; the forwarded list only where
+ * nothing is recorded — the company then has the deployment's list, which is
+ * what the router and the tenant app forward. A recorded list always wins, so
+ * a caller cannot forward its way into a module the company did not buy.
+ */
+export function callerWithEntitlements(
+  internalToken: string,
+  recorded: (tenantId: string) => Promise<readonly string[] | null>,
+): CallerFrom {
+  return async (request) => {
+    const principal = forwardedFrom(request, internalToken);
+    if (!principal.ok) return principal;
+    const kept = await recorded(principal.value.tenantId);
+    return askingFrom(request, principal.value, kept ?? principal.value.entitlements);
   };
 }

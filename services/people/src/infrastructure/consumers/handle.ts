@@ -12,6 +12,7 @@ import {
   PersonTerminated,
   SchemaPublished,
   TenantAmended,
+  TenantEntitlementsChanged,
   TenantProvisioned,
   type EventDefinition,
   type EventEnvelope,
@@ -22,6 +23,7 @@ import type { RecomputeCompleteness } from '../../application/completeness/recom
 import type { OrgAdmin } from '../../application/org/org.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
 import type { OpenFga } from '../openfga.js';
+import { rememberEntitlements } from '../entitlements.js';
 import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
 import { captureProfile } from './identity.js';
@@ -173,6 +175,26 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
             asOf: event.occurredAt,
           }),
         );
+        return kept ? 'applied' : 'unchanged';
+      }
+
+      /*
+       * The modules the company bought (PEO-114): kept, newest wins, and read
+       * by every transport's caller check in place of whatever list the
+       * caller forwards.
+       */
+      case TenantEntitlementsChanged.name: {
+        const event = parse(TenantEntitlementsChanged, raw);
+        if (!event) return 'rejected';
+        const kept = await deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          return rememberEntitlements(
+            tx,
+            event.tenantId,
+            event.payload.entitlements,
+            event.occurredAt,
+          );
+        });
         return kept ? 'applied' : 'unchanged';
       }
 

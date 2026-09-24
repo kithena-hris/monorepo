@@ -24,6 +24,10 @@ function scope(written: string[], over: Partial<ProvisionScope> = {}): Provision
       return Promise.resolve();
     },
     announce: () => Promise.resolve(),
+    announceEntitlements: (_t, entitlements) => {
+      written.push(`entitlements:${entitlements.join(',')}`);
+      return Promise.resolve();
+    },
     inviteAdmin: (_t, email) => {
       written.push(`account:${email}`);
       return Promise.resolve({
@@ -162,6 +166,35 @@ describe('provisionTenant', () => {
     // be told it was free.
     const d = deps({ createTenant: () => Promise.reject(new Error('duplicate key')) });
     await expect(provisionTenant(d)(request)).rejects.toThrow('duplicate key');
+  });
+});
+
+describe('the modules the company bought (PEO-114)', () => {
+  it('records them and announces them before any account', async () => {
+    const d = deps();
+    const result = await provisionTenant(d)({
+      ...request,
+      entitlements: ['module.timeoff', 'module.people'],
+    });
+    expect(result.ok).toBe(true);
+    expect(d.written.slice(0, 3)).toEqual([
+      'tenant:acme',
+      'enter:00000000-0000-4000-8000-00000000000a',
+      'entitlements:module.people,module.timeoff',
+    ]);
+  });
+
+  it('announces nothing when none were chosen: the deployment list applies', async () => {
+    const d = deps();
+    await provisionTenant(d)(request);
+    expect(d.written.some((w) => w.startsWith('entitlements:'))).toBe(false);
+  });
+
+  it('refuses a module that does not exist before writing anything', async () => {
+    const d = deps();
+    const result = await provisionTenant(d)({ ...request, entitlements: ['module.nope'] });
+    expect(result.ok ? null : result.error.code).toBe('ENTITLEMENT_UNKNOWN');
+    expect(d.written).toEqual([]);
   });
 });
 

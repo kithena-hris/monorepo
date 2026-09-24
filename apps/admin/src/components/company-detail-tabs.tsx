@@ -64,6 +64,8 @@ export interface CompanyDetailTabsProps {
     status: string,
   ) => Promise<EmployeeActionResult>;
   readonly withdraw: (accountId: string) => Promise<EmployeeActionResult>;
+  /** The modules tab, rendered on the page with its action (PEO-114). */
+  readonly modules: ReactNode;
 }
 
 /**
@@ -90,6 +92,7 @@ export function CompanyDetailTabs({
   invite,
   resend,
   withdraw,
+  modules,
 }: CompanyDetailTabsProps): JSX.Element {
   const counts = useMemo(() => {
     const active = people.filter((person) => person.status === 'active').length;
@@ -104,6 +107,7 @@ export function CompanyDetailTabs({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="people">Employees ({people.length})</TabsTrigger>
           <TabsTrigger value="branding">Sign-in page</TabsTrigger>
+          <TabsTrigger value="modules">Modules</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -204,6 +208,8 @@ export function CompanyDetailTabs({
             )}
           </PageSection>
         </TabsContent>
+
+        <TabsContent value="modules">{modules}</TabsContent>
 
         <TabsContent value="branding">
           <PageSection

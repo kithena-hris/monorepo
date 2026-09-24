@@ -61,6 +61,12 @@ export interface AppShellProps {
   readonly companyName: string;
   /** The company's mark, shown above the areas when they have uploaded one. */
   readonly logoUrl?: string | null;
+  /**
+   * The modules the company bought, from the session (PEO-114). An area
+   * belonging to a module not in it is not shown: it is not "coming soon",
+   * it is something this company does not have.
+   */
+  readonly entitlements: readonly string[];
   readonly children: ReactNode;
 }
 
@@ -72,12 +78,30 @@ export interface AppShellProps {
  * where anything lives — and each one maps to a module in `ModuleKey`, so this
  * list is the product's shape rather than a guess at one.
  */
-const AREAS = [
+const AREAS: readonly {
+  readonly label: string;
+  readonly icon: JSX.Element;
+  readonly href: string;
+  readonly built: boolean;
+  /** The entitlement that must be held for the area to show; none for home. */
+  readonly module?: string;
+}[] = [
   { label: 'Home', icon: <Home />, href: '/', built: true },
-  { label: 'Time off', icon: <Leave />, href: '/time-off', built: false },
-  { label: 'People', icon: <People />, href: '/people', built: true },
-  { label: 'Documents', icon: <Document />, href: '/documents', built: false },
-] as const;
+  { label: 'Time off', icon: <Leave />, href: '/time-off', built: false, module: 'module.timeoff' },
+  { label: 'People', icon: <People />, href: '/people', built: true, module: 'module.people' },
+  {
+    label: 'Documents',
+    icon: <Document />,
+    href: '/documents',
+    built: false,
+    module: 'module.documents',
+  },
+];
+
+/** The areas this company has: home, and each module it bought. */
+function areasFor(entitlements: readonly string[]): typeof AREAS {
+  return AREAS.filter((area) => area.module === undefined || entitlements.includes(area.module));
+}
 
 /** An area owns its whole subtree; home owns only itself. */
 function isCurrent(href: string, pathname: string): boolean {
@@ -119,9 +143,11 @@ export function AppShell({
   person,
   companyName,
   logoUrl = null,
+  entitlements,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
+  const areas = areasFor(entitlements);
   const pathname = usePathname();
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
@@ -152,7 +178,7 @@ export function AppShell({
           and hides where you are. It is the pattern every app on the device
           already uses, which is the argument for it.
         */
-        bottomBar={<MobileTabs person={person} dark={dark} onTheme={setTheme} />}
+        bottomBar={<MobileTabs areas={areas} person={person} dark={dark} onTheme={setTheme} />}
         bottomBarClassName="md:hidden"
         contentClassName="px-6 py-8"
         /*
@@ -206,7 +232,7 @@ export function AppShell({
             */}
             <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
               <NavList>
-                {AREAS.map((area) => (
+                {areas.map((area) => (
                   <NavItem
                     key={area.label}
                     href={area.href}
@@ -373,10 +399,12 @@ function ThemeChoice({
  * somebody needs; the sheet is what stops the list growing into the labels.
  */
 function MobileTabs({
+  areas,
   person,
   dark,
   onTheme,
 }: {
+  readonly areas: typeof AREAS;
   readonly person: AppShellProps['person'];
   readonly dark: boolean;
   readonly onTheme: (next: boolean) => void;
@@ -384,7 +412,7 @@ function MobileTabs({
   const pathname = usePathname();
   return (
     <nav aria-label="Main, compact" className="flex">
-      {AREAS.map((area) => (
+      {areas.map((area) => (
         <a
           key={area.label}
           href={area.href}
