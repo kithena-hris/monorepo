@@ -24,7 +24,7 @@ await build({
   bundle: true,
   platform: 'node',
   format: 'cjs',
-  target: 'node22',
+  target: 'node24',
   jsx: 'automatic',
   minify: false,
   logLevel: 'warning',

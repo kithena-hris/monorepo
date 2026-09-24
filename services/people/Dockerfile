@@ -18,7 +18,7 @@
 # running this image, which is the only place it shows.
 
 # --------------------------------------------------------------------- build
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /repo
 RUN corepack enable
 
@@ -38,7 +38,7 @@ RUN pnpm turbo run build --filter=@kithena/people...
 RUN pnpm --filter @kithena/people deploy --prod --legacy /app
 
 # --------------------------------------------------------------------- serve
-FROM node:22-bookworm-slim AS serve
+FROM node:24-bookworm-slim AS serve
 WORKDIR /app
 ENV NODE_ENV=production
 
