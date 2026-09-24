@@ -1354,7 +1354,7 @@ it is written down here rather than left in a PR description.
       there, and a zone change to Kiritimati moving their day on HR's view of
       the profile. Placing them is SQL in the test, because nothing else can
       (PEO-123).*
-- [ ] **PEO-120** Lifecycle actions on the profile. PEO-108 to PEO-111 have
+- [x] **PEO-120** Lifecycle actions on the profile. PEO-108 to PEO-111 have
       transports and no screen: give and withdraw notice, terminate (with
       ending access now), start and end leave, discard a provisional record,
       rehire (with the not-eligible override and its reason), and the
