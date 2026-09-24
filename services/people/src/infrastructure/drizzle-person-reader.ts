@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { CORE_COLUMNS } from '../application/person/core.js';
 import type {
@@ -9,6 +10,7 @@ import type {
   SchemaVersions,
 } from '../application/person/ports.js';
 import type { Arrivals, Leavers } from '../application/person/start.js';
+import type { GapTotals } from '../application/screens/record.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
 import { toEmployment, withEmployment } from './drizzle-person-repository.js';
@@ -98,6 +100,7 @@ function matching(
   tenantId: string,
   where: Readonly<Record<string, string>> | undefined,
   search: PersonSearch | undefined,
+  gaps?: 'staff',
 ): SQL | undefined {
   const text = search?.text.trim() ?? '';
   const keys = new Set(search?.keys ?? []);
@@ -117,7 +120,32 @@ function matching(
       ? undefined
       : sql`${person.custom} @> ${JSON.stringify(where)}::jsonb`,
     text === '' ? undefined : matches.length === 0 ? sql`false` : or(...matches),
+    // The gap row's key is the person's, so this is one index probe per row.
+    gaps === undefined
+      ? undefined
+      : sql`EXISTS (SELECT 1 FROM people.completeness_gap g
+                   WHERE g.tenant_id = person.tenant_id AND g.person_id = person.id
+                     AND cardinality(g.staff_keys) > 0)`,
   );
+}
+
+/**
+ * The grid's totals, off `people.completeness_gap` alone: one pass over one
+ * narrow row per person, so its cost is the tenant's size and not a
+ * completeness verdict per person.
+ */
+export function drizzleGapTotals() {
+  return async (tx: PostgresJsDatabase, tenantId: string): Promise<GapTotals> => {
+    const [waiting] = await tx.execute<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM people.completeness_gap
+       WHERE tenant_id = ${tenantId}::uuid AND cardinality(employee_keys) > 0`);
+    const staff = await tx.execute<{ key: string; people: number }>(sql`
+      SELECT key, count(*)::int AS people
+        FROM people.completeness_gap g, unnest(g.staff_keys) AS key
+       WHERE g.tenant_id = ${tenantId}::uuid
+       GROUP BY key ORDER BY key`);
+    return { waiting: waiting?.n ?? 0, staff: [...staff] };
+  };
 }
 
 export function drizzlePersonReader(): PersonReader {
@@ -133,12 +161,15 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
-    async page(tx, tenantId, after, limit, where, search) {
+    async page(tx, tenantId, after, limit, where, search, gaps) {
       const rows = await tx
         .select(withEmployment)
         .from(person)
         .where(
-          and(matching(tenantId, where, search), after === null ? undefined : gt(person.id, after)),
+          and(
+            matching(tenantId, where, search, gaps),
+            after === null ? undefined : gt(person.id, after),
+          ),
         )
         .orderBy(asc(person.id))
         .limit(limit);

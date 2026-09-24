@@ -369,11 +369,13 @@ describe('at 390×844, with a finger', () => {
             since: 'Since version 4',
             waiting: { people: 61, lastReminded: null },
             completedThisWeek: 3,
+            toFill: 2,
             fields: [
               {
                 key: 'cost_centre',
                 label: 'Cost centre',
                 options: [{ value: 'ENG-204', label: 'ENG-204' }],
+                person: false,
               },
             ],
             rows: [
@@ -395,8 +397,12 @@ describe('at 390×844, with a finger', () => {
           },
         }}
         onSave={ok}
+        // Paged (PEO-122): the page buttons are finger-sized too.
+        onNextPage={vi.fn()}
+        onFirstPage={vi.fn()}
       />,
     );
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await userEvent.keyboard('{Tab}');
     expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
@@ -578,7 +584,13 @@ describe('at 390×844, with a finger', () => {
               closing: 912,
             },
             completenessBySection: [{ label: 'HR information', value: 99 }],
-            expiries: null,
+            expiries: {
+              today: '2026-09-22',
+              items: [
+                { kind: 'work_permit', personId: 's', name: 'Sana Khan', day: '2026-10-22' },
+                { kind: 'probation', personId: 'r', name: 'Rui Dias', day: '2026-11-03' },
+              ],
+            },
             funnel: [
               { label: 'Invited', value: 128 },
               { label: 'Complete', value: 61 },
@@ -589,6 +601,9 @@ describe('at 390×844, with a finger', () => {
     );
     // No chart forces the page sideways; a time axis scrolls inside its own box.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+    // The expiry lanes are the taller, finger-sized ones a coarse pointer gets (PEO-122).
+    const lane = screen.getAllByTitle('Sana Khan')[0]?.parentElement;
+    expect(lane?.getBoundingClientRect().height).toBeGreaterThanOrEqual(56);
   });
 });
 

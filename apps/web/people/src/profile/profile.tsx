@@ -21,6 +21,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
 import type { RecordSection, Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
@@ -82,6 +83,8 @@ export interface ProfileProps {
   readonly onMove?: (move: LifecycleMove) => Promise<Outcome>;
   /** Move the person (PEO-123). Absent where the shell offers no move. */
   readonly onPlace?: (placement: PlacementChange) => Promise<Outcome>;
+  /** Finds people for a person field, by name, over everybody (PEO-122). */
+  readonly searchPeople?: SearchPeople;
 }
 
 /**
@@ -94,11 +97,19 @@ export interface ProfileProps {
  * disclosure itself. This component renders what it is given and cannot
  * re-add a key the application layer removed.
  */
-export function Profile({ load, onSave, onMove, onPlace }: ProfileProps): JSX.Element {
+export function Profile({
+  load,
+  onSave,
+  onMove,
+  onPlace,
+  searchPeople,
+}: ProfileProps): JSX.Element {
   return (
-    <Loaded load={load} what="this profile">
-      {(state) => <Record state={state} onSave={onSave} onMove={onMove} onPlace={onPlace} />}
-    </Loaded>
+    <PeopleSearch.Provider value={searchPeople ?? null}>
+      <Loaded load={load} what="this profile">
+        {(state) => <Record state={state} onSave={onSave} onMove={onMove} onPlace={onPlace} />}
+      </Loaded>
+    </PeopleSearch.Provider>
   );
 }
 
@@ -266,7 +277,9 @@ function PlacementSection({
               value={entity}
               onValueChange={(next) => {
                 setEntity(next);
-                if (!placement.locations.some((l) => l.value === location && l.legalEntityId === next)) {
+                if (
+                  !placement.locations.some((l) => l.value === location && l.legalEntityId === next)
+                ) {
                   setLocation('');
                 }
               }}
@@ -313,8 +326,8 @@ function PlacementSection({
           <DatePicker label="Effective from" value={from} onChange={setFrom} />
           {transfer ? (
             <Alert tone="info" title="This is a transfer">
-              Their employment in the current legal entity ends the day before, and a new one
-              starts on this date. Service is continuous.
+              Their employment in the current legal entity ends the day before, and a new one starts
+              on this date. Service is continuous.
             </Alert>
           ) : null}
           {refused === null ? null : (

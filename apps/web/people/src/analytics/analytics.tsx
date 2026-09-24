@@ -21,6 +21,7 @@ import {
   WaterfallChart,
   type ChartPoint,
   type FunnelStage,
+  type ChartTone,
   type IsoDate,
   type TimelineRow,
 } from '@reach/ui';
@@ -64,8 +65,22 @@ export interface AnalyticsState {
   } | null;
   /** Percent complete by section. */
   readonly completenessBySection: readonly ChartPoint[] | null;
-  readonly expiries: { readonly today: IsoDate; readonly rows: readonly TimelineRow[] } | null;
+  /**
+   * What is about to lapse (PEO-122), item by item, each one the viewer reads
+   * on that person. An item they may not read is not here at all, so the
+   * chart has no gap where it would have been.
+   */
+  readonly expiries: { readonly today: IsoDate; readonly items: readonly ExpiryItem[] } | null;
   readonly funnel: readonly FunnelStage[] | null;
+}
+
+export interface ExpiryItem {
+  /** `work_permit`, `fixed_term`, `probation` or `certification`. */
+  readonly kind: string;
+  readonly personId: string;
+  /** Null when the viewer reads none of the name. */
+  readonly name: string | null;
+  readonly day: IsoDate;
 }
 
 export interface AnalyticsProps {
@@ -73,6 +88,43 @@ export interface AnalyticsProps {
 }
 
 const percent = (n: number): string => `${n.toFixed(1)}%`;
+
+const EXPIRY: Readonly<Record<string, { readonly label: string; readonly tone: ChartTone }>> = {
+  work_permit: { label: 'Work permit', tone: 'danger' },
+  fixed_term: { label: 'Contract ends', tone: 'warning' },
+  probation: { label: 'Probation ends', tone: 'info' },
+  certification: { label: 'Certification', tone: 'neutral' },
+};
+const expiryOf = (kind: string) => EXPIRY[kind] ?? { label: kind, tone: 'neutral' as const };
+
+/**
+ * One lane per person, their items in date order, as the query sent them.
+ *
+ * `TimelineChart` knows a lane by its label, so a second person with the same
+ * name is numbered rather than merged into the first one's lane.
+ * ponytail: an `id` on Reach's `TimelineRow` would let two lanes share a label.
+ */
+export function expiryRows(items: readonly ExpiryItem[]): TimelineRow[] {
+  const lanes = new Map<string, { label: string; items: TimelineRow['items'][number][] }>();
+  const taken = new Map<string, number>();
+  const labelFor = (name: string): string => {
+    const seen = (taken.get(name) ?? 0) + 1;
+    taken.set(name, seen);
+    return seen === 1 ? name : `${name} (${String(seen)})`;
+  };
+  for (const item of items) {
+    const lane = lanes.get(item.personId) ?? { label: labelFor(item.name ?? 'Unnamed'), items: [] };
+    const { label, tone } = expiryOf(item.kind);
+    lane.items.push({
+      id: `${item.personId}:${item.kind}:${item.day}`,
+      label,
+      start: item.day,
+      tone,
+    });
+    lanes.set(item.personId, lane);
+  }
+  return [...lanes.values()];
+}
 
 /**
  * Workforce analytics (PRD §16, design screen 12).
@@ -186,22 +238,21 @@ function Workforce({ state }: { readonly state: AnalyticsState }): JSX.Element {
       {state.expiries === null ? null : (
         <ChartSection
           title="What expires next"
-          description="Permits, fixed-term contracts and probation over the next 90 days"
-          numbers={state.expiries.rows.flatMap((row) =>
-            row.items.map((item): [string, string] => [
-              `${row.label}: ${item.label}`,
-              item.end ?? item.start,
-            ]),
-          )}
+          description="Work permits, fixed-term contracts, probation and certifications over the next 90 days"
+          numbers={state.expiries.items.map((item): [string, string] => [
+            `${item.name ?? 'Unnamed'}: ${expiryOf(item.kind).label}`,
+            item.day,
+          ])}
         >
           {/* A time axis squeezed to a phone is a smear: it scrolls instead. */}
           <ScrollArea className="w-full">
             <div className="min-w-[36rem]">
               <TimelineChart
                 label="Expiries"
-                rows={state.expiries.rows}
+                rows={expiryRows(state.expiries.items)}
                 today={state.expiries.today}
                 unit="week"
+                empty="Nothing expires in the next 90 days."
               />
             </div>
             <ScrollBar orientation="horizontal" />
@@ -266,8 +317,9 @@ function ChartSection({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {numbers.map(([what, value]) => (
-              <TableRow key={what}>
+            {numbers.map(([what, value], i) => (
+              // Two certifications of one person share a label, never a row.
+              <TableRow key={`${String(i)}:${what}`}>
                 <TableCell>{what}</TableCell>
                 <TableCell numeric>
                   {typeof value === 'number' ? value.toLocaleString() : value}

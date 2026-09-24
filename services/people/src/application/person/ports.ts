@@ -64,6 +64,9 @@ export interface PersonReader {
    *
    * `search` is a case-insensitive substring over the named core columns,
    * which the caller has likewise checked the viewer reads on everybody.
+   *
+   * `gaps: 'staff'` narrows to people with a gap HR or Finance fills
+   * (`people.completeness_gap`): the completeness grid's pages (PEO-122).
    */
   page(
     tx: PostgresJsDatabase,
@@ -72,6 +75,7 @@ export interface PersonReader {
     limit: number,
     where?: Readonly<Record<string, string>>,
     search?: PersonSearch,
+    gaps?: 'staff',
   ): Promise<readonly PersonRecord[]>;
 
   /** How many people `where` and `search` match, by status: the directory's summary. */
