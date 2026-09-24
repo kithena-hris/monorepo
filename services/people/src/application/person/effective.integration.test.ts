@@ -17,6 +17,7 @@ import {
   drizzlePersonReader,
   drizzleRelations,
   drizzleScheduled,
+  drizzleScheduledRefusals,
   drizzleSchemaVersions,
 } from '../../infrastructure/drizzle-person-reader.js';
 import { drizzlePersonRepository } from '../../infrastructure/drizzle-person-repository.js';
@@ -67,6 +68,7 @@ const KIRI = { person: id(3), account: id(103) };
 const LUCY = { person: id(4), account: id(104) };
 const TAMA = { person: id(5), account: id(105) };
 const RIA = { person: id(6), account: id(106) };
+const SAM = { person: id(7), account: id(107) };
 
 let stopPg: (() => Promise<void>) | undefined;
 let stopFga: (() => Promise<void>) | undefined;
@@ -88,6 +90,7 @@ const at = (instant: string) => {
     secrets: drizzleSecretStore(ring),
     uniques: drizzleUniqueClaims(ring),
     numbering: drizzleEmployeeNumbers(),
+    refusals: drizzleScheduledRefusals(),
     clock,
     newId: uuidv7,
     completeness: recomputePerson({
@@ -260,11 +263,13 @@ beforeAll(async () => {
   await seed(LUCY, US, AROHA.person);
   await seed(TAMA, NZ, null, {});
   await seed(RIA, NZ, null);
+  await seed(SAM, NZ, null);
   await admin`
     INSERT INTO people.employment_period (tenant_id, person_id, period, legal_entity_id, started_on)
-    VALUES (${ACME}::uuid, ${RIA.person}::uuid, 1, ${NZ}::uuid, '2024-01-08')
+    VALUES (${ACME}::uuid, ${RIA.person}::uuid, 1, ${NZ}::uuid, '2024-01-08'),
+           (${ACME}::uuid, ${SAM.person}::uuid, 1, ${NZ}::uuid, '2024-01-08')
     ON CONFLICT DO NOTHING`;
-  for (const who of [AROHA, BEN, KIRI, LUCY, TAMA, RIA]) {
+  for (const who of [AROHA, BEN, KIRI, LUCY, TAMA, RIA, SAM]) {
     await inTenant(ACME, ({ tx }) => fga.sync(tx, ACME, who.person));
   }
   // Tama has no cost centre: incomplete from the start.
@@ -462,10 +467,78 @@ describe('who a viewer is to many people, in a handful of questions', () => {
     };
     // Ben manages two people, so their manager is his to export.
     const ben = await offered({ accountId: BEN.account, roles: new Set() });
-    expect(ben.count).toBe(6);
+    expect(ben.count).toBe(7);
     expect(ben.keys).toContain('manager_id');
     // An account with no record and nobody to manage reads no manager.
     const stranger = await offered({ accountId: id(150), roles: new Set() });
     expect(stranger.keys).not.toContain('manager_id');
+  });
+});
+
+describe('a scheduled transfer refused on its day', () => {
+  const grid = async () =>
+    (
+      await inTenant(ACME, ({ tx }) => drizzleCompletenessStore().staffGrid(tx, ACME, '2026-10-21'))
+    ).filter((r) => r.task === 'scheduled_change_refused');
+  const refusals = () => events(SAM.person, 'people.person.scheduled_change_refused');
+
+  it('is told to HR once, as an event and a grid row, and never tried again', async () => {
+    expect((await place(SAM.person, { legalEntityId: US, effectiveFrom: '2026-10-20' })).ok).toBe(true);
+    // Notice after the transfer was scheduled: on the 20th Sam is leaving, not moving.
+    const notice = await inTenantResult(inTenant, ACME, (tx) =>
+      at('2026-10-01T00:00:00.000Z').giveNotice(tx, {
+        ...asking,
+        personId: SAM.person,
+        lastWorkingDay: '2026-11-30',
+      }),
+    );
+    expect(notice.ok).toBe(true);
+
+    const run = await runAt('2026-10-20T12:00:00.000Z');
+    expect(run.failed).toEqual([]);
+    expect(await row(SAM.person)).toMatchObject({ legal_entity_id: NZ });
+    expect(await refusals()).toEqual([
+      expect.objectContaining({
+        effectiveFrom: '2026-10-20',
+        payload: expect.objectContaining({
+          personId: SAM.person,
+          attributeKey: 'legal_entity_id',
+          reason: 'TRANSFER_ON_NOTICE',
+        }) as unknown,
+      }),
+    ]);
+    expect(JSON.stringify(await refusals())).not.toContain(US);
+    expect(await grid()).toEqual([
+      {
+        task: 'scheduled_change_refused',
+        key: 'legal_entity_id',
+        reason: 'TRANSFER_ON_NOTICE',
+        personIds: [SAM.person],
+      },
+    ]);
+
+    // The next hours: nothing tried, nothing told again.
+    expect(await runAt('2026-10-20T13:00:00.000Z')).toEqual({ applied: 0, failed: [] });
+    expect(await runAt('2026-10-21T13:00:00.000Z')).toEqual({ applied: 0, failed: [] });
+    expect(await refusals()).toHaveLength(1);
+  });
+
+  it('clears when HR corrects the scheduled value', async () => {
+    const history = await inTenant(ACME, ({ tx }) =>
+      at(TODAY).history(tx, { ...asking, personId: SAM.person, attributeKey: 'legal_entity_id' }),
+    );
+    const scheduled = history.ok ? history.value.find((e) => e.value === US) : undefined;
+    const withdrawn = await inTenantResult(inTenant, ACME, (tx) =>
+      at('2026-10-21T01:00:00.000Z').correct(tx, {
+        ...asking,
+        personId: SAM.person,
+        supersedes: scheduled?.id ?? '',
+        value: NZ,
+        reason: 'Transfer withdrawn',
+      }),
+    );
+    expect(withdrawn.ok).toBe(true);
+    expect(await grid()).toEqual([]);
+    expect(await refusals()).toHaveLength(1);
   });
 });

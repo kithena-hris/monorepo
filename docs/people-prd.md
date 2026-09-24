@@ -1123,11 +1123,21 @@ it, so a new manager gains access on the day and not before), `org_changed`
 and, for a new legal entity, the transfer (the period closes the day before
 and opens on it, and the number follows the rehire rule), identity's facts,
 and a completeness re-judge. A second run, or a second replica, finds nothing
-to do: what is brought in is what history holds and the row does not. A move
-the domain would refuse on the day — a transfer for somebody who has since
-given notice — is refused for that person and logged each hour until HR
-corrects the scheduled value; a transfer already refused at the write (on
-notice then) is never scheduled. The lifecycle's own dates (`hire_date`,
+to do: what is brought in is what history holds and the row does not.
+
+**Refused on its day.** A move the domain would refuse when its day comes — a
+transfer for somebody who has since given notice — is surfaced to HR once,
+the way PEO-100's `confirm_termination` and PEO-082's `unique_conflict` are:
+the refused rows are recorded (`people.scheduled_refusal`, by history row:
+the key and the refusal code, never the value), one classified
+`people.person.scheduled_change_refused` is raised the first time only,
+effective from the value's day, and HR's completeness grid carries a
+`scheduled_change_refused` task row naming the person, the key and the code.
+The job never tries those rows again and brings the rest of the person up to
+date without them. The task clears when HR records a newer row for the key —
+a correction carrying `supersedes`, which withdraws or replaces the scheduled
+value, or a new value. A transfer already refused at the write (on notice
+then) is never scheduled. The lifecycle's own dates (`hire_date`,
 `last_working_day`) are not this job's: their columns hold the date itself,
 and the start and access jobs act on them.
 
@@ -1401,6 +1411,7 @@ New:
 | `people.person.identity_linked` v1 | A person and an identity account were connected, in either direction |
 | `people.person.profile_updated` v1 | One or more attributes changed. See §10.3 for what travels |
 | `people.person.attribute_effective` v1 | Values written earlier with a future `effectiveFrom` came into force today on the person's calendar (§8.5, PEO-124). Same payload and §10.3 rules as `profile_updated`; the domain's own events (`manager_changed`, `org_changed`) are raised beside it, dated the same |
+| `people.person.scheduled_change_refused` v1 | A value scheduled ahead was refused on its day (§8.5, PEO-124): the person, the history row, the key and the refusal code, never the value. Once per row; HR's grid carries the task until the value is corrected |
 | `people.person.attribute_corrected` v1 | A correction carrying `supersedes` |
 | `people.person.job_changed` v1 | Title, level, job family — effective-dated |
 | `people.person.org_changed` v1 | Org unit, cost centre, legal entity, location |
@@ -1511,6 +1522,9 @@ people.person_attribute_history (id uuidv7, tenant_id, person_id, attribute_key,
                                  value jsonb, effective_from date,
                                  recorded_at timestamptz, actor jsonb,
                                  supersedes uuid, event_id uuid)   -- append-only
+
+people.scheduled_refusal      (tenant_id, history_id, person_id, attribute_key,
+                               reason, refused_at)   -- PEO-124, §8.5; never a value
 
 people.person_secret          (tenant_id, person_id, attribute_key,
                                ciphertext bytea, key_id, last4 text,

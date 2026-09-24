@@ -337,6 +337,29 @@ export const PersonAttributeEffective = defineEvent(
 );
 
 /**
+ * A value scheduled ahead was refused on its day (PEO-124, PRD §8.5): the
+ * domain would not make the move then — a transfer for somebody who has since
+ * given notice. Raised once per scheduled row; HR's grid carries a
+ * `scheduled_change_refused` row until the value is corrected or replaced.
+ * Which row, which key and the refusal's code, never the value.
+ */
+export const PersonScheduledChangeRefused = defineEvent(
+  'people.person.scheduled_change_refused',
+  1,
+  z.object({
+    personId: PersonId,
+    /** The history row that did not come into force. */
+    historyId: z.uuid().register(policy, asPublic()),
+    attributeKey: AttributeKey,
+    /** The domain's refusal code, e.g. `TRANSFER_ON_NOTICE`. */
+    reason: z
+      .string()
+      .regex(/^[A-Z][A-Z0-9_]*$/)
+      .register(policy, asPublic()),
+  }),
+);
+
+/**
  * The facts identity keeps a copy of changed, with their values.
  *
  * §5: People is the source of record for a linked person's name and start
@@ -970,6 +993,7 @@ export const peopleEvents = [
   PersonHired,
   PersonProfileUpdated,
   PersonAttributeEffective,
+  PersonScheduledChangeRefused,
   PersonIdentityFactsChanged,
   PersonAttributeCorrected,
   PersonJobChanged,

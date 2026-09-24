@@ -52,6 +52,7 @@ import type {
   PersonRecord,
   PersonSearch,
   RelationsResolver,
+  ScheduledRefusals,
   SchemaVersions,
   Secrets,
   Uniques,
@@ -104,6 +105,11 @@ export interface PersonAccessDeps {
    * transaction (PEO-109 × PEO-112). Every wiring with roles passes it.
    */
   readonly roles?: Pick<TenantRoles, 'accessEnded'>;
+  /**
+   * Scheduled values refused on their day (PEO-124). Absent, a refusal fails
+   * the person in `bringIntoForce` instead of being recorded once.
+   */
+  readonly refusals?: ScheduledRefusals;
 }
 
 export interface Asking {
@@ -1828,8 +1834,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
      *
      * Nothing arrived is `applied: 0` and writes nothing, so a rerun is a
      * no-op. A move the domain refuses on the day — a transfer for somebody
-     * who has since given notice — refuses the whole person, and HR sees
-     * it in the job's log until the scheduled value is corrected.
+     * who has since given notice — is recorded once against its rows
+     * (`refusals`), raises `scheduled_change_refused` once, and the person
+     * is brought up to date without it; the rows are never tried again, and
+     * HR's grid asks for a correction until one is recorded.
      */
     async bringIntoForce(tx, on) {
       const { tenantId, personId, correlationId } = on;
@@ -1847,95 +1855,129 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const keys = definitions
         .filter((d) => d.effectiveDated && !d.encrypted && !LIFECYCLE_KEYS.has(d.key))
         .map((d) => d.key as string);
-      const history = await deps.people.history(tx, tenantId, personId);
-      const here = arrived(history, keys, await today(person.values), person.values);
-      const day = await today({
-        ...person.values,
-        ...Object.fromEntries(here.map((e) => [e.attributeKey, e.value])),
-      });
-      const due = arrived(history, keys, day, person.values);
-      if (due.length === 0) return ok({ day, applied: 0 });
-
+      const all = await deps.people.history(tx, tenantId, personId);
+      const refused = new Set(
+        (await deps.refusals?.refused(tx, tenantId, personId)) ?? [],
+      );
       const asking: SystemAsking = {
         tenantId,
         viewer: { accountId: NOBODY, roles: new Set() },
         correlationId,
         [AS_SYSTEM]: EFFECTIVE_ACTOR,
       };
-      const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-      const aggregate = Person.rehydrate(person.snapshot);
-      const custom = new Map(Object.entries(person.custom));
-      const fields: Record<string, unknown> = {};
-      let values: Record<string, unknown> = { ...person.values };
-      let renumberInto: { entity: string | null; on: string } | null = null;
-
-      for (const date of new Set(due.map((e) => e.effectiveFrom))) {
-        const group = due.filter((e) => e.effectiveFrom === date);
-        const before = values;
-        values = { ...values };
-        const changed = [];
-        for (const entry of group) {
-          const definition = byKey.get(entry.attributeKey);
-          if (!definition) continue;
-          project(fields, custom, entry.attributeKey, entry.value);
-          values[entry.attributeKey] = entry.value;
-          changed.push(changedAttribute(definition, entry.value));
-        }
-        const raised = aggregate.attributesInForce(changed, version.version, contextFor(asking), date);
-        if (!raised.ok) return raised;
-
-        const moved = (key: string) => group.some((e) => e.attributeKey === key);
-        if (moved('manager_id')) {
-          aggregate.moveManager(
-            textOf(before['manager_id']),
-            textOf(values['manager_id']),
-            contextFor(asking),
-            date,
-          );
-        }
-        if (moved('legal_entity_id')) {
-          const placed = aggregate.place(
-            textOf(values['legal_entity_id']),
-            date,
-            textOf(before['legal_entity_id']),
-          );
-          if (!placed.ok) return placed;
-          if (
-            placed.value === 'transferred' ||
-            (placed.value === 'placed' && textOf(before['legal_entity_id']) !== null)
-          ) {
-            renumberInto = { entity: textOf(values['legal_entity_id']), on: date };
-          }
-        }
-        if (ORG_KEYS.some(moved)) aggregate.moveOrg(orgOf(values), contextFor(asking), date);
-        if ([...IDENTITY_FACT_KEYS].some(moved)) shareIdentityFacts(aggregate, asking, values, date);
-      }
-
-      await deps.people.save(tx, aggregate, {
-        fields: {
-          ...(fields as PersonFields),
-          custom: Object.fromEntries(custom),
-          schemaVersion: version.version,
-        },
-      });
-      await rejudge(tx, asking, personId, null);
-
-      // Moved to another entity: its number, when its scheme would not
-      // write the one they hold, dated the day they moved (PEO-123).
-      const next =
-        renumberInto === null
-          ? null
-          : await renumbered(tx, tenantId, version, renumberInto.entity, values['employee_number']);
-      if (next !== null && renumberInto !== null) {
-        const written = await update(tx, {
-          ...asking,
-          personId,
-          changes: { employee_number: next },
-          effectiveFrom: renumberInto.on,
+      // At most one pass per refused row, and one to finish.
+      attempt: for (;;) {
+        const history = all.filter((e) => !refused.has(e.id));
+        const here = arrived(history, keys, await today(person.values), person.values);
+        const day = await today({
+          ...person.values,
+          ...Object.fromEntries(here.map((e) => [e.attributeKey, e.value])),
         });
-        if (!written.ok) return written;
+        const due = arrived(history, keys, day, person.values);
+        if (due.length === 0) return ok({ day, applied: 0 });
+
+        const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+        const aggregate = Person.rehydrate(person.snapshot);
+        const custom = new Map(Object.entries(person.custom));
+        const fields: Record<string, unknown> = {};
+        let values: Record<string, unknown> = { ...person.values };
+        let renumberInto: { entity: string | null; on: string } | null = null;
+
+        for (const date of new Set(due.map((e) => e.effectiveFrom))) {
+          const group = due.filter((e) => e.effectiveFrom === date);
+          const before = values;
+          values = { ...values };
+          const changed = [];
+          for (const entry of group) {
+            const definition = byKey.get(entry.attributeKey);
+            if (!definition) continue;
+            project(fields, custom, entry.attributeKey, entry.value);
+            values[entry.attributeKey] = entry.value;
+            changed.push(changedAttribute(definition, entry.value));
+          }
+          const raised = aggregate.attributesInForce(changed, version.version, contextFor(asking), date);
+          if (!raised.ok) return raised;
+
+          const moved = (key: string) => group.some((e) => e.attributeKey === key);
+          if (moved('manager_id')) {
+            aggregate.moveManager(
+              textOf(before['manager_id']),
+              textOf(values['manager_id']),
+              contextFor(asking),
+              date,
+            );
+          }
+          if (moved('legal_entity_id')) {
+            const placed = aggregate.place(
+              textOf(values['legal_entity_id']),
+              date,
+              textOf(before['legal_entity_id']),
+            );
+            if (!placed.ok) {
+              // Refused on its day (§8.5): recorded once, told once, and the
+              // person tried again without it — never an hourly failure.
+              const refusedHere = group.filter(
+                (e) => e.attributeKey === 'legal_entity_id' || e.attributeKey === 'location_id',
+              );
+              if (deps.refusals === undefined) return placed;
+              const told = Person.rehydrate(person.snapshot);
+              for (const entry of refusedHere) {
+                const first = await deps.refusals.record(tx, tenantId, {
+                  historyId: entry.id,
+                  personId,
+                  attributeKey: entry.attributeKey,
+                  reason: placed.error.code,
+                  refusedAt: deps.clock.instant(),
+                });
+                if (first) {
+                  told.refuseScheduled(
+                    { historyId: entry.id, attributeKey: entry.attributeKey, code: placed.error.code },
+                    contextFor(asking),
+                    date,
+                  );
+                }
+                refused.add(entry.id);
+              }
+              await deps.people.save(tx, told);
+              continue attempt;
+            }
+            if (
+              placed.value === 'transferred' ||
+              (placed.value === 'placed' && textOf(before['legal_entity_id']) !== null)
+            ) {
+              renumberInto = { entity: textOf(values['legal_entity_id']), on: date };
+            }
+          }
+          if (ORG_KEYS.some(moved)) aggregate.moveOrg(orgOf(values), contextFor(asking), date);
+          if ([...IDENTITY_FACT_KEYS].some(moved)) shareIdentityFacts(aggregate, asking, values, date);
+        }
+
+        await deps.people.save(tx, aggregate, {
+          fields: {
+            ...(fields as PersonFields),
+            custom: Object.fromEntries(custom),
+            schemaVersion: version.version,
+          },
+        });
+        await rejudge(tx, asking, personId, null);
+
+        // Moved to another entity: its number, when its scheme would not
+        // write the one they hold, dated the day they moved (PEO-123).
+        const next =
+          renumberInto === null
+            ? null
+            : await renumbered(tx, tenantId, version, renumberInto.entity, values['employee_number']);
+        if (next !== null && renumberInto !== null) {
+          const written = await update(tx, {
+            ...asking,
+            personId,
+            changes: { employee_number: next },
+            effectiveFrom: renumberInto.on,
+          });
+          if (!written.ok) return written;
+        }
+        return ok({ day, applied: due.length });
       }
-      return ok({ day, applied: due.length });
     },
   };
   return api;

@@ -132,6 +132,28 @@ export interface Reach {
   readonly complete: boolean;
 }
 
+/**
+ * Scheduled rows the domain refused on their day (PEO-124, §8.5), by history
+ * row: never tried again, and HR's grid asks for a correction.
+ */
+export interface ScheduledRefusals {
+  /** The history rows refused for this person. */
+  refused(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly string[]>;
+  /** Record one; true the first time, which is when its event is raised. */
+  record(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    refusal: {
+      readonly historyId: string;
+      readonly personId: string;
+      readonly attributeKey: string;
+      readonly reason: string;
+      /** The job's instant, from its clock: HR's later rows are compared with it. */
+      readonly refusedAt: string;
+    },
+  ): Promise<boolean>;
+}
+
 /** `drizzleSecretStore` satisfies this; the application never sees a ciphertext. */
 export interface Secrets {
   put(

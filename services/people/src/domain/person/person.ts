@@ -816,6 +816,30 @@ export class Person extends AggregateRoot<string> {
   }
 
   /**
+   * A value scheduled ahead could not come into force on its day: the domain
+   * refused the move then, e.g. a transfer for somebody who has since given
+   * notice (PEO-124, §8.5). Raised once, by the caller that records the
+   * refusal; which row, which key and the refusal's code — never the value.
+   */
+  refuseScheduled(
+    refused: { readonly historyId: string; readonly attributeKey: string; readonly code: string },
+    ctx: EventContext,
+    effectiveFrom: string,
+  ): void {
+    this.#raise(
+      'people.person.scheduled_change_refused',
+      {
+        personId: this.id,
+        historyId: refused.historyId,
+        attributeKey: refused.attributeKey,
+        reason: refused.code,
+      },
+      ctx,
+      effectiveFrom,
+    );
+  }
+
+  /**
    * A fact recorded wrongly, corrected. Carries `supersedes`, never an update.
    *
    * Allowed on a terminated record, because a tombstone that is wrong is still
