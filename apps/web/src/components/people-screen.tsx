@@ -219,6 +219,7 @@ export function PeopleScreen({
         return {
           load: loadable,
           onSave: thenRefresh(actions.saveGrid),
+          onCheck: actions.checkGrid,
           searchPeople: actions.searchPeople,
           ...(next === null
             ? {}

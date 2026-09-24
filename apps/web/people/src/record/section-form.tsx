@@ -90,9 +90,11 @@ export function SectionForm({
         setRefused(checked.message);
         return;
       }
-      if (checked.findings.length > 0) {
+      // A value HR already accepted is final: nothing to warn about.
+      const doubted = checked.findings.filter((f) => f.review !== 'accepted');
+      if (doubted.length > 0) {
         setSaving(false);
-        setWarned({ values: JSON.stringify(asked), findings: checked.findings });
+        setWarned({ values: JSON.stringify(asked), findings: doubted });
         return;
       }
     }

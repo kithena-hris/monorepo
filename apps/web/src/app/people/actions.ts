@@ -122,16 +122,25 @@ export async function saveGrid(
     readonly personId: string;
     readonly values: Readonly<Record<string, string>>;
   }[],
-): Promise<Outcome> {
-  return outcome(
-    people('SaveCompletenessGrid', {
-      changes: changes.map((c) => ({
-        personId: c.personId,
-        values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
-      })),
-    }),
-  );
+): Promise<Saved> {
+  return saved(people('SaveCompletenessGrid', { changes: gridChanges(changes) }));
 }
+
+/** What saving these grid cells would be warned about, before they are saved (PEO-125). */
+export async function checkGrid(changes: GridChanges): Promise<Saved> {
+  return saved(people('GridCheck', { changes: gridChanges(changes) }));
+}
+
+type GridChanges = readonly {
+  readonly personId: string;
+  readonly values: Readonly<Record<string, string>>;
+}[];
+
+const gridChanges = (changes: GridChanges) =>
+  changes.map((c) => ({
+    personId: c.personId,
+    values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
+  }));
 
 /**
  * People a person field may name, found by name over everybody, as the

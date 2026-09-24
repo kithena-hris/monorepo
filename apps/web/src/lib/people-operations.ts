@@ -60,6 +60,9 @@ const REVIEW = `
 /** What the country checks warned about, on a save or before one (PEO-125). */
 const FINDINGS = 'findings { key label level code message review }';
 
+/** The same, per grid cell: which person each is about. */
+const GRID_FINDINGS = 'findings { personId key label level code message review }';
+
 export const OPERATIONS = {
   /* ------------------------------------------------------------- reads -- */
   Onboarding: `query Onboarding {
@@ -97,6 +100,10 @@ export const OPERATIONS = {
     peopleIdentifierReviews {
       items { personId name attributeKey label last4 findings { level code message } enteredAt }
     }
+  }`,
+
+  GridCheck: `query GridCheck($changes: [GridChangeInput!]!) {
+    peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
   }`,
 
   IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
@@ -276,7 +283,7 @@ export const OPERATIONS = {
   }`,
 
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
-    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok }
+    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok ${GRID_FINDINGS} }
   }`,
 
   ConfirmSetupEntity: `mutation ConfirmSetupEntity($name: String!, $country: String!, $key: String!) {

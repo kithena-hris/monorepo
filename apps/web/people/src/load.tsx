@@ -57,7 +57,7 @@ export interface IdentifierFinding {
   readonly code: string;
   readonly message: string;
   /** `pending`: HR will review it. `accepted`: HR already accepted this value. */
-  readonly review: 'pending' | 'accepted' | 'none';
+  readonly review: 'pending' | 'accepted' | 'sent_back' | 'none';
 }
 
 /** What every async action a screen is handed resolves to. A save may carry findings. */
