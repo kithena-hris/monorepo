@@ -191,10 +191,8 @@ describe('ImportFlow', () => {
     const onCommit = vi.fn(() => Promise.resolve({ ok: true as const }));
     const doubted: ImportStage = {
       ...review,
-      step: 'review',
-      file,
       dryRun: {
-        ...(review.step === 'review' ? review.dryRun : ({} as never)),
+        ...review.dryRun,
         findings: [
           {
             row: 12,

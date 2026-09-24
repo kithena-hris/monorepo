@@ -46,6 +46,7 @@ const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 
 /** 12345678Z is the DNI; Z is its control letter, A is not. */
 const WRONG_NIF = '12345678A';
+const SOME_ID: unknown = expect.any(String);
 
 let stopPg: (() => Promise<void>) | undefined;
 let adminClient: ReturnType<typeof postgres> | undefined;
@@ -152,7 +153,6 @@ beforeAll(async () => {
     [LUCIA, LUCIA_ACCOUNT],
     [MARTA, null],
   ] as const) {
-    // eslint-disable-next-line no-await-in-loop -- two people, in a test
     await inTenant(ACME, ({ tx }) =>
       drizzlePersonRepository().create(
         tx,
@@ -222,7 +222,7 @@ describe('an employee entering a national identifier our checks doubt', () => {
         FROM people.identifier_review r JOIN people.person_attribute_history h ON h.id = r.history_id
     `);
     expect([...rows]).toEqual([
-      { history_id: expect.any(String), value: null, attribute_key: 'es_nif' },
+      { history_id: SOME_ID, value: null, attribute_key: 'es_nif' },
     ]);
   });
 
@@ -250,7 +250,7 @@ describe('an employee entering a national identifier our checks doubt', () => {
     expect(revealed[0]?.payload).toEqual({
       personId: LUCIA,
       attributeKey: 'es_nif',
-      reviewId: expect.any(String),
+      reviewId: SOME_ID,
     });
     expect(revealed[0]?.actor).toEqual({ kind: 'user', userId: hr.accountId });
   });
@@ -269,7 +269,7 @@ describe('the reviewer accepting', () => {
       {
         personId: LUCIA,
         attributeKey: 'es_nif',
-        reviewId: expect.any(String),
+        reviewId: SOME_ID,
         decision: 'accepted',
         findingCodes: ['check_mismatch'],
         note: null,

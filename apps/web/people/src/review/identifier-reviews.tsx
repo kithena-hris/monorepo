@@ -82,6 +82,8 @@ const LEVEL = {
   attention: { tone: 'warning', text: 'Needs attention' },
 } as const;
 
+const id = (item: ReviewItem): string => `${item.personId}/${item.attributeKey}`;
+
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -105,8 +107,6 @@ function Queue({
   const [deciding, setDeciding] = useState<{ item: ReviewItem; accept: boolean } | null>(null);
   const [shown, setShown] = useState<Readonly<Record<string, string>>>({});
   const [refused, setRefused] = useState<string | null>(null);
-  const id = (item: ReviewItem) => `${item.personId}/${item.attributeKey}`;
-
   return (
     <Stack gap={6}>
       <PageHeader
@@ -171,7 +171,7 @@ function Queue({
                 <TableCell>
                   <ul className="flex flex-col gap-2">
                     {item.findings.map((f) => {
-                      const level = LEVEL[f.level as keyof typeof LEVEL] ?? LEVEL.attention;
+                      const level = f.level === 'mismatch' ? LEVEL.mismatch : LEVEL.attention;
                       return (
                         <li key={f.code} className="flex flex-col gap-1">
                           <span>

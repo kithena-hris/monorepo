@@ -120,17 +120,14 @@ export async function planReviews(
   const plans: IdentifierPlan[] = [];
   for (const [definition, check] of written) {
     const where = { tenantId, personId: person.snapshot.id, attributeKey: definition.key };
-    // eslint-disable-next-line no-await-in-loop -- a write carries one or two identifiers
     const latest = await deps.reviews.latest(tx, tenantId, where.personId, where.attributeKey);
     let same = false;
     if (latest?.state === 'accepted' && check !== null) {
       // The accepted value is the one in place only if nothing was written since.
-      // eslint-disable-next-line no-await-in-loop -- as above
       const history = await deps.people.history(tx, tenantId, where.personId, definition.key);
       if (currentValue(history, definition.key)?.id === latest.historyId) {
         const prior = definition.encrypted
-          ? // eslint-disable-next-line no-await-in-loop -- as above
-            await deps.reviews.reveal(tx, where)
+          ? await deps.reviews.reveal(tx, where)
           : person.values[definition.key];
         same = typeof prior === 'string' && normaliseNationalId(prior) === check.normalised;
       }
@@ -162,11 +159,9 @@ export async function applyReviews(
 ): Promise<void> {
   for (const plan of plans) {
     const key = plan.definition.key;
-    // eslint-disable-next-line no-await-in-loop -- a write carries one or two identifiers
     if (plan.supersede) await deps.reviews.supersede(tx, tenantId, personId, key);
     const historyId = historyIds.get(key);
     if (!plan.open || historyId === undefined) continue;
-    // eslint-disable-next-line no-await-in-loop -- as above
     await deps.reviews.insert(tx, tenantId, {
       id: deps.newId(),
       personId,
