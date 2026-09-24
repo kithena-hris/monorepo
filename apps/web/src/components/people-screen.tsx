@@ -116,6 +116,10 @@ export function PeopleScreen({
                 onMove: thenRefresh((move: actions.LifecycleMove) =>
                   actions.moveLifecycle(id, move),
                 ),
+                onPlace: thenRefresh(
+                  (placement: Parameters<typeof actions.placePerson>[1]) =>
+                    actions.placePerson(id, placement),
+                ),
               }),
         };
       }

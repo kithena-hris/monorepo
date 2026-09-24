@@ -55,6 +55,18 @@ export async function savePersonSection(
   return outcome(people('SavePersonSection', { personId, changed: formInputs(changed) }));
 }
 
+/** Move a person to a legal entity and location from a date (PEO-123); People decides who may. */
+export async function placePerson(
+  personId: string,
+  placement: {
+    readonly legalEntityId?: string | null;
+    readonly locationId?: string | null;
+    readonly effectiveFrom?: string;
+  },
+): Promise<Outcome> {
+  return outcome(people('PlacePerson', { personId, ...placement }));
+}
+
 export async function saveGrid(
   changes: readonly {
     readonly personId: string;
