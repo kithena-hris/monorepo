@@ -42,9 +42,16 @@ CREATE TABLE people.identifier_review (
   CONSTRAINT identifier_review_state CHECK (state IN ('pending', 'accepted', 'sent_back', 'superseded')),
   CONSTRAINT identifier_review_findings_list CHECK (jsonb_typeof(findings) = 'array'),
   CONSTRAINT identifier_review_note_bounded CHECK (note IS NULL OR length(note) <= 500),
-  -- A decision is whole: who and when, or neither.
-  CONSTRAINT identifier_review_decided_whole CHECK (
-    (state IN ('accepted', 'sent_back')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL)
+  -- A decision is whole: who and when, or neither. A decided review has one
+  -- and a pending one has none; a superseded one keeps whatever it had, so a
+  -- value sent back and then corrected still says who sent it back.
+  CONSTRAINT identifier_review_decided_whole CHECK ((decided_by IS NULL) = (decided_at IS NULL)),
+  CONSTRAINT identifier_review_decided_when_decided CHECK (
+    CASE state
+      WHEN 'pending' THEN decided_by IS NULL
+      WHEN 'superseded' THEN true
+      ELSE decided_by IS NOT NULL
+    END
   )
 );
 

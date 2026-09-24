@@ -43,6 +43,12 @@ export interface CompletenessVerdict {
    * people about it makes it four hundred support tickets.
    */
   readonly unevaluable: readonly BrokenRule[];
+  /**
+   * Keys with a value HR's reviewer sent back to be corrected (PEO-125):
+   * present, so not missing, but needing the employee's attention. Filled by
+   * the application from the review record; this function never sets it.
+   */
+  readonly attention?: readonly string[];
 }
 
 /**
