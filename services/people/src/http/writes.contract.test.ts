@@ -27,7 +27,10 @@ const KEY = '([a-z][a-z0-9_]{0,63})';
 const SAFE = [
   'POST /v1/schema/draft/advice',
   'POST /v1/schema/draft/preview',
-  'POST /v1/imports/proposal',
+  // An import's upload (§14.2): a retried start is a fresh upload, and
+  // completing twice checks the same file twice.
+  'POST /v1/imports/uploads',
+  'POST /v1/imports/uploads/{id}/complete',
   'POST /v1/imports/dry-run',
   // PEO-125: a check that stores nothing, and an audited read.
   'POST /v1/views/me/identifier-check',

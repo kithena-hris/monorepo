@@ -152,6 +152,19 @@ and row, whatever its age. A DSAR erasure is to call the same
 `forgetImportReports`; there is no such path yet. A blocked row for somebody
 not yet a person has no id to find it by, and goes with the week.
 
+An import's file itself is held while its import is under way, and no longer
+(PRD §14.2). The browser uploads it straight to a bucket of its own (Cloudflare
+R2 in production), encrypted at rest by the provider, which only People reads,
+with its own credentials. It is deleted when the import is committed, when the
+same person starts another upload, when the upload fails its checks, and
+otherwise **24 hours** after it began — by People's hourly sweep, with a
+one-day lifecycle rule on the bucket as the backstop. `people.import_upload`
+records the upload's name, size and SHA-256, never a value. A dry run's
+blocked rows are kept beside it, sealed in the export store, for the same day
+at most. Like a blocked row for somebody not yet a person, a pending upload is
+not indexed by person, so an erasure does not reach into it; the day bounds it
+instead.
+
 ## Reporting
 
 Privacy concerns go to the address in [SECURITY.md](./SECURITY.md), and are

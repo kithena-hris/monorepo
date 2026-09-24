@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
@@ -922,5 +923,71 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
     const reviewed = audit[1]?.envelope as { payload: Record<string, unknown>; actor: unknown };
     expect(reviewed.payload).toMatchObject({ decision: 'accepted', findingCodes: ['check_mismatch'] });
     expect(reviewed.actor).toEqual({ kind: 'user', userId: ADMIN.account });
+  });
+});
+
+describe('An import larger than a Vercel function takes, straight to storage (§14.2)', () => {
+  it('uploads 5 MB past the app’s server, imports the good row, and hands the blocked rows over a link', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    const shellHost = new URL(stack.shell).host;
+    // What the browser sends the shell, and what it PUTs anywhere else.
+    let toShell = 0;
+    const puts: string[] = [];
+    // Measured as sent. A File body is not reported (a PUT's is 0 here), so
+    // the file's arrival is proven by its checksum below instead.
+    page.on('requestfinished', (request) => {
+      void request.sizes().then(({ requestBodySize: bytes }) => {
+        if (new URL(request.url()).host === shellHost) toShell = Math.max(toShell, bytes);
+        else if (request.method() === 'PUT') puts.push(request.url());
+      });
+    });
+    await page.goto(`${stack.shell}/people/import`);
+
+    // One good row and five thousand wide ones that block on their hire date:
+    // past 4.5 MB, and a blocked-row report past it too.
+    const pad = 'x'.repeat(1000);
+    const csv = [
+      'given_name,family_name,work_email,hire_date',
+      'Grace,Hopper,grace@acme.example,2025-04-07',
+      ...Array.from({ length: 5_000 }, (_, i) => `Temp${String(i)},${pad},temp${String(i)}@acme.example,soon`),
+    ].join('\n');
+    expect(Buffer.byteLength(csv)).toBeGreaterThan(4.5 * 1024 * 1024);
+    await upload(page, 'big.csv', csv);
+
+    const review = page.getByRole('button', { name: 'Review before importing' });
+    await review.waitFor({ timeout: 120_000 });
+    // What storage holds is the file, whole: People read it back and pinned
+    // the SHA-256 of exactly these bytes.
+    const [held] = await stack.sql<{ size: string; checksum: string }[]>`
+      SELECT size::text, checksum FROM people.import_upload WHERE tenant_id = ${TENANT}`;
+    expect(held).toEqual({
+      size: String(Buffer.byteLength(csv)),
+      checksum: createHash('sha256').update(csv).digest('hex'),
+    });
+    await review.click();
+    await page.getByRole('heading', { name: 'Blocked rows' }).waitFor({ timeout: 120_000 });
+    // The review lists the first twenty; the file has all of them.
+    expect(await page.getByRole('table', { name: 'Blocked rows' }).getByRole('row').count()).toBeLessThanOrEqual(21);
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: /Download all 5000 as CSV/ }).click();
+    const report = await readFile(await (await download).path(), 'utf8');
+    expect(Buffer.byteLength(report)).toBeGreaterThan(4.5 * 1024 * 1024);
+    expect(report.trim().split(/\r?\n/)).toHaveLength(5_001);
+
+    await page.getByRole('button', { name: 'Import 1 rows' }).click();
+    await page.getByText(/big\.csv is imported/).waitFor({ timeout: 120_000 });
+    const grace = await stack.sql`
+      SELECT 1 FROM people.person WHERE tenant_id = ${TENANT} AND work_email = 'grace@acme.example'`;
+    expect(grace).toHaveLength(1);
+
+    // The file went to storage once, whole, and never through the app's server.
+    expect(puts).toHaveLength(1);
+    expect(puts[0]).toContain('/people-uploads/');
+    expect(toShell).toBeLessThan(64 * 1024);
+    // Committed: the upload is gone, row and object.
+    const left = await stack.sql`SELECT 1 FROM people.import_upload WHERE tenant_id = ${TENANT}`;
+    expect(left).toHaveLength(0);
+    await context.close();
   });
 });

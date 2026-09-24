@@ -2048,9 +2048,12 @@ lifecycle moves, legal entities, locations, numbering and settings.
 - **Every write is keyed.** Each mutation takes `idempotencyKey: String!`,
   sent to the route as its `Idempotency-Key`, so a retry is answered as REST
   answers it (§13.2, PEO-116): the version in force for a publish, an
-  endpoint's id without its secret, `ALREADY_IMPORTED` for an import. The two
-  that change nothing, `proposeImport` and `dryRunImport`, take none; a test
-  over the schema fails when any other mutation lacks the key.
+  endpoint's id without its secret, `ALREADY_IMPORTED` for an import. Four
+  take none: `dryRunImport` and `revealIdentifier` change nothing,
+  `startImportUpload` is answered afresh on a retry (the earlier upload is
+  let go), and `completeImportUpload` checks the same file however often it
+  is asked; a test over the schema fails when any other mutation lacks the
+  key.
 - **Field-level absence holds.** A view model already leaves out what the
   viewer may not read, and the schema cannot put it back: a record's values
   are `values: [FormEntry]`, a keyed list of a union (`TextEntry`,
@@ -2065,17 +2068,23 @@ lifecycle moves, legal entities, locations, numbering and settings.
   `server.integration.test.ts` (a manager's `peopleProfile` has no
   `base_salary` anywhere; HR's has it as money) and end to end by the
   acceptance suite's HTML check.
-- **Uploads.** An import's file travels as a multipart request (the GraphQL
-  multipart request spec, the `Upload` scalar) of up to 100 MB (§14.1,
-  PEO-038). The router takes one file of up to 100 MB (`file_upload`) in a
-  body of up to 101 MB (`traffic_shaping.router.max_request_body_size`, 5 MB
-  before) and gives People 300 seconds rather than everything else's 30, for a
-  large commit; People's Yoga stops at the same 101 MiB (`yogaOptions`). The
-  subgraph hands the file to the same import route REST serves. Proven through
-  the real router with a file over the old limit (`router.integration.test.ts`).
-- **Downloads stay links.** An export's files and finance's one full-values
-  download are expiring signed links (PEO-089) that a mutation or query
-  answers with; the browser opens them, and the signature is their authority.
+- **No file comes through the graph.** An import's file goes from the
+  browser straight to object storage with a presigned PUT (§14.2); the
+  shell's server, the router and People's GraphQL carry only where to put it
+  and which upload it is. There is no `Upload` scalar, the router's
+  `file_upload` is off and its body limit is its default, and People's Yoga
+  takes no multipart request. The reason is the hosting as much as the
+  design: the shell runs on Vercel, whose functions refuse a body over
+  4.5 MB, and an import may be 100 MB. The router still gives People 300
+  seconds rather than everything else's 30, for a large commit. Proven through
+  the real router (`router.integration.test.ts`: the upload request passes,
+  a multipart request does not) and end to end with a file over 4.5 MB (the
+  acceptance suite).
+- **Downloads stay links.** An export's files, finance's one full-values
+  download and an import's blocked-row file are expiring signed links
+  (PEO-089) that a mutation or query answers with; the browser opens them,
+  and the signature is their authority. No file is carried inside a GraphQL
+  answer.
 - **Only the shell's operations.** The router answers persisted operations
   only (the safelist). With no control plane, they are files the router's
   `file_system` storage provider reads — `persisted/operations/<sha256>.json`,
@@ -2186,15 +2195,17 @@ no trigram index: the search is a scan of one tenant's rows, which fits the
 budget at 50,000; a `pg_trgm` index is the next step when it does not.
 
 `/v1/views/*` answers with a screen's view model. The model is built from reads
-that were already authorized, so a withheld field never reaches it. An import
-keeps nothing between steps: each step carries the file (base64, up to 100 MB)
-and the mapping.
+that were already authorized, so a withheld field never reaches it. An
+import's steps carry the upload's id and the mapping, never the file: the file
+is in object storage from the upload on (§14.2), and every body here is small
+JSON (256 KB at most).
 
 **Every write is keyed and documented (PEO-116).** These routes take an
 Idempotency-Key like every other People write, and the router refuses a write
 without one before its handler runs, so a new route cannot forget it. Four
-POSTs change nothing — advice, the publish preview, the import proposal and
-the dry run — and take none. The use cases open their own transactions, so a
+POSTs change nothing — advice, the publish preview, completing an import's
+upload (which checks the file and proposes the mapping) and the dry run — and
+take none, nor does starting an upload, whose retry is a fresh upload. The use cases open their own transactions, so a
 keyed write runs them inside the key's transaction (`sharing` in
 `unit-of-work.ts`; each joins as a savepoint), and the write and its key
 commit together. An import commit's deadlock retry (PEO-106) still holds
@@ -2387,6 +2398,63 @@ product, not a formality: it classifies every row into create, update, unchanged
 blocked or duplicate, and shows the first twenty of each with the exact cell
 that caused it.
 
+**The file goes straight to storage, once, and waits there.** A spreadsheet of
+up to 100 MB does not pass through the tenant app's server or the router: the
+app is hosted where a request body over 4.5 MB is refused, and a file carried
+through three hops three times (upload, dry run, commit) was the slowest part
+of an import anyway.
+
+1. **Start.** The browser says what it is about to upload — the name and the
+   exact size, nothing else. People (HR only, decided in the application
+   layer as every import is) records an *upload intent* in
+   `people.import_upload`: the tenant, the person, the purpose (`import`),
+   the size, and a key it chooses itself, `{tenant}/import/{intent id}` — a
+   database constraint holds the key to that shape, so no row can point the
+   bucket anywhere else. It answers with a presigned PUT for that key.
+2. **Upload.** The browser PUTs the file to the bucket with the headers People
+   named, showing the upload's own progress (Reach's `FileUploader`).
+3. **Complete.** The browser says it is done. People reads the object back,
+   streamed through SHA-256, and checks it against the intent; only then does
+   it detect and propose the mapping. The checksum is pinned on the intent,
+   and it is the import key (§14.5, PEO-090) exactly as it was when the file
+   came in the request.
+4. **Dry run and commit** name the upload, not the file. Each reads it from
+   storage again and refuses if its SHA-256 is no longer the one pinned.
+
+What storage enforces, and what People verifies, are deliberately two lists:
+
+| Enforced by storage (signed into the PUT, SigV4)                                   | Verified by People (on completion, and on every later read)      |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| The key, which People chose, under the tenant                                     | The intent is this person's, in this tenant (RLS), and unexpired |
+| `Content-Length` exactly the declared size — S3 has no length range on a presigned PUT and R2 no POST policy, so the length is pinned | The object exists and is exactly the declared size; a read stops one byte past it |
+| `Content-Type: application/octet-stream`, whatever the file claims                | The SHA-256 of what was stored, and that it has not changed since |
+| `If-None-Match: *`: the key is written once; a second PUT is refused (412)         | What the file *is*, from its bytes, exactly as before: the ZIP signature, the zip-bomb check, encoding and delimiter detection, 50,000 rows |
+| SSE-S3 where the store takes it (`PEOPLE_UPLOAD_SSE`), and no checksum header — the SDK’s default would be a CRC32 of an empty body | |
+| Five minutes                                                                       | 100 MB, and not empty, before any URL is signed                 |
+| The bucket's CORS: `PUT` from the tenant app's origins, and nothing else          |                                                                  |
+
+**How long People keeps it, and why that is allowed.** The upload is kept for
+its import and no longer: deleted on commit (whether the file imported or was
+found imported already), when the same person starts another upload, when a
+completion is refused, and otherwise 24 hours after it began — by People's
+hourly sweep, with a lifecycle rule on the bucket (one day, S3's shortest) as
+the backstop. The file holds employee values, so it is held as §14.5 holds the
+blocked-row report: never in a table, never on an event, never in a log, only
+in the upload bucket, which the provider encrypts at rest, reached by nobody
+but People with its own credentials. The rows record the file's name, size and
+checksum, never a value. It is not indexed by person, so an erasure does not
+reach into a pending upload; it is bounded instead, by a day rather than the
+report's week — the same rule the report applies to a blocked row for
+somebody not yet a person. A day is a working day's mapping and review; an
+import left longer is uploaded again.
+
+**The dry run's blocked rows are a link too.** The review lists the first
+twenty blocked rows and items with the cell that caused each; the whole list
+is a CSV that imports once fixed, stored sealed in the export's object store
+under the upload and reached through a signed link that expires with the
+upload or in a day, whichever is sooner. The commit's report is the §14.5 one,
+behind the same kind of link. No file is ever returned inside an answer.
+
 ### 14.3 Mapping columns
 
 Columns are matched to attribute keys by exact key, then by label, then by a
@@ -2533,8 +2601,9 @@ rather than a failure.
   actor, the row counts, the attribute keys touched and the file checksum —
   never the file, and never a value.
 - **Limits.** 50,000 rows or 100 MB per file, 500 MB per document batch, one
-  running import per tenant. Larger migrations are several files, which is also
-  how they stay reviewable.
+  running import per tenant, one upload per person at a time (starting
+  another lets the first go). Larger migrations are several files, which is
+  also how they stay reviewable.
 
 ---
 

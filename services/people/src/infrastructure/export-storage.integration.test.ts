@@ -67,8 +67,9 @@ afterAll(async () => {
   await Promise.all(stops.map((stop) => stop()));
 });
 
-function bucket(name: string) {
+function bucket(name: string, sse: 'AES256' | 'none' = 'AES256') {
   const blobs = s3Blobs({
+    sse,
     endpoint: objects.endpoint,
     region: 'us-east-1',
     bucket: name,
@@ -117,6 +118,17 @@ describe('the bucket adapter', () => {
     current = fixedClock('2026-09-23T09:00:00.000Z');
     const expired = await store.open(link);
     expect(!expired.ok && expired.error.code).toBe('LINK_EXPIRED');
+  });
+
+  it('asks for no SSE header when the store is set to none, as Oracle needs', async () => {
+    const blobs = bucket('exports-none', 'none');
+    await blobs.client.send(new CreateBucketCommand({ Bucket: 'exports-none' }));
+    await blobs.put('t/exports/2/people.csv', new Uint8Array([1, 2, 3]), 'text/csv');
+    const head = await blobs.client.send(
+      new HeadObjectCommand({ Bucket: 'exports-none', Key: 't/exports/2/people.csv' }),
+    );
+    expect(head.ServerSideEncryption).toBeUndefined();
+    expect((await blobs.get('t/exports/2/people.csv'))?.body).toEqual(new Uint8Array([1, 2, 3]));
   });
 
   it('sweeps by upload time, bounded by the limit', async () => {

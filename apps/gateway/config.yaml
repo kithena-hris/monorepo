@@ -113,20 +113,15 @@ security:
       enabled: true
       limit: 20
 
-# An import carries its file (PEO-038: up to 100 MB), sent as a GraphQL
-# multipart upload (PEO-113) and forwarded to People as one. One file per
-# operation: every import step sends the same single file.
+# No file comes through the router. An import's file goes from the browser
+# straight to object storage with a presigned PUT that People issues (PRD
+# §14.2); the router carries only where to put it. Uploads are off, so a
+# multipart request is refused here, before any subgraph sees it.
 file_upload:
-  enabled: true
-  max_file_size: 100MB
-  max_files: 1
+  enabled: false
 
-# The body is that file plus the multipart envelope (the operation and the
-# map, a few kilobytes); everything else is small JSON. People's own Yoga
-# stops at 101 MiB, so this is the same ceiling seen from outside.
+# Every body is small JSON: the router's default ceiling stands.
 traffic_shaping:
-  router:
-    max_request_body_size: 101MB
   all:
     request_timeout: 30s
   # Committing a 100 MB import writes every row in one transaction, which can

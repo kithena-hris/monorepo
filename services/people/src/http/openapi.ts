@@ -49,7 +49,8 @@ import {
   RequiredFrom,
   Sections,
   SetupChoice,
-  Upload,
+  ImportStepBody,
+  UploadStart,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
@@ -112,7 +113,8 @@ const components = {
   SetupChoice,
   CreateWebhookEndpoint: EndpointBody,
   PatchWebhookEndpoint: EndpointPatch,
-  ImportUpload: Upload,
+  ImportUploadStart: UploadStart,
+  ImportStep: ImportStepBody,
   RoleHolder: RoleHolderBody,
   RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
   RoleChange: RoleChangeBody,
@@ -291,32 +293,37 @@ function screenPaths(): Record<string, unknown> {
         path: 'id',
       }),
     },
-    '/v1/imports/proposal': {
+    '/v1/imports/uploads': {
       post: screenWrite(
-        'Upload a file and get the proposed mapping',
-        'ImportUpload',
+        'Start an upload: a presigned PUT for exactly this file, straight to storage, for five minutes',
+        'ImportUploadStart',
+        200,
+        '{ uploadId, url, method, headers, expiresAt }: PUT the file there with exactly these headers',
+        { safe: true },
+      ),
+    },
+    '/v1/imports/uploads/{id}/complete': {
+      post: screenWrite(
+        'The file is uploaded: check it, and get the proposed mapping',
+        null,
         200,
         'The mapping',
-        {
-          safe: true,
-        },
+        { path: 'id', safe: true },
       ),
     },
     '/v1/imports/dry-run': {
       post: screenWrite(
-        'The dry run of a mapped file; nothing is written',
-        'ImportUpload',
+        'The dry run of an uploaded file; nothing is written',
+        'ImportStep',
         200,
-        'The review',
-        {
-          safe: true,
-        },
+        'The review, with a signed link to the blocked rows',
+        { safe: true },
       ),
     },
     '/v1/imports': {
       post: screenWrite(
-        'Commit a mapped file',
-        'ImportUpload',
+        'Commit an uploaded file; the upload is deleted after',
+        'ImportStep',
         201,
         'The report. A retry answers ALREADY_IMPORTED: the report is not kept',
       ),

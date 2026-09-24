@@ -758,6 +758,118 @@ well. The error names the setting, never its value.
   own, so the template sets `PEOPLE_EXPORT_SSE=none` and `PEOPLE_UPLOAD_SSE=none`.
   Worth confirming on the first staging export and upload.
 
+### Object storage
+
+People keeps two S3-compatible stores, each its own endpoint, bucket and
+credentials, because they are different trust boundaries:
+
+| Store | Provider | Written by | Holds | Variables |
+| --- | --- | --- | --- | --- |
+| **uploads** | Cloudflare R2 | the browser, with a presigned PUT | an import's file, for its import (≤ 24 h) | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` |
+| **exports** | Oracle Object Storage (S3 Compatibility API) | People only | export files (a day), import reports (a week), dry-run reports (a day), all sealed by People | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*` |
+
+Each `PEOPLE_<STORE>_S3_*` falls back to the plain `S3_*`, which is how one
+local object store serves both on a laptop.
+
+**Server-side encryption, per store: `PEOPLE_UPLOAD_SSE`, `PEOPLE_EXPORT_SSE`**
+— `AES256` (the default) or `none`. `AES256` asks for SSE-S3 on every write
+(`x-amz-server-side-encryption: AES256`; for uploads it is signed into the
+presigned PUT, so the browser sends it). `none` sends no such header, for a
+provider that encrypts at rest on its own and refuses it:
+
+| Store | Setting | Why |
+| --- | --- | --- |
+| exports on Oracle | `PEOPLE_EXPORT_SSE=none` | Oracle Object Storage encrypts every object at rest by default (AES-256, Oracle-managed keys, or a Vault key set on the bucket), and its S3 Compatibility API supports SSE-C only, not `x-amz-server-side-encryption: AES256`. Export files are sealed by People (AES-256-GCM) before they leave the process either way. |
+| uploads on R2 | `AES256` by default | R2 encrypts every object at rest. Its S3 compatibility table lists `x-amz-server-side-encryption` on PutObject as not implemented; if R2 refuses the header, set `PEOPLE_UPLOAD_SSE=none` — nothing is lost, since R2's own encryption is always on. Check this on the first staging upload. |
+| local, AWS S3 | `AES256` | Both honour SSE-S3. |
+
+**Why uploads are not on Oracle.** A browser can only PUT to a bucket whose
+CORS answers the tenant app's preflight, and Oracle Object Storage returns
+fixed CORS headers that cannot be configured (Oracle's Object Storage FAQ:
+"the returned headers are fixed and cannot be edited"). R2 takes a bucket CORS
+policy. Exports never meet a browser — their links point at People
+(`/v1/exports/files/…`) — so Oracle serves them.
+
+#### Uploads on R2
+
+- **Endpoint**: `https://<account id>.r2.cloudflarestorage.com`, region
+  `auto` (`us-east-1` aliases to it). Path-style, which People uses.
+- **Credentials**: an R2 API token with *Object Read & Write* on the one
+  bucket, nothing else.
+- **CORS** — only the tenant app may PUT, only the headers the URL signs, and
+  nothing is exposed (People reads the object itself; the browser needs no
+  ETag). R2 allows one `*` per origin and lets it span labels, so
+  `https://*.app.kithena.com` is every tenant and `https://*.staging.app.kithena.com`
+  every staging tenant. A port cannot be a wildcard, so each local port is
+  listed.
+
+  ```json
+  [
+    {
+      "AllowedOrigins": [
+        "https://*.app.kithena.com",
+        "https://*.staging.app.kithena.com"
+      ],
+      "AllowedMethods": ["PUT"],
+      "AllowedHeaders": ["content-type", "if-none-match", "x-amz-server-side-encryption"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+  ```
+
+  Production and staging are separate buckets, each listing its own origin
+  only. Note that `*.app.kithena.com` also matches `x.staging.app.kithena.com`
+  (the wildcard spans labels), which is why the production bucket must not be
+  shared with staging.
+- **Lifecycle**: delete every object one day after it was written — the
+  backstop for People's hourly sweep. R2 also aborts unfinished multipart
+  uploads after seven days by default; People never starts one.
+- **Setting both**, over the S3 API, from the same variables People reads:
+
+  ```bash
+  PEOPLE_UPLOAD_BUCKET=… PEOPLE_UPLOAD_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com \
+  PEOPLE_UPLOAD_S3_REGION=auto PEOPLE_UPLOAD_S3_ACCESS_KEY_ID=… PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY=… \
+  PEOPLE_UPLOAD_CORS_ORIGINS='https://*.app.kithena.com' \
+    pnpm --filter @kithena/people upload-bucket
+  ```
+
+  It creates the bucket if it is missing and sets the CORS and lifecycle
+  above (`services/people/src/infrastructure/upload-bucket.ts`). The same
+  JSON can be pasted into the R2 dashboard instead. AWS S3 later takes the
+  same call unchanged.
+
+**What the bucket enforces, and what People checks.** The presigned PUT signs
+the key (chosen by People, under the tenant), `content-length` (exactly the
+declared size, at most 100 MB), `content-type: application/octet-stream`,
+`if-none-match: *` (written once) and, unless `PEOPLE_UPLOAD_SSE=none`,
+`x-amz-server-side-encryption: AES256`, for five minutes. It carries no
+checksum: AWS SDK v3 would otherwise presign a CRC32 of an empty body, which
+every real store refuses (`BadDigest`); the client is built with
+`requestChecksumCalculation` and `responseChecksumValidation` at
+`WHEN_REQUIRED`, and a unit test holds it. People then reads the
+object back and checks its size and SHA-256 before anything is parsed, and
+again at the dry run and the commit. PRD §14.2 has the table.
+
+#### Exports on Oracle
+
+- **Endpoint**: `https://<namespace>.compat.objectstorage.<region>.oraclecloud.com`,
+  path-style, with a Customer Secret Key as the access key pair.
+- **`PEOPLE_EXPORT_SSE=none`**: Oracle encrypts at rest by default and does not
+  take the SSE-S3 header (see the table above).
+- **Lifecycle**: none required — People's hourly sweep deletes by age — but an
+  Object Lifecycle policy deleting after 8 days is a sensible backstop (the
+  longest-lived object, an import report, is 7).
+
+#### Locally
+
+`docker compose` runs one SeaweedFS at `http://localhost:9000`; `S3_*` in
+`.env.example` point both stores at it, and `just dev` runs `upload-bucket`
+for `PEOPLE_UPLOAD_BUCKET`, which creates it and sets its CORS
+(`PEOPLE_UPLOAD_CORS_ORIGINS`) and lifecycle. SeaweedFS implements bucket CORS
+and answers the preflight as R2 does — the allowed origin passes, another is
+refused — so the local browser upload is held to the same rule as
+production. Only the S3 API is used.
+
 ## Local
 
 `just dev` brings up the whole compose stack. Tenants resolve at

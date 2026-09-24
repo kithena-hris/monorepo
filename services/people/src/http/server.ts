@@ -51,7 +51,15 @@ import {
 import { egressPolicyFrom, pinnedPoster } from '../infrastructure/webhooks/egress.js';
 import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
 import { listDeliveries, listEndpoints } from '../infrastructure/webhooks/list.js';
-import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from '../application/import/ledger.js';
+import {
+  drizzleImportLedger,
+  drizzleReportIndex,
+  drizzleRowScope,
+  drizzleUploadIntents,
+} from '../application/import/ledger.js';
+import type { UploadStore } from '../application/import/upload.js';
+import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
+import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -59,7 +67,7 @@ import {
   drizzleSchemaRepository,
 } from '../infrastructure/drizzle-schema-repository.js';
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
-import { bodyLimit, screenRoutes, type ScreenRouteDeps } from './screens.js';
+import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { callerWithEntitlements, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
@@ -396,6 +404,7 @@ function send(response: ServerResponse, answer: RestResponse): void {
 function screenDeps(
   service: ReturnType<typeof peopleService>,
   reports: ObjectStore,
+  uploads: UploadStore | null,
 ): ScreenRouteDeps {
   const schema = drizzleSchemaRepository();
   const reader = drizzlePersonReader();
@@ -431,6 +440,34 @@ function screenDeps(
       reports: { store: reports, index: drizzleReportIndex() },
       calendars,
     },
+    // The bucket the browser uploads an import to (§14.2), and who may.
+    uploads: { store: uploads, intents: drizzleUploadIntents() },
+  };
+}
+
+const SWEEP_UPLOADS_EVERY_MS = 60 * 60 * 1000;
+const SWEEP_UPLOADS_LIMIT = 1000;
+
+/**
+ * Uploads nobody committed, deleted once they are a day old: the rows go
+ * when anybody in the tenant next starts an upload, the objects here. Every
+ * replica sweeps; a delete is idempotent. The bucket's lifecycle rule is the
+ * backstop (docs/environments.md).
+ */
+function sweepUploads(store: UploadStore | null): () => void {
+  if (store === null) return () => undefined;
+  const timer = setInterval(() => {
+    store
+      .purge(systemClock.instant(), UPLOAD_LIFETIME_MS, SWEEP_UPLOADS_LIMIT)
+      .then((deleted) => {
+        if (deleted > 0) logger.info({ module: 'people', deleted }, 'expired import uploads deleted');
+      })
+      .catch((cause: unknown) => {
+        logger.error({ module: 'people', err: cause }, 'import upload sweep failed');
+      });
+  }, SWEEP_UPLOADS_EVERY_MS).unref();
+  return () => {
+    clearInterval(timer);
   };
 }
 
@@ -458,6 +495,8 @@ export function wirePeople(server: Server): void {
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
   const exports = wireExports(service);
+  const uploads = uploadStoreFrom(process.env);
+  const stopSweep = sweepUploads(uploads);
   const idempotency = drizzleIdempotency();
   const rest = restHandler({
     service,
@@ -465,13 +504,14 @@ export function wirePeople(server: Server): void {
     idempotency,
     exports,
     fullValues: exports.fullValues,
-    screens: screenRoutes(screenDeps(service, exports.deps.store), idempotency),
+    screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
   configureGraphQL({ service, callerFrom, rest });
   // Requests first, then what they use (PEO-118).
   onShutdown('requests, exports and the service pool', async () => {
     await drain(server);
+    stopSweep();
     await exports.close();
     await service.close();
   });
@@ -501,7 +541,7 @@ export function wirePeople(server: Server): void {
     }
     void (async () => {
       try {
-        const body = await bodyOf(request, bodyLimit(path));
+        const body = await bodyOf(request, BODY_LIMIT);
         if (body === null) {
           send(response, {
             status: 413,

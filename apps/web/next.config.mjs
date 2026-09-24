@@ -29,9 +29,9 @@ const config = {
   },
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],
-    // An import sends its file through a server action (PEO-098), and People
-    // takes a spreadsheet of up to 100 MB (§14.1). The default is 1 MB.
-    serverActions: { bodySizeLimit: '101mb' },
+    // No file passes through a server action: an import's goes from the
+    // browser straight to storage (PRD §14.2), so the 1 MB default stands —
+    // and a Vercel function refuses more than 4.5 MB whatever this says.
   },
 };
 

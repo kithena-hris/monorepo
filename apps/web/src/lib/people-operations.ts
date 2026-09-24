@@ -46,9 +46,9 @@ const STAGE = `
         blocked { row person problem cell }
         findings { row cell label level message }
       }
-      blockedCsv
+      blockedUrl
     }
-    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv reportUrl forReview }
+    ... on ImportDoneStage { step file { name rows sheet } created updated blocked reportUrl forReview }
   }`;
 
 /** A person's doubted identifiers still open (PEO-125). Never the value. */
@@ -435,16 +435,20 @@ export const OPERATIONS = {
     rehirePerson(personId: $personId, startDate: $startDate, overrideReason: $overrideReason, idempotencyKey: $key) { id }
   }`,
 
-  ProposeImport: `mutation ProposeImport($file: Upload!) {
-    proposeImport(file: $file) { ...StageParts }
+  StartImportUpload: `mutation StartImportUpload($name: String!, $size: Int!) {
+    startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  CompleteImportUpload: `mutation CompleteImportUpload($uploadId: ID!) {
+    completeImportUpload(uploadId: $uploadId) { ...StageParts }
   }${STAGE}`,
 
-  DryRunImport: `mutation DryRunImport($file: Upload!, $mapping: [ImportColumnInput!]!) {
-    dryRunImport(file: $file, mapping: $mapping) { ...StageParts }
+  DryRunImport: `mutation DryRunImport($uploadId: ID!, $mapping: [ImportColumnInput!]!) {
+    dryRunImport(uploadId: $uploadId, mapping: $mapping) { ...StageParts }
   }${STAGE}`,
 
-  CommitImport: `mutation CommitImport($file: Upload!, $mapping: [ImportColumnInput!]!, $key: String!) {
-    commitImport(file: $file, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
+  CommitImport: `mutation CommitImport($uploadId: ID!, $mapping: [ImportColumnInput!]!, $key: String!) {
+    commitImport(uploadId: $uploadId, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
   }${STAGE}`,
 
   RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $key: String!) {

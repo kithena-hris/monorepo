@@ -8,6 +8,7 @@ dev:
     docker compose up -d --wait
     pnpm db:migrate
     pnpm db:seed
+    pnpm --filter @kithena/people upload-bucket
     pnpm turbo run dev --parallel
 
 up:

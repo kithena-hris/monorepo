@@ -72,13 +72,12 @@ const hashOf = (name: OperationName): string => {
 };
 
 /**
- * Run one of the shell's operations. `file`, when given, is sent as the
- * multipart request spec's `variables.file` — an import's upload.
+ * Run one of the shell's operations. Always JSON: no file passes through
+ * here — an import's goes from the browser straight to storage (PRD §14.2).
  */
 export async function people<T>(
   name: OperationName,
   variables: Record<string, unknown> = {},
-  file?: File,
 ): Promise<PeopleAnswer<T>> {
   const token = await accessToken();
   if (token === null) return signedOut;
@@ -92,24 +91,15 @@ export async function people<T>(
     variables: keyed ? { ...variables, key: randomUUID() } : variables,
     extensions: { persistedQuery: { version: 1, sha256Hash: hashOf(name) } },
   };
-  let body: string | FormData;
-  if (file === undefined) {
-    body = JSON.stringify(operation);
-  } else {
-    body = new FormData();
-    body.set('operations', JSON.stringify({ ...operation, variables: { ...operation.variables, file: null } }));
-    body.set('map', JSON.stringify({ '0': ['variables.file'] }));
-    body.set('0', file, file.name);
-  }
   try {
     const response = await fetch(`${router}/graphql`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${token}`,
         'graphql-client-name': CLIENT_NAME,
-        ...(typeof body === 'string' ? { 'content-type': 'application/json' } : {}),
+        'content-type': 'application/json',
       },
-      body,
+      body: JSON.stringify(operation),
       cache: 'no-store',
       signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
     });

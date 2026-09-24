@@ -361,6 +361,10 @@ const STATUS: Record<string, number> = {
   // Two imports contended past the retries (PEO-106): nothing was written; upload again.
   IMPORT_CONTENDED: 409,
   ALREADY_IMPORTED: 409,
+  // An import's upload (§14.2): somebody else's is not found, never forbidden.
+  UPLOAD_NOT_FOUND: 404,
+  UPLOAD_EXPIRED: 410,
+  UPLOAD_NOT_COMPLETED: 409,
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
