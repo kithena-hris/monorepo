@@ -101,6 +101,33 @@ describe('a profile update', () => {
   });
 });
 
+describe('a value coming into force on its day (PEO-124)', () => {
+  it('carries what a profile update carries, and refuses a special-category value alike', () => {
+    expect(payloadKeys('people.person.attribute_effective').toSorted()).toEqual(
+      payloadKeys('people.person.profile_updated').toSorted(),
+    );
+    const effective = peopleEvents.find((e) => e.name === 'people.person.attribute_effective');
+    const refused = effective?.payload.safeParse({
+      personId: '00000000-0000-4000-8000-0000000000a1',
+      identityAccountId: null,
+      schemaVersion: 3,
+      changed: [{ ...attribute, classification: 'special-category', value: 'union member' }],
+    });
+    expect(refused?.success).toBe(false);
+  });
+});
+
+describe('a scheduled value refused on its day (PEO-124)', () => {
+  it('names the row, the key and the code, never a value', () => {
+    expect(payloadKeys('people.person.scheduled_change_refused').toSorted()).toEqual([
+      'attributeKey',
+      'historyId',
+      'personId',
+      'reason',
+    ]);
+  });
+});
+
 describe('a schema event', () => {
   const schemaEvents = peopleEvents.filter((e) => e.name.startsWith('people.schema.'));
 

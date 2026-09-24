@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { correct, record, timelineOf, valueAsOf, type HistoryEntry } from './history.js';
+import {
+  arrived,
+  correct,
+  record,
+  scheduled,
+  timelineOf,
+  valueAsOf,
+  type HistoryEntry,
+} from './history.js';
 
 /**
  * A change is a new dated fact. A correction replaces one and never overwrites.
@@ -210,5 +218,109 @@ describe('the timeline a correction produces', () => {
   it('still holds the superseded row for anyone who asks', () => {
     if (!corrected.ok) return;
     expect(corrected.value.map((e: HistoryEntry) => e.id)).toEqual(['h1', 'h2', 'h3']);
+  });
+});
+
+describe('a value dated in the future, when its day comes (PEO-124)', () => {
+  const manager = (over: Partial<HistoryEntry> & { id: string }) =>
+    entry({ attributeKey: 'manager_id', ...over });
+  const standing = manager({
+    id: 'm1',
+    value: 'ada',
+    effectiveFrom: '2026-01-01',
+    recordedAt: '2026-01-01T13:00:00.000Z',
+  });
+  // Recorded on 24 September, in force from 1 October.
+  const pending = manager({
+    id: 'm2',
+    value: 'grace',
+    effectiveFrom: '2026-10-01',
+    recordedAt: '2026-09-24T09:00:00.000Z',
+  });
+  const projection = { manager_id: 'ada' };
+
+  it('is scheduled only when dated after the day it was recorded anywhere on Earth', () => {
+    expect(scheduled(pending)).toBe(true);
+    expect(scheduled(standing)).toBe(false);
+    // 23:00 UTC on the 30th is already the 1st in Auckland and still the
+    // 30th at UTC−12: a row dated the 1st may have been future for somebody.
+    const edge = manager({ id: 'x', effectiveFrom: '2026-10-01', recordedAt: '2026-09-30T23:00:00.000Z' });
+    expect(scheduled(edge)).toBe(true);
+    const late = manager({ id: 'y', effectiveFrom: '2026-09-30', recordedAt: '2026-10-01T13:00:00.000Z' });
+    expect(scheduled(late)).toBe(false);
+  });
+
+  it('has not arrived before its day, and has on it', () => {
+    const history = [standing, pending];
+    expect(arrived(history, ['manager_id'], '2026-09-30', projection)).toEqual([]);
+    expect(arrived(history, ['manager_id'], '2026-10-01', projection).map((e) => e.id)).toEqual([
+      'm2',
+    ]);
+  });
+
+  it('is nothing to do once the projection holds it, so a rerun is a no-op', () => {
+    expect(arrived([standing, pending], ['manager_id'], '2026-10-05', { manager_id: 'grace' })).toEqual(
+      [],
+    );
+  });
+
+  it('brings in the latest in force when several arrived, not each in turn', () => {
+    const later = manager({
+      id: 'm3',
+      value: 'hedy',
+      effectiveFrom: '2026-10-03',
+      recordedAt: '2026-09-25T09:00:00.000Z',
+    });
+    const due = arrived([standing, pending, later], ['manager_id'], '2026-10-05', projection);
+    expect(due.map((e) => e.id)).toEqual(['m3']);
+  });
+
+  it('brings in the correction of a pending value, not the value it corrected', () => {
+    const corrected = correct([standing, pending], {
+      id: 'm2c',
+      supersedes: 'm2',
+      value: 'hedy',
+      recordedAt: '2026-09-26T09:00:00.000Z',
+      actor,
+    });
+    if (!corrected.ok) throw new Error('refused');
+    const due = arrived(corrected.value, ['manager_id'], '2026-10-01', projection);
+    expect(due.map((e) => [e.id, e.value])).toEqual([['m2c', 'hedy']]);
+  });
+
+  it('orders the arrivals by the day each took effect', () => {
+    const office = entry({
+      id: 'o1',
+      attributeKey: 'location_id',
+      value: 'akl',
+      effectiveFrom: '2026-09-28',
+      recordedAt: '2026-09-20T09:00:00.000Z',
+    });
+    const due = arrived(
+      [standing, pending, office],
+      ['manager_id', 'location_id'],
+      '2026-10-02',
+      projection,
+    );
+    expect(due.map((e) => e.id)).toEqual(['o1', 'm2']);
+  });
+
+  it('leaves alone a key it was not asked about, and a value nothing scheduled', () => {
+    expect(arrived([standing, pending], ['cost_centre'], '2026-10-02', projection)).toEqual([]);
+    // In force and written that way: the write projected it already, whatever
+    // the projection says since (a retention job may have cleared it).
+    expect(arrived([standing], ['manager_id'], '2026-10-02', {})).toEqual([]);
+  });
+
+  it('reads an object value as the same whatever order its keys are in', () => {
+    const address = entry({
+      id: 'a1',
+      attributeKey: 'home_address',
+      value: { city: 'Madrid', country: 'ES' },
+      effectiveFrom: '2026-10-01',
+      recordedAt: '2026-09-24T09:00:00.000Z',
+    });
+    const held = { home_address: { country: 'ES', city: 'Madrid' } };
+    expect(arrived([address], ['home_address'], '2026-10-01', held)).toEqual([]);
   });
 });

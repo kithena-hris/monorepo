@@ -19,6 +19,7 @@ import {
 } from '../../domain/access/field-access.js';
 import { assessCompleteness, type CompletenessVerdict } from '../../domain/person/completeness.js';
 import {
+  arrived,
   correct,
   currentValue,
   record,
@@ -51,6 +52,7 @@ import type {
   PersonRecord,
   PersonSearch,
   RelationsResolver,
+  ScheduledRefusals,
   SchemaVersions,
   Secrets,
   Uniques,
@@ -103,6 +105,11 @@ export interface PersonAccessDeps {
    * transaction (PEO-109 × PEO-112). Every wiring with roles passes it.
    */
   readonly roles?: Pick<TenantRoles, 'accessEnded'>;
+  /**
+   * Scheduled values refused on their day (PEO-124). Absent, a refusal fails
+   * the person in `bringIntoForce` instead of being recorded once.
+   */
+  readonly refusals?: ScheduledRefusals;
 }
 
 export interface Asking {
@@ -141,10 +148,11 @@ export interface PersonAccess {
       /** A substring of a name or work email. See `searchable`. */
       readonly search?: string;
       /**
-       * Only people with a gap HR or Finance fills in: the completeness grid
-       * (PEO-122). HR's alone, since who is missing what is itself a read.
+       * Only people missing one of these staff-owned keys: the completeness
+       * grid (PEO-122), which asks for exactly the keys it shows. HR's alone,
+       * since who is missing what is itself a read.
        */
-      readonly gaps?: 'staff';
+      readonly gaps?: readonly string[];
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
   /** How many people `list` would page through for the same `where` and `search`. */
@@ -264,6 +272,16 @@ export interface PersonAccess {
    * cost centre, effective from a date. HR only. See `place` below.
    */
   place(tx: Tx, asking: On<PlacementChange>): Promise<Result<PersonView>>;
+  /**
+   * People's own move, not a viewer's (PEO-124): bring every dated value
+   * whose day has come on the person's calendar into their projection, with
+   * the events a present-dated write raises. The hourly job calls it, one
+   * person a transaction; see `bringIntoForce` below.
+   */
+  bringIntoForce(
+    tx: Tx,
+    on: { readonly tenantId: string; readonly personId: string; readonly correlationId: string },
+  ): Promise<Result<{ readonly day: string; readonly applied: number }>>;
 }
 
 /** A placement, as HR asks for it. An absent field is not changed; null clears it. */
@@ -272,7 +290,7 @@ export interface PlacementChange {
   readonly locationId?: string | null;
   readonly orgUnitId?: string | null;
   readonly costCentre?: string | null;
-  /** On the person's new calendar; today there when absent, never later. */
+  /** On the person's new calendar; today there when absent. A date ahead comes into force on its day (PEO-124). */
   readonly effectiveFrom?: string;
 }
 
@@ -330,6 +348,41 @@ export function filterable(
   return ok(undefined);
 }
 
+/**
+ * Who the viewer is to each of many people: their tenant-wide relations once,
+ * and `reach` once for who they are, manage and have in their chain — not
+ * one resolver round trip per person. A resolver without `reach`, or a reach
+ * that hit its cap, is asked per person for whoever it could not place.
+ */
+export async function relationsToMany(
+  resolver: RelationsResolver,
+  tx: Tx,
+  tenantId: string,
+  viewer: Viewer,
+  personIds: readonly string[],
+): Promise<ReadonlyMap<string, ViewerRelations>> {
+  const out = new Map<string, ViewerRelations>();
+  if (personIds.length === 0) return out;
+  const reach = await resolver.reach?.(tx, tenantId, viewer);
+  const everyone = reach && (await resolver.relations(tx, tenantId, viewer, NOBODY));
+  for (const id of personIds) {
+    const placed =
+      reach !== undefined && (reach.self.has(id) || reach.direct.has(id) || reach.chain.has(id));
+    if (reach === undefined || everyone === undefined || (!reach.complete && !placed)) {
+      // eslint-disable-next-line no-await-in-loop -- the fallback, per person by definition
+      out.set(id, await resolver.relations(tx, tenantId, viewer, id));
+      continue;
+    }
+    out.set(id, {
+      ...everyone,
+      isSelf: reach.self.has(id),
+      isManager: reach.direct.has(id),
+      isInManagerChain: reach.chain.has(id) || reach.direct.has(id),
+    });
+  }
+  return out;
+}
+
 const SEARCHED = ['given_name', 'family_name', 'preferred_name', 'work_email'] as const;
 
 /**
@@ -351,6 +404,25 @@ export function searchable(
     ? err(failure('FIELD_NOT_FILTERABLE', 'You cannot search people by name', ['search']))
     : ok(keys);
 }
+
+/**
+ * A write People makes itself, not somebody asking (PEO-124): the job that
+ * brings a dated value into force renumbers a transfer through `update`,
+ * as the system process, with HR's reach. A symbol, so no transport can put
+ * it on an `Asking` built from a request body.
+ */
+const AS_SYSTEM = Symbol('people.system');
+type SystemAsking = Asking & { readonly [AS_SYSTEM]?: Actor };
+const systemOf = (asking: Asking): Actor | undefined => (asking as SystemAsking)[AS_SYSTEM];
+const SYSTEM_RELATIONS: ViewerRelations = {
+  isSelf: false,
+  isManager: false,
+  isInManagerChain: false,
+  isHr: true,
+  isFinance: false,
+  isAdmin: false,
+};
+const EFFECTIVE_ACTOR: Actor = { kind: 'system', process: 'people-effective' };
 
 const NotPublished = () =>
   failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet');
@@ -391,7 +463,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const zone = personZone(await calendars.load(tx, tenantId), placementOf(values), at);
     return { zone, day: localDate(at, zone) };
   }
-  const actorOf = (viewer: Viewer): Actor => ({ kind: 'user', userId: viewer.accountId });
+  const actorOf = (asking: Asking): Actor =>
+    systemOf(asking) ?? { kind: 'user', userId: asking.viewer.accountId };
 
   /** After a write: the record's completeness, judged again in the same transaction. */
   async function rejudge(
@@ -403,7 +476,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     await deps.completeness?.(tx, {
       tenantId: asking.tenantId,
       personId,
-      actor: actorOf(asking.viewer),
+      actor: actorOf(asking),
       correlationId: asking.correlationId,
       causationId,
     });
@@ -414,7 +487,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return {
       clock: deps.clock,
       newEventId: eventId === undefined ? deps.newId : () => eventId,
-      actor: actorOf(asking.viewer),
+      actor: actorOf(asking),
       correlationId: asking.correlationId,
       causationId: null,
     };
@@ -663,12 +736,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
     if (!person) return err(PersonNotFound());
 
-    const relations = await deps.relations.relations(
-      tx,
-      asking.tenantId,
-      asking.viewer,
-      asking.personId,
-    );
+    const relations =
+      systemOf(asking) === undefined
+        ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
+        : SYSTEM_RELATIONS;
 
     if (asking.effectiveFrom !== undefined && !CALENDAR_DATE.test(asking.effectiveFrom)) {
       return err(failure('VALUE_INVALID', 'effectiveFrom is a calendar date', ['effectiveFrom']));
@@ -779,7 +850,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         value: definition.encrypted ? null : value,
         effectiveFrom: definition.effectiveDated ? effectiveFrom : day,
         recordedAt: deps.clock.instant(),
-        actor: actorOf(asking.viewer),
+        actor: actorOf(asking),
         eventId,
       });
 
@@ -850,6 +921,19 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       renumber =
         placed.value === 'transferred' ||
         (placed.value === 'placed' && text(person.values['legal_entity_id']) !== null);
+    } else if (!projected.has('legal_entity_id') && effectiveFrom > day) {
+      // Scheduled (PEO-124): the transfer happens on its day, when the hourly
+      // job brings the entity in. Refused now if it would be refused now —
+      // somebody on notice is leaving, not moving.
+      const entity = accepted.find(([d]) => d.key === 'legal_entity_id');
+      if (entity !== undefined) {
+        const probe = Person.rehydrate(person.snapshot).place(
+          text(entity[1]),
+          effectiveFrom,
+          text(person.values['legal_entity_id']),
+        );
+        if (!probe.ok) return probe;
+      }
     }
 
     if (tellIdentity && [...projected.keys()].some((k) => IDENTITY_FACT_KEYS.has(k))) {
@@ -890,7 +974,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // the relations that hold after it, not the ones that held before.
     const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
     if (!after) return err(PersonNotFound());
-    const now = await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId);
+    const now =
+      systemOf(asking) === undefined
+        ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
+        : SYSTEM_RELATIONS;
     return ok(await view(tx, asking, after, version, now));
   }
 
@@ -1196,10 +1283,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     },
 
     /**
-     * A page of people, each filtered for this viewer.
-     *
-     * ponytail: one relations lookup per person on the page. Batch it when
-     * OpenFGA's `ListObjects` is wired and a page of 100 is measurably slow.
+     * A page of people, each filtered for this viewer: who the viewer is to
+     * each comes from `relationsToMany`, a handful of questions for the page.
      */
     async list(
       tx: Tx,
@@ -1209,7 +1294,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly asOf?: string;
         readonly where?: Readonly<Record<string, string>>;
         readonly search?: string;
-        readonly gaps?: 'staff';
+        readonly gaps?: readonly string[];
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
@@ -1229,14 +1314,17 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         query.value.search,
         asking.gaps,
       );
+      const related = await relationsToMany(
+        deps.relations,
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        rows.map((r) => r.snapshot.id),
+      );
       const items: PersonView[] = [];
       for (const row of rows) {
-        const relations = await deps.relations.relations(
-          tx,
-          asking.tenantId,
-          asking.viewer,
-          row.snapshot.id,
-        );
+        const relations = related.get(row.snapshot.id);
+        if (relations === undefined) continue;
         items.push(await view(tx, asking, row, version, relations, asking.asOf));
       }
       const next = rows.length === asking.limit ? (rows.at(-1)?.snapshot.id ?? null) : null;
@@ -1391,7 +1479,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         supersedes: asking.supersedes,
         value: valid.value,
         recordedAt: deps.clock.instant(),
-        actor: actorOf(asking.viewer),
+        actor: actorOf(asking),
         eventId,
       });
       if (!corrected.ok) return corrected;
@@ -1433,6 +1521,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         if (!moved.ok) return moved;
       } else if (moves) {
         project(fields, custom, definition.key, valid.value);
+        // A reporting line corrected is one OpenFGA has to hear about too.
+        if (definition.key === 'manager_id') {
+          aggregate.moveManager(
+            textOf(person.values['manager_id']),
+            textOf(valid.value),
+            { ...contextFor(asking, deps.newId()), causationId: eventId },
+            target.effectiveFrom,
+          );
+        }
         // Where somebody sat, corrected: the org moves as it would have, from
         // the date it did, and a legal entity re-places the period (PEO-123).
         if (ORG_KEYS.includes(definition.key)) {
@@ -1596,10 +1693,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
      * entity with it, and an entity change leaves no location of the old one
      * behind. Archived entities and locations still decide their people's
      * day, and take nobody new. The date is on the calendar the move takes
-     * them to, never later than today there: nothing yet brings a future-dated
-     * value into force on its day, so a future placement would never move
-     * their calendar. A retry that asks for where they already are is
-     * answered with the record.
+     * them to, today there by default. A date ahead is recorded now and
+     * comes into force on its day (PEO-124): the hourly job moves the
+     * projection, their calendar and, for a new entity, the employment
+     * period then. A retry that asks for where they already are — or, ahead,
+     * for what is already scheduled that day — is answered with the record.
      *
      * **A second placement dated the same day as the one standing is a
      * correction**: a row carrying `supersedes` and `attribute_corrected`, as
@@ -1677,23 +1775,17 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         if (location !== undefined && location.legalEntityId !== entity) asked['location_id'] = null;
       }
 
+      const history = await deps.people.history(tx, asking.tenantId, asking.personId);
+      const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...asked });
+      const effectiveFrom = asking.effectiveFrom ?? day;
+      // What stands on the date asked for: today, the row; ahead, whatever is
+      // already scheduled for that day (PEO-124), so a retry is a no-op there too.
+      const standingOn = (key: string) =>
+        effectiveFrom > day ? textOf(valueAsOf(history, key, effectiveFrom)?.value) : current(key);
       const changes = Object.fromEntries(
-        Object.entries(asked).filter(([key, value]) => value !== current(key)),
+        Object.entries(asked).filter(([key, value]) => value !== standingOn(key)),
       );
       if (Object.keys(changes).length > 0) {
-        const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...changes });
-        const effectiveFrom = asking.effectiveFrom ?? day;
-        if (effectiveFrom > day) {
-          return err(
-            failure(
-              'PLACEMENT_IN_FUTURE',
-              `A placement takes effect on ${day} or earlier, on the calendar it moves them to`,
-              ['effectiveFrom'],
-            ),
-          );
-        }
-
-        const history = await deps.people.history(tx, asking.tenantId, asking.personId);
         const moves: Record<string, unknown> = {};
         const corrections: { supersedes: string; value: unknown }[] = [];
         for (const [key, value] of Object.entries(changes)) {
@@ -1722,6 +1814,170 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!after) return err(PersonNotFound());
       return ok(await view(tx, asking, after, version, relations));
+    },
+
+    /**
+     * Dated values whose day has come, brought into the projection (PEO-124,
+     * §8.5, §11.2: history is the truth, the row a projection of it).
+     *
+     * `arrived` names them: for each dated key with a row scheduled ahead and
+     * now in force, the value in force today — the latest, a correction in
+     * place of what it corrected — where the row does not hold it already.
+     * Judged on the calendar they take the person to, as a write is. Then
+     * what a present-dated write does, a date at a time, earliest first,
+     * each event effective from its own day: `attribute_effective` for the
+     * keys, `manager_changed` (OpenFGA's consumer rewrites the reporting
+     * tuple from it and the row), `org_changed` and the transfer for a new
+     * legal entity (PEO-123), identity's facts; one save, one completeness
+     * re-judge, and a transfer's new number as a second write, dated the
+     * same. The person's calendar and every read follow the row.
+     *
+     * Nothing arrived is `applied: 0` and writes nothing, so a rerun is a
+     * no-op. A move the domain refuses on the day — a transfer for somebody
+     * who has since given notice — is recorded once against its rows
+     * (`refusals`), raises `scheduled_change_refused` once, and the person
+     * is brought up to date without it; the rows are never tried again, and
+     * HR's grid asks for a correction until one is recorded.
+     */
+    async bringIntoForce(tx, on) {
+      const { tenantId, personId, correlationId } = on;
+      const version = await deps.schemas.current(tx, tenantId);
+      const person = await deps.reader.record(tx, tenantId, personId, true);
+      const today = async (values: Readonly<Record<string, unknown>>) =>
+        (await calendarOf(tx, tenantId, values)).day;
+      if (!version || !person) return ok({ day: await today({}), applied: 0 });
+      const status = person.snapshot.status;
+      if (status === 'terminated' || status === 'discarded') {
+        return ok({ day: await today(person.values), applied: 0 });
+      }
+
+      const definitions = version.document.attributes;
+      const keys = definitions
+        .filter((d) => d.effectiveDated && !d.encrypted && !LIFECYCLE_KEYS.has(d.key))
+        .map((d) => d.key as string);
+      const all = await deps.people.history(tx, tenantId, personId);
+      const refused = new Set(
+        (await deps.refusals?.refused(tx, tenantId, personId)) ?? [],
+      );
+      const asking: SystemAsking = {
+        tenantId,
+        viewer: { accountId: NOBODY, roles: new Set() },
+        correlationId,
+        [AS_SYSTEM]: EFFECTIVE_ACTOR,
+      };
+      // At most one pass per refused row, and one to finish.
+      attempt: for (;;) {
+        const history = all.filter((e) => !refused.has(e.id));
+        const here = arrived(history, keys, await today(person.values), person.values);
+        const day = await today({
+          ...person.values,
+          ...Object.fromEntries(here.map((e) => [e.attributeKey, e.value])),
+        });
+        const due = arrived(history, keys, day, person.values);
+        if (due.length === 0) return ok({ day, applied: 0 });
+
+        const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+        const aggregate = Person.rehydrate(person.snapshot);
+        const custom = new Map(Object.entries(person.custom));
+        const fields: Record<string, unknown> = {};
+        let values: Record<string, unknown> = { ...person.values };
+        let renumberInto: { entity: string | null; on: string } | null = null;
+
+        for (const date of new Set(due.map((e) => e.effectiveFrom))) {
+          const group = due.filter((e) => e.effectiveFrom === date);
+          const before = values;
+          values = { ...values };
+          const changed = [];
+          for (const entry of group) {
+            const definition = byKey.get(entry.attributeKey);
+            if (!definition) continue;
+            project(fields, custom, entry.attributeKey, entry.value);
+            values[entry.attributeKey] = entry.value;
+            changed.push(changedAttribute(definition, entry.value));
+          }
+          const raised = aggregate.attributesInForce(changed, version.version, contextFor(asking), date);
+          if (!raised.ok) return raised;
+
+          const moved = (key: string) => group.some((e) => e.attributeKey === key);
+          if (moved('manager_id')) {
+            aggregate.moveManager(
+              textOf(before['manager_id']),
+              textOf(values['manager_id']),
+              contextFor(asking),
+              date,
+            );
+          }
+          if (moved('legal_entity_id')) {
+            const placed = aggregate.place(
+              textOf(values['legal_entity_id']),
+              date,
+              textOf(before['legal_entity_id']),
+            );
+            if (!placed.ok) {
+              // Refused on its day (§8.5): recorded once, told once, and the
+              // person tried again without it — never an hourly failure.
+              const refusedHere = group.filter(
+                (e) => e.attributeKey === 'legal_entity_id' || e.attributeKey === 'location_id',
+              );
+              if (deps.refusals === undefined) return placed;
+              const told = Person.rehydrate(person.snapshot);
+              for (const entry of refusedHere) {
+                const first = await deps.refusals.record(tx, tenantId, {
+                  historyId: entry.id,
+                  personId,
+                  attributeKey: entry.attributeKey,
+                  reason: placed.error.code,
+                  refusedAt: deps.clock.instant(),
+                });
+                if (first) {
+                  told.refuseScheduled(
+                    { historyId: entry.id, attributeKey: entry.attributeKey, code: placed.error.code },
+                    contextFor(asking),
+                    date,
+                  );
+                }
+                refused.add(entry.id);
+              }
+              await deps.people.save(tx, told);
+              continue attempt;
+            }
+            if (
+              placed.value === 'transferred' ||
+              (placed.value === 'placed' && textOf(before['legal_entity_id']) !== null)
+            ) {
+              renumberInto = { entity: textOf(values['legal_entity_id']), on: date };
+            }
+          }
+          if (ORG_KEYS.some(moved)) aggregate.moveOrg(orgOf(values), contextFor(asking), date);
+          if ([...IDENTITY_FACT_KEYS].some(moved)) shareIdentityFacts(aggregate, asking, values, date);
+        }
+
+        await deps.people.save(tx, aggregate, {
+          fields: {
+            ...(fields as PersonFields),
+            custom: Object.fromEntries(custom),
+            schemaVersion: version.version,
+          },
+        });
+        await rejudge(tx, asking, personId, null);
+
+        // Moved to another entity: its number, when its scheme would not
+        // write the one they hold, dated the day they moved (PEO-123).
+        const next =
+          renumberInto === null
+            ? null
+            : await renumbered(tx, tenantId, version, renumberInto.entity, values['employee_number']);
+        if (next !== null && renumberInto !== null) {
+          const written = await update(tx, {
+            ...asking,
+            personId,
+            changes: { employee_number: next },
+            effectiveFrom: renumberInto.on,
+          });
+          if (!written.ok) return written;
+        }
+        return ok({ day, applied: due.length });
+      }
     },
   };
   return api;
