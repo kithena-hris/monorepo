@@ -717,11 +717,19 @@ describe('PEO-121: the webhook delivery log', () => {
     expect(made.status).toBe(201);
     const endpointId = (made.body as { id: string }).id;
     // A delivery that failed for good: what 24 hours of refusals leave behind.
+    // A hire's envelope, which every allowlist lets through, so the replay is
+    // sent rather than skipped.
+    const eventId = '00000000-0000-4000-8000-0000000121e0';
+    const envelope = stack.sql.json({
+      eventId,
+      eventName: 'people.person.hired',
+      payload: { personId: ADMIN.person, name: null },
+    });
     await stack.sql`
       INSERT INTO people.webhook_delivery
              (tenant_id, endpoint_id, event_id, event_name, aggregate_id, envelope, status, attempts, last_response)
-      VALUES (${TENANT}, ${endpointId}, gen_random_uuid(), 'people.person.hired', ${ADMIN.person},
-              '{}'::jsonb, 'failed', 12, 500)`;
+      VALUES (${TENANT}, ${endpointId}, ${eventId}, 'people.person.hired', ${ADMIN.person},
+              ${envelope}, 'failed', 12, 500)`;
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
@@ -750,6 +758,7 @@ describe('PEO-121: the webhook delivery log', () => {
       })
       .toBe(1);
     const [sent] = stack.receiver.received.filter((r) => r.path === '/kithena-acceptance');
+    expect(sent?.headers['kithena-event-id']).toBe(eventId);
     expect(sent?.headers['kithena-signature']).toBeTruthy();
     await context.close();
   });

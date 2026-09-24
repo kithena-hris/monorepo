@@ -883,7 +883,12 @@ check-strict` passes on the generated code.
   The web acceptance suite is a CI job too (`web acceptance`, gated by the
   `changes` job), and hermetic: its webhook test posts to the harness's own
   HTTPS receiver on loopback, which People accepts only off production
-  (`egressPolicyFrom`, `PEOPLE_WEBHOOKS_ALLOW_LOOPBACK`)._
+  (`egressPolicyFrom`, `PEOPLE_WEBHOOKS_ALLOW_LOOPBACK`). The receiver found a
+  real fault: a screen's keyed write kicked the delivery pass from inside
+  `sharing`, so the pass inherited the request's transaction through
+  AsyncLocalStorage, hung once it committed, and held the tenant's `running`
+  flag — no webhook went out again until a restart. The kick now waits for the
+  outermost unit (`insideSharedUnit`)._
 
 ---
 

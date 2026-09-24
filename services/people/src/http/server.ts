@@ -40,7 +40,7 @@ import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
-import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { insideSharedUnit, tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import {
   NO_TENANT_APP_BASE,
@@ -221,7 +221,13 @@ export function peopleService(
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
-      kick(tenantId);
+      // Not from inside `sharing` (a screen's keyed write): nothing has
+      // committed yet, and a pass started there inherits the request's
+      // transaction through AsyncLocalStorage, runs its queries as savepoints
+      // on it, and hangs once it commits — holding `running` for the tenant,
+      // so no delivery went out again until a restart. The outermost unit,
+      // which is outside, kicks after its commit (found in PEO-060).
+      if (!insideSharedUnit()) kick(tenantId);
       return result;
     },
     webhooks: hooks,
