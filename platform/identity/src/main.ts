@@ -24,7 +24,7 @@ import { compose } from './composition.js';
  */
 startTelemetry('kithena-identity');
 
-const PORT = 4100;
+const PORT = Number(process.env['IDENTITY_PORT'] ?? 4100);
 
 function required(name: string): string {
   const value = process.env[name];
@@ -115,6 +115,19 @@ const routes = await compose({
     : {}),
   // What a company with no modules recorded holds (PEO-114): a default only.
   defaultEntitlements: deploymentEntitlements(process.env['KITHENA_ENTITLEMENTS']),
+  // Access tokens for the router (PEO-113): rotation keys, issuer, audience.
+  ...(process.env['AUTH_VERIFICATION_KEYS']
+    ? {
+        verificationKeys: JSON.parse(process.env['AUTH_VERIFICATION_KEYS']) as Record<
+          string,
+          unknown
+        >[],
+      }
+    : {}),
+  ...(process.env['AUTH_ISSUER'] ? { tokenIssuer: process.env['AUTH_ISSUER'] } : {}),
+  ...(process.env['AUTH_TOKEN_AUDIENCE']
+    ? { tokenAudience: process.env['AUTH_TOKEN_AUDIENCE'] }
+    : {}),
 });
 
 const server = createServer((request, response) => {

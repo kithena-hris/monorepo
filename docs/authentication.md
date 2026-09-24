@@ -800,6 +800,31 @@ signatures and never call identity. Revocation latency is bounded by the TTL, an
 for the cases where 120 seconds is too long (termination, session revocation) the
 router additionally consults a revocation set in Valkey.
 
+**As built (PEO-113).** The token is issued by identity, not minted by the
+app: `POST /api/internal/session/token { sessionId, tenantId }`, behind the
+internal token, answers `{ accessToken, tokenType: 'Bearer', expiresAt }` for a
+live session on the tenant it was presented to and 401 otherwise. It is
+server to server; a browser never holds one. The claims are `iss`
+(`AUTH_ISSUER`), `aud` (`AUTH_TOKEN_AUDIENCE`, default `kithena-router`),
+`sub` (the account), `tid`, `amr`, `auth_time`, `ent` (the company's modules,
+PEO-114), `iat` and `exp`, five minutes after issue — ES256, `typ: at+jwt`,
+`kid` the key's thumbprint. The router checks signature, expiry and audience
+(`apps/gateway/config.yaml`) and refuses everything else with 401.
+
+**Rotating the signing key.** `AUTH_SIGNING_KEY` signs; `AUTH_VERIFICATION_KEYS`
+(a JSON array of JWKs) is published beside it and never signs, and only the
+public halves are ever served. To rotate: (1) add the new key to
+`AUTH_VERIFICATION_KEYS` and deploy, so every verifier has it; (2) make it
+`AUTH_SIGNING_KEY` and move the old one into `AUTH_VERIFICATION_KEYS`; (3)
+after the token lifetime plus the router's JWKS refresh (five minutes each),
+drop the old one. The router refetches the JWKS as soon as it meets an
+unknown `kid`, rate-limited, so step 1 is a courtesy rather than a
+requirement — but skipping it turns a missed refetch into refused requests.
+`router.integration.test.ts` in People proves a token from the retired key
+still passes while it is published.
+
+The Valkey revocation set is not built; the five-minute lifetime is the bound.
+
 ### The four-session cap, enforced by a constraint
 
 `CLAUDE.md`: where a race is possible, the invariant is also enforced by a

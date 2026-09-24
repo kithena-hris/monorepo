@@ -34,6 +34,16 @@ const SESSION = '/api/internal/session';
 /** Ending a session on purpose, rather than waiting for it to lapse. */
 const REVOKE = '/api/internal/session/revoke';
 
+/**
+ * An access token for the signed-in session (PEO-113): what the tenant app's
+ * server presents to the Cosmo Router, which verifies it against this
+ * service's JWKS. Server to server only, behind the internal token, and for
+ * the session the cookie names on the tenant it was presented to — a browser
+ * never holds one. Short-lived, because a bearer token cannot be recalled:
+ * the session row is the credential that can be.
+ */
+const TOKEN = '/api/internal/session/token';
+
 const HANDOFF_ISSUE = '/api/internal/handoff/issue';
 const HANDOFF_REDEEM = '/api/internal/handoff/redeem';
 
@@ -67,6 +77,13 @@ export interface SessionRoutesDeps {
   readonly issueHandoff: IssueHandoff;
   readonly redeemHandoff: RedeemHandoff;
   readonly revoke: RevokeSession;
+  /** Sign an access token for an authenticated session (PEO-113). */
+  readonly issueAccessToken: (session: {
+    readonly accountId: string;
+    readonly tenantId: string;
+    readonly authenticatedAt: string;
+    readonly amr: readonly string[];
+  }) => Promise<{ readonly token: string; readonly expiresAt: string }>;
 }
 
 export function sessionRoutes({
@@ -77,11 +94,12 @@ export function sessionRoutes({
   issueHandoff,
   redeemHandoff,
   revoke,
+  issueAccessToken,
 }: SessionRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const path = (request.url ?? '').split('?')[0] ?? '';
     const handoff = path === HANDOFF_ISSUE || path === HANDOFF_REDEEM;
-    if (path !== SESSION && path !== REVOKE && !handoff) return false;
+    if (path !== SESSION && path !== REVOKE && path !== TOKEN && !handoff) return false;
 
     if (request.method !== 'POST') {
       response.writeHead(405, { allow: 'POST' }).end();
@@ -145,6 +163,22 @@ export function sessionRoutes({
     if (sessionId === '' || tenantId === '') return json(400, {});
 
     const session = await authenticate(tenantId, sessionId);
+
+    if (path === TOKEN) {
+      if (!session.ok) return json(401, {});
+      const issued = await issueAccessToken({
+        accountId: session.value.accountId,
+        tenantId,
+        authenticatedAt: session.value.authenticatedAt,
+        amr: session.value.amr,
+      });
+      return json(200, {
+        accessToken: issued.token,
+        tokenType: 'Bearer',
+        expiresAt: issued.expiresAt,
+      });
+    }
+
     // 401 and nothing else. Expired, revoked, never existed, and belonging to
     // another company are one answer here: the caller renders a sign-in page
     // for all four, and the differences are only useful to somebody probing.

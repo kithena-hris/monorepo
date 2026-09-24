@@ -1734,6 +1734,19 @@ only beside the second. `apps/gateway/config.yaml` holds the rules, and
 real router in front of the real subgraph: a verified token reads, no token
 and a foreign token are refused, and a principal a client sends is overwritten.
 
+**The token is identity's (PEO-113).** Identity issues a server a
+five-minute access token for a signed-in session —
+`POST /api/internal/session/token`, behind the internal token, never to a
+browser — for the audience `AUTH_TOKEN_AUDIENCE`, carrying `sub`, `tid`,
+`amr` and the company's modules as `ent`. The router checks its signature
+against identity's JWKS, its expiry and its audience, and refetches the JWKS
+on an unknown `kid`, which is what makes key rotation
+(`AUTH_VERIFICATION_KEYS`) a publish-then-switch. `router.integration.test.ts`
+runs identity itself beside the router: a token identity issued reads; an
+expired one, one for another audience and one from a key identity never
+published are refused; one from the key identity rotated away from still
+passes; and People refuses the token presented to it directly.
+
 **Entitlements are per company (PEO-114).** The back office records which
 modules a company bought on `platform.tenant.entitlements` and raises
 `identity.tenant.entitlements_changed` with the whole list; People keeps a copy
@@ -1874,9 +1887,27 @@ towards more protection.
 server sends the internal token beside a principal it builds itself: the
 account from the session identity verified on this request, and the tenant
 from the host. It sends no roles, because People reads roles from OpenFGA.
-This is the same trust the router holds (§13.1), and it exists because nothing
-mints a token for the tenant app yet. When something does, one file in the
-shell changes.
+This is the same trust the router holds (§13.1).
+
+A token for the shell exists now (PEO-113, §13.1), and the router accepts it.
+What does not exist is a way for the shell's calls to reach People *through*
+the router: the Cosmo Router serves GraphQL only, and every call the shell
+makes is REST — `/v1/views/*`, the draft and publishing writes, imports of up
+to 100 MB (the router's body limit is 5 MB), exports, roles. Removing the
+direct path therefore needs one of two decisions, and neither is small:
+
+- **GraphQL for the screens.** Typed Pothos objects for each view model the
+  remote draws (some sixty types today), mutations for every write, and file
+  uploads through the router's multipart support with a larger limit — the
+  shell then calls `/graphql` with the token and holds no internal token.
+- **An authenticating edge for REST.** A proxy in front of People's `/v1/*`
+  that verifies identity's token as the router does and sets the same two
+  headers, or People verifying the token itself as a resource server — which
+  reverses §13.1's "the subgraphs never parse a JWT".
+
+The first is the one being built, on top of the token and router work, in
+its own change; until it lands the shell keeps the direct path, and PEO-113
+is open.
 
 **The screens render on the server (PEO-094).** Module Federation cannot do
 this inside the Next App Router: `@module-federation/nextjs-mf` never supported

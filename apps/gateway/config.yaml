@@ -17,12 +17,28 @@ persisted_operations:
 # A token minted by identity (ES256, `docs/authentication.md` "Sessions") is
 # checked against identity's published keys, and a request without one is
 # refused before any subgraph sees it. The subgraphs never parse a JWT.
+#
+# The audience is checked too (PEO-113): identity issues the tenant app's
+# server a five-minute access token for `AUTH_TOKEN_AUDIENCE` — the same value
+# identity signs with — and a token minted for anything else is refused here.
+#
+# Key rotation is the JWKS's: identity publishes the next key before it signs
+# with it and keeps the previous one until its tokens have expired
+# (`AUTH_VERIFICATION_KEYS`). A `kid` the router has not seen makes it refetch
+# the JWKS at once rather than wait for the five-minute refresh, rate-limited
+# so a stream of forged `kid`s cannot turn it into a load generator.
 authentication:
   jwt:
     jwks:
       - url: '${AUTH_JWKS_URL}'
         refresh_interval: 5m
         algorithms: ['ES256']
+        audiences: ['${AUTH_TOKEN_AUDIENCE}']
+        refresh_unknown_kid:
+          enabled: true
+          max_wait: 30s
+          interval: 10s
+          burst: 2
     header_name: Authorization
     header_value_prefix: Bearer
 

@@ -47,6 +47,8 @@ import { drizzleTenantRepository } from './tenancy/infrastructure/drizzle-tenant
 import { tenantRoutes } from './tenancy/http/tenant-routes.js';
 import { jwksRoute } from './token/http/jwks-route.js';
 import { developmentKey, joseSigner } from './token/infrastructure/jose-signer.js';
+import { mintToken } from './token/application/mint-token.js';
+import { principalFrom } from './token/domain/principal.js';
 import { uuidv7 } from './shared/uuid.js';
 import { operatorSignIn } from './operator/application/operator-sign-in.js';
 import { drizzleOperatorRepository } from './operator/infrastructure/drizzle-operator-repository.js';
@@ -66,6 +68,10 @@ import {
 import { effectiveEntitlements } from './tenancy/domain/entitlements.js';
 
 const platformOutbox = outboxTable('platform');
+
+/** The router's audience unless configured; `apps/gateway/config.yaml` defaults to it too. */
+export const ACCESS_TOKEN_AUDIENCE = 'kithena-router';
+const ACCESS_TOKEN_SECONDS = 5 * 60;
 
 /**
  * Where the slices are joined.
@@ -155,6 +161,20 @@ export interface Config {
    * the back office recorded a list for has that list.
    */
   readonly defaultEntitlements?: readonly ModuleEntitlement[] | undefined;
+  /**
+   * Public keys published in the JWKS beside the signing key and never used to
+   * sign (PEO-113): the next key before the switch, the previous one until
+   * its tokens have expired. `AUTH_VERIFICATION_KEYS`, a JSON array of JWKs;
+   * only their public halves are ever served.
+   */
+  readonly verificationKeys?: readonly Record<string, unknown>[] | undefined;
+  /** `iss` on an access token. `AUTH_ISSUER`; the auth origin when unset. */
+  readonly tokenIssuer?: string | undefined;
+  /**
+   * `aud` on an access token: the Cosmo Router, which refuses any other.
+   * `AUTH_TOKEN_AUDIENCE`, the same value in `apps/gateway/config.yaml`.
+   */
+  readonly tokenAudience?: string | undefined;
 }
 
 export type RequestHandler = (
@@ -374,7 +394,20 @@ export async function compose(config: Config): Promise<RequestHandler> {
 
   const signer = await joseSigner(
     signingKey === undefined ? await developmentKey() : (JSON.parse(signingKey) as never),
+    config.verificationKeys ?? [],
   );
+  /*
+   * Access tokens for the router (PEO-113). Five minutes: the tenant app asks
+   * for one per request it forwards, so nothing is gained by a longer life and
+   * a leaked one is worth five minutes to whoever has it.
+   */
+  const mintAccess = mintToken({
+    signer,
+    clock: systemClock,
+    issuer: config.tokenIssuer ?? config.authOrigin,
+    audience: config.tokenAudience ?? ACCESS_TOKEN_AUDIENCE,
+    lifetimeSeconds: ACCESS_TOKEN_SECONDS,
+  });
 
   const relyingParty = simpleWebAuthnRelyingParty({ rpId: config.rpId, rpName: 'Kithena' });
   // Postgres rather than Valkey. The Valkey machine had no services declared,
@@ -559,6 +592,15 @@ export async function compose(config: Config): Promise<RequestHandler> {
   const sessions = sessionRoutes({
     internalToken: config.internalToken,
     entitlementsOf,
+    issueAccessToken: async (session) => {
+      const token = await mintAccess(principalFrom(session), {
+        entitlements: await entitlementsOf(session.tenantId),
+      });
+      return {
+        token,
+        expiresAt: new Date(systemClock.now().getTime() + ACCESS_TOKEN_SECONDS * 1000).toISOString(),
+      };
+    },
     issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
     redeemHandoff: redeemHandoff({ store: handoffStore, clock: systemClock }),
     authenticate: authenticate({
