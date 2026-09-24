@@ -2422,6 +2422,7 @@ What storage enforces, and what People verifies, are deliberately two lists:
 | `Content-Length` exactly the declared size — S3 has no length range on a presigned PUT and R2 no POST policy, so the length is pinned | The object exists and is exactly the declared size; a read stops one byte past it |
 | `Content-Type: application/octet-stream`, whatever the file claims                | The SHA-256 of what was stored, and that it has not changed since |
 | `If-None-Match: *`: the key is written once; a second PUT is refused (412)         | What the file *is*, from its bytes, exactly as before: the ZIP signature, the zip-bomb check, encoding and delimiter detection, 50,000 rows |
+| SSE-S3 where the store takes it (`PEOPLE_UPLOAD_SSE`), and no checksum header — the SDK’s default would be a CRC32 of an empty body | |
 | Five minutes                                                                       | 100 MB, and not empty, before any URL is signed                 |
 | The bucket's CORS: `PUT` from the tenant app's origins, and nothing else          |                                                                  |
 

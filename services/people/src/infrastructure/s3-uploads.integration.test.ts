@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 
-import { CreateBucketCommand } from '@aws-sdk/client-s3';
+import { CreateBucketCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
@@ -37,6 +37,7 @@ let serviceClient: ReturnType<typeof postgres>;
 let asService: PostgresJsDatabase;
 let store: ReturnType<typeof s3Uploads>;
 let endpoint = '';
+let credentials = { accessKeyId: '', secretAccessKey: '' };
 
 let now = Date.parse('2026-09-24T10:00:00.000Z');
 const clock: Clock = { instant: () => new Date(now).toISOString() } as Clock;
@@ -56,6 +57,7 @@ beforeAll(async () => {
   const [m, pg] = await Promise.all([startMinio(), startPostgres()]);
   stops.push(m.stop, pg.stop);
   endpoint = m.endpoint;
+  credentials = { accessKeyId: m.accessKeyId, secretAccessKey: m.secretAccessKey };
   store = s3Uploads({
     endpoint: m.endpoint,
     region: 'us-east-1',
@@ -119,6 +121,11 @@ describe('an import upload, browser to bucket', () => {
 
     const again = await readUpload(deps(), inTx(ACME), { tenantId: ACME, actorId: PRIYA }, put.uploadId);
     expect(again.ok && again.value.intent.checksum).toBe(done.value.intent.checksum);
+    // SSE-S3 was signed in, so the browser's PUT asked for it (the default).
+    const head = await store.client.send(
+      new HeadObjectCommand({ Bucket: 'uploads', Key: `${ACME}/import/${put.uploadId}` }),
+    );
+    expect(head.ServerSideEncryption).toBe('AES256');
   });
 
   it('refuses at the bucket a length, a type or a key other than the signed ones', async () => {
@@ -193,5 +200,22 @@ describe('an import upload, browser to bucket', () => {
     expect(tenant.headers.get('access-control-allow-origin')).toBe('https://acme.app.kithena.com');
     const stranger = await preflight('https://evil.example');
     expect(stranger.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('uploads without the SSE header when the store is set to none', async () => {
+    const plain = s3Uploads({
+      endpoint,
+      region: 'us-east-1',
+      bucket: 'uploads',
+      ...credentials,
+      sse: 'none',
+    });
+    const bytes = randomBytes(64);
+    const key = `${ACME}/import/00000000-0000-4000-8000-00000000ffff`;
+    const put = await plain.presignPut(key, bytes.byteLength, 300);
+    expect(put.headers).not.toHaveProperty('x-amz-server-side-encryption');
+    expect((await send(put, bytes)).status).toBe(200);
+    const head = await plain.client.send(new HeadObjectCommand({ Bucket: 'uploads', Key: key }));
+    expect(head.ServerSideEncryption).toBeUndefined();
   });
 });

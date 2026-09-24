@@ -15,7 +15,7 @@ import {
  *
  * **CORS.** The browser PUTs straight to the bucket (PRD §14.2), so the
  * bucket has to answer the tenant app's preflight — and only the tenant
- * app's: `PUT` from the app origins, the three headers the presigned URL
+ * app's: `PUT` from the app origins, the headers the presigned URL
  * signs, nothing exposed (People reads the object itself; the browser needs
  * no ETag). R2 takes one `*` per origin and lets it span labels, so
  * `https://*.app.kithena.com` covers every tenant.
@@ -25,7 +25,12 @@ import {
  * backstop for a sweep that never ran. A day is the shortest rule S3 offers.
  */
 
-export const UPLOAD_CORS_HEADERS = ['content-type', 'if-none-match'] as const;
+/** What the presigned PUT signs, and so what the browser sends. */
+export const UPLOAD_CORS_HEADERS = [
+  'content-type',
+  'if-none-match',
+  'x-amz-server-side-encryption',
+] as const;
 
 export function uploadCors(origins: readonly string[]): CORSRule[] {
   return [

@@ -114,7 +114,7 @@ beforeAll(async () => {
     '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',
     '20260924250000_people_import_report.sql',
-    '20260924350000_people_import_upload.sql',
+    '20260924360000_people_import_upload.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
   ]) {

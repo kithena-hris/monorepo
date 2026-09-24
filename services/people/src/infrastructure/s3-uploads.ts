@@ -39,11 +39,14 @@ import { s3ConfigFrom, type S3Config } from './s3-blobs.js';
  * SHA-256 — streamed as it is read — is the one pinned when it completed.
  * What the file is, is decided by `parseUpload`, from the bytes.
  *
- * No server-side encryption header: R2 encrypts every object at rest and
- * refuses the SSE-S3 header, and a browser cannot hold an application key.
+ * With `PEOPLE_UPLOAD_SSE=AES256` (the default) `x-amz-server-side-encryption`
+ * is signed in too, so the browser must ask for SSE-S3; `none` leaves it out
+ * for a provider that encrypts at rest on its own and refuses the header. A
+ * browser cannot hold an application key, so nothing here is sealed by People.
  */
 
 const CONTENT_TYPE = 'application/octet-stream';
+const SSE_HEADER = 'x-amz-server-side-encryption';
 const MAX_PAGES = 10;
 
 export function s3Uploads(config: S3Config): UploadStore & { readonly client: S3Client } {
@@ -52,10 +55,14 @@ export function s3Uploads(config: S3Config): UploadStore & { readonly client: S3
     ...(config.endpoint ? { endpoint: config.endpoint } : {}),
     forcePathStyle: config.forcePathStyle ?? true,
     credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
-    // A checksum the SDK would add is a header the browser does not send.
+    // Otherwise SDK v3 presigns a PUT with `x-amz-checksum-crc32` of an EMPTY
+    // body, and S3, R2 and SeaweedFS refuse the browser's real body with
+    // BadDigest. Checksums only where an operation requires one.
     requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
   const Bucket = config.bucket;
+  const sse = config.sse !== 'none';
 
   return {
     client,
@@ -67,13 +74,15 @@ export function s3Uploads(config: S3Config): UploadStore & { readonly client: S3
         ContentLength: size,
         ContentType: CONTENT_TYPE,
         IfNoneMatch: '*',
+        ...(sse ? { ServerSideEncryption: 'AES256' as const } : {}),
       });
+      const signed = ['content-length', 'content-type', 'if-none-match', ...(sse ? [SSE_HEADER] : [])];
       const url = await getSignedUrl(client, command, {
         expiresIn: seconds,
-        signableHeaders: new Set(['content-length', 'content-type', 'if-none-match']),
+        signableHeaders: new Set(signed),
         // Kept as headers, not hoisted into the query: a header the URL does
         // not carry is one the browser must send, and the signature covers it.
-        unhoistableHeaders: new Set(['if-none-match']),
+        unhoistableHeaders: new Set(['if-none-match', ...(sse ? [SSE_HEADER] : [])]),
       });
       return {
         url,
@@ -84,6 +93,7 @@ export function s3Uploads(config: S3Config): UploadStore & { readonly client: S3
           'content-type': CONTENT_TYPE,
           'content-length': String(size),
           'if-none-match': '*',
+          ...(sse ? { [SSE_HEADER]: 'AES256' } : {}),
         },
       };
     },

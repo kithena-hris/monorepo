@@ -461,7 +461,19 @@ credentials, because they are different trust boundaries:
 | **exports** | Oracle Object Storage (S3 Compatibility API) | People only | export files (a day), import reports (a week), dry-run reports (a day), all sealed by People | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*` |
 
 Each `PEOPLE_<STORE>_S3_*` falls back to the plain `S3_*`, which is how one
-MinIO serves both on a laptop.
+local object store serves both on a laptop.
+
+**Server-side encryption, per store: `PEOPLE_UPLOAD_SSE`, `PEOPLE_EXPORT_SSE`**
+— `AES256` (the default) or `none`. `AES256` asks for SSE-S3 on every write
+(`x-amz-server-side-encryption: AES256`; for uploads it is signed into the
+presigned PUT, so the browser sends it). `none` sends no such header, for a
+provider that encrypts at rest on its own and refuses it:
+
+| Store | Setting | Why |
+| --- | --- | --- |
+| exports on Oracle | `PEOPLE_EXPORT_SSE=none` | Oracle Object Storage encrypts every object at rest by default (AES-256, Oracle-managed keys, or a Vault key set on the bucket), and its S3 Compatibility API supports SSE-C only, not `x-amz-server-side-encryption: AES256`. Export files are sealed by People (AES-256-GCM) before they leave the process either way. |
+| uploads on R2 | `AES256` by default | R2 encrypts every object at rest. Its S3 compatibility table lists `x-amz-server-side-encryption` on PutObject as not implemented; if R2 refuses the header, set `PEOPLE_UPLOAD_SSE=none` — nothing is lost, since R2's own encryption is always on. Check this on the first staging upload. |
+| local, AWS S3 | `AES256` | Both honour SSE-S3. |
 
 **Why uploads are not on Oracle.** A browser can only PUT to a bucket whose
 CORS answers the tenant app's preflight, and Oracle Object Storage returns
@@ -491,7 +503,7 @@ policy. Exports never meet a browser — their links point at People
         "https://*.staging.app.kithena.com"
       ],
       "AllowedMethods": ["PUT"],
-      "AllowedHeaders": ["content-type", "if-none-match"],
+      "AllowedHeaders": ["content-type", "if-none-match", "x-amz-server-side-encryption"],
       "MaxAgeSeconds": 3600
     }
   ]
@@ -520,8 +532,13 @@ policy. Exports never meet a browser — their links point at People
 
 **What the bucket enforces, and what People checks.** The presigned PUT signs
 the key (chosen by People, under the tenant), `content-length` (exactly the
-declared size, at most 100 MB), `content-type: application/octet-stream` and
-`if-none-match: *` (written once), for five minutes. People then reads the
+declared size, at most 100 MB), `content-type: application/octet-stream`,
+`if-none-match: *` (written once) and, unless `PEOPLE_UPLOAD_SSE=none`,
+`x-amz-server-side-encryption: AES256`, for five minutes. It carries no
+checksum: AWS SDK v3 would otherwise presign a CRC32 of an empty body, which
+every real store refuses (`BadDigest`); the client is built with
+`requestChecksumCalculation` and `responseChecksumValidation` at
+`WHEN_REQUIRED`, and a unit test holds it. People then reads the
 object back and checks its size and SHA-256 before anything is parsed, and
 again at the dry run and the commit. PRD §14.2 has the table.
 
@@ -529,6 +546,8 @@ again at the dry run and the commit. PRD §14.2 has the table.
 
 - **Endpoint**: `https://<namespace>.compat.objectstorage.<region>.oraclecloud.com`,
   path-style, with a Customer Secret Key as the access key pair.
+- **`PEOPLE_EXPORT_SSE=none`**: Oracle encrypts at rest by default and does not
+  take the SSE-S3 header (see the table above).
 - **Lifecycle**: none required — People's hourly sweep deletes by age — but an
   Object Lifecycle policy deleting after 8 days is a sensible backstop (the
   longest-lived object, an import report, is 7).

@@ -100,7 +100,7 @@ export function drizzleReportIndex(): ReportIndex {
 
 /**
  * Upload intents, over `people.import_upload`
- * (`migrations/20260924350000_people_import_upload.sql`). Never the file.
+ * (`migrations/20260924360000_people_import_upload.sql`). Never the file.
  */
 export function drizzleUploadIntents(): UploadIntents {
   type Row = {
