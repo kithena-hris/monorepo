@@ -1390,10 +1390,35 @@ it is written down here rather than left in a PR description.
       approves, the link answers 200 once and 410 after, and HR is never
       handed it; a failed delivery is shown and replayed, the replay a row of
       its own naming the original.*
-- [ ] **PEO-122** The expiry timeline, and paging the person picker and the
+- [x] **PEO-122** The expiry timeline, and paging the person picker and the
       completeness grid. The analytics landing drew no timeline although
       `expiries` answers it (§16.2); the profile's picker and the grid still
       read the first 200 people (PEO-117's note). *(PRD §8.4, §16.2, §17.2)*
+      *Landed as `expiryTimeline` (analytics): who, what and when over the
+      next 90 days, each window on the person's legal entity's day at one
+      instant, **read live** — the snapshot holds counts, never a person, and
+      a person-level copy would be a second store of personal data, a day
+      stale on the one operational chart (PRD §16.2, §16.4 now say so). A
+      chart is a read item by item: a kind shows only when its field is
+      readable at the viewer's level, an item only when the viewer reads that
+      field on that person (`readableExpiries`, the profile's relation), a
+      name only as far as they read it; the tile counts the items drawn, so
+      a withheld one leaves no gap. A manager's is their chain. HR asks no
+      per-person relation (a relation only adds scopes). Under 400 ms at
+      50,000 people. `PeopleAnalytics.expiries`, drawn as `TimelineChart`
+      lanes per person with its table. The grid pages by keyset over the
+      people with a gap HR or Finance fills (`PersonAccess.list({ gaps:
+      'staff' })`, HR only), its totals and field list over everybody from
+      `people.completeness_gap`, "Next page" / "First page" as URLs; a person
+      field is a `Combobox` that searches People (`peoplePicker`, PEO-117's
+      search, 20 a page), and a profile sends only the people its person
+      fields name. `everybody()` is gone. No migration. Acceptance: HR sees
+      a permit expiring in 30 days, a manager outside the chain does not,
+      and sees their own report's.* *Still open:* the export builder decides
+      which fields to offer from the first 200 people; the timeline has no
+      past `asOf` (a past day is the snapshot's counts); a manager at the
+      top of a 50,000-person chain asks one relation per person in the
+      window.
 - [ ] **PEO-123** Nothing places a person at a location or in a legal entity
       from a screen or an import: `location_id` and `legal_entity_id` are
       typed columns (§6.8) but no published attribute names them (the core
