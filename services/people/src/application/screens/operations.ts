@@ -36,6 +36,15 @@ import {
   type ColumnMapping,
 } from '../import/mapping.js';
 import { parseUpload, type ParsedFile } from '../import/parse.js';
+import {
+  discard,
+  finishUpload,
+  readUpload,
+  startUpload,
+  type PresignedPut,
+  type UploadDeps,
+} from '../import/upload.js';
+import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
 import { relationsToMany, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
@@ -208,6 +217,8 @@ export const replayDelivery = (
 export interface ImportDeps extends ScreenDeps {
   readonly advisor: AttributeAdvisor | null;
   readonly commit: Omit<CommitDeps, 'access' | 'schemas' | 'relations' | 'clock'>;
+  /** Where the file waits between the steps, and who may put it there (§14.2). */
+  readonly uploads: Pick<UploadDeps, 'store' | 'intents'>;
 }
 
 export interface ImportFileView {
@@ -266,8 +277,12 @@ export type ImportStageView =
           readonly message: string;
         }[];
       };
-      /** The blocked rows as a file that imports once fixed, base64 CSV. */
-      readonly blockedCsv: string;
+      /**
+       * The blocked rows as a file that imports once fixed: a signed link
+       * that expires with the upload or in a day, whichever is sooner. Null
+       * when nothing is blocked.
+       */
+      readonly blockedUrl: string | null;
     }
   | {
       readonly step: 'done';
@@ -275,19 +290,25 @@ export type ImportStageView =
       readonly created: number;
       readonly updated: number;
       readonly blocked: number;
-      readonly blockedCsv: string;
-      /** The same report, stored sealed; the link expires in a day. */
+      /** The blocked-row report, stored sealed; the link expires in a day. */
       readonly reportUrl: string;
       /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
       readonly forReview: number;
     };
 
-export interface ImportUpload {
-  readonly name: string;
-  readonly bytes: Uint8Array;
+/** A step after the upload: which upload, and the mapping once there is one. */
+export interface ImportStep {
+  readonly uploadId: string;
   /** Column index → attribute key, or null to ignore it. Absent before mapping. */
   readonly mapping?: Readonly<Record<number, string | null>>;
 }
+
+/** Where the browser puts the file, and how (§14.2). */
+export type ImportUploadView = PresignedPut & {
+  readonly uploadId: string;
+  /** When the PUT stops working. */
+  readonly expiresAt: string;
+};
 
 const column = (index: number): string => {
   let n = index + 1;
@@ -312,17 +333,23 @@ interface Prepared {
   readonly relations: Awaited<ReturnType<ScreenDeps['relations']['relations']>>;
 }
 
+const onlyHr = () => err(failure('FORBIDDEN', 'Only HR imports people'));
+
+async function isHr(deps: ImportDeps, tx: Tx, asking: Asking): Promise<boolean> {
+  return (await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY)).isHr;
+}
+
 async function prepare(
   deps: ImportDeps,
   tx: Tx,
   asking: Asking,
-  upload: ImportUpload,
+  bytes: Uint8Array,
 ): Promise<Result<Prepared>> {
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-  if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR imports people'));
+  if (!relations.isHr) return onlyHr();
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Publish the employee fields first'));
-  const file = await parseUpload(upload.bytes);
+  const file = await parseUpload(bytes);
   if (!file.ok) return file;
   const proposed = await proposeMapping({
     file: file.value,
@@ -341,20 +368,57 @@ function resolved(prepared: Prepared, mapping: Readonly<Record<number, string | 
   return resolveMapping(prepared.proposed, choices, prepared.version, prepared.relations);
 }
 
-/** Upload → the proposed mapping (§14.3). Nothing is kept: every step sends the file again. */
-export async function proposeImport(
+function uploadDeps(deps: ImportDeps): UploadDeps {
+  return { ...deps.uploads, clock: deps.clock, newId: deps.commit.newId };
+}
+
+const inTx =
+  (deps: ImportDeps, asking: Asking) =>
+  <T>(fn: (tx: Tx) => Promise<Result<T>>): Promise<Result<T>> =>
+    run(deps.service, asking.tenantId, fn);
+
+const who = (asking: Asking) => ({ tenantId: asking.tenantId, actorId: asking.viewer.accountId });
+
+/**
+ * Where to put the file (§14.2): a presigned PUT for a key People chose, for
+ * exactly this many bytes, once, for five minutes. HR only, as every import.
+ */
+export async function startImportUpload(
   deps: ImportDeps,
   asking: Asking,
-  upload: ImportUpload,
+  file: { readonly name: string; readonly size: number },
+): Promise<Result<ImportUploadView>> {
+  const allowed = await run(deps.service, asking.tenantId, async (tx) =>
+    (await isHr(deps, tx, asking)) ? ok(null) : onlyHr(),
+  );
+  if (!allowed.ok) return allowed;
+  return startUpload(uploadDeps(deps), inTx(deps, asking), who(asking), file);
+}
+
+/**
+ * The file is in storage: check it is the file that was declared, then the
+ * proposed mapping (§14.3). Nothing is written but the upload's checksum.
+ */
+export async function completeImportUpload(
+  deps: ImportDeps,
+  asking: Asking,
+  uploadId: string,
 ): Promise<Result<ImportStageView>> {
+  const allowed = await run(deps.service, asking.tenantId, async (tx) =>
+    (await isHr(deps, tx, asking)) ? ok(null) : onlyHr(),
+  );
+  if (!allowed.ok) return allowed;
+  const finished = await finishUpload(uploadDeps(deps), inTx(deps, asking), who(asking), uploadId);
+  if (!finished.ok) return finished;
+  const { intent, bytes } = finished.value;
   return run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, upload);
+    const prepared = await prepare(deps, tx, asking, bytes);
     if (!prepared.ok) return prepared;
     const { file, proposed, version } = prepared.value;
     const everyone = prepared.value.relations;
     return ok({
       step: 'map' as const,
-      file: fileView(upload.name, file),
+      file: fileView(intent.name, file),
       columns: proposed,
       fields: [
         ...Object.keys(SYSTEM_COLUMNS)
@@ -368,7 +432,16 @@ export async function proposeImport(
   });
 }
 
-const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64');
+/**
+ * Where a dry run's blocked rows are kept: under the upload, in the export's
+ * store, sealed. Not under `/imports/`, so the export sweep gives it an export
+ * file's day rather than a committed report's week (`lifetimeOf`).
+ */
+export const dryRunReportKey = (tenantId: string, uploadId: string): string =>
+  `${tenantId}/uploads/${uploadId}/blocked-rows.csv`;
+
+/** How many blocked rows, and blocked items, the review lists (§14.2). */
+const SHOWN = 20;
 
 function blockedOf(rows: readonly ClassifiedRow[]) {
   return rows.filter((r) => r.outcome === 'blocked' || r.outcome === 'duplicate');
@@ -378,12 +451,15 @@ function blockedOf(rows: readonly ClassifiedRow[]) {
 export async function dryRunImport(
   deps: ImportDeps,
   asking: Asking,
-  upload: ImportUpload,
+  step: ImportStep,
 ): Promise<Result<ImportStageView>> {
-  return run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, upload);
+  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), step.uploadId);
+  if (!read.ok) return read;
+  const { intent, bytes } = read.value;
+  const reviewed = await run(deps.service, asking.tenantId, async (tx) => {
+    const prepared = await prepare(deps, tx, asking, bytes);
     if (!prepared.ok) return prepared;
-    const mapping = resolved(prepared.value, upload.mapping ?? {});
+    const mapping = resolved(prepared.value, step.mapping ?? {});
     if (!mapping.ok) return mapping;
     const { file, version } = prepared.value;
     const planned = await dryRun(tx, importDeps(deps), {
@@ -398,7 +474,7 @@ export async function dryRunImport(
     const blocked = blockedOf(plan.rows);
     return ok({
       step: 'review' as const,
-      file: fileView(upload.name, file),
+      file: fileView(intent.name, file),
       dryRun: {
         counts: plan.counts,
         incomplete: {
@@ -415,8 +491,10 @@ export async function dryRunImport(
             ? [{ row: r.row, ...r.hireDateCorrection }]
             : [],
         ),
+        // The first twenty (§14.2); every one is in the blocked-rows file. A
+        // list of forty thousand is a response no browser or function needs.
         blocked: [
-          ...blocked.map((r) => {
+          ...blocked.slice(0, SHOWN).map((r) => {
           const problem = r.problems[0];
           const at = problem === undefined ? -1 : (indexOf.get(problem.column) ?? -1);
           const value = at < 0 ? '' : (r.cells[at] ?? '');
@@ -432,7 +510,7 @@ export async function dryRunImport(
                 : `${column(at)}${String(r.row)} — ${value === '' ? 'empty' : `“${value}”`}`,
           };
           }),
-          ...plan.blockedItems.map((item) => ({
+          ...plan.blockedItems.slice(0, SHOWN).map((item) => ({
             row: item.row,
             person: item.personId,
             problem: item.reason,
@@ -450,18 +528,35 @@ export async function dryRunImport(
           };
         }),
       },
-      blockedCsv: b64(
-        blockedReport(
-          file,
-          blocked.map((r) => ({
-            row: r,
-            reason: r.problems.map((p) => p.reason).join('; ') || r.outcome,
-          })),
-          plan.blockedItems,
-        ),
-      ),
+      report:
+        blocked.length + plan.blockedItems.length === 0
+          ? null
+          : blockedReport(
+              file,
+              blocked.map((r) => ({
+                row: r,
+                reason: r.problems.map((p) => p.reason).join('; ') || r.outcome,
+              })),
+              plan.blockedItems,
+            ),
     });
   });
+  if (!reviewed.ok) return reviewed;
+  const { report, ...review } = reviewed.value;
+  // Stored after the transaction, as the commit's report is: it holds values,
+  // so never in a table, and reached only by a link that expires.
+  let blockedUrl: string | null = null;
+  if (report !== null) {
+    const store = deps.commit.reports.store;
+    const key = dryRunReportKey(asking.tenantId, intent.id);
+    await store.put(key, report, 'text/csv');
+    const until = Math.min(
+      Date.parse(deps.clock.instant()) + LINK_LIFETIME_MS,
+      Date.parse(intent.expiresAt),
+    );
+    blockedUrl = await store.sign(key, new Date(until).toISOString());
+  }
+  return ok({ ...review, blockedUrl });
 }
 
 function importDeps(deps: ImportDeps): CommitDeps {
@@ -483,12 +578,15 @@ function importDeps(deps: ImportDeps): CommitDeps {
 export async function commitImportView(
   deps: ImportDeps,
   asking: Asking,
-  upload: ImportUpload,
+  step: ImportStep,
 ): Promise<Result<ImportStageView>> {
+  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), step.uploadId);
+  if (!read.ok) return read;
+  const { intent, bytes } = read.value;
   const planned = await run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, upload);
+    const prepared = await prepare(deps, tx, asking, bytes);
     if (!prepared.ok) return prepared;
-    const mapping = resolved(prepared.value, upload.mapping ?? {});
+    const mapping = resolved(prepared.value, step.mapping ?? {});
     return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
   });
   if (!planned.ok) return planned;
@@ -498,6 +596,10 @@ export async function commitImportView(
     mapping: planned.value.mapping,
   });
   if (!committed.ok) return committed;
+  // Imported, or found imported already: either way the upload has done its
+  // work, and it and its dry run's report go now rather than at expiry.
+  await discard(uploadDeps(deps), inTx(deps, asking), intent);
+  await deps.commit.reports.store.remove(dryRunReportKey(asking.tenantId, intent.id));
   if (committed.value.status === 'already_imported') {
     // The report that import stored, for the HR user `prepare` let this far;
     // after its 7 days, or once somebody in it was erased, there is none.
@@ -511,14 +613,13 @@ export async function commitImportView(
         : { ...failure('ALREADY_IMPORTED', 'This exact file has already been imported'), link },
     );
   }
-  const { counts, report, reportUrl, findings } = committed.value;
+  const { counts, reportUrl, findings } = committed.value;
   return ok({
     step: 'done' as const,
-    file: fileView(upload.name, planned.value.file),
+    file: fileView(intent.name, planned.value.file),
     created: counts.created,
     updated: counts.updated,
     blocked: counts.blocked + counts.duplicate,
-    blockedCsv: b64(report),
     reportUrl,
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
   });

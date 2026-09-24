@@ -547,6 +547,19 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
+  it('the import upload', async () => {
+    await checked(
+      <ImportFlow
+        load={{ status: 'ready', data: { step: 'upload' } }}
+        onUpload={ok}
+        onMap={ok}
+        onCommit={ok}
+        onDownloadBlocked={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+  });
+
   it('the import review', async () => {
     await checked(
       <ImportFlow

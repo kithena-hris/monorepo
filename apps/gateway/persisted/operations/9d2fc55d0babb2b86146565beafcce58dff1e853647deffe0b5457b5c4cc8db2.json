@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartImportUpload($name: String!, $size: Int!) {\n    startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } expiresAt }\n  }"}

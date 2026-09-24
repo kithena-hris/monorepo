@@ -155,7 +155,7 @@ describe('failures', () => {
 });
 
 describe('every mutation (PEO-113)', () => {
-  it('takes a required idempotencyKey, but the three that only compute or read', () => {
+  it('takes a required idempotencyKey, but the four that only compute, read or start an upload', () => {
     const unkeyed = Object.values(schema.getMutationType()?.getFields() ?? {})
       .filter((field) => {
         const key = field.args.find((a) => a.name === 'idempotencyKey');
@@ -163,7 +163,13 @@ describe('every mutation (PEO-113)', () => {
       })
       .map((field) => field.name);
     // revealIdentifier is an audited read (PEO-125): it changes nothing a retry could repeat.
-    expect(unkeyed.toSorted()).toEqual(['dryRunImport', 'proposeImport', 'revealIdentifier']);
+    // An import's upload (§14.2): a retried start is a fresh upload, and completing checks.
+    expect(unkeyed.toSorted()).toEqual([
+      'completeImportUpload',
+      'dryRunImport',
+      'revealIdentifier',
+      'startImportUpload',
+    ]);
   });
 
   it('never models a record as a field per attribute: its values are a keyed list', () => {

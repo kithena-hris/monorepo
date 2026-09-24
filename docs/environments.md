@@ -434,8 +434,11 @@ is in `.env.example`.
 - `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE` — the full-values export workflow.
 - `PEOPLE_SECRET_KEYS` — the key ring for stored secrets.
 - `PEOPLE_PUBLIC_URL`, `PEOPLE_EXPORT_LINK_BASE`, `PEOPLE_EXPORT_BUCKET`,
-  `PEOPLE_EXPORT_ENCRYPTION_KEY`, `PEOPLE_EXPORT_SIGNING_KEY`, `S3_*`,
-  `VALKEY_URL` — exports; all optional, in memory when unset.
+  `PEOPLE_EXPORT_ENCRYPTION_KEY`, `PEOPLE_EXPORT_SIGNING_KEY`,
+  `PEOPLE_EXPORT_S3_*`, `VALKEY_URL` — exports; all optional, in memory when
+  unset. See "Object storage" below.
+- `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_*` — where the browser uploads an
+  import's file. Unset: imports answer UNAVAILABLE. See "Object storage".
 
 #### Not covered here
 
@@ -446,6 +449,98 @@ is in `.env.example`.
   change in `services/people`, not in a workflow.
 - **The outbox relay.** Debezium is not deployed anywhere yet, so People's
   outbox rows are written and nothing publishes them.
+
+### Object storage
+
+People keeps two S3-compatible stores, each its own endpoint, bucket and
+credentials, because they are different trust boundaries:
+
+| Store | Provider | Written by | Holds | Variables |
+| --- | --- | --- | --- | --- |
+| **uploads** | Cloudflare R2 | the browser, with a presigned PUT | an import's file, for its import (≤ 24 h) | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` |
+| **exports** | Oracle Object Storage (S3 Compatibility API) | People only | export files (a day), import reports (a week), dry-run reports (a day), all sealed by People | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*` |
+
+Each `PEOPLE_<STORE>_S3_*` falls back to the plain `S3_*`, which is how one
+MinIO serves both on a laptop.
+
+**Why uploads are not on Oracle.** A browser can only PUT to a bucket whose
+CORS answers the tenant app's preflight, and Oracle Object Storage returns
+fixed CORS headers that cannot be configured (Oracle's Object Storage FAQ:
+"the returned headers are fixed and cannot be edited"). R2 takes a bucket CORS
+policy. Exports never meet a browser — their links point at People
+(`/v1/exports/files/…`) — so Oracle serves them.
+
+#### Uploads on R2
+
+- **Endpoint**: `https://<account id>.r2.cloudflarestorage.com`, region
+  `auto` (`us-east-1` aliases to it). Path-style, which People uses.
+- **Credentials**: an R2 API token with *Object Read & Write* on the one
+  bucket, nothing else.
+- **CORS** — only the tenant app may PUT, only the headers the URL signs, and
+  nothing is exposed (People reads the object itself; the browser needs no
+  ETag). R2 allows one `*` per origin and lets it span labels, so
+  `https://*.app.kithena.com` is every tenant and `https://*.staging.app.kithena.com`
+  every staging tenant. A port cannot be a wildcard, so each local port is
+  listed.
+
+  ```json
+  [
+    {
+      "AllowedOrigins": [
+        "https://*.app.kithena.com",
+        "https://*.staging.app.kithena.com"
+      ],
+      "AllowedMethods": ["PUT"],
+      "AllowedHeaders": ["content-type", "if-none-match"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+  ```
+
+  Production and staging are separate buckets, each listing its own origin
+  only. Note that `*.app.kithena.com` also matches `x.staging.app.kithena.com`
+  (the wildcard spans labels), which is why the production bucket must not be
+  shared with staging.
+- **Lifecycle**: delete every object one day after it was written — the
+  backstop for People's hourly sweep. R2 also aborts unfinished multipart
+  uploads after seven days by default; People never starts one.
+- **Setting both**, over the S3 API, from the same variables People reads:
+
+  ```bash
+  PEOPLE_UPLOAD_BUCKET=… PEOPLE_UPLOAD_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com \
+  PEOPLE_UPLOAD_S3_REGION=auto PEOPLE_UPLOAD_S3_ACCESS_KEY_ID=… PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY=… \
+  PEOPLE_UPLOAD_CORS_ORIGINS='https://*.app.kithena.com' \
+    pnpm --filter @kithena/people upload-bucket
+  ```
+
+  It creates the bucket if it is missing and sets the CORS and lifecycle
+  above (`services/people/src/infrastructure/upload-bucket.ts`). The same
+  JSON can be pasted into the R2 dashboard instead. AWS S3 later takes the
+  same call unchanged.
+
+**What the bucket enforces, and what People checks.** The presigned PUT signs
+the key (chosen by People, under the tenant), `content-length` (exactly the
+declared size, at most 100 MB), `content-type: application/octet-stream` and
+`if-none-match: *` (written once), for five minutes. People then reads the
+object back and checks its size and SHA-256 before anything is parsed, and
+again at the dry run and the commit. PRD §14.2 has the table.
+
+#### Exports on Oracle
+
+- **Endpoint**: `https://<namespace>.compat.objectstorage.<region>.oraclecloud.com`,
+  path-style, with a Customer Secret Key as the access key pair.
+- **Lifecycle**: none required — People's hourly sweep deletes by age — but an
+  Object Lifecycle policy deleting after 8 days is a sensible backstop (the
+  longest-lived object, an import report, is 7).
+
+#### Locally
+
+`docker compose` runs one MinIO at `http://localhost:9000`; `S3_*` in
+`.env.example` point both stores at it, and `just dev` runs `upload-bucket`
+for `PEOPLE_UPLOAD_BUCKET`. MinIO answers CORS for every origin by default and
+does not implement bucket CORS (the script says so and carries on); a server
+that does takes `PEOPLE_UPLOAD_CORS_ORIGINS`. Only the S3 API is used, so any
+S3-compatible server can replace MinIO.
 
 ## Local
 

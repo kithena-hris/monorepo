@@ -13,10 +13,12 @@
     "test:integration": "vitest run --config vitest.integration.ts",
     "test:standalone": "vitest run --config vitest.standalone.ts",
     "db:migrate": "atlas migrate apply --env local",
+    "upload-bucket": "tsx src/configure-upload-bucket.ts",
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1139.0",
+    "@aws-sdk/s3-request-presigner": "^3.1139.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",

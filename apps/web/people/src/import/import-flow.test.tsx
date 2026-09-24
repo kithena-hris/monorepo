@@ -101,9 +101,15 @@ function props(
 }
 
 describe('ImportFlow', () => {
-  it('uploads through a Dropzone', async () => {
+  it('uploads through a FileUploader, with the upload’s own progress', async () => {
     const user = fast();
-    const onUpload = vi.fn(() => Promise.resolve({ ok: true as const }));
+    let finish: (outcome: { ok: true }) => void = () => undefined;
+    const onUpload = vi.fn((_file: File, progress: (percent: number) => void) => {
+      progress(40);
+      return new Promise<{ ok: true }>((resolve) => {
+        finish = resolve;
+      });
+    });
     const { container } = render(
       <ImportFlow {...props({ status: 'ready', data: { step: 'upload' } }, { onUpload })} />,
     );
@@ -111,8 +117,42 @@ describe('ImportFlow', () => {
     if (!(input instanceof HTMLInputElement)) throw new Error('no file input');
     const sheet = new File(['a,b'], 'people.csv', { type: 'text/csv' });
     await user.upload(input, sheet);
-    expect(onUpload).toHaveBeenCalledWith(sheet);
+    expect(onUpload).toHaveBeenCalledWith(sheet, expect.any(Function));
+    expect(await screen.findByRole('progressbar')).toHaveAttribute('aria-valuenow', '40');
     expect(await axeViolations(container)).toEqual([]);
+    finish({ ok: true });
+  });
+
+  it('says why an upload failed, and offers it again', async () => {
+    const user = fast();
+    const onUpload = vi
+      .fn<ImportFlowProps['onUpload']>()
+      .mockResolvedValueOnce({ ok: false, message: 'The file did not arrive; upload it again' })
+      .mockResolvedValueOnce({ ok: true });
+    const { container } = render(
+      <ImportFlow {...props({ status: 'ready', data: { step: 'upload' } }, { onUpload })} />,
+    );
+    const input = container.querySelector('input[type="file"]');
+    if (!(input instanceof HTMLInputElement)) throw new Error('no file input');
+    await user.upload(input, new File(['a,b'], 'people.csv', { type: 'text/csv' }));
+    expect(await screen.findByText('The file did not arrive; upload it again')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: /Retry people\.csv/ }));
+    expect(onUpload).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuses a file over 100 MB before uploading a byte of it', async () => {
+    const user = fast();
+    const onUpload = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { container } = render(
+      <ImportFlow {...props({ status: 'ready', data: { step: 'upload' } }, { onUpload })} />,
+    );
+    const input = container.querySelector('input[type="file"]');
+    if (!(input instanceof HTMLInputElement)) throw new Error('no file input');
+    const huge = new File(['a'], 'huge.csv', { type: 'text/csv' });
+    Object.defineProperty(huge, 'size', { value: 100 * 1024 * 1024 + 1 });
+    await user.upload(input, huge);
+    expect(onUpload).not.toHaveBeenCalled();
   });
 
   it('shows the mapping with its confidence, and waits for a decision on a doubtful column', async () => {

@@ -17,7 +17,7 @@ import {
 } from '../application/export/queue.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import type { InTenant } from '../application/person/service.js';
-import { s3Blobs } from './s3-blobs.js';
+import { s3Blobs, s3ConfigFrom } from './s3-blobs.js';
 
 /**
  * Where exports are stored and how the big ones run (PRD §15.1).
@@ -74,16 +74,7 @@ export function exportStoreFrom(env: NodeJS.ProcessEnv, clock: Clock = systemClo
     );
     return localObjectStore(sealing);
   }
-  return sealedObjectStore(
-    sealing,
-    s3Blobs({
-      bucket,
-      region: env['S3_REGION'] ?? 'us-east-1',
-      ...(env['S3_ENDPOINT'] ? { endpoint: env['S3_ENDPOINT'] } : {}),
-      accessKeyId: env['S3_ACCESS_KEY_ID'] ?? '',
-      secretAccessKey: env['S3_SECRET_ACCESS_KEY'] ?? '',
-    }),
-  );
+  return sealedObjectStore(sealing, s3Blobs(s3ConfigFrom(env, 'PEOPLE_EXPORT', bucket)));
 }
 
 export interface ExportRunner extends ExportQueue {

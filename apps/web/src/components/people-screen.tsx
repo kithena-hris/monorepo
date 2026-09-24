@@ -29,18 +29,38 @@ export interface PeopleScreenProps {
   readonly today: string;
 }
 
-/** Save a file the browser holds, without a round trip. */
-function download(name: string, base64: string, type = 'text/csv'): void {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
+/**
+ * PUT a file straight to storage (PRD §14.2): the presigned URL People issued,
+ * with exactly the headers it signed. Never through this app's server — a
+ * Vercel function takes 4.5 MB and an import may be 100 MB. XHR rather than
+ * fetch, because fetch reports no upload progress. The browser sets the
+ * length from the file itself, which is the length that was signed.
+ */
+function putFile(
+  target: Extract<actions.UploadTarget, { ok: true }>,
+  file: File,
+  progress: (percent: number) => void,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(target.method, target.url);
+    for (const [name, value] of Object.entries(target.headers)) {
+      if (name !== 'content-length') xhr.setRequestHeader(name, value);
+    }
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) progress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      resolve(xhr.status >= 200 && xhr.status < 300);
+    };
+    xhr.onerror = () => {
+      resolve(false);
+    };
+    xhr.send(file);
+  });
 }
 
-type Stage = Record<string, unknown> & { step: string; blockedCsv?: string };
+type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
 
 export function PeopleScreen({
   route,
@@ -69,13 +89,13 @@ export function PeopleScreen({
       return result;
     };
 
-  // The import is the one screen whose state lives between requests, and it
-  // lives here: People keeps nothing between upload, mapping and commit.
+  // The import's steps: which upload People holds the file under (§14.2),
+  // the mapping chosen, and the stages so far, for Back.
   const [importing, setImporting] = useState<{
-    file: File | null;
+    uploadId: string | null;
     mapping: Readonly<Record<number, string | null>>;
     stages: Stage[];
-  }>({ file: null, mapping: {}, stages: [{ step: 'upload' }] });
+  }>({ uploadId: null, mapping: {}, stages: [{ step: 'upload' }] });
 
   const loadable =
     load.status === 'ready'
@@ -341,38 +361,44 @@ export function PeopleScreen({
         };
       case 'ImportFlow': {
         const stage = importing.stages.at(-1) ?? { step: 'upload' };
-        const step = async (
-          act: typeof actions.proposeImport,
-          file: File,
+        const next = (
+          result: actions.Staged,
+          uploadId: string,
           mapping: Readonly<Record<number, string | null>>,
-        ): Promise<Outcome> => {
-          const form = new FormData();
-          form.set('file', file);
-          form.set('mapping', JSON.stringify(mapping));
-          const result = await act(form);
+        ): Outcome => {
           if (!result.ok) return result;
           setImporting((s) => ({
-            file,
+            uploadId,
             mapping,
             stages: [...s.stages, result.stage as Stage],
           }));
           return { ok: true };
         };
+        const again = { ok: false, message: 'Choose the file again' } as const;
         return {
           load: { status: 'ready', data: stage },
-          onUpload: (file: File) => step(actions.proposeImport, file, {}),
-          onMap: (mapping: Readonly<Record<number, string | null>>) =>
-            importing.file === null
-              ? Promise.resolve({ ok: false, message: 'Choose the file again' })
-              : step(actions.dryRunImport, importing.file, mapping),
-          onCommit: () =>
-            importing.file === null
-              ? Promise.resolve({ ok: false, message: 'Choose the file again' })
-              : step(actions.commitImport, importing.file, importing.mapping),
+          onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
+            const target = await actions.startImportUpload({ name: file.name, size: file.size });
+            if (!target.ok) return target;
+            if (!(await putFile(target, file, progress))) {
+              return { ok: false, message: 'The upload did not go through; try again' };
+            }
+            return next(await actions.completeImportUpload(target.uploadId), target.uploadId, {});
+          },
+          onMap: async (mapping: Readonly<Record<number, string | null>>) => {
+            const id = importing.uploadId;
+            return id === null ? again : next(await actions.dryRunImport(id, mapping), id, mapping);
+          },
+          onCommit: async () => {
+            const id = importing.uploadId;
+            return id === null
+              ? again
+              : next(await actions.commitImport(id, importing.mapping), id, importing.mapping);
+          },
           onDownloadBlocked: () => {
-            const csv = stage.blockedCsv;
-            const name = importing.file?.name.replace(/\.[^.]+$/, '') ?? 'import';
-            if (typeof csv === 'string') download(`${name}-blocked.csv`, csv);
+            // A signed link to the stored report: it downloads, and expires.
+            const url = stage.blockedUrl;
+            if (typeof url === 'string') window.location.assign(url);
           },
           onBack: () => {
             setImporting((s) => ({

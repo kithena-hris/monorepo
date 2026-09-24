@@ -1349,9 +1349,11 @@ it is written down here rather than left in a PR description.
       in-process (same Zod body, same caller check, same `Idempotency-Key` row
       through an `idempotencyKey` argument on every mutation); a record's values
       are a keyed list of a union, so a withheld field is absent rather than
-      null. Imports come as multipart uploads of up to 100 MB (router
-      `file_upload` and body limit, People's Yoga sized to match); downloads
-      stay signed links. The shell asks identity for the token and sends its
+      null. Imports came as multipart uploads of up to 100 MB (router
+      `file_upload` and body limit, People's Yoga sized to match) — since
+      replaced: a file now goes from the browser straight to object storage
+      with a presigned PUT, and no file passes through the shell or the
+      router (PRD §14.2); downloads stay signed links. The shell asks identity for the token and sends its
       own named operations (`people-operations.ts`), safelisted in the router
       from generated persisted operations; it has no People address or token
       left, and a test says so. The acceptance suite runs identity, the router

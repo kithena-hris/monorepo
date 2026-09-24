@@ -40,6 +40,24 @@ export interface S3Config {
 
 const MAX_PAGES = 10;
 
+/**
+ * One store's endpoint and credentials: `<prefix>_S3_ENDPOINT`, `_REGION`,
+ * `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`, each falling back to the plain
+ * `S3_*` — so a laptop's one MinIO serves both stores from one set, and
+ * production gives each its own provider (uploads on R2, exports on Oracle).
+ */
+export function s3ConfigFrom(env: NodeJS.ProcessEnv, prefix: string, bucket: string): S3Config {
+  const get = (name: string) => env[`${prefix}_S3_${name}`] ?? env[`S3_${name}`];
+  const endpoint = get('ENDPOINT');
+  return {
+    bucket,
+    region: get('REGION') ?? 'us-east-1',
+    ...(endpoint ? { endpoint } : {}),
+    accessKeyId: get('ACCESS_KEY_ID') ?? '',
+    secretAccessKey: get('SECRET_ACCESS_KEY') ?? '',
+  };
+}
+
 export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client } {
   const client = new S3Client({
     region: config.region,

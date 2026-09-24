@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { startCosmoRouter, startOpenFga, startPostgres } from '@kithena/testing';
+import { startCosmoRouter, startMinio, startOpenFga, startPostgres } from '@kithena/testing';
 
 /**
  * The tenant app as a person meets it, for the acceptance tests (PEO-098,
@@ -272,7 +272,8 @@ export async function startStack(): Promise<Stack> {
   let dir = '';
   let receiver: Awaited<ReturnType<typeof startReceiver>> | undefined;
   const receiverDir = await mkdtemp(join(tmpdir(), 'kithena-receiver-'));
-  const [pg, fga] = await Promise.all([startPostgres(), startOpenFga()]);
+  // The bucket an import is uploaded to, straight from the browser (§14.2).
+  const [pg, fga, storage] = await Promise.all([startPostgres(), startOpenFga(), startMinio()]);
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
   const stop = async (): Promise<void> => {
@@ -281,7 +282,7 @@ export async function startStack(): Promise<Stack> {
     );
     await router?.stop().catch(() => undefined);
     await sql.end({ timeout: 5 }).catch(() => undefined);
-    await Promise.allSettled([pg.stop(), fga.stop()]);
+    await Promise.allSettled([pg.stop(), fga.stop(), storage.stop()]);
     await new Promise<void>((resolve) => {
       if (receiver)
         receiver.server.close(() => {
@@ -348,6 +349,24 @@ export async function startStack(): Promise<Stack> {
       freePort(),
     ]);
     const peopleUrl = `http://127.0.0.1:${String(peoplePort)}`;
+    // The upload bucket, configured as an operator would: the People script,
+    // over the S3 API, allowing PUT from the tenant app's origin alone.
+    const uploads = {
+      PEOPLE_UPLOAD_BUCKET: 'people-uploads',
+      PEOPLE_UPLOAD_S3_ENDPOINT: storage.endpoint,
+      PEOPLE_UPLOAD_S3_ACCESS_KEY_ID: storage.accessKeyId,
+      PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY: storage.secretAccessKey,
+    };
+    await run(
+      join(ROOT, 'node_modules/.bin/tsx'),
+      ['services/people/src/configure-upload-bucket.ts'],
+      ROOT,
+      60_000,
+      {
+        ...uploads,
+        PEOPLE_UPLOAD_CORS_ORIGINS: `http://acme.app.localhost:${String(shellPort)}`,
+      },
+    );
     const certificate = await loopbackCertificate(receiverDir);
     receiver = await startReceiver(certificate.key, certificate.cert);
     children.push(
@@ -363,6 +382,7 @@ export async function startStack(): Promise<Stack> {
           OPENFGA_URL: fga.apiUrl,
           // Where a signed download link points: People itself, for the test to fetch.
           PEOPLE_EXPORT_LINK_BASE: `${peopleUrl}/v1/exports/files`,
+          ...uploads,
           // Off production, so the loopback switch below means anything —
           // `egressPolicyFrom` ignores it under NODE_ENV=production.
           NODE_ENV: 'test',

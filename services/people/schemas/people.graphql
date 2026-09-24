@@ -449,7 +449,6 @@ type ImportCounts {
 
 type ImportDoneStage {
   blocked: Int
-  blockedCsv: String
   created: Int
   file: ImportFile
   """Doubted national identifiers that imported and went to HR’s review."""
@@ -503,8 +502,10 @@ type ImportMapStage {
 }
 
 type ImportReviewStage {
-  """The blocked rows, base64 CSV."""
-  blockedCsv: String
+  """
+  The blocked rows as a CSV that imports once fixed: a signed link that expires with the upload or in a day. Null when nothing is blocked.
+  """
+  blockedUrl: String
   dryRun: ImportDryRun
   file: ImportFile
   step: String
@@ -524,6 +525,25 @@ union ImportStage = ImportDoneStage | ImportMapStage | ImportReviewStage
 type ImportTarget {
   key: String
   label: String
+}
+
+type ImportUploadHeader {
+  name: String
+  value: String
+}
+
+"""
+Where the browser puts the file: a presigned PUT, straight to storage, for exactly this file, once.
+"""
+type ImportUploadTarget {
+  expiresAt: String
+  """
+  Send exactly these; each is signed. A browser sets content-length itself.
+  """
+  headers: [ImportUploadHeader!]
+  method: String
+  uploadId: ID
+  url: String
 }
 
 type IntegrationField {
@@ -603,7 +623,11 @@ type Mutation {
   """
   Import. A retry of the same key is refused ALREADY_IMPORTED: the report is not kept.
   """
-  commitImport(file: Upload!, idempotencyKey: String!, mapping: [ImportColumnInput!]!): ImportStage
+  commitImport(idempotencyKey: String!, mapping: [ImportColumnInput!]!, uploadId: ID!): ImportStage
+  """
+  The file is uploaded: check it, then the proposed mapping. Changes nothing else.
+  """
+  completeImportUpload(uploadId: ID!): ImportStage
   confirmSetupEntity(country: String!, idempotencyKey: String!, name: String!): WriteOutcome
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
@@ -616,7 +640,7 @@ type Mutation {
   """
   The five counts and the blocked rows. Changes nothing, so takes no key.
   """
-  dryRunImport(file: Upload!, mapping: [ImportColumnInput!]!): ImportStage
+  dryRunImport(mapping: [ImportColumnInput!]!, uploadId: ID!): ImportStage
   """A person on leave is back from today, on their calendar; HR only."""
   endLeave(idempotencyKey: String!, personId: ID!): Person
   """
@@ -635,8 +659,6 @@ type Mutation {
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
   placePerson(costCentre: String, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID, locationId: ID, orgUnitId: ID, personId: ID!): Person
-  """Upload → the proposed mapping. Changes nothing, so takes no key."""
-  proposeImport(file: Upload!): ImportStage
   """Publish the draft. A retry answers the version in force."""
   publishDraft(idempotencyKey: String!, requiredFrom: String!): PublishedVersionNumber
   """
@@ -674,6 +696,14 @@ type Mutation {
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
+  """
+  Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
+  """
+  startImportUpload(
+    name: String!
+    """Bytes, exactly: the PUT is signed for this length."""
+    size: Int!
+  ): ImportUploadTarget
   """An active person goes on leave from today, on their calendar; HR only."""
   startLeave(idempotencyKey: String!, personId: ID!): Person
   """End the employment once its last working day has come; HR only."""
@@ -1180,9 +1210,6 @@ type TextEntry {
   key: String
   text: String
 }
-
-"""A file, sent as the GraphQL multipart request spec describes."""
-scalar Upload
 
 type WebhookDeliveries {
   deliveries: [WebhookDelivery!]
