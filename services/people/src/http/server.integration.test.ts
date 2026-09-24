@@ -316,7 +316,7 @@ describe('the screens over GraphQL', () => {
 
     const hr = await graph(headers(HR_ACCOUNT, ['hr']), PROFILE, { id: ADA });
     expect(hr.errors).toBeUndefined();
-    expect((hr.data?.['peopleProfile'] as Profile).values).toContainEqual({
+    expect((hr.data?.['peopleProfile'] as Profile | undefined)?.values).toContainEqual({
       __typename: 'MoneyEntry',
       key: 'base_salary',
       amountMinor: '5500000',
@@ -340,7 +340,7 @@ describe('the screens over GraphQL', () => {
     );
     expect(keys?.[0]?.n).toBe(1);
     const profile = await graph(hr, PROFILE, { id: ADA });
-    expect((profile.data?.['peopleProfile'] as Profile).values).toContainEqual({
+    expect((profile.data?.['peopleProfile'] as Profile | undefined)?.values).toContainEqual({
       __typename: 'TextEntry',
       key: 'job_title',
       text: 'Staff Engineer',
@@ -371,7 +371,10 @@ describe('the screens over GraphQL', () => {
         type: 'text/csv',
       }),
     );
-    const { 'content-type': _json, ...hr } = headers(HR_ACCOUNT, ['hr']);
+    // The multipart boundary is fetch's to set: no JSON content type.
+    const hr = Object.fromEntries(
+      Object.entries(headers(HR_ACCOUNT, ['hr'])).filter(([name]) => name !== 'content-type'),
+    );
     const response = await fetch(`${base}/graphql`, { method: 'POST', headers: hr, body: form });
     const body = (await response.json()) as { data?: { proposeImport: unknown }; errors?: unknown };
     expect(body.errors).toBeUndefined();
