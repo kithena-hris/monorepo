@@ -1,0 +1,21 @@
+# Layered over `config.yaml` in the deployed image (`CONFIG_PATH`), and only
+# there. Everything the tests prove about the router — authentication, the
+# safelist, the headers People trusts — stays in `config.yaml`.
+
+# The supergraph the deploy workflow composed and baked into the image.
+# Self-hosted: no Cosmo control plane, so `graph.sign_key` verifies nothing.
+execution_config:
+  file:
+    path: /etc/router/supergraph.json
+
+# `config.yaml` exports traces to a collector on localhost, which exists under
+# `just dev` and nowhere a deploy runs. Off until a collector is deployed,
+# rather than a router retrying a dead endpoint forever.
+telemetry:
+  tracing:
+    enabled: false
+  metrics:
+    otlp:
+      enabled: false
+    prometheus:
+      enabled: false

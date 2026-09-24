@@ -310,6 +310,143 @@ environment's database by accident:
 `ATLAS_DEV_URL` must never point at the database being migrated. Atlas drops
 everything in it to compute a diff.
 
+### People, the router and the remote
+
+Both deploy workflows ship three more things, in this order, between the
+migration and the tenant app:
+
+```
+migrate ──▶ People (Fly) ──▶ Cosmo Router (Fly) ──▶ People remote (Vercel) ──▶ shell (apps/web)
+```
+
+Schema, then service, then client, one layer further out each time. Production
+rolls all of them back when a smoke test fails — clients first, then the
+router, then People — and never the database.
+
+**People runs on Fly.io, not as a Vercel function like identity and
+messaging.** Identity moved to Vercel once it held nothing between requests.
+People holds three things a function-per-request runtime takes away: Kafka
+consumer groups, the hourly and daily jobs in `infrastructure/background.ts`,
+and the SIGTERM drain that lets a message in hand and a job in flight finish
+(PEO-118). A function has no process to keep in a group and no clock to tick.
+The Cosmo Router is a Go binary with no serverless build at all. Fly is the
+container host this repository already used for identity, and
+`services/people/Dockerfile` follows identity's.
+
+**It needs a paid Fly organisation.** Identity left Fly because a *trial*
+organisation reaps idle machines and refused `fly deploy` for new machines,
+which left production with none for a day. That was the plan, not the
+platform, and a trial organisation would do the same to People.
+
+How each piece is shipped:
+
+- **People** — `flyctl deploy` with `services/people/fly.toml`, built on Fly's
+  remote builder from the repository root. Never scaled to zero, SIGTERM with a
+  30-second kill timeout so the drain finishes. Smoke: `/v1/openapi.json`,
+  which is only mounted once `PEOPLE_DATABASE_URL` is set, so a machine that
+  booted without its database fails it.
+- **The router** — `apps/gateway/Dockerfile`: the router image pinned by
+  version and digest, with `config.yaml`, `deploy.yaml` (a file execution
+  config, telemetry off), the composed `supergraph.json` and the safelist at
+  `/persisted`. The supergraph is composed in the job from
+  `services/people/schemas/people.graphql`, routed to
+  `http://<people app>.internal:4001` over Fly's private network — so both
+  apps must be in the same Fly organisation. The image is started on the runner
+  first (`apps/gateway/scripts/smoke.ts`): a persisted operation must pass and
+  an unknown hash must be refused, or nothing is pushed. The live router is
+  then checked for readiness and for refusing a request without a token; it
+  cannot be asked about the safelist, because only a token identity minted for
+  a signed-in session gets that far.
+- **The People remote** — built and **signed in the job** with the environment's
+  `PEOPLE_REMOTE_SSR_SIGNING_KEY`, then `apps/web/people/dist` is uploaded as
+  static files with the committed `vercel.json` headers. Vercel never builds
+  it and never holds the key: a build Vercel could sign is a build a
+  compromise of Vercel could sign. Smoke (`apps/web/people/scripts/smoke-deploy.mjs`):
+  `remoteEntry.js`, `routes.json`, `people.cjs` and the signed manifest are
+  served `no-cache`, `nosniff` and with CORS for a tenant origin, and the
+  manifest verifies under the public key the shell is about to be given.
+- **The shell** gets `PEOPLE_REMOTE_URL`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY` and
+  `ROUTER_URL` (`https://<router app>.fly.dev`) as `--env` on its deploy, each
+  only when set.
+
+Each piece is skipped with a warning while its app or project variable is
+unset, so the workflows run green before any of this exists.
+
+#### Created by hand, once
+
+| What | Where | Notes |
+| --- | --- | --- |
+| A paid Fly.io organisation | fly.io | Not a trial one; see above. |
+| Fly app for People, staging and production | `fly apps create <name> --org <org>` | Names go in `FLY_APP_PEOPLE_*`. |
+| Fly app for the router, staging and production | `fly apps create <name> --org <org>` | Same organisation as People, for `.internal`. Names go in `FLY_APP_ROUTER_*`. |
+| Vercel project for the People remote, staging and production | Vercel, team `kithena` | Framework **Other**, Root Directory **empty**, no build command. **Do not connect the Git repository**: a Git build is unsigned. Add a custom domain to each — the `.vercel.app` host is behind SSO. Ids go in `VERCEL_PROJECT_ID_PEOPLE_REMOTE_*`. |
+| An Ed25519 key pair per environment | locally, see below | Private half to the environment secret, public half to the repository variable. |
+| A Kafka cluster (Redpanda) reachable from Fly | — | See "Not covered" below. |
+
+The key pair, as base64 DER — PKCS#8 for the private half, SPKI for the public:
+
+```bash
+node -e "const k=require('node:crypto').generateKeyPairSync('ed25519');
+console.log('private', k.privateKey.export({format:'der',type:'pkcs8'}).toString('base64'));
+console.log('public ', k.publicKey.export({format:'der',type:'spki'}).toString('base64'))"
+```
+
+#### GitHub: environment secrets (Settings → Environments → `staging` / `production`)
+
+Same names in both environments, different values.
+
+| Secret | Holds |
+| --- | --- |
+| `FLY_API_TOKEN` | A Fly deploy token for the organisation (`fly tokens create org`). |
+| `PEOPLE_API_TOKEN` | The token the router sends People as `x-internal-token`. Staged onto both Fly apps on every deploy, so the two cannot disagree. Random, 32+ bytes. |
+| `PEOPLE_REMOTE_SSR_SIGNING_KEY` | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel. |
+
+#### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
+
+| Variable | Holds |
+| --- | --- |
+| `FLY_APP_PEOPLE_STAGING`, `FLY_APP_PEOPLE_PRODUCTION` | The Fly app name for People. Unset: People and the router are skipped. |
+| `FLY_APP_ROUTER_STAGING`, `FLY_APP_ROUTER_PRODUCTION` | The Fly app name for the router. Also gives the shell its `ROUTER_URL`. |
+| `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION` | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token. |
+| `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION` | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`. |
+| `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION` | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped. |
+| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION` | The remote's custom domain, `https://…`, no trailing slash. The shell's `PEOPLE_REMOTE_URL`. |
+| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Ed25519 public key, base64 SPKI DER. The shell's `PEOPLE_REMOTE_SSR_PUBLIC_KEY`. |
+
+The router's `AUTH_JWKS_URL` is identity's own domain
+(`identity.staging.kithena.com`, `identity.kithena.com`) and is written in the
+workflow, as the identity smoke tests already are.
+
+#### Fly: People's own secrets (`fly secrets set --app <people app>`)
+
+Set once by hand; the workflow stages only `PEOPLE_API_TOKEN`. What each does
+is in `.env.example`.
+
+- `PEOPLE_DATABASE_URL` — the Neon branch, connecting as `svc_people`, never
+  `neondb_owner` (see "Postgres, at Neon"). The direct endpoint rather than
+  `-pooler`: this is a long-lived process with its own pool, and it prepares
+  statements.
+- `KAFKA_BROKERS` — without it People serves the graph and consumes nothing.
+- `IDENTITY_URL`, `PEOPLE_IDENTITY_TOKEN` — reconciliation against identity's
+  account listing.
+- `MESSAGING_URL`, `MESSAGING_PEOPLE_TOKEN`, `TENANT_APP_BASE` — reminder mail.
+- `OPENFGA_URL`, `OPENFGA_STORE_ID` — authorisation.
+- `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE` — the full-values export workflow.
+- `PEOPLE_SECRET_KEYS` — the key ring for stored secrets.
+- `PEOPLE_PUBLIC_URL`, `PEOPLE_EXPORT_LINK_BASE`, `PEOPLE_EXPORT_BUCKET`,
+  `PEOPLE_EXPORT_ENCRYPTION_KEY`, `PEOPLE_EXPORT_SIGNING_KEY`, `S3_*`,
+  `VALKEY_URL` — exports; all optional, in memory when unset.
+
+#### Not covered here
+
+- **Kafka from Fly.** People's Kafka client takes a broker list and nothing
+  else — no SASL, no TLS — so it can reach a Redpanda on Fly's private network
+  but not a managed cluster that requires authentication. Which of the two to
+  run is a choice to make before `KAFKA_BROKERS` is set; the second needs a
+  change in `services/people`, not in a workflow.
+- **The outbox relay.** Debezium is not deployed anywhere yet, so People's
+  outbox rows are written and nothing publishes them.
+
 ## Local
 
 `just dev` brings up the whole compose stack. Tenants resolve at

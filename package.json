@@ -57,7 +57,7 @@
       }
     },
     "patchedDependencies": {
-      "@pothos/plugin-federation@4.5.0": "patches/@pothos__plugin-federation@4.5.0.patch"
+      "@pothos/plugin-federation@4.5.3": "patches/@pothos__plugin-federation@4.5.3.patch"
     },
     "overrides": {
       "protobufjs@8": ">=8.0.2",

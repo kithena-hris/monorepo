@@ -1,0 +1,31 @@
+# The Cosmo Router on Fly.io, on the same private network as People.
+#
+# No `app` line: the name is a repository variable (`FLY_APP_ROUTER_STAGING`,
+# `FLY_APP_ROUTER_PRODUCTION`) passed as `--app`, because the apps are created
+# by hand and this file has to be mergeable before they exist.
+#
+# `PEOPLE_API_TOKEN` is staged by the workflow from the GitHub environment;
+# `AUTH_JWKS_URL`, `AUTH_TOKEN_AUDIENCE` and `KITHENA_ENTITLEMENTS` arrive as
+# `--env` from repository variables. `docs/environments.md` has the list.
+
+primary_region = "mad"          # Madrid, nearest the Neon region, as identity was
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  # A cold router is a cold People screen for everybody signed in.
+  auto_stop_machines = "off"
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    # Ready, not live: the router answers `/health/ready` once it has loaded
+    # the execution config, which is when it can serve.
+    method = "GET"
+    path = "/health/ready"
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
