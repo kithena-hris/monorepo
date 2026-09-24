@@ -29,12 +29,12 @@ export interface ScreenQuery {
 }
 
 /** One screen's read, and how its answer becomes the view model the remote draws. */
-async function read<T>(
+async function read(
   name: OperationName,
   variables: Record<string, unknown> = {},
-  view: (data: T) => unknown = (data) => data,
+  view: (data: never) => unknown = (data) => data,
 ): Promise<ScreenLoad> {
-  const answer = await people<T>(name, variables);
+  const answer = await people<never>(name, variables);
   return answer.ok
     ? { status: 'ready', data: view(answer.data) }
     : { status: 'error', message: answer.message };

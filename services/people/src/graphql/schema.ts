@@ -1,4 +1,5 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { maskError } from 'graphql-yoga';
 import { createBuilder, toGraphQLError } from '@kithena/graphql-kit';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
@@ -616,7 +617,7 @@ builder.queryType({
  */
 const idempotencyKey = { type: 'String', required: true } as const;
 
-const personPath = (id: string | number) => `/v1/people/${encodeURIComponent(String(id))}`;
+const personPath = (id: string | number) => `/v1/people/${encodeURIComponent(id)}`;
 
 builder.mutationType({
   fields: (t) => ({
@@ -672,7 +673,7 @@ builder.mutationType({
         viaRest<LegalEntityView>(
           ctx,
           'PATCH',
-          `/v1/legal-entities/${encodeURIComponent(String(id))}`,
+          `/v1/legal-entities/${encodeURIComponent(id)}`,
           { body: sent(patch), key },
         ),
     }),
@@ -688,7 +689,7 @@ builder.mutationType({
       },
       resolve: (_root, { idempotencyKey: key, legalEntityId, ...place }, ctx) =>
         viaRest<LocationView>(ctx, 'POST', '/v1/locations', {
-          body: { legalEntityId: String(legalEntityId), ...sent(place) },
+          body: { legalEntityId: legalEntityId, ...sent(place) },
           key,
         }),
     }),
@@ -701,7 +702,7 @@ builder.mutationType({
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, { id, idempotencyKey: key, ...patch }, ctx) =>
-        viaRest<LocationView>(ctx, 'PATCH', `/v1/locations/${encodeURIComponent(String(id))}`, {
+        viaRest<LocationView>(ctx, 'PATCH', `/v1/locations/${encodeURIComponent(id)}`, {
           body: sent(patch),
           key,
         }),
@@ -719,7 +720,7 @@ builder.mutationType({
         viaRest<LocationView>(
           ctx,
           'POST',
-          `/v1/locations/${encodeURIComponent(String(args.id))}/zones`,
+          `/v1/locations/${encodeURIComponent(args.id)}/zones`,
           {
             body: { timeZone: args.timeZone, effectiveFrom: args.effectiveFrom },
             key: args.idempotencyKey,
@@ -739,7 +740,7 @@ builder.mutationType({
         // The attribute is the one `supersedes` names; `key` is not consulted.
         viaRest<HistoryEntry>(ctx, 'POST', `${personPath(args.personId)}/corrections`, {
           body: {
-            supersedes: String(args.supersedes),
+            supersedes: args.supersedes,
             value: unwrap(valueOf(args.value)),
             reason: args.reason ?? null,
           },
@@ -797,7 +798,7 @@ builder.mutationFields((t) => ({
       viaRest<NumberingView>(
         ctx,
         'PUT',
-        `/v1/legal-entities/${encodeURIComponent(String(legalEntityId))}/numbering`,
+        `/v1/legal-entities/${encodeURIComponent(legalEntityId)}/numbering`,
         { body: scheme, key },
       ),
   }),
@@ -925,7 +926,7 @@ async function changeRole(
   { idempotencyKey: key, ...change }: { idempotencyKey: string; accountId: string | number; role: string; reason: string },
 ): Promise<RoleHolder> {
   return viaRest<RoleHolder>(ctx, 'POST', `/v1/roles/${path}`, {
-    body: { ...change, accountId: String(change.accountId) },
+    body: { ...change, accountId: change.accountId },
     key,
   });
 }
@@ -980,4 +981,16 @@ export const yogaOptions = {
   schema,
   graphqlEndpoint: '/graphql',
   maxRequestBodySize: IMPORT_MAX_BYTES + 1024 * 1024,
+  maskedErrors: {
+    // Yoga loads graphql's CommonJS build and `toGraphQLError` its ESM one, so
+    // Yoga's `instanceof` took every domain refusal for an unexpected error and
+    // masked its code. One raised by `toGraphQLError` carries only a code, a
+    // message and a field path, so it passes; anything else is masked as before.
+    maskError: (error: unknown, message: string, isDev?: boolean) => {
+      const original = (error as { originalError?: unknown } | null)?.originalError;
+      return original instanceof Error && original.name === 'GraphQLError'
+        ? (error as Error)
+        : maskError(error, message, isDev);
+    },
+  },
 } as const;

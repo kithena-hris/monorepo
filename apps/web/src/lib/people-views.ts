@@ -70,8 +70,7 @@ const record = <T extends WithRecord>(v: T) => ({
 
 /** Strip `__typename` from an import stage; `step` already says which it is. */
 function stage(s: Json): Json {
-  const { __typename: _, ...rest } = s;
-  return rest;
+  return Object.fromEntries(Object.entries(s).filter(([key]) => key !== '__typename'));
 }
 
 /** Each screen's answer as its view model, by the component that draws it. */

@@ -130,7 +130,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const ListEntry = entry('ListEntry').implement({
     fields: (t) => ({
       key: t.exposeString('key'),
-      items: t.stringList({ resolve: (e) => (Array.isArray(e.value) ? [...e.value] : []) }),
+      items: t.stringList({
+        resolve: (e) => (Array.isArray(e.value) ? [...(e.value as readonly string[])] : []),
+      }),
     }),
   });
   const money = (value: FormValue) =>
@@ -750,7 +752,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'GET',
           args.personId === null || args.personId === undefined
             ? '/v1/views/profile'
-            : `/v1/views/profile/${encodeURIComponent(String(args.personId))}`,
+            : `/v1/views/profile/${encodeURIComponent(args.personId)}`,
         ),
     }),
     peopleDirectory: t.field({
@@ -760,7 +762,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         const query = new URLSearchParams();
         if (args.search) query.set('search', args.search);
         if (args.filter) query.set('filter', args.filter);
-        if (args.after) query.set('after', String(args.after));
+        if (args.after) query.set('after', args.after);
         const qs = query.toString();
         return viaRest<DirectoryView>(ctx, 'GET', `/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
       },
@@ -795,7 +797,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       description: 'The requester’s own export, its links signed again.',
       args: { id: t.arg.id({ required: true }) },
       resolve: (_root, args, ctx) =>
-        viaRest<ExportAnswer>(ctx, 'GET', `/v1/exports/${encodeURIComponent(String(args.id))}`),
+        viaRest<ExportAnswer>(ctx, 'GET', `/v1/exports/${encodeURIComponent(args.id)}`),
     }),
     fullValuesRequest: t.field({
       type: FullValues,
@@ -804,7 +806,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         viaRest<FullValuesAnswer>(
           ctx,
           'GET',
-          `/v1/exports/full-values/${encodeURIComponent(String(args.id))}`,
+          `/v1/exports/full-values/${encodeURIComponent(args.id)}`,
         ),
     }),
   }));
@@ -905,7 +907,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       ...(mapping === undefined
         ? {}
         : {
-            mapping: Object.fromEntries(mapping.map((m) => [String(m.column), m.key ?? null])),
+            mapping: Object.fromEntries(mapping.map((m) => [m.column, m.key ?? null])),
           }),
     };
   };
@@ -936,7 +938,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         await viaRest(
           ctx,
           'POST',
-          `/v1/views/people/${encodeURIComponent(String(args.personId))}/sections`,
+          `/v1/views/people/${encodeURIComponent(args.personId)}/sections`,
           { body: { changed: changed(args.changed) }, key: args.idempotencyKey },
         );
         return done();
@@ -952,7 +954,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         await viaRest(ctx, 'POST', '/v1/views/completeness', {
           body: {
             changes: args.changes.map((c) => ({
-              personId: String(c.personId),
+              personId: c.personId,
               values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
             })),
           },
@@ -1097,7 +1099,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, { id, idempotencyKey, ...patch }, ctx) => {
-        await viaRest(ctx, 'PATCH', `/v1/webhooks/endpoints/${encodeURIComponent(String(id))}`, {
+        await viaRest(ctx, 'PATCH', `/v1/webhooks/endpoints/${encodeURIComponent(id)}`, {
           body: Object.fromEntries(
             Object.entries(patch).filter(([, v]) => v !== null && v !== undefined),
           ),
@@ -1110,7 +1112,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: Secret,
       args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
       resolve: async (_root, args, ctx) => {
-        const id = String(args.id);
+        const id = args.id;
         const rotated = await viaRest<{ secret?: string }>(
           ctx,
           'POST',
@@ -1127,7 +1129,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         viaRest<{ deliveryId: string }>(
           ctx,
           'POST',
-          `/v1/webhooks/deliveries/${encodeURIComponent(String(args.deliveryId))}/replay`,
+          `/v1/webhooks/deliveries/${encodeURIComponent(args.deliveryId)}/replay`,
           { body: {}, key: args.idempotencyKey },
         ),
     }),
@@ -1214,7 +1216,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         viaRest<FullValuesAnswer>(
           ctx,
           'POST',
-          `/v1/exports/full-values/${encodeURIComponent(String(id))}/decision`,
+          `/v1/exports/full-values/${encodeURIComponent(id)}/decision`,
           { body: sent(decision), key: idempotencyKey },
         ),
     }),
