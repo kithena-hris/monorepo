@@ -8,7 +8,7 @@ import type {
   RelationsResolver,
   SchemaVersions,
 } from '../application/person/ports.js';
-import type { Arrivals, Leavers } from '../application/person/start.js';
+import type { Arrivals, Leavers, Scheduled } from '../application/person/start.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
 import { toEmployment, withEmployment } from './drizzle-person-repository.js';
@@ -210,6 +210,41 @@ export function drizzleLeavers(): Leavers {
         .orderBy(asc(person.lastWorkingDay), asc(person.id))
         .limit(limit);
       return rows.map((r) => r.id);
+    },
+  };
+}
+
+/**
+ * People with a dated value scheduled ahead whose day may have come
+ * somewhere, past their watermark, earliest first (PEO-124).
+ * `person_history_scheduled_idx` holds only scheduled rows, and its predicate
+ * is repeated here word for word so the planner can use it. Raw SQL, like the
+ * watermark: `applied_through` is the job's alone, so `person` in `tables.ts`
+ * does not name it and no other read selects it (20260924320000).
+ */
+export function drizzleScheduled(): Scheduled {
+  return {
+    async due(tx, tenantId, onOrBefore, limit) {
+      const rows = await tx.execute<{ id: string }>(sql`
+        SELECT h.person_id AS id
+          FROM people.person_attribute_history h
+          JOIN people.person p ON p.tenant_id = h.tenant_id AND p.id = h.person_id
+         WHERE h.tenant_id = ${tenantId}::uuid
+           AND h.effective_from > (h.recorded_at AT TIME ZONE 'Etc/GMT+12')::date
+           AND h.effective_from <= ${onOrBefore}::date
+           AND h.attribute_key NOT IN ('hire_date', 'last_working_day')
+           AND (p.applied_through IS NULL OR h.effective_from > p.applied_through)
+           AND p.status NOT IN ('terminated', 'discarded')
+         GROUP BY h.person_id
+         ORDER BY min(h.effective_from), h.person_id
+         LIMIT ${limit}`);
+      return [...rows].map((r) => r.id);
+    },
+
+    async through(tx, tenantId, personId, day) {
+      await tx.execute(sql`
+        UPDATE people.person SET applied_through = ${day}::date
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${personId}::uuid`);
     },
   };
 }

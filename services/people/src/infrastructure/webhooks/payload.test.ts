@@ -21,7 +21,8 @@ describe('a value coming into force, sent to an endpoint (PEO-124)', () => {
   it('is filtered to the allowlist exactly as the update that scheduled it', () => {
     const effective = { ...updated(['cost_centre', 'job_title']), eventName: 'people.person.attribute_effective' };
     const sent = filterFor(effective, ['cost_centre']);
-    expect((sent?.payload['changed'] as { key: string }[]).map((c) => c.key)).toEqual(['cost_centre']);
+    const kept = (sent?.payload as { changed: { key: string }[] } | undefined)?.changed;
+    expect(kept?.map((c) => c.key)).toEqual(['cost_centre']);
     expect(filterFor(effective, ['work_email'])).toBeNull();
   });
 });

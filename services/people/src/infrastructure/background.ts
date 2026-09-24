@@ -10,23 +10,32 @@ import { publishBreakdowns } from '../application/analytics/publish.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
 import { recomputePerson } from '../application/completeness/recompute.js';
-import { endAccessDue, startArrivals } from '../application/person/start.js';
+import { personAccess } from '../application/person/person-access.js';
+import { bringDueIntoForce, endAccessDue, startArrivals } from '../application/person/start.js';
 import { reconcile } from '../application/reconcile.js';
 import { tenantRoles } from '../application/roles/roles.js';
 import { drizzleRoleStore } from './drizzle-role-store.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
-import { drizzleOrgStore } from './drizzle-org-store.js';
-import { drizzleArrivals, drizzleLeavers, drizzlePersonReader } from './drizzle-person-reader.js';
+import { drizzleEmployeeNumbers, drizzleOrgStore } from './drizzle-org-store.js';
+import {
+  drizzleArrivals,
+  drizzleLeavers,
+  drizzlePersonReader,
+  drizzleRelations,
+  drizzleScheduled,
+  drizzleSchemaVersions,
+} from './drizzle-person-reader.js';
+import { keysFrom, staticKeyRing } from './envelope.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
 import { NO_TENANT_APP_BASE, tenantAppBase, tenantCompanies } from './tenant-origin.js';
 import { knownTenants } from './tenants.js';
-import { secretRotation } from './secret-store.js';
-import { claimRotation } from './unique.js';
+import { drizzleSecretStore, secretRotation } from './secret-store.js';
+import { claimRotation, drizzleUniqueClaims } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
 
 /**
@@ -196,17 +205,18 @@ export async function startBackground(
     clock: systemClock,
     newId: uuidv7,
   };
+  const lifecycleCompleteness = recomputePerson({
+    schema,
+    people: drizzlePeopleFacts(),
+    store: drizzleCompletenessStore(),
+    clock: systemClock,
+    newEventId: uuidv7,
+    calendars: org,
+  });
   const start = startArrivals({
     ...lifecycleDeps,
     arrivals: drizzleArrivals(),
-    completeness: recomputePerson({
-      schema,
-      people: drizzlePeopleFacts(),
-      store: drizzleCompletenessStore(),
-      clock: systemClock,
-      newEventId: uuidv7,
-      calendars: org,
-    }),
+    completeness: lifecycleCompleteness,
   });
   const endAccess = endAccessDue({
     ...lifecycleDeps,
@@ -214,16 +224,42 @@ export async function startBackground(
     // A leaver's tenant roles end with their access (PEO-109 × PEO-112).
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
   });
+  // Dated values whose day has come (PEO-124), after the starts so a value
+  // dated a pre-hire's first day lands on an active record. The access it
+  // goes through renumbers a transfer, so it holds the unique-claim key ring;
+  // without one there is no People to write anyway (the server refuses to boot).
+  const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
+  const bringDue =
+    keys.length === 0
+      ? null
+      : bringDueIntoForce({
+          inTenant,
+          scheduled: drizzleScheduled(),
+          clock: systemClock,
+          access: personAccess({
+            ...lifecycleDeps,
+            schemas: drizzleSchemaVersions(),
+            relations: drizzleRelations(),
+            secrets: drizzleSecretStore(staticKeyRing(keys), logger),
+            uniques: drizzleUniqueClaims(staticKeyRing(keys)),
+            numbering: drizzleEmployeeNumbers(),
+            completeness: lifecycleCompleteness,
+          }),
+        });
   jobs.push(
     every(HOUR, () =>
       forEachTenant('lifecycle', async (tenantId) => {
         const started = await start(tenantId, randomUUID());
         const ended = await endAccess(tenantId, randomUUID());
-        for (const f of [...started.failed, ...ended.failed]) {
+        const effective = (await bringDue?.(tenantId, randomUUID())) ?? { applied: 0, failed: [] };
+        for (const f of [...started.failed, ...ended.failed, ...effective.failed]) {
           logger.error({ err: f.error, tenantId, personId: f.personId }, 'lifecycle move failed');
         }
         if (started.started > 0) logger.info({ tenantId, started: started.started }, 'pre-hires started');
         if (ended.ended > 0) logger.info({ tenantId, ended: ended.ended }, 'leavers’ access ended');
+        if (effective.applied > 0) {
+          logger.info({ tenantId, applied: effective.applied }, 'dated values came into force');
+        }
       }),
     ),
   );
