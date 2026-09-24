@@ -34,18 +34,135 @@ env:
   VERCEL_CLI_VERSION: 59.3.0
 
 jobs:
+  # People's and the router's images, built natively on arm64 for the VM
+  # (`docs/environments.md` "Hosting") and proven before they are pushed:
+  # the router image must pass a persisted operation, refuse an unknown hash
+  # and refuse a request without a token (`apps/gateway/scripts/smoke.ts`), and
+  # People's must boot and answer `/health`. Nothing is pushed otherwise.
+  #
+  # The supergraph routes to `http://people:4001`, People's name on the VM's
+  # Compose network in every environment, so one router image per commit
+  # serves either. Skipped while `ROUTER_URL_STAGING` is unset.
+  images:
+    name: arm64 images
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      vars.ROUTER_URL_STAGING != ''
+    # A native arm64 runner, free for a public repository. Under QEMU the
+    # People build takes an order of magnitude longer.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      people: ${{ steps.names.outputs.people }}
+      router: ${{ steps.names.outputs.router }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: names
+        id: names
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "people=ghcr.io/${OWNER,,}/kithena-people:${SHA}" >> "$GITHUB_OUTPUT"
+          echo "router=ghcr.io/${OWNER,,}/kithena-router:${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: build and test the router image
+        working-directory: apps/gateway
+        env:
+          IMAGE: ${{ steps.names.outputs.router }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          cat > graph.deploy.yaml <<'EOF'
+          version: 1
+          subgraphs:
+            - name: people
+              routing_url: http://people:4001/graphql
+              schema:
+                file: ../../services/people/schemas/people.graphql
+          EOF
+          pnpm exec wgc router compose -i graph.deploy.yaml -o supergraph.json
+          docker build --tag "$IMAGE" --label "org.opencontainers.image.source=$SOURCE" .
+          pnpm exec tsx scripts/smoke.ts "$IMAGE"
+
+      # With no settings People boots and serves its schema; a native module
+      # built for the wrong libc or architecture dies at import, before this.
+      - name: build and test the people image
+        env:
+          IMAGE: ${{ steps.names.outputs.people }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          docker build --file services/people/Dockerfile --tag "$IMAGE" \
+            --label "org.opencontainers.image.source=$SOURCE" .
+          container="$(docker run --detach --publish 127.0.0.1:4001:4001 "$IMAGE")"
+          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:4001/health >/dev/null; then
+            docker logs "$container"
+            exit 1
+          fi
+          docker rm --force "$container"
+
+      - name: push
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          PEOPLE: ${{ steps.names.outputs.people }}
+          ROUTER: ${{ steps.names.outputs.router }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker push --quiet "$PEOPLE"
+          docker push --quiet "$ROUTER"
+          docker logout ghcr.io
+
+      # The registry is transport, not history: the VM keeps the image each
+      # environment is on and the one before it, which is all a rollback
+      # needs, so five versions a package is plenty.
+      - name: prune people images
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: kithena-people
+          package-type: container
+          min-versions-to-keep: 5
+      - name: prune router images
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: kithena-router
+          package-type: container
+          min-versions-to-keep: 5
+
   deploy:
     name: staging deploy
     # Pull requests only. A push to main is production's business, and `ci` runs
     # on both.
+    needs: images
+    # `!cancelled()`: an images job skipped because the VM is not configured
+    # must not skip the Vercel deploys with it; a failed one must.
     if: >
+      !cancelled() && needs.images.result != 'failure' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
-    # 40, not 25: People's image is built on Fly's remote builder and the
-    # router's is built and started here, which together take minutes the
-    # Vercel-only job never needed.
-    timeout-minutes: 40
+    # Job-level, so the workflow's two plus the VM's pull from the registry.
+    permissions:
+      contents: read
+      pull-requests: write
+      packages: read
+    # 30, not 25: the VM deploy waits for People and the router to be healthy.
+    timeout-minutes: 30
     environment:
       name: staging
       url: https://staging.app.kithena.com
@@ -98,145 +215,126 @@ jobs:
       #
       # Schema, then service, then client, one layer further out: People serves
       # the subgraph, the router composes it, the remote renders against what
-      # the router serves, and the shell (`build web` below) loads the remote.
-      # Deploying the router before People would compose a field People is not
-      # yet serving; deploying the shell before the remote would pin a key to a
-      # build that is not there.
+      # the router serves, and the shell loads the remote.
       #
-      # People and the router run on Fly.io, not Vercel. People holds Kafka
-      # consumer groups, runs hourly jobs and drains on SIGTERM (PEO-118) — a
-      # function-per-request runtime has no process to hold any of that. The
-      # router is a Go binary with no serverless build at all.
-      # `docs/environments.md`, "People, the router and the remote", has the
-      # rest and the list of settings.
+      # People and the router run on one Oracle Cloud VM under Docker Compose
+      # (`deploy/vm/`), reached over Tailscale; only the router is public,
+      # through a Cloudflare Tunnel. People holds Kafka consumer groups, runs
+      # hourly jobs and drains on SIGTERM (PEO-118), so it needs a process,
+      # not a function. `docs/environments.md` "Hosting" has the rest.
       #
-      # Each is skipped with a warning while its app or project variable is
-      # unset, the way messaging is, so this merges before the apps exist.
-      - name: flyctl
-        if: vars.FLY_APP_PEOPLE_STAGING != ''
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
-        with:
-          # Pinned, like the Vercel CLI: this runs with a deploy token.
-          version: 0.4.87
-
-      # `PEOPLE_API_TOKEN` is staged onto both apps from one GitHub secret, so
-      # the token the router sends and the token People expects cannot drift
-      # apart. `printf` into `secrets import` rather than `secrets set NAME=…`,
-      # which would put the value in a process's argv. Every other People
-      # setting is a Fly secret set once by hand.
-      - name: deploy people
-        id: people
-        if: vars.FLY_APP_PEOPLE_STAGING != ''
+      # Skipped with a warning while `ROUTER_URL_STAGING` is unset, so this
+      # merges before the VM exists.
+      - name: check the VM settings
+        if: vars.ROUTER_URL_STAGING != ''
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          VM_HOST: ${{ vars.VM_TAILSCALE_HOST }}
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
-          APP: ${{ vars.FLY_APP_PEOPLE_STAGING }}
-        run: |
-          missing=
-          [ -z "$FLY_API_TOKEN" ] && missing="$missing FLY_API_TOKEN"
-          [ -z "$PEOPLE_API_TOKEN" ] && missing="$missing PEOPLE_API_TOKEN"
-          if [ -n "$missing" ]; then
-            echo "::error::missing staging secret(s):$missing"
-            exit 1
-          fi
-          printf 'PEOPLE_API_TOKEN=%s\n' "$PEOPLE_API_TOKEN" \
-            | flyctl secrets import --stage --app "$APP"
-          flyctl deploy . --app "$APP" \
-            --config services/people/fly.toml \
-            --dockerfile services/people/Dockerfile \
-            --remote-only --yes
-
-      # `/v1/openapi.json` rather than `/health`. Yoga's `/health` answers with
-      # no database at all, and People without `PEOPLE_DATABASE_URL` still
-      # boots — serving the schema and nothing else. The REST routes are only
-      # mounted when the database is configured, so this is the check that a
-      # missing secret cannot pass.
-      - name: smoke test people
-        if: vars.FLY_APP_PEOPLE_STAGING != ''
-        env:
-          APP: ${{ vars.FLY_APP_PEOPLE_STAGING }}
-        run: |
-          curl --fail --silent --show-error \
-            --retry 5 --retry-delay 5 --max-time 30 \
-            "https://${APP}.fly.dev/v1/openapi.json" >/dev/null
-
-      # The supergraph is composed from `services/people/schemas/people.graphql`,
-      # the SDL People's build serves, routed to People over Fly's private
-      # network. It is baked into the image with the safelist, and the image is
-      # proven before it is pushed: `scripts/smoke.ts` starts it, and a
-      # persisted operation must pass while an unknown hash is refused. That
-      # cannot be asked of the live router — it refuses anything without a
-      # token identity minted for a signed-in session, which a workflow must
-      # never hold — so the image is where it is asked, and the image is what
-      # ships.
-      - name: build and test the router image
-        id: router-image
-        if: vars.FLY_APP_ROUTER_STAGING != '' && vars.FLY_APP_PEOPLE_STAGING != ''
-        working-directory: apps/gateway
-        env:
-          APP: ${{ vars.FLY_APP_ROUTER_STAGING }}
-          PEOPLE_APP: ${{ vars.FLY_APP_PEOPLE_STAGING }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          cat > graph.deploy.yaml <<EOF
-          version: 1
-          subgraphs:
-            - name: people
-              routing_url: http://${PEOPLE_APP}.internal:4001/graphql
-              schema:
-                file: ../../services/people/schemas/people.graphql
-          EOF
-          pnpm exec wgc router compose -i graph.deploy.yaml -o supergraph.json
-          image="registry.fly.io/${APP}:${SHA}"
-          docker build --tag "$image" .
-          pnpm exec tsx scripts/smoke.ts "$image"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-
-      # The router's settings are staged as secrets, not passed as `--env`, so
-      # they survive a redeploy that does not repeat them. The audience and the
-      # entitlements must equal identity's own `AUTH_TOKEN_AUDIENCE` and
-      # `KITHENA_ENTITLEMENTS`: a different audience refuses every token.
-      - name: deploy the router
-        id: router
-        if: vars.FLY_APP_ROUTER_STAGING != '' && vars.FLY_APP_PEOPLE_STAGING != ''
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
-          APP: ${{ vars.FLY_APP_ROUTER_STAGING }}
-          IMAGE: ${{ steps.router-image.outputs.image }}
+          PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
+          IMAGES: ${{ needs.images.result }}
         run: |
           missing=
-          [ -z "$AUTH_TOKEN_AUDIENCE" ] && missing="$missing AUTH_TOKEN_AUDIENCE_STAGING"
-          [ -z "$KITHENA_ENTITLEMENTS" ] && missing="$missing KITHENA_ENTITLEMENTS_STAGING"
+          for name in VM_HOST TS_OAUTH_CLIENT_ID TS_OAUTH_SECRET PEOPLE_API_TOKEN PEOPLE_ENV \
+                      CLOUDFLARE_TUNNEL_TOKEN AUTH_TOKEN_AUDIENCE KITHENA_ENTITLEMENTS; do
+            [ -z "${!name}" ] && missing="$missing $name"
+          done
           if [ -n "$missing" ]; then
-            echo "::error::missing staging variable(s):$missing"
+            echo "::error::missing staging setting(s):$missing (docs/environments.md, Hosting)"
             exit 1
           fi
-          flyctl auth docker
-          docker push "$IMAGE"
+          if [ "$IMAGES" != success ]; then
+            echo "::error::the arm64 images job did not succeed ($IMAGES)"
+            exit 1
+          fi
+
+      # An ephemeral node tagged `tag:ci`, gone when the job ends. The tailnet
+      # policy lets `tag:ci` reach `tag:vm` as `deploy` and nothing else.
+      - name: tailscale
+        if: vars.ROUTER_URL_STAGING != ''
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # Secrets travel on stdin into root-only 0600 files under
+      # `/etc/kithena/staging/`: never argv, never an image, never this
+      # repository. `PEOPLE_API_TOKEN` is appended to People's settings and
+      # written into the router's from the one secret, so the token the router
+      # sends and the token People expects cannot drift apart. The registry
+      # login is this job's own token, which expires with the job.
+      - name: prepare the VM
+        if: vars.ROUTER_URL_STAGING != ''
+        env:
+          VM_HOST: ${{ vars.VM_TAILSCALE_HOST }}
+          PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
+          PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
+          KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          mkdir -p ~/.ssh
+          printf 'Host vm\n  HostName %s\n  User deploy\n  StrictHostKeyChecking accept-new\n' \
+            "$VM_HOST" > ~/.ssh/config
+          ssh vm 'mkdir -p kithena'
+          scp -q deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
+            deploy/vm/deploy.sh deploy/vm/backup.sh vm:kithena/
+          ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/staging
+          put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/staging/$1"; }
+          printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN" | put people.env
           printf 'PEOPLE_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
             "$PEOPLE_API_TOKEN" \
             https://identity.staging.kithena.com/.well-known/jwks.json \
-            "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" \
-            | flyctl secrets import --stage --app "$APP"
-          flyctl deploy --app "$APP" --config apps/gateway/fly.toml \
-            --image "$IMAGE" --yes
+            "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" | put router.env
+          printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env
+          echo "$GH_TOKEN" | ssh vm sudo docker login ghcr.io -u "$ACTOR" --password-stdin
 
-      # Ready, and closed to a stranger. The safelist was proven on the image.
-      - name: smoke test the router
-        if: vars.FLY_APP_ROUTER_STAGING != '' && vars.FLY_APP_PEOPLE_STAGING != ''
+      # Pulled, started, healthy, and serving `/v1/openapi.json` — mounted only
+      # once `PEOPLE_DATABASE_URL` is set, so a missing secret fails here where
+      # Yoga's `/health` would pass. `deploy.sh` asks it from inside People.
+      - name: deploy people
+        id: people
+        if: vars.ROUTER_URL_STAGING != ''
         env:
-          APP: ${{ vars.FLY_APP_ROUTER_STAGING }}
+          IMAGE: ${{ needs.images.outputs.people }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh staging people "$IMAGE" | tee deploy.out
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+
+      - name: deploy the router
+        id: router
+        if: vars.ROUTER_URL_STAGING != ''
+        env:
+          IMAGE: ${{ needs.images.outputs.router }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh staging router "$IMAGE" | tee deploy.out
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+
+      # Ready, and closed to a stranger, through the tunnel as a browser meets
+      # it. The safelist was proven on the image.
+      - name: smoke test the router
+        if: vars.ROUTER_URL_STAGING != ''
+        env:
+          ROUTER_URL: ${{ vars.ROUTER_URL_STAGING }}
         run: |
           curl --fail --silent --show-error \
-            --retry 5 --retry-delay 5 --max-time 30 \
-            "https://${APP}.fly.dev/health/ready" >/dev/null
+            --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
+            "$ROUTER_URL/health/ready" >/dev/null
           code="$(curl --silent --output /dev/null --write-out '%{http_code}' \
             --retry 3 --retry-delay 5 --max-time 30 \
             -X POST -H 'content-type: application/json' -d '{"query":"{__typename}"}' \
-            "https://${APP}.fly.dev/graphql")"
+            "$ROUTER_URL/graphql")"
           echo "an unauthenticated request answered $code"
           if [ "$code" != "401" ]; then
             echo "::error::the router did not refuse a request without a token"
@@ -299,14 +397,12 @@ jobs:
           node apps/web/people/scripts/smoke-deploy.mjs "$REMOTE" https://acme.staging.app.kithena.com
 
       - name: warn about what was not deployed
-        if: vars.FLY_APP_PEOPLE_STAGING == '' || vars.FLY_APP_ROUTER_STAGING == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING == ''
+        if: vars.ROUTER_URL_STAGING == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING == ''
         env:
-          PEOPLE: ${{ vars.FLY_APP_PEOPLE_STAGING }}
-          ROUTER: ${{ vars.FLY_APP_ROUTER_STAGING }}
+          ROUTER: ${{ vars.ROUTER_URL_STAGING }}
           REMOTE: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING }}
         run: |
-          [ -z "$PEOPLE" ] && echo "::warning::FLY_APP_PEOPLE_STAGING is unset: People and the router were not deployed"
-          [ -z "$ROUTER" ] && echo "::warning::FLY_APP_ROUTER_STAGING is unset: the router was not deployed"
+          [ -z "$ROUTER" ] && echo "::warning::ROUTER_URL_STAGING is unset: People and the router were not deployed"
           [ -z "$REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING is unset: the People remote was not deployed"
           true
 
@@ -332,7 +428,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
           PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_STAGING }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING }}
-          ROUTER_APP: ${{ vars.FLY_APP_ROUTER_STAGING }}
+          ROUTER_URL: ${{ vars.ROUTER_URL_STAGING }}
         run: |
           # `pipefail`, because this pipes into `tail`: without it the status
           # reported is `tail`'s, so a deploy that failed exits 0 here and
@@ -341,7 +437,7 @@ jobs:
           args=(--yes --archive=tgz --token "$VERCEL_TOKEN")
           [ -n "$PEOPLE_REMOTE_URL" ] && args+=(--env "PEOPLE_REMOTE_URL=$PEOPLE_REMOTE_URL")
           [ -n "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "PEOPLE_REMOTE_SSR_PUBLIC_KEY=$PEOPLE_REMOTE_SSR_PUBLIC_KEY")
-          [ -n "$ROUTER_APP" ] && args+=(--env "ROUTER_URL=https://${ROUTER_APP}.fly.dev")
+          [ -n "$ROUTER_URL" ] && args+=(--env "ROUTER_URL=$ROUTER_URL")
           url="$(npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy "${args[@]}" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
@@ -597,6 +693,11 @@ jobs:
           curl --fail --silent --show-error \
             --retry 5 --retry-delay 5 --max-time 30 \
             https://admin.staging.kithena.com/sign-in >/dev/null
+
+      # The registry login on the VM ends with the job, whatever happened.
+      - name: log the VM out of the registry
+        if: always() && steps.people.outcome != 'skipped'
+        run: ssh vm 'sudo docker logout ghcr.io' || true
 
       - name: comment the url on the pr
         env:

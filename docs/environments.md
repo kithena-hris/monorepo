@@ -310,86 +310,253 @@ environment's database by accident:
 `ATLAS_DEV_URL` must never point at the database being migrated. Atlas drops
 everything in it to compute a diff.
 
-### People, the router and the remote
+### Hosting: People, the router and the remote
 
 Both deploy workflows ship three more things, in this order, between the
 migration and the tenant app:
 
 ```
-migrate ──▶ People (Fly) ──▶ Cosmo Router (Fly) ──▶ People remote (Vercel) ──▶ shell (apps/web)
+migrate ──▶ People (VM) ──▶ Cosmo Router (VM) ──▶ People remote (Vercel) ──▶ shell (apps/web)
 ```
 
 Schema, then service, then client, one layer further out each time. Production
 rolls all of them back when a smoke test fails — clients first, then the
 router, then People — and never the database.
 
-**People runs on Fly.io, not as a Vercel function like identity and
-messaging.** Identity moved to Vercel once it held nothing between requests.
-People holds three things a function-per-request runtime takes away: Kafka
-consumer groups, the hourly and daily jobs in `infrastructure/background.ts`,
-and the SIGTERM drain that lets a message in hand and a job in flight finish
-(PEO-118). A function has no process to keep in a group and no clock to tick.
-The Cosmo Router is a Go binary with no serverless build at all. Fly is the
-container host this repository already used for identity, and
-`services/people/Dockerfile` follows identity's.
+**People and the router run on one Oracle Cloud Always Free VM, under Docker
+Compose, for $0.** People holds three things a function-per-request runtime
+takes away: Kafka consumer groups, the hourly and daily jobs in
+`infrastructure/background.ts`, and the SIGTERM drain that lets a message in
+hand and a job in flight finish (PEO-118). The Cosmo Router is a Go binary with
+no serverless build at all. So they need a process, and the process lives on a
+VM that also runs what they lean on. The frontends stay on Vercel Hobby, and
+identity and messaging stay Vercel functions.
 
-**It needs a paid Fly organisation.** Identity left Fly because a *trial*
-organisation reaps idle machines and refused `fly deploy` for new machines,
-which left production with none for a day. That was the plan, not the
-platform, and a trial organisation would do the same to People.
+```
+                         Cloudflare edge (TLS, DNS)
+    browser / shell ──▶  api.kithena.com
+                              │  Cloudflare Tunnel (outbound from the VM; no inbound port)
+┌─ Oracle A1 VM, arm64 ───────┼──────────────────────────────────────────────┐
+│  compose project kithena-production                                        │
+│   cloudflared ──▶ router :4000 ──▶ people :4001 ──┬─▶ redpanda :9092       │
+│        └──── /v1/exports/files/* ─────────▶┘      ├─▶ temporal :7233 ─┐    │
+│                                                    ├─▶ openfga  :8080 ─┤    │
+│                                                    └─▶ valkey   :6379  │    │
+│                                                        postgres :5432 ◀┘    │
+│  (kithena-staging: the same again, opt-in, smaller)                         │
+│  tailscaled ◀── GitHub Actions deploys, founder SSH (tailnet only)         │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+          Neon Postgres (app data, svc_people) ◀┘ ├─▶ Oracle Object Storage (exports, backups)
+                                                   └─▶ Cloudflare R2 (browser uploads)
+```
 
-How each piece is shipped:
+Only the router is public, as `api.<domain>`, plus the one People path a
+browser has to open directly: the signed, expiring export links. Everything
+else — People's GraphQL and REST, Temporal, OpenFGA, Redpanda, Valkey, the VM
+Postgres — is reachable only on the Compose network. That includes People's
+REST API, the published schema artifact (`PEOPLE_PUBLIC_URL/v1/schema/versions/N`,
+§13.4) and, later, SCIM: a customer integration reaching `/v1/*` needs its own
+tunnel route when it is wanted, and deciding which paths are public is that
+change's job.
 
-- **People** — `flyctl deploy` with `services/people/fly.toml`, built on Fly's
-  remote builder from the repository root. Never scaled to zero, SIGTERM with a
-  30-second kill timeout so the drain finishes. Smoke: `/v1/openapi.json`,
-  which is only mounted once `PEOPLE_DATABASE_URL` is set, so a machine that
-  booted without its database fails it.
-- **The router** — `apps/gateway/Dockerfile`: the router image pinned by
-  version and digest, with `config.yaml`, `deploy.yaml` (a file execution
-  config, telemetry off), the composed `supergraph.json` and the safelist at
-  `/persisted`. The supergraph is composed in the job from
-  `services/people/schemas/people.graphql`, routed to
-  `http://<people app>.internal:4001` over Fly's private network — so both
-  apps must be in the same Fly organisation. The image is started on the runner
-  first (`apps/gateway/scripts/smoke.ts`): a persisted operation must pass and
-  an unknown hash must be refused, or nothing is pushed. The live router is
-  then checked for readiness and for refusing a request without a token; it
-  cannot be asked about the safelist, because only a token identity minted for
-  a signed-in session gets that far.
+#### What ships, and how
+
+- **Images** — a job on a native arm64 runner (`ubuntu-24.04-arm`, free for a
+  public repository) builds both images and proves them before anything is
+  pushed. The router image is `apps/gateway/Dockerfile` with the supergraph
+  composed against `http://people:4001` — People's name on the Compose
+  network, the same in every environment, so one router image serves both —
+  and `apps/gateway/scripts/smoke.ts` starts it: a persisted operation must
+  pass, an unknown hash must be refused, a request without a token must get
+  401. People's image (`services/people/Dockerfile`, `node:24-bookworm-slim`)
+  must boot and answer `/health`, which is where a native module built for the
+  wrong architecture dies. Both are pushed to GHCR as
+  `ghcr.io/<owner>/kithena-{people,router}:<sha>`.
+- **Onto the VM** — the deploy job joins the tailnet as an ephemeral node
+  (`tag:ci`), copies `deploy/vm/` to `~deploy/kithena`, writes the settings
+  from the GitHub environment into root-only 0600 files on stdin, logs the VM
+  into GHCR with the job's own token (expires with the job) and runs
+  `deploy.sh <env> people <image>`, then `deploy.sh <env> router <image>`.
+  `deploy.sh` records the image it replaces, pulls, starts the service, waits
+  for its healthcheck and then checks it properly: People must serve
+  `/v1/openapi.json` (only mounted once `PEOPLE_DATABASE_URL` is set, so a
+  missing secret fails here where `/health` would pass); the router must
+  answer `/health/ready`.
+- **The router, from outside** — `ROUTER_URL/health/ready` through the tunnel,
+  and a request without a token must get 401. The safelist was proven on the
+  image; the live router refuses anything without a token identity minted for
+  a signed-in session, which a workflow must never hold.
+- **Rollback (production)** — the same `deploy.sh` call with the image the
+  deploy printed as `previous=`. The VM keeps every image an environment is on
+  or would roll back to, so a rollback never depends on the registry.
 - **The People remote** — built and **signed in the job** with the environment's
-  `PEOPLE_REMOTE_SSR_SIGNING_KEY`, then `apps/web/people/dist` is uploaded as
-  static files with the committed `vercel.json` headers. Vercel never builds
-  it and never holds the key: a build Vercel could sign is a build a
-  compromise of Vercel could sign. Smoke (`apps/web/people/scripts/smoke-deploy.mjs`):
-  `remoteEntry.js`, `routes.json`, `people.cjs` and the signed manifest are
-  served `no-cache`, `nosniff` and with CORS for a tenant origin, and the
-  manifest verifies under the public key the shell is about to be given.
+  `PEOPLE_REMOTE_SSR_SIGNING_KEY`, then `apps/web/people/dist` is uploaded to
+  Vercel as static files with the committed `vercel.json` headers. Vercel
+  never builds it and never holds the key. Smoke
+  (`apps/web/people/scripts/smoke-deploy.mjs`): the files are served
+  `no-cache`, `nosniff` and with CORS for a tenant origin, and the manifest
+  verifies under the public key the shell is about to be given.
 - **The shell** gets `PEOPLE_REMOTE_URL`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY` and
-  `ROUTER_URL` (`https://<router app>.fly.dev`) as `--env` on its deploy, each
-  only when set.
+  `ROUTER_URL` as `--env` on its deploy, each only when set.
 
-Each piece is skipped with a warning while its app or project variable is
-unset, so the workflows run green before any of this exists.
+People and the router are skipped with a warning while `ROUTER_URL_<ENV>` is
+unset, and the remote while its project variable is, so the workflows run green
+before any of this exists.
+
+**Staging is opt-in.** It is a second Compose project on the same VM
+(`kithena-staging`, `compose.staging.yaml`, its own tunnel and volumes) and it
+only deploys once `ROUTER_URL_STAGING` is set. With one person testing, leaving
+it unset is the default; see "Neon" below for the second reason.
+
+#### Memory budget
+
+Limits, not reservations: the stack measured about 0.8 GB resident per
+environment with nothing to do. `bootstrap.sh` adds 4 GB of swap as headroom.
+
+| Container | Production | Staging (opt-in) |
+| --- | --- | --- |
+| people | 1 GB | 768 MB |
+| router | 384 MB | 256 MB |
+| redpanda (`--memory 768M` / `512M`) | 1 GB | 768 MB |
+| postgres (Temporal, OpenFGA) | 768 MB | 512 MB |
+| temporal (auto-setup) | 768 MB | 512 MB |
+| openfga | 256 MB | 192 MB |
+| valkey (`maxmemory` 192 MB / 96 MB, `noeviction`) | 256 MB | 128 MB |
+| cloudflared | 128 MB | 128 MB |
+| **Total** | **4.5 GB** | **3.2 GB** |
+
+7.7 GB for both against the VM's 12 GB, leaving the OS and Docker a couple of
+gigabytes. CPU limits are caps on 2 OCPUs, deliberately oversubscribed.
+
+#### The $0 bill of materials
+
+| Piece | Service, plan | Free limits that matter here |
+| --- | --- | --- |
+| People, router, Redpanda, Temporal, OpenFGA, Valkey | **Oracle Cloud Always Free**, one `VM.Standard.A1.Flex` | 1,500 OCPU-hours and 9,000 GB-hours a month of A1 = **2 OCPU / 12 GB** (the current grant; older write-ups, and the plan this was first sized for, say 4 OCPU / 24 GB). 200 GB block storage in total, 10 TB/month egress. **Idle reclaim:** an Always Free instance whose CPU (95th percentile), network *and* memory all stay under 20% for 7 days may be stopped — this stack at rest is ~2 GB of 12, under the line. **Upgrading the account to Pay As You Go removes the reclaim** and is still billed $0 while usage stays inside the Always Free limits; do it, and set a budget alert at $1. |
+| Public HTTPS for the router | **Cloudflare Tunnel** (Zero Trust Free) | Free, no bandwidth charge; the VM opens no inbound port. |
+| App database | **Neon Free** | 100 CU-hours per project a month, 0.5 GB storage per project, 5 GB egress; scale-to-zero after 5 minutes cannot be disabled. Running out suspends the compute until next month; over storage blocks writes. **See "Neon" below.** |
+| Export files, nightly backups | **Oracle Object Storage** (Always Free, same account) via its S3 Compatibility API | 20 GB across tiers (10 GB Standard on a PAYG account), 50,000 API requests a month, egress inside the 10 TB. |
+| Browser uploads (imports, up to 100 MB) | **Cloudflare R2** Free | 10 GB-month storage, 1M Class A and 10M Class B operations a month, no egress fees. |
+| Frontends, identity, messaging | **Vercel Hobby** | 100 deployments a day — every PR run spends several, one per project. **No deployment protection on production or a custom domain** (the API refuses `ssoProtection` there), which is why the back-office's own check is its only door. Hobby is non-commercial use only: the first paying customer is the trigger for Pro. |
+| Email | **Resend Free** | 3,000 emails a month, 100 a day, one domain. |
+| Images | **GHCR** | Container registry storage and bandwidth are currently free; the published Packages allowance on GitHub Free is 500 MB storage and 1 GB/month transfer for private packages, if that ever applies. Measured: People's image is ~520 MB uncompressed, most of it one layer that changes every commit; the router's per-commit layers are under 1 MB. Five versions of each are kept (`delete-package-versions`). Pulls by Actions are free. **Making both packages public** (the repository is public and the images hold no secret) takes them out of any quota for good. |
+| CI | **GitHub Actions**, public repository | Standard runners, including `ubuntu-24.04-arm`, free. |
+| Private access | **Tailscale Personal** | 3 users, 100 devices; CI joins as an ephemeral node per run. |
+
+#### Neon, and why staging is off
+
+People polls every tenant's due webhook deliveries once a minute
+(`POLL_MS` in `http/server.ts`) and its outbox reconciliation every five
+minutes. Either keeps a Neon compute from ever reaching its five idle minutes,
+so a People process pinned to the Free plan holds 0.25 CU around the clock:
+~182 CU-hours a month against 100, and the project's compute is suspended
+from about the 16th until the month turns. Staging's branch shares the same
+100 hours, so a staging People would halve that again.
+
+That is a conflict between two decisions, not something a config file here can
+resolve. The ways out, cheapest first: lengthen or make idle-aware the two
+polls (a People change), run the app database on the VM's Postgres too until
+there is revenue, or move Neon to a paid plan. Until one is chosen, expect
+Neon to run out mid-month once People is deployed against it.
+
+People connects to Neon's **direct** endpoint, not `-pooler`, as it did before
+this moved: it is a long-lived process with its own pool, and it prepares
+statements.
+
+#### Why Tailscale for deploys
+
+The deploy has to reach the VM without the VM listening on the internet. A
+Tailscale ephemeral node in the job, with the tailnet policy allowing `tag:ci`
+to SSH to `tag:vm` as `deploy` and nothing else, does that with no SSH key to
+store and no public SSH hostname. The alternative, SSH through Cloudflare
+Access, would route deploys through the `cloudflared` container that the
+deploy itself manages — a broken stack would lock out the fix. Tailscale runs
+on the host, beside Docker rather than inside it.
 
 #### Created by hand, once
 
-| What | Where | Notes |
-| --- | --- | --- |
-| A paid Fly.io organisation | fly.io | Not a trial one; see above. |
-| Fly app for People, staging and production | `fly apps create <name> --org <org>` | Names go in `FLY_APP_PEOPLE_*`. |
-| Fly app for the router, staging and production | `fly apps create <name> --org <org>` | Same organisation as People, for `.internal`. Names go in `FLY_APP_ROUTER_*`. |
-| Vercel project for the People remote, staging and production | Vercel, team `kithena` | Framework **Other**, Root Directory **empty**, no build command. **Do not connect the Git repository**: a Git build is unsigned. Add a custom domain to each — the `.vercel.app` host is behind SSO. Ids go in `VERCEL_PROJECT_ID_PEOPLE_REMOTE_*`. |
-| An Ed25519 key pair per environment | locally, see below | Private half to the environment secret, public half to the repository variable. |
-| A Kafka cluster (Redpanda) reachable from Fly | — | See "Not covered" below. |
+**Accounts** (all free): Oracle Cloud, Cloudflare (already has the DNS),
+Tailscale, Neon (exists), Vercel (exists), Resend (exists).
 
-The key pair, as base64 DER — PKCS#8 for the private half, SPKI for the public:
+1. **VM.** Oracle Console → Compute → Create instance: image Ubuntu 24.04
+   (aarch64), shape `VM.Standard.A1.Flex`, **2 OCPU, 12 GB**, boot volume 100 GB.
+   Region: the one nearest the Neon project's region (Neon console → project
+   settings; `aws-eu-central-1` means `eu-frankfurt-1`). It becomes the home
+   region, which is where Always Free compute lives. Your SSH public key.
+   A1 capacity is often short in popular regions; retry, or try another
+   availability domain. Then upgrade the account to **Pay As You Go** (Billing →
+   Upgrade) and add a $1 budget alert.
+2. **Tailscale.** Create a tailnet. In the access policy add tags and rules:
+   ```json
+   "tagOwners": { "tag:vm": ["autogroup:admin"], "tag:ci": ["autogroup:admin"] },
+   "grants": [ { "src": ["tag:ci"], "dst": ["tag:vm"], "ip": ["22"] } ],
+   "ssh": [
+     { "action": "accept", "src": ["tag:ci"], "dst": ["tag:vm"], "users": ["deploy"] },
+     { "action": "check",  "src": ["autogroup:admin"], "dst": ["tag:vm"], "users": ["deploy", "ubuntu"] }
+   ]
+   ```
+   Generate an auth key tagged `tag:vm` (one-off), and an **OAuth client** with
+   the `auth_keys` write scope and tag `tag:ci` for the workflows.
+3. **Bootstrap.** From a checkout:
+   `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh`.
+   It installs Docker and Compose, unattended upgrades with a 04:30 reboot,
+   4 GB swap, SSH key-only, Tailscale (hostname `kithena-vm`), ufw (nothing in
+   but the tailnet), the `deploy` user and the backup timer. Then in the
+   Oracle console delete the **port 22 ingress rule** from the subnet's
+   security list: from here on nothing reaches the VM except through Tailscale
+   and nothing is served except through the tunnel. Rerunning the script is how
+   a change to it reaches the VM.
+4. **Tunnel.** Cloudflare Zero Trust → Networks → Tunnels → Create
+   (`cloudflared`), one per environment (`kithena-production`, and
+   `kithena-staging` if wanted). Copy the token. Public hostnames, in this
+   order:
+   - `api.kithena.com`, path `^/v1/exports/files/` → `http://people:4001`
+   - `api.kithena.com` (no path) → `http://router:4000`
 
-```bash
-node -e "const k=require('node:crypto').generateKeyPairSync('ed25519');
-console.log('private', k.privateKey.export({format:'der',type:'pkcs8'}).toString('base64'));
-console.log('public ', k.publicKey.export({format:'der',type:'spki'}).toString('base64'))"
-```
+   (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.
+5. **Buckets, Oracle** (Object Storage, same region, both **private**, no
+   pre-authenticated requests):
+   - `kithena-exports` — lifecycle rules: delete objects matching `*/exports/*`
+     after **2 days** (a link lives 24 hours) and `*/imports/*` after **8 days**
+     (a report lives 7). People sweeps by age too; the rules are the backstop.
+   - `kithena-backups` — lifecycle rule: delete after **30 days**.
+   - Identity → your user → **Customer Secret Keys** → generate. Two, if you
+     want the backup key separate from People's. The S3 endpoint is
+     `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com`
+     (the older `…oraclecloud.com` form also works); the namespace is on the
+     tenancy page. Region is the VM's region identifier, e.g. `eu-frankfurt-1`.
+6. **Bucket, Cloudflare R2** — `kithena-uploads`, private. CORS: `PUT` (and
+   `GET`, `HEAD`) from `https://*.app.kithena.com` (staging:
+   `https://*.staging.app.kithena.com`), header `content-type`, max age 3600.
+   Lifecycle: delete objects after **1 day** (an upload is consumed by its
+   import or abandoned). An R2 API token scoped to that bucket with Object
+   Read & Write. Endpoint `https://<account id>.r2.cloudflarestorage.com`,
+   region `auto`. Oracle's S3 API cannot hold a CORS rule at all, which is why
+   uploads live here.
+7. **Backups' credentials** — on the VM, once, as root:
+   ```bash
+   sudo install -m 600 /dev/stdin /etc/kithena/backup.env <<'EOF'
+   BACKUP_S3_ENDPOINT=https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
+   BACKUP_S3_REGION=<region>
+   BACKUP_S3_BUCKET=kithena-backups
+   AWS_ACCESS_KEY_ID=<customer secret key id>
+   AWS_SECRET_ACCESS_KEY=<customer secret key>
+   EOF
+   ```
+8. **Vercel project for the People remote**, staging and production: Framework
+   **Other**, Root Directory **empty**, no build command. **Do not connect the
+   Git repository**: a Git build is unsigned. Add a custom domain to each. Ids
+   go in `VERCEL_PROJECT_ID_PEOPLE_REMOTE_*`.
+9. **An Ed25519 key pair per environment**, private half to the environment
+   secret, public half to the repository variable:
+   ```bash
+   node -e "const k=require('node:crypto').generateKeyPairSync('ed25519');
+   console.log('private', k.privateKey.export({format:'der',type:'pkcs8'}).toString('base64'));
+   console.log('public ', k.publicKey.export({format:'der',type:'spki'}).toString('base64'))"
+   ```
+10. **GHCR** — nothing to create: the first run publishes both packages and
+    links them to the repository. Optionally set each package public
+    (Package settings → Change visibility).
 
 #### GitHub: environment secrets (Settings → Environments → `staging` / `production`)
 
@@ -397,47 +564,109 @@ Same names in both environments, different values.
 
 | Secret | Holds |
 | --- | --- |
-| `FLY_API_TOKEN` | A Fly deploy token for the organisation (`fly tokens create org`). |
-| `PEOPLE_API_TOKEN` | The token the router sends People as `x-internal-token`. Staged onto both Fly apps on every deploy, so the two cannot disagree. Random, 32+ bytes. |
+| `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | The Tailscale OAuth client (step 2). |
+| `CLOUDFLARE_TUNNEL_TOKEN` | That environment's tunnel token (step 4). |
+| `PEOPLE_API_TOKEN` | The token the router sends People as `x-internal-token`. Written to both on every deploy, so the two cannot disagree. Random, 32+ bytes. |
+| `PEOPLE_ENV` | Every other People setting, as a dotenv file (below). Written to `/etc/kithena/<env>/people.env`, 0600, on every deploy. |
 | `PEOPLE_REMOTE_SSR_SIGNING_KEY` | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel. |
+
+`PEOPLE_ENV` — one multi-line secret, so a setting People gains later (the
+Kafka SASL/TLS settings, the uploads bucket) is a secret edit, not a workflow
+change. What each does is in `.env.example`. `KAFKA_BROKERS`,
+`TEMPORAL_ADDRESS`, `OPENFGA_URL` and `VALKEY_URL` are **not** in it: they are
+the Compose network's addresses, set in `compose.yaml`.
+
+```dotenv
+PEOPLE_DATABASE_URL=postgres://svc_people:…@<neon direct host>/kithena?sslmode=require
+PEOPLE_SECRET_KEYS=k1:<base64 32 bytes>
+IDENTITY_URL=https://identity.kithena.com
+PEOPLE_IDENTITY_TOKEN=…
+MESSAGING_URL=https://messaging.kithena.com
+MESSAGING_PEOPLE_TOKEN=…
+TENANT_APP_BASE=https://{slug}.app.kithena.com
+PEOPLE_PUBLIC_URL=https://api.kithena.com
+# Exports: Oracle Object Storage
+PEOPLE_EXPORT_BUCKET=kithena-exports
+PEOPLE_EXPORT_LINK_BASE=https://api.kithena.com/v1/exports/files
+PEOPLE_EXPORT_ENCRYPTION_KEY=<base64 32 bytes>
+PEOPLE_EXPORT_SIGNING_KEY=<base64 32 bytes>
+S3_ENDPOINT=https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
+S3_REGION=<region>
+S3_ACCESS_KEY_ID=…
+S3_SECRET_ACCESS_KEY=…
+# Uploads: Cloudflare R2 — endpoint, region (auto), bucket, access key and
+# secret, under the names the direct-uploads change gives them.
+```
+
+Export links are People's own signed URLs, never the bucket's: People reads
+the object and decrypts it on `GET /v1/exports/files/…`, which is why that one
+path is routed through the tunnel and the bucket stays private. Nothing
+presigns against Oracle.
 
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 
 | Variable | Holds |
 | --- | --- |
-| `FLY_APP_PEOPLE_STAGING`, `FLY_APP_PEOPLE_PRODUCTION` | The Fly app name for People. Unset: People and the router are skipped. |
-| `FLY_APP_ROUTER_STAGING`, `FLY_APP_ROUTER_PRODUCTION` | The Fly app name for the router. Also gives the shell its `ROUTER_URL`. |
+| `VM_TAILSCALE_HOST` | The VM's tailnet name, `kithena-vm`. |
+| `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION` | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`. |
 | `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION` | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token. |
 | `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION` | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`. |
 | `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION` | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped. |
-| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION` | The remote's custom domain, `https://…`, no trailing slash. The shell's `PEOPLE_REMOTE_URL`. |
-| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Ed25519 public key, base64 SPKI DER. The shell's `PEOPLE_REMOTE_SSR_PUBLIC_KEY`. |
+| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION` | The remote's custom domain, `https://…`, no trailing slash. |
+| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Ed25519 public key, base64 SPKI DER. |
 
-The router's `AUTH_JWKS_URL` is identity's own domain
-(`identity.staging.kithena.com`, `identity.kithena.com`) and is written in the
-workflow, as the identity smoke tests already are.
+The router's `AUTH_JWKS_URL` is identity's own domain and is written in the
+workflow.
 
-#### Fly: People's own secrets (`fly secrets set --app <people app>`)
+#### Backups and restore
 
-Set once by hand; the workflow stages only `PEOPLE_API_TOKEN`. What each does
-is in `.env.example`.
+`kithena-backup.timer` runs `backup.sh` at 03:30 UTC for every environment on
+the VM: `pg_dumpall` of the VM Postgres (Temporal's workflows, OpenFGA's
+tuples) to `<env>/<date>/postgres.sql.gz`, and every `kithena.*` topic to
+`<env>/<date>/topics.txt.gz`, one record per line (`topic key value`, key and
+value base64; headers are not kept). Retention is the bucket's 30-day rule.
+Neon is not in it: Neon keeps its own history (point-in-time restore,
+a short window on Free). `journalctl -u kithena-backup` has the last run.
 
-- `PEOPLE_DATABASE_URL` — the Neon branch, connecting as `svc_people`, never
-  `neondb_owner` (see "Postgres, at Neon"). The direct endpoint rather than
-  `-pooler`: this is a long-lived process with its own pool, and it prepares
-  statements.
-- `KAFKA_BROKERS` — without it People serves the graph and consumes nothing.
-  For a managed cluster add the `KAFKA_SASL_*` and `KAFKA_TLS*` settings in
-  "Kafka: SASL and TLS" below.
-- `IDENTITY_URL`, `PEOPLE_IDENTITY_TOKEN` — reconciliation against identity's
-  account listing.
-- `MESSAGING_URL`, `MESSAGING_PEOPLE_TOKEN`, `TENANT_APP_BASE` — reminder mail.
-- `OPENFGA_URL`, `OPENFGA_STORE_ID` — authorisation.
-- `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE` — the full-values export workflow.
-- `PEOPLE_SECRET_KEYS` — the key ring for stored secrets.
-- `PEOPLE_PUBLIC_URL`, `PEOPLE_EXPORT_LINK_BASE`, `PEOPLE_EXPORT_BUCKET`,
-  `PEOPLE_EXPORT_ENCRYPTION_KEY`, `PEOPLE_EXPORT_SIGNING_KEY`, `S3_*`,
-  `VALKEY_URL` — exports; all optional, in memory when unset.
+Restore, on the VM, as root, with the environment's project stopped except the
+two containers involved:
+
+```bash
+env=production; day=2026-09-24; p=kithena-$env
+aws() { docker run --rm -i --env-file /etc/kithena/backup.env amazon/aws-cli:2.31.0 \
+  --endpoint-url "$(sed -n 's/^BACKUP_S3_ENDPOINT=//p' /etc/kithena/backup.env)" "$@"; }
+
+# The VM Postgres: Temporal and OpenFGA, into a fresh or current volume.
+docker compose -p $p stop people temporal openfga
+aws s3 cp "s3://kithena-backups/$env/$day/postgres.sql.gz" - \
+  | gunzip | docker exec -i $p-postgres-1 psql -q -U kithena -d postgres
+# The topics: create them, then produce every record back.
+aws s3 cp "s3://kithena-backups/$env/$day/topics.txt.gz" - | gunzip > /tmp/topics.txt
+cut -d' ' -f1 /tmp/topics.txt | sort -u | xargs docker exec $p-redpanda-1 rpk topic create
+docker exec -i $p-redpanda-1 rpk topic produce -f '%t %k{base64} %v{base64}\n' < /tmp/topics.txt
+```
+
+Then `deploy.sh` the current images again (or re-run the workflow) to bring
+everything back up. Both halves were exercised locally: a dump restored into
+an empty Postgres with OpenFGA's store and Temporal's namespaces intact, and
+records round-tripped through the line format.
+
+#### Scaling later
+
+Everything above is a set of containers and S3 endpoints, so each move is a
+host or a URL, not a rewrite.
+
+| Move | When | What changes |
+| --- | --- | --- |
+| Oracle PAYG → paid A1 (more OCPU/GB) | The VM runs out of memory or CPU, or staging and production need to stop sharing | The shape. Same scripts. |
+| People and router → ECS/Fargate or Kubernetes | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA | Same images from GHCR (or pushed to ECR); `compose.yaml`'s environment becomes the task definition; the tunnel becomes a load balancer. |
+| Redpanda → Redpanda Cloud (or MSK) | Real event volume, or People running more than one replica | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted. |
+| Temporal → Temporal Cloud | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted. |
+| OpenFGA → Okta FGA or a managed OpenFGA | Tuple volume or availability outgrows one container | `OPENFGA_URL`, `OPENFGA_STORE_ID` and credentials. |
+| Valkey → managed (Upstash, ElastiCache, Aiven) | Export queue durability matters beyond one disk | `VALKEY_URL`. |
+| Neon Free → Neon Launch/Scale | The CU-hour ceiling above, 0.5 GB of data, or the first customer | The plan. Same connection string. |
+| Oracle Object Storage and R2 → AWS S3 | Egress to AWS workloads, a customer's region or compliance requirement, or one provider for both | The two sets of S3 settings: endpoint unset, AWS region, keys. Bucket CORS and lifecycle rules recreated on S3. |
+| Vercel Hobby → Pro | The first paying customer (Hobby is non-commercial), or production needs deployment protection | The plan. |
 
 #### Kafka: SASL and TLS
 
@@ -464,7 +693,15 @@ well. The error names the setting, never its value.
 #### Not covered here
 
 - **The outbox relay.** Debezium is not deployed anywhere yet, so People's
-  outbox rows are written and nothing publishes them.
+  outbox rows are written and nothing publishes them. It would be one more
+  container on this VM.
+- **Oracle and `x-amz-server-side-encryption`.** People asks for `AES256`
+  server-side encryption on every export object (`infrastructure/s3-blobs.ts`).
+  Oracle's S3 Compatibility API documents SSE-C and SSE-KMS and encrypts
+  everything at rest regardless, but does not list that header; if the first
+  export fails with `NotImplemented` or `InvalidArgument`, that header is the
+  cause, and it needs to become optional in People. Not verifiable without an
+  account.
 
 ## Local
 

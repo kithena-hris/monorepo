@@ -2294,7 +2294,13 @@ JSX runtime and Reach, plus `ssr/people.css`.
   at once. The hashed chunks are `immutable`. It echoes CORS for
   `https://*.app.kithena.com` and `*.staging.app.kithena.com`, which the
   stylesheet now needs, being fetched with `crossorigin` for its integrity
-  check.
+  check. The subgraph and the router the remote reads through do not run on
+  Vercel: they run on one Oracle Cloud Always Free VM under Docker Compose,
+  with Redpanda, Temporal, OpenFGA and Valkey beside them, and only the router
+  is public (`api.<domain>`, through a Cloudflare Tunnel). People's own REST
+  routes (§13.2), the schema artifact (§13.4) and SCIM (§13.5) are not routed
+  publicly yet; the signed export links are. `docs/environments.md` "Hosting"
+  has the rest, including what moves where at scale.
 
 ### 13.3 Webhooks (Phase 1)
 

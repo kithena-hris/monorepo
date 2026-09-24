@@ -1,0 +1,21 @@
+# Staging on the same VM, opt-in: layered over `compose.yaml` as a second
+# Compose project (`kithena-staging`) with its own volumes, network and tunnel,
+# at about two thirds of production's memory limits. `deploy.sh staging …` adds this file.
+
+services:
+  people:
+    deploy: { resources: { limits: { memory: 768m, cpus: '0.5' } } }
+  router:
+    deploy: { resources: { limits: { memory: 256m, cpus: '0.5' } } }
+  cloudflared:
+    deploy: { resources: { limits: { memory: 128m, cpus: '0.25' } } }
+  redpanda:
+    deploy: { resources: { limits: { memory: 768m, cpus: '0.5' } } }
+  postgres:
+    deploy: { resources: { limits: { memory: 512m, cpus: '0.5' } } }
+  temporal:
+    deploy: { resources: { limits: { memory: 512m, cpus: '0.5' } } }
+  openfga:
+    deploy: { resources: { limits: { memory: 192m, cpus: '0.25' } } }
+  valkey:
+    deploy: { resources: { limits: { memory: 128m, cpus: '0.25' } } }

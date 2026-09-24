@@ -9,8 +9,8 @@
 # requests has no consumer to keep in a group and no clock to tick.
 #
 # Built from the repository root, like identity's: the build needs the
-# workspace and the lockfile. `docs/environments.md` "People, the router and the
-# remote" has the host and the settings.
+# workspace and the lockfile. Built on a native arm64 runner for the Oracle
+# VM; `docs/environments.md` "Hosting" has the host and the settings.
 #
 # Debian, not Alpine as identity's is. `@temporalio/core-bridge` ships a
 # glibc-linked native module, and on musl the process dies at import with
@@ -18,7 +18,7 @@
 # running this image, which is the only place it shows.
 
 # --------------------------------------------------------------------- build
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /repo
 RUN corepack enable
 
@@ -38,7 +38,7 @@ RUN pnpm turbo run build --filter=@kithena/people...
 RUN pnpm --filter @kithena/people deploy --prod --legacy /app
 
 # --------------------------------------------------------------------- serve
-FROM node:22-bookworm-slim AS serve
+FROM node:24-bookworm-slim AS serve
 WORKDIR /app
 ENV NODE_ENV=production
 
