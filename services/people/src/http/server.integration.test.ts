@@ -135,7 +135,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve));
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  const listening = server as Server | undefined;
+  if (listening) await new Promise((resolve) => listening.close(resolve));
   for (const c of clients) await c.end();
   await stopPg?.();
 });
