@@ -10,7 +10,6 @@
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.ts",
-    "db:migrate": "atlas migrate apply --env local",
     "start": "node dist/src/main.js",
     "preview": "tsx scripts/preview.ts"
   },
