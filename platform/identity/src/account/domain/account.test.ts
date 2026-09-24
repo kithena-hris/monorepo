@@ -277,6 +277,14 @@ describe('suspension holds the door without closing it', () => {
     ]);
   });
 
+  it('reinstates a rehire to the status it was suspended from (PEO-110)', () => {
+    const invited = Account.rehydrate(snapshot({ status: 'suspended' }));
+    expect(invited.reinstate(context(clock), 'invited').ok).toBe(true);
+    expect(invited.status).toBe('invited');
+    // Back to invited, it can enrol again once its start has come.
+    expect(invited.enrol('cred-1', context(clock)).ok).toBe(true);
+  });
+
   it('suspends an invited account too, so its link cannot enrol a leaver', () => {
     const account = Account.rehydrate(snapshot({ status: 'invited' }));
     expect(account.suspend('employment_ended', context(clock)).ok).toBe(true);

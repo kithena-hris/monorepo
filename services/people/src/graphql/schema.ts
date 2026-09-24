@@ -19,7 +19,7 @@ import type { CallerFrom } from '../http/caller.js';
 import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
 import type { RestRequest, RestResponse } from '../http/rest.js';
 import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
-import { LEAVING_REASONS } from '../domain/person/person.js';
+import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
 import { defineScreens, IMPORT_MAX_BYTES } from './screens.js';
 
 /**
@@ -813,6 +813,44 @@ builder.mutationFields((t) => ({
  */
 const LeavingReasonRef = builder.enumType('LeavingReason', { values: LEAVING_REASONS });
 
+/** One employment on a person (PEO-110). */
+const EmploymentPeriodRef = builder
+  .objectRef<EmploymentPeriodRow>('EmploymentPeriod')
+  .implement({
+    fields: (t) => ({
+      period: t.exposeInt('period'),
+      legalEntityId: t.id({ nullable: true, resolve: (p) => p.legalEntityId }),
+      startedOn: t.exposeString('startedOn'),
+      lastWorkingDay: t.string({ nullable: true, resolve: (p) => p.lastWorkingDay }),
+      leavingReason: t.field({
+        type: LeavingReasonRef,
+        nullable: true,
+        resolve: (p) => p.leavingReason,
+      }),
+      eligibleForRehire: t.boolean({ nullable: true, resolve: (p) => p.eligibleForRehire }),
+      noticeFrom: t.string({ nullable: true, resolve: (p) => p.noticeFrom }),
+      rehireOverrideReason: t.string({ nullable: true, resolve: (p) => p.rehireOverrideReason }),
+    }),
+  });
+
+builder.queryFields((t) => ({
+  employmentPeriods: t.field({
+    type: [EmploymentPeriodRef],
+    description: 'Every employment on a person, first first; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: async (_root, args, ctx) => {
+      const { service, asking } = await caller(ctx);
+      return [
+        ...unwrap(
+          await run(service, asking.tenantId, (tx) =>
+            service.access.employmentPeriods(tx, { ...asking, personId: args.personId }),
+          ),
+        ),
+      ];
+    },
+  }),
+}));
+
 async function move(
   ctx: RequestContext,
   name: string,
@@ -864,6 +902,28 @@ builder.mutationFields((t) => ({
     },
     resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
       move(ctx, 'terminatePerson', personId, sent(rest), key),
+  }),
+  withdrawNotice: t.field({
+    type: Person,
+    description:
+      'Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only.',
+    args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
+    resolve: (_root, args, ctx) =>
+      move(ctx, 'withdrawNotice', args.personId, {}, args.idempotencyKey),
+  }),
+  rehirePerson: t.field({
+    type: Person,
+    description:
+      'Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      startDate: t.arg.string({ required: true }),
+      legalEntityId: t.arg.id(),
+      overrideReason: t.arg.string(),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
+      move(ctx, 'rehirePerson', personId, sent(rest), key),
   }),
   endPersonAccess: t.field({
     type: Person,

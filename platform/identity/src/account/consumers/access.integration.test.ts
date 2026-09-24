@@ -270,3 +270,58 @@ describe('the other accounts a leaver may have', () => {
     expect(await consume(crossing)).toBe('unchanged');
   });
 });
+
+/** People's rehire started (PEO-110): the event identity reinstates on. */
+function accessRestored(accountId: string, occurredAt?: string) {
+  const ended = accessEnded(accountId, occurredAt);
+  return {
+    ...ended,
+    eventName: 'people.person.access_restored',
+    effectiveFrom: '2026-11-02',
+    payload: {
+      personId: ended.payload.personId,
+      identityAccountId: accountId,
+      restoredAt: ended.occurredAt,
+      reason: 'rehired',
+    },
+  };
+}
+
+describe('a rehire starting (PEO-110)', () => {
+  it('reinstates the leaver, who signs in again with the passkey they kept', async () => {
+    const event = accessRestored(ADA);
+    expect(await consume(event)).toBe('applied');
+    expect(await account(ADA)).toEqual({ status: 'active', access_ended_from: null });
+    expect((await signIn(ADA, '00000000-0000-4000-8000-00000000005d')).ok).toBe(true);
+    expect((await outbox(ADA)).at(-2)).toEqual([
+      'identity.account.reinstated',
+      { accountId: ADA, reinstatedBy: null },
+    ]);
+    // Once only.
+    expect(await consume(event)).toBe('unchanged');
+  });
+
+  it('puts an invited leaver back to invited, not to an active account with no passkey', async () => {
+    expect(await consume(accessRestored(BEN))).toBe('applied');
+    expect(await account(BEN)).toEqual({ status: 'invited', access_ended_from: null });
+  });
+
+  it('leaves an admin’s suspension to the admin', async () => {
+    expect(await consume(accessRestored(CLEO))).toBe('applied');
+    expect(await account(CLEO)).toEqual({ status: 'suspended', access_ended_from: null });
+  });
+
+  it('cannot be undone by the old access_ended replayed after it', async () => {
+    expect(await consume(accessEnded(ADA, '2026-10-01T07:01:00.000Z'))).toBe('unchanged');
+    expect(await account(ADA)).toEqual({ status: 'active', access_ended_from: null });
+  });
+
+  it('reinstates the same way when HR corrects a notice’s last day forward (PEO-111)', async () => {
+    expect(await consume(accessEnded(ADA))).toBe('applied');
+    expect(await account(ADA)).toEqual({ status: 'suspended', access_ended_from: 'active' });
+    const corrected = accessRestored(ADA);
+    corrected.payload.reason = 'last_working_day_corrected';
+    expect(await consume(corrected)).toBe('applied');
+    expect(await account(ADA)).toEqual({ status: 'active', access_ended_from: null });
+  });
+});

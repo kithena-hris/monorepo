@@ -51,6 +51,35 @@ export interface PersonSnapshot {
    * `access_ended` said. Null while it has not; absent reads as null.
    */
   readonly accessEndedAt?: string | null;
+  /**
+   * The current employment period's own facts (PEO-110); its dates are
+   * `hireDate` and `lastWorkingDay`. Absent reads as period 1 for a hired
+   * record, none for one never hired — a record from before periods existed.
+   */
+  readonly employment?: CurrentEmployment | null;
+}
+
+/**
+ * One employment period, as far as the state machine needs it: one person,
+ * many employments, each a period on the same record (PEO-110).
+ */
+export interface CurrentEmployment {
+  /** 1 for the first employment, 2 for the first rehire, and so on. */
+  readonly period: number;
+  readonly legalEntityId: string | null;
+  readonly leavingReason: LeavingReason | null;
+  /** HR's judgement at termination; null is "not said", which a rehire reads as not refused. */
+  readonly eligibleForRehire: boolean | null;
+  /** The status notice was given from, so withdrawing it returns there. */
+  readonly noticeFrom: 'active' | 'on_leave' | null;
+  /** Why HR rehired somebody marked not eligible, when it did. */
+  readonly rehireOverrideReason: string | null;
+}
+
+/** A period as the repository writes it: the facts, and the dates from the record. */
+export interface EmploymentPeriodRow extends CurrentEmployment {
+  readonly startedOn: string;
+  readonly lastWorkingDay: string | null;
 }
 
 /**
@@ -80,7 +109,9 @@ type StatusReason =
   | 'dismissed'
   | 'end_of_contract'
   | 'discarded'
-  | 'corrected';
+  | 'corrected'
+  | 'rehired'
+  | 'notice_withdrawn';
 
 /** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
 export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
@@ -186,6 +217,9 @@ export class Person extends AggregateRoot<string> {
   #hireDate: string | null;
   #lastWorkingDay: string | null;
   #accessEndedAt: string | null;
+  #employment: CurrentEmployment | null;
+  /** Whether the current period's row needs writing: drained by the repository. */
+  #periodChanged = false;
   readonly #tenantId: TenantId;
   readonly #identityAccountId: string | null;
   /** Lifecycle dates as history rows, drained by the repository with the events. */
@@ -198,6 +232,18 @@ export class Person extends AggregateRoot<string> {
     this.#hireDate = snapshot.hireDate;
     this.#lastWorkingDay = snapshot.lastWorkingDay;
     this.#accessEndedAt = snapshot.accessEndedAt ?? null;
+    this.#employment =
+      snapshot.employment ??
+      (snapshot.hireDate === null
+        ? null
+        : {
+            period: 1,
+            legalEntityId: null,
+            leavingReason: null,
+            eligibleForRehire: null,
+            noticeFrom: null,
+            rehireOverrideReason: null,
+          });
     // Parsed, not asserted: a brand should mean "this was checked" rather than
     // "somebody said so", and a malformed tenant id reaching the domain is a
     // bug — which is the one thing worth throwing for.
@@ -229,7 +275,25 @@ export class Person extends AggregateRoot<string> {
       hireDate: this.#hireDate,
       lastWorkingDay: this.#lastWorkingDay,
       accessEndedAt: this.#accessEndedAt,
+      employment: this.#employment,
     };
+  }
+
+  /**
+   * The current period's row, when a move changed it since the last drain
+   * (PEO-110); null otherwise. The repository writes it with the record.
+   */
+  drainPeriod(): EmploymentPeriodRow | null {
+    const employment = this.#employment;
+    if (!this.#periodChanged || employment === null || this.#hireDate === null) return null;
+    this.#periodChanged = false;
+    return { ...employment, startedOn: this.#hireDate, lastWorkingDay: this.#lastWorkingDay };
+  }
+
+  #period(change: Partial<CurrentEmployment>): void {
+    if (this.#employment === null) return;
+    this.#employment = { ...this.#employment, ...change };
+    this.#periodChanged = true;
   }
 
   get hireDate(): string | null {
@@ -279,11 +343,95 @@ export class Person extends AggregateRoot<string> {
   hire(hireDate: string, facts: HireFacts, ctx: EventContext, timeZone: string): Result<void> {
     if (this.#status !== 'provisional') return err(InvalidTransition(this.#status, 'hired'));
 
-    this.#hireDate = hireDate;
+    this.#openPeriod(hireDate, facts, null);
     const started = hireDate <= ctx.clock.date(timeZone);
     const moved = this.#moveTo(started ? 'active' : 'pre_hire', 'hired', ctx);
     if (!moved.ok) return moved;
 
+    this.#raiseHired(hireDate, facts, started, ctx);
+    this.#recordDate('hire_date', hireDate, ctx);
+    return ok(undefined);
+  }
+
+  /**
+   * A leaver hired again (PEO-110): a new employment period on the same
+   * record — one person, many employments — rather than a second person.
+   *
+   * From `terminated` only, starting after the last working day. Somebody HR
+   * marked not eligible for rehire is refused unless HR gives a reason, which
+   * the new period keeps. Pre-hire until the start date has begun on their
+   * calendar, active from it; the new period's history is a `hire_date` row
+   * and a null `last_working_day` row from the start, so an "as of" read in
+   * it has no end date and one in the old period still has the old one.
+   *
+   * Raises `status_changed` (reason `rehired`) and `hired` for the new period,
+   * both effective from the start. Access ended with the old employment comes
+   * back when the new one starts: here if it already has, else `start`.
+   */
+  rehire(
+    startDate: string,
+    facts: HireFacts,
+    ctx: EventContext,
+    timeZone: string,
+    overrideReason: string | null = null,
+  ): Result<void> {
+    if (this.#status !== 'terminated') return err(InvalidTransition(this.#status, 'rehired'));
+    const barred = this.#employment?.eligibleForRehire === false;
+    const override = overrideReason?.trim() ?? '';
+    if (barred && override === '') {
+      return err(
+        failure(
+          'NOT_ELIGIBLE_FOR_REHIRE',
+          'This person was marked not eligible for rehire; HR may override it with a reason',
+          ['overrideReason'],
+        ),
+      );
+    }
+    if (this.#lastWorkingDay !== null && startDate <= this.#lastWorkingDay) {
+      return err(
+        failure(
+          'REHIRE_BEFORE_LAST_DAY',
+          `A rehire starts after the last working day of ${this.#lastWorkingDay}`,
+          ['startDate'],
+        ),
+      );
+    }
+
+    this.#openPeriod(startDate, facts, barred ? override : null);
+    this.#lastWorkingDay = null;
+    const started = startDate <= ctx.clock.date(timeZone);
+    this.#moveTo(started ? 'active' : 'pre_hire', 'rehired', ctx, startDate);
+    this.#raiseHired(startDate, facts, started, ctx);
+    this.#recordDate('hire_date', startDate, ctx);
+    this.#recordRow('last_working_day', null, startDate, ctx);
+    if (barred) {
+      // HR overrode a "not eligible" judgement: its own audit event, beside
+      // the reason kept on the period. Who is the envelope's actor.
+      this.#raise(
+        'people.person.rehire_override',
+        { personId: this.id, period: this.#employment?.period ?? 1, reason: override },
+        ctx,
+        startDate,
+      );
+    }
+    if (started) this.#restoreAccess(ctx, startDate);
+    return ok(undefined);
+  }
+
+  #openPeriod(hireDate: string, facts: HireFacts, overrideReason: string | null): void {
+    this.#hireDate = hireDate;
+    this.#employment = {
+      period: (this.#employment?.period ?? 0) + 1,
+      legalEntityId: facts.legalEntityId,
+      leavingReason: null,
+      eligibleForRehire: null,
+      noticeFrom: null,
+      rehireOverrideReason: overrideReason,
+    };
+    this.#periodChanged = true;
+  }
+
+  #raiseHired(hireDate: string, facts: HireFacts, started: boolean, ctx: EventContext): void {
     this.#raise(
       'people.person.hired',
       {
@@ -302,8 +450,27 @@ export class Person extends AggregateRoot<string> {
       ctx,
       hireDate,
     );
-    this.#recordDate('hire_date', hireDate, ctx);
-    return ok(undefined);
+  }
+
+  /** Access ended with an earlier employment comes back with this one (PEO-110). */
+  #restoreAccess(
+    ctx: EventContext,
+    effectiveFrom: string,
+    reason: 'rehired' | 'last_working_day_corrected' = 'rehired',
+  ): void {
+    if (this.#accessEndedAt === null) return;
+    this.#accessEndedAt = null;
+    this.#raise(
+      'people.person.access_restored',
+      {
+        personId: this.id,
+        identityAccountId: this.#identityAccountId,
+        restoredAt: ctx.clock.instant(),
+        reason,
+      },
+      ctx,
+      effectiveFrom,
+    );
   }
 
   /**
@@ -322,7 +489,10 @@ export class Person extends AggregateRoot<string> {
         ]),
       );
     }
-    return this.#moveTo('active', 'started', ctx, hireDate);
+    const moved = this.#moveTo('active', 'started', ctx, hireDate);
+    // A rehire that had not started yet gets its access back today (PEO-110).
+    this.#restoreAccess(ctx, hireDate);
+    return moved;
   }
 
   /** Leave began today on the person's own calendar (§8.5), which is what it is effective from. */
@@ -359,8 +529,64 @@ export class Person extends AggregateRoot<string> {
     if (!ordered.ok) return ordered;
 
     this.#lastWorkingDay = lastWorkingDay;
+    this.#period({ noticeFrom: this.#status });
     const moved = this.#moveTo('notice', reason, ctx, ctx.clock.date(timeZone));
     this.#recordDate('last_working_day', lastWorkingDay, ctx);
+    return moved;
+  }
+
+  /**
+   * Notice withdrawn (PEO-111): the person stays. Back to the status they
+   * gave notice from — active, or on leave — dated today on their calendar,
+   * with `status_changed` for reason `notice_withdrawn`.
+   *
+   * Only until the last working day has ended on their calendar; after that
+   * the employment has run its course and the answer is termination or a
+   * rehire. The notice's `last_working_day` row is superseded by a null one
+   * from the date it was effective (§8.5), so an "as of" read after it no
+   * longer shows an end, and with no last working day nothing is left for
+   * access to end on.
+   */
+  withdrawNotice(
+    ctx: EventContext,
+    timeZone: string,
+    /** The standing `last_working_day` history row, when there is one to supersede. */
+    lastDayRow: { readonly id: string; readonly effectiveFrom: string } | null,
+  ): Result<void> {
+    if (this.#status !== 'notice') {
+      return err(InvalidTransition(this.#status, 'have notice withdrawn'));
+    }
+    const today = ctx.clock.date(timeZone);
+    const lastDay = this.#lastWorkingDay;
+    if (lastDay !== null && today > lastDay) {
+      return err(
+        failure(
+          'LAST_DAY_ENDED',
+          `The last working day ${lastDay} has ended; terminate, or rehire later`,
+          ['lastWorkingDay'],
+        ),
+      );
+    }
+
+    const back = this.#employment?.noticeFrom ?? 'active';
+    this.#lastWorkingDay = null;
+    this.#period({ noticeFrom: null, leavingReason: null });
+    const moved = this.#moveTo(back, 'notice_withdrawn', ctx, today);
+    if (lastDayRow !== null) {
+      this.#history = [
+        ...this.#history,
+        {
+          id: ctx.newEventId(),
+          attributeKey: 'last_working_day',
+          value: null,
+          effectiveFrom: lastDayRow.effectiveFrom,
+          recordedAt: ctx.clock.instant(),
+          actor: ctx.actor,
+          supersedes: lastDayRow.id,
+          eventId: this.#lastEventId,
+        },
+      ];
+    }
     return moved;
   }
 
@@ -409,6 +635,10 @@ export class Person extends AggregateRoot<string> {
 
     const moves = this.#lastWorkingDay !== lastWorkingDay;
     this.#lastWorkingDay = lastWorkingDay;
+    this.#period({
+      leavingReason: detail.reason,
+      eligibleForRehire: detail.eligibleForRehire ?? null,
+    });
     this.#moveTo('terminated', detail.reason, ctx, lastWorkingDay);
     this.#raise(
       'people.person.terminated',
@@ -588,6 +818,7 @@ export class Person extends AggregateRoot<string> {
     }
     const superseded = this.#hireDate;
     this.#hireDate = hireDate;
+    this.#period({});
     const today = ctx.clock.date(timeZone);
     if (this.#status === 'pre_hire' && hireDate <= today) {
       return this.#moveTo('active', 'corrected', ctx, hireDate);
@@ -610,8 +841,19 @@ export class Person extends AggregateRoot<string> {
    * status and this date, so it clears itself when HR terminates or corrects
    * the date forward. A record with no last working day has none to correct;
    * giving one is `giveNotice`.
+   *
+   * **Access follows the corrected date (PEO-111).** Somebody on notice whose
+   * access the job ended at the end of the old last day, corrected to a day
+   * that has not ended on their calendar, is still working: `access_restored`
+   * (reason `last_working_day_corrected`), in the correction's transaction,
+   * and the job ends it again when the new day ends. A corrected day that has
+   * already ended leaves it ended; a terminated record keeps it ended.
    */
-  correctLastWorkingDay(lastWorkingDay: string): Result<void> {
+  correctLastWorkingDay(
+    lastWorkingDay: string,
+    ctx?: EventContext,
+    timeZone?: string,
+  ): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay === null) {
       return err(
@@ -625,6 +867,15 @@ export class Person extends AggregateRoot<string> {
     const ordered = this.#checkLastDay(lastWorkingDay);
     if (!ordered.ok) return ordered;
     this.#lastWorkingDay = lastWorkingDay;
+    this.#period({});
+    if (
+      ctx !== undefined &&
+      timeZone !== undefined &&
+      this.#status === 'notice' &&
+      ctx.clock.date(timeZone) <= lastWorkingDay
+    ) {
+      this.#restoreAccess(ctx, ctx.clock.date(timeZone), 'last_working_day_corrected');
+    }
     return ok(undefined);
   }
 
@@ -710,11 +961,20 @@ export class Person extends AggregateRoot<string> {
 
   /** A dated row for a lifecycle date, effective on the date itself, tied to the event just raised. */
   #recordDate(attributeKey: string, value: string, ctx: EventContext): void {
+    this.#recordRow(attributeKey, value, value, ctx);
+  }
+
+  #recordRow(
+    attributeKey: string,
+    value: string | null,
+    effectiveFrom: string,
+    ctx: EventContext,
+  ): void {
     this.#history = record(this.#history, {
       id: ctx.newEventId(),
       attributeKey,
       value,
-      effectiveFrom: value,
+      effectiveFrom,
       recordedAt: ctx.clock.instant(),
       actor: ctx.actor,
       eventId: this.#lastEventId,

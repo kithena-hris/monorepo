@@ -21,14 +21,14 @@ Four architectural questions were open when this was written. They are answered
 here rather than left for implementation, with the reasoning in place so the
 answer can be argued with:
 
-| Question | Answer | Where |
-| --- | --- | --- |
-| How are custom attribute values stored? | Typed columns for the core, JSONB for tenant-defined attributes, an append-only history table for the truth | [§11](#11-storage-design) |
-| What happens when a field becomes required after people exist? | Nothing blocks. The record gains a completeness state and raises a task | [§8.4](#84-when-a-field-becomes-required-later) |
-| Who classifies a runtime custom attribute? | HR chooses; a System One judgment pre-fills; special-category never auto-applies | [§12](#12-classification-of-tenant-defined-attributes) |
-| What does "works without the rest of the HRIS" mean in v1? | GraphQL, REST, signed webhooks and the published schema artifact in Phase 1; SCIM and mirror mode after | [§13](#13-headless-surfaces) |
-| What happens when an import is missing a required field? | Core identity fields block the row; every other required field imports and shows as incomplete; an *invalid* value always blocks | [§14.4](#144-when-required-fields-are-missing) |
-| How does an export handle fields the customer invented? | Columns generated from the published schema, two header rows — label and stable key — so an edited file re-imports correctly | [§15.2](#152-exporting-a-sheet-that-has-extra-attributes) |
+| Question                                                       | Answer                                                                                                                           | Where                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| How are custom attribute values stored?                        | Typed columns for the core, JSONB for tenant-defined attributes, an append-only history table for the truth                      | [§11](#11-storage-design)                                 |
+| What happens when a field becomes required after people exist? | Nothing blocks. The record gains a completeness state and raises a task                                                          | [§8.4](#84-when-a-field-becomes-required-later)           |
+| Who classifies a runtime custom attribute?                     | HR chooses; a System One judgment pre-fills; special-category never auto-applies                                                 | [§12](#12-classification-of-tenant-defined-attributes)    |
+| What does "works without the rest of the HRIS" mean in v1?     | GraphQL, REST, signed webhooks and the published schema artifact in Phase 1; SCIM and mirror mode after                          | [§13](#13-headless-surfaces)                              |
+| What happens when an import is missing a required field?       | Core identity fields block the row; every other required field imports and shows as incomplete; an _invalid_ value always blocks | [§14.4](#144-when-required-fields-are-missing)            |
+| How does an export handle fields the customer invented?        | Columns generated from the published schema, two header rows — label and stable key — so an edited file re-imports correctly     | [§15.2](#152-exporting-a-sheet-that-has-extra-attributes) |
 
 Everything the module inherits from the repository — no cross-module imports,
 Zod as the single schema source, effective dating on everything, money in minor
@@ -129,21 +129,21 @@ A People module built in two halves that ship together:
 
 ### Primary KPIs
 
-| Metric | Target | How measured |
-| --- | --- | --- |
-| Time to add a tenant-specific field | < 5 minutes, 0 deploys | Wall clock from opening the settings screen to the field appearing on a profile, measured in the acceptance suite and on a real tenant |
-| Required-field completeness | ≥ 95% of active employees complete within 30 days of a schema publish | `people.person.profile_completed` and `profile_incomplete` counts per tenant |
-| Completion turnaround | Median < 3 days from a field becoming required to the record being complete | Time between `profile_incomplete` and `profile_completed` for the same person and attribute set |
-| Classification correctness | ≥ 98% agreement on a sampled audit; **zero** special-category attributes marked AI-eligible | Quarterly audit of `people.attribute_definition` against a human review; the second number is a hard gate, not a target |
-| Person read latency | P95 < 120 ms for a full profile; < 300 ms for a 50-row directory page | Subgraph traces |
-| Schema publish propagation | P95 < 5 s from publish to webhook delivered and REST reflecting the new version | Webhook delivery telemetry |
-| Standalone boot | `just standalone people` green on every CI run | CI matrix |
-| DSAR export | < 60 s, containing 100% of exportable attributes including tenant-defined ones | Integration test asserting the manifest against the live registry |
-| Import success | ≥ 95% of rows import on the first attempt for a well-formed file; every blocked row names its cell | Import reports, sampled per tenant |
-| Import turnaround | A 5,000-row migration from upload to committed in < 10 minutes including the dry run | Wall clock on the import job |
-| Export round-trip | An export edited in Excel and re-imported changes only what was edited — zero unintended writes | Contract test over export → edit → import |
-| Analytics freshness | Snapshot-backed charts no more than 24 h stale; the staleness is stated on the card | Snapshot job telemetry |
-| Mobile completion | ≥ 80% of onboarding completions happen on a phone without a desk session | Session telemetry by pointer type |
+| Metric                              | Target                                                                                             | How measured                                                                                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Time to add a tenant-specific field | < 5 minutes, 0 deploys                                                                             | Wall clock from opening the settings screen to the field appearing on a profile, measured in the acceptance suite and on a real tenant |
+| Required-field completeness         | ≥ 95% of active employees complete within 30 days of a schema publish                              | `people.person.profile_completed` and `profile_incomplete` counts per tenant                                                           |
+| Completion turnaround               | Median < 3 days from a field becoming required to the record being complete                        | Time between `profile_incomplete` and `profile_completed` for the same person and attribute set                                        |
+| Classification correctness          | ≥ 98% agreement on a sampled audit; **zero** special-category attributes marked AI-eligible        | Quarterly audit of `people.attribute_definition` against a human review; the second number is a hard gate, not a target                |
+| Person read latency                 | P95 < 120 ms for a full profile; < 300 ms for a 50-row directory page                              | Subgraph traces                                                                                                                        |
+| Schema publish propagation          | P95 < 5 s from publish to webhook delivered and REST reflecting the new version                    | Webhook delivery telemetry                                                                                                             |
+| Standalone boot                     | `just standalone people` green on every CI run                                                     | CI matrix                                                                                                                              |
+| DSAR export                         | < 60 s, containing 100% of exportable attributes including tenant-defined ones                     | Integration test asserting the manifest against the live registry                                                                      |
+| Import success                      | ≥ 95% of rows import on the first attempt for a well-formed file; every blocked row names its cell | Import reports, sampled per tenant                                                                                                     |
+| Import turnaround                   | A 5,000-row migration from upload to committed in < 10 minutes including the dry run               | Wall clock on the import job                                                                                                           |
+| Export round-trip                   | An export edited in Excel and re-imported changes only what was edited — zero unintended writes    | Contract test over export → edit → import                                                                                              |
+| Analytics freshness                 | Snapshot-backed charts no more than 24 h stale; the staleness is stated on the card                | Snapshot job telemetry                                                                                                                 |
+| Mobile completion                   | ≥ 80% of onboarding completions happen on a phone without a desk session                           | Session telemetry by pointer type                                                                                                      |
 
 ### Secondary
 
@@ -222,13 +222,13 @@ implementation mistakes both come from getting it wrong.
 justify each one the same way: the sign-in ceremony and the enrolment rules need
 them, and neither can wait for a module the customer may not have bought.
 
-| Fact | Identity holds it because | People's relationship to it |
-| --- | --- | --- |
-| `work_email` | It routes the invitation and names the account | **Projection.** Read-only in People. Changes go through identity's API |
-| `time_zone` | Decides when a start date and a last working day fall | **Projection**, with People as the editing surface via identity's API |
-| `employment_start` | Gates enrolment — a hire entered three weeks early must not be able to log in | **People is the source of record.** Identity holds a cached copy and corrects it from People's events |
+| Fact                                            | Identity holds it because                                                                                         | People's relationship to it                                                                                         |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `work_email`                                    | It routes the invitation and names the account                                                                    | **Projection.** Read-only in People. Changes go through identity's API                                              |
+| `time_zone`                                     | Decides when a start date and a last working day fall                                                             | **Projection**, with People as the editing surface via identity's API                                               |
+| `employment_start`                              | Gates enrolment — a hire entered three weeks early must not be able to log in                                     | **People is the source of record.** Identity holds a cached copy and corrects it from People's events               |
 | `given_name` / `family_name` / `preferred_name` | Rendered in the WebAuthn prompt; `ada@acme.example` is a poor way to ask somebody to confirm an account is theirs | **People is the source of record once a person exists.** Identity holds a copy and corrects it from People's events |
-| `mobile` | A second channel for HR-mediated recovery. Never a sign-in factor | **People is the source of record once a person exists.** Same correction path |
+| `mobile`                                        | A second channel for HR-mediated recovery. Never a sign-in factor                                                 | **People is the source of record once a person exists.** Same correction path                                       |
 
 The rule this produces:
 
@@ -272,9 +272,18 @@ moment and identity acts on it — the same one direction:
   signs in with the one they already have. Idempotent on the event and blind
   to a stale one (`people_access_at`, the `people_facts_at` guard for access).
   An account identity had already suspended for its own reason keeps it.
+- **A rehire gives it back (PEO-110).** When a rehired person's new employment
+  starts on their calendar — with the rehire if the start has come, else by
+  the same hourly job that starts pre-hires — People raises
+  `people.person.access_restored`, and identity reinstates the account to the
+  status People's suspension took it from (an invited account that never
+  enrolled goes back to invited). The same account, the same passkeys; the
+  new start reaches identity first on `identity_facts_changed`, so its
+  enrolment gate reads the new date. Identity's own suspensions are left for
+  an admin to lift.
 
-A tenant without People never raises the event, and its accounts end the way
-they always have — an admin suspends or terminates them in identity.
+A tenant without People never raises either event, and its accounts end the
+way they always have — an admin suspends or terminates them in identity.
 
 Everything else about a person — job, org, contract, pay, addresses, emergency
 contacts, documents, every tenant-defined attribute — is People's alone, and
@@ -329,29 +338,29 @@ content as a new version, for the same reason there are no down migrations.
 
 Every field on a definition, and why it exists:
 
-| Field | Type | Purpose |
-| --- | --- | --- |
-| `key` | slug, immutable | Stable identifier in payloads, exports and integrations. Chosen once. A rename is a new attribute plus a migration of values, offered as an explicit action, never an in-place edit |
-| `label` | localized string map | What a human sees. Localized because the product is; the key never is |
-| `description` | localized string, nullable | Help text under the field. Worth more than most validation |
-| `sectionKey` | ref | Which section it appears in |
-| `order` | int | Position within the section |
-| `dataType` | enum | See §6.4 |
-| `typeConfig` | JSON, type-discriminated | Options for a select, min/max for a number, currency for money, country for a national identifier, accepted MIME types for a document |
-| `cardinality` | `single` \| `repeating` | A repeating attribute is a group — emergency contacts, education, equity grants |
-| `requiredness` | rule | See §6.5 |
-| `ownership` | set of writer roles | Who may write it: `employee`, `manager`, `hr`, `finance`, `system`, `external` |
-| `visibility` | rule | Who may read it: `self`, `manager`, `manager_chain`, `hr`, `finance`, `admin`, `directory` |
-| `collectAt` | enum | `signup`, `enrolment`, `onboarding`, `hr_only`, `anytime` — which moment asks for it |
-| `classification` | `FieldPolicy` | The existing contract shape: classification, piiKind, exportable, aiEligible, retention |
-| `effectiveDated` | boolean | Whether a change to this value is a dated fact (salary, job title) or a correction (a typo in a phone number) |
-| `unique` | `none` \| `tenant` \| `legal_entity` | Employee number (per legal entity), national identifier (per tenant: it names one human, and a tenant holds one record per human), work email. Enforced on a keyed hash of the normalised value, never the value, so an encrypted attribute may be unique too (§11.2) |
-| `encrypted` | boolean | Forced true for `piiKind: 'financial'` and for national identifiers. Value lives in `people.person_secret`, never in JSONB and never in an event |
-| `indexed` | boolean | Promotes the attribute to a generated column so it can be filtered and sorted at directory scale |
-| `includeInDirectory` | boolean | Appears in the searchable employee directory |
-| `includeInEvents` | boolean | Whether the value — not just the key — rides on the Kafka payload. Defaults to false for anything `confidential` or above, and cannot be set true for special-category data |
-| `deprecatedAt` | timestamp, nullable | Hidden from forms, still exported, still in history. The honest alternative to deleting a field somebody's integration reads |
-| `origin` | `core` \| `country_pack` \| `tenant` | Whether Kithena ships it, a country pack ships it, or the customer invented it |
+| Field                | Type                                 | Purpose                                                                                                                                                                                                                                                               |
+| -------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `key`                | slug, immutable                      | Stable identifier in payloads, exports and integrations. Chosen once. A rename is a new attribute plus a migration of values, offered as an explicit action, never an in-place edit                                                                                   |
+| `label`              | localized string map                 | What a human sees. Localized because the product is; the key never is                                                                                                                                                                                                 |
+| `description`        | localized string, nullable           | Help text under the field. Worth more than most validation                                                                                                                                                                                                            |
+| `sectionKey`         | ref                                  | Which section it appears in                                                                                                                                                                                                                                           |
+| `order`              | int                                  | Position within the section                                                                                                                                                                                                                                           |
+| `dataType`           | enum                                 | See §6.4                                                                                                                                                                                                                                                              |
+| `typeConfig`         | JSON, type-discriminated             | Options for a select, min/max for a number, currency for money, country for a national identifier, accepted MIME types for a document                                                                                                                                 |
+| `cardinality`        | `single` \| `repeating`              | A repeating attribute is a group — emergency contacts, education, equity grants                                                                                                                                                                                       |
+| `requiredness`       | rule                                 | See §6.5                                                                                                                                                                                                                                                              |
+| `ownership`          | set of writer roles                  | Who may write it: `employee`, `manager`, `hr`, `finance`, `system`, `external`                                                                                                                                                                                        |
+| `visibility`         | rule                                 | Who may read it: `self`, `manager`, `manager_chain`, `hr`, `finance`, `admin`, `directory`                                                                                                                                                                            |
+| `collectAt`          | enum                                 | `signup`, `enrolment`, `onboarding`, `hr_only`, `anytime` — which moment asks for it                                                                                                                                                                                  |
+| `classification`     | `FieldPolicy`                        | The existing contract shape: classification, piiKind, exportable, aiEligible, retention                                                                                                                                                                               |
+| `effectiveDated`     | boolean                              | Whether a change to this value is a dated fact (salary, job title) or a correction (a typo in a phone number)                                                                                                                                                         |
+| `unique`             | `none` \| `tenant` \| `legal_entity` | Employee number (per legal entity), national identifier (per tenant: it names one human, and a tenant holds one record per human), work email. Enforced on a keyed hash of the normalised value, never the value, so an encrypted attribute may be unique too (§11.2) |
+| `encrypted`          | boolean                              | Forced true for `piiKind: 'financial'` and for national identifiers. Value lives in `people.person_secret`, never in JSONB and never in an event                                                                                                                      |
+| `indexed`            | boolean                              | Promotes the attribute to a generated column so it can be filtered and sorted at directory scale                                                                                                                                                                      |
+| `includeInDirectory` | boolean                              | Appears in the searchable employee directory                                                                                                                                                                                                                          |
+| `includeInEvents`    | boolean                              | Whether the value — not just the key — rides on the Kafka payload. Defaults to false for anything `confidential` or above, and cannot be set true for special-category data                                                                                           |
+| `deprecatedAt`       | timestamp, nullable                  | Hidden from forms, still exported, still in history. The honest alternative to deleting a field somebody's integration reads                                                                                                                                          |
+| `origin`             | `core` \| `country_pack` \| `tenant` | Whether Kithena ships it, a country pack ships it, or the customer invented it                                                                                                                                                                                        |
 
 **Core attributes cannot be deleted, and their classification cannot be
 loosened.** A tenant may relabel `hire_date`, may not make it optional, and may
@@ -361,25 +370,25 @@ tenant configures above it.
 ### 6.3 Sections
 
 Shipped defaults, all of which a tenant may rename, reorder, extend or hide.
-Sections are presentation *and* a permission grouping — a visibility rule set on
+Sections are presentation _and_ a permission grouping — a visibility rule set on
 a section is the default for every attribute in it, which is how Priya avoids
 setting twenty rules by hand and how Marco avoids seeing a salary by accident.
 
-| Section | Default visibility | Default ownership | Notes |
-| --- | --- | --- | --- |
-| Personal information | self, hr | employee, hr | Name, preferred name, pronouns, date of birth, nationality, personal contact, home address, photo |
-| Identification & right to work | hr | hr, employee | National identifiers, passport, visa, permit expiry, right-to-work check. Heavily country-dependent |
-| Emergency contacts | self, hr | employee | Repeating. Nobody else needs these, including the manager |
-| HR information | self, manager, hr | hr | Employee number, status, hire date, legal entity, department, location, manager, job title, level |
-| Employment terms | self, hr | hr | Contract type and dates, working pattern, FTE, probation, notice, collective agreement, work model |
-| Compensation & finance | self, finance, hr | finance, hr, employee | Salary, pay frequency, variable pay, bank account, tax and social security, pension. Bank details are employee-owned and finance-readable |
-| Public profile | directory | employee | Display name, photo, title, department, work contact, time zone, bio, skills, languages |
-| Onboarding & offboarding | hr, manager | hr | Buddy, checklist state, equipment, termination fields |
-| Education & experience | self, hr | employee | Repeating. Degrees, certifications with expiry, prior employment |
-| Assets & access | self, manager, hr | system, hr | Devices, licences, building access |
-| Health & safety | hr | hr, employee | Occupational health, accommodations, dietary requirements. Article 9 throughout |
-| Diversity & voluntary self-ID | **nobody** | employee | Special category, voluntary, answerable only in aggregate. See §6.7 |
-| *(tenant-defined)* | tenant's choice | tenant's choice | |
+| Section                        | Default visibility | Default ownership     | Notes                                                                                                                                     |
+| ------------------------------ | ------------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Personal information           | self, hr           | employee, hr          | Name, preferred name, pronouns, date of birth, nationality, personal contact, home address, photo                                         |
+| Identification & right to work | hr                 | hr, employee          | National identifiers, passport, visa, permit expiry, right-to-work check. Heavily country-dependent                                       |
+| Emergency contacts             | self, hr           | employee              | Repeating. Nobody else needs these, including the manager                                                                                 |
+| HR information                 | self, manager, hr  | hr                    | Employee number, status, hire date, legal entity, department, location, manager, job title, level                                         |
+| Employment terms               | self, hr           | hr                    | Contract type and dates, working pattern, FTE, probation, notice, collective agreement, work model                                        |
+| Compensation & finance         | self, finance, hr  | finance, hr, employee | Salary, pay frequency, variable pay, bank account, tax and social security, pension. Bank details are employee-owned and finance-readable |
+| Public profile                 | directory          | employee              | Display name, photo, title, department, work contact, time zone, bio, skills, languages                                                   |
+| Onboarding & offboarding       | hr, manager        | hr                    | Buddy, checklist state, equipment, termination fields                                                                                     |
+| Education & experience         | self, hr           | employee              | Repeating. Degrees, certifications with expiry, prior employment                                                                          |
+| Assets & access                | self, manager, hr  | system, hr            | Devices, licences, building access                                                                                                        |
+| Health & safety                | hr                 | hr, employee          | Occupational health, accommodations, dietary requirements. Article 9 throughout                                                           |
+| Diversity & voluntary self-ID  | **nobody**         | employee              | Special category, voluntary, answerable only in aggregate. See §6.7                                                                       |
+| _(tenant-defined)_             | tenant's choice    | tenant's choice       |                                                                                                                                           |
 
 A full inventory of the attributes each section ships with is in
 [Appendix A](#appendix-a-default-attribute-inventory).
@@ -436,7 +445,7 @@ Closed on purpose. A predicate language a customer can write loops in is a
 customer support incident waiting for a slow afternoon, and every real
 requirement in HR is a country, a legal entity, a contract type, or another
 field being present. A predicate that cannot be evaluated — because it names an
-archived attribute, say — is treated as *not required* and raises an operational
+archived attribute, say — is treated as _not required_ and raises an operational
 alert. Failing towards "required" would lock a tenant out of their own records
 over a configuration typo.
 
@@ -572,7 +581,7 @@ are explicit and are not tenant-configurable:
 ### 6.8 Legal entities, locations and whose day it is
 
 A calendar date is not an instant. "Required from the 1st", "last working day
-plus 48 months" and "headcount today" all compare a date with *today*, and at
+plus 48 months" and "headcount today" all compare a date with _today_, and at
 11:30 UTC on 1 March today is the 2nd in Auckland and still the 1st in Los
 Angeles. So People owns two small objects whose job is to say whose today it
 is, and one tenant setting as the last resort:
@@ -663,6 +672,7 @@ database the bytes end up in.
 | Manager, org unit | HR | Hire, then on change | Typed columns; emits `manager_changed` |
 | Onboarding checklist state | System, from the Onboarding module or People's own minimal version | Automatically | `people.person` |
 | Termination facts | HR | Offboarding | Typed columns; emits `terminated` |
+| Employment periods: each hire and rehire, its legal entity, last working day, leaving reason, rehire eligibility and any rehire override | People, from HR's hire, notice, termination and rehire (§8.1) | Hire, then each lifecycle move | `people.employment_period`, one row per employment; the dates also as `hire_date` / `last_working_day` history |
 | Assets | System, from an MDM integration, or HR | Any time | JSONB |
 | Diversity self-ID | The employee, only | Any time, voluntary | Separate encrypted store, aggregate-only reads |
 | External-sourced records | An upstream HRIS | Continuously | `people.person` with `sourceOfRecord: external`; emits `synced_from_external` |
@@ -689,12 +699,14 @@ Three rules make that table safe rather than merely descriptive:
                    ▼           │  start date corrected into the future
 provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ active
      │              │           │
-     │              │           ├──▶ notice ──▶ terminated ──▶ (rehired, not built) ──▶ pre_hire
-     │              │           │      │            │
+     │              │           ├──▶ notice ──▶ terminated ──▶ rehired (new period) ──▶ pre_hire | active
+     │              │           │      │            │         access back when it starts (PEO-110)
      │              │           │      │            └ end of last working day, own calendar:
      │              │           │      │              access ends, on notice or terminated
      │              │           │      │              (identity suspends; PEO-109)
-     │              │           │      └ last working day passed: HR confirms (a task, not a date)
+     │              │           │      ├ last working day passed: HR confirms (a task, not a date)
+     │              │           │      └ withdrawn before the last day ends ──▶ active | on_leave
+     │              │           │        (the status notice was given from; PEO-111)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
@@ -740,7 +752,14 @@ definitions above are about dates, so a correction to one of those dates
   past **stays on notice**. Termination is a deliberate act, so HR gets a task
   to confirm it, in the same grid as HR's missing fields (§8.4) rather than one
   task per person. The task is read off the state and the date: it closes when
-  HR terminates or corrects the date forward.
+  HR terminates or corrects the date forward. Their access ended at the end
+  of the old day all the same (§5); **corrected forward to a day that has not
+  ended on their calendar**, it comes back in the correction's transaction —
+  `access_restored`, reason `last_working_day_corrected`, and identity
+  reinstates the account to the status it suspended it from, as for a rehire
+  — and ends again when the new day ends. Corrected to a day that has already
+  ended there (Auckland's 1st at 11:00 UTC, while Los Angeles's is still
+  going), it stays ended. A terminated record keeps it ended.
 - **on_leave** and **terminated** keep their state whatever either date is
   corrected to.
 
@@ -782,13 +801,44 @@ answered with the record and raises nothing.
   either path, a repeat is answered with the record.
 - **Discard** — `provisional` only, as the diagram says.
 
-Two edges of the diagram have no move yet. **Rehire** (`terminated → pre_hire`)
-is drawn and not built: the domain treats a terminated record as a tombstone,
-so a rehire needs a decision on whether it is a new record linked to the old
-or a new employment on the same one. **Withdrawing notice** is neither drawn
-nor built; today a resignation withdrawn is a correction of the last working
-day at best. Of these moves identity hears only the end of access (§5): it
-caches a start date, not an end, and suspends on `access_ended`.
+- **Rehire** (PEO-110) — `terminated` only, HR only. **One person, many
+  employments**: a new employment period on the same record, not a second
+  person, so the account, the history and the DSAR subject stay one. Each
+  period holds its start, legal entity, last working day, leaving reason and
+  HR's eligibility for rehire (`people.employment_period`). Refused when the
+  last period was marked not eligible, unless HR gives a reason, which the new
+  period keeps and which raises its own audit event,
+  `people.person.rehire_override` (the acting user on the envelope, the
+  person, the period, the reason — no other personal data); an unknown
+  eligibility is not a refusal. It starts after the
+  last working day, and is `pre_hire` until the start has begun on the
+  person's calendar, `active` from it. Raises `status_changed` (reason
+  `rehired`) and `hired` for the new period, both effective from the start,
+  `identity_facts_changed` with the new start, and `access_restored` when the
+  start comes (§5). History gains a `hire_date` row and a null
+  `last_working_day` row from the start, so an "as of" read in either period
+  answers for that period (§8.5). Completeness is re-judged.
+  **The employee number** is kept — it is the person's in the register and on
+  every document — unless the legal entity they rejoin numbers its people and
+  the number is not one its scheme would write; then they take that scheme's
+  next number, as a new hire there would. Someone with no number rejoining an
+  entity that numbers gets one. The old number stays in history.
+
+- **Withdraw notice** (PEO-111) — `notice` only, HR only, until the last
+  working day has ended on the person's calendar (during that day it is still
+  allowed; after it, the answer is termination or a later rehire). Returns
+  them to the status they gave notice from — `active`, or `on_leave` for
+  somebody who resigned from leave; a notice recorded before periods existed
+  reads as from `active`. Raises `status_changed` (reason
+  `notice_withdrawn`) effective today on their calendar, and writes a
+  `last_working_day` row of null that supersedes the notice's row from the
+  date it was effective (§8.5), so no "as of" read shows the withdrawn end.
+  With no last working day there is no access end pending (§5). Completeness
+  is re-judged. A repeat is refused; a REST retry is answered by its
+  Idempotency-Key.
+
+Identity hears the end of access and its return (§5): it caches a start date,
+not an end.
 
 A person on notice whose last working day has passed without HR terminating
 stays on notice — termination is HR's act — but **loses access at the end of
@@ -888,6 +938,7 @@ Two cases this has to survive, and does:
   **A terminated account is not listed.** It belongs to somebody who has left,
   and its work email may already be held by a new account. A leaver who never
   had a person record is not given a provisional one on the way out.
+
 - **People is never bought.** Identity's copies stay the only truth, no People
   event ever arrives to correct them, and nothing in identity's code path checks
   for the module's presence. This is what `requiresPeopleSource` exists to keep
@@ -895,11 +946,11 @@ Two cases this has to survive, and does:
 
 ### 8.3 The three collection moments
 
-| Moment | Where it happens | What it may ask for | Constraint |
-| --- | --- | --- | --- |
-| **Signup / enrolment** | `auth.app.kithena.com`, before a session exists | `collectAt: signup` or `enrolment` | Identity's own fields plus a strictly bounded set. Nothing confidential, nothing financial, nothing special-category. A person about to spend a single-use link should not be asked for a bank account, and the auth origin should not be a place where employee data accumulates |
-| **Onboarding** | The tenant app, after first sign-in | `collectAt: onboarding` | Sectioned, resumable, saves per section rather than per form. Shows what is required and what is optional, and says who will see each answer |
-| **Any time after** | Profile screens | `collectAt: anytime`, plus corrections | Ownership rules apply. An employee editing an HR-owned field sees it read-only with the owner named, not hidden |
+| Moment                 | Where it happens                                | What it may ask for                    | Constraint                                                                                                                                                                                                                                                                        |
+| ---------------------- | ----------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Signup / enrolment** | `auth.app.kithena.com`, before a session exists | `collectAt: signup` or `enrolment`     | Identity's own fields plus a strictly bounded set. Nothing confidential, nothing financial, nothing special-category. A person about to spend a single-use link should not be asked for a bank account, and the auth origin should not be a place where employee data accumulates |
+| **Onboarding**         | The tenant app, after first sign-in             | `collectAt: onboarding`                | Sectioned, resumable, saves per section rather than per form. Shows what is required and what is optional, and says who will see each answer                                                                                                                                      |
+| **Any time after**     | Profile screens                                 | `collectAt: anytime`, plus corrections | Ownership rules apply. An employee editing an HR-owned field sees it read-only with the owner named, not hidden                                                                                                                                                                   |
 
 `collectAt: hr_only` fields never appear to an employee at all.
 
@@ -978,7 +1029,7 @@ when a record that was not incomplete becomes so (a hire with gaps included),
 leaves the state where it was raises nothing. A sealed value counts as
 present by its existence; its plaintext is never read to decide.
 
-Completeness is exposed on the API and in reporting, so a customer who *wants*
+Completeness is exposed on the API and in reporting, so a customer who _wants_
 to gate something on it — an onboarding module, an access request — can do that
 themselves, with their own rules, rather than having ours imposed.
 
@@ -997,6 +1048,16 @@ Per the repository rule, and it is load-bearing here rather than decorative:
   cause. A start that arrived is effective from the corrected start date. A
   start that had not is effective from the start date it corrects, the day the
   record wrongly became active, so an "as of" read of that span says pre-hire.
+- Withdrawn notice (§8.1) is the same shape: the notice's `last_working_day`
+  row is superseded by a null one effective from the same date, tied to the
+  `status_changed` (reason `notice_withdrawn`) that is effective the day it
+  was withdrawn. The notice stays on record as something that was given; its
+  end date stops being a fact about the employment.
+- A last working day corrected forward after access ended (§8.1) restores
+  access from the day of the correction, on the person's calendar: the
+  `access_restored` is effective that day and caused by the
+  `attribute_corrected` that carries `supersedes`. The span between the old
+  day's end and the correction stays a span without access — it was one.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
@@ -1005,7 +1066,11 @@ last March" in any sense payroll cares about.
 
 Every read of a person takes an optional `asOf` date. The default is today. A
 payroll run for March asks for March, and gets the org chart, the salary and the
-cost centre as they were, not as they are.
+cost centre as they were, not as they are. Across a rehire (§8.1) that holds
+per period: an "as of" inside the first employment reads its start and no end
+yet, one in the gap reads its start and its last working day, and one inside
+the second reads the new start and no end — the rehire's null
+`last_working_day` row is what closes the old end date at the new start.
 
 "Today" is always the person's own day (§6.8), never the server's: the default
 `effectiveFrom` of a change, whether a new value is already in force, whether a
@@ -1057,8 +1122,8 @@ A drawer, in four steps, in this order deliberately:
 1. **What is it** — label, description, type, type configuration.
 2. **Who fills it in, and when** — ownership, `collectAt`.
 3. **Who can see it** — visibility, defaulted from the section, with a plain
-   sentence reading back what was chosen: *"Adam can see and edit this. His
-   manager cannot. HR can see it."*
+   sentence reading back what was chosen: _"Adam can see and edit this. His
+   manager cannot. HR can see it."_
 4. **What kind of data it is** — classification, pre-filled by the judgment
    described in §12, with special-category always requiring an explicit tick.
 
@@ -1187,15 +1252,15 @@ partitioned by `tenantId:aggregateId`, envelope carrying `occurredAt`,
 
 ### 10.1 Schema events
 
-| Event | Payload highlights |
-| --- | --- |
-| `people.schema.section_created` v1 | sectionKey, labels, order, default visibility |
-| `people.schema.section_updated` v1 | sectionKey, changed field names |
-| `people.schema.section_archived` v1 | sectionKey |
-| `people.schema.attribute_created` v1 | attributeKey, sectionKey, dataType, cardinality, requiredness, ownership, visibility, classification, origin |
-| `people.schema.attribute_updated` v1 | attributeKey, changed field names, requiredness transition |
-| `people.schema.attribute_archived` v1 | attributeKey, whether values were kept |
-| `people.schema.published` v1 | schemaVersion, checksum, counts, a link to the full artifact |
+| Event                                 | Payload highlights                                                                                           |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `people.schema.section_created` v1    | sectionKey, labels, order, default visibility                                                                |
+| `people.schema.section_updated` v1    | sectionKey, changed field names                                                                              |
+| `people.schema.section_archived` v1   | sectionKey                                                                                                   |
+| `people.schema.attribute_created` v1  | attributeKey, sectionKey, dataType, cardinality, requiredness, ownership, visibility, classification, origin |
+| `people.schema.attribute_updated` v1  | attributeKey, changed field names, requiredness transition                                                   |
+| `people.schema.attribute_archived` v1 | attributeKey, whether values were kept                                                                       |
+| `people.schema.published` v1          | schemaVersion, checksum, counts, a link to the full artifact                                                 |
 
 **Schema events carry field definitions, never employee values.** A consumer
 that wants the whole shape fetches the published artifact by version; the event
@@ -1235,21 +1300,28 @@ New:
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
 | `people.role.revoked` v1 | The reverse, with the same fields; also `via: system`, `by` null and reason `access_ended` for each role a leaver held when their access ended (§8.1) |
+| `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
+| `people.person.access_restored` v1 | Access came back (§5, §8.1): a rehired person's new employment started (reason `rehired`), or a notice's last working day was corrected forward to a day not yet ended (reason `last_working_day_corrected`). `restoredAt`, the account id. Identity reinstates on it |
+
+A rehire (§8.1) raises `status_changed` with the new reason `rehired` and a
+`hired` for the new period — the same event a first hire raises, whose
+`employment.from` is the new start. Withdrawing notice raises `status_changed`
+with the new reason `notice_withdrawn`.
 
 ### 10.2a Calendar events
 
 Legal entities, locations and settings (§6.8). Organisation configuration,
 never anybody's values, every field classified like any other.
 
-| Event | Payload highlights |
-| --- | --- |
-| `people.legal_entity.created` v1 | legalEntityId, name, country, default time zone |
-| `people.legal_entity.updated` v1 | legalEntityId, name, default time zone, archived, changed field names |
-| `people.location.created` v1 | locationId, legalEntityId, name, country, time zone, `effectiveFrom` |
-| `people.location.updated` v1 | locationId, name, archived, changed field names |
-| `people.location.zone_changed` v1 | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
-| `people.settings.changed` v1 | default time zone, cohort minimum, changed field names |
-| `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number |
+| Event                              | Payload highlights                                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `people.legal_entity.created` v1   | legalEntityId, name, country, default time zone                                                      |
+| `people.legal_entity.updated` v1   | legalEntityId, name, default time zone, archived, changed field names                                |
+| `people.location.created` v1       | locationId, legalEntityId, name, country, time zone, `effectiveFrom`                                 |
+| `people.location.updated` v1       | locationId, name, archived, changed field names                                                      |
+| `people.location.zone_changed` v1  | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
+| `people.settings.changed` v1       | default time zone, cohort minimum, changed field names                                               |
+| `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number                                                           |
 
 `people.person.org_changed` already names the legal entity and location a
 person moved to; that event is what tells a consumer a person changed
@@ -1525,6 +1597,13 @@ derived artifact computed from the union of both.**
   policy's months — is a calendar date, and whether it has arrived is read on
   the leaver's own calendar (§6.8): it falls at midnight where they worked,
   not where the server is.
+- **Retention and rehire (PEO-110).** The clock runs from the end of the
+  person's **latest** employment period, never an earlier one: a person
+  rehired is not a leaver, so nothing is due, and a rehire before erasure
+  cancels it — the job reads the record locked and in the state the rehire
+  left it. When they leave again the clock starts afresh from the new last
+  working day. What erasure had already cleared stays cleared; a rehire of a
+  record whose name or work email is gone is refused until HR supplies them.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that
@@ -1534,7 +1613,7 @@ domain refuses before the database gets a chance to.
 ### 12.3 Where a judgment helps
 
 Priya is an HR operations lead. Asked to pick between "internal" and
-"confidential" for a field called *"Accommodation notes"*, she will pick wrong
+"confidential" for a field called _"Accommodation notes"_, she will pick wrong
 often enough to matter — and it is the wrong question to ask her in that
 vocabulary at all.
 
@@ -1569,26 +1648,27 @@ const response = await client.systemOne({
     sectionDefaults: { classification: 'special-category' },
   },
   questions: {
-    classification: choice(
-      'How sensitive is the data an HR team would put in `attribute`?',
-      {
-        public: null,            // may appear in a public directory
-        internal: null,          // ordinary business data about a person
-        confidential: null,      // would embarrass or harm if disclosed
-        'special-category': null // GDPR Article 9
-      },
-    ),
+    classification: choice('How sensitive is the data an HR team would put in `attribute`?', {
+      public: null, // may appear in a public directory
+      internal: null, // ordinary business data about a person
+      confidential: null, // would embarrass or harm if disclosed
+      'special-category': null, // GDPR Article 9
+    }),
     piiKind: choice('What kind of personal data would `attribute` hold?', {
-      identity: null, financial: null, contact: null,
-      health: null, biometric: null, none: null,
+      identity: null,
+      financial: null,
+      contact: null,
+      health: null,
+      biometric: null,
+      none: null,
     }),
     isArticle9: noul(
       'Could `attribute` routinely hold health, biometric, racial, religious, ' +
-      'political, trade-union or sexual-orientation data about the employee?',
+        'political, trade-union or sexual-orientation data about the employee?',
     ),
     freeTextRisk: noul(
       'Is `attribute` a free-text field where an HR user could type anything, ' +
-      'including a third party\'s personal data?',
+        "including a third party's personal data?",
     ),
   },
 });
@@ -1596,13 +1676,13 @@ const response = await client.systemOne({
 
 **How the answer is used — the gate, in code, not in a habit:**
 
-| Condition | Behaviour |
-| --- | --- |
+| Condition                                                               | Behaviour                                                                                                                                              |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `isArticle9` probability ≥ 0.5, or classification is `special-category` | Force `special-category`, `aiEligible: false`, `includeInEvents: false`. Require an explicit tick with the consequence spelled out. Never auto-applied |
-| `freeTextRisk` ≥ 0.5 | Floor at `confidential` and `aiEligible: false`, matching what `asFreeText()` already does for static fields |
-| Confidence ≥ 0.9 and not the above | Pre-select, clearly marked as a suggestion, one click to change |
-| Confidence 0.5–0.9 | Pre-select nothing. Show the top two with their reasons and make her choose |
-| Confidence < 0.5, or the API is unavailable | Fall back to the section default, or to `confidential` / `aiEligible: false` if the section has none. Never block the admin on an inference call |
+| `freeTextRisk` ≥ 0.5                                                    | Floor at `confidential` and `aiEligible: false`, matching what `asFreeText()` already does for static fields                                           |
+| Confidence ≥ 0.9 and not the above                                      | Pre-select, clearly marked as a suggestion, one click to change                                                                                        |
+| Confidence 0.5–0.9                                                      | Pre-select nothing. Show the top two with their reasons and make her choose                                                                            |
+| Confidence < 0.5, or the API is unavailable                             | Fall back to the section default, or to `confidential` / `aiEligible: false` if the section has none. Never block the admin on an inference call       |
 
 The asymmetry is deliberate. A suggestion that makes a field **more** protected
 can be applied automatically; one that makes it **less** protected cannot. The
@@ -1620,13 +1700,13 @@ what makes the quarterly audit in §3 possible.
 Same adapter, same rules, all in the infrastructure layer, all optional — the
 module boots and functions with no TypeSafe key configured.
 
-| Where | Judgment | Gate |
-| --- | --- | --- |
-| **CSV import** | Map each spreadsheet column to an attribute key. `Choice` over candidate keys plus `no_match`; code supplies the candidate list from the published schema | ≥ 0.9 auto-maps, below that goes to the manual mapping screen. The mapping is always shown before import runs |
-| **SCIM / HRIS mapping** | Map an external schema's fields to attribute keys, once per integration | Never auto-applied. It drafts a mapping a human approves, because it is applied to every record thereafter |
-| **Duplicate detection** | `Noul`: are these two records the same human? Code supplies the pairs from cheap blocking on name, email and date of birth | A merge is **always** a human decision. The judgment ranks candidates; it never merges |
-| **Legacy free-text normalisation** | Code finds candidate values in an imported blob; `Choice` selects the intended one. The pre-parsed extraction pattern — select, never generate | Every selection is shown in the import dry-run diff before anything is written |
-| **Directory safety screen** | `Noul`: does this bio or public field contain a third party's personal data, or special-category data about the author? | ≥ 0.5 warns the employee before publishing. Advisory. It never blocks somebody from describing themselves |
+| Where                              | Judgment                                                                                                                                                  | Gate                                                                                                          |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **CSV import**                     | Map each spreadsheet column to an attribute key. `Choice` over candidate keys plus `no_match`; code supplies the candidate list from the published schema | ≥ 0.9 auto-maps, below that goes to the manual mapping screen. The mapping is always shown before import runs |
+| **SCIM / HRIS mapping**            | Map an external schema's fields to attribute keys, once per integration                                                                                   | Never auto-applied. It drafts a mapping a human approves, because it is applied to every record thereafter    |
+| **Duplicate detection**            | `Noul`: are these two records the same human? Code supplies the pairs from cheap blocking on name, email and date of birth                                | A merge is **always** a human decision. The judgment ranks candidates; it never merges                        |
+| **Legacy free-text normalisation** | Code finds candidate values in an imported blob; `Choice` selects the intended one. The pre-parsed extraction pattern — select, never generate            | Every selection is shown in the import dry-run diff before anything is written                                |
+| **Directory safety screen**        | `Noul`: does this bio or public field contain a third party's personal data, or special-category data about the author?                                   | ≥ 0.5 warns the employee before publishing. Advisory. It never blocks somebody from describing themselves     |
 
 **What no judgment ever decides**: whether a field is required, who may see it,
 who may write it, what a salary is, or whether a record may be merged. Those are
@@ -1653,11 +1733,13 @@ and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
 Extends federated types rather than owning what People does not own. The
 lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`
-(with `endAccessNow`), `endPersonAccess`, `startLeave`, `endLeave`,
+(with `endAccessNow`), `endPersonAccess`, `withdrawNotice`, `rehirePerson`,
+`startLeave`, `endLeave`,
 `discardPerson` — each answering with the person
-after, their arguments parsed by the same Zod body REST parses. Tenant roles
-(PEO-112) are the `peopleRoles` query and the `grantRole` and `revokeRole`
-mutations, each answering with the account's roles after.
+after, their arguments parsed by the same Zod body REST parses. The query
+`employmentPeriods(personId)` lists a person's employments, HR only. Tenant
+roles (PEO-112) are the `peopleRoles` query and the `grantRole` and
+`revokeRole` mutations, each answering with the account's roles after.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
 token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
@@ -1778,8 +1860,11 @@ GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
 POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
+POST   /v1/people/{id}/notice/withdraw HR: notice withdrawn before the last day ends
 POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
 POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
+POST   /v1/people/{id}/rehire          HR: a new employment period on the same record (§8.1)
+GET    /v1/people/{id}/employment-periods   HR: every employment, first first
 POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
 POST   /v1/people/{id}/leave/end       HR: back from leave today
 POST   /v1/people/{id}/discard         HR: a provisional record that was never a person
@@ -1965,17 +2050,17 @@ JSX runtime and Reach, plus `ssr/people.css`.
 
 ### 13.3 Webhooks (Phase 1)
 
-| Property | Behaviour |
-| --- | --- |
-| Signing | HMAC over the raw body with a per-endpoint secret, rotatable with an overlap window |
-| Ordering | Per person, guaranteed. Across people, not |
-| Delivery | At least once. Every payload carries `eventId`; consumers deduplicate on it |
-| Retry | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address is emailed through `platform/messaging` |
-| Alert address | Required when an endpoint is registered: a request without a valid one is refused, 400, naming `alertEmail`. An endpoint registered before this rule may have none and is told through the event alone |
-| Durability | The retry schedule is `next_attempt_at` on each delivery row. A bounded poller passes every known tenant on boot and every minute, so a retry pending across a restart resumes when it falls due. A pass claims a delivery with a short lease before sending, so two replicas never send one twice and a crash mid-send is a resend |
-| Replay | Any delivery re-sendable from the settings screen for the retention window |
-| Filtering | Per endpoint: which events, and which attributes within them (§10.3) |
-| Payload | The event envelope, unchanged, minus what the allowlist excludes |
+| Property      | Behaviour                                                                                                                                                                                                                                                                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signing       | HMAC over the raw body with a per-endpoint secret, rotatable with an overlap window                                                                                                                                                                                                                                                 |
+| Ordering      | Per person, guaranteed. Across people, not                                                                                                                                                                                                                                                                                          |
+| Delivery      | At least once. Every payload carries `eventId`; consumers deduplicate on it                                                                                                                                                                                                                                                         |
+| Retry         | Exponential backoff to 24 hours, then the endpoint is disabled and the tenant is told: `people.webhook.endpoint_disabled` is raised in the same transaction, once however many deliveries hit the ceiling together, and the endpoint's alert address is emailed through `platform/messaging`                                        |
+| Alert address | Required when an endpoint is registered: a request without a valid one is refused, 400, naming `alertEmail`. An endpoint registered before this rule may have none and is told through the event alone                                                                                                                              |
+| Durability    | The retry schedule is `next_attempt_at` on each delivery row. A bounded poller passes every known tenant on boot and every minute, so a retry pending across a restart resumes when it falls due. A pass claims a delivery with a short lease before sending, so two replicas never send one twice and a crash mid-send is a resend |
+| Replay        | Any delivery re-sendable from the settings screen for the retention window                                                                                                                                                                                                                                                          |
+| Filtering     | Per endpoint: which events, and which attributes within them (§10.3)                                                                                                                                                                                                                                                                |
+| Payload       | The event envelope, unchanged, minus what the allowlist excludes                                                                                                                                                                                                                                                                    |
 
 ### 13.4 The schema artifact (Phase 1)
 
@@ -2018,11 +2103,11 @@ write path after onboarding.
 
 ### 14.1 What can be imported
 
-| Source | Produces | Notes |
-| --- | --- | --- |
-| CSV / TSV | People and their attribute values | Encoding sniffed, BOM handled, delimiter detected |
-| XLSX | The same, plus repeating groups from extra sheets | First sheet is people unless told otherwise |
-| A Kithena export | The same file round-tripped after editing | The key row (§15.3) is what makes this safe |
+| Source                       | Produces                                                    | Notes                                                      |
+| ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| CSV / TSV                    | People and their attribute values                           | Encoding sniffed, BOM handled, delimiter detected          |
+| XLSX                         | The same, plus repeating groups from extra sheets           | First sheet is people unless told otherwise                |
+| A Kithena export             | The same file round-tripped after editing                   | The key row (§15.3) is what makes this safe                |
 | A folder or zip of documents | `document_ref` attribute values attached to existing people | Contracts, signed offers, ID scans, right-to-work evidence |
 
 Document import is its own path because the matching problem is different: a
@@ -2073,11 +2158,11 @@ is discovered three months later otherwise.
 The question the brief asked, and the answer is deliberately not symmetric.
 Two different kinds of missing:
 
-| Missing | Outcome | Why |
-| --- | --- | --- |
-| A **core identity** field — legal name, work email, hire date, legal entity | The **row is blocked**. It is not imported, it is listed in the dry run with the offending column, and the rest of the file proceeds | There is no such thing as a person record without these. Creating one produces a row nobody can find, match or invite |
-| Any other **required** attribute — cost centre, national identifier, a tenant-defined required field | The row **imports and the person is incomplete**, exactly as §8.4 describes | A migration whose source system never held a cost centre must not be un-importable. Blocking here would mean the customer has to fix their old spreadsheet before they can use the new system, which is the wrong order |
-| An **invalid** value — a malformed NIF, an unparseable date, an option not in the list | The **row is blocked** with the cell named | Wrong is not the same as absent. Importing a bad value is worse than importing nothing, because nothing is visible as a gap and wrong is not |
+| Missing                                                                                              | Outcome                                                                                                                              | Why                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A **core identity** field — legal name, work email, hire date, legal entity                          | The **row is blocked**. It is not imported, it is listed in the dry run with the offending column, and the rest of the file proceeds | There is no such thing as a person record without these. Creating one produces a row nobody can find, match or invite                                                                                                   |
+| Any other **required** attribute — cost centre, national identifier, a tenant-defined required field | The row **imports and the person is incomplete**, exactly as §8.4 describes                                                          | A migration whose source system never held a cost centre must not be un-importable. Blocking here would mean the customer has to fix their old spreadsheet before they can use the new system, which is the wrong order |
+| An **invalid** value — a malformed NIF, an unparseable date, an option not in the list               | The **row is blocked** with the cell named                                                                                           | Wrong is not the same as absent. Importing a bad value is worse than importing nothing, because nothing is visible as a gap and wrong is not                                                                            |
 
 The dry run states all three counts before anything is written:
 
@@ -2136,11 +2221,11 @@ rather than a failure.
 Three formats, because they are read by three different audiences and a single
 format serving all three serves none of them well.
 
-| Format | For | Shape |
-| --- | --- | --- |
-| **CSV** | Another system, a script, a re-import | One row per person, flat, no styling, keys in the second header row |
-| **XLSX** | A human — finance, a works council, a payroll bureau | Multiple sheets, real types, dropdowns, highlighted gaps, a provenance sheet |
-| **PDF** | A record to hand over, print or file — an employee file, a labour inspection, a DSAR pack | Per person or a roster, with page furniture and explicit "Not provided" |
+| Format   | For                                                                                       | Shape                                                                        |
+| -------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **CSV**  | Another system, a script, a re-import                                                     | One row per person, flat, no styling, keys in the second header row          |
+| **XLSX** | A human — finance, a works council, a payroll bureau                                      | Multiple sheets, real types, dropdowns, highlighted gaps, a provenance sheet |
+| **PDF**  | A record to hand over, print or file — an employee file, a labour inspection, a DSAR pack | Per person or a roster, with page furniture and explicit "Not provided"      |
 
 ### 15.1 The export builder
 
@@ -2185,13 +2270,13 @@ How that is built:
   bucket policy one checkbox too generous.
 - **The link is the service's, not the bucket's.** `GET /v1/exports/files/…`
   checks an HMAC over the key and the expiry, and after 24 hours answers `410
-  Gone`. A presigned bucket URL would hand the requester ciphertext.
+Gone`. A presigned bucket URL would hand the requester ciphertext.
 - **Files are deleted after the link dies**, by a sweep that runs hourly and
   removes at most a thousand files per run, so a backlog drains over several
   runs instead of one long one.
 - **The notification is `people.export.completed`**, which still carries no
   link. The requester — and only the requester — fetches the links from `GET
-  /v1/exports/{id}`, which signs them again from the file names and expiry in
+/v1/exports/{id}`, which signs them again from the file names and expiry in
   the export ledger; no link is stored anywhere. An export-ready email waits on
   `platform/messaging` gaining that message.
 - **Nothing configured is a supported mode.** With no bucket and no queue the
@@ -2246,6 +2331,7 @@ order — the same order as the profile screen, so the file reads like the UI.
   out, and asks the request's row what to do. The same approval rules — a
   stated reason, separation of duties, a deadline, a single use — are the
   primitives the approval workflows on sensitive changes (Phase 3) will reuse.
+
 - **Special-category attributes never appear** in a standard export at all.
   They are reachable only through the DSAR path (§15.5), which runs as the
   subject rather than as a viewer.
@@ -2273,11 +2359,11 @@ so it is a supported path rather than an accident:
 Absence has to be visible, and it has to be distinguishable from zero, from an
 empty string and from "not applicable at this company".
 
-| Format | Missing required | Missing optional | Not applicable |
-| --- | --- | --- | --- |
-| CSV | Empty cell. A `__missing_required` column lists the keys, comma-separated | Empty cell | Empty cell |
-| XLSX | Empty cell with an amber fill and a cell comment naming the field, plus a **Missing information** sheet listing person, field and who owns filling it | Empty cell, no fill | Cell shaded grey, comment "not required for this person" |
-| PDF | Prints **Not provided** in muted type, never a blank | Omitted entirely | Omitted entirely |
+| Format | Missing required                                                                                                                                      | Missing optional    | Not applicable                                           |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------- |
+| CSV    | Empty cell. A `__missing_required` column lists the keys, comma-separated                                                                             | Empty cell          | Empty cell                                               |
+| XLSX   | Empty cell with an amber fill and a cell comment naming the field, plus a **Missing information** sheet listing person, field and who owns filling it | Empty cell, no fill | Cell shaded grey, comment "not required for this person" |
+| PDF    | Prints **Not provided** in muted type, never a blank                                                                                                  | Omitted entirely    | Omitted entirely                                         |
 
 **Which cells are which is judged on the export's day.** An export `asOf`
 March is a picture of March, gaps included: the values in force then — dated
@@ -2378,20 +2464,20 @@ Reach already draws all of these by hand — no charting library, per the
 existing decision — and the fixtures in `packages/ui/src/charts` are HRIS data
 already.
 
-| Question | Chart | The relation it shows |
-| --- | --- | --- |
-| Are we growing? | `TrendChart` — headcount by month, with a `Sparkline` in the stat tile above it | Level over time. Joiners and leavers sit beneath as a stacked bar so growth is visibly the difference between two flows, not one line |
-| Where did the change come from? | `WaterfallChart` — opening, joiners, internal moves, leavers, closing | The single most-asked HR number, and the only chart that makes headcount reconcile rather than merely display |
-| What are we made of? | `HorizontalBarChart` by department, location or employment type; `DonutChart` for status | One dimension at a time. A second dimension becomes `StackedBarChart`, never a pie of pies |
-| Are people leaving faster? | `TrendChart` — rolling 12-month attrition, annualised, with the formula stated on the card | Rate over time. Shown next to headcount because attrition without a denominator is a vanity number |
-| Who is at risk of leaving? | `BarChart` — tenure distribution in bands | Tenure against leaver counts in the same bands: the classic 6-to-18-month cliff shows up as a shape, not a statistic |
-| Is the org shaped sensibly? | `BarChart` — span of control distribution, plus `OrgChart` for the structure itself | How many managers have one report, and how many layers sit between an employee and the top |
-| Is our data any good? | `HorizontalBarChart` — completeness by section and by field, with a trend since the last publish | This is what makes §8.4 measurable rather than aspirational, and it is the chart Priya opens most |
-| Where do new joiners stall? | `FunnelChart` — invited, enrolled, onboarding started, onboarding completed, record complete | The drop between "enrolled" and "onboarding completed" is the onboarding form's real completion rate |
-| What is about to expire? | `TimelineChart` — work permits, fixed-term contracts, probation ends and certifications over the next 90 days | The only genuinely operational chart here. A permit expiring in three weeks is a person who cannot legally work in four |
-| When do people join? | `HeatmapChart` — month against department | Hiring seasonality, which is what makes a capacity plan arguable |
-| How is pay distributed? | `RangeChart` for band ranges with the actuals inside them; `ScatterChart` for pay against tenure | Requires the finance relation. Compa-ratio against band midpoint is the relation; a raw salary list is not analysis |
-| What does the workforce look like in aggregate? | Bar charts over voluntary self-ID | Cohort minimum enforced everywhere, per §6.7. Never per person, never to a manager |
+| Question                                        | Chart                                                                                                         | The relation it shows                                                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Are we growing?                                 | `TrendChart` — headcount by month, with a `Sparkline` in the stat tile above it                               | Level over time. Joiners and leavers sit beneath as a stacked bar so growth is visibly the difference between two flows, not one line |
+| Where did the change come from?                 | `WaterfallChart` — opening, joiners, internal moves, leavers, closing                                         | The single most-asked HR number, and the only chart that makes headcount reconcile rather than merely display                         |
+| What are we made of?                            | `HorizontalBarChart` by department, location or employment type; `DonutChart` for status                      | One dimension at a time. A second dimension becomes `StackedBarChart`, never a pie of pies                                            |
+| Are people leaving faster?                      | `TrendChart` — rolling 12-month attrition, annualised, with the formula stated on the card                    | Rate over time. Shown next to headcount because attrition without a denominator is a vanity number                                    |
+| Who is at risk of leaving?                      | `BarChart` — tenure distribution in bands                                                                     | Tenure against leaver counts in the same bands: the classic 6-to-18-month cliff shows up as a shape, not a statistic                  |
+| Is the org shaped sensibly?                     | `BarChart` — span of control distribution, plus `OrgChart` for the structure itself                           | How many managers have one report, and how many layers sit between an employee and the top                                            |
+| Is our data any good?                           | `HorizontalBarChart` — completeness by section and by field, with a trend since the last publish              | This is what makes §8.4 measurable rather than aspirational, and it is the chart Priya opens most                                     |
+| Where do new joiners stall?                     | `FunnelChart` — invited, enrolled, onboarding started, onboarding completed, record complete                  | The drop between "enrolled" and "onboarding completed" is the onboarding form's real completion rate                                  |
+| What is about to expire?                        | `TimelineChart` — work permits, fixed-term contracts, probation ends and certifications over the next 90 days | The only genuinely operational chart here. A permit expiring in three weeks is a person who cannot legally work in four               |
+| When do people join?                            | `HeatmapChart` — month against department                                                                     | Hiring seasonality, which is what makes a capacity plan arguable                                                                      |
+| How is pay distributed?                         | `RangeChart` for band ranges with the actuals inside them; `ScatterChart` for pay against tenure              | Requires the finance relation. Compa-ratio against band midpoint is the relation; a raw salary list is not analysis                   |
+| What does the workforce look like in aggregate? | Bar charts over voluntary self-ID                                                                             | Cohort minimum enforced everywhere, per §6.7. Never per person, never to a manager                                                    |
 
 ### 16.3 Segments, saved views and delivery
 
@@ -2446,11 +2532,11 @@ how wide the window is.
 
 ### 17.1 Three tiers, and what each means
 
-| Tier | Screens | What "mobile" means |
-| --- | --- | --- |
-| **Full parity** | Onboarding, own profile, a colleague's profile, the directory, tasks and reminders, analytics viewing, notifications | Identical capability. These are the screens an employee uses, and most employees have no other device |
-| **Adapted** | The field registry, the publish flow, the completeness grid, import mapping, the export builder | Same capability, different layout. Reorder gains explicit "move up / move down" actions alongside drag. The completeness grid becomes one card per person with one field on it. Import mapping stacks into a list of column-to-field rows |
-| **Initiated, not performed** | A 50,000-row import, a large PDF roster | Started and monitored on a phone, executed server-side. Closing the tab does not cancel anything, and the result arrives as a notification |
+| Tier                         | Screens                                                                                                              | What "mobile" means                                                                                                                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Full parity**              | Onboarding, own profile, a colleague's profile, the directory, tasks and reminders, analytics viewing, notifications | Identical capability. These are the screens an employee uses, and most employees have no other device                                                                                                                                     |
+| **Adapted**                  | The field registry, the publish flow, the completeness grid, import mapping, the export builder                      | Same capability, different layout. Reorder gains explicit "move up / move down" actions alongside drag. The completeness grid becomes one card per person with one field on it. Import mapping stacks into a list of column-to-field rows |
+| **Initiated, not performed** | A 50,000-row import, a large PDF roster                                                                              | Started and monitored on a phone, executed server-side. Closing the tab does not cancel anything, and the result arrives as a notification                                                                                                |
 
 Nothing is desk-only by design. A rule that says "do this at a computer" is a
 rule that gets broken in a car park by somebody who needed it now.
@@ -2624,7 +2710,7 @@ Temporal; pay distribution and compa-ratio charts behind the finance relation.
 ### Out of scope
 
 Payroll calculation. Performance reviews. Document storage itself. Applicant
-tracking. Org chart *editing* as a visual tool — People owns the data, a future
+tracking. Org chart _editing_ as a visual tool — People owns the data, a future
 module owns the canvas. Time and attendance. Benefits administration beyond
 recording an enrolment. **Cross-module analytics** — absence rates, pay against
 performance, cost per hire — which belong to a Reporting module and reach these
@@ -2877,7 +2963,7 @@ deleted and cannot have their classification loosened.
 `right_to_work_checked_on`, `right_to_work_checked_by`, `driving_licence_number`
 (encrypted), `sponsorship_required` (boolean).
 
-### Emergency contacts *(repeating)*
+### Emergency contacts _(repeating)_
 
 `contact_name`, `relationship`, `primary_phone`, `alternate_phone`,
 `contact_email`, `contact_address`, `is_primary`.
@@ -2928,13 +3014,13 @@ service), `termination_reason` (free text, confidential),
 `eligible_for_rehire`, `exit_interview_completed`, `handover_owner`,
 `final_pay_date`, `assets_returned`.
 
-### Education & experience *(repeating)*
+### Education & experience _(repeating)_
 
 `institution`, `qualification`, `field_of_study`, `start_year`, `end_year`,
 `certification_name`, `certification_issuer`, `certification_expiry`,
 `prior_employer`, `prior_role`, `prior_period`.
 
-### Assets & access *(repeating)*
+### Assets & access _(repeating)_
 
 `asset_type`, `asset_identifier`, `assigned_on`, `returned_on`,
 `software_licence`, `building_access_level`, `system_access` (repeating).
@@ -2961,11 +3047,34 @@ these are the definitions `just codegen` walks.
 
 ```ts
 export const AttributeDataType = z.enum([
-  'text', 'long_text', 'number', 'decimal', 'percentage', 'money', 'boolean',
-  'date', 'datetime', 'duration', 'select', 'multi_select', 'tags', 'email',
-  'phone', 'url', 'country', 'currency', 'language', 'time_zone', 'address',
-  'national_id', 'bank_account', 'person_ref', 'org_unit_ref',
-  'legal_entity_ref', 'document_ref', 'image',
+  'text',
+  'long_text',
+  'number',
+  'decimal',
+  'percentage',
+  'money',
+  'boolean',
+  'date',
+  'datetime',
+  'duration',
+  'select',
+  'multi_select',
+  'tags',
+  'email',
+  'phone',
+  'url',
+  'country',
+  'currency',
+  'language',
+  'time_zone',
+  'address',
+  'national_id',
+  'bank_account',
+  'person_ref',
+  'org_unit_ref',
+  'legal_entity_ref',
+  'document_ref',
+  'image',
 ]);
 
 export const Requiredness = z.discriminatedUnion('mode', [
@@ -2983,42 +3092,52 @@ export const Requiredness = z.discriminatedUnion('mode', [
   }),
 ]);
 
-export const WriterRole  = z.enum(['employee','manager','hr','finance','system','external']);
-export const ViewerScope = z.enum(['self','manager','manager_chain','hr','finance','admin','directory']);
+export const WriterRole = z.enum(['employee', 'manager', 'hr', 'finance', 'system', 'external']);
+export const ViewerScope = z.enum([
+  'self',
+  'manager',
+  'manager_chain',
+  'hr',
+  'finance',
+  'admin',
+  'directory',
+]);
 
-export const AttributeDefinition = z.object({
-  key: AttributeKey,
-  sectionKey: SectionKey,
-  label: LocalizedString,
-  description: LocalizedString.nullable(),
-  dataType: AttributeDataType,
-  typeConfig: AttributeTypeConfig,
-  cardinality: z.enum(['single', 'repeating']),
-  requiredness: Requiredness,
-  ownership: z.array(WriterRole).min(1),
-  visibility: z.array(ViewerScope),
-  collectAt: z.enum(['signup','enrolment','onboarding','hr_only','anytime']),
-  // The existing FieldPolicy interface. Not a parallel vocabulary.
-  classification: FieldPolicySchema,
-  classificationSource: z.enum(['human', 'suggested', 'section_default']),
-  effectiveDated: z.boolean(),
-  uniqueScope: z.enum(['none', 'tenant', 'legal_entity']),
-  encrypted: z.boolean(),
-  indexed: z.boolean(),
-  includeInDirectory: z.boolean(),
-  includeInEvents: z.boolean(),
-  origin: z.enum(['core', 'country_pack', 'tenant']),
-  deprecatedAt: Instant.nullable(),
-})
-.refine(
-  (a) => a.classification.classification !== 'special-category' ||
-         (!a.classification.aiEligible && !a.includeInEvents),
-  'special-category data is never AI-eligible and never travels on an event',
-)
-.refine(
-  (a) => !(a.classification.piiKind === 'financial') || a.encrypted,
-  'financial data is always encrypted at rest',
-);
+export const AttributeDefinition = z
+  .object({
+    key: AttributeKey,
+    sectionKey: SectionKey,
+    label: LocalizedString,
+    description: LocalizedString.nullable(),
+    dataType: AttributeDataType,
+    typeConfig: AttributeTypeConfig,
+    cardinality: z.enum(['single', 'repeating']),
+    requiredness: Requiredness,
+    ownership: z.array(WriterRole).min(1),
+    visibility: z.array(ViewerScope),
+    collectAt: z.enum(['signup', 'enrolment', 'onboarding', 'hr_only', 'anytime']),
+    // The existing FieldPolicy interface. Not a parallel vocabulary.
+    classification: FieldPolicySchema,
+    classificationSource: z.enum(['human', 'suggested', 'section_default']),
+    effectiveDated: z.boolean(),
+    uniqueScope: z.enum(['none', 'tenant', 'legal_entity']),
+    encrypted: z.boolean(),
+    indexed: z.boolean(),
+    includeInDirectory: z.boolean(),
+    includeInEvents: z.boolean(),
+    origin: z.enum(['core', 'country_pack', 'tenant']),
+    deprecatedAt: Instant.nullable(),
+  })
+  .refine(
+    (a) =>
+      a.classification.classification !== 'special-category' ||
+      (!a.classification.aiEligible && !a.includeInEvents),
+    'special-category data is never AI-eligible and never travels on an event',
+  )
+  .refine(
+    (a) => !(a.classification.piiKind === 'financial') || a.encrypted,
+    'financial data is always encrypted at rest',
+  );
 ```
 
 Aggregate invariants — a required attribute cannot be invisible to everyone who
@@ -3059,7 +3178,7 @@ database is a design error, and none appears here.
 
 ---
 
-*Requirements gathered interactively with quality scoring across business,
+_Requirements gathered interactively with quality scoring across business,
 functional, UX and technical dimensions. Four architectural questions were
 answered here rather than deferred; the reasoning is in place so each can be
-argued with rather than merely obeyed.*
+argued with rather than merely obeyed._

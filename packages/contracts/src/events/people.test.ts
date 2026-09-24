@@ -242,6 +242,23 @@ describe('what identity is told', () => {
     ]);
   });
 
+  it('restores access with ids, an instant and why, never a name (PEO-110)', () => {
+    expect(payloadKeys('people.person.access_restored').toSorted()).toEqual([
+      'identityAccountId',
+      'personId',
+      'reason',
+      'restoredAt',
+    ]);
+  });
+
+  it('audits a rehire override with who, which period and why, and nothing else (PEO-110)', () => {
+    expect(payloadKeys('people.person.rehire_override').toSorted()).toEqual([
+      'period',
+      'personId',
+      'reason',
+    ]);
+  });
+
   it('is only for a person who has an account to correct', () => {
     const facts = peopleEvents.find((e) => e.name === 'people.person.identity_facts_changed');
     const unlinked = facts?.payload.safeParse({

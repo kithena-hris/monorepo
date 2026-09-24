@@ -31,6 +31,7 @@ import {
   identityFactsOf,
   Person,
   type EventContext,
+  type EmploymentPeriodRow,
   type LeavingReason,
   type PersonSnapshot,
 } from '../../domain/person/person.js';
@@ -218,6 +219,28 @@ export interface PersonAccess {
    * second event once access has ended, whoever ended it.
    */
   endAccess(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  /**
+   * A leaver hired again: a new employment period on the same record
+   * (PEO-110), HR only. See `rehire` below for the employee number rule.
+   */
+  rehire(
+    tx: Tx,
+    asking: On<{
+      /** The new employment's first day, on the person's calendar. */
+      readonly startDate: string;
+      /** The legal entity they rejoin; their last one when absent. */
+      readonly legalEntityId?: string;
+      /** Why HR rehires somebody marked not eligible. Required then, kept on the period. */
+      readonly overrideReason?: string | null;
+    }>,
+  ): Promise<Result<PersonView>>;
+  /**
+   * Withdraw a person's notice (PEO-111), HR only, until their last working
+   * day has ended on their calendar: back to the status they gave it from.
+   */
+  withdrawNotice(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  /** Every employment period on a person, first first (PEO-110). HR only. */
+  employmentPeriods(tx: Tx, asking: On<object>): Promise<Result<readonly EmploymentPeriodRow[]>>;
   startLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   endLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   /** A provisional record that was never a person (§8.1); the one state a hard delete may follow. */
@@ -520,27 +543,34 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     if (person.values['employee_number'] !== undefined) return {};
     const entity = changes['legal_entity_id'] ?? person.legalEntityId;
     if (typeof entity !== 'string') return {};
-    /*
-     * A number somebody already holds — typed in another entity, or imported
-     * before the scheme existed — is skipped: the register is unique in the
-     * tenant (`person_employee_number_key`), and a skipped number is taken,
-     * not lost.
-     *
-     * ponytail: bounded at 100 skips, after which the hire goes unnumbered
-     * and HR types one. Only a register full of hand-typed numbers in this
-     * scheme's format gets near it.
-     */
+    const next = await nextNumber(tx, asking.tenantId, entity);
+    return next === null ? {} : { employee_number: next };
+  }
+
+  /**
+   * The next free number in an entity's scheme, taken in this transaction;
+   * null when it does not number.
+   *
+   * A number somebody already holds — typed in another entity, or imported
+   * before the scheme existed — is skipped: the register is unique in the
+   * tenant (`person_employee_number_key`), and a skipped number is taken, not
+   * lost.
+   *
+   * ponytail: bounded at 100 skips, after which the hire goes unnumbered and
+   * HR types one. Only a register full of hand-typed numbers in this scheme's
+   * format gets near it.
+   */
+  async function nextNumber(tx: Tx, tenantId: string, entity: string): Promise<string | null> {
+    if (!deps.numbering) return null;
     for (let skips = 0; skips < 100; skips += 1) {
       // eslint-disable-next-line no-await-in-loop -- each allocation depends on the last
-      const next = await deps.numbering.allocate(tx, asking.tenantId, entity);
-      if (!next) return {};
+      const next = await deps.numbering.allocate(tx, tenantId, entity);
+      if (!next) return null;
       const employeeNumber = formatNumber(next, next.sequence);
       // eslint-disable-next-line no-await-in-loop -- as above
-      if (!(await deps.numbering.taken(tx, asking.tenantId, employeeNumber))) {
-        return { employee_number: employeeNumber };
-      }
+      if (!(await deps.numbering.taken(tx, tenantId, employeeNumber))) return employeeNumber;
     }
-    return {};
+    return null;
   }
 
   async function update(
@@ -875,6 +905,133 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       );
     },
 
+    /**
+     * Rehire (PEO-110): the aggregate opens the new period and says whether it
+     * may; this places it and numbers it.
+     *
+     * **Employee number.** The person keeps the number they had — it is theirs
+     * in the register and on every document from the first employment —
+     * unless the legal entity they rejoin numbers its people and their number
+     * is not one its scheme would write (another entity's prefix, say); then
+     * they take that scheme's next number, as a new hire there would. A person
+     * with no number joining an entity that numbers gets one. The old number
+     * stays in history either way.
+     *
+     * `identity_facts_changed` carries the new start, which identity gates
+     * enrolment on; `access_restored` (from the aggregate) reinstates the
+     * account once the start has come.
+     */
+    async rehire(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (!CALENDAR_DATE.test(asking.startDate)) {
+        return err(failure('VALUE_INVALID', 'startDate is a calendar date', ['startDate']));
+      }
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR rehires a person'));
+
+      const defines = (key: string) => version.document.attributes.some((d) => d.key === key);
+      if (asking.legalEntityId !== undefined && !defines('legal_entity_id')) {
+        return err(
+          failure('VALUE_INVALID', 'This schema has no legal entity to rehire into', [
+            'legalEntityId',
+          ]),
+        );
+      }
+      const entity = asking.legalEntityId ?? person.legalEntityId;
+      const facts = hireFactsOf(person.values, entity, version.version);
+      if (!facts.ok) return facts;
+
+      const aggregate = Person.rehydrate(person.snapshot);
+      const placed = { ...person.values, ...(entity === null ? {} : { legal_entity_id: entity }) };
+      const { zone } = await calendarOf(tx, asking.tenantId, placed);
+      const moved = aggregate.rehire(
+        asking.startDate,
+        facts.value,
+        contextFor(asking),
+        zone,
+        asking.overrideReason ?? null,
+      );
+      if (!moved.ok) return moved;
+      shareIdentityFacts(aggregate, asking, person.values, asking.startDate);
+      await deps.people.save(tx, aggregate);
+
+      const changes: Record<string, unknown> = {};
+      if (entity !== null && entity !== person.legalEntityId) changes['legal_entity_id'] = entity;
+      const held = person.values['employee_number'];
+      const scheme =
+        deps.numbering && entity !== null && defines('employee_number')
+          ? await deps.numbering.scheme(tx, asking.tenantId, entity)
+          : null;
+      if (scheme && (typeof held !== 'string' || sequenceOf(scheme, held) === null)) {
+        const next = await nextNumber(tx, asking.tenantId, entity as string);
+        if (next !== null) changes['employee_number'] = next;
+      }
+      if (Object.keys(changes).length > 0) {
+        const placedWrite = await update(
+          tx,
+          { ...asking, changes, effectiveFrom: asking.startDate },
+          false,
+        );
+        if (!placedWrite.ok) return placedWrite;
+      } else {
+        await rejudge(tx, asking, asking.personId, null);
+      }
+
+      const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
+      if (!after) return err(PersonNotFound());
+      return ok(await view(tx, asking, after, version, relations));
+    },
+
+    /**
+     * The notice's `last_working_day` row is the standing one when it holds
+     * the date the record does; that is what the withdrawal supersedes. A
+     * notice recorded before its row existed has nothing to supersede.
+     * Never settled: once withdrawn the person is not on notice, and a
+     * repeat is refused — a REST retry is answered by its Idempotency-Key.
+     */
+    async withdrawNotice(tx, asking) {
+      const history = await deps.people.history(
+        tx,
+        asking.tenantId,
+        asking.personId,
+        'last_working_day',
+      );
+      const standing = currentValue(history, 'last_working_day');
+      return lifecycle(
+        tx,
+        asking,
+        'withdraws notice',
+        () => false,
+        (p, zone, ctx) =>
+          p.withdrawNotice(
+            ctx,
+            zone,
+            standing !== undefined && standing.value === p.lastWorkingDay ? standing : null,
+          ),
+      );
+    },
+
+    async employmentPeriods(tx, asking) {
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR reads employment periods'));
+      return ok(await deps.people.periods(tx, asking.tenantId, asking.personId));
+    },
+
     endAccess: (tx, asking) =>
       lifecycle(
         tx,
@@ -1153,7 +1310,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         );
         if (!moved.ok) return moved;
       } else if (moves && definition.key === 'last_working_day') {
-        const moved = aggregate.correctLastWorkingDay(valid.value as string);
+        // Moved to a day still going on their calendar after the job ended
+        // their access, a person on notice gets it back (PEO-111).
+        const moved = aggregate.correctLastWorkingDay(
+          valid.value as string,
+          { ...contextFor(asking), causationId: eventId },
+          zone,
+        );
         if (!moved.ok) return moved;
       } else if (moves) {
         project(fields, custom, definition.key, valid.value);

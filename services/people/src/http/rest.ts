@@ -936,6 +936,19 @@ export function restRoutes(deps: RestDeps): Route[] {
           (verdict) => ({ state: verdict.state, missing: verdict.missing }),
         ),
     },
+    // Every employment on a person (PEO-110), HR only.
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/people/${UUID}/employment-periods$`),
+      handle: async (asking, _request, params) =>
+        respond(
+          await run(service, asking.tenantId, (tx) =>
+            service.access.employmentPeriods(tx, { ...asking, personId: params['id'] ?? '' }),
+          ),
+          200,
+          (items) => ({ items }),
+        ),
+    },
     // Notice, termination, leave and discarding (PEO-108): one route each.
     ...LIFECYCLE_ACTIONS.map((a): Route => ({
       method: 'POST',
