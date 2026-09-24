@@ -2,11 +2,15 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
 import { ImportCompleted, ImportStarted, type Actor } from '@kithena/contracts';
 
+import { currentValue } from '../../domain/person/history.js';
+import { REPORT_LIFETIME_MS, type ObjectStore } from '../export/object-store.js';
 import { inTenantResult, type Asking, type PersonAccess } from '../person/person-access.js';
 import type { InTenant } from '../person/service.js';
 import { writeCsv } from './csv.js';
+import { PERSON_ID_COLUMN } from './parse.js';
 import {
   dryRun,
+  type BlockedItem,
   type ClassifiedRow,
   type DryRun,
   type DryRunDeps,
@@ -31,9 +35,13 @@ import {
  * a form. The dry run is recomputed here, never taken from the client.
  *
  * **Audited without the data.** `people.import.started` and `.completed`
- * carry counts and attribute keys: never a value, never the file. The report
- * does carry values — the blocked rows, as uploaded — and is returned to the
- * importer, not stored and not put on an event.
+ * carry counts, attribute keys and the file's checksum: never a value, never
+ * the file. The report does carry values — the blocked rows, as uploaded — so
+ * it is never put on an event; it is kept only sealed in the object store
+ * (AES-256-GCM before it leaves the process), keyed by the import's checksum,
+ * for `REPORT_LIFETIME_MS`, and reached through a signed link that expires, so
+ * a re-upload of the same file can hand it back (PEO-090). Beside it, the ids
+ * of the people it contains, so erasing one deletes it (`forgetImportReports`).
  */
 
 export interface ImportLedger {
@@ -73,6 +81,90 @@ export interface CommitDeps extends DryRunDeps {
   readonly rowScope: RowScope;
   readonly clock: Clock;
   readonly newId: () => string;
+  readonly reports: StoredReports;
+}
+
+/** Where blocked-row reports are kept, and which people each contains. */
+export interface StoredReports {
+  /** The export's store: its key seals the report, its route opens the link. */
+  readonly store: ObjectStore;
+  readonly index: ReportIndex;
+}
+
+/**
+ * The people each stored report contains, by id — never a value — so an
+ * erasure finds exactly the reports to delete. Takes the caller's transaction.
+ */
+export interface ReportIndex {
+  save(
+    tx: PostgresJsDatabase,
+    entry: {
+      readonly tenantId: string;
+      readonly checksum: string;
+      readonly personIds: readonly string[];
+      readonly storedAt: string;
+      readonly expiresAt: string;
+    },
+  ): Promise<void>;
+  /** When the report for this file expires, or null when none is held. */
+  expiresAt(tx: PostgresJsDatabase, tenantId: string, checksum: string): Promise<string | null>;
+  /** The checksums of every report that contains this person. */
+  containing(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly string[]>;
+  remove(tx: PostgresJsDatabase, tenantId: string, checksums: readonly string[]): Promise<void>;
+}
+
+/** How long a link to a stored report works: an export link's day, or less. */
+export const REPORT_LINK_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Where an import's report lives. Keyed by the checksum, which is the import
+ * key: a retried commit overwrites rather than orphans, and a re-upload finds
+ * it. `/imports/` is what gives it a report's 7 days in the export sweep
+ * rather than an export file's one (`lifetimeOf` in `object-store.ts`).
+ */
+export const reportKey = (tenantId: string, checksum: string): string =>
+  `${tenantId}/imports/${checksum}/blocked-rows.csv`;
+
+/** A link to the stored report, or null once it has expired or been erased. */
+async function reportLink(
+  tx: PostgresJsDatabase,
+  deps: CommitDeps,
+  tenantId: string,
+  checksum: string,
+): Promise<string | null> {
+  const expires = await deps.reports.index.expiresAt(tx, tenantId, checksum);
+  if (expires === null || Date.parse(expires) <= Date.parse(deps.clock.instant())) return null;
+  return signReport(deps, tenantId, checksum, expires);
+}
+
+/** A day's link, never outliving the report it opens. */
+function signReport(
+  deps: CommitDeps,
+  tenantId: string,
+  checksum: string,
+  reportExpires: string,
+): Promise<string> {
+  const until = Math.min(Date.parse(deps.clock.instant()) + REPORT_LINK_MS, Date.parse(reportExpires));
+  return deps.reports.store.sign(reportKey(tenantId, checksum), new Date(until).toISOString());
+}
+
+/**
+ * Delete every stored report that contains this person, object and index
+ * row: what an erasure calls, so a report never outlives the people in it.
+ */
+export async function forgetImportReports(
+  tx: PostgresJsDatabase,
+  reports: StoredReports,
+  tenantId: string,
+  personId: string,
+): Promise<number> {
+  const checksums = await reports.index.containing(tx, tenantId, personId);
+  for (const checksum of checksums) {
+    // eslint-disable-next-line no-await-in-loop -- a handful of reports, one delete each
+    await reports.store.remove(reportKey(tenantId, checksum));
+  }
+  await reports.index.remove(tx, tenantId, checksums);
+  return checksums.length;
 }
 
 export interface ImportCounts {
@@ -85,13 +177,20 @@ export interface ImportCounts {
 }
 
 export type CommitResult =
-  | { readonly status: 'already_imported'; readonly importId: string }
+  | {
+      readonly status: 'already_imported';
+      readonly importId: string;
+      /** The report that import stored, signed again; null once it expired or was erased. */
+      readonly reportUrl: string | null;
+    }
   | {
       readonly status: 'imported';
       readonly importId: string;
       readonly counts: ImportCounts;
       /** Which rows were not imported, why, and with what they held — downloadable CSV. */
       readonly report: Uint8Array;
+      /** The same report, stored sealed, behind a link that expires. */
+      readonly reportUrl: string;
       readonly ignoredColumns: readonly string[];
       /** §14.5: which date dated facts took. */
       readonly effectiveFrom: DryRun['effectiveFrom'];
@@ -120,12 +219,18 @@ export async function commitImport(
     actorId: input.viewer.accountId,
     rowCount: plan.rowsRead,
   });
-  if (!claim.claimed) return ok({ status: 'already_imported', importId: claim.importId });
+  if (!claim.claimed) {
+    return ok({
+      status: 'already_imported',
+      importId: claim.importId,
+      reportUrl: await reportLink(tx, deps, input.tenantId, input.file.checksum),
+    });
+  }
 
   const actor: Actor = { kind: 'user', userId: input.viewer.accountId };
   const attributeKeys = [
-    ...new Set(
-      input.mapping.flatMap((m) =>
+    ...new Set([
+      ...input.mapping.flatMap((m) =>
         m.status === 'mapped' &&
         m.key !== null &&
         !m.key.startsWith('_') &&
@@ -133,7 +238,8 @@ export async function commitImport(
           ? [m.key]
           : [],
       ),
-    ),
+      ...plan.sheets.filter((s) => s.imported).map((s) => s.key),
+    ]),
   ];
   await deps.ledger.publish(tx, [
     event(
@@ -142,7 +248,12 @@ export async function commitImport(
       actor,
       importId,
       'people.import.started',
-      ImportStarted.payload.parse({ importId, rowCount: plan.rowsRead, attributeKeys }),
+      ImportStarted.payload.parse({
+        importId,
+        rowCount: plan.rowsRead,
+        attributeKeys,
+        checksum: input.file.checksum,
+      }),
     ),
   ]);
 
@@ -173,11 +284,37 @@ export async function commitImport(
     ),
   ]);
 
+  const blocked = report(input, outcomes, plan.blockedItems);
+  const storedAt = deps.clock.instant();
+  const expiresAt = new Date(Date.parse(storedAt) + REPORT_LIFETIME_MS).toISOString();
+  await deps.reports.store.put(
+    reportKey(input.tenantId, input.file.checksum),
+    blocked,
+    'text/csv',
+  );
+  await deps.reports.index.save(tx, {
+    tenantId: input.tenantId,
+    checksum: input.file.checksum,
+    personIds: [
+      ...new Set(
+        [
+          ...outcomes
+            .filter((o) => o.written === 'blocked' || o.written === 'duplicate')
+            .map((o) => o.row.personId),
+          ...plan.blockedItems.map((i) => i.personId),
+        ].filter((id): id is string => id !== null),
+      ),
+    ],
+    storedAt,
+    expiresAt,
+  });
+
   return ok({
     status: 'imported',
     importId,
     counts,
-    report: report(input, outcomes),
+    report: blocked,
+    reportUrl: await signReport(deps, input.tenantId, input.file.checksum, expiresAt),
     ignoredColumns: plan.ignoredColumns,
     effectiveFrom: plan.effectiveFrom,
   });
@@ -278,6 +415,12 @@ async function write(
   const done = await deps.rowScope(tx, async (sp) => {
     if (row.outcome === 'update' && row.personId !== null) {
       const dated = row.effectiveFrom ? { effectiveFrom: row.effectiveFrom } : {};
+      if (row.hireDateCorrection) {
+        return correctHireDate(sp, deps, asking, row.personId, row.hireDateCorrection.to, {
+          ...dated,
+          changes: row.changes,
+        });
+      }
       // A provisional record — an account nobody has confirmed yet (§8.2) —
       // is hired by a row that gives it a start date, its values written with
       // the hire so identity hears the result once.
@@ -304,6 +447,43 @@ async function write(
   return done.ok
     ? { row, written: done.value, reason: null }
     : { row, written: 'blocked', reason: done.error.message };
+}
+
+/**
+ * The row's other changes, then the start date as a correction of the one
+ * recorded (§8.5): `supersedes` the hire date in force, through
+ * `PersonAccess.correct`, which moves the column, re-reads the state (a date
+ * moved into the future returns the person to pre-hire, PEO-100) and raises
+ * `attribute_corrected` — never a silent overwrite of the column.
+ */
+async function correctHireDate(
+  tx: PostgresJsDatabase,
+  deps: CommitDeps,
+  asking: Asking,
+  personId: string,
+  hireDate: string,
+  also: { readonly changes: Readonly<Record<string, unknown>>; readonly effectiveFrom?: string },
+): Promise<Result<'updated'>> {
+  if (Object.keys(also.changes).length > 0) {
+    const updated = await deps.access.update(tx, { ...asking, ...also, personId });
+    if (!updated.ok) return updated;
+  }
+  const history = await deps.access.history(tx, { ...asking, personId, attributeKey: 'hire_date' });
+  if (!history.ok) return history;
+  const held = currentValue(history.value, 'hire_date');
+  if (!held) {
+    return err(
+      failure('HIRE_DATE_UNRECORDED', 'Hire date: no recorded hire date to correct', ['hire_date']),
+    );
+  }
+  const corrected = await deps.access.correct(tx, {
+    ...asking,
+    personId,
+    supersedes: held.id,
+    value: hireDate,
+    reason: 'Corrected by import',
+  });
+  return corrected.ok ? ok('updated') : corrected;
 }
 
 /**
@@ -379,11 +559,16 @@ function event(
  * `__source_row` and `__reason`. Fix the cells, upload it, and it maps the
  * way the original did.
  */
-function report(input: DryRunInput, outcomes: readonly Outcome[]): Uint8Array {
+function report(
+  input: DryRunInput,
+  outcomes: readonly Outcome[],
+  items: readonly BlockedItem[],
+): Uint8Array {
   const failed = outcomes.filter((o) => o.written === 'blocked' || o.written === 'duplicate');
   return blockedReport(
     input.file,
     failed.map((o) => ({ row: o.row, reason: o.reason ?? o.written })),
+    items,
   );
 }
 
@@ -397,9 +582,24 @@ export function blockedReport(
     readonly row: Pick<ClassifiedRow, 'cells' | 'row'>;
     readonly reason: string;
   }[],
+  items: readonly BlockedItem[] = [],
 ): Uint8Array {
   const rows: string[][] = [[...file.headers, '__source_row', '__reason']];
   if (file.keys) rows.push([...file.keys, '__source_row', '__reason']);
   for (const f of failed) rows.push([...f.row.cells, String(f.row.row), f.reason]);
+  // A repeating sheet's item, on a row of its own: the person's id where the
+  // file has that column and nothing else, so uploading the report again
+  // leaves them unchanged. `__source_row` names the sheet and row, `__reason`
+  // the cell. The fix is made on that sheet of the original file.
+  const idAt = file.keys?.indexOf(PERSON_ID_COLUMN) ?? -1;
+  for (const item of items) {
+    const cells = file.headers.map((_, i) => (i === idAt ? (item.personId ?? '') : ''));
+    const value = item.value === '' ? 'empty' : `“${item.value}”`;
+    rows.push([
+      ...cells,
+      `${item.sheet}!${String(item.row)}`,
+      `${item.cell} ${value}: ${item.reason}`,
+    ]);
+  }
   return writeCsv(rows);
 }

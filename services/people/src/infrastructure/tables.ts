@@ -235,7 +235,7 @@ export const tenantSettings = people.table('tenant_settings', {
   slug: text('slug'),
   displayName: text('display_name'),
   companyAsOf: timestamp('company_as_of', { withTimezone: true }),
-  /* 20260924230100: the modules the company bought, from the back office (PEO-114). */
+  /* 20260924270100: the modules the company bought, from the back office (PEO-114). */
   entitlements: text('entitlements').array(),
   entitlementsAsOf: timestamp('entitlements_as_of', { withTimezone: true }),
 });

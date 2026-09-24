@@ -9,7 +9,7 @@ import { ADA, asking, FINANCE, financeTenant, HR } from './fixture.js';
 import type { ExportJobDeps } from './job.js';
 import { inMemoryExportLedger } from './ledger.js';
 import { localObjectStore } from './object-store.js';
-import { purgeBefore, QUEUE_THRESHOLD, requestExport, runQueuedExport } from './queue.js';
+import { QUEUE_THRESHOLD, requestExport, runQueuedExport } from './queue.js';
 import { utcCalendars } from '../org/org.js';
 
 function setup() {
@@ -106,9 +106,22 @@ describe('the sweep', () => {
     const { objects } = setup();
     for (const k of ['a', 'b', 'c']) await objects.put(k, new Uint8Array([1]), 'text/csv');
 
-    expect(await objects.purge(purgeBefore('2026-09-23T08:59:59.000Z'), 10)).toBe(0);
-    expect(await objects.purge(purgeBefore('2026-09-23T09:00:01.000Z'), 2)).toBe(2);
-    expect(await objects.purge(purgeBefore('2026-09-23T09:00:01.000Z'), 2)).toBe(1);
+    expect(await objects.purge('2026-09-23T08:59:59.000Z', 10)).toBe(0);
+    expect(await objects.purge('2026-09-23T09:00:01.000Z', 2)).toBe(2);
+    expect(await objects.purge('2026-09-23T09:00:01.000Z', 2)).toBe(1);
     expect(objects.raw('c')).toBeUndefined();
+  });
+
+  it('keeps an import’s report its 7 days, a day past an export file, and deletes it then', async () => {
+    const { objects } = setup();
+    const report = 't/imports/abc/blocked-rows.csv';
+    await objects.put(report, new Uint8Array([1]), 'text/csv');
+    await objects.put('t/exports/x/people.csv', new Uint8Array([1]), 'text/csv');
+    // Stored 2026-09-22T09:00: the export file goes after a day, the report
+    // stays until its week is out.
+    expect(await objects.purge('2026-09-29T08:59:59.000Z', 10)).toBe(1);
+    expect(objects.raw(report)).toBeDefined();
+    expect(await objects.purge('2026-09-29T09:00:01.000Z', 10)).toBe(1);
+    expect(objects.raw(report)).toBeUndefined();
   });
 });

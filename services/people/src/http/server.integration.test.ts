@@ -65,8 +65,8 @@ beforeAll(async () => {
     '20260923120000_people_webhooks.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
-    '20260924230100_people_entitlements.sql',
-    '20260924230200_people_role_grant.sql',
+    '20260924270100_people_entitlements.sql',
+    '20260924270200_people_role_grant.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

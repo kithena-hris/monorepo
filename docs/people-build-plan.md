@@ -981,11 +981,25 @@ it is written down here rather than left in a PR description.
       `people.export` ledger, an hourly bounded sweep, and `POST
     /v1/exports` / `GET /v1/exports/{id}`. The export-ready email waits on
       platform/messaging, as PEO-084's reminders do._
-- [ ] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
+- [x] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
       imported, a row matching an existing person does not change their
       `hire_date`, the import checksum is not on `people.import.started`, and a
       re-upload cannot re-serve the blocked-row report because it is not
-      stored. Found in PEO-038 to PEO-041. _(PRD §14)_
+      stored. Found in PEO-038 to PEO-041. _(PRD §14)_ — A repeating sheet is
+      recognised by the key row the export now writes on it and is the whole
+      list for each person it mentions (§14.5); a bad item is named by
+      sheet, row and cell and holds back only that list. An existing
+      person's new hire date is a correction through `PersonAccess.correct`,
+      blocked where the tenant publishes no `hire_date`. `checksum` is on
+      `people.import.started`. The report is stored sealed in the export's
+      object store, keyed by checksum, for 7 days (the export sweep deletes
+      it then), and deleted early when anybody it contains is anonymised:
+      `people.import_report` (migration 20260924250000) keeps the ids it
+      contains. A re-upload answers `ALREADY_IMPORTED` with a signed link
+      while it is kept, and says it has expired after. Proven by the round
+      trip in `export.test.ts`; erasure by `anonymise.integration.test.ts`.
+      A DSAR erasure path does not exist yet; it calls
+      `forgetImportReports` when it does.
 - [x] **PEO-091** Export gaps: the Missing information sheet reflects today's
       completeness even for an `asOf` export, and grey not-applicable cells are
       not rendered. Found in PEO-042. _(PRD §15.4)_ _Status, employment type,
@@ -1139,15 +1153,6 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
-- [x] **PEO-116** PEO-098's screen writes took no Idempotency-Key and were
-      missing from OpenAPI. The router now refuses any write without a key
-      before its handler runs (four compute-only POSTs are `safe`); each
-      screen write runs its use case inside the key's transaction (`sharing`,
-      savepoints), and a retry is answered from what exists now — no secret,
-      no import report. Every write is in `/v1/openapi.json` from its Zod
-      body, and `writes.contract.test.ts` fails when a state-changing route
-      lacks either. The shell sends a key per action. Found in PEO-098.
-      *(PRD §13.2, §17.2)*
 - [x] **PEO-108** Lifecycle actions through the application layer and
       transports. The domain could give notice, terminate, start and end
       leave and discard, but `PersonAccess` exposed none of them, so no
@@ -1214,66 +1219,6 @@ it is written down here rather than left in a PR description.
       `access_restored` (reason `last_working_day_corrected`) in the
       correction's transaction, and the job ends access again when the new
       day ends; a corrected day already ended keeps it ended.*
-- [x] **PEO-112** Roles, properly. The first person in a tenant became
-      `people_admin` and `hr`, which is wrong when People is switched on after
-      accounts exist, and nothing could grant a role after that. Needs the back
-      office naming the first People administrator when it switches People on
-      (the only bootstrap), and grant and revoke through People's application
-      layer — `people_admin` only, never the last `people_admin`, never
-      oneself — written to OpenFGA, idempotent, each an audited event; REST
-      with Idempotency-Key, GraphQL, and a settings screen. Found in PEO-092.
-      *(PRD §4, §6.6, §7, §8.2, §9.4, §13)*
-      *Landed as `people.role_grant` (20260924230200), the ledger OpenFGA's
-      tenant tuples are synced from (`OpenFga.syncRoles`, off
-      `people.role.granted`/`revoked`, which carry who, whom, the role, `via`
-      and the reason); `domain/access/roles.ts` for the rules, asked of the
-      rows under a per-tenant advisory lock, and a trigger refusing the last
-      `people_admin` on any path. `GET /v1/roles`, `POST /v1/roles/grants`,
-      `POST /v1/roles/revocations` with Idempotency-Key, `peopleRoles`,
-      `grantRole`, `revokeRole`, OpenAPI from `http/roles.ts`, and the roles
-      screen at `/people/settings/roles`. Identity refuses to switch People
-      on without naming an account (`identity.tenant.administrator_named`),
-      in the company wizard or on the company page, which can also name
-      another later. The first-person rule is gone; the migration carries
-      over what it granted. A leaver's roles are revoked when their access
-      ends, and not restored with it — closed in PEO-113's lane
-      (20260924280000).*
-- [x] **PEO-113** The shell goes through the router. Identity can mint a token
-      but nothing issues one, so the shell calls People directly with the
-      internal token and a principal it builds itself. Needs identity issuing a
-      short-lived access token to the shell's server for the signed-in session
-      (never the browser), key rotation through the JWKS, the shell calling the
-      router, and the direct path removed. Found in PEO-098. *(PRD §13)*
-      *Landed in two parts.* Identity issues the token (`POST
-      /api/internal/session/token`, five minutes, `aud` the router, `ent` the
-      company's modules), publishes rotation keys (`AUTH_VERIFICATION_KEYS`),
-      and the router checks the audience and refetches on an unknown `kid`.
-      *Decided (option a):* the shell reaches People only through the router,
-      over GraphQL. Every `/v1/views/*` view is a typed query and every screen
-      write a mutation, each the REST route of the same name dispatched
-      in-process (same Zod body, same caller check, same `Idempotency-Key` row
-      through an `idempotencyKey` argument on every mutation); a record's values
-      are a keyed list of a union, so a withheld field is absent rather than
-      null. Imports come as multipart uploads of up to 100 MB (router
-      `file_upload` and body limit, People's Yoga sized to match); downloads
-      stay signed links. The shell asks identity for the token and sends its
-      own named operations (`people-operations.ts`), safelisted in the router
-      from generated persisted operations; it has no People address or token
-      left, and a test says so. The acceptance suite runs identity, the router
-      and People for real. Also: a leaver's tenant roles are revoked with their
-      access (system actor, reason `access_ended`; the last `people_admin` too,
-      migration 20260924280000), and restored access restores no role.
-- [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
-      one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
-      *Landed as `platform.tenant.entitlements` (20260924230000; null is
-      "nothing recorded", so the deployment's `KITHENA_ENTITLEMENTS` is a
-      default only), set in the company wizard's Modules step and on the
-      company page (`PUT /api/internal/admin/tenants/{id}/entitlements`), each
-      change `identity.tenant.entitlements_changed` with the whole list.
-      People keeps a copy in `people.tenant_settings` (20260924230100) and
-      every transport's caller check prefers it to the forwarded list. The
-      shell reads the effective list from the session answer and shows only
-      the areas the company bought.*
 - [x] **PEO-115** Server rendering without trusting the remote's host.
       PEO-094 evaluated the remote's server build in the shell's own process,
       beside the internal token. *Decided (option A):* integrity and
@@ -1328,6 +1273,66 @@ it is written down here rather than left in a PR description.
       body, and `writes.contract.test.ts` fails when a state-changing route
       lacks either. The shell sends a key per action. Found in PEO-098.
       _(PRD §13.2, §17.2)_
+- [x] **PEO-112** Roles, properly. The first person in a tenant became
+      `people_admin` and `hr`, which is wrong when People is switched on after
+      accounts exist, and nothing could grant a role after that. Needs the back
+      office naming the first People administrator when it switches People on
+      (the only bootstrap), and grant and revoke through People's application
+      layer — `people_admin` only, never the last `people_admin`, never
+      oneself — written to OpenFGA, idempotent, each an audited event; REST
+      with Idempotency-Key, GraphQL, and a settings screen. Found in PEO-092.
+      *(PRD §4, §6.6, §7, §8.2, §9.4, §13)*
+      *Landed as `people.role_grant` (20260924270200), the ledger OpenFGA's
+      tenant tuples are synced from (`OpenFga.syncRoles`, off
+      `people.role.granted`/`revoked`, which carry who, whom, the role, `via`
+      and the reason); `domain/access/roles.ts` for the rules, asked of the
+      rows under a per-tenant advisory lock, and a trigger refusing the last
+      `people_admin` on any path. `GET /v1/roles`, `POST /v1/roles/grants`,
+      `POST /v1/roles/revocations` with Idempotency-Key, `peopleRoles`,
+      `grantRole`, `revokeRole`, OpenAPI from `http/roles.ts`, and the roles
+      screen at `/people/settings/roles`. Identity refuses to switch People
+      on without naming an account (`identity.tenant.administrator_named`),
+      in the company wizard or on the company page, which can also name
+      another later. The first-person rule is gone; the migration carries
+      over what it granted. A leaver's roles are revoked when their access
+      ends, and not restored with it — closed in PEO-113's lane
+      (20260924280000).*
+- [x] **PEO-113** The shell goes through the router. Identity can mint a token
+      but nothing issues one, so the shell calls People directly with the
+      internal token and a principal it builds itself. Needs identity issuing a
+      short-lived access token to the shell's server for the signed-in session
+      (never the browser), key rotation through the JWKS, the shell calling the
+      router, and the direct path removed. Found in PEO-098. *(PRD §13)*
+      *Landed in two parts.* Identity issues the token (`POST
+      /api/internal/session/token`, five minutes, `aud` the router, `ent` the
+      company's modules), publishes rotation keys (`AUTH_VERIFICATION_KEYS`),
+      and the router checks the audience and refetches on an unknown `kid`.
+      *Decided (option a):* the shell reaches People only through the router,
+      over GraphQL. Every `/v1/views/*` view is a typed query and every screen
+      write a mutation, each the REST route of the same name dispatched
+      in-process (same Zod body, same caller check, same `Idempotency-Key` row
+      through an `idempotencyKey` argument on every mutation); a record's values
+      are a keyed list of a union, so a withheld field is absent rather than
+      null. Imports come as multipart uploads of up to 100 MB (router
+      `file_upload` and body limit, People's Yoga sized to match); downloads
+      stay signed links. The shell asks identity for the token and sends its
+      own named operations (`people-operations.ts`), safelisted in the router
+      from generated persisted operations; it has no People address or token
+      left, and a test says so. The acceptance suite runs identity, the router
+      and People for real. Also: a leaver's tenant roles are revoked with their
+      access (system actor, reason `access_ended`; the last `people_admin` too,
+      migration 20260924280000), and restored access restores no role.
+- [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
+      one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
+      *Landed as `platform.tenant.entitlements` (20260924270000; null is
+      "nothing recorded", so the deployment's `KITHENA_ENTITLEMENTS` is a
+      default only), set in the company wizard's Modules step and on the
+      company page (`PUT /api/internal/admin/tenants/{id}/entitlements`), each
+      change `identity.tenant.entitlements_changed` with the whole list.
+      People keeps a copy in `people.tenant_settings` (20260924270100) and
+      every transport's caller check prefers it to the forwarded list. The
+      shell reads the effective list from the session answer and shows only
+      the areas the company bought.*
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*

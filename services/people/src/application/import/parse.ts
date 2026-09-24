@@ -58,8 +58,28 @@ export interface ParsedFile {
    */
   readonly keys: readonly string[] | null;
   readonly rows: readonly ParsedRow[];
+  /**
+   * The other sheets of a Kithena export that each hold one repeating
+   * attribute (§15.2). Empty for a text file.
+   */
+  readonly repeating: readonly RepeatingSheet[];
   /** SHA-256 of the bytes as uploaded; the import key is derived from it. */
   readonly checksum: string;
+}
+
+/**
+ * One repeating attribute's sheet, as the export writes it: a label row, a
+ * key row (`__person_id`, `employee_number`, `#`, the attribute key), then one
+ * row per item. Recognised by that key row, never by the sheet's name, which
+ * is the attribute's label cut to 31 characters and so neither stable nor
+ * unique.
+ */
+export interface RepeatingSheet {
+  readonly sheet: string;
+  /** The attribute key from the key row. */
+  readonly key: string;
+  /** Cells: person id, employee number, position, the item. */
+  readonly rows: readonly ParsedRow[];
 }
 
 export interface ParseOptions {
@@ -109,7 +129,8 @@ function pad(cells: readonly string[], width: number): readonly string[] {
   return [...cells, ...Array.from({ length: width - cells.length }, () => '')];
 }
 
-type Detected = Omit<ParsedFile, 'headers' | 'keys' | 'rows' | 'checksum'> & {
+type Detected = Omit<ParsedFile, 'headers' | 'keys' | 'rows' | 'checksum' | 'repeating'> & {
+  repeating: RepeatingSheet[];
   grid: ParsedRow[];
 };
 
@@ -201,7 +222,7 @@ function readText(bytes: Uint8Array): Result<Detected> {
     row: i + 1,
     cells: cells.map((c) => unguard(c.trim())),
   }));
-  return ok({ format: 'csv', encoding, delimiter, sheets: [], sheet: null, grid });
+  return ok({ format: 'csv', encoding, delimiter, sheets: [], sheet: null, grid, repeating: [] });
 }
 
 /* ------------------------------------------------------------------ xlsx -- */
@@ -276,15 +297,24 @@ async function readWorkbook(bytes: Uint8Array, options: ParseOptions): Promise<R
     return tooBig(`A file is at most ${String(MAX_ROWS)} rows; split it into several`);
   }
 
-  const grid: ParsedRow[] = [];
-  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    const cells: string[] = [];
-    for (let c = 1; c <= row.cellCount; c++) {
-      const cell = row.getCell(c);
-      cells.push(cellText(cell.value, cell.numFmt).trim());
+  const repeating: RepeatingSheet[] = [];
+  for (const other of workbook.worksheets) {
+    if (other === worksheet) continue;
+    const marker = other.getRow(2);
+    if (cellText(marker.getCell(1).value) !== PERSON_ID_COLUMN) continue;
+    if (cellText(marker.getCell(3).value) !== '#') continue;
+    const key = cellText(marker.getCell(4).value).trim();
+    if (key === '') continue;
+    if (other.rowCount > MAX_ROWS + 2) {
+      return tooBig(`A sheet is at most ${String(MAX_ROWS)} rows; split it into several`);
     }
-    grid.push({ row: rowNumber, cells });
-  });
+    const items = gridOf(other).filter((r) => r.row > 2);
+    repeating.push({
+      sheet: other.name,
+      key,
+      rows: items.map((r) => ({ row: r.row, cells: pad(r.cells, 4) })),
+    });
+  }
 
   return ok({
     format: 'xlsx',
@@ -292,8 +322,22 @@ async function readWorkbook(bytes: Uint8Array, options: ParseOptions): Promise<R
     delimiter: null,
     sheets,
     sheet: worksheet.name,
-    grid,
+    grid: gridOf(worksheet),
+    repeating,
   });
+}
+
+function gridOf(worksheet: ExcelJS.Worksheet): ParsedRow[] {
+  const grid: ParsedRow[] = [];
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const cells: string[] = [];
+    for (let c = 1; c <= row.cellCount; c++) {
+      const cell = row.getCell(c);
+      cells.push(cellText(cell.value, cell.numFmt).trim());
+    }
+    if (cells.some((c) => c !== '')) grid.push({ row: rowNumber, cells });
+  });
+  return grid;
 }
 
 /** `[$EUR]` in a number format is how the export marks a money column's currency. */

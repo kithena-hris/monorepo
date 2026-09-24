@@ -655,6 +655,15 @@ export const ImportStarted = defineEvent(
     importId: z.uuid().register(policy, asPublic()),
     rowCount: z.int().nonnegative().register(policy, asInternal()),
     attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    /**
+     * SHA-256 of the file as uploaded, hex: the import key (§14.5). Says which
+     * file without holding it, and a hash of a spreadsheet is not a way back
+     * to one.
+     */
+    checksum: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .register(policy, asInternal()),
   }),
 );
 

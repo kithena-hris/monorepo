@@ -5,7 +5,7 @@ import { publish } from '@kithena/db-kit';
 import type { RoleStore } from '../application/roles/roles.js';
 import { outbox, person } from './tables.js';
 
-/** `people.role_grant` (20260924230200): who holds a tenant role. */
+/** `people.role_grant` (20260924270200): who holds a tenant role. */
 export const roleGrant = pgSchema('people').table('role_grant', {
   tenantId: uuid('tenant_id').notNull(),
   accountId: uuid('account_id').notNull(),

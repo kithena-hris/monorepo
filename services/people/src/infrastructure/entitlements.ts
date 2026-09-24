@@ -9,7 +9,7 @@ import { tenantSettings } from './tables.js';
  *
  * A copy, kept from `identity.tenant.entitlements_changed`, because the
  * registry is `platform.tenant` and People reads no other service's tables
- * (20260924230100). Null until the back office records a list: the company
+ * (20260924270100). Null until the back office records a list: the company
  * then has the deployment's, which is what the caller forwards.
  */
 

@@ -30,7 +30,6 @@ import {
   SettingsBody,
 } from './rest.js';
 import { EmploymentPeriodsBody, LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
-import { RoleChangeBody, RoleHolderBody } from './roles.js';
 import {
   Advice,
   Entity,
@@ -45,6 +44,7 @@ import {
   SetupChoice,
   Upload,
 } from './screens.js';
+import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
  * The OpenAPI document for REST v1, generated from the Zod schemas `rest.ts`
@@ -86,9 +86,6 @@ const components = {
   CreateFullValues: CreateFullValuesBody,
   FullValuesDecision: FullValuesDecisionBody,
   FullValues: FullValuesBody,
-  RoleHolder: RoleHolderBody,
-  RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
-  RoleChange: RoleChangeBody,
   // The screens' writes (PEO-098, keyed and documented in PEO-116).
   SectionChanges: Sections,
   CompletenessChanges: Grid,
@@ -102,6 +99,9 @@ const components = {
   CreateWebhookEndpoint: EndpointBody,
   PatchWebhookEndpoint: EndpointPatch,
   ImportUpload: Upload,
+  RoleHolder: RoleHolderBody,
+  RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
+  RoleChange: RoleChangeBody,
   Error: ErrorBody,
 } as const;
 

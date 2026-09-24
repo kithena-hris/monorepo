@@ -524,7 +524,7 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   - each needs a reason, up to 500 characters;
   - a role already held, or not held, changes nothing and raises nothing.
 
-  The ledger is `people.role_grant` (20260924230200): a grant is a row and a
+  The ledger is `people.role_grant` (20260924270200): a grant is a row and a
   `people.role.granted` event (`revoked` for the reverse) in one
   transaction, carrying who (`by`, and the envelope's actor), whom, which role,
   `via` (`people` or `back_office`) and the reason, classified free text. The
@@ -1175,9 +1175,7 @@ The same screen area, separate tabs:
   ten letters, digits or hyphens), a width the sequence is zero-padded to
   (1–12 digits) and where it starts, so `ES-` and 5 from 100 write `ES-00100`,
   and grow past the width rather than wrapping. `GET/PUT
-  /v1/legal-entities/{id}/numbering`, and in GraphQL the `employeeNumbering`
-  query and `setEmployeeNumbering` mutation (the sequence a Float there,
-  because twelve digits do not fit a 32-bit Int); each change raises
+/v1/legal-entities/{id}/numbering`; each change raises
   `people.employee_numbering.set`. An entity with a scheme numbers every
   person hired into it who has no number yet, in the hire's transaction: the
   entity's row is locked and incremented, so racing hires queue, and a hire
@@ -1213,20 +1211,20 @@ The same screen area, separate tabs:
 **Where they are, as built (PEO-098).** Every screen is a route in the People
 remote's `routes.json`, fetched and wired by the shell:
 
-| Route | Screen |
-| --- | --- |
-| `/people/setup` | setup wizard |
-| `/people/settings/fields` | field registry and publish |
-| `/people/settings/integrations` | integrations |
-| `/people/settings/roles` | roles (PEO-112) |
-| `/people/onboarding` | onboarding |
-| `/people/me` | my own profile |
-| `/people/{id}` | someone else's profile |
-| `/people/directory` | directory |
-| `/people/completeness` | completeness grid |
-| `/people/import` | import |
-| `/people/export` | export builder |
-| `/people/analytics` | analytics |
+| Route                           | Screen                     |
+| ------------------------------- | -------------------------- |
+| `/people/setup`                 | setup wizard               |
+| `/people/settings/fields`       | field registry and publish |
+| `/people/settings/integrations` | integrations               |
+| `/people/settings/roles`        | roles (PEO-112)            |
+| `/people/onboarding`            | onboarding                 |
+| `/people/me`                    | my own profile             |
+| `/people/{id}`                  | someone else's profile     |
+| `/people/directory`             | directory                  |
+| `/people/completeness`          | completeness grid          |
+| `/people/import`                | import                     |
+| `/people/export`                | export builder             |
+| `/people/analytics`             | analytics                  |
 
 The tabs above other than integrations have no screen yet.
 
@@ -1298,10 +1296,10 @@ New:
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
-| `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
-| `people.role.revoked` v1 | The reverse, with the same fields; also `via: system`, `by` null and reason `access_ended` for each role a leaver held when their access ended (§8.1) |
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
 | `people.person.access_restored` v1 | Access came back (§5, §8.1): a rehired person's new employment started (reason `rehired`), or a notice's last working day was corrected forward to a day not yet ended (reason `last_working_day_corrected`). `restoredAt`, the account id. Identity reinstates on it |
+| `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
+| `people.role.revoked` v1 | The reverse, with the same fields; also `via: system`, `by` null and reason `access_ended` for each role a leaver held when their access ended (§8.1) |
 
 A rehire (§8.1) raises `status_changed` with the new reason `rehired` and a
 `hired` for the new period — the same event a first hire raises, whose
@@ -1737,9 +1735,9 @@ lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`
 `startLeave`, `endLeave`,
 `discardPerson` — each answering with the person
 after, their arguments parsed by the same Zod body REST parses. The query
-`employmentPeriods(personId)` lists a person's employments, HR only. Tenant
-roles (PEO-112) are the `peopleRoles` query and the `grantRole` and
-`revokeRole` mutations, each answering with the account's roles after.
+`employmentPeriods(personId)` lists a person's employments, HR only. Tenant roles
+(PEO-112) are the `peopleRoles` query and the `grantRole` and `revokeRole`
+mutations, each answering with the account's roles after.
 
 **Through the router (PEO-092).** The Cosmo Router verifies the caller's
 token against identity's JWKS (`AUTH_JWKS_URL`, ES256) and refuses a request
@@ -2193,7 +2191,40 @@ rather than a failure.
   import timestamp for everything else — and the report says which was used.
 - **Idempotency.** An import carries a key derived from the file's checksum.
   Re-uploading the same file reports "already imported" rather than
-  duplicating 400 people, which is the mistake every importer makes once.
+  duplicating 400 people, which is the mistake every importer makes once —
+  and, while the import's blocked-row report is still kept, a fresh link to
+  it, so the admin who lost it can still fix the rows it named. After that it
+  says the report has expired, and gives no link.
+- **Repeating attributes.** An XLSX's other sheets are read when they carry
+  the export's key row (`__person_id`, `employee_number`, `#`, the attribute
+  key; §15.2) — recognised by that row, never by the sheet's name, which is a
+  label cut to 31 characters. Each row is one item, matched to its person by
+  the person id, and held to the attribute's type exactly as a single cell
+  is. **The sheet is the whole list for every person it mentions**: their
+  list becomes the sheet's items, in sheet order, and a person the sheet
+  does not mention keeps theirs untouched. That is the round-trip-safe
+  reading — an exported sheet re-imported unedited changes nothing, and an
+  item deleted from it is deleted — and the one that cannot silently append
+  a duplicate. Its ceiling: a person's last item cannot be removed by
+  deleting their last row, because a person with no rows is a person the
+  sheet does not mention; that is done on the profile.
+  - An invalid item, an unknown person id, or an item for somebody whose row
+    on the People sheet does not import is **blocked, named by sheet, row and
+    cell** (`Languages!D7`) in the dry run and in the report. It holds back
+    that person's list for that attribute — importing the rest would delete
+    the bad item — and nothing else on their row.
+  - A sheet for an attribute that is unknown, archived, sealed or not the
+    importer's to write is listed as not imported, never dropped silently.
+- **A hire date on somebody already held is a correction** (§8.5), never an
+  overwrite. The dry run shows it as one — old date, new date — and the
+  commit writes it through the one correction path, superseding the hire
+  date in force: `attribute_corrected` with `supersedes`, the column moved,
+  and the state re-read (a start corrected into the future returns the
+  person to pre-hire, §8.1). HR only, as every import is, and only where
+  the tenant publishes `hire_date` for HR to correct; otherwise the row is
+  blocked with the cell named, because dropping the date would be the silent
+  overwrite's mirror image. A provisional record given a start date is hired,
+  as before.
 - **Concurrent imports.** An import is one transaction, and two of them
   claiming the same unique attributes in different orders can deadlock;
   Postgres then aborts one whole. The commit is retried on a deadlock or
@@ -2202,7 +2233,30 @@ rather than a failure.
   was imported, upload it again", never half-applied.
 - **Partial commit.** Blocked rows never prevent good rows. The report is
   downloadable as a CSV with the original row number, the original values and
-  the reason, so it can be fixed and re-imported as a smaller file.
+  the reason, so it can be fixed and re-imported as a smaller file. A blocked
+  item from a repeating sheet is a row of its own at the end, carrying only
+  the person id, with `__source_row` naming the sheet and row
+  (`Languages!7`) and `__reason` the cell; uploading the report again leaves
+  that person unchanged, and the fix is made on the original sheet.
+- **The report is kept, sealed, for 7 days, and never past an erasure.** It
+  holds employee values, so it is never put on an event or in a table. It is
+  stored in the export's object store, AES-256-GCM in the service before it
+  leaves (§15.1), keyed by the import's checksum.
+  - **7 days, fixed.** Long enough to fix a file and re-upload it after a
+    weekend; short enough that a report stays a working copy rather than a
+    second register. The hourly export sweep deletes it when the week is out,
+    as it deletes an export file after its day — never earlier.
+  - **Erasure deletes it.** Beside each report, `people.import_report` keeps
+    the ids of the people it contains — the existing people its blocked and
+    duplicate rows and blocked items name; ids only, never a value. When a
+    person is anonymised (§12, retention), every report containing them is
+    deleted, object and row, whatever its age. A DSAR erasure does the same
+    through the same call (`forgetImportReports`), once that path exists.
+  - It is reached only through a signed link that expires after 24 hours or
+    with the report, whichever is sooner, given to the HR user who committed
+    the file or re-uploaded it; nothing stores the link. A re-upload after
+    the week, or after an erasure deleted it, is `ALREADY_IMPORTED` with no
+    link and says the report has expired.
 - **Authorization.** An importer can only write attributes they own. An HR
   admin importing a file containing a salary column when they lack the finance
   relation gets that column refused at mapping time, not silently dropped at
@@ -2297,7 +2351,7 @@ order — the same order as the profile screen, so the file reads like the UI.
   reads the second, and a relabelled field therefore round-trips correctly.
 - **Repeating attributes** — emergency contacts, education, equity grants — do
   not flatten into `contact_1_name … contact_4_email`. They become their own
-  sheet in XLSX, keyed by employee number, and their own file in a CSV export
+  sheet in XLSX, keyed by person id (with the employee number beside it), and their own file in a CSV export
   bundle. Flattening produces either truncation or a hundred empty columns.
 - **Archived attributes** are excluded by default and included on request,
   marked `(archived)` in the label row. Their values still exist, so an export
@@ -2353,6 +2407,10 @@ so it is a supported path rather than an accident:
   file against the current version rather than failing.
 - Rows carry a hidden person id, so a re-import updates rather than creating
   duplicates even if somebody has edited a name.
+- A repeating attribute's sheet carries the same two header rows — the label,
+  then `__person_id`, `employee_number`, `#` and the attribute key — so it
+  round-trips by key as the People sheet does, under the §14.5 rule: the
+  sheet is the whole list for each person it mentions.
 
 ### 15.4 What a missing required value looks like in each format
 
