@@ -1,0 +1,1 @@
+{"version":1,"body":"query Analytics {\n    peopleAnalytics {\n      asOf source sourceNote\n      headcount { value change trend { label value } }\n      attrition { percent leavers formula }\n      complete { percent incomplete }\n      expiringIn90Days\n      movement { period opening joiners moves leavers closing }\n      completenessBySection { label value }\n    }\n  }"}

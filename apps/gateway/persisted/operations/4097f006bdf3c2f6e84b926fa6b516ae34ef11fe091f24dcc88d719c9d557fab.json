@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UpdateWebhookEndpoint(\n    $id: ID!, $url: String, $events: [String!], $allowlist: [String!], $alertEmail: String,\n    $enabled: Boolean, $key: String!\n  ) {\n    updateWebhookEndpoint(\n      id: $id, url: $url, events: $events, allowlist: $allowlist, alertEmail: $alertEmail,\n      enabled: $enabled, idempotencyKey: $key\n    ) { ok }\n  }"}

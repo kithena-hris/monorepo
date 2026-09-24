@@ -518,7 +518,9 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   - nobody grants a role to themselves;
   - the last `people_admin` is never revoked — not even by themselves — and
     a trigger on `people.role_grant` refuses it for any path that skips the
-    application;
+    application; the one exception is a leaver, whose roles all end with
+    their access (§8.1; the trigger lets a grant go once its account's
+    person has `access_ended_at`, 20260924280000);
   - each needs a reason, up to 500 characters;
   - a role already held, or not held, changes nothing and raises nothing.
 
@@ -843,6 +845,18 @@ stays on notice — termination is HR's act — but **loses access at the end of
 that day** all the same (§5): confirming the termination is paperwork, and the
 `confirm_termination` row is what asks for it. Terminating afterwards raises
 no second `access_ended`.
+
+**A leaver's tenant roles end with their access.** When access ends, by
+either path, People revokes every tenant role the leaver's account holds
+(`hr`, `finance`, `people_admin`, §6.6) in the same transaction: one
+`people.role.revoked` each, with the system as the actor (`via: system`, `by`
+null) and the reason `access_ended`, and OpenFGA's tuples follow from the
+events as they do for any revocation. The last `people_admin` goes too — a
+leaver administers nothing — and the company's next administrator is named in
+the back office, as for a company that lost every one (§8.2). **Restored access
+does not restore roles.** A rehire, a withdrawn notice or a last working day
+corrected forward gives the account back, and nothing else: a People
+administrator grants each role again, with a reason, like any other grant.
 
 ### 8.2 The first employee
 
@@ -1183,7 +1197,9 @@ The same screen area, separate tabs:
 - **Roles** — who holds `hr`, `finance` and `people_admin` (§6.6), and
   granting or revoking one with a reason; a People administrator's, HR reads
   it. Nobody can tick a role for themselves or untick the last administrator,
-  and People refuses both whatever the screen does. `GET /v1/roles`,
+  and People refuses both whatever the screen does. A leaver's roles are
+  revoked by People when their access ends, and are not given back when access
+  is restored — an administrator grants them again (§8.1). `GET /v1/roles`,
   `POST /v1/roles/grants`, `POST /v1/roles/revocations` (Idempotency-Key),
   and in GraphQL `peopleRoles`, `grantRole` and `revokeRole`.
 - **Integrations** — webhook endpoints, subscribed events, per-endpoint field
@@ -1283,7 +1299,7 @@ New:
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
 | `people.person.access_restored` v1 | Access came back (§5, §8.1): a rehired person's new employment started (reason `rehired`), or a notice's last working day was corrected forward to a day not yet ended (reason `last_working_day_corrected`). `restoredAt`, the account id. Identity reinstates on it |
 | `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
-| `people.role.revoked` v1 | The reverse, with the same fields |
+| `people.role.revoked` v1 | The reverse, with the same fields; also `via: system`, `by` null and reason `access_ended` for each role a leaver held when their access ended (§8.1) |
 
 A rehire (§8.1) raises `status_changed` with the new reason `rehired` and a
 `hired` for the new period — the same event a first hire raises, whose
@@ -1759,6 +1775,73 @@ falls back to the forwarded list, which is the deployment's
 effective list from identity's session answer and shows a module's area only
 when it is on it.
 
+**The tenant app's path is GraphQL, through the router (PEO-113).** The shell
+reaches People one way: it asks identity for the session's access token and
+sends the router one of its own named operations (`apps/web/src/lib/people-operations.ts`)
+with the token as a bearer. It holds no People address, no People token and
+builds no principal; People's internal token is the router's alone, and People
+refuses anything without it, the shell's own internal token included. Each
+screen reads one query — `peopleOnboarding`, `peopleProfile`,
+`peopleDirectory`, `peopleCompleteness`, `peopleRoleSettings`,
+`peopleRegistry`, `peopleSetup`, `peopleIntegrations`, `peopleExportBuilder`,
+`peopleAnalytics`, plus `peoplePublishPreview` and
+`peopleClassificationAdvice` — and every write a screen makes is a mutation:
+the draft, reordering, publishing and the setup pack, section and grid saves,
+imports, exports and finance's full values, webhook endpoints, roles, the
+lifecycle moves, legal entities, locations, numbering and settings.
+
+- **One implementation per write.** A mutation is the REST write of the same
+  name, dispatched in-process to the same route (`viaRest` in
+  `graphql/schema.ts`): its arguments are parsed by the route's Zod body, the
+  route's caller check runs on the request's own headers, and a refusal comes
+  back as a GraphQL error with the domain's code. The subgraph adds types and
+  decides nothing.
+- **Every write is keyed.** Each mutation takes `idempotencyKey: String!`,
+  sent to the route as its `Idempotency-Key`, so a retry is answered as REST
+  answers it (§13.2, PEO-116): the version in force for a publish, an
+  endpoint's id without its secret, `ALREADY_IMPORTED` for an import. The two
+  that change nothing, `proposeImport` and `dryRunImport`, take none; a test
+  over the schema fails when any other mutation lacks the key.
+- **Field-level absence holds.** A view model already leaves out what the
+  viewer may not read, and the schema cannot put it back: a record's values
+  are `values: [FormEntry]`, a keyed list of a union (`TextEntry`,
+  `FlagEntry`, `ListEntry`, `MoneyEntry`, `SealedEntry`, `EmptyEntry`), never
+  an object with a field per attribute — GraphQL answers every field it is
+  asked for, so a `salary` field would come back null and say it exists. A
+  withheld attribute is absent from `values` and from its section's
+  `fields`; `EmptyEntry` is a readable field that holds nothing, which the
+  viewer may know. The directory's cells are a keyed list the same way. The
+  shell puts the list back into the object the remote draws
+  (`lib/people-views.ts`) and invents no key. Proven in
+  `server.integration.test.ts` (a manager's `peopleProfile` has no
+  `base_salary` anywhere; HR's has it as money) and end to end by the
+  acceptance suite's HTML check.
+- **Uploads.** An import's file travels as a multipart request (the GraphQL
+  multipart request spec, the `Upload` scalar) of up to 100 MB (§14.1,
+  PEO-038). The router takes one file of up to 100 MB (`file_upload`) in a
+  body of up to 101 MB (`traffic_shaping.router.max_request_body_size`, 5 MB
+  before) and gives People 300 seconds rather than everything else's 30, for a
+  large commit; People's Yoga stops at the same 101 MiB (`yogaOptions`). The
+  subgraph hands the file to the same import route REST serves. Proven through
+  the real router with a file over the old limit (`router.integration.test.ts`).
+- **Downloads stay links.** An export's files and finance's one full-values
+  download are expiring signed links (PEO-089) that a mutation or query
+  answers with; the browser opens them, and the signature is their authority.
+- **Only the shell's operations.** The router answers persisted operations
+  only (the safelist). With no control plane, they are files the router's
+  `file_system` storage provider reads — `persisted/operations/<sha256>.json`,
+  `{ "version": 1, "body": … }` — generated from the file the shell sends them
+  from (`pnpm --filter @kithena/gateway persist`, which validates each against
+  People's schema; its `--check` is the gateway's `pnpm test`). An operation
+  the shell does not have is refused before People sees it
+  (`PERSISTED_QUERY_NOT_FOUND`). A deployment mounts `persisted/` beside the
+  router.
+- **People's refusal, as People gave it.** The router passes a subgraph's
+  error through (`subgraph_error_propagation: pass-through`) with only its
+  `code`, `field` and `link` extensions (`link`: a repeated import's stored
+  report, PEO-090), so the screen shows People's own sentence;
+  a People error never carries more than that (`toGraphQLError`).
+
 ### 13.2 REST (Phase 1)
 
 Because a GraphQL-only API excludes every integration built by somebody who is
@@ -1883,31 +1966,14 @@ One thing is a known gap: **the classification advice is a small rule set.**
 The TypeSafe judgment §12.3 describes is not built, and the rules only ever err
 towards more protection.
 
-**The shell calls People directly, not through the router.** The tenant app's
-server sends the internal token beside a principal it builds itself: the
-account from the session identity verified on this request, and the tenant
-from the host. It sends no roles, because People reads roles from OpenFGA.
-This is the same trust the router holds (§13.1).
-
-A token for the shell exists now (PEO-113, §13.1), and the router accepts it.
-What does not exist is a way for the shell's calls to reach People *through*
-the router: the Cosmo Router serves GraphQL only, and every call the shell
-makes is REST — `/v1/views/*`, the draft and publishing writes, imports of up
-to 100 MB (the router's body limit is 5 MB), exports, roles. Removing the
-direct path therefore needs one of two decisions, and neither is small:
-
-- **GraphQL for the screens.** Typed Pothos objects for each view model the
-  remote draws (some sixty types today), mutations for every write, and file
-  uploads through the router's multipart support with a larger limit — the
-  shell then calls `/graphql` with the token and holds no internal token.
-- **An authenticating edge for REST.** A proxy in front of People's `/v1/*`
-  that verifies identity's token as the router does and sets the same two
-  headers, or People verifying the token itself as a resource server — which
-  reverses §13.1's "the subgraphs never parse a JWT".
-
-The first is the one being built, on top of the token and router work, in
-its own change; until it lands the shell keeps the direct path, and PEO-113
-is open.
+**REST is for integrators (PEO-113).** Every route above stays, keyed and
+documented, because REST is a headless surface in its own right: an
+integrator who will not learn GraphQL, or a script, reaches People here,
+through the same caller check (People's internal token beside a forwarded
+principal). The tenant app does not use it any more — its
+screens read and write through GraphQL (§13.1) — and `/v1/views/*` and the
+screen writes are the routes those GraphQL fields dispatch to, so the two
+cannot drift.
 
 **The screens render on the server (PEO-094).** Module Federation cannot do
 this inside the Next App Router: `@module-federation/nextjs-mf` never supported

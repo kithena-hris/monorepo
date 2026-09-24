@@ -1,0 +1,1 @@
+{"version":1,"body":"query Integrations {\n    peopleIntegrations {\n      schemaVersion deliveries24h events\n      fields { key label refused }\n      endpoints {\n        id url enabled events allowlist alertEmail retrying problem lastDelivery secretRotated\n      }\n    }\n  }"}

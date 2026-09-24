@@ -207,6 +207,8 @@ export function peopleService(
       newId: uuidv7,
       calendars: org,
       numbering: numbers,
+      // A leaver's tenant roles go when their access does (PEO-113's lane).
+      roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
       completeness: recomputePerson({
         schema: drizzleSchemaRepository(),
         people: drizzlePeopleFacts(),
@@ -445,8 +447,6 @@ export function wirePeople(server: Server): void {
     fga === null
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
-  configureGraphQL({ service, callerFrom });
-
   const exports = wireExports(service);
   const idempotency = drizzleIdempotency();
   const rest = restHandler({
@@ -457,6 +457,8 @@ export function wirePeople(server: Server): void {
     fullValues: exports.fullValues,
     screens: screenRoutes(screenDeps(service, exports.deps.store), idempotency),
   });
+  // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
+  configureGraphQL({ service, callerFrom, rest });
   // Requests first, then what they use (PEO-118).
   onShutdown('requests, exports and the service pool', async () => {
     await drain(server);

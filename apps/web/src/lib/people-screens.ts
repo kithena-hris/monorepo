@@ -2,15 +2,19 @@ import 'server-only';
 
 import { currentTenant } from './branding';
 import { people } from './people';
+import type { OperationName } from './people-operations';
+import { VIEWS } from './people-views';
 
 /**
  * The data each People screen is drawn from, fetched here, on the server,
- * before the page is sent (PEO-098).
+ * before the page is sent (PEO-098), through the router (PEO-113).
  *
  * The remote draws; the shell fetches (`docs/build-plan.md`, "Remotes are
  * dumb"). One read per route, as the person signed in, and the answer handed
- * to the screen as its `Loadable`. The shell does not look inside: a field
- * People withheld is absent from what arrives, so it cannot reach the HTML.
+ * to the screen as its `Loadable`. The shell does not look inside beyond
+ * putting a record's keyed list back into an object (`people-views.ts`): a
+ * field People withheld is absent from what arrives, so it cannot reach the
+ * HTML.
  */
 
 export type ScreenLoad =
@@ -24,48 +28,55 @@ export interface ScreenQuery {
   readonly search: Readonly<Record<string, string>>;
 }
 
-const read = async (path: string): Promise<ScreenLoad> => {
-  const answer = await people<unknown>('GET', path);
+/** One screen's read, and how its answer becomes the view model the remote draws. */
+async function read(
+  name: OperationName,
+  variables: Record<string, unknown> = {},
+  view: (data: never) => unknown = (data) => data,
+): Promise<ScreenLoad> {
+  const answer = await people<never>(name, variables);
   return answer.ok
-    ? { status: 'ready', data: answer.data }
+    ? { status: 'ready', data: view(answer.data) }
     : { status: 'error', message: answer.message };
-};
+}
 
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
+/** A query-string value, or null for one that was not given. */
+const given = (value: string | undefined): string | null =>
+  value === undefined || value === '' ? null : value;
+
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
-    case 'Directory': {
-      const params = new URLSearchParams();
-      if (query.search['search']) params.set('search', query.search['search']);
-      if (query.search['filter']) params.set('filter', query.search['filter']);
-      if (query.search['after']) params.set('after', query.search['after']);
-      const qs = params.toString();
-      return read(`/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
-    }
-    case 'Profile':
+    case 'Directory':
       return read(
-        query.params['id'] === undefined
-          ? '/v1/views/profile'
-          : `/v1/views/profile/${encodeURIComponent(query.params['id'])}`,
+        'Directory',
+        {
+          search: given(query.search['search']),
+          filter: given(query.search['filter']),
+          after: given(query.search['after']),
+        },
+        VIEWS.Directory,
       );
+    case 'Profile':
+      return read('Profile', { personId: query.params['id'] ?? null }, VIEWS.Profile);
     case 'Onboarding':
-      return read('/v1/views/onboarding');
+      return read('Onboarding', {}, VIEWS.Onboarding);
     case 'CompletenessGrid':
-      return read('/v1/views/completeness');
+      return read('Completeness');
     case 'FieldRegistry':
-      return read('/v1/views/registry');
+      return read('Registry');
     case 'Integrations':
-      return read('/v1/views/integrations');
+      return read('Integrations');
     case 'RoleSettings':
-      return read('/v1/views/roles');
+      return read('RoleSettings');
     case 'ExportBuilder':
-      return read('/v1/views/export');
+      return read('ExportBuilder');
     case 'Analytics':
-      return read('/v1/views/analytics');
+      return read('Analytics', {}, VIEWS.Analytics);
     case 'PeopleSetup': {
-      const loaded = await read('/v1/views/setup');
+      const loaded = await read('Setup', {}, VIEWS.PeopleSetup);
       if (loaded.status !== 'ready') return loaded;
       const data = loaded.data as { legalEntity?: { name: string; country: string } };
       if (data.legalEntity !== undefined) return loaded;

@@ -82,9 +82,9 @@ function transports(account: string, roles: string[]) {
       correlationId: '00000000-0000-4000-8000-0000000000c1',
     });
 
-  configureGraphQL({ service, callerFrom });
-  const yoga = createYoga({ schema });
   const rest = restHandler({ service, callerFrom, idempotency: inMemoryIdempotency() });
+  configureGraphQL({ service, callerFrom, rest });
+  const yoga = createYoga({ schema });
 
   return {
     viaGraphQL: async (): Promise<string[]> => {

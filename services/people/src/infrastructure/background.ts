@@ -12,6 +12,8 @@ import { sweepReminders, type ReminderMailer } from '../application/completeness
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { endAccessDue, startArrivals } from '../application/person/start.js';
 import { reconcile } from '../application/reconcile.js';
+import { tenantRoles } from '../application/roles/roles.js';
+import { drizzleRoleStore } from './drizzle-role-store.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
@@ -206,7 +208,12 @@ export async function startBackground(
       calendars: org,
     }),
   });
-  const endAccess = endAccessDue({ ...lifecycleDeps, leavers: drizzleLeavers() });
+  const endAccess = endAccessDue({
+    ...lifecycleDeps,
+    leavers: drizzleLeavers(),
+    // A leaver's tenant roles end with their access (PEO-109 × PEO-112).
+    roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
+  });
   jobs.push(
     every(HOUR, () =>
       forEachTenant('lifecycle', async (tenantId) => {

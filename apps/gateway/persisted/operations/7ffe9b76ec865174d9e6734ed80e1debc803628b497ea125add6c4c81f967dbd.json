@@ -1,0 +1,1 @@
+{"version":1,"body":"query ClassificationAdvice(\n    $label: String!, $description: String, $dataType: String!, $sectionKey: String!, $options: [String!]!\n  ) {\n    peopleClassificationAdvice(\n      label: $label, description: $description, dataType: $dataType, sectionKey: $sectionKey, options: $options\n    ) { kind classification piiKind reason floor }\n  }"}

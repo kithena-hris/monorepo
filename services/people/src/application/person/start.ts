@@ -6,6 +6,7 @@ import { personZone, placementOf } from '../../domain/org/calendar.js';
 import { identityFactsOf, Person, type EventContext } from '../../domain/person/person.js';
 import type { RecomputePerson } from '../completeness/recompute.js';
 import type { Calendars } from '../org/org.js';
+import type { TenantRoles } from '../roles/roles.js';
 import type { PersonRepository } from '../person-repository.js';
 import type { PersonReader, PersonRecord } from './ports.js';
 import type { InTenant } from './service.js';
@@ -53,6 +54,8 @@ export interface StartDeps {
   readonly newId: () => string;
   readonly completeness?: RecomputePerson;
   readonly limit?: number;
+  /** Revokes a leaver's tenant roles as their access ends (PEO-109 × PEO-112). */
+  readonly roles?: Pick<TenantRoles, 'accessEnded'>;
 }
 
 /** The furthest-ahead zone there is: its date is the latest date anywhere. */
@@ -166,6 +169,18 @@ function lifecycleJob(
         const person = Person.rehydrate(record.snapshot);
         if (!act(record, person, zone, ctx)) return false;
         await deps.people.save(tx, person);
+        // Access ended by this move: the leaver's tenant roles end with it.
+        const account = person.identityAccountId;
+        const endedNow =
+          (record.snapshot.accessEndedAt ?? null) === null && person.accessEndedAt !== null;
+        if (endedNow && account !== null) {
+          await deps.roles?.accessEnded(tx, {
+            tenantId,
+            accountId: account,
+            correlationId,
+            causationId: null,
+          });
+        }
         if (rejudge) {
           await deps.completeness?.(tx, {
             tenantId,

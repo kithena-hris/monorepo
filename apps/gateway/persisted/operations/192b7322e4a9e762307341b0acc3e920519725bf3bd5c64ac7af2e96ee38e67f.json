@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveDraftField($input: DraftFieldInput!, $editing: String, $key: String!) {\n    saveDraftField(input: $input, editing: $editing, idempotencyKey: $key) { ok }\n  }"}

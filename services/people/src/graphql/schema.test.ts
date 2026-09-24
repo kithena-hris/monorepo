@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { createYoga } from 'graphql-yoga';
 import { err, failure, fixedClock, ok } from '@kithena/domain-kit';
 
@@ -6,6 +7,10 @@ import { inMemoryOrg } from '../application/org/in-memory.js';
 import { orgAdmin } from '../application/org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
+import type { PeopleService } from '../application/person/service.js';
+import type { CallerFrom } from '../http/caller.js';
+import { inMemoryIdempotency } from '../http/idempotency.js';
+import { restHandler } from '../http/rest.js';
 import { configureGraphQL, schema, valueOf } from './schema.js';
 
 /**
@@ -42,20 +47,23 @@ function wire(account: string, roles: string[] = []) {
     fields: { managerId: MARCO },
     custom: { base_salary: { amountMinor: 5_500_000, currency: 'EUR' }, job_title: 'Engineer' },
   });
+  const service = {
+    access: personAccess(store.deps),
+    schemas: store.deps.schemas,
+    inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+  } satisfies PeopleService;
+  const callerFrom: CallerFrom = (request) =>
+    request.headers['x-test'] === 'anonymous'
+      ? err(failure('UNAUTHENTICATED', 'nobody'))
+      : ok({
+          tenantId: TENANT,
+          viewer: { accountId: account, roles: new Set(roles) },
+          correlationId: '00000000-0000-4000-8000-0000000000c1',
+        });
   configureGraphQL({
-    service: {
-      access: personAccess(store.deps),
-      schemas: store.deps.schemas,
-      inTenant: (_tenant, fn) => fn({ tx: {} as never }),
-    },
-    callerFrom: (request) =>
-      request.headers['x-test'] === 'anonymous'
-        ? err(failure('UNAUTHENTICATED', 'nobody'))
-        : ok({
-            tenantId: TENANT,
-            viewer: { accountId: account, roles: new Set(roles) },
-            correlationId: '00000000-0000-4000-8000-0000000000c1',
-          }),
+    service,
+    callerFrom,
+    rest: restHandler({ service, callerFrom, idempotency: inMemoryIdempotency() }),
   });
   return store;
 }
@@ -132,7 +140,7 @@ describe('failures', () => {
     wire(MARCO_ACCOUNT);
     const result = await query(
       `mutation ($id: ID!) {
-         updatePerson(id: $id, changes: [{ key: "base_salary", money: { amountMinor: "1", currency: "EUR" } }]) { id }
+         updatePerson(id: $id, changes: [{ key: "base_salary", money: { amountMinor: "1", currency: "EUR" } }], idempotencyKey: "k-1") { id }
        }`,
       { id: ADA },
     );
@@ -143,6 +151,25 @@ describe('failures', () => {
     wire(MARCO_ACCOUNT);
     const result = await query(PERSON, { id: ADA }, { 'x-test': 'anonymous' });
     expect(result.errors?.[0]?.extensions['code']).toBe('UNAUTHENTICATED');
+  });
+});
+
+describe('every mutation (PEO-113)', () => {
+  it('takes a required idempotencyKey, but the two that only compute', () => {
+    const unkeyed = Object.values(schema.getMutationType()?.getFields() ?? {})
+      .filter((field) => {
+        const key = field.args.find((a) => a.name === 'idempotencyKey');
+        return key?.type.toString() !== 'String!';
+      })
+      .map((field) => field.name);
+    expect(unkeyed.toSorted()).toEqual(['dryRunImport', 'proposeImport']);
+  });
+
+  it('never models a record as a field per attribute: its values are a keyed list', () => {
+    const profile = schema.getType('PeopleProfile');
+    const fields = profile !== undefined && 'getFields' in profile ? profile.getFields() : {};
+    expect(Object.keys(fields).toSorted()).toEqual(['person', 'sections', 'values']);
+    expect(String(fields['values']?.type)).toMatch(/^\[FormEntry!\]/);
   });
 });
 
@@ -165,29 +192,32 @@ describe('legal entities over GraphQL', () => {
   function wireOrg(roles: string[]) {
     const store = inMemoryPeople([versionOf(1, [title])]);
     let n = 0;
+    const service = {
+      access: personAccess(store.deps),
+      schemas: store.deps.schemas,
+      inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+      org: orgAdmin({
+        store: inMemoryOrg().store,
+        clock: fixedClock('2026-03-10T12:00:00.000Z'),
+        newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
+      }),
+    } satisfies PeopleService;
+    const callerFrom = () =>
+      ok({
+        tenantId: TENANT,
+        viewer: { accountId: HR_ACCOUNT, roles: new Set(roles) },
+        correlationId: '00000000-0000-4000-8000-0000000000c1',
+      });
     configureGraphQL({
-      service: {
-        access: personAccess(store.deps),
-        schemas: store.deps.schemas,
-        inTenant: (_tenant, fn) => fn({ tx: {} as never }),
-        org: orgAdmin({
-          store: inMemoryOrg().store,
-          clock: fixedClock('2026-03-10T12:00:00.000Z'),
-          newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
-        }),
-      },
-      callerFrom: () =>
-        ok({
-          tenantId: TENANT,
-          viewer: { accountId: HR_ACCOUNT, roles: new Set(roles) },
-          correlationId: '00000000-0000-4000-8000-0000000000c1',
-        }),
+      service,
+      callerFrom,
+      rest: restHandler({ service, callerFrom, idempotency: inMemoryIdempotency() }),
     });
   }
 
   const CREATE = `
     mutation ($name: String!, $country: String!, $timeZone: String!) {
-      createLegalEntity(name: $name, country: $country, timeZone: $timeZone) { name country timeZone }
+      createLegalEntity(name: $name, country: $country, timeZone: $timeZone, idempotencyKey: "${randomUUID()}") { name country timeZone }
     }`;
   const madrid = { name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' };
 

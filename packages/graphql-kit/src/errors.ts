@@ -10,6 +10,7 @@ export function toGraphQLError(failure: DomainFailure): GraphQLError {
     extensions: {
       code: failure.code,
       ...(failure.path ? { field: failure.path.join('.') } : {}),
+      ...(failure.link ? { link: failure.link } : {}),
     },
   });
 }

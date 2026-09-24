@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { createYoga } from 'graphql-yoga';
 import { fixedClock, ok } from '@kithena/domain-kit';
 
@@ -6,6 +7,9 @@ import { inMemoryNumbers, inMemoryOrg } from '../application/org/in-memory.js';
 import { orgAdmin } from '../application/org/org.js';
 import { inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
+import type { PeopleService } from '../application/person/service.js';
+import { inMemoryIdempotency } from '../http/idempotency.js';
+import { restHandler } from '../http/rest.js';
 import { configureGraphQL, schema } from './schema.js';
 
 /** PEO-101's numbering scheme over GraphQL (PEO-108), beside REST's `/numbering`. */
@@ -14,8 +18,7 @@ let roles = ['people_admin'];
 function wire() {
   const store = inMemoryPeople([versionOf(1, [])]);
   let n = 0;
-  configureGraphQL({
-    service: {
+  const service = {
       access: personAccess(store.deps),
       schemas: store.deps.schemas,
       inTenant: (_tenant, fn) => fn({ tx: {} as never }),
@@ -25,13 +28,17 @@ function wire() {
         clock: fixedClock('2026-09-22T09:00:00.000Z'),
         newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
       }),
-    },
-    callerFrom: () =>
-      ok({
-        tenantId: TENANT,
-        viewer: { accountId: '00000000-0000-4000-8000-0000000000b3', roles: new Set(roles) },
-        correlationId: '00000000-0000-4000-8000-0000000000c1',
-      }),
+  } satisfies PeopleService;
+  const callerFrom = () =>
+    ok({
+      tenantId: TENANT,
+      viewer: { accountId: '00000000-0000-4000-8000-0000000000b3', roles: new Set(roles) },
+      correlationId: '00000000-0000-4000-8000-0000000000c1',
+    });
+  configureGraphQL({
+    service,
+    callerFrom,
+    rest: restHandler({ service, callerFrom, idempotency: inMemoryIdempotency() }),
   });
 }
 
@@ -52,8 +59,8 @@ async function send(source: string, variables: Record<string, unknown> = {}): Pr
 }
 
 const READ = `query ($id: ID!) { employeeNumbering(legalEntityId: $id) { legalEntityId prefix digits nextValue } }`;
-const SET = `mutation ($id: ID!, $start: Float!) {
-  setEmployeeNumbering(legalEntityId: $id, prefix: "ES-", digits: 12, start: $start) { prefix digits nextValue }
+const SET = `mutation ($id: ID!, $start: Float!, $key: String!) {
+  setEmployeeNumbering(legalEntityId: $id, prefix: "ES-", digits: 12, start: $start, idempotencyKey: $key) { prefix digits nextValue }
 }`;
 
 describe('employee numbering over GraphQL', () => {
@@ -61,13 +68,13 @@ describe('employee numbering over GraphQL', () => {
     roles = ['people_admin'];
     wire();
     const made = await send(
-      `mutation { createLegalEntity(name: "Acme Spain", country: "ES", timeZone: "Europe/Madrid") { id } }`,
+      `mutation { createLegalEntity(name: "Acme Spain", country: "ES", timeZone: "Europe/Madrid", idempotencyKey: "${randomUUID()}") { id } }`,
     );
     const id = made.data?.['createLegalEntity']?.['id'];
 
     expect((await send(READ, { id })).data).toEqual({ employeeNumbering: null });
 
-    const set = await send(SET, { id, start: 100_000_000_000 });
+    const set = await send(SET, { id, start: 100_000_000_000, key: randomUUID() });
     expect(set.errors).toBeUndefined();
     expect(set.data?.['setEmployeeNumbering']).toEqual({
       prefix: 'ES-',
@@ -84,13 +91,13 @@ describe('employee numbering over GraphQL', () => {
     roles = ['people_admin'];
     wire();
     const made = await send(
-      `mutation { createLegalEntity(name: "Acme Spain", country: "ES", timeZone: "Europe/Madrid") { id } }`,
+      `mutation { createLegalEntity(name: "Acme Spain", country: "ES", timeZone: "Europe/Madrid", idempotencyKey: "${randomUUID()}") { id } }`,
     );
     const id = made.data?.['createLegalEntity']?.['id'];
-    expect((await send(SET, { id, start: 1.5 })).errors?.[0]?.extensions['code']).toBe(
-      'NUMBERING_INVALID',
+    expect((await send(SET, { id, start: 1.5, key: randomUUID() })).errors?.[0]?.extensions['code']).toBe(
+      'BAD_REQUEST',
     );
     roles = ['hr'];
-    expect((await send(SET, { id, start: 1 })).errors?.[0]?.extensions['code']).toBe('FORBIDDEN');
+    expect((await send(SET, { id, start: 1, key: randomUUID() })).errors?.[0]?.extensions['code']).toBe('FORBIDDEN');
   });
 });

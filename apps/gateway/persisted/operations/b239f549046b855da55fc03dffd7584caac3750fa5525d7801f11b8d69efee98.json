@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PublishDraft($requiredFrom: String!, $key: String!) {\n    publishDraft(requiredFrom: $requiredFrom, idempotencyKey: $key) { version }\n  }"}

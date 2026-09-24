@@ -1,0 +1,1 @@
+{"version":1,"body":"query PublishPreview($requiredFrom: String!) {\n    peoplePublishPreview(requiredFrom: $requiredFrom) {\n      nextVersion unchanged\n      changes { kind key summary specialCategory }\n      impact { evaluated becomingIncomplete becomingComplete forEmployees forStaff }\n      integrationsNotified\n    }\n  }"}

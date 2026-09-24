@@ -65,7 +65,9 @@ beforeAll(async () => {
     )
     .sort();
   const roleMigration = files.find((f) => f.includes('people_role_grant')) ?? '';
-  for (const file of files.filter((f) => f !== roleMigration)) {
+  // Anything after the role migration amends it, so it runs after it too.
+  const later = files.filter((f) => f > roleMigration);
+  for (const file of files.filter((f) => f < roleMigration)) {
     await admin.unsafe(await readFile(new URL(file, dir), 'utf8'));
   }
 
@@ -73,6 +75,7 @@ beforeAll(async () => {
   await person(LEGACY, { person: id(9), account: id(109) }, 'active', '2026-01-01');
   await person(LEGACY, { person: id(10), account: id(110) }, 'active', '2026-01-02');
   await admin.unsafe(await readFile(new URL(roleMigration, dir), 'utf8'));
+  for (const file of later) await admin.unsafe(await readFile(new URL(file, dir), 'utf8'));
 
   for (const [who, status, at] of [
     [PRIYA, 'active', '2026-02-01'],
