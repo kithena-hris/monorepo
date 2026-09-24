@@ -145,6 +145,7 @@ const anonymiseAt = (instant: string) =>
       tenantId: ACME,
       personId: KIRI,
       actor: { kind: 'system', process: 'retention' },
+      mode: { kind: 'automated' },
       correlationId: correlation,
     }),
   );

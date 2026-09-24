@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createServer, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { isPublicAddress, pinnedPoster, vet, type Resolver } from './egress.js';
+import { egressPolicyFrom, isPublicAddress, pinnedPoster, vet, type Resolver } from './egress.js';
 
 /**
  * The SSRF boundary. Every test injects the resolver, so what DNS "says" is
@@ -131,5 +131,38 @@ describe('delivery', () => {
     const answer = await post(`http://hooks.test:${String(port)}/in`, { headers: {}, body: '{}' });
     expect(answer.status).toBe(302);
     expect(hits).toHaveLength(1);
+  });
+});
+
+describe('the policy a process runs with', () => {
+  const SWITCHES = { PEOPLE_WEBHOOKS_ALLOW_LOOPBACK: '1', PEOPLE_WEBHOOKS_ALLOW_HTTP: '1' };
+
+  it('in production refuses loopback and plain http, whatever the switches say', async () => {
+    const policy = egressPolicyFrom({ NODE_ENV: 'production', ...SWITCHES }, answering('127.0.0.1'));
+    for (const url of ['https://127.0.0.1:8443/in', 'https://[::1]/in', 'https://hooks.test/in']) {
+      expect((await vet(url, policy)).ok, url).toBe(false);
+    }
+    expect((await vet(`http://${PUBLIC}/in`, policy)).ok).toBe(false);
+  });
+
+  it('off production with no switch set still refuses loopback', async () => {
+    const policy = egressPolicyFrom({ NODE_ENV: 'test' });
+    expect((await vet('https://127.0.0.1/in', policy)).ok).toBe(false);
+  });
+
+  it('off production with the switch accepts loopback, and nothing else private', async () => {
+    const policy = egressPolicyFrom({ NODE_ENV: 'test', PEOPLE_WEBHOOKS_ALLOW_LOOPBACK: '1' });
+    expect((await vet('https://127.0.0.1:8443/in', policy)).ok).toBe(true);
+    expect((await vet('https://[::1]/in', policy)).ok).toBe(true);
+    for (const url of [
+      'https://10.0.0.1/in',
+      'https://169.254.169.254/latest',
+      'https://192.168.1.1/in',
+      'https://[fd00::1]/in',
+      'https://[::ffff:127.0.0.1]/in',
+      'http://127.0.0.1/in',
+    ]) {
+      expect((await vet(url, policy)).ok, url).toBe(false);
+    }
   });
 });

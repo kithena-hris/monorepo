@@ -833,6 +833,11 @@ type PeopleOrganisation {
   """The countries an entity or a location may be in."""
   countries: [OrgCountry!]
   timeZones: [String!]
+
+  """
+  The statutory retention floors and their legal review; law, the same for every tenant.
+  """
+  retentionFloors: [RetentionFloor!]
 }
 
 """People to pick from, a keyset page at a time (PEO-122)."""
@@ -1111,6 +1116,19 @@ type RegistrySection {
 type RepeatingAttribute {
   key: String
   items: [PersonAttribute!]
+}
+
+type RetentionFloor {
+  floor: String
+  months: Int
+  status: RetentionFloorStatus
+  reviewedBy: String
+  reviewedOn: String
+}
+
+enum RetentionFloorStatus {
+  unreviewed
+  reviewed
 }
 
 """An account and the tenant roles it holds."""

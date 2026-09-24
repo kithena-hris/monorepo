@@ -132,6 +132,7 @@ export const OPERATIONS = {
       numberings { legalEntityId prefix digits nextValue }
       countries { code name }
       timeZones
+      retentionFloors { floor months status reviewedBy reviewedOn }
     }
   }`,
 

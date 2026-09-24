@@ -106,6 +106,7 @@ describe('the organisation screen’s read (PEO-119)', () => {
   const ORG = `{ peopleOrganisation {
     canManage settings { defaultTimeZone cohortMinimum }
     legalEntities { name } numberings { prefix } countries { code } timeZones
+    retentionFloors { floor months status reviewedBy reviewedOn }
   } peopleHome { hr admin finance } }`;
 
   it('answers everything in one read, and says who may change it', async () => {
@@ -123,6 +124,14 @@ describe('the organisation screen’s read (PEO-119)', () => {
     expect(org['timeZones']).toContain('Etc/UTC');
     expect(org['timeZones']).toContain('Pacific/Kiritimati');
     expect(admin.data?.['peopleHome']).toEqual({ hr: false, admin: true, finance: false });
+    // Every floor pending counsel (PEO-126).
+    expect(org['retentionFloors']).toEqual(
+      [
+        ['es-labour', 48],
+        ['de-labour', 72],
+        ['eu-payroll', 120],
+      ].map(([floor, months]) => ({ floor, months, status: 'unreviewed', reviewedBy: null, reviewedOn: null })),
+    );
 
     roles = [];
     const anybody = await send(ORG);

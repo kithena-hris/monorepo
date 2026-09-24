@@ -63,6 +63,24 @@ git, and nowhere else.
 Phase 1 is done when every box down to PEO-060 is ticked and
 `just standalone people` is green in CI.
 
+**Phase 1 is complete** (PEO-060): every box down to PEO-060 is ticked, and
+`just standalone people` is green in CI both with `TYPESAFE_API_KEY` unset and
+with it set, the advisor mocked. What remains open is outside Phase 1:
+
+- **Phase 2 and 3**, PEO-061 to PEO-078, as listed below.
+- **Unticked follow-ups** under *Found while building Phase 1*: the router
+  deployment mounting `apps/gateway/persisted` at `/persisted`, and a timed
+  100 MB import through the production router (PEO-113's follow-up).
+- **Things only a person can do**, none of which code can settle:
+  - legal sign-off on the statutory retention floors (PEO-037; see *Blocked*);
+  - a per-country review of each country pack (PEO-059);
+  - the `TENANT_APP_BASE` repository variables per environment, without which
+    production sends no notice email by design (`tenant-origin.ts`);
+  - a remote deploy workflow for the People remote that holds
+    `PEOPLE_REMOTE_SSR_SIGNING_KEY` and signs each release (PEO-115);
+  - the router's persisted-operations mount and the timed 100 MB import above;
+  - confirming the cohort minimum default of 10 (PEO-045).
+
 ---
 
 ## Phase 0 — unblock
@@ -845,7 +863,7 @@ check-strict` passes on the generated code.
   version 1, and the NIF, National Insurance and PAN validators each have
   tests.
 
-### [ ] PEO-060 — Standalone and CI
+### [x] PEO-060 — Standalone and CI
 
 - **Spec** PRD §19, `CLAUDE.md`
 - **Files** `services/people/src/standalone/`, `.github/workflows/ci.yml`
@@ -855,6 +873,22 @@ check-strict` passes on the generated code.
   an in-memory outbox, REST answering. Add People to the standalone matrix.
 - **Done when** it is green in CI, and green again with `TYPESAFE_API_KEY`
   unset.
+- _Landed as `src/standalone/acceptance.standalone.test.ts`: the in-memory
+  ports behind the real REST handler and subgraph — the registry, a person
+  created, a missing required field reported until filled, a malformed value
+  refused with nothing in the outbox, the write read back over REST and
+  GraphQL. `fetch` is replaced for the file, so a request to anything but the
+  mocked TypeSafe endpoint fails. CI's `standalone` job runs it twice, key
+  unset then a dummy key, as steps so the required checks keep their names.
+  The web acceptance suite is a CI job too (`web acceptance`, gated by the
+  `changes` job), and hermetic: its webhook test posts to the harness's own
+  HTTPS receiver on loopback, which People accepts only off production
+  (`egressPolicyFrom`, `PEOPLE_WEBHOOKS_ALLOW_LOOPBACK`). The receiver found a
+  real fault: a screen's keyed write kicked the delivery pass from inside
+  `sharing`, so the pass inherited the request's transaction through
+  AsyncLocalStorage, hung once it committed, and held the tenant's `running`
+  flag — no webhook went out again until a restart. The kick now waits for the
+  outermost unit (`insideSharedUnit`)._
 
 ---
 
@@ -897,7 +931,9 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-074** Duplicate detection and merge. A merge is **always** a human
       decision, and it is additive — both histories survive, the absorbed
       record becomes a tombstone pointing at the survivor. _(PRD §12.4)_
-- [ ] **PEO-075** Automated anonymisation on retention expiry. _(PRD §8.1)_
+- [ ] **PEO-075** Automated anonymisation on retention expiry. **Blocked until
+      counsel reviews the floors** (PEO-126): `mayErase` refuses automated
+      erasure under an unreviewed floor. _(PRD §8.1, §12)_
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
 - [ ] **PEO-077** Approval workflows on sensitive changes, via Temporal.
 - [ ] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
@@ -1491,8 +1527,8 @@ it is written down here rather than left in a PR description.
       A–D suffix, a missing one `attention`; UAN shape, "cannot be verified".
       Every write goes through `PersonAccess.update`, so each is checked and
       queued; profile, onboarding, import, REST and GraphQL return the
-      findings (the completeness grid does not show them yet); a form asks `peopleIdentifierCheck` before it saves one
-      and warns on the field (`FieldDescription tone="warning"`, new in
+      findings (the completeness grid does not show them yet); a form asks
+      `peopleIdentifierCheck` before it saves one and warns on the field (`FieldDescription tone="warning"`, new in
       Reach) and above the button, then saves on "Save anyway". A doubted
       value opens `people.identifier_review` (20260924330000), keyed to the
       history row that wrote it, never the value: HR's grid gets an
@@ -1505,6 +1541,22 @@ it is written down here rather than left in a PR description.
       `people.person.identifier_reviewed` (codes, never the value). The
       import dry run lists doubted cells without blocking; the commit counts
       what went to review.*
+- [x] **PEO-126** Product decision: keep the statutory retention floors
+      (es-labour 48 months, de-labour 72, eu-payroll 120) but mark each
+      unreviewed, pending counsel, and block automated erasure until counsel
+      signs off. *(PRD §12)* *Landed as `FLOOR_REVIEWS` beside
+      `STATUTORY_FLOOR_MONTHS` in `domain/retention/floors.ts`, every floor
+      `unreviewed`; `mayErase` refuses an `automated` erasure relying on an
+      unreviewed floor and lets HR act `manual`ly with a stated reason;
+      `anonymiseDue` takes the mode and refuses with
+      `RETENTION_FLOOR_UNREVIEWED`, clearing nothing; a manual run's reason
+      rides `people.person.anonymised` as `manualReason`.
+      `peopleOrganisation.retentionFloors` and a "Pending legal review" table
+      on the organisation settings' Company tab. Reviewing a floor is `pnpm
+      --filter @kithena/scripts review-retention-floor`, whose commit is the
+      audit record. No migration.* *Still open:* no transport calls a manual
+      `anonymiseDue` yet — HR's by-hand erasure needs a route and a control
+      on the profile when PEO-075 is built.
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*
@@ -1518,3 +1570,4 @@ it is written down here rather than left in a PR description.
 | PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
+| PEO-075 | counsel reviews the floors | Automated erasure refuses an unreviewed floor (PEO-126); HR may erase one person by hand, with a stated reason |
