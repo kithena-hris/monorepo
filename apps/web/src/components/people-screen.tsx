@@ -220,7 +220,7 @@ export function PeopleScreen({
             ? {}
             : {
                 onFirstPage: () => {
-                  router.push('/people/completeness' as Route);
+                  router.push('/people/completeness');
                 },
               }),
         };

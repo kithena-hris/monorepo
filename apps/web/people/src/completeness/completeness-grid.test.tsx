@@ -140,7 +140,7 @@ describe('CompletenessGrid', () => {
           data: {
             ...state,
             fields: [{ key: 'manager', label: 'Manager', options: [], person: true }],
-            rows: [{ ...state.rows[0]!, missing: ['manager'] }],
+            rows: state.rows.slice(0, 1).map((r) => ({ ...r, missing: ['manager'] })),
           },
         }}
         onSave={onSave}

@@ -103,7 +103,12 @@ export function PersonPicker({
   const [loading, setLoading] = useState(false);
   const asked = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const find = (query: string): void => {
     if (search === null) return;

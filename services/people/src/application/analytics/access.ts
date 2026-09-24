@@ -167,7 +167,7 @@ export function expiryKinds(
   });
 }
 
-const NAME_KEYS = ['given_name', 'family_name', 'preferred_name'] as const;
+type NameKey = 'given_name' | 'family_name' | 'preferred_name';
 
 /** One dated value somebody holds, as the row holds it: not yet authorized. */
 export interface ExpiryCandidate {
@@ -175,7 +175,7 @@ export interface ExpiryCandidate {
   readonly kind: ExpiryKind;
   /** The expiry, a calendar date. */
   readonly day: string;
-  readonly names: Readonly<Record<(typeof NAME_KEYS)[number], string | null>>;
+  readonly names: Readonly<Record<NameKey, string | null>>;
 }
 
 export interface ExpiryItem {
@@ -207,7 +207,7 @@ export function readableExpiries(
   return candidates.flatMap((c) => {
     const to = relations.get(c.personId);
     if (to === undefined || !reads(EXPIRIES[c.kind], to)) return [];
-    const shown = (key: (typeof NAME_KEYS)[number]) => (reads(key, to) ? c.names[key] : null);
+    const shown = (key: NameKey) => (reads(key, to) ? c.names[key] : null);
     const parts = [shown('preferred_name') ?? shown('given_name'), shown('family_name')].filter(
       (p): p is string => p !== null && p !== '',
     );
