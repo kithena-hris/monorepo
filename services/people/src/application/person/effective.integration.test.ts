@@ -339,9 +339,11 @@ describe('a manager change dated next week', () => {
   });
 
   it('does nothing twice on a rerun', async () => {
-    const before = (await admin`SELECT count(*)::int AS n FROM people.outbox`)[0]?.['n'];
+    const outbox = async () =>
+      (await admin<{ n: number }[]>`SELECT count(*)::int AS n FROM people.outbox`)[0]?.n;
+    const before = await outbox();
     expect(await runAt('2026-09-30T12:30:00.000Z')).toEqual({ applied: 0, failed: [] });
-    expect((await admin`SELECT count(*)::int AS n FROM people.outbox`)[0]?.['n']).toBe(before);
+    expect(await outbox()).toBe(before);
   });
 
   it('comes into force in Los Angeles after its own midnight', async () => {
@@ -440,11 +442,13 @@ describe('who a viewer is to many people, in a handful of questions', () => {
   });
 
   it('offers the export builder’s fields from the schema and the viewer’s relations, not a sample', async () => {
+    const reader = drizzlePersonReader();
     const deps = {
       service: { access: at(TODAY), schemas: drizzleSchemaVersions(), inTenant },
       relations: fga.relations,
       clock: fixedClock(TODAY),
-      personOf: drizzlePersonReader().personOf,
+      personOf: (tx: Parameters<typeof reader.personOf>[0], tenantId: string, accountId: string) =>
+        reader.personOf(tx, tenantId, accountId),
       calendars: drizzleOrgStore(),
       gapTotals: drizzleGapTotals(),
     };
