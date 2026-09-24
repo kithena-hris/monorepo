@@ -308,6 +308,35 @@ export const PersonProfileUpdated = defineEvent(
 );
 
 /**
+ * Values recorded earlier, dated ahead, came into force today on the person's
+ * own calendar (PEO-124, PRD §8.5, §10.2).
+ *
+ * The write that recorded them raised `profile_updated` then, with the future
+ * `effectiveFrom` on its envelope — the change is scheduled. This is the day
+ * it holds: the projection moved, and the domain's own events (`manager_changed`,
+ * `org_changed`, `identity_facts_changed`) are raised beside it, dated the same.
+ * The same payload and the same §10.3 rules as `profile_updated`: keys,
+ * sections and classifications always, a value only where the attribute opted
+ * in.
+ */
+export const PersonAttributeEffective = defineEvent(
+  'people.person.attribute_effective',
+  1,
+  z.object({
+    personId: PersonId,
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
+    // Confidential as a whole, for `profile_updated`'s reason.
+    changed: z.array(ChangedAttribute).min(1).register(policy, {
+      classification: 'confidential',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: false,
+    }),
+    schemaVersion: SchemaVersion,
+  }),
+);
+
+/**
  * The facts identity keeps a copy of changed, with their values.
  *
  * §5: People is the source of record for a linked person's name and start
@@ -940,6 +969,7 @@ export const peopleEvents = [
   PersonIdentityLinked,
   PersonHired,
   PersonProfileUpdated,
+  PersonAttributeEffective,
   PersonIdentityFactsChanged,
   PersonAttributeCorrected,
   PersonJobChanged,

@@ -17,6 +17,15 @@ const updated = (keys: string[]): StoredEnvelope => ({
   },
 });
 
+describe('a value coming into force, sent to an endpoint (PEO-124)', () => {
+  it('is filtered to the allowlist exactly as the update that scheduled it', () => {
+    const effective = { ...updated(['cost_centre', 'job_title']), eventName: 'people.person.attribute_effective' };
+    const sent = filterFor(effective, ['cost_centre']);
+    expect((sent?.payload['changed'] as { key: string }[]).map((c) => c.key)).toEqual(['cost_centre']);
+    expect(filterFor(effective, ['work_email'])).toBeNull();
+  });
+});
+
 describe('the facts identity caches, sent to an endpoint', () => {
   const facts: StoredEnvelope = {
     eventId: '01890000-0000-7000-8000-000000000003',

@@ -39,7 +39,10 @@ export function filterFor(
   const allowed = new Set(allowlist);
   const payload = record(envelope.payload);
 
-  if (envelope.eventName === 'people.person.profile_updated') {
+  if (
+    envelope.eventName === 'people.person.profile_updated' ||
+    envelope.eventName === 'people.person.attribute_effective'
+  ) {
     const changed = (
       Array.isArray(payload['changed']) ? payload['changed'] : []
     ) as ChangedAttribute[];
