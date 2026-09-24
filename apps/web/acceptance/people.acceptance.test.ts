@@ -705,9 +705,11 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
 describe('PEO-121: the webhook delivery log', () => {
   it('shows a failed delivery and replays it', async () => {
     // An endpoint, as the integrations screen makes one, subscribed to an
-    // event nothing in this run raises.
+    // event nothing in this run raises. It points at the harness's own HTTPS
+    // receiver on loopback: a replay really sends, and never to the internet.
+    const hookUrl = `${stack.receiver.url}/kithena-acceptance`;
     const made = await stack.writeAsPeople(ADMIN.account, '/v1/webhooks/endpoints', {
-      url: 'https://example.com/kithena-acceptance',
+      url: hookUrl,
       events: ['people.schema.published'],
       allowlist: [],
       alertEmail: 'integrations@acme.example',
@@ -726,7 +728,7 @@ describe('PEO-121: the webhook delivery log', () => {
     await page.goto(`${stack.shell}/people/settings/integrations`);
     await page.waitForLoadState('networkidle');
     await page
-      .getByRole('button', { name: 'Delivery log for https://example.com/kithena-acceptance' })
+      .getByRole('button', { name: `Delivery log for ${hookUrl}` })
       .click();
     await page.waitForURL(new RegExp(`/people/settings/integrations/${endpointId}$`));
     await page.waitForLoadState('networkidle');
@@ -741,6 +743,14 @@ describe('PEO-121: the webhook delivery log', () => {
     expect(rows).toHaveLength(2);
     expect(rows[1]?.replay_of).not.toBeNull();
     await table.getByText('A replay').waitFor({ timeout: 30_000 });
+    // The replay was sent, signed, to the receiver and nowhere else.
+    await expect
+      .poll(() => stack.receiver.received.filter((r) => r.path === '/kithena-acceptance').length, {
+        timeout: 30_000,
+      })
+      .toBe(1);
+    const [sent] = stack.receiver.received.filter((r) => r.path === '/kithena-acceptance');
+    expect(sent?.headers['kithena-signature']).toBeTruthy();
     await context.close();
   });
 });

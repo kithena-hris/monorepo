@@ -47,7 +47,7 @@ import {
   tenantAppBase,
   tenantCompanies,
 } from '../infrastructure/tenant-origin.js';
-import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
+import { egressPolicyFrom, pinnedPoster } from '../infrastructure/webhooks/egress.js';
 import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
 import { listDeliveries, listEndpoints } from '../infrastructure/webhooks/list.js';
 import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from '../application/import/ledger.js';
@@ -96,12 +96,9 @@ export function peopleService(
   const raw = tenantTransaction(db);
   const schemas = drizzleSchemaVersions();
 
-  // Plain http only when a developer says so; production has no such switch set.
-  const egress = {
-    resolve: systemResolver,
-    allowHttp:
-      process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
-  };
+  // Plain http or a loopback receiver only when a developer or a test says so;
+  // production ignores both switches (`egressPolicyFrom`).
+  const egress = egressPolicyFrom(process.env);
   // No base (production without a safe `TENANT_APP_BASE`): no alert email,
   // the event alone — never a link to localhost.
   const base = tenantAppBase(process.env);

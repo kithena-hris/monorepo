@@ -1,6 +1,7 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
 import { createServer as netServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -57,9 +58,70 @@ export interface Stack {
   asPeople(account: string, path: string): Promise<unknown>;
   /** OpenFGA tuples, as People's consumer writes them from its events; there is no Kafka here. */
   writeTuples(tuples: readonly { user: string; relation: string; object: string }[]): Promise<void>;
+  /**
+   * A webhook receiver on loopback, over HTTPS with a certificate made for this
+   * run: what an endpoint points at, so a delivery or a replay never leaves
+   * the machine. People trusts the certificate through `NODE_EXTRA_CA_CERTS`
+   * and accepts loopback through `PEOPLE_WEBHOOKS_ALLOW_LOOPBACK`, a switch
+   * `egressPolicyFrom` ignores in production.
+   */
+  readonly receiver: { readonly url: string; readonly received: readonly ReceivedHook[] };
   /** A keyed write to People's REST, as the router would send it, for a test's setup. */
   writeAsPeople(account: string, path: string, body: unknown): Promise<{ status: number; body: unknown }>;
   stop(): Promise<void>;
+}
+
+export interface ReceivedHook {
+  readonly path: string;
+  readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+  readonly body: string;
+}
+
+/** A self-signed certificate for 127.0.0.1, by the openssl every runner has. */
+async function loopbackCertificate(dir: string): Promise<{ key: string; cert: string }> {
+  const key = join(dir, 'receiver.key');
+  const cert = join(dir, 'receiver.crt');
+  await new Promise<void>((resolve, reject) => {
+    execFile(
+      'openssl',
+      ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes',
+        '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=127.0.0.1',
+        '-addext', 'subjectAltName=IP:127.0.0.1'],
+      { timeout: 30_000 },
+      (error) => {
+        if (error) reject(error);
+        else resolve();
+      },
+    );
+  });
+  return { key, cert };
+}
+
+/** Answers 200 to anything, and keeps what it was sent. */
+async function startReceiver(
+  key: string,
+  cert: string,
+): Promise<{ server: HttpsServer; url: string; received: ReceivedHook[] }> {
+  const received: ReceivedHook[] = [];
+  const server = httpsServer(
+    { key: await readFile(key), cert: await readFile(cert) },
+    (request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk: Buffer) => chunks.push(chunk));
+      request.on('end', () => {
+        received.push({
+          path: request.url ?? '/',
+          headers: request.headers,
+          body: Buffer.concat(chunks).toString('utf8'),
+        });
+        response.writeHead(200).end();
+      });
+    },
+  );
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (typeof address !== 'object' || address === null) throw new Error('no receiver port');
+  return { server, url: `https://127.0.0.1:${String(address.port)}`, received };
 }
 
 function freePort(): Promise<number> {
@@ -193,6 +255,8 @@ export async function startStack(): Promise<Stack> {
   };
   let router: Awaited<ReturnType<typeof startCosmoRouter>> | undefined;
   let dir = '';
+  let receiver: Awaited<ReturnType<typeof startReceiver>> | undefined;
+  const receiverDir = await mkdtemp(join(tmpdir(), 'kithena-receiver-'));
   const [pg, fga] = await Promise.all([startPostgres(), startOpenFga()]);
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
@@ -203,6 +267,8 @@ export async function startStack(): Promise<Stack> {
     await router?.stop().catch(() => undefined);
     await sql.end({ timeout: 5 }).catch(() => undefined);
     await Promise.allSettled([pg.stop(), fga.stop()]);
+    await new Promise((resolve) => (receiver ? receiver.server.close(resolve) : resolve(undefined)));
+    await rm(receiverDir, { recursive: true, force: true });
     if (dir !== '') await rm(dir, { recursive: true, force: true });
     // After everything else is down, so a failure still cleans up.
     const stuck = stopped.flatMap((s) => (s.status === 'rejected' ? [s.reason as Error] : []));
@@ -261,6 +327,8 @@ export async function startStack(): Promise<Stack> {
       freePort(),
     ]);
     const peopleUrl = `http://127.0.0.1:${String(peoplePort)}`;
+    const certificate = await loopbackCertificate(receiverDir);
+    receiver = await startReceiver(certificate.key, certificate.cert);
     children.push(
       start(
         join(ROOT, 'node_modules/.bin/tsx'),
@@ -274,6 +342,11 @@ export async function startStack(): Promise<Stack> {
           OPENFGA_URL: fga.apiUrl,
           // Where a signed download link points: People itself, for the test to fetch.
           PEOPLE_EXPORT_LINK_BASE: `${peopleUrl}/v1/exports/files`,
+          // Off production, so the loopback switch below means anything —
+          // `egressPolicyFrom` ignores it under NODE_ENV=production.
+          NODE_ENV: 'test',
+          PEOPLE_WEBHOOKS_ALLOW_LOOPBACK: '1',
+          NODE_EXTRA_CA_CERTS: certificate.cert,
           LOG_LEVEL: 'warn',
         },
         logs['people'] ?? [],
@@ -517,6 +590,7 @@ export async function startStack(): Promise<Stack> {
       shellEnv: env,
       peopleUrl,
       shellToken: SHELL_TOKEN,
+      receiver: { url: receiver.url, received: receiver.received },
       asPeople,
       writeAsPeople,
       writeTuples,
