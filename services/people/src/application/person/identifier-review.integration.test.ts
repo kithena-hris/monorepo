@@ -13,6 +13,7 @@ import { utcCalendars } from '../org/org.js';
 import { Person } from '../../domain/person/person.js';
 import { COUNTRY_PACKS } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
+import { drizzleCompletenessStore } from '../../infrastructure/drizzle-completeness-store.js';
 import { drizzleIdentifierReviews } from '../../infrastructure/drizzle-identifier-reviews.js';
 import { drizzlePersonRepository } from '../../infrastructure/drizzle-person-repository.js';
 import {
@@ -202,6 +203,15 @@ describe('an employee entering a national identifier our checks doubt', () => {
         state: 'pending',
         last4: '678A',
       }),
+    ]);
+  });
+
+  it('is a row on HR’s grid, naming the person and never the value', async () => {
+    const grid = await inTenant(ACME, ({ tx }) =>
+      drizzleCompletenessStore().staffGrid(tx, ACME, '2026-09-24'),
+    );
+    expect(grid.filter((row) => row.task === 'identifier_review')).toEqual([
+      { task: 'identifier_review', key: 'es_nif', personIds: [LUCIA] },
     ]);
   });
 

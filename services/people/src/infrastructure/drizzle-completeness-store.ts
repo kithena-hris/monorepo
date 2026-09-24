@@ -170,6 +170,12 @@ export function drizzleCompletenessStore(): CompletenessStore {
                    unnest(ARRAY[u.person_id, u.conflict_with]) AS pair(person_id)
              WHERE u.tenant_id = ${tenantId}::uuid
                AND u.conflict_with IS NOT NULL
+            UNION ALL
+            -- A doubted national identifier waiting for HR (PEO-125).
+            SELECT 'identifier_review', r.attribute_key, r.person_id
+              FROM people.identifier_review r
+             WHERE r.tenant_id = ${tenantId}::uuid
+               AND r.state = 'pending'
           ) AS work
          GROUP BY task, key
          ORDER BY task DESC, key
