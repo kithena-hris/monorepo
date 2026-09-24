@@ -20,11 +20,11 @@
     "@kithena/db-kit": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "nodemailer": "^10.0.10",
     "postgres": "^3.4.5",
-    "resend": "^6.22.0",
-    "zod": "^4.4.3"
+    "resend": "^6.28.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",

@@ -93,6 +93,14 @@ export default tseslint.config(
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
+      // A leading underscore marks a name as deliberately unused — oxlint's
+      // convention, which it enforces with no option set. The two linters must
+      // agree on one spelling, and `void name;` stopped being one when
+      // typescript-eslint 8.70 made no-meaningless-void-operator reject it.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       // Logging a whole entity is how PII reaches your log store.
       'no-restricted-syntax': [
         'error',

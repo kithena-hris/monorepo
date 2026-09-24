@@ -22,9 +22,10 @@ import type { GraphQLContext } from './context.js';
 export function createBuilder<
   // `Record<string, never>` would be wrong here: intersected with the real
   // schema types it maps every other key to `never`, and each `t.field` call
-  // then reports its options as `never`. `Record<never, never>` is the empty
-  // object type this actually wants.
-  TTypes extends Record<string, unknown> = Record<never, never>,
+  // then reports its options as `never`. The default repeats the one key the
+  // intersection below already adds, which leaves it unchanged — the effect of
+  // an empty object type without spelling one.
+  TTypes extends Record<string, unknown> = { Context: GraphQLContext },
 >(): InstanceType<typeof SchemaBuilder<{ Context: GraphQLContext } & TTypes>> {
   type Types = { Context: GraphQLContext } & TTypes;
 

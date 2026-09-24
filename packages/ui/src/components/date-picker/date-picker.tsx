@@ -123,17 +123,10 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     size = 'md',
     className,
     locale = 'en-GB',
-    /*
-     * Discarded, not unused: this destructure exists to keep the three
-     * discriminated props out of `calendarProps`, which is spread onto
-     * `Calendar`. The lint preset has no discard convention, so the rule is
-     * turned off for the three lines that are one.
-     */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // Discarded, not unused: this destructure keeps the three discriminated
+    // props out of `calendarProps`, which is spread onto `Calendar`.
     mode: _mode,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     value: _value,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onChange: _onChange,
     ...calendarProps
   } = props;

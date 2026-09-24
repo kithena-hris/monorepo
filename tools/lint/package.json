@@ -8,8 +8,8 @@
     "lint": "eslint --config ./eslint.config.js"
   },
   "devDependencies": {
-    "eslint": "^10.8.1",
+    "eslint": "^10.11.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.70.1"
   }
 }
