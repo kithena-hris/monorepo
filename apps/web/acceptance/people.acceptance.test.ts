@@ -277,7 +277,9 @@ describe('PEO-094: the remote, rendered on the server', () => {
     });
     live.on('pageerror', (error) => problems.push(error.message));
     await live.goto(`${stack.shell}/people/me`);
-    // Pressed as soon as it is on screen: it answers once the remote hydrates.
+    // Pressed once the remote has hydrated: a press on the server's markup
+    // before then does nothing, and on a loaded runner that lost the race.
+    await live.waitForLoadState('networkidle');
     await live.getByRole('button', { name: 'Edit Personal information' }).click();
     const personal = live.getByRole('form', { name: 'Personal information' });
     await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pri');
@@ -481,6 +483,8 @@ describe('PEO-112: granting a role on the roles screen', () => {
     const context = await signedIn(ADMIN.session);
     const page = await context.newPage();
     await page.goto(`${stack.shell}/people/settings/roles`);
+    // Hydrated first, as elsewhere here: a press on the server's markup is lost.
+    await page.waitForLoadState('networkidle');
     await page.getByRole('checkbox', { name: `Finance for ${EMPLOYEE.email}` }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox', { name: /Reason/ }).fill('Covers payroll this quarter');
