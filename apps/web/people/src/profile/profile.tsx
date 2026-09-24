@@ -2,6 +2,7 @@ import { Avatar, Badge, Button, EmptyState, PageHeader, PageSection, Stack } fro
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
 import type { RecordSection, Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
@@ -39,6 +40,8 @@ export interface ProfileProps {
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
   /** A lifecycle move on this person (PEO-120); absent on one's own profile. */
   readonly onMove?: (move: LifecycleMove) => Promise<Outcome>;
+  /** Finds people for a person field, by name, over everybody (PEO-122). */
+  readonly searchPeople?: SearchPeople;
 }
 
 /**
@@ -51,11 +54,13 @@ export interface ProfileProps {
  * disclosure itself. This component renders what it is given and cannot
  * re-add a key the application layer removed.
  */
-export function Profile({ load, onSave, onMove }: ProfileProps): JSX.Element {
+export function Profile({ load, onSave, onMove, searchPeople }: ProfileProps): JSX.Element {
   return (
-    <Loaded load={load} what="this profile">
-      {(state) => <Record state={state} onSave={onSave} onMove={onMove} />}
-    </Loaded>
+    <PeopleSearch.Provider value={searchPeople ?? null}>
+      <Loaded load={load} what="this profile">
+        {(state) => <Record state={state} onSave={onSave} onMove={onMove} />}
+      </Loaded>
+    </PeopleSearch.Provider>
   );
 }
 

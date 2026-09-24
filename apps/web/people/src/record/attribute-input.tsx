@@ -1,4 +1,5 @@
 import {
+  Combobox,
   CurrencyField,
   DatePicker,
   Field,
@@ -17,7 +18,15 @@ import {
   TagsInput,
   Textarea,
 } from '@reach/ui';
-import type { HTMLInputTypeAttribute, JSX } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type HTMLInputTypeAttribute,
+  type JSX,
+} from 'react';
 
 import type { AttributeValue, RecordField } from './model';
 
@@ -56,6 +65,86 @@ const PICKED = new Set<RecordField['dataType']>([
 ]);
 
 const text = (value: AttributeValue): string => (typeof value === 'string' ? value : '');
+
+type Option = { readonly value: string; readonly label: string };
+
+/**
+ * Finds people by name, a page at a time, as the viewer may read them
+ * (PEO-122). The shell supplies it; a screen without it picks from the
+ * options it was handed.
+ */
+export type SearchPeople = (text: string) => Promise<readonly Option[]>;
+
+export const PeopleSearch = createContext<SearchPeople | null>(null);
+
+/**
+ * A person picked by typing their name: People searches everybody, so the
+ * 50,000th person is as reachable as the first. `known` names whoever is
+ * already chosen, so the trigger reads a name rather than an id.
+ */
+export function PersonPicker({
+  label,
+  value,
+  known,
+  disabled = false,
+  size = 'md',
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly known: readonly Option[];
+  readonly disabled?: boolean;
+  readonly size?: 'sm' | 'md';
+  readonly onChange: (value: string) => void;
+}): JSX.Element {
+  const search = useContext(PeopleSearch);
+  const [found, setFound] = useState<readonly Option[]>([]);
+  const [chosen, setChosen] = useState<Option | null>(null);
+  const [loading, setLoading] = useState(false);
+  const asked = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const find = (query: string): void => {
+    if (search === null) return;
+    clearTimeout(timer.current);
+    const turn = ++asked.current;
+    setLoading(true);
+    // One request per pause in typing, and only the latest answer is drawn.
+    timer.current = setTimeout(() => {
+      void search(query)
+        .catch(() => [])
+        .then((options) => {
+          if (turn !== asked.current) return;
+          setFound(options);
+          setLoading(false);
+        });
+    }, 200);
+  };
+
+  const options = [...known, ...(chosen === null ? [] : [chosen]), ...found].filter(
+    (o, i, all) => all.findIndex((x) => x.value === o.value) === i,
+  );
+  return (
+    <Combobox
+      label={label}
+      options={options}
+      value={value === '' ? null : value}
+      disabled={disabled}
+      size={size}
+      placeholder="Choose a person"
+      searchPlaceholder="Type a name"
+      emptyMessage={search === null ? 'No matches.' : 'Nobody by that name.'}
+      loading={loading}
+      {...(search === null ? {} : { onSearchChange: find })}
+      onChange={(next) => {
+        const id = typeof next === 'string' ? next : '';
+        setChosen(options.find((o) => o.value === id) ?? null);
+        onChange(id);
+      }}
+    />
+  );
+}
 
 /**
  * One attribute's control, chosen by its data type.
@@ -135,6 +224,21 @@ export function AttributeInput({
         <FieldControl>
           <Switch checked={value === true} disabled={disabled} onCheckedChange={onChange} />
         </FieldControl>
+        {described}
+        {error}
+      </Field>
+    );
+  } else if (field.dataType === 'person_ref') {
+    return (
+      <Field invalid={invalid} disabled={disabled} required={field.required}>
+        <FieldLabel>{field.label}</FieldLabel>
+        <PersonPicker
+          label={field.label}
+          value={text(value)}
+          known={field.options}
+          disabled={disabled}
+          onChange={onChange}
+        />
         {described}
         {error}
       </Field>

@@ -117,6 +117,7 @@ export function PeopleScreen({
                   actions.moveLifecycle(id, move),
                 ),
               }),
+          searchPeople: actions.searchPeople,
         };
       }
       case 'Directory': {
@@ -198,8 +199,32 @@ export function PeopleScreen({
               }),
         };
       }
-      case 'CompletenessGrid':
-        return { load: loadable, onSave: thenRefresh(actions.saveGrid) };
+      case 'CompletenessGrid': {
+        // Keyset pages, each a URL, as the directory's are (PEO-117, PEO-122).
+        const next =
+          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
+            ? ((load.data as { next?: string | null }).next ?? null)
+            : null;
+        return {
+          load: loadable,
+          onSave: thenRefresh(actions.saveGrid),
+          searchPeople: actions.searchPeople,
+          ...(next === null
+            ? {}
+            : {
+                onNextPage: () => {
+                  router.push(`/people/completeness?after=${encodeURIComponent(next)}` as Route);
+                },
+              }),
+          ...(search['after'] === undefined
+            ? {}
+            : {
+                onFirstPage: () => {
+                  router.push('/people/completeness' as Route);
+                },
+              }),
+        };
+      }
       case 'FieldRegistry':
         return {
           load: loadable,

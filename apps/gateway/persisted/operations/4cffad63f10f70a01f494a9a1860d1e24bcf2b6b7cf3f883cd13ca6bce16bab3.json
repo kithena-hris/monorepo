@@ -1,1 +1,0 @@
-{"version":1,"body":"query Completeness {\n    peopleCompleteness {\n      since\n      waiting { people lastReminded }\n      completedThisWeek\n      fields { key label options { value label } }\n      rows { personId name department manager missing }\n    }\n  }"}
