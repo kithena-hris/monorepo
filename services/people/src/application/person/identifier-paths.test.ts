@@ -68,13 +68,16 @@ function world(account = HR_ACCOUNT, roles = ['hr']) {
     idempotency,
   );
   const rest = restHandler({ service, callerFrom, idempotency, screens });
-  const send = async (method: string, url: string, body: unknown, key = 'k-1') =>
-    rest({
+  const send = async (method: string, url: string, body: unknown, key = 'k-1') => {
+    const answer = await rest({
       method,
       url,
       headers: { 'idempotency-key': key },
       body: JSON.stringify(body),
     });
+    if (answer === null) throw new Error(`no route for ${url}`);
+    return answer;
+  };
   return { store, service, rest, callerFrom, send };
 }
 
@@ -86,7 +89,7 @@ describe('every write path queues a doubted identifier, and answers with its fin
     const { store, send } = world();
     const first = await send('PATCH', `/v1/people/${LUCIA}`, { attributes: { es_nif: WRONG } });
     const again = await send('PATCH', `/v1/people/${LUCIA}`, { attributes: { es_nif: WRONG } });
-    const found = (first?.body as { identifierFindings: unknown }).identifierFindings;
+    const found = (first.body as { identifierFindings: unknown }).identifierFindings;
     expect(found).toEqual([
       {
         key: 'es_nif',
@@ -94,7 +97,7 @@ describe('every write path queues a doubted identifier, and answers with its fin
         findings: [expect.objectContaining({ code: 'check_mismatch' })],
       },
     ]);
-    expect((again?.body as { identifierFindings: unknown }).identifierFindings).toEqual(found);
+    expect((again.body as { identifierFindings: unknown }).identifierFindings).toEqual(found);
     expect(pending(store)).toEqual(['es_nif']);
   });
 
@@ -103,13 +106,13 @@ describe('every write path queues a doubted identifier, and answers with its fin
     const url = `/v1/views/people/${LUCIA}/sections`;
     const first = await send('POST', url, { changed: { es_nif: WRONG } });
     const again = await send('POST', url, { changed: { es_nif: WRONG } });
-    expect(first?.body).toEqual({
+    expect(first.body).toEqual({
       ok: true,
       findings: [
         expect.objectContaining({ key: 'es_nif', label: 'NIF', level: 'mismatch', review: 'pending' }),
       ],
     });
-    expect(again?.body).toEqual(first?.body);
+    expect(again.body).toEqual(first.body);
     expect(pending(store)).toEqual(['es_nif']);
   });
 
@@ -117,8 +120,8 @@ describe('every write path queues a doubted identifier, and answers with its fin
     const { store, send } = world(LUCIA_ACCOUNT, []);
     const first = await send('POST', '/v1/views/me/sections', { changed: { es_nif: WRONG } });
     const again = await send('POST', '/v1/views/me/sections', { changed: { es_nif: WRONG } });
-    expect((first?.body as { findings: unknown[] }).findings).toHaveLength(1);
-    expect(again?.body).toEqual(first?.body);
+    expect((first.body as { findings: unknown[] }).findings).toHaveLength(1);
+    expect(again.body).toEqual(first.body);
     expect(pending(store)).toEqual(['es_nif']);
   });
 
@@ -151,18 +154,18 @@ describe('every write path queues a doubted identifier, and answers with its fin
     const { store, send } = world();
     const cells = { changes: [{ personId: LUCIA, values: { es_nif: WRONG } }] };
     const checked = await send('POST', '/v1/views/completeness/identifier-check', cells);
-    expect((checked?.body as { findings: unknown[] }).findings).toEqual([
+    expect((checked.body as { findings: unknown[] }).findings).toEqual([
       expect.objectContaining({ personId: LUCIA, key: 'es_nif', review: 'none' }),
     ]);
     expect(store.reviews).toEqual([]);
 
     const first = await send('POST', '/v1/views/completeness', cells);
     const again = await send('POST', '/v1/views/completeness', cells);
-    expect(first?.body).toEqual({
+    expect(first.body).toEqual({
       ok: true,
       findings: [expect.objectContaining({ personId: LUCIA, key: 'es_nif', review: 'pending' })],
     });
-    expect(again?.body).toEqual(first?.body);
+    expect(again.body).toEqual(first.body);
     expect(pending(store)).toEqual(['es_nif']);
   });
 
@@ -174,11 +177,11 @@ describe('every write path queues a doubted identifier, and answers with its fin
     const body = { supersedes: row?.id, value: WRONG, reason: 'typo' };
     const first = await send('POST', `/v1/people/${LUCIA}/corrections`, body, 'c-1');
     const again = await send('POST', `/v1/people/${LUCIA}/corrections`, body, 'c-1');
-    expect(first?.status).toBe(201);
-    expect((first?.body as { identifierFindings: unknown }).identifierFindings).toEqual([
+    expect(first.status).toBe(201);
+    expect((first.body as { identifierFindings: unknown }).identifierFindings).toEqual([
       expect.objectContaining({ key: 'es_nif', review: 'pending' }),
     ]);
-    expect(again?.body).toEqual(first?.body);
+    expect(again.body).toEqual(first.body);
     expect(pending(store)).toEqual(['es_nif']);
     // Keyed to the correction's own history row, which history keeps.
     const correction = store.history.find((h) => h.supersedes === row?.id);
