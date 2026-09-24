@@ -1746,6 +1746,31 @@ derived artifact computed from the union of both.**
   left it. When they leave again the clock starts afresh from the new last
   working day. What erasure had already cleared stays cleared; a rehire of a
   record whose name or work email is gone is refused until HR supplies them.
+- **The statutory floors are unreviewed, pending counsel (PEO-126).** A policy
+  may name a statutory floor — `es-labour` 48 months, `de-labour` 72,
+  `eu-payroll` 120 — and the longer of the floor and the tenant's months
+  wins. Those three numbers are kept as they are, but **no lawyer has yet
+  confirmed them**, and each carries a review status (`unreviewed`, or
+  `reviewed` with the reviewer, the date and where the opinion is kept) in
+  `FLOOR_REVIEWS`. Every one is `unreviewed` today. Until a floor is reviewed:
+  - **Nothing erases automatically under it.** Any code path that schedules or
+    runs automated erasure of a value whose policy names that floor is refused
+    (`RETENTION_FLOOR_UNREVIEWED`, the domain rule `mayErase`), whichever
+    period won — the due date is only as sound as the floor it was compared
+    with. Scheduled anonymisation (PEO-075) is blocked on this.
+  - **HR may act by hand**, one person at a time, with a stated reason: an
+    `anonymiseDue` run in `manual` mode, refused to anybody without `hr` and
+    to a blank reason. The reason travels on `people.person.anonymised`
+    (`manualReason`) beside the envelope's actor, so the record says who and
+    why.
+  - **The settings screen says so.** The Company tab of the organisation
+    settings (§9.4) lists every floor, its months, and "Pending legal review"
+    until it is reviewed (`peopleOrganisation.retentionFloors`).
+  - **Marking a floor reviewed is an operator's action**, never automatic and
+    never a tenant's: `pnpm --filter @kithena/scripts review-retention-floor
+    <floor> --reviewer … --on … --reference …` rewrites that one entry, and
+    the commit that lands it — authored, reviewed, merged — is the audit
+    record. Nothing in the running service can change a floor's status.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that

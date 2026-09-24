@@ -21,14 +21,14 @@ describe('the retention schedule', () => {
 
     // Four years after leaving, the floor has passed, and it is what decided.
     expect(dueForAnonymisation(attributes, '2024-03-31', '2028-03-31')).toEqual([
-      { key: 'payslips', classification: 'confidential', dueOn: '2028-03-31', under: 'statutory_floor' },
+      { key: 'payslips', classification: 'confidential', dueOn: '2028-03-31', under: 'statutory_floor', floor: 'es-labour' },
     ]);
   });
 
   it('uses the tenant policy when it is the longer of the two', () => {
     const attributes = [{ key: 'payslips', policy: kept({ monthsAfterTermination: 120, statutoryFloor: 'es-labour' }) }];
     expect(dueForAnonymisation(attributes, '2020-01-15', '2030-01-15')).toEqual([
-      { key: 'payslips', classification: 'confidential', dueOn: '2030-01-15', under: 'tenant_policy' },
+      { key: 'payslips', classification: 'confidential', dueOn: '2030-01-15', under: 'tenant_policy', floor: 'es-labour' },
     ]);
   });
 

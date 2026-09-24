@@ -21,6 +21,7 @@ import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
 import type { RestRequest, RestResponse } from '../http/rest.js';
 import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
+import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
 import { defineScreens, IMPORT_MAX_BYTES } from './screens.js';
 
@@ -804,6 +805,29 @@ const OrgCountryRef = builder
 /** Every IANA zone this runtime knows, plus UTC, which `supportedValuesOf` leaves out. */
 const TIME_ZONES = [...new Set(['Etc/UTC', ...Intl.supportedValuesOf('timeZone')])];
 
+/**
+ * A statutory retention floor, and whether counsel has reviewed it (PEO-126).
+ * While `unreviewed`, nothing erases against it automatically.
+ */
+const RetentionFloorRef = builder.objectRef<FloorView>('RetentionFloor').implement({
+  fields: (t) => ({
+    floor: t.string({ resolve: (f) => f.floor }),
+    months: t.exposeInt('months'),
+    status: t.field({
+      type: builder.enumType('RetentionFloorStatus', { values: ['unreviewed', 'reviewed'] as const }),
+      resolve: (f) => f.review.status,
+    }),
+    reviewedBy: t.string({
+      nullable: true,
+      resolve: (f) => (f.review.status === 'reviewed' ? f.review.reviewer : null),
+    }),
+    reviewedOn: t.string({
+      nullable: true,
+      resolve: (f) => (f.review.status === 'reviewed' ? f.review.reviewedOn : null),
+    }),
+  }),
+});
+
 const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation').implement({
   fields: (t) => ({
     canManage: t.exposeBoolean('canManage'),
@@ -817,6 +841,11 @@ const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation
       resolve: () => COUNTRIES.map((c) => ({ code: c.code, name: c.name })),
     }),
     timeZones: t.stringList({ resolve: () => TIME_ZONES }),
+    retentionFloors: t.field({
+      type: [RetentionFloorRef],
+      description: 'The statutory retention floors and their legal review; law, the same for every tenant.',
+      resolve: () => [...statutoryFloors()],
+    }),
   }),
 });
 
