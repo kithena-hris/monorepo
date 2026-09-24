@@ -2,6 +2,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Result } from '@kithena/domain-kit';
 
 import type { OrgAdmin } from '../org/org.js';
+import type { TenantRoles } from '../roles/roles.js';
 import { inTenantResult, type PersonAccess } from './person-access.js';
 import type { SchemaVersions } from './ports.js';
 
@@ -18,6 +19,8 @@ export interface PeopleService {
   readonly inTenant: InTenant;
   /** Legal entities, locations and settings. Absent, those routes answer UNAVAILABLE. */
   readonly org?: OrgAdmin;
+  /** Tenant roles (PEO-112). Absent, those routes answer UNAVAILABLE. */
+  readonly roles?: TenantRoles;
 }
 
 /** A use case in its own tenant transaction, rolled back when it refuses. */

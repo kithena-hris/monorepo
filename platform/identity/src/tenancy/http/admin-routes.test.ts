@@ -89,6 +89,7 @@ function routes(
     amend: vi.fn() as never,
     invite: vi.fn() as never,
     setEntitlements: vi.fn() as never,
+    nameAdministrator: vi.fn() as never,
     ...over,
   });
 }
@@ -111,7 +112,7 @@ describe('recording the modules a company bought (PEO-114)', () => {
     const setEntitlements = vi.fn(() =>
       Promise.resolve({
         ok: true as const,
-        value: { entitlements: ['module.people' as const], changed: true },
+        value: { entitlements: ['module.people' as const], changed: true, named: [] },
       }),
     );
     const { response, status, body } = fakeResponse();
@@ -123,7 +124,11 @@ describe('recording the modules a company bought (PEO-114)', () => {
       { setEntitlements },
     )(put(path, { entitlements: ['module.people'] }), response);
 
-    expect(setEntitlements).toHaveBeenCalledWith(ID, ['module.people']);
+    expect(setEntitlements).toHaveBeenCalledWith(ID, {
+      entitlements: ['module.people'],
+      administrators: {},
+      namedBy: null,
+    });
     expect(status()).toBe(200);
     expect(body()).toMatchObject({ entitlements: ['module.people'] });
   });

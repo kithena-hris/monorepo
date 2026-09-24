@@ -10,7 +10,10 @@ import {
   PersonProvisioned,
   PersonStatusChanged,
   PersonTerminated,
+  RoleGranted,
+  RoleRevoked,
   SchemaPublished,
+  TenantAdministratorNamed,
   TenantAmended,
   TenantEntitlementsChanged,
   TenantProvisioned,
@@ -22,6 +25,7 @@ import { logger } from '@kithena/telemetry';
 import type { RecomputeCompleteness } from '../../application/completeness/recompute.js';
 import type { OrgAdmin } from '../../application/org/org.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
+import type { TenantRoles } from '../../application/roles/roles.js';
 import type { OpenFga } from '../openfga.js';
 import { rememberEntitlements } from '../entitlements.js';
 import { rememberTenant } from '../tenants.js';
@@ -51,7 +55,9 @@ export interface ConsumerDeps {
   readonly provisional: ProvisionalPeople;
   readonly recompute: RecomputeCompleteness;
   /** OpenFGA's tuples, kept in line with People's own events (PEO-092). Absent standalone. */
-  readonly authz?: Pick<OpenFga, 'sync'>;
+  readonly authz?: Pick<OpenFga, 'sync' | 'syncRoles'>;
+  /** Tenant roles (PEO-112): the back office naming the first administrator. */
+  readonly roles?: TenantRoles;
   /** Legal entities and settings, for the company the back office created (PEO-099). */
   readonly org?: OrgAdmin;
 }
@@ -196,6 +202,39 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           );
         });
         return kept ? 'applied' : 'unchanged';
+      }
+
+      /*
+       * The back office named who administers People (PEO-112): the only way
+       * anybody first holds `people_admin`. Another module's administrator is
+       * that module's business.
+       */
+      case TenantAdministratorNamed.name: {
+        const event = parse(TenantAdministratorNamed, raw);
+        if (!event) return 'rejected';
+        const { roles } = deps;
+        if (event.payload.entitlement !== 'module.people' || !roles) return 'ignored';
+        return deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          return roles.administratorNamed(tx, {
+            tenantId: event.tenantId,
+            accountId: event.payload.accountId,
+            correlationId: event.correlationId,
+            causationId: event.eventId,
+          });
+        });
+      }
+
+      /* A role granted or revoked: that account's tuples follow the rows. */
+      case RoleGranted.name:
+      case RoleRevoked.name: {
+        const event = parse(name === RoleGranted.name ? RoleGranted : RoleRevoked, raw);
+        if (!event) return 'rejected';
+        const { authz } = deps;
+        if (!authz) return 'ignored';
+        return deps.inTenant(event.tenantId, ({ tx }) =>
+          authz.syncRoles(tx, event.tenantId, event.payload.accountId),
+        );
       }
 
       default: {

@@ -134,6 +134,36 @@ export async function rotateEndpoint(id: string): Promise<WithSecret> {
     : { ok: false, message: answer.message };
 }
 
+/* --------------------------------------------------------------- roles -- */
+
+type TenantRole = 'hr' | 'finance' | 'people_admin';
+
+/** Grant or revoke a tenant role (PEO-112); keyed like every People write. */
+async function changeRole(
+  path: 'grants' | 'revocations',
+  accountId: string,
+  role: TenantRole,
+  reason: string,
+): Promise<Outcome> {
+  return outcome(people('POST', `/v1/roles/${path}`, { accountId, role, reason }));
+}
+
+export async function grantRole(
+  accountId: string,
+  role: TenantRole,
+  reason: string,
+): Promise<Outcome> {
+  return changeRole('grants', accountId, role, reason);
+}
+
+export async function revokeRole(
+  accountId: string,
+  role: TenantRole,
+  reason: string,
+): Promise<Outcome> {
+  return changeRole('revocations', accountId, role, reason);
+}
+
 /* -------------------------------------------------------------- import -- */
 
 /** The file travels with every step: People keeps nothing between them (§14.2). */

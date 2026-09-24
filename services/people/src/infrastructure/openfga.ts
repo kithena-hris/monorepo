@@ -111,15 +111,19 @@ export interface OpenFga {
     tenantId: string,
     personId: string,
   ): Promise<'applied' | 'unchanged'>;
-  /** The tenant roles this account holds: `hr`, `finance`, `people_admin`. */
-  roles(tenantId: string, accountId: string): Promise<ReadonlySet<string>>;
-  /** Grant or revoke a tenant role. Idempotent. */
-  role(
+  /**
+   * Bring one account's tenant-role tuples in line with `people.role_grant`
+   * (PEO-112), as `sync` does for a person's: the rows are the truth and the
+   * `people.role.*` event only says whose to look at, so redelivery and
+   * reordering converge. Nobody holds a role because of when they arrived.
+   */
+  syncRoles(
+    tx: PostgresJsDatabase,
     tenantId: string,
     accountId: string,
-    role: (typeof TENANT_ROLES)[number],
-    held: boolean,
-  ): Promise<void>;
+  ): Promise<'applied' | 'unchanged'>;
+  /** The tenant roles this account holds: `hr`, `finance`, `people_admin`. */
+  roles(tenantId: string, accountId: string): Promise<ReadonlySet<string>>;
 }
 
 /** Null when `OPENFGA_URL` is unset: the caller uses `drizzleRelations`. */
@@ -156,9 +160,6 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
     });
     return ready;
   };
-
-  const exists = async (fga: OpenFgaClient, tuple: TupleKey): Promise<boolean> =>
-    (await fga.read(tuple)).tuples.length > 0;
 
   return {
     relations: {
@@ -203,12 +204,8 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
         identity_account_id: string | null;
         manager_id: string | null;
         status: string;
-        first: boolean;
       }>(sql`
-        SELECT identity_account_id, manager_id, status,
-               id = (SELECT id FROM people.person
-                      WHERE tenant_id = ${tenantId}::uuid
-                      ORDER BY created_at, id LIMIT 1) AS first
+        SELECT identity_account_id, manager_id, status
           FROM people.person
          WHERE tenant_id = ${tenantId}::uuid AND id = ${personId}::uuid
       `);
@@ -241,26 +238,34 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
         .filter((h) => !wanted.some((w) => same(h, w)))
         .map(({ user, relation, object: o }) => ({ user, relation, object: o }));
 
-      /*
-       * The first person in a tenant administers it (PRD §8.2, step 2: the
-       * operator invites the first administrator, and it is their account
-       * People provisions first). Deterministic whichever event arrives
-       * first, because it is read from the rows, and never revoked here.
-       *
-       * ponytail: every later grant needs a role-management transport, which
-       * does not exist yet; until it does, `role()` is the only other way in.
-       */
-      if (row?.first === true && row.identity_account_id !== null && !GONE.has(row.status)) {
-        for (const relation of ['people_admin', 'hr'] as const) {
-          const tuple = {
-            user: `user:${row.identity_account_id}`,
-            relation,
-            object: `tenant:${tenantId}`,
-          };
-          if (!(await exists(fga, tuple))) writes.push(tuple);
-        }
-      }
+      if (writes.length === 0 && deletes.length === 0) return 'unchanged';
+      await fga.write({
+        ...(writes.length > 0 ? { writes } : {}),
+        ...(deletes.length > 0 ? { deletes } : {}),
+      });
+      return 'applied';
+    },
 
+    async syncRoles(tx, tenantId, accountId) {
+      const fga = await client();
+      const rows = await tx.execute<{ role: string }>(sql`
+        SELECT role FROM people.role_grant
+         WHERE tenant_id = ${tenantId}::uuid AND account_id = ${accountId}::uuid
+      `);
+      const user = `user:${accountId}`;
+      const object = `tenant:${tenantId}`;
+      const wanted = new Set([...rows].map((r) => r.role));
+      const held = new Set(
+        (await fga.read({ user, object })).tuples
+          .map((t) => t.key.relation)
+          .filter((r) => (TENANT_ROLES as readonly string[]).includes(r)),
+      );
+      const writes = [...wanted]
+        .filter((r) => !held.has(r))
+        .map((relation) => ({ user, relation, object }));
+      const deletes = [...held]
+        .filter((r) => !wanted.has(r))
+        .map((relation) => ({ user, relation, object }));
       if (writes.length === 0 && deletes.length === 0) return 'unchanged';
       await fga.write({
         ...(writes.length > 0 ? { writes } : {}),
@@ -284,14 +289,6 @@ export function openFga(apiUrl: string, storeId?: string): OpenFga {
       return new Set(
         result.filter((r) => r.allowed && r.error === undefined).map((r) => r.correlationId),
       );
-    },
-
-    async role(tenantId, accountId, role, held) {
-      const fga = await client();
-      const tuple = { user: `user:${accountId}`, relation: role, object: `tenant:${tenantId}` };
-      const has = await exists(fga, tuple);
-      if (held && !has) await fga.write({ writes: [tuple] });
-      if (!held && has) await fga.write({ deletes: [tuple] });
     },
   };
 }

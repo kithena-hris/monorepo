@@ -44,6 +44,7 @@ import {
   SetupChoice,
   Upload,
 } from './screens.js';
+import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
  * The OpenAPI document for REST v1, generated from the Zod schemas `rest.ts`
@@ -98,6 +99,9 @@ const components = {
   CreateWebhookEndpoint: EndpointBody,
   PatchWebhookEndpoint: EndpointPatch,
   ImportUpload: Upload,
+  RoleHolder: RoleHolderBody,
+  RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
+  RoleChange: RoleChangeBody,
   Error: ErrorBody,
 } as const;
 
@@ -515,6 +519,30 @@ export function openApiDocument(): Record<string, unknown> {
             201: { description: 'The location after', ...json('Location') },
             ...failure,
           },
+        },
+      },
+      '/v1/roles': {
+        get: {
+          summary: 'Who holds a tenant role; HR and people_admin only (PEO-112)',
+          responses: { 200: { description: 'Holders', ...json('RoleHolders') }, ...failure },
+        },
+      },
+      '/v1/roles/grants': {
+        post: {
+          summary:
+            'Grant a tenant role; people_admin only, never to oneself. The account’s roles after; a role already held changes nothing',
+          parameters: [idempotencyKey],
+          requestBody: { required: true, ...json('RoleChange') },
+          responses: { 200: { description: 'After', ...json('RoleHolder') }, ...failure },
+        },
+      },
+      '/v1/roles/revocations': {
+        post: {
+          summary:
+            'Revoke a tenant role; people_admin only, never the last people_admin (409 LAST_ADMIN)',
+          parameters: [idempotencyKey],
+          requestBody: { required: true, ...json('RoleChange') },
+          responses: { 200: { description: 'After', ...json('RoleHolder') }, ...failure },
         },
       },
       ...lifecyclePaths(),

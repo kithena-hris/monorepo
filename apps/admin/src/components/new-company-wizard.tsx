@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, type JSX } from 'react';
 
 import type { Delivery } from '../lib/delivery';
+import { AdministratorSelect } from './administrator-select';
 import { ModulesPicker } from './modules-picker';
 import { ThemePicker } from './theme-picker';
 
@@ -62,6 +63,8 @@ interface Draft {
   timeZone: string;
   /** The modules the company bought (PEO-114), recorded with the company. */
   entitlements: string[];
+  /** Module → the email of the administrator who first runs it (PEO-112). */
+  administrators: Record<string, string>;
 }
 
 /** Every zone this browser knows. The identity service checks it again. */
@@ -80,6 +83,7 @@ const EMPTY: Draft = {
   themeId: DEFAULT_THEME_ID,
   timeZone: '',
   entitlements: [],
+  administrators: {},
 };
 
 const STEPS = [
@@ -192,6 +196,16 @@ export function NewCompanyWizard({
       found['admins'] = 'Add at least one administrator, or nobody can sign in.';
     }
 
+    // People needs somebody to run it from day one, and it is not whoever
+    // was invited first unless the operator says so (PEO-112).
+    if (
+      index === 3 &&
+      draft.entitlements.includes('module.people') &&
+      !draft.admins.includes(draft.administrators['module.people'] ?? '')
+    ) {
+      found['administrators.module.people'] = 'Choose who will administer People.';
+    }
+
     return found;
   };
 
@@ -205,9 +219,9 @@ export function NewCompanyWizard({
   const submit = (): void => {
     // Every step, not just the last. A person can reach step four, go back and
     // empty step one, and the only thing that would catch it is the server.
-    const all: Problems = { ...validate(0), ...validate(1), ...validate(2) };
+    const all: Problems = { ...validate(0), ...validate(1), ...validate(2), ...validate(3) };
     setProblems(all);
-    const firstBroken = [0, 1, 2].find((i) => Object.values(validate(i)).some(Boolean));
+    const firstBroken = [0, 1, 2, 3].find((i) => Object.values(validate(i)).some(Boolean));
     if (firstBroken !== undefined) {
       setStep(firstBroken);
       return;
@@ -220,7 +234,7 @@ export function NewCompanyWizard({
         // A refusal that names a field sends the person to the step holding it
         // rather than showing a message four steps from what it is about.
         if (!r.ok && r.path?.[0]) {
-          const field = r.path[0];
+          const field = r.path.join('.');
           setProblems({ [field]: r.message });
           const owner =
             field.startsWith('address.') || field === 'timeZone'
@@ -310,8 +324,15 @@ export function NewCompanyWizard({
         <ModulesStep
           selected={draft.entitlements}
           problem={problems['entitlements']}
+          admins={draft.admins}
+          administrators={draft.administrators}
+          administratorProblem={problems['administrators.module.people']}
           onChange={(entitlements) => {
             set('entitlements', entitlements);
+          }}
+          onAdministrator={(module, email) => {
+            set('administrators', { ...draft.administrators, [module]: email });
+            setProblems((p) => ({ ...p, [`administrators.${module}`]: undefined }));
           }}
         />
       ) : null}
@@ -376,11 +397,19 @@ export function NewCompanyWizard({
 function ModulesStep({
   selected,
   problem,
+  admins,
+  administrators,
+  administratorProblem,
   onChange,
+  onAdministrator,
 }: {
   selected: readonly string[];
   problem: string | undefined;
+  admins: readonly string[];
+  administrators: Readonly<Record<string, string>>;
+  administratorProblem: string | undefined;
   onChange: (next: string[]) => void;
+  onAdministrator: (module: string, email: string) => void;
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-4">
@@ -388,7 +417,23 @@ function ModulesStep({
         Only what is ticked appears in the company&apos;s app. It can be changed later on the
         company&apos;s page.
       </p>
-      <ModulesPicker selected={selected} onChange={onChange} />
+      <ModulesPicker
+        selected={selected}
+        onChange={onChange}
+        extra={(key) =>
+          key === 'module.people' ? (
+            <AdministratorSelect
+              label="People administrator"
+              choices={admins.map((email) => ({ value: email, label: email }))}
+              value={administrators[key]}
+              problem={administratorProblem}
+              onChange={(email) => {
+                onAdministrator(key, email);
+              }}
+            />
+          ) : null
+        }
+      />
       {problem === undefined ? null : <Alert tone="danger">{problem}</Alert>}
     </div>
   );
@@ -633,8 +678,8 @@ function AddressStep({
           }}
         />
         <FieldDescription>
-          Whose day &ldquo;today&rdquo; is for this company: when a start date arrives, when a
-          field becomes required. The first legal entity gets this zone and the country above.
+          Whose day &ldquo;today&rdquo; is for this company: when a start date arrives, when a field
+          becomes required. The first legal entity gets this zone and the country above.
         </FieldDescription>
         <FieldError>{problems['timeZone']}</FieldError>
       </Field>
