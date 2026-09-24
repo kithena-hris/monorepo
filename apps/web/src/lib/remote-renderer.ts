@@ -39,7 +39,7 @@ const FN = '\u0000fn';
 
 /*
  * No way out over the network either, as far as this process can arrange it.
- * The permission model in Node 22 does not cover sockets, so anything that
+ * The permission model in Node 24 does not cover sockets, so anything that
  * got past the context would otherwise reach whatever the shell's server can.
  * Best effort by construction — see PRD §17, "Residual risk".
  */

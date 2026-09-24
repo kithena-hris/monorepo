@@ -11,7 +11,7 @@
 # no alternative.
 
 # --------------------------------------------------------------------- build
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /repo
 RUN corepack enable
 
@@ -46,7 +46,7 @@ RUN pnpm turbo run build --filter=@kithena/identity...
 RUN pnpm --filter @kithena/identity deploy --prod --legacy /app
 
 # --------------------------------------------------------------------- serve
-FROM node:22-alpine AS serve
+FROM node:24-alpine AS serve
 WORKDIR /app
 ENV NODE_ENV=production
 

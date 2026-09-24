@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.15.0",
   "engines": {
-    "node": ">=22.22.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "just dev",
@@ -21,8 +21,8 @@
     "storybook:build": "turbo run build --filter @reach/storybook",
     "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages platform services",
     "codegen": "turbo run codegen",
-    "db:migrate": "turbo run db:migrate",
-    "db:seed": "tsx tools/scripts/seed.ts",
+    "db:migrate": "atlas migrate apply --env local --allow-dirty",
+    "db:seed": "pnpm --filter @kithena/identity seed",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "turbo run build && changeset publish",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "@types/node": "^22.15.0",
+    "@types/node": "^24.13.6",
     "@typescript/typescript6": "npm:@typescript/typescript6@^6.0.2",
     "dependency-cruiser": "^18.4.0",
     "eslint": "^10.11.0",
@@ -70,7 +70,8 @@
       "@opentelemetry/propagator-jaeger": ">=2.9.0",
       "ts-deepmerge": ">=8.0.0",
       "fast-uri@<3.1.6": ">=3.1.8 <4",
-      "hono@<4.13.5": ">=4.13.8 <5"
+      "hono@<4.13.5": ">=4.13.8 <5",
+      "@types/node": "^24.13.6"
     },
     "packageExtensions": {
       "@modern-js/server-utils": {

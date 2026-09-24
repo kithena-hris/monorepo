@@ -31,7 +31,7 @@ export default defineConfig({
   build: {
     outDir: 'dist/ssr',
     emptyOutDir: true,
-    target: 'node22',
+    target: 'node24',
     cssCodeSplit: false,
     copyPublicDir: false,
     lib: {

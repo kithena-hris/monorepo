@@ -40,7 +40,7 @@ import postgres from 'postgres';
  * that is meant to.
  */
 
-const port = process.argv[2] ?? '5432';
+const port = process.argv[2] ?? process.env['POSTGRES_PORT'] ?? '5432';
 const sql = postgres(`postgres://kithena:kithena@localhost:${port}/kithena`);
 
 const IDENTITY = '00000000-0000-4000-8000-00000000000d';

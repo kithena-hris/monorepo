@@ -1267,7 +1267,7 @@ it is written down here rather than left in a PR description.
       Reach only (`remote-render.ts`, `remote-renderer.ts`); in the browser
       the remote's own root hydrates it. Refused, altered or failing builds
       render in the browser. `PEOPLE_REMOTE_SSR=off` is still the switch.
-      *Residual risk* in PRD §13.2: sockets in Node 22, any signed build is
+      *Residual risk* in PRD §13.2: sockets in Node 24, any signed build is
       trusted, the browser build is not covered, and nothing signs a
       production build yet. *(PRD §13.2, §17.3)*
 - [x] **PEO-118** People never exited on SIGTERM: `startTelemetry` caught the
