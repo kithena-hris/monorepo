@@ -11,6 +11,7 @@ import {
 import { TenantId, type Actor, type FieldPolicy } from '@kithena/contracts';
 
 import { personZone, type Placement } from '../../domain/org/calendar.js';
+import { mayErase, type ErasureMode } from '../../domain/retention/floors.js';
 import { forgetImportReports, type StoredReports } from '../import/commit.js';
 import type { Calendars } from '../org/org.js';
 import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
@@ -34,6 +35,11 @@ import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
  * deleted whole (PEO-090). A report is the blocked rows as uploaded, so it
  * holds their values too, and redacting a CSV in object storage is not a
  * thing worth trusting; it is a working copy, and it goes.
+ *
+ * **An unreviewed statutory floor stops it** (PEO-126). An `automated` run
+ * that would clear anything whose policy names a floor counsel has not yet
+ * reviewed clears nothing and says so; only a `manual` run — HR, this one
+ * person, a stated reason carried on the event — acts on one.
  */
 
 export interface RetentionAttribute {
@@ -75,6 +81,8 @@ export interface AnonymiseRequest {
   readonly personId: string;
   readonly actor: Actor;
   readonly correlationId: string;
+  /** A job's run is `automated`; HR acting by hand for this person is `manual`, with a reason. */
+  readonly mode: ErasureMode;
 }
 
 export function anonymiseDue(deps: {
@@ -103,6 +111,10 @@ export function anonymiseDue(deps: {
     );
 
     if (due.length === 0) return ok({ cleared: [] });
+
+    const floors = due.flatMap((d) => (d.floor === null ? [] : [d.floor]));
+    const allowed = mayErase(floors, request.mode);
+    if (!allowed.ok) return allowed;
 
     // One event per reason, because the event names one: an auditor asks
     // "was this law or configuration", and a mixed answer would be neither.
@@ -140,6 +152,7 @@ function event(
       classesCleared: [...new Set(decisions.map((d) => d.classification))],
       attributeKeys: decisions.map((d) => d.key),
       under,
+      ...(request.mode.kind === 'manual' ? { manualReason: request.mode.reason.trim() } : {}),
     },
   };
 }

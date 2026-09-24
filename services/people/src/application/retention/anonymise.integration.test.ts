@@ -21,7 +21,7 @@ import { publishSchema } from '../schema/publish-schema.js';
 import { localObjectStore } from '../export/object-store.js';
 import { reportKey } from '../import/commit.js';
 import { drizzleReportIndex } from '../import/ledger.js';
-import { anonymiseDue } from './anonymise.js';
+import { anonymiseDue, type AnonymiseRequest } from './anonymise.js';
 import { utcCalendars } from '../org/org.js';
 
 /**
@@ -69,13 +69,21 @@ const anonymise = anonymiseDue({
   newEventId,
   reports,
 });
-const run = () =>
+const HR_USER = '00000000-0000-4000-8000-0000000000d1';
+const REASON = 'Asked for erasure; counsel confirmed by email';
+/** The floors are unreviewed (PEO-126): what a job may not do, HR does by hand. */
+const byHand = { kind: 'manual', roles: new Set(['hr']), reason: REASON } as const;
+const run = (mode: AnonymiseRequest['mode'] = byHand) =>
   inTenant(ACME, ({ tx }) =>
     anonymise(tx, {
       tenantId: ACME,
       personId: ADA,
-      actor: { kind: 'system', process: 'retention' },
+      actor:
+        mode.kind === 'manual'
+          ? { kind: 'user', userId: HR_USER }
+          : { kind: 'system', process: 'retention' },
       correlationId: '00000000-0000-4000-8000-0000000000c1',
+      mode,
     }),
   );
 
@@ -245,6 +253,15 @@ afterAll(async () => {
 });
 
 describe('anonymising a leaver', () => {
+  it('refuses a job, and clears nothing, while a floor it relies on is unreviewed (PEO-126)', async () => {
+    const refused = await run({ kind: 'automated' });
+    expect(!refused.ok && refused.error.code).toBe('RETENTION_FLOOR_UNREVIEWED');
+    const rows = await admin.execute(sql`SELECT custom FROM people.person`);
+    expect([...rows][0]?.['custom']).toMatchObject({ phone: PHONE, payslip_ref: 'P-1' });
+    const events = await admin.execute(sql`SELECT count(*)::int AS n FROM people.outbox`);
+    expect(Number([...events][0]?.['n'])).toBe(0);
+  });
+
   it('erases what is due from the row, the secrets and the history, and keeps what a floor still holds', async () => {
     const result = await run();
     expect(result.ok).toBe(true);
@@ -302,9 +319,10 @@ describe('anonymising a leaver', () => {
       .map((p) => ({ ...p, attributeKeys: p.attributeKeys.toSorted() }))
       .toSorted((a, b) => a.under.localeCompare(b.under));
 
+    // By hand, so each carries HR's reason; the envelope's actor says who.
     expect(payloads).toEqual([
-      { personId: ADA, under: 'statutory_floor', attributeKeys: ['payslip_ref'], classesCleared: ['confidential'] },
-      { personId: ADA, under: 'tenant_policy', attributeKeys: ['bank_account', 'given_name', 'phone'], classesCleared: ['confidential'] },
+      { personId: ADA, under: 'statutory_floor', attributeKeys: ['payslip_ref'], classesCleared: ['confidential'], manualReason: REASON },
+      { personId: ADA, under: 'tenant_policy', attributeKeys: ['bank_account', 'given_name', 'phone'], classesCleared: ['confidential'], manualReason: REASON },
     ]);
   });
 
