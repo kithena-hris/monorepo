@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CreateLocation(\n    $legalEntityId: ID!, $name: String!, $country: String!, $timeZone: String!, $effectiveFrom: String, $key: String!\n  ) {\n    createLocation(\n      legalEntityId: $legalEntityId, name: $name, country: $country, timeZone: $timeZone,\n      effectiveFrom: $effectiveFrom, idempotencyKey: $key\n    ) { id }\n  }"}

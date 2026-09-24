@@ -600,6 +600,17 @@ describe('hiring', () => {
     expect(await hireOn(UTC_CALENDAR, { time_zone: 'America/Los_Angeles' })).toBe('pre_hire');
   });
 
+  it('tells HR, and nobody else, whose day it is for a person (PEO-119)', async () => {
+    const store = inMemoryPeople([versionOf(3, [title])], '2026-09-22T13:00:00.000Z');
+    store.seed(ADA, { account: ADA_ACCOUNT, custom: { time_zone: 'Pacific/Auckland' } });
+    const people = personAccess(store.deps);
+    expect(await people.calendar(tx, { ...asking(hr), personId: ADA })).toEqual(
+      ok({ today: '2026-09-23', timeZone: 'Pacific/Auckland' }),
+    );
+    const self = await people.calendar(tx, { ...asking(ada), personId: ADA });
+    expect(self.ok || self.error.code).toBe('FORBIDDEN');
+  });
+
   it('raises status_changed, hired and the facts identity caches, once each', async () => {
     const { store, people } = provisional(ADA_ACCOUNT);
     const hired = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });

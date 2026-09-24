@@ -1,6 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { maskError } from 'graphql-yoga';
 import { toGraphQLError } from '@kithena/graphql-kit';
+import { COUNTRIES } from '@kithena/contracts';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
 import type { Attribute } from '../domain/schema/draft.js';
@@ -774,6 +775,90 @@ builder.mutationFields((t) => ({
         `/v1/legal-entities/${encodeURIComponent(legalEntityId)}/numbering`,
         { body: scheme, key },
       ),
+  }),
+}));
+
+/* ------------------------------------------------ the settings screen -- */
+
+/**
+ * Everything the organisation settings screen draws, in one read (PEO-119):
+ * the entities, their locations and zones, each entity's numbering, the
+ * tenant's settings, and whether this viewer may change any of it. Anybody in
+ * the tenant reads it (§9.4); writing is `people_admin`'s, decided by the use
+ * cases the mutations above reach.
+ */
+interface OrganisationShape {
+  readonly canManage: boolean;
+  readonly settings: TenantSettings;
+  readonly legalEntities: readonly LegalEntityView[];
+  readonly locations: readonly LocationView[];
+  readonly numberings: readonly NumberingView[];
+}
+
+const OrgCountryRef = builder
+  .objectRef<{ readonly code: string; readonly name: string }>('OrgCountry')
+  .implement({
+    fields: (t) => ({ code: t.exposeString('code'), name: t.exposeString('name') }),
+  });
+
+/** Every IANA zone this runtime knows, plus UTC, which `supportedValuesOf` leaves out. */
+const TIME_ZONES = [...new Set(['Etc/UTC', ...Intl.supportedValuesOf('timeZone')])];
+
+const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation').implement({
+  fields: (t) => ({
+    canManage: t.exposeBoolean('canManage'),
+    settings: t.field({ type: PeopleSettingsRef, resolve: (o) => o.settings }),
+    legalEntities: t.field({ type: [LegalEntityRef], resolve: (o) => [...o.legalEntities] }),
+    locations: t.field({ type: [LocationRef], resolve: (o) => [...o.locations] }),
+    numberings: t.field({ type: [EmployeeNumberingRef], resolve: (o) => [...o.numberings] }),
+    countries: t.field({
+      type: [OrgCountryRef],
+      description: 'The countries an entity or a location may be in.',
+      resolve: () => COUNTRIES.map((c) => ({ code: c.code, name: c.name })),
+    }),
+    timeZones: t.stringList({ resolve: () => TIME_ZONES }),
+  }),
+});
+
+const PeopleHomeRef = builder
+  .objectRef<{ hr: boolean; admin: boolean; finance: boolean }>('PeopleHome')
+  .implement({
+    description: 'Which of People’s areas this viewer’s roles open (PEO-119).',
+    fields: (t) => ({
+      hr: t.exposeBoolean('hr'),
+      admin: t.exposeBoolean('admin'),
+      finance: t.exposeBoolean('finance'),
+    }),
+  });
+
+builder.queryFields((t) => ({
+  peopleOrganisation: t.field({
+    type: OrganisationRef,
+    resolve: (_root, _args, ctx) =>
+      inOrg(ctx, async (org, tx, asking) => {
+        const settings = await org.settings(tx, asking);
+        if (!settings.ok) return settings;
+        const legalEntities = await org.legalEntities(tx, asking);
+        if (!legalEntities.ok) return legalEntities;
+        const locations = await org.locations(tx, asking);
+        if (!locations.ok) return locations;
+        const numberings = await org.numberings(tx, asking);
+        if (!numberings.ok) return numberings;
+        return ok({
+          canManage: asking.viewer.roles.has('people_admin'),
+          settings: settings.value,
+          legalEntities: legalEntities.value,
+          locations: locations.value,
+          numberings: numberings.value,
+        });
+      }),
+  }),
+  peopleHome: t.field({
+    type: PeopleHomeRef,
+    resolve: async (_root, _args, ctx) => {
+      const { roles } = (await caller(ctx)).asking.viewer;
+      return { hr: roles.has('hr'), admin: roles.has('people_admin'), finance: roles.has('finance') };
+    },
   }),
 }));
 

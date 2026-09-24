@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
+import { Field, FieldControl, FieldDescription, FieldError, FieldLabel } from '../field/field';
 import { Combobox, type ComboboxOption } from './combobox';
 
 const people: ComboboxOption[] = [
@@ -417,6 +418,40 @@ export const Sizes: Story = {
             onChange={setValue}
           />
         ))}
+      </div>
+    );
+  },
+};
+
+export const InAField: Story = {
+  name: 'In a Field',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Inside `Field` and `FieldControl`, the label and description reach the trigger exactly as they reach an `Input`: the label names it, the description describes it, and an invalid field outlines it in the danger colour.',
+      },
+    },
+  },
+  render: function FieldStory(args) {
+    const [value, setValue] = useState<string | readonly string[] | null>(null);
+    return (
+      <div className="w-80">
+        <Field required invalid={value === null}>
+          <FieldLabel>Country</FieldLabel>
+          <FieldControl>
+            <Combobox
+              {...args}
+              options={countries}
+              label="Country"
+              placeholder="Choose a country"
+              value={value}
+              onChange={setValue}
+            />
+          </FieldControl>
+          <FieldDescription>Where the office is registered.</FieldDescription>
+          <FieldError>Choose one.</FieldError>
+        </Field>
       </div>
     );
   },

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ChangeLocationZone($id: ID!, $timeZone: String!, $effectiveFrom: String!, $key: String!) {\n    changeLocationZone(id: $id, timeZone: $timeZone, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }\n  }"}

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $key: String!) {\n    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, idempotencyKey: $key) {\n      defaultTimeZone\n    }\n  }"}

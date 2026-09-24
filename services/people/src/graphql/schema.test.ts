@@ -168,7 +168,8 @@ describe('every mutation (PEO-113)', () => {
   it('never models a record as a field per attribute: its values are a keyed list', () => {
     const profile = schema.getType('PeopleProfile');
     const fields = profile !== undefined && 'getFields' in profile ? profile.getFields() : {};
-    expect(Object.keys(fields).toSorted()).toEqual(['person', 'sections', 'values']);
+    // `calendar` is HR's view of the person's day (PEO-119), not an attribute.
+    expect(Object.keys(fields).toSorted()).toEqual(['calendar', 'person', 'sections', 'values']);
     expect(String(fields['values']?.type)).toMatch(/^\[FormEntry!\]/);
   });
 });

@@ -140,6 +140,8 @@ export interface ProfileView {
   };
   readonly sections: readonly (RecordSection & { readonly readsLogged: boolean })[];
   readonly values: FormValues;
+  /** Whose day it is for them, and what day: HR's alone, absent for anybody else (PEO-119). */
+  readonly calendar: { readonly today: string; readonly timeZone: string } | null;
 }
 
 /**
@@ -167,6 +169,7 @@ export async function profileView(
     );
     if (!record.ok) return record;
     const { view, sections } = record.value;
+    const calendar = await deps.service.access.calendar(tx, { ...asking, personId: id.value });
     const title = view.attributes['job_title'];
     const photo = view.attributes['photo'];
     return ok({
@@ -179,6 +182,7 @@ export async function profileView(
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       sections: sections.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, sections),
+      calendar: calendar.ok ? calendar.value : null,
     });
   });
 }

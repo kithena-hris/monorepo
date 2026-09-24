@@ -1333,6 +1333,48 @@ it is written down here rather than left in a PR description.
       every transport's caller check prefers it to the forwarded list. The
       shell reads the effective list from the session answer and shows only
       the areas the company bought.*
+- [x] **PEO-119** Organisation settings and a way into every People screen.
+      PEO-099 and PEO-101 had REST and GraphQL for legal entities, locations
+      with effective-dated zones, employee numbering and the tenant's
+      settings, and no screen; People's home was a placeholder, so a settings
+      screen was reachable only by typing its URL. Needs one settings screen
+      (`/people/settings/organisation`, tabs for entities, locations,
+      numbering and the company) read by anybody in the tenant and changed by
+      `people_admin`, the cohort minimum raisable and never lowerable on the
+      screen too; People's home listing the areas the viewer's roles open;
+      and HR seeing on a profile whose day it is for that person, since every
+      lifecycle move runs on it. Everything through the router (`peopleOrganisation`,
+      `peopleHome`, `PeopleProfile.calendar`). *(PRD §6.8, §9.4)*
+      *Landed as those three reads (the last over `PersonAccess.calendar`,
+      HR only), the seven existing mutations as persisted operations, the
+      `Organisation` screen and a real `PeopleHome`. Reach: `Combobox` takes
+      `FieldControl`'s id and description, so a zone picker is a labelled
+      field (story "In a Field"). Proven by the acceptance test: from People's
+      home to the settings, a location added in Pago Pago, the person placed
+      there, and a zone change to Kiritimati moving their day on HR's view of
+      the profile. Placing them is SQL in the test, because nothing else can
+      (PEO-123).*
+- [ ] **PEO-120** Lifecycle actions on the profile. PEO-108 to PEO-111 have
+      transports and no screen: give and withdraw notice, terminate (with
+      ending access now), start and end leave, discard a provisional record,
+      rehire (with the not-eligible override and its reason), and the
+      employment periods. HR only, on the profile, each keyed.
+      *(PRD §8.1, §8.5, §10.2)*
+- [ ] **PEO-121** Finance full values and the webhook delivery log on screen.
+      PEO-088's request, decision and one download, and PEO-032/093's
+      delivery log with replay, have transports and no screen; neither has a
+      list to read from. *(PRD §13.3, §15.2)*
+- [ ] **PEO-122** The expiry timeline, and paging the person picker and the
+      completeness grid. The analytics landing drew no timeline although
+      `expiries` answers it (§16.2); the profile's picker and the grid still
+      read the first 200 people (PEO-117's note). *(PRD §8.4, §16.2, §17.2)*
+- [ ] **PEO-123** Nothing places a person at a location or in a legal entity
+      from a screen or an import: `location_id` and `legal_entity_id` are
+      typed columns (§6.8) but no published attribute names them (the core
+      pack has neither, and there is no `location_ref` data type), so a
+      person's day can only follow a location somebody wrote into the row.
+      Needs the two attributes in the core pack, a `location_ref` type with
+      its picker, and the transfer semantics (§8.5). Found in PEO-119.
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*

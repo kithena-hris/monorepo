@@ -5,6 +5,7 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import { DisplayValue } from '../record/display';
 import type { RecordSection, Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
+import { Employment, type EmploymentState } from './employment';
 
 export interface ProfileSection extends RecordSection {
   /** Reading this section is audited, and the viewer is told so. */
@@ -27,6 +28,8 @@ export interface ProfileState {
    */
   readonly sections: readonly ProfileSection[];
   readonly values: Values;
+  /** HR's alone: whose day it is for them (PEO-119). Absent or null for anybody else. */
+  readonly calendar?: EmploymentState['calendar'] | null;
 }
 
 export interface ProfileProps {
@@ -84,6 +87,7 @@ function Record({
           )
         }
       />
+      {state.calendar ? <Employment state={{ calendar: state.calendar }} /> : null}
       {sections.length === 0 ? (
         <EmptyState title="Nothing else to show" />
       ) : (

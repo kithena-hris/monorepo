@@ -589,6 +589,11 @@ type OnboardingSection {
   ask: String
 }
 
+type OrgCountry {
+  code: String
+  name: String
+}
+
 """
 A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).
 """
@@ -639,6 +644,13 @@ type PeopleExportBuilder {
   sections: [ExportSection!]
 }
 
+"""Which of People’s areas this viewer’s roles open (PEO-119)."""
+type PeopleHome {
+  hr: Boolean
+  admin: Boolean
+  finance: Boolean
+}
+
 type PeopleIntegrations {
   schemaVersion: Int
   deliveries24h: Int
@@ -654,10 +666,25 @@ type PeopleOnboarding {
   saved: [String!]
 }
 
+type PeopleOrganisation {
+  canManage: Boolean
+  settings: PeopleSettings
+  legalEntities: [LegalEntity!]
+  locations: [Location!]
+  numberings: [EmployeeNumbering!]
+
+  """The countries an entity or a location may be in."""
+  countries: [OrgCountry!]
+  timeZones: [String!]
+}
+
 type PeopleProfile {
   person: ProfilePerson
   sections: [ProfileSection!]
   values: [FormEntry!]
+
+  """HR’s alone: their zone and today on it (PRD §6.8)."""
+  calendar: PersonCalendar
 }
 
 type PeopleRegistry {
@@ -709,6 +736,11 @@ type Person
 }
 
 union PersonAttribute = TextAttribute | NumberAttribute | BooleanAttribute | DateAttribute | MoneyAttribute | ListAttribute | AddressAttribute | SealedAttribute
+
+type PersonCalendar {
+  today: String
+  timeZone: String
+}
 
 type PersonPage {
   nodes: [Person!]
@@ -769,6 +801,8 @@ type Query {
 
   """Null for an entity that does not number its people."""
   employeeNumbering(legalEntityId: ID!): EmployeeNumbering
+  peopleOrganisation: PeopleOrganisation
+  peopleHome: PeopleHome
 
   """Every employment on a person, first first; HR only."""
   employmentPeriods(personId: ID!): [EmploymentPeriod!]

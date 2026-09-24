@@ -225,6 +225,19 @@ export function PeopleScreen({
           onGrant: thenRefresh(actions.grantRole),
           onRevoke: thenRefresh(actions.revokeRole),
         };
+      case 'PeopleHome':
+        return { load: loadable };
+      case 'Organisation':
+        return {
+          load: loadable,
+          onUpdateSettings: thenRefresh(actions.updateSettings),
+          onCreateEntity: thenRefresh(actions.createEntity),
+          onUpdateEntity: thenRefresh(actions.updateEntity),
+          onCreateLocation: thenRefresh(actions.createLocation),
+          onUpdateLocation: thenRefresh(actions.updateLocation),
+          onChangeZone: thenRefresh(actions.changeZone),
+          onSetNumbering: thenRefresh(actions.setNumbering),
+        };
       case 'ExportBuilder':
         return {
           load: loadable,

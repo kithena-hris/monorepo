@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetEmployeeNumbering(\n    $legalEntityId: ID!, $prefix: String!, $digits: Int!, $start: Float!, $key: String!\n  ) {\n    setEmployeeNumbering(\n      legalEntityId: $legalEntityId, prefix: $prefix, digits: $digits, start: $start, idempotencyKey: $key\n    ) { legalEntityId }\n  }"}
