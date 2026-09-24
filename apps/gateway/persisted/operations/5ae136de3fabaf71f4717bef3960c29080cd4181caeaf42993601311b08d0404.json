@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReorderDraftSections($order: [String!]!, $key: String!) {\n    reorderDraftSections(order: $order, idempotencyKey: $key) { ok }\n  }"}

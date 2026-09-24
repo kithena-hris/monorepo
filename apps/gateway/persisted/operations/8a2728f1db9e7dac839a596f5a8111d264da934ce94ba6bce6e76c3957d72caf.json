@@ -1,0 +1,1 @@
+{"version":1,"body":"query RoleSettings {\n    peopleRoleSettings {\n      viewerAccountId canManage\n      people { accountId personId name workEmail roles }\n    }\n  }"}

@@ -1216,20 +1216,31 @@ it is written down here rather than left in a PR description.
       over what it granted. A leaver's roles are revoked when their access
       ends, and not restored with it — closed in PEO-113's lane
       (20260924260000).*
-- [ ] **PEO-113** The shell goes through the router. Identity can mint a token
+- [x] **PEO-113** The shell goes through the router. Identity can mint a token
       but nothing issues one, so the shell calls People directly with the
       internal token and a principal it builds itself. Needs identity issuing a
       short-lived access token to the shell's server for the signed-in session
       (never the browser), key rotation through the JWKS, the shell calling the
       router, and the direct path removed. Found in PEO-098. *(PRD §13)*
-      *Partly landed:* identity issues the token (`POST
+      *Landed in two parts.* Identity issues the token (`POST
       /api/internal/session/token`, five minutes, `aud` the router, `ent` the
       company's modules), publishes rotation keys (`AUTH_VERIFICATION_KEYS`),
-      and the router checks the audience and refetches on an unknown `kid`;
-      proven with identity itself beside the real router. *Open, and blocked
-      on a decision:* the router serves GraphQL only and the shell's calls are
-      all REST, so the direct path cannot be removed without GraphQL for the
-      screens or an authenticating REST edge (PRD §13.2).
+      and the router checks the audience and refetches on an unknown `kid`.
+      *Decided (option a):* the shell reaches People only through the router,
+      over GraphQL. Every `/v1/views/*` view is a typed query and every screen
+      write a mutation, each the REST route of the same name dispatched
+      in-process (same Zod body, same caller check, same `Idempotency-Key` row
+      through an `idempotencyKey` argument on every mutation); a record's values
+      are a keyed list of a union, so a withheld field is absent rather than
+      null. Imports come as multipart uploads of up to 100 MB (router
+      `file_upload` and body limit, People's Yoga sized to match); downloads
+      stay signed links. The shell asks identity for the token and sends its
+      own named operations (`people-operations.ts`), safelisted in the router
+      from generated persisted operations; it has no People address or token
+      left, and a test says so. The acceptance suite runs identity, the router
+      and People for real. Also: a leaver's tenant roles are revoked with their
+      access (system actor, reason `access_ended`; the last `people_admin` too,
+      migration 20260924260000), and restored access restores no role.
 - [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
       one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
       *Landed as `platform.tenant.entitlements` (20260924230000; null is
@@ -1294,5 +1305,5 @@ it is written down here rather than left in a PR description.
 | PEO-027 | PEO-002 | People cannot see a name captured at enrolment until identity publishes it |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked |
 | PEO-045 | nothing technical | The cohort minimum default of 10 is a product decision; confirm before shipping |
-| PEO-113 | a product decision | The Cosmo Router serves GraphQL only; the shell's People calls are REST (views, imports up to 100 MB). GraphQL for the screens, or an authenticating edge for REST — PRD §13.2 |
+| PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |

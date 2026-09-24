@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CreateWebhookEndpoint(\n    $url: String!, $events: [String!]!, $allowlist: [String!]!, $alertEmail: String!, $key: String!\n  ) {\n    createWebhookEndpoint(\n      url: $url, events: $events, allowlist: $allowlist, alertEmail: $alertEmail, idempotencyKey: $key\n    ) { id secret }\n  }"}

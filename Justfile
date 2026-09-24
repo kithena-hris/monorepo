@@ -51,9 +51,12 @@ test-stories:
 codegen:
     pnpm --filter @kithena/codegen generate
 
-# Compose the federated supergraph locally.
+# Compose the federated supergraph locally, from each subgraph's SDL written
+# fresh from its schema — no service has to be running. `pnpm --filter
+# @kithena/gateway compose` still introspects running subgraphs, for `just dev`.
 supergraph:
-    pnpm --filter @kithena/gateway compose
+    pnpm turbo run codegen --filter=@kithena/people --filter=@kithena/timeoff --output-logs=errors-only
+    pnpm --filter @kithena/gateway check
 
 # Boot a single module with no siblings present, then run its acceptance suite.
 standalone module:

@@ -187,6 +187,9 @@ importers:
 
   apps/gateway:
     devDependencies:
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
       wgc:
         specifier: ^0.131.1
         version: 0.131.1(@tanstack/query-core@5.101.4)(@tanstack/react-query@5.101.4(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

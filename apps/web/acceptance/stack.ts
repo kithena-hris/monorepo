@@ -385,11 +385,18 @@ export async function startStack(): Promise<Stack> {
         '      enabled: false',
       ].join('\n'),
     );
+    // The shell's operations, as `pnpm --filter @kithena/gateway persist` wrote
+    // them, where the config's `file_system` provider reads them.
+    const persisted = join(ROOT, 'apps/gateway/persisted/operations');
     router = await startCosmoRouter({
       files: [
         { source: join(ROOT, 'apps/gateway/config.yaml'), target: '/etc/router/config.yaml' },
         { source: join(dir, 'override.yaml'), target: '/etc/router/override.yaml' },
         { source: join(dir, 'supergraph.json'), target: '/etc/router/supergraph.json' },
+        ...(await readdir(persisted)).map((file) => ({
+          source: join(persisted, file),
+          target: `/persisted/operations/${file}`,
+        })),
       ],
       env: {
         CONFIG_PATH: '/etc/router/config.yaml,/etc/router/override.yaml',

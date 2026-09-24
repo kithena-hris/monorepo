@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -45,11 +45,15 @@ import { wirePeople } from './server.js';
  * refuses one that has expired, one for another audience, one signed by a key
  * identity never published, and accepts one signed by the key identity
  * rotated away from while it is still published. Composition is
- * `wgc router compose`, as `just supergraph` runs it. The production-only
- * parts of the config — the persisted-operation safelist, tracing, the event
- * broker — are turned off by an override merged over it (the router merges a
- * comma-separated list of config files), so what is tested is the file that
- * ships, not a copy of its header rules.
+ * `wgc router compose`, as `just supergraph` runs it. The parts of the config
+ * that need infrastructure — tracing, metrics — are turned off by an override
+ * merged over it (the router merges a comma-separated list of config files),
+ * so what is tested is the file that ships, not a copy of its header rules.
+ *
+ * PEO-113: the safelist stays on, reading the tenant app's generated
+ * operations (`apps/gateway/persisted/`) plus the ones this file sends itself;
+ * an import file passes as a multipart upload larger than the old 5 MB limit;
+ * People's own error code reaches the caller.
  */
 
 const run = promisify(execFile);
@@ -118,14 +122,41 @@ async function issued(sessionId: string): Promise<Response> {
   });
 }
 
+const PERSON = `{ person(id: "${ADA}") { attributes { ... on TextAttribute { key value } } } }`;
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
 const ask = (headers: Record<string, string>) =>
   fetch(`${url}/graphql`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
+    body: JSON.stringify({ query: PERSON }),
+  });
+
+/** What the tenant app sends (`apps/web/src/lib/people.ts`): the document and its hash. */
+const asShell = (token: string, query: string, variables: Record<string, unknown> = {}) =>
+  fetch(`${url}/graphql`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+      'graphql-client-name': 'kithena-web',
+    },
     body: JSON.stringify({
-      query: `{ person(id: "${ADA}") { attributes { ... on TextAttribute { key value } } } }`,
+      query,
+      variables,
+      extensions: { persistedQuery: { version: 1, sha256Hash: sha256(query) } },
     }),
   });
+
+/** The tenant app's own operations, read as the generator reads them. */
+async function shellOperation(name: string): Promise<string> {
+  const persisted = join(ROOT, 'apps/gateway/persisted/operations');
+  for (const file of await readdir(persisted)) {
+    const { body } = JSON.parse(await readFile(join(persisted, file), 'utf8')) as { body: string };
+    if (new RegExp(`^(query|mutation) ${name}\\b`).test(body)) return body;
+  }
+  throw new Error(`${name} is not a persisted operation`);
+}
 
 beforeAll(async () => {
   const pg = await startPostgres();
@@ -268,14 +299,6 @@ beforeAll(async () => {
       'execution_config:',
       '  file:',
       '    path: /etc/router/supergraph.json',
-      // What People said, passed through, so a failure names its cause.
-      'subgraph_error_propagation:',
-      '  enabled: true',
-      '  mode: pass-through',
-      '  propagate_status_codes: true',
-      'persisted_operations:',
-      '  safelist:',
-      '    enabled: false',
       'telemetry:',
       '  tracing:',
       '    enabled: false',
@@ -287,8 +310,19 @@ beforeAll(async () => {
     ].join('\n'),
   );
 
+  // The safelist, as the image mounts it: the tenant app's operations, and
+  // this test's own query, persisted the same way.
+  const persisted = join(ROOT, 'apps/gateway/persisted/operations');
+  const operations = await readdir(persisted);
+  await writeFile(join(dir, 'person.json'), JSON.stringify({ version: 1, body: PERSON }));
+
   router = await startCosmoRouter({
     files: [
+      ...operations.map((file) => ({
+        source: join(persisted, file),
+        target: `/persisted/operations/${file}`,
+      })),
+      { source: join(dir, 'person.json'), target: `/persisted/operations/${sha256(PERSON)}.json` },
       { source: join(ROOT, 'apps/gateway/config.yaml'), target: '/etc/router/config.yaml' },
       { source: join(dir, 'override.yaml'), target: '/etc/router/override.yaml' },
       { source: join(dir, 'supergraph.json'), target: '/etc/router/supergraph.json' },
@@ -406,5 +440,63 @@ describe('the router in front of People', () => {
     });
     const body = (await response.json()) as { data?: { person: { attributes: unknown[] } } };
     expect(body.data?.person.attributes ?? []).toEqual([]);
+  });
+});
+
+describe('the tenant app through the router (PEO-113)', () => {
+  async function shellToken(): Promise<string> {
+    const answer = await issued(SESSION);
+    return ((await answer.json()) as { accessToken: string }).accessToken;
+  }
+
+  it('passes a persisted operation of the tenant app', async () => {
+    const response = await asShell(await shellToken(), await shellOperation('Profile'));
+    const body = (await response.json()) as {
+      data?: { peopleProfile: { values: { key: string }[] } };
+      errors?: unknown;
+    };
+    expect(JSON.stringify(body.errors ?? null)).toBe('null');
+    expect(body.data?.peopleProfile.values).toContainEqual(
+      expect.objectContaining({ key: 'job_title', text: 'Engineer' }),
+    );
+  });
+
+  it('refuses an operation that is not on the safelist, before People sees it', async () => {
+    const query = `{ peopleRoleSettings { people { accountId } } }`;
+    const response = await asShell(await shellToken(), query);
+    const body = (await response.json()) as { errors?: { extensions?: { code?: string } }[] };
+    expect(body.errors?.[0]?.extensions?.code).toBe('PERSISTED_QUERY_NOT_FOUND');
+  });
+
+  it('carries an import file larger than the old 5 MB limit to People, and People’s own refusal back', async () => {
+    const query = await shellOperation('ProposeImport');
+    const row = 'someone@acme.example,Engineer\n';
+    const csv = `work_email,job_title\n${row.repeat(Math.ceil((6 * 1024 * 1024) / row.length))}`;
+    const form = new FormData();
+    form.set(
+      'operations',
+      JSON.stringify({
+        query,
+        variables: { file: null },
+        extensions: { persistedQuery: { version: 1, sha256Hash: sha256(query) } },
+      }),
+    );
+    form.set('map', JSON.stringify({ '0': ['variables.file'] }));
+    form.set('0', new File([csv], 'people.csv', { type: 'text/csv' }));
+    const response = await fetch(`${url}/graphql`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await shellToken()}`,
+        'graphql-client-name': 'kithena-web',
+      },
+      body: form,
+    });
+    const body = (await response.json()) as {
+      errors?: { message: string; extensions?: { code?: string } }[];
+    };
+    // Ada is not HR, and the router forwards no roles without OpenFGA: People
+    // refuses the import itself — which it can only do once the file arrived.
+    expect(body.errors?.[0]?.extensions?.code, JSON.stringify(body)).toBe('FORBIDDEN');
+    expect(body.errors?.[0]?.message).toBe('Only HR imports people');
   });
 });

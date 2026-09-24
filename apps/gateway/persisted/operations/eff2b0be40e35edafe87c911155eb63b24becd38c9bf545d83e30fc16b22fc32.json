@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AddDraftSection($label: String!, $key: String!) {\n    addDraftSection(label: $label, idempotencyKey: $key) { ok }\n  }"}

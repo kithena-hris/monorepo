@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PublishSetup($country: String!, $sections: [String!]!, $key: String!) {\n    publishSetup(country: $country, sections: $sections, idempotencyKey: $key) { version }\n  }"}

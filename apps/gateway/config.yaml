@@ -11,6 +11,20 @@ persisted_operations:
   disabled: false
   safelist:
     enabled: true
+  # Self-hosted, no control plane: the safelist is the files under
+  # `persisted/operations/<sha256>.json`, one `{ "version": 1, "body": … }`
+  # per operation, generated from the tenant app's list
+  # (`apps/web/src/lib/people-operations.ts`, `pnpm --filter @kithena/gateway
+  # persist`). Relative to the router's working directory: `apps/gateway`
+  # for `pnpm dev`, `/` in the image, where `persisted/` is mounted.
+  storage:
+    provider_id: operations
+    object_prefix: operations
+
+storage_providers:
+  file_system:
+    - id: operations
+      path: persisted
 
 # Who is asking, verified here and nowhere else (PEO-092).
 #
@@ -75,6 +89,14 @@ headers:
           name: 'x-internal-token'
           value: '${PEOPLE_API_TOKEN}'
 
+# People's refusal reaches the caller as People gave it: its code (FORBIDDEN,
+# LAST_ADMIN, IDEMPOTENCY_KEY_REUSED …), its message and the field it names
+# (`toGraphQLError`), which is what the tenant app shows. A People error carries
+# nothing else — never a stack — and only those two extensions pass.
+subgraph_error_propagation:
+  mode: pass-through
+  allowed_extension_fields: ['code', 'field']
+
 # `complexity_limits`, not `complexity_calculation`: the router refuses to boot
 # on the old key (schema validation), which went unnoticed until PEO-092 first
 # started this file in a test.
@@ -90,11 +112,27 @@ security:
       enabled: true
       limit: 20
 
+# An import carries its file (PEO-038: up to 100 MB), sent as a GraphQL
+# multipart upload (PEO-113) and forwarded to People as one. One file per
+# operation: every import step sends the same single file.
+file_upload:
+  enabled: true
+  max_file_size: 100MB
+  max_files: 1
+
+# The body is that file plus the multipart envelope (the operation and the
+# map, a few kilobytes); everything else is small JSON. People's own Yoga
+# stops at 101 MiB, so this is the same ceiling seen from outside.
 traffic_shaping:
   router:
-    max_request_body_size: 5MB
+    max_request_body_size: 101MB
   all:
     request_timeout: 30s
+  # Committing a 100 MB import writes every row in one transaction, which can
+  # outlast the 30 seconds everything else is held to.
+  subgraphs:
+    people:
+      request_timeout: 300s
 
 # Event-driven federation: a Redpanda topic backs a GraphQL subscription
 # declaratively, instead of per-module pub/sub plumbing.

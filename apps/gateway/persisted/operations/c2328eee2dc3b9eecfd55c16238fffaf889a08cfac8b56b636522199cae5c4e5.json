@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation GrantRole($accountId: ID!, $role: TenantRole!, $reason: String!, $key: String!) {\n    grantRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }\n  }"}
