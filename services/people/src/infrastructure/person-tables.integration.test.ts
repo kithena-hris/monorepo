@@ -59,6 +59,7 @@ beforeAll(async () => {
     '20260924220200_people_employment_period.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
+    '20260924340000_people_person_key_lookup.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -251,6 +252,70 @@ describe('the person row', () => {
     await expect(
       admin.execute(sql`UPDATE people.person SET custom = '[]'::jsonb WHERE id = ${ADA}::uuid`),
     ).rejects.toThrow();
+  });
+});
+
+/** Index names in a plan, however deep. */
+function indexesIn(node: unknown): string[] {
+  if (typeof node !== 'object' || node === null) return [];
+  const own = (node as Record<string, unknown>)['Index Name'];
+  return [...(typeof own === 'string' ? [own] : []), ...Object.values(node).flatMap(indexesIn)];
+}
+
+/** The indexes Postgres would read to answer a query. */
+async function plan(query: ReturnType<typeof sql>): Promise<string[]> {
+  const [row] = await admin.execute<{ 'QUERY PLAN': unknown }>(
+    sql`EXPLAIN (FORMAT JSON) ${query}`,
+  );
+  return indexesIn(row?.['QUERY PLAN']);
+}
+
+describe('a foreign key into people.person', () => {
+  // Postgres's own check, verbatim but for the quoting: what every insert
+  // into history, secrets, claims and gaps runs, and every manager set.
+  const CHECK = sql`
+    SELECT 1 FROM ONLY people.person x
+     WHERE tenant_id OPERATOR(pg_catalog.=) $1 AND id OPERATOR(pg_catalog.=) $2
+       FOR KEY SHARE OF x`;
+  const UNSEEN = '00000000-0000-4000-8000-00000000000c';
+
+
+  it('is checked by the key for a tenant the statistics have not seen', async () => {
+    // One large tenant the statistics know, and one they do not: the first
+    // import of a new tenant, whose rows are all in its open transaction.
+    // Each nobody's manager, so the manager index is as short as it gets.
+    await admin.execute(sql`BEGIN`);
+    try {
+      await admin.execute(sql`
+        INSERT INTO people.person (id, tenant_id, status, given_name, family_name)
+        SELECT gen_random_uuid(), ${ACME}::uuid, 'active', 'G' || g, 'F' || g
+          FROM generate_series(1, 20000) g`);
+      await admin.execute(sql`ANALYZE people.person`);
+      await admin.execute(sql`PREPARE fk_check(uuid, uuid) AS ${CHECK}`);
+      for (const mode of ['force_custom_plan', 'force_generic_plan']) {
+        // eslint-disable-next-line no-await-in-loop -- one connection, one setting at a time
+        await admin.execute(sql`SELECT set_config('plan_cache_mode', ${mode}, true)`);
+        expect(
+          // eslint-disable-next-line no-await-in-loop -- the plan under the setting just made
+          await plan(sql.raw(`EXECUTE fk_check('${UNSEEN}', '${ADA}')`)),
+          mode,
+        ).toEqual([expect.stringMatching(/^person_(tenant_id_key|pkey)$/u)]);
+      }
+      // What the replaced indexes served still has an index to serve it.
+      expect(
+        await plan(sql`
+          SELECT id FROM people.person WHERE tenant_id = ${UNSEEN}::uuid AND manager_id = ${ADA}::uuid`),
+      ).toEqual(['person_reports_idx']);
+      expect(
+        await plan(sql`
+          SELECT id FROM people.person
+           WHERE tenant_id = ${ACME}::uuid AND status = 'pre_hire' AND hire_date <= DATE '2026-10-01'
+           ORDER BY hire_date, id LIMIT 50`),
+      ).toEqual(['person_status_idx']);
+    } finally {
+      await admin.execute(sql`ROLLBACK`);
+      await admin.execute(sql`DEALLOCATE ALL`);
+    }
   });
 });
 
