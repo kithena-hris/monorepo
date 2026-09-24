@@ -8,6 +8,8 @@ import {
 
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
+import { LINK_LIFETIME_MS } from './job.js';
+
 /**
  * Where an export's file lands (PRD §15.1): object storage, encrypted, behind
  * a signed link that stops working after 24 hours.
@@ -32,18 +34,22 @@ export interface ObjectStore {
   /** What a link opens, if it is genuine and has not expired. */
   open(link: string): Promise<Result<{ bytes: Uint8Array; mediaType: string }>>;
   /**
-   * Delete up to `limit` objects stored before `before`, returning how many.
-   * Bounded so one sweep over a backlog cannot run for an hour; the next
-   * sweep takes the rest.
+   * Delete up to `limit` objects whose lifetime (`lifetimeOf`) has run out by
+   * `now`, returning how many. Bounded so one sweep over a backlog cannot run
+   * for an hour; the next sweep takes the rest.
    */
-  purge(before: string, limit: number): Promise<number>;
+  purge(now: string, limit: number): Promise<number>;
+  /** Delete one object now, whatever its age. Absent is not an error. */
+  remove(key: string): Promise<void>;
 }
 
 /** Where ciphertext sits. Knows nothing about keys, links or expiry. */
 export interface Blobs {
   put(key: string, body: Uint8Array, mediaType: string): Promise<void>;
   get(key: string): Promise<{ body: Uint8Array; mediaType: string } | null>;
-  deleteOlderThan(before: string, limit: number): Promise<number>;
+  /** Delete up to `limit` objects for which `expired(key, storedAtMs)` holds. */
+  deleteExpired(expired: (key: string, storedAt: number) => boolean, limit: number): Promise<number>;
+  delete(key: string): Promise<void>;
 }
 
 export interface SealingConfig {
@@ -55,6 +61,24 @@ export interface SealingConfig {
   /** Where `GET /v1/exports/files` is reachable, without a trailing slash. */
   readonly baseUrl: string;
 }
+
+/**
+ * How long an import's blocked-row report is kept: 7 days.
+ *
+ * It holds employee values as uploaded, so it must not outlive the people in
+ * it — an erasure deletes it early (`forgetImportReports`), and this bounds
+ * everything else. A week is long enough to fix a file and re-upload it after
+ * a weekend, and short enough that a report is a working copy rather than a
+ * second register nobody reviews.
+ */
+export const REPORT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** An import's report, by its key (`reportKey` in `import/commit.ts`). */
+export const isImportReport = (key: string): boolean => key.includes('/imports/');
+
+/** How long an object lives: a report its week, an export file its link's day. */
+export const lifetimeOf = (key: string): number =>
+  isImportReport(key) ? REPORT_LIFETIME_MS : LINK_LIFETIME_MS;
 
 /** The object key a link names, or null when it is not a URL. */
 export function keyOf(link: string): string | null {
@@ -109,7 +133,9 @@ export function sealedObjectStore(config: SealingConfig, blobs: Blobs): ObjectSt
       return ok({ bytes, mediaType: sealed.mediaType });
     },
 
-    purge: (before, limit) => blobs.deleteOlderThan(before, limit),
+    purge: (now, limit) =>
+      blobs.deleteExpired((key, at) => at + lifetimeOf(key) < Date.parse(now), limit),
+    remove: (key) => blobs.delete(key),
   };
 }
 
@@ -128,16 +154,20 @@ export function memoryBlobs(
       return Promise.resolve();
     },
     get: (key) => Promise.resolve(objects.get(key) ?? null),
-    deleteOlderThan(before, limit) {
+    deleteExpired(expired, limit) {
       let n = 0;
       for (const [key, o] of objects) {
         if (n >= limit) break;
-        if (Date.parse(o.at) < Date.parse(before)) {
+        if (expired(key, Date.parse(o.at))) {
           objects.delete(key);
           n += 1;
         }
       }
       return Promise.resolve(n);
+    },
+    delete(key) {
+      objects.delete(key);
+      return Promise.resolve();
     },
     raw: (key) => objects.get(key)?.body,
   };

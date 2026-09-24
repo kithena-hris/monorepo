@@ -2,15 +2,17 @@ import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
 import FormulaParser from 'fast-formula-parser';
 
+import { checksumOf } from '../../domain/schema/publish.js';
 import { commitImport } from '../import/commit.js';
+import { dryRun } from '../import/dry-run.js';
 import { commitDeps } from '../import/fixture.js';
 import { proposeMapping, resolveMapping } from '../import/mapping.js';
 import { parseUpload } from '../import/parse.js';
-import { noTransaction as tx } from '../person/in-memory.js';
+import { define, noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
 import { buildExport, type ExportRequest } from './export.js';
-import { ADA, asking, financeTenant, HR, MANAGER, MARCO } from './fixture.js';
+import { ADA, asking, financeTenant, GRACE, HR, MANAGER, MARCO, register } from './fixture.js';
 import { utcCalendars } from '../org/org.js';
 
 const HR_RELATIONS = {
@@ -169,7 +171,13 @@ describe('the XLSX register', () => {
       '#',
       'Languages',
     ]);
-    expect(languages?.rowCount).toBe(1 + 3 * 2);
+    expect(languages && rowValues(languages, 2)).toEqual([
+      '__person_id',
+      'employee_number',
+      '#',
+      'languages',
+    ]);
+    expect(languages?.rowCount).toBe(2 + 3 * 2);
   });
 
   it('says what it is on an About sheet', async () => {
@@ -283,5 +291,137 @@ describe('round-tripping (§15.3)', () => {
       'people.person.org_changed',
     ]);
     expect(store.secrets.get(`${ADA}:iban`)).toBe('ES9121000418450200051332');
+  });
+
+  /**
+   * PEO-090. The register with a hire date and a repeating list, each person
+   * hired on 2026-01-01 with the history row that hire wrote.
+   */
+  function hiredTenant() {
+    const hireDate = define({
+      key: 'hire_date',
+      label: { default: 'Hire date' },
+      dataType: 'date',
+      typeConfig: { kind: 'date' },
+      visibility: ['hr', 'finance'],
+    });
+    const base = register();
+    const document = { ...base.document, attributes: [...base.document.attributes, hireDate] };
+    const store = financeTenant([{ ...base, document, checksum: checksumOf(document) }]);
+    for (const personId of [ADA, MARCO, GRACE]) {
+      store.history.push({
+        personId,
+        id: `hire-${personId}`,
+        attributeKey: 'hire_date',
+        value: '2026-01-01',
+        effectiveFrom: '2026-01-01',
+        recordedAt: '2026-01-01T09:00:00.000Z',
+        actor: { kind: 'user', userId: HR.accountId },
+        supersedes: null,
+        eventId: null,
+      });
+    }
+    return store;
+  }
+
+  async function reimport(store: ReturnType<typeof financeTenant>, edited: Uint8Array) {
+    const file = await parseUpload(edited);
+    if (!file.ok) throw new Error(file.error.message);
+    const version = await store.deps.schemas.current(tx, asking(HR).tenantId);
+    if (!version) throw new Error('no version');
+    const mapping = resolveMapping(
+      await proposeMapping({ file: file.value, version, relations: HR_RELATIONS, advisor: null }),
+      {},
+      version,
+      HR_RELATIONS,
+    );
+    if (!mapping.ok) throw new Error(mapping.error.message);
+    const deps = commitDeps(store);
+    const input = { ...asking(HR), file: file.value, mapping: mapping.value };
+    const planned = await dryRun(tx, deps, input);
+    if (!planned.ok) throw new Error(planned.error.message);
+    const committed = await commitImport(tx, deps, input);
+    if (!committed.ok || committed.value.status !== 'imported') throw new Error('not imported');
+    return { plan: planned.value, result: committed.value };
+  }
+
+  it('reads the repeating sheets back, and a hire date edit is a correction (PEO-090)', async () => {
+    const store = hiredTenant();
+    const { files } = await exported(HR, {}, store);
+    const wb = await open(files[0]?.bytes ?? new Uint8Array());
+    const people = wb.getWorksheet('People');
+    const languages = wb.getWorksheet('Languages');
+    if (!people || !languages) throw new Error('sheets missing');
+
+    // Ada's second language, on its own sheet, and her start date.
+    const item = [3, 4, 5, 6, 7, 8].find(
+      (r) =>
+        languages.getRow(r).getCell(1).value === ADA && languages.getRow(r).getCell(3).value === '2',
+    );
+    languages.getRow(item ?? 0).getCell(4).value = 'fr';
+    const col = (rowValues(people, 2) as string[]).indexOf('hire_date') + 1;
+    expect(col).toBeGreaterThan(0);
+    const ada = [3, 4, 5].find((r) => people.getRow(r).getCell(1).value === ADA) ?? 0;
+    people.getRow(ada).getCell(col).value = new Date('2025-12-01T00:00:00.000Z');
+
+    const history = store.history.length;
+    const { plan, result } = await reimport(
+      store,
+      new Uint8Array(await wb.xlsx.writeBuffer()),
+    );
+
+    expect(plan.sheets).toEqual([{ sheet: 'Languages', key: 'languages', imported: true }]);
+    expect(plan.corrections).toBe(1);
+    expect(plan.rows.find((r) => r.personId === ADA)?.hireDateCorrection).toEqual({
+      from: '2026-01-01',
+      to: '2025-12-01',
+    });
+    expect(plan.blockedItems).toEqual([]);
+    expect(result.counts).toMatchObject({ updated: 1, unchanged: 2, blocked: 0, created: 0 });
+
+    // Exactly those two, and the date as a correction of the row the hire wrote.
+    expect(
+      store.history
+        .slice(history)
+        .map((h) => [h.personId, h.attributeKey, h.value, h.supersedes]),
+    ).toEqual([
+      [ADA, 'languages', ['es', 'fr'], null],
+      [ADA, 'hire_date', '2025-12-01', `hire-${ADA}`],
+    ]);
+    expect(store.rows.get(ADA)?.snapshot.hireDate).toBe('2025-12-01');
+    expect(store.events.map((e) => e.eventName)).toContain('people.person.attribute_corrected');
+  });
+
+  it('names a bad item by sheet, row and cell, and holds back only that list', async () => {
+    const store = hiredTenant();
+    const { files } = await exported(HR, {}, store);
+    const wb = await open(files[0]?.bytes ?? new Uint8Array());
+    const languages = wb.getWorksheet('Languages');
+    const people = wb.getWorksheet('People');
+    if (!languages || !people) throw new Error('sheets missing');
+    const adaItem = [3, 4, 5, 6, 7, 8].find((r) => languages.getRow(r).getCell(1).value === ADA) ?? 0;
+    languages.getRow(adaItem).getCell(4).value = 'x'.repeat(300);
+    languages.addRow(['00000000-0000-4000-8000-00000000dead', '', '1', 'de']);
+    // Ada's cost centre still imports: a bad item holds back her languages only.
+    const col = (rowValues(people, 2) as string[]).indexOf('cost_centre') + 1;
+    const ada = [3, 4, 5].find((r) => people.getRow(r).getCell(1).value === ADA) ?? 0;
+    people.getRow(ada).getCell(col).value = 'CC-7';
+
+    const history = store.history.length;
+    const { plan, result } = await reimport(store, new Uint8Array(await wb.xlsx.writeBuffer()));
+
+    expect(
+      plan.blockedItems.map((b) => [b.sheet, b.cell, b.personId, b.kind]),
+    ).toEqual([
+      ['Languages', `D${String(adaItem)}`, ADA, 'invalid'],
+      ['Languages', 'D9', '00000000-0000-4000-8000-00000000dead', 'unknown_person'],
+    ]);
+    expect(store.history.slice(history).map((h) => [h.personId, h.attributeKey])).toEqual([
+      [ADA, 'cost_centre'],
+    ]);
+    const report = new TextDecoder().decode(result.report);
+    expect(report).toContain(`Languages!${String(adaItem)}`);
+    expect(report).toContain('Languages!9');
+    expect(report).toContain('no person with this id');
   });
 });

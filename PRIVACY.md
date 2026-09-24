@@ -126,6 +126,15 @@ derived from the secrets' master key, so a dump of it yields no identifier. Hist
 `redacted_at` and `redaction_reason` stamped) rather than deleted; the history
 trigger permits that one change and nothing else.
 
+An import's blocked-row report is the one other place a value lives: the
+blocked rows as uploaded, sealed (AES-256-GCM) in object storage. It is kept
+**7 days**, then deleted by the export sweep, and never outlives an erasure:
+`people.import_report` holds the ids — only the ids — of the people each report
+contains, and anonymising a person deletes every report containing them, object
+and row, whatever its age. A DSAR erasure is to call the same
+`forgetImportReports`; there is no such path yet. A blocked row for somebody
+not yet a person has no id to find it by, and goes with the week.
+
 ## Reporting
 
 Privacy concerns go to the address in [SECURITY.md](./SECURITY.md), and are

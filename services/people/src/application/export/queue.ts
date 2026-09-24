@@ -4,7 +4,6 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { exportableColumns } from './export.js';
 import {
   checkReason,
-  LINK_LIFETIME_MS,
   runExportJob,
   type ExportJobDeps,
   type ExportJobRequest,
@@ -127,9 +126,4 @@ async function countUpTo(
     after = page.value.next;
   } while (after !== null && n < limit);
   return ok(n);
-}
-
-/** Objects older than a link's lifetime: nothing can open them any more. */
-export function purgeBefore(now: string): string {
-  return new Date(Date.parse(now) - LINK_LIFETIME_MS).toISOString();
 }

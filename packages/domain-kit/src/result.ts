@@ -10,6 +10,8 @@ export interface DomainFailure {
   readonly message: string;
   /** Field path for boundary mapping to GraphQL or HTTP field errors. */
   readonly path?: readonly string[];
+  /** Where the answer to the failure is: the stored report of the import a re-upload repeats. */
+  readonly link?: string;
 }
 
 export const ok = <T>(value: T): Result<T, never> => ({ ok: true, value });

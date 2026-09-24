@@ -981,11 +981,25 @@ it is written down here rather than left in a PR description.
       `people.export` ledger, an hourly bounded sweep, and `POST
     /v1/exports` / `GET /v1/exports/{id}`. The export-ready email waits on
       platform/messaging, as PEO-084's reminders do._
-- [ ] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
+- [x] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
       imported, a row matching an existing person does not change their
       `hire_date`, the import checksum is not on `people.import.started`, and a
       re-upload cannot re-serve the blocked-row report because it is not
-      stored. Found in PEO-038 to PEO-041. _(PRD §14)_
+      stored. Found in PEO-038 to PEO-041. _(PRD §14)_ — A repeating sheet is
+      recognised by the key row the export now writes on it and is the whole
+      list for each person it mentions (§14.5); a bad item is named by
+      sheet, row and cell and holds back only that list. An existing
+      person's new hire date is a correction through `PersonAccess.correct`,
+      blocked where the tenant publishes no `hire_date`. `checksum` is on
+      `people.import.started`. The report is stored sealed in the export's
+      object store, keyed by checksum, for 7 days (the export sweep deletes
+      it then), and deleted early when anybody it contains is anonymised:
+      `people.import_report` (migration 20260924250000) keeps the ids it
+      contains. A re-upload answers `ALREADY_IMPORTED` with a signed link
+      while it is kept, and says it has expired after. Proven by the round
+      trip in `export.test.ts`; erasure by `anonymise.integration.test.ts`.
+      A DSAR erasure path does not exist yet; it calls
+      `forgetImportReports` when it does.
 - [x] **PEO-091** Export gaps: the Missing information sheet reflects today's
       completeness even for an `asOf` export, and grey not-applicable cells are
       not rendered. Found in PEO-042. _(PRD §15.4)_ _Status, employment type,
