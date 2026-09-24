@@ -62,7 +62,7 @@ function vercelBlobStore(): ImageStore {
  * the operator reading that message cannot fix it from the screen they are on.
  */
 export function imageStore(): ImageStore | null {
-  // One provider today. The shape is here so adding S3, R2 or MinIO is a new
+  // One provider today. The shape is here so adding S3 or R2 is a new
   // branch and a new file rather than an edit to the route that uses it.
   if (process.env['BLOB_READ_WRITE_TOKEN']) return vercelBlobStore();
   return null;

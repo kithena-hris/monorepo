@@ -110,7 +110,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise((resolve) => identity.close(resolve));
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  const server = identity as Server | undefined;
+  if (server) await new Promise((resolve) => server.close(resolve));
   await serviceClient?.end();
   await adminClient?.end();
   await stopPg?.();

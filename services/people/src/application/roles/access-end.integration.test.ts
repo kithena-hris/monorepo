@@ -174,8 +174,9 @@ beforeAll(async () => {
 }, 180_000);
 
 afterAll(async () => {
-  await service.end();
-  await admin.end();
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  await (service as typeof admin | undefined)?.end();
+  await (admin as typeof admin | undefined)?.end();
   await stop?.();
 });
 

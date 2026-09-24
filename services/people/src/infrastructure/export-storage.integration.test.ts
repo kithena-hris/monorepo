@@ -7,7 +7,7 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { fixedClock, systemClock, type Clock, type PendingEvent } from '@kithena/domain-kit';
-import { startMinio, startPostgres, startValkey } from '@kithena/testing';
+import { startObjectStore, startPostgres, startValkey } from '@kithena/testing';
 
 import { ADA, asking, financeTenant, HR } from '../application/export/fixture.js';
 import type { ExportJobDeps } from '../application/export/job.js';
@@ -24,7 +24,7 @@ import { tenantTransaction } from './unit-of-work.js';
 import { utcCalendars } from '../application/org/org.js';
 
 /**
- * PEO-089 against the real things: MinIO with SSE, Postgres with RLS, and
+ * PEO-089 against the real things: an S3 store with SSE, Postgres with RLS, and
  * BullMQ on Valkey — the three images `docker-compose.yml` runs.
  */
 
@@ -33,16 +33,16 @@ const GLOBEX = '00000000-0000-4000-8000-00000000000b';
 const migrations = new URL('../../../../migrations/', import.meta.url);
 
 const stops: (() => Promise<void>)[] = [];
-let minio: Awaited<ReturnType<typeof startMinio>>;
+let objects: Awaited<ReturnType<typeof startObjectStore>>;
 let valkeyUrl: string;
-let serviceClient: ReturnType<typeof postgres>;
+let serviceClient: ReturnType<typeof postgres> | undefined;
 let asService: PostgresJsDatabase;
 
 beforeAll(async () => {
-  const [m, pg, valkey] = await Promise.all([startMinio(), startPostgres(), startValkey()]);
-  minio = m;
+  const [o, pg, valkey] = await Promise.all([startObjectStore(), startPostgres(), startValkey()]);
+  objects = o;
   valkeyUrl = valkey.url;
-  stops.push(m.stop, pg.stop, valkey.stop);
+  stops.push(o.stop, pg.stop, valkey.stop);
 
   const adminClient = postgres(pg.url, { max: 1 });
   const admin = drizzle(adminClient);
@@ -62,17 +62,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await serviceClient.end();
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  await serviceClient?.end();
   await Promise.all(stops.map((stop) => stop()));
 });
 
 function bucket(name: string) {
   const blobs = s3Blobs({
-    endpoint: minio.endpoint,
+    endpoint: objects.endpoint,
     region: 'us-east-1',
     bucket: name,
-    accessKeyId: minio.accessKeyId,
-    secretAccessKey: minio.secretAccessKey,
+    accessKeyId: objects.accessKeyId,
+    secretAccessKey: objects.secretAccessKey,
   });
   return blobs;
 }
