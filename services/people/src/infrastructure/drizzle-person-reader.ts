@@ -100,7 +100,7 @@ function matching(
   tenantId: string,
   where: Readonly<Record<string, string>> | undefined,
   search: PersonSearch | undefined,
-  gaps?: 'staff',
+  gaps?: readonly string[],
 ): SQL | undefined {
   const text = search?.text.trim() ?? '';
   const keys = new Set(search?.keys ?? []);
@@ -123,9 +123,14 @@ function matching(
     // The gap row's key is the person's, so this is one index probe per row.
     gaps === undefined
       ? undefined
-      : sql`EXISTS (SELECT 1 FROM people.completeness_gap g
+      : gaps.length === 0
+        ? sql`false`
+        : sql`EXISTS (SELECT 1 FROM people.completeness_gap g
                    WHERE g.tenant_id = person.tenant_id AND g.person_id = person.id
-                     AND cardinality(g.staff_keys) > 0)`,
+                     AND g.staff_keys && ARRAY[${sql.join(
+                       gaps.map((k) => sql`${k}`),
+                       sql`, `,
+                     )}]::text[])`,
   );
 }
 

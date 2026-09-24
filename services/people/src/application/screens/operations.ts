@@ -37,7 +37,7 @@ import {
 } from '../import/mapping.js';
 import { parseUpload, type ParsedFile } from '../import/parse.js';
 import { exportableColumns } from '../export/export.js';
-import type { Asking } from '../person/person-access.js';
+import { relationsToMany, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { NOBODY, personOfViewer, tenantToday, type ScreenDeps, type Tx } from './record.js';
 
@@ -661,8 +661,8 @@ export async function analyticsView(
       calendar: await deps.calendars.load(tx, asking.tenantId),
       at: deps.clock.instant(),
       everyone,
-      relations: (personId) =>
-        deps.relations.relations(tx, asking.tenantId, asking.viewer, personId),
+      relations: (personIds) =>
+        relationsToMany(deps.relations, tx, asking.tenantId, asking.viewer, personIds),
     });
     const expiries =
       expiring.ok && expiring.value.kinds.length > 0

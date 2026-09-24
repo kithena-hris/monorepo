@@ -142,10 +142,11 @@ export interface PersonAccess {
       /** A substring of a name or work email. See `searchable`. */
       readonly search?: string;
       /**
-       * Only people with a gap HR or Finance fills in: the completeness grid
-       * (PEO-122). HR's alone, since who is missing what is itself a read.
+       * Only people missing one of these staff-owned keys: the completeness
+       * grid (PEO-122), which asks for exactly the keys it shows. HR's alone,
+       * since who is missing what is itself a read.
        */
-      readonly gaps?: 'staff';
+      readonly gaps?: readonly string[];
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
   /** How many people `list` would page through for the same `where` and `search`. */
@@ -1287,7 +1288,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly asOf?: string;
         readonly where?: Readonly<Record<string, string>>;
         readonly search?: string;
-        readonly gaps?: 'staff';
+        readonly gaps?: readonly string[];
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);

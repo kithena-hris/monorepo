@@ -472,7 +472,7 @@ export const GRID_PAGE = DIRECTORY_PAGE;
  * HR's grid over exactly the missing cells HR owns (§8.4). Employee-owned
  * gaps are counted, not shown: they are the employee's task and reminder.
  *
- * Paged by keyset over the people with a gap HR or Finance fills (PEO-122),
+ * Paged by keyset over the people with a gap HR fills (PEO-122, PEO-124),
  * through `PersonAccess.list`, so page 1,000 costs what page 1 does; the
  * totals and the field list are over everybody, from the gap rows.
  */
@@ -486,16 +486,18 @@ export async function completenessView(
     if (!everyone.isHr) return err(failure('FORBIDDEN', 'The completeness grid is HR’s'));
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+    const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+    const hrs = (key: string) => byKey.get(key)?.ownership.includes('hr') === true;
+    // Selected by the keys the grid shows, HR's, so a page is never short of
+    // people whose only gap is Finance's.
     const listed = await deps.service.access.list(tx, {
       ...asking,
-      gaps: 'staff',
+      gaps: [...byKey.keys()].filter(hrs),
       after: query.after ?? null,
       limit: GRID_PAGE,
     });
     if (!listed.ok) return listed;
     const page = listed.value.items;
-    const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
-    const hrs = (key: string) => byKey.get(key)?.ownership.includes('hr') === true;
     const totals = await deps.gapTotals(tx, asking.tenantId);
     const managers = page
       .map((p) => p.attributes['manager_id'])
