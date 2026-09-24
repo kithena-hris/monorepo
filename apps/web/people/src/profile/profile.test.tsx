@@ -195,6 +195,47 @@ describe('Profile', () => {
     expect(onSave).toHaveBeenCalledWith('work', { manager_id: 'z' });
   });
 
+  it('lets HR move somebody, saying when the move is a transfer (PEO-123)', async () => {
+    const user = fast();
+    const placed: ProfileState = {
+      ...asManager,
+      placement: {
+        legalEntityId: 'es',
+        locationId: 'mad',
+        entities: [
+          { value: 'es', label: 'Acme Spain' },
+          { value: 'us', label: 'Acme US' },
+        ],
+        locations: [
+          { value: 'mad', label: 'Madrid', legalEntityId: 'es' },
+          { value: 'sfo', label: 'San Francisco', legalEntityId: 'us' },
+        ],
+      },
+    };
+    const onPlace = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { container } = render(
+      <Profile load={{ status: 'ready', data: placed }} onSave={vi.fn()} onPlace={onPlace} />,
+    );
+    const form = screen.getByRole('form', { name: 'Placement' });
+    expect(within(form).getByRole('button', { name: 'Move' })).toBeDisabled();
+    expect(await axeViolations(container)).toEqual([]);
+
+    await user.click(within(form).getByRole('combobox', { name: 'Legal entity' }));
+    await user.click(await screen.findByRole('option', { name: 'Acme US' }));
+    expect(within(form).getByText('This is a transfer')).toBeInTheDocument();
+    await user.click(within(form).getByRole('combobox', { name: /Work location/ }));
+    await user.click(await screen.findByRole('option', { name: 'San Francisco' }));
+    await user.click(within(form).getByRole('button', { name: 'Move' }));
+    expect(onPlace).toHaveBeenCalledWith({ legalEntityId: 'us', locationId: 'sfo' });
+  });
+
+  it('offers no move without the placement, or without somewhere to send it', () => {
+    render(
+      <Profile load={{ status: 'ready', data: asManager }} onSave={vi.fn()} onPlace={vi.fn()} />,
+    );
+    expect(screen.queryByRole('form', { name: 'Placement' })).toBeNull();
+  });
+
   it('has loading and error states', async () => {
     const { container, rerender } = render(
       <Profile load={{ status: 'loading' }} onSave={vi.fn()} />,

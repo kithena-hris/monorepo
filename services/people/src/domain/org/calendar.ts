@@ -31,6 +31,8 @@ export interface LegalEntity {
   readonly country: string;
   /** The entity's default IANA zone. */
   readonly timeZone: string;
+  /** Still somebody's day, never somebody's new placement (PEO-123). */
+  readonly archived?: boolean;
 }
 
 /** One effective-dated zone of a location. */
@@ -46,6 +48,7 @@ export interface Location {
   readonly country: string;
   /** In force from each `effectiveFrom`, ascending, corrections already applied. */
   readonly zones: readonly LocationZone[];
+  readonly archived?: boolean;
 }
 
 export interface TenantCalendar {

@@ -259,7 +259,42 @@ export interface PersonAccess {
   endLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   /** A provisional record that was never a person (§8.1); the one state a hard delete may follow. */
   discard(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  /**
+   * Where a person sits (PEO-123): legal entity, work location, org unit and
+   * cost centre, effective from a date. HR only. See `place` below.
+   */
+  place(tx: Tx, asking: On<PlacementChange>): Promise<Result<PersonView>>;
 }
+
+/** A placement, as HR asks for it. An absent field is not changed; null clears it. */
+export interface PlacementChange {
+  readonly legalEntityId?: string | null;
+  readonly locationId?: string | null;
+  readonly orgUnitId?: string | null;
+  readonly costCentre?: string | null;
+  /** On the person's new calendar; today there when absent, never later. */
+  readonly effectiveFrom?: string;
+}
+
+/** Each placement field and the attribute it writes. */
+const PLACEMENT_KEYS = [
+  ['legalEntityId', 'legal_entity_id'],
+  ['locationId', 'location_id'],
+  ['orgUnitId', 'org_unit_id'],
+  ['costCentre', 'cost_centre'],
+] as const;
+
+const ORG_KEYS: readonly string[] = PLACEMENT_KEYS.map(([, key]) => key);
+
+const textOf = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+/** What `org_changed` carries, read off a record's values. */
+const orgOf = (values: Readonly<Record<string, unknown>>) => ({
+  orgUnitId: textOf(values['org_unit_id']),
+  costCentre: textOf(values['cost_centre']),
+  legalEntityId: textOf(values['legal_entity_id']),
+  locationId: textOf(values['location_id']),
+});
 
 /** An id no person has, for asking what the viewer may see tenant-wide. */
 const NOBODY = '00000000-0000-0000-0000-000000000000';
@@ -587,6 +622,26 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return null;
   }
 
+  /**
+   * The number somebody moving into `entity` takes, or null to keep theirs
+   * (PEO-101, PEO-110, PEO-123): kept — it is theirs in the register and on
+   * every document — unless the entity numbers its people and its scheme would
+   * not write it; then the scheme's next, as a new hire there would get.
+   */
+  async function renumbered(
+    tx: Tx,
+    tenantId: string,
+    version: PublishedVersion,
+    entity: string | null,
+    held: unknown,
+  ): Promise<string | null> {
+    if (!deps.numbering || entity === null) return null;
+    if (!version.document.attributes.some((d) => d.key === 'employee_number')) return null;
+    const scheme = await deps.numbering.scheme(tx, tenantId, entity);
+    if (!scheme || (typeof held === 'string' && sequenceOf(scheme, held) !== null)) return null;
+    return nextNumber(tx, tenantId, entity);
+  }
+
   async function update(
     tx: Tx,
     asking: Asking & {
@@ -772,19 +827,29 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         effectiveFrom,
       );
     }
-    if (['org_unit_id', 'cost_centre', 'legal_entity_id', 'location_id'].some(moved)) {
-      const now = (key: string) =>
-        text(projected.has(key) ? projected.get(key) : person.values[key]);
+    if (ORG_KEYS.some(moved)) {
       aggregate.moveOrg(
-        {
-          orgUnitId: now('org_unit_id'),
-          costCentre: now('cost_centre'),
-          legalEntityId: now('legal_entity_id'),
-          locationId: now('location_id'),
-        },
+        orgOf({ ...person.values, ...Object.fromEntries(projected) }),
         contextFor(asking, deps.newId()),
         effectiveFrom,
       );
+    }
+    // A new legal entity is a transfer for somebody employed elsewhere in the
+    // tenant (PEO-123): one employment period closes and the next opens, from
+    // the date the row takes effect. Every writer comes through here, so an
+    // import or a form moves the period exactly as the placement does.
+    let renumber = false;
+    if (moved('legal_entity_id')) {
+      const dated = byKey.get('legal_entity_id')?.effectiveDated === true;
+      const placed = aggregate.place(
+        text(projected.get('legal_entity_id')),
+        dated ? effectiveFrom : day,
+        text(person.values['legal_entity_id']),
+      );
+      if (!placed.ok) return placed;
+      renumber =
+        placed.value === 'transferred' ||
+        (placed.value === 'placed' && text(person.values['legal_entity_id']) !== null);
     }
 
     if (tellIdentity && [...projected.keys()].some((k) => IDENTITY_FACT_KEYS.has(k))) {
@@ -805,6 +870,21 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       history,
     });
     await rejudge(tx, asking, asking.personId, eventId);
+
+    // Moved from one entity to another: the new entity's number, when its
+    // scheme would not write the one they hold — as a second write, dated the same.
+    if (renumber && !('employee_number' in asking.changes)) {
+      const next = await renumbered(
+        tx,
+        asking.tenantId,
+        version,
+        text(projected.get('legal_entity_id')),
+        person.values['employee_number'],
+      );
+      if (next !== null) {
+        return update(tx, { ...asking, changes: { employee_number: next }, effectiveFrom }, tellIdentity);
+      }
+    }
 
     // Asked again: a write can move a manager, and the answer is shown under
     // the relations that hold after it, not the ones that held before.
@@ -877,7 +957,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       ? ok(asking.lastWorkingDay)
       : err(failure('VALUE_INVALID', 'lastWorkingDay is a calendar date', ['lastWorkingDay']));
 
-  return {
+  const api: PersonAccess = {
     giveNotice: (tx, asking) => {
       const day = lastDayOf(asking);
       if (!day.ok) return Promise.resolve(day);
@@ -979,15 +1059,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
       const changes: Record<string, unknown> = {};
       if (entity !== null && entity !== person.legalEntityId) changes['legal_entity_id'] = entity;
-      const held = person.values['employee_number'];
-      const scheme =
-        deps.numbering && entity !== null && defines('employee_number')
-          ? await deps.numbering.scheme(tx, asking.tenantId, entity)
-          : null;
-      if (scheme && (typeof held !== 'string' || sequenceOf(scheme, held) === null)) {
-        const next = await nextNumber(tx, asking.tenantId, entity as string);
-        if (next !== null) changes['employee_number'] = next;
-      }
+      const next = await renumbered(
+        tx,
+        asking.tenantId,
+        version,
+        entity,
+        person.values['employee_number'],
+      );
+      if (next !== null) changes['employee_number'] = next;
       if (Object.keys(changes).length > 0) {
         const placedWrite = await update(
           tx,
@@ -1354,6 +1433,23 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         if (!moved.ok) return moved;
       } else if (moves) {
         project(fields, custom, definition.key, valid.value);
+        // Where somebody sat, corrected: the org moves as it would have, from
+        // the date it did, and a legal entity re-places the period (PEO-123).
+        if (ORG_KEYS.includes(definition.key)) {
+          if (definition.key === 'legal_entity_id') {
+            const placed = aggregate.place(
+              textOf(valid.value),
+              target.effectiveFrom,
+              textOf(person.values['legal_entity_id']),
+            );
+            if (!placed.ok) return placed;
+          }
+          aggregate.moveOrg(
+            orgOf({ ...person.values, [definition.key]: valid.value }),
+            { ...contextFor(asking, deps.newId()), causationId: eventId },
+            target.effectiveFrom,
+          );
+        }
       }
 
       const raised = aggregate.correctAttribute(
@@ -1491,7 +1587,144 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!after) return err(PersonNotFound());
       return ok(await view(tx, asking, after, version, relations));
     },
+
+    /**
+     * Place a person (PEO-123, §6.8, §8.5): HR only, like the rest of where
+     * somebody sits (§7).
+     *
+     * A location names its entity, so a location in another entity moves the
+     * entity with it, and an entity change leaves no location of the old one
+     * behind. Archived entities and locations still decide their people's
+     * day, and take nobody new. The date is on the calendar the move takes
+     * them to, never later than today there: nothing yet brings a future-dated
+     * value into force on its day, so a future placement would never move
+     * their calendar. A retry that asks for where they already are is
+     * answered with the record.
+     *
+     * **A second placement dated the same day as the one standing is a
+     * correction**: a row carrying `supersedes` and `attribute_corrected`, as
+     * for a location's zone (§6.8). An earlier-dated one after it is a move
+     * recorded late, with both dates, like §8.5's promotion. The rest —
+     * `org_changed`, history, the transfer, the number, the completeness
+     * re-judge — is `update` and `correct`, which every writer shares.
+     */
+    async place(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (asking.effectiveFrom !== undefined && !CALENDAR_DATE.test(asking.effectiveFrom)) {
+        return err(failure('VALUE_INVALID', 'effectiveFrom is a calendar date', ['effectiveFrom']));
+      }
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR places a person'));
+
+      const defines = (key: string) =>
+        version.document.attributes.some((d) => d.key === key && d.deprecatedAt === null);
+      const asked: Record<string, string | null> = {};
+      for (const [field, key] of PLACEMENT_KEYS) {
+        const value = asking[field];
+        if (value === undefined) continue;
+        if (!defines(key)) {
+          return err(failure('VALUE_INVALID', `This schema has no ${key} to place`, [field]));
+        }
+        asked[key] = value;
+      }
+
+      const calendar = await calendars.load(tx, asking.tenantId);
+      const current = (key: string) => textOf(person.values[key]);
+      const locationId = asked['location_id'];
+      if (locationId !== undefined && locationId !== null) {
+        const location = calendar.locations.get(locationId);
+        if (!location) {
+          return err(failure('LOCATION_NOT_FOUND', 'No such location in this workspace', ['locationId']));
+        }
+        if (location.archived === true && locationId !== current('location_id')) {
+          return err(failure('LOCATION_ARCHIVED', `${location.name} is archived`, ['locationId']));
+        }
+        if (asked['legal_entity_id'] === undefined) {
+          if (defines('legal_entity_id')) asked['legal_entity_id'] = location.legalEntityId;
+        } else if (asked['legal_entity_id'] !== location.legalEntityId) {
+          return err(
+            failure('LOCATION_NOT_IN_ENTITY', `${location.name} belongs to another legal entity`, [
+              'locationId',
+            ]),
+          );
+        }
+      }
+      const entity = asked['legal_entity_id'];
+      if (entity !== undefined && entity !== null) {
+        const found = calendar.entities.get(entity);
+        if (!found) {
+          return err(
+            failure('LEGAL_ENTITY_NOT_FOUND', 'No such legal entity in this workspace', [
+              'legalEntityId',
+            ]),
+          );
+        }
+        if (found.archived === true && entity !== current('legal_entity_id')) {
+          return err(failure('LEGAL_ENTITY_ARCHIVED', `${found.name} is archived`, ['legalEntityId']));
+        }
+      }
+      if (entity !== undefined && locationId === undefined && defines('location_id')) {
+        const at = current('location_id');
+        const location = at === null ? undefined : calendar.locations.get(at);
+        if (location !== undefined && location.legalEntityId !== entity) asked['location_id'] = null;
+      }
+
+      const changes = Object.fromEntries(
+        Object.entries(asked).filter(([key, value]) => value !== current(key)),
+      );
+      if (Object.keys(changes).length > 0) {
+        const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...changes });
+        const effectiveFrom = asking.effectiveFrom ?? day;
+        if (effectiveFrom > day) {
+          return err(
+            failure(
+              'PLACEMENT_IN_FUTURE',
+              `A placement takes effect on ${day} or earlier, on the calendar it moves them to`,
+              ['effectiveFrom'],
+            ),
+          );
+        }
+
+        const history = await deps.people.history(tx, asking.tenantId, asking.personId);
+        const moves: Record<string, unknown> = {};
+        const corrections: { supersedes: string; value: unknown }[] = [];
+        for (const [key, value] of Object.entries(changes)) {
+          const standing = valueAsOf(history, key, effectiveFrom);
+          if (standing?.effectiveFrom === effectiveFrom) {
+            corrections.push({ supersedes: standing.id, value });
+          } else moves[key] = value;
+        }
+        const on = {
+          tenantId: asking.tenantId,
+          viewer: asking.viewer,
+          correlationId: asking.correlationId,
+          personId: asking.personId,
+        };
+        if (Object.keys(moves).length > 0) {
+          const moved = await update(tx, { ...on, changes: moves, effectiveFrom });
+          if (!moved.ok) return moved;
+        }
+        for (const correction of corrections) {
+          // eslint-disable-next-line no-await-in-loop -- one correction per attribute, in order
+          const fixed = await api.correct(tx, { ...on, ...correction, reason: 'Placement corrected' });
+          if (!fixed.ok) return fixed;
+        }
+      }
+
+      const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
+      if (!after) return err(PersonNotFound());
+      return ok(await view(tx, asking, after, version, relations));
+    },
   };
+  return api;
 }
 
 /** The same convention `drizzlePeopleFacts` reads: an address's country, else a plain one. */

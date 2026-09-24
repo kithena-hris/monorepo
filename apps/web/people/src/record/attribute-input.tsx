@@ -63,6 +63,7 @@ const PICKED = new Set<RecordField['dataType']>([
   'person_ref',
   'org_unit_ref',
   'legal_entity_ref',
+  'location_ref',
 ]);
 
 const text = (value: AttributeValue): string => (typeof value === 'string' ? value : '');

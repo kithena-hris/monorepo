@@ -1419,13 +1419,25 @@ it is written down here rather than left in a PR description.
       past `asOf` (a past day is the snapshot's counts); a manager at the
       top of a 50,000-person chain asks one relation per person in the
       window.
-- [ ] **PEO-123** Nothing places a person at a location or in a legal entity
+- [x] **PEO-123** Nothing places a person at a location or in a legal entity
       from a screen or an import: `location_id` and `legal_entity_id` are
       typed columns (§6.8) but no published attribute names them (the core
       pack has neither, and there is no `location_ref` data type), so a
       person's day can only follow a location somebody wrote into the row.
       Needs the two attributes in the core pack, a `location_ref` type with
       its picker, and the transfer semantics (§8.5). Found in PEO-119.
+      *(PRD §6.8, §7, §8.1, §8.5, §10.2)* *Landed as `PersonAccess.place`,
+      HR only: entity, location, org unit and cost centre from a date on the
+      new calendar (today there by default, never later), a location moving
+      its entity with it, archived ones refused, a same-day repeat a
+      correction carrying `supersedes`; `POST /v1/people/{id}/placement`,
+      `placePerson`, and the placement control beside Employment on the
+      profile. Decided: a legal-entity change is a transfer — the period
+      closes the day before and the next opens, continuous service, hire
+      date and status untouched — and a location change is not; applied in
+      `update`, so a form or an import transfers the same way. The number
+      follows the rehire rule. `legal_entity_id` and `location_id`
+      (`location_ref`, new) in the core pack, effective-dated. No migration.*
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*

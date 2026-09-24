@@ -145,5 +145,34 @@ export const CORE_PACK: {
       classification: { ...identity, piiKind: 'none' },
       effectiveDated: true,
     }),
+    // Where somebody works (§6.8, PEO-123): whose day it is, which entity
+    // numbers them, and what the placement control on the profile writes.
+    // Dated, so an "as of" read and a transfer's periods agree.
+    field({
+      key: 'legal_entity_id',
+      sectionKey: 'employment',
+      label: 'Legal entity',
+      order: 3,
+      dataType: 'legal_entity_ref',
+      typeConfig: { kind: 'legal_entity_ref' },
+      ownership: ['hr'],
+      visibility: ['self', 'manager', 'hr'],
+      collectAt: 'hr_only',
+      classification: { ...identity, piiKind: 'none' },
+      effectiveDated: true,
+    }),
+    field({
+      key: 'location_id',
+      sectionKey: 'employment',
+      label: 'Work location',
+      order: 4,
+      dataType: 'location_ref',
+      typeConfig: { kind: 'location_ref' },
+      ownership: ['hr'],
+      visibility: [...everyone],
+      collectAt: 'hr_only',
+      classification: { ...identity, piiKind: 'none' },
+      effectiveDated: true,
+    }),
   ],
 };

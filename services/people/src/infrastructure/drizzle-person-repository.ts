@@ -79,6 +79,7 @@ export function drizzlePersonRepository(): PersonRepository {
 
       // A record hired before it was first written carries its hire date's row.
       await insertHistory(tx, snapshot, aggregate.drainHistory());
+      await writePeriod(tx, snapshot, aggregate.drainClosedPeriod());
       await writePeriod(tx, snapshot, aggregate.drainPeriod());
 
       // Same transaction as the row. That is the whole mechanism, and the
@@ -105,6 +106,7 @@ export function drizzlePersonRepository(): PersonRepository {
         ...aggregate.drainHistory(),
       ]);
       // The current employment period, when the move changed it (PEO-110).
+      await writePeriod(tx, snapshot, aggregate.drainClosedPeriod());
       await writePeriod(tx, snapshot, aggregate.drainPeriod());
 
       await publish(tx, outbox, aggregate.drainEvents());
@@ -221,7 +223,8 @@ export const currentEmployment = sql<Record<string, unknown> | null>`(
            'leavingReason', p.leaving_reason,
            'eligibleForRehire', p.eligible_for_rehire,
            'noticeFrom', p.notice_from,
-           'rehireOverrideReason', p.rehire_override_reason)
+           'rehireOverrideReason', p.rehire_override_reason,
+           'startedOn', p.started_on)
     FROM people.employment_period p
    WHERE p.tenant_id = person.tenant_id AND p.person_id = person.id
    ORDER BY p.period DESC
@@ -240,6 +243,7 @@ export function toEmployment(value: Record<string, unknown> | null): CurrentEmpl
     eligibleForRehire: (value['eligibleForRehire'] as boolean | null) ?? null,
     noticeFrom: (value['noticeFrom'] as CurrentEmployment['noticeFrom']) ?? null,
     rehireOverrideReason: (value['rehireOverrideReason'] as string | null) ?? null,
+    startedOn: (value['startedOn'] as string | null) ?? null,
   };
 }
 

@@ -1127,3 +1127,106 @@ describe('correcting a notice’s last working day forward after access ended', 
     expect(left.drainEvents()).toEqual([]);
   });
 });
+
+describe('placement and transfer (PEO-123)', () => {
+  const ES = '00000000-0000-4000-8000-0000000000e1';
+  const PT = '00000000-0000-4000-8000-0000000000e2';
+  const inSpain = {
+    period: 1,
+    legalEntityId: ES,
+    leavingReason: null,
+    eligibleForRehire: null,
+    noticeFrom: null,
+    rehireOverrideReason: null,
+    startedOn: '2024-01-08',
+  } as const;
+  const employed = (over: Partial<PersonSnapshot> = {}) =>
+    person({ status: 'active', hireDate: '2024-01-08', employment: inSpain, ...over });
+
+  it('is a transfer when an employee changes legal entity: one period closes, the next opens', () => {
+    const p = employed();
+    const placed = p.place(PT, '2026-10-01');
+    expect(placed.ok && placed.value).toBe('transferred');
+    expect(p.drainClosedPeriod()).toEqual({ ...inSpain, lastWorkingDay: '2026-09-30' });
+    expect(p.drainPeriod()).toEqual({
+      period: 2,
+      legalEntityId: PT,
+      startedOn: '2026-10-01',
+      lastWorkingDay: null,
+      leavingReason: null,
+      eligibleForRehire: null,
+      noticeFrom: null,
+      rehireOverrideReason: null,
+    });
+    // Continuous service: the hire date, the status and access are the employment's, untouched.
+    expect(p.snapshot).toMatchObject({ status: 'active', hireDate: '2024-01-08', lastWorkingDay: null });
+    expect(p.drainEvents()).toEqual([]);
+    expect(p.drainClosedPeriod()).toBeNull();
+  });
+
+  it('reads the entity a record from before periods was in off the record itself', () => {
+    // Period 1 synthesised with no entity; the record says Spain.
+    const p = person({ status: 'active', hireDate: '2024-01-08' });
+    const placed = p.place(PT, '2026-10-01', ES);
+    expect(placed.ok && placed.value).toBe('transferred');
+    expect(p.drainClosedPeriod()).toMatchObject({ period: 1, legalEntityId: ES, lastWorkingDay: '2026-09-30' });
+    expect(person({ status: 'active', hireDate: '2024-01-08' }).place(ES, '2026-10-01', ES)).toEqual({
+      ok: true,
+      value: 'unchanged',
+    });
+  });
+
+  it('closes the old period on the last day of a month across a year end', () => {
+    const p = employed();
+    p.place(PT, '2027-01-01');
+    expect(p.drainClosedPeriod()).toMatchObject({ lastWorkingDay: '2026-12-31' });
+  });
+
+  it('moves the period itself when there is no earlier employer to leave', () => {
+    // A pre-hire has not started anywhere; nobody's first entity is a move.
+    for (const p of [
+      person({ status: 'pre_hire', hireDate: '2026-11-01', employment: inSpain }),
+      employed({ employment: { ...inSpain, legalEntityId: null } }),
+    ]) {
+      const placed = p.place(PT, '2026-10-01');
+      expect(placed.ok && placed.value).toBe('placed');
+      expect(p.drainClosedPeriod()).toBeNull();
+      expect(p.drainPeriod()).toMatchObject({ period: 1, legalEntityId: PT });
+    }
+  });
+
+  it('re-places the current period for a change dated on or before its start: a correction', () => {
+    const p = employed({ employment: { ...inSpain, period: 2, startedOn: '2026-10-01' } });
+    const placed = p.place(PT, '2026-10-01');
+    expect(placed.ok && placed.value).toBe('placed');
+    expect(p.drainClosedPeriod()).toBeNull();
+    expect(p.drainPeriod()).toMatchObject({ period: 2, legalEntityId: PT, startedOn: '2026-10-01' });
+  });
+
+  it('changes nothing when the entity is the one they are in, or for a record never hired', () => {
+    const same = employed();
+    expect(same.place(ES, '2026-10-01')).toEqual({ ok: true, value: 'unchanged' });
+    expect(same.drainPeriod()).toBeNull();
+    const provisional = person();
+    expect(provisional.place(PT, '2026-10-01')).toEqual({ ok: true, value: 'unchanged' });
+    expect(provisional.drainPeriod()).toBeNull();
+  });
+
+  it('refuses a transfer for somebody on notice, and any placement of a leaver', () => {
+    const leaving = employed({ status: 'notice', lastWorkingDay: '2026-12-31' }).place(PT, '2026-10-01');
+    expect(!leaving.ok && leaving.error.code).toBe('TRANSFER_ON_NOTICE');
+    for (const status of ['terminated', 'discarded'] as const) {
+      const r = employed({ status }).place(PT, '2026-10-01');
+      expect(!r.ok && r.error.code, status).toBe('INVALID_TRANSITION');
+    }
+  });
+
+  it('keeps a transfer period’s start when the hire date is corrected', () => {
+    const p = employed({ employment: { ...inSpain, period: 2, startedOn: '2026-10-01' } });
+    expect(p.correctHireDate('2024-01-15', ctx, UTC).ok).toBe(true);
+    expect(p.drainPeriod()).toMatchObject({ period: 2, startedOn: '2026-10-01' });
+    const first = employed();
+    first.correctHireDate('2024-01-15', ctx, UTC);
+    expect(first.drainPeriod()).toMatchObject({ period: 1, startedOn: '2024-01-15' });
+  });
+});

@@ -73,6 +73,11 @@ export const OPERATIONS = {
           period startedOn lastWorkingDay leavingReason eligibleForRehire noticeFrom rehireOverrideReason
         }
       }
+      placement {
+        legalEntityId locationId
+        entities { value label }
+        locations { value label legalEntityId }
+      }
     }
   }${RECORD_FIELD}${ENTRY}`,
 
@@ -229,6 +234,10 @@ export const OPERATIONS = {
 
   SavePersonSection: `mutation SavePersonSection($personId: ID!, $changed: [FormValueInput!]!, $key: String!) {
     savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok }
+  }`,
+
+  PlacePerson: `mutation PlacePerson($personId: ID!, $legalEntityId: ID, $locationId: ID, $effectiveFrom: String, $key: String!) {
+    placePerson(personId: $personId, legalEntityId: $legalEntityId, locationId: $locationId, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
   }`,
 
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {

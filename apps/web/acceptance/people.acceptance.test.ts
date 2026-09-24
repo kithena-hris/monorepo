@@ -552,9 +552,26 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     };
     expect(await theirDay()).toBe(`${todayIn('Etc/UTC')} (Etc/UTC)`);
 
-    // Nothing in the published schema places somebody at a location yet (see
-    // PEO-123), so he is placed where the record keeps it.
-    await stack.sql`UPDATE people.person SET location_id = ${office.id} WHERE id = ${EMPLOYEE.person}`;
+    // PEO-123: HR places him there from his profile. The move is dated on
+    // the office's calendar, and from then on his day is the office's.
+    await page.waitForLoadState('networkidle');
+    const placement = page.getByRole('form', { name: 'Placement' });
+    await placement.getByRole('combobox', { name: /Work location/ }).click();
+    await page.getByRole('option', { name: 'Pago Pago office' }).click();
+    await placement.getByRole('button', { name: 'Move' }).click();
+    await eventually(
+      'the placement',
+      () => stack.sql<{ location_id: string | null }[]>`
+        SELECT location_id FROM people.person WHERE id = ${EMPLOYEE.person}`,
+      ([p]) => p?.location_id === office.id,
+    );
+    const [placed] = await stack.sql<{ effective: string; payload: Record<string, unknown> }[]>`
+      SELECT envelope ->> 'effectiveFrom' AS effective, envelope -> 'payload' AS payload
+        FROM people.outbox
+       WHERE aggregate_id = ${EMPLOYEE.person} AND event_name = 'people.person.org_changed'
+       ORDER BY created_at DESC LIMIT 1`;
+    expect(placed?.effective).toBe(todayIn('Pacific/Pago_Pago'));
+    expect(placed?.payload).toMatchObject({ locationId: office.id });
     expect(await theirDay()).toBe(`${todayIn('Pacific/Pago_Pago')} (Pacific/Pago_Pago)`);
 
     // The office moves across the date line from today there: 25 hours
