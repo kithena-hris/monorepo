@@ -1289,6 +1289,14 @@ it is written down here rather than left in a PR description.
       short-lived access token to the shell's server for the signed-in session
       (never the browser), key rotation through the JWKS, the shell calling the
       router, and the direct path removed. Found in PEO-098. *(PRD §13)*
+      *Partly landed:* identity issues the token (`POST
+      /api/internal/session/token`, five minutes, `aud` the router, `ent` the
+      company's modules), publishes rotation keys (`AUTH_VERIFICATION_KEYS`),
+      and the router checks the audience and refetches on an unknown `kid`;
+      proven with identity itself beside the real router. *Open:* the router
+      serves GraphQL only and the shell's calls are all REST, so the direct
+      path goes when the shell moves to GraphQL through the router, which is
+      being built on this in its own PR (PRD §13.2).
 - [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
       one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
       *Landed as `platform.tenant.entitlements` (20260924270000; null is
@@ -1308,4 +1316,5 @@ it is written down here rather than left in a PR description.
 | PEO-027 | PEO-002             | People cannot see a name captured at enrolment until identity publishes it                                                                |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked                         |
 | PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
+| PEO-113 | the shell's move    | Token and router are done; the shell's People calls are REST and the router serves GraphQL only. The move to GraphQL through the router is being built on this work in its own PR (PRD §13.2) |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
