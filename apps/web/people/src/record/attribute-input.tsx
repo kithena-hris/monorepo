@@ -17,6 +17,7 @@ import {
   Switch,
   TagsInput,
   Textarea,
+  type ComboboxProps,
 } from '@reach/ui';
 import {
   createContext,
@@ -80,7 +81,8 @@ export const PeopleSearch = createContext<SearchPeople | null>(null);
 /**
  * A person picked by typing their name: People searches everybody, so the
  * 50,000th person is as reachable as the first. `known` names whoever is
- * already chosen, so the trigger reads a name rather than an id.
+ * already chosen, so the trigger reads a name rather than an id. Inside a
+ * `FieldControl`, the field's label and description reach the trigger.
  */
 export function PersonPicker({
   label,
@@ -89,7 +91,8 @@ export function PersonPicker({
   disabled = false,
   size = 'md',
   onChange,
-}: {
+  ...control
+}: Pick<ComboboxProps, 'id' | 'aria-describedby' | 'aria-invalid'> & {
   readonly label: string;
   readonly value: string;
   readonly known: readonly Option[];
@@ -132,6 +135,7 @@ export function PersonPicker({
   );
   return (
     <Combobox
+      {...control}
       label={label}
       options={options}
       value={value === '' ? null : value}
@@ -237,13 +241,15 @@ export function AttributeInput({
     return (
       <Field invalid={invalid} disabled={disabled} required={field.required}>
         <FieldLabel>{field.label}</FieldLabel>
-        <PersonPicker
-          label={field.label}
-          value={text(value)}
-          known={field.options}
-          disabled={disabled}
-          onChange={onChange}
-        />
+        <FieldControl>
+          <PersonPicker
+            label={field.label}
+            value={text(value)}
+            known={field.options}
+            disabled={disabled}
+            onChange={onChange}
+          />
+        </FieldControl>
         {described}
         {error}
       </Field>

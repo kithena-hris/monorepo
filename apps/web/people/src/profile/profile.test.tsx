@@ -150,6 +150,51 @@ describe('Profile', () => {
     });
   });
 
+  it('picks a manager by searching People, whoever they are among 50,000 (PEO-122)', async () => {
+    const user = fast();
+    const withManager: ProfileState = {
+      person: { ...person, missing: 0 },
+      sections: [
+        {
+          key: 'work',
+          label: 'Work',
+          visibility: ['self', 'hr'],
+          readsLogged: false,
+          fields: [
+            field({
+              key: 'manager_id',
+              label: 'Manager',
+              dataType: 'person_ref',
+              readOnly: false,
+              // Who is chosen now, named: the only person the view sends.
+              options: [{ value: 'g', label: 'Grace Hopper' }],
+            }),
+          ],
+        },
+      ],
+      values: { manager_id: 'g' },
+    };
+    const searchPeople = vi.fn(() => Promise.resolve([{ value: 'z', label: 'Zoë Person 49999' }]));
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { container } = render(
+      <Profile
+        load={{ status: 'ready', data: withManager }}
+        onSave={onSave}
+        searchPeople={searchPeople}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Edit Work' }));
+    const form = screen.getByRole('form', { name: 'Work' });
+    const picker = within(form).getByRole('button', { name: 'Manager' });
+    expect(picker).toHaveTextContent('Grace Hopper');
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(picker);
+    await user.type(screen.getByRole('combobox', { name: 'Manager search' }), '49999');
+    await user.click(await screen.findByRole('option', { name: 'Zoë Person 49999' }));
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith('work', { manager_id: 'z' });
+  });
+
   it('has loading and error states', async () => {
     const { container, rerender } = render(
       <Profile load={{ status: 'loading' }} onSave={vi.fn()} />,
