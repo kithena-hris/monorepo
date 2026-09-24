@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
 import { AccountProvisioned, SchemaPublished } from '@kithena/contracts';
+import { kafkaConfigFrom } from '@kithena/db-kit';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
@@ -45,9 +46,10 @@ export function wireConsumers(env = process.env): void {
 export async function startConsumers(
   env: NodeJS.ProcessEnv,
 ): Promise<{ stop(): Promise<void> } | null> {
+  // First, so a half-configured broker refuses to boot even without a database.
+  const kafka = kafkaConfigFrom(env, 'people');
   const databaseUrl = env['PEOPLE_DATABASE_URL'];
-  const brokers = env['KAFKA_BROKERS'];
-  if (databaseUrl === undefined || brokers === undefined) {
+  if (databaseUrl === undefined || kafka === null) {
     logger.info('PEOPLE_DATABASE_URL or KAFKA_BROKERS unset; not consuming');
     return null;
   }
@@ -71,7 +73,7 @@ export async function startConsumers(
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
   });
 
-  const consumer = new Kafka({ clientId: 'people', brokers: brokers.split(',') }).consumer({
+  const consumer = new Kafka(kafka).consumer({
     groupId: 'people',
   });
   await consumer.connect();

@@ -87,7 +87,20 @@ export async function startMinio(): Promise<{
  * `ponytail: a free port can be taken between choosing and binding it. Retry
  * the file if that ever happens in CI.`
  */
-export async function startRedpanda(): Promise<{ brokers: string; stop: () => Promise<void> }> {
+export async function startRedpanda(
+  options: {
+    /**
+     * SCRAM users to create before SASL is switched on, for a test of a
+     * client that authenticates. Each is a superuser: what is under test is
+     * the handshake, not the ACLs. Plaintext listener either way.
+     */
+    readonly scramUsers?: readonly {
+      readonly username: string;
+      readonly password: string;
+      readonly mechanism: 'SCRAM-SHA-256' | 'SCRAM-SHA-512';
+    }[];
+  } = {},
+): Promise<{ brokers: string; stop: () => Promise<void> }> {
   const port = await freePort();
   const container = await new GenericContainer('redpandadata/redpanda:latest')
     .withExposedPorts({ container: 9092, host: port })
@@ -105,6 +118,20 @@ export async function startRedpanda(): Promise<{ brokers: string; stop: () => Pr
     ])
     .withWaitStrategy(Wait.forLogMessage(/Successfully started Redpanda/))
     .start();
+
+  const users = options.scramUsers ?? [];
+  const rpk = async (...args: string[]) => {
+    const run = await container.exec(['rpk', ...args]);
+    if (run.exitCode !== 0) throw new Error(`rpk ${args[0] ?? ''} failed: ${run.output}`);
+  };
+  for (const user of users) {
+    // eslint-disable-next-line no-await-in-loop -- one admin call at a time
+    await rpk('security', 'user', 'create', user.username, '-p', user.password, '--mechanism', user.mechanism);
+  }
+  if (users.length > 0) {
+    await rpk('cluster', 'config', 'set', 'superusers', JSON.stringify(users.map((u) => u.username)));
+    await rpk('cluster', 'config', 'set', 'enable_sasl', 'true');
+  }
 
   return {
     brokers: `localhost:${String(port)}`,
