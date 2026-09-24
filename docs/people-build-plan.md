@@ -1333,7 +1333,7 @@ it is written down here rather than left in a PR description.
       every transport's caller check prefers it to the forwarded list. The
       shell reads the effective list from the session answer and shows only
       the areas the company bought.*
-- [ ] **PEO-119** Organisation settings and a way into every People screen.
+- [x] **PEO-119** Organisation settings and a way into every People screen.
       PEO-099 and PEO-101 had REST and GraphQL for legal entities, locations
       with effective-dated zones, employee numbering and the tenant's
       settings, and no screen; People's home was a placeholder, so a settings
