@@ -47,6 +47,7 @@ jobs:
     outputs:
       ui: ${{ steps.diff.outputs.ui }}
       contracts: ${{ steps.diff.outputs.contracts }}
+      web: ${{ steps.diff.outputs.web }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,6 +62,7 @@ jobs:
           if [ "$EVENT" != "pull_request" ]; then
             echo "ui=true" >> "$GITHUB_OUTPUT"
             echo "contracts=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
@@ -71,9 +73,15 @@ jobs:
           ui='^(packages/ui/|apps/storybook/|apps/docs/|tools/a11y/|tools/storybook/)'
           # What codegen, the contract tests and supergraph composition read.
           contracts='^(packages/contracts/|packages/graphql-kit/|services/|platform/|apps/gateway/|tools/codegen/)'
+          # What the web acceptance stack runs: the shell and its remote, People,
+          # identity, the router's config and persisted operations, every
+          # migration, and every package (the design system renders the screens,
+          # `packages/testing` starts the containers).
+          web='^(apps/web/|services/people/|platform/identity/|apps/gateway/|packages/|migrations/)'
           any() { printf '%s\n' "$changed" | grep -Eq "$1"; }
           if any "$shared" || any "$ui"; then echo "ui=true" >> "$GITHUB_OUTPUT"; else echo "ui=false" >> "$GITHUB_OUTPUT"; fi
           if any "$shared" || any "$contracts"; then echo "contracts=true" >> "$GITHUB_OUTPUT"; else echo "contracts=false" >> "$GITHUB_OUTPUT"; fi
+          if any "$shared" || any "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
   verify:
@@ -236,8 +244,79 @@ jobs:
       # directly, `pnpm --filter` would start vitest against an unbuilt
       # workspace and the module would fail to boot for the one reason this job
       # is not trying to detect.
-      - name: boot the module alone
+      #
+      # Twice, as steps rather than a second matrix axis, so the required checks
+      # keep their names (`standalone (people)`). First with no TypeSafe key,
+      # the configuration a customer without one runs; then with a dummy key,
+      # so the advisor exists and the path through it is exercised. The dummy
+      # is not a secret and reaches nothing: the suite replaces `fetch` and
+      # fails on any request it did not mock, so CI never calls the real API.
+      - name: boot the module alone, no TypeSafe key
         run: pnpm turbo run test:standalone --filter @kithena/${{ matrix.module }}
+      # Straight through pnpm, not turbo: the step above built what it needs,
+      # and turbo's strict env mode would withhold an undeclared variable from
+      # the task — the run would pass with no key and prove nothing.
+      - name: boot the module alone, TypeSafe key set (advisor mocked)
+        env:
+          TYPESAFE_API_KEY: standalone-dummy-key
+        run: pnpm --filter @kithena/${{ matrix.module }} test:standalone
+
+  # The tenant app as a person meets it: Postgres with every migration,
+  # OpenFGA, identity, the Cosmo Router, People, the People remote and the
+  # shell as production builds, driven by Chromium (`apps/web/acceptance`).
+  # About thirteen tests over three minutes of setup, so it is gated like the
+  # jobs above: the job always runs and always reports `web acceptance`, and
+  # its steps run when the diff can reach the stack (`changes.outputs.web`),
+  # and always on `main` and in the merge queue.
+  #
+  # Hermetic: every server is on loopback or in a container, and the webhook
+  # test posts to the harness's own HTTPS receiver. Nothing reaches the
+  # internet except the image and browser downloads before the suite starts.
+  web-acceptance:
+    name: web acceptance
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        if: needs.changes.outputs.web == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        if: needs.changes.outputs.web == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        if: needs.changes.outputs.web == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22, cache: pnpm }
+      - name: install
+        if: needs.changes.outputs.web == 'true'
+        run: pnpm install --frozen-lockfile
+      # Identity and People run from source under tsx, but resolve
+      # `@kithena/contracts` and its siblings through their built `dist/`.
+      - name: build the packages
+        if: needs.changes.outputs.web == 'true'
+        run: pnpm turbo run build --filter='./packages/*'
+      - name: chromium
+        if: needs.changes.outputs.web == 'true'
+        run: pnpm --filter @kithena/web exec playwright install --with-deps chromium
+      - name: acceptance suite
+        if: needs.changes.outputs.web == 'true'
+        env:
+          ACCEPTANCE_LOGS: ${{ runner.temp }}/acceptance-servers.log
+        run: pnpm --filter @kithena/web test:acceptance
+      # The servers' last output, which is what explains a red run; the suite
+      # writes it on the way down whatever the result.
+      - name: keep the server logs
+        if: failure() && needs.changes.outputs.web == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-acceptance-logs
+          path: ${{ runner.temp }}/acceptance-servers.log
+          retention-days: 7
+
+      - name: nothing to check
+        if: needs.changes.outputs.web != 'true'
+        run: echo "::notice::No change this job covers (apps/web, People, identity, the gateway, packages, migrations or shared config). It runs in full on main."
 
   design-system:
     needs: changes
