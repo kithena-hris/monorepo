@@ -1213,10 +1213,12 @@ remote's `routes.json`, fetched and wired by the shell:
 
 | Route                           | Screen                     |
 | ------------------------------- | -------------------------- |
+| `/people`                       | home (PEO-119)             |
 | `/people/setup`                 | setup wizard               |
 | `/people/settings/fields`       | field registry and publish |
 | `/people/settings/integrations` | integrations               |
 | `/people/settings/roles`        | roles (PEO-112)            |
+| `/people/settings/organisation` | organisation (PEO-119)     |
 | `/people/onboarding`            | onboarding                 |
 | `/people/me`                    | my own profile             |
 | `/people/{id}`                  | someone else's profile     |
@@ -1226,7 +1228,23 @@ remote's `routes.json`, fetched and wired by the shell:
 | `/people/export`                | export builder             |
 | `/people/analytics`             | analytics                  |
 
-The tabs above other than integrations have no screen yet.
+**Organisation settings, as built (PEO-119).** One screen with four tabs:
+legal entities, locations, employee numbering, and the company (the default
+zone, the cohort minimum, and the slug and name, read-only). It is drawn from
+one read, `peopleOrganisation`, which also says whether the viewer may change
+anything. Anybody in the tenant reads it; the controls are offered to a
+People administrator, and People refuses anybody else whatever the screen
+offers. A zone change is dated from today *in the new zone* unless another
+day is chosen, because it is in force once that day has begun there; one
+dated after today is listed under the zone in force. The cohort minimum field
+will not submit a lower number, as neither the domain nor the trigger accepts
+one. People's home (`/people`) lists every area the viewer's roles open,
+settings included, so no URL has to be typed. HR sees on each profile whose
+day it is for that person (their zone, and today on it), which every
+lifecycle move runs on.
+
+Directory, country packs, completeness and reminders (other than the cohort
+minimum) and data protection have no screen yet.
 
 **The setup wizard publishes the core fields with the pack.** The core fields
 are `country-packs/core.ts`: legal first and family name, preferred name, work

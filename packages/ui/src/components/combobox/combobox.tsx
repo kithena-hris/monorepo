@@ -71,6 +71,13 @@ export interface ComboboxProps {
   onSearchChange?: (query: string) => void;
   /** Shows the busy state while a server-side search is in flight. */
   loading?: boolean;
+  /**
+   * Set by `FieldControl`, so a `Field`'s label and description reach the
+   * trigger as they reach an `Input`. Not for use on their own.
+   */
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean;
 }
 
 const sizeClass = {
@@ -94,6 +101,9 @@ export function Combobox({
   size = 'md',
   onSearchChange,
   loading = false,
+  id,
+  'aria-describedby': describedBy,
+  'aria-invalid': invalid,
 }: ComboboxProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -207,14 +217,17 @@ export function Combobox({
       }}
     >
       <PopoverTrigger
+        id={id}
         disabled={disabled}
         aria-label={label}
+        aria-describedby={describedBy}
         className={cn(
           'flex w-full items-center justify-between gap-2 rounded-md border border-border bg-surface',
           'text-left text-fg transition-colors duration-(--animate-duration-fast)',
           'hover:border-border-strong',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
           'disabled:pointer-events-none disabled:opacity-55',
+          invalid && 'border-danger',
           sizeClass[size],
           className,
         )}

@@ -193,11 +193,22 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
     }),
   });
+  const PersonCalendar = builder
+    .objectRef<NonNullable<ProfileView['calendar']>>('PersonCalendar')
+    .implement({
+      fields: (t) => ({ today: t.exposeString('today'), timeZone: t.exposeString('timeZone') }),
+    });
   const Profile = builder.objectRef<ProfileView>('PeopleProfile').implement({
     fields: (t) => ({
       person: t.field({ type: ProfilePerson, resolve: (v) => v.person }),
       sections: t.field({ type: [ProfileSectionRef], resolve: (v) => list(v.sections) }),
       values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
+      calendar: t.field({
+        type: PersonCalendar,
+        nullable: true,
+        description: 'HR’s alone: their zone and today on it (PRD §6.8).',
+        resolve: (v) => v.calendar,
+      }),
     }),
   });
 

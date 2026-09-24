@@ -66,8 +66,25 @@ export const OPERATIONS = {
       person { name summary avatarUrl missing }
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
+      calendar { today timeZone }
     }
   }${RECORD_FIELD}${ENTRY}`,
+
+  Home: `query Home {
+    peopleHome { hr admin finance }
+  }`,
+
+  Organisation: `query Organisation {
+    peopleOrganisation {
+      canManage
+      settings { defaultTimeZone cohortMinimum slug displayName }
+      legalEntities { id name country timeZone archived }
+      locations { id legalEntityId name country timeZone zones { effectiveFrom timeZone } archived }
+      numberings { legalEntityId prefix digits nextValue }
+      countries { code name }
+      timeZones
+    }
+  }`,
 
   Directory: `query Directory($search: String, $filter: String, $after: ID) {
     peopleDirectory(search: $search, filter: $filter, after: $after) {
@@ -242,6 +259,47 @@ export const OPERATIONS = {
 
   RevokeRole: `mutation RevokeRole($accountId: ID!, $role: TenantRole!, $reason: String!, $key: String!) {
     revokeRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }
+  }`,
+
+  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $key: String!) {
+    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, idempotencyKey: $key) {
+      defaultTimeZone
+    }
+  }`,
+
+  CreateLegalEntity: `mutation CreateLegalEntity($name: String!, $country: String!, $timeZone: String!, $key: String!) {
+    createLegalEntity(name: $name, country: $country, timeZone: $timeZone, idempotencyKey: $key) { id }
+  }`,
+
+  UpdateLegalEntity: `mutation UpdateLegalEntity(
+    $id: ID!, $name: String, $timeZone: String, $archived: Boolean, $key: String!
+  ) {
+    updateLegalEntity(id: $id, name: $name, timeZone: $timeZone, archived: $archived, idempotencyKey: $key) { id }
+  }`,
+
+  CreateLocation: `mutation CreateLocation(
+    $legalEntityId: ID!, $name: String!, $country: String!, $timeZone: String!, $effectiveFrom: String, $key: String!
+  ) {
+    createLocation(
+      legalEntityId: $legalEntityId, name: $name, country: $country, timeZone: $timeZone,
+      effectiveFrom: $effectiveFrom, idempotencyKey: $key
+    ) { id }
+  }`,
+
+  UpdateLocation: `mutation UpdateLocation($id: ID!, $name: String, $archived: Boolean, $key: String!) {
+    updateLocation(id: $id, name: $name, archived: $archived, idempotencyKey: $key) { id }
+  }`,
+
+  ChangeLocationZone: `mutation ChangeLocationZone($id: ID!, $timeZone: String!, $effectiveFrom: String!, $key: String!) {
+    changeLocationZone(id: $id, timeZone: $timeZone, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
+  }`,
+
+  SetEmployeeNumbering: `mutation SetEmployeeNumbering(
+    $legalEntityId: ID!, $prefix: String!, $digits: Int!, $start: Float!, $key: String!
+  ) {
+    setEmployeeNumbering(
+      legalEntityId: $legalEntityId, prefix: $prefix, digits: $digits, start: $start, idempotencyKey: $key
+    ) { legalEntityId }
   }`,
 
   ProposeImport: `mutation ProposeImport($file: Upload!) {

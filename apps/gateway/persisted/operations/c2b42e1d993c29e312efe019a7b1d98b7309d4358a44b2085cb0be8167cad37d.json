@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UpdateLegalEntity(\n    $id: ID!, $name: String, $timeZone: String, $archived: Boolean, $key: String!\n  ) {\n    updateLegalEntity(id: $id, name: $name, timeZone: $timeZone, archived: $archived, idempotencyKey: $key) { id }\n  }"}

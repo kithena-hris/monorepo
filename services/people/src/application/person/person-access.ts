@@ -239,6 +239,15 @@ export interface PersonAccess {
    * day has ended on their calendar: back to the status they gave it from.
    */
   withdrawNotice(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  /**
+   * Whose day it is for this person, and what day (PRD §6.8): their
+   * location's zone, else their entity's, else their own, else the tenant's.
+   * HR only, as every lifecycle move that runs on it is (PEO-119).
+   */
+  calendar(
+    tx: Tx,
+    asking: On<object>,
+  ): Promise<Result<{ readonly today: string; readonly timeZone: string }>>;
   /** Every employment period on a person, first first (PEO-110). HR only. */
   employmentPeriods(tx: Tx, asking: On<object>): Promise<Result<readonly EmploymentPeriodRow[]>>;
   startLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
@@ -1017,6 +1026,20 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             standing !== undefined && standing.value === p.lastWorkingDay ? standing : null,
           ),
       );
+    },
+
+    async calendar(tx, asking) {
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR reads a person’s calendar'));
+      const { zone, day } = await calendarOf(tx, asking.tenantId, person.values);
+      return ok({ today: day, timeZone: zone });
     },
 
     async employmentPeriods(tx, asking) {

@@ -193,6 +193,66 @@ export async function revokeRole(
   return outcome(people('RevokeRole', { accountId, role, reason }));
 }
 
+/* -------------------------------------------------------- organisation -- */
+
+/** Only what was given: GraphQL's optional arguments are absent, never undefined. */
+const given = (patch: Values): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+
+export async function updateSettings(patch: {
+  defaultTimeZone?: string;
+  cohortMinimum?: number;
+}): Promise<Outcome> {
+  return outcome(people('UpdatePeopleSettings', given(patch)));
+}
+
+export async function createEntity(input: {
+  name: string;
+  country: string;
+  timeZone: string;
+}): Promise<Outcome> {
+  return outcome(people('CreateLegalEntity', { ...input }));
+}
+
+export async function updateEntity(
+  id: string,
+  patch: { name?: string; timeZone?: string; archived?: boolean },
+): Promise<Outcome> {
+  return outcome(people('UpdateLegalEntity', { id, ...given(patch) }));
+}
+
+export async function createLocation(input: {
+  legalEntityId: string;
+  name: string;
+  country: string;
+  timeZone: string;
+  effectiveFrom?: string;
+}): Promise<Outcome> {
+  return outcome(people('CreateLocation', given(input)));
+}
+
+export async function updateLocation(
+  id: string,
+  patch: { name?: string; archived?: boolean },
+): Promise<Outcome> {
+  return outcome(people('UpdateLocation', { id, ...given(patch) }));
+}
+
+export async function changeZone(
+  id: string,
+  timeZone: string,
+  effectiveFrom: string,
+): Promise<Outcome> {
+  return outcome(people('ChangeLocationZone', { id, timeZone, effectiveFrom }));
+}
+
+export async function setNumbering(
+  legalEntityId: string,
+  scheme: { prefix: string; digits: number; start: number },
+): Promise<Outcome> {
+  return outcome(people('SetEmployeeNumbering', { legalEntityId, ...scheme }));
+}
+
 /* -------------------------------------------------------------- import -- */
 
 /** The file travels with every step: People keeps nothing between them (§14.2). */

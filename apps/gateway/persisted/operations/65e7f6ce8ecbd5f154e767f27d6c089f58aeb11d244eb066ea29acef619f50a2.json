@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation UpdateLocation($id: ID!, $name: String, $archived: Boolean, $key: String!) {\n    updateLocation(id: $id, name: $name, archived: $archived, idempotencyKey: $key) { id }\n  }"}

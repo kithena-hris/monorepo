@@ -183,6 +183,8 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       })
       .toBe(true);
     expect(await page.getByRole('textbox', { name: /Registered name/ }).inputValue()).toBe('Acme');
+    // The heading is the server's; a press counts once the remote has hydrated it.
+    await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // The Spanish pack, accepted as it is.
@@ -505,5 +507,73 @@ describe('PEO-112: granting a role on the roles screen', () => {
     await theirs.goto(`${stack.shell}/people/settings/roles`);
     await theirs.getByText('Could not load the roles').waitFor({ timeout: 30_000 });
     await employee.close();
+  });
+});
+
+/** Today where a zone is, as People reads it. */
+const todayIn = (zone: string): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+describe('PEO-119: a location in another zone changes a person’s day', () => {
+  it('adds a location on the settings screen, and HR sees the person’s day follow its zone', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+
+    // Reached from People's home, not typed.
+    await page.goto(`${stack.shell}/people`);
+    await page.getByRole('link', { name: 'Legal entities, locations and numbering' }).click();
+    await page.waitForURL(/\/people\/settings\/organisation$/);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('tab', { name: 'Locations' }).click();
+    await page.getByRole('button', { name: 'Add location' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add a location' });
+    await dialog.getByRole('textbox', { name: /Name/ }).fill('Pago Pago office');
+    await dialog.getByRole('button', { name: 'Time zone' }).click();
+    await page.getByRole('combobox', { name: 'Time zone search' }).fill('Pago_Pago');
+    await page.getByRole('option', { name: 'Pacific/Pago_Pago' }).click();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('cell', { name: /^Pago Pago office/ }).waitFor({ timeout: 30_000 });
+    const [office] = await stack.sql<{ id: string }[]>`
+      SELECT id FROM people.location WHERE tenant_id = ${TENANT} AND name = 'Pago Pago office'`;
+    if (office === undefined) throw new Error('the location was not created');
+
+    // Adam's day before he works there: the tenant's.
+    const theirDay = async (): Promise<string> => {
+      await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`);
+      return page.getByTestId('their-day').innerText({ timeout: 30_000 });
+    };
+    expect(await theirDay()).toBe(`${todayIn('Etc/UTC')} (Etc/UTC)`);
+
+    // Nothing in the published schema places somebody at a location yet (see
+    // PEO-123), so he is placed where the record keeps it.
+    await stack.sql`UPDATE people.person SET location_id = ${office.id} WHERE id = ${EMPLOYEE.person}`;
+    expect(await theirDay()).toBe(`${todayIn('Pacific/Pago_Pago')} (Pacific/Pago_Pago)`);
+
+    // The office moves across the date line from today there: 25 hours
+    // ahead, so his day is always a different date.
+    await page.goto(`${stack.shell}/people/settings/organisation`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('tab', { name: 'Locations' }).click();
+    await page.getByRole('button', { name: 'Change the time zone of Pago Pago office' }).click();
+    const move = page.getByRole('dialog');
+    await move.getByRole('button', { name: 'New time zone' }).click();
+    await page.getByRole('combobox', { name: 'New time zone search' }).fill('Kiritimati');
+    await page.getByRole('option', { name: 'Pacific/Kiritimati' }).click();
+    await move.getByRole('button', { name: 'Save' }).click();
+    await move.waitFor({ state: 'detached', timeout: 30_000 });
+
+    const after = await theirDay();
+    expect(after).toBe(`${todayIn('Pacific/Kiritimati')} (Pacific/Kiritimati)`);
+    expect(todayIn('Pacific/Kiritimati')).not.toBe(todayIn('Pacific/Pago_Pago'));
+    const [event] = await stack.sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM people.outbox WHERE event_name = 'people.location.zone_changed'`;
+    expect(event?.n).toBe(1);
+    await context.close();
   });
 });

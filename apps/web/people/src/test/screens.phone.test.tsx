@@ -15,6 +15,8 @@ import { Profile } from '../profile/profile';
 import type { RecordField } from '../record/model';
 import { FieldRegistry } from '../settings/field-registry';
 import { Integrations } from '../settings/integrations/integrations';
+import { Organisation } from '../settings/organisation';
+import { PeopleHome } from '../home/people-home';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
 
@@ -233,11 +235,59 @@ describe('at 390×844, with a finger', () => {
               },
             ],
             values: {},
+            calendar: { today: '2026-09-25', timeZone: 'Pacific/Kiritimati' },
           },
         }}
         onSave={ok}
       />,
     );
+  });
+
+  it('People home', async () => {
+    await checked(
+      <PeopleHome load={{ status: 'ready', data: { hr: true, admin: true, finance: false } }} />,
+    );
+  });
+
+  it('the organisation settings, and a dialog over them', async () => {
+    const entity = { id: 'e1', name: 'Acme Iberia SL', country: 'ES', timeZone: 'Europe/Madrid', archived: false };
+    await checked(
+      <Organisation
+        load={{
+          status: 'ready',
+          data: {
+            canManage: true,
+            settings: { defaultTimeZone: 'Europe/Madrid', cohortMinimum: 10, slug: 'acme', displayName: 'Acme' },
+            legalEntities: [entity],
+            locations: [
+              {
+                id: 'l1',
+                legalEntityId: 'e1',
+                name: 'Madrid office',
+                country: 'ES',
+                timeZone: 'Europe/Madrid',
+                zones: [{ effectiveFrom: '2026-01-01', timeZone: 'Europe/Madrid' }],
+                archived: false,
+              },
+            ],
+            numberings: [{ legalEntityId: 'e1', prefix: 'ES-', digits: 5, nextValue: 42 }],
+            countries: [{ code: 'ES', name: 'Spain' }],
+            timeZones: ['Etc/UTC', 'Europe/Madrid'],
+          },
+        }}
+        onUpdateSettings={ok}
+        onCreateEntity={ok}
+        onUpdateEntity={ok}
+        onCreateLocation={ok}
+        onUpdateLocation={ok}
+        onChangeZone={ok}
+        onSetNumbering={ok}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Edit Acme Iberia SL' }));
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    expect(underFloor(document.body)).toEqual([]);
   });
 
   it('the directory, as cards', async () => {

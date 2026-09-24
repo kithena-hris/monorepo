@@ -101,3 +101,32 @@ describe('employee numbering over GraphQL', () => {
     expect((await send(SET, { id, start: 1, key: randomUUID() })).errors?.[0]?.extensions['code']).toBe('FORBIDDEN');
   });
 });
+
+describe('the organisation screen’s read (PEO-119)', () => {
+  const ORG = `{ peopleOrganisation {
+    canManage settings { defaultTimeZone cohortMinimum }
+    legalEntities { name } numberings { prefix } countries { code } timeZones
+  } peopleHome { hr admin finance } }`;
+
+  it('answers everything in one read, and says who may change it', async () => {
+    roles = ['people_admin'];
+    wire();
+    await send(
+      `mutation { createLegalEntity(name: "Acme Spain", country: "ES", timeZone: "Europe/Madrid", idempotencyKey: "${randomUUID()}") { id } }`,
+    );
+    const admin = await send(ORG);
+    expect(admin.errors).toBeUndefined();
+    const org = admin.data?.['peopleOrganisation'] as Record<string, unknown>;
+    expect(org['canManage']).toBe(true);
+    expect(org['legalEntities']).toEqual([{ name: 'Acme Spain' }]);
+    expect(org['countries']).toContainEqual({ code: 'ES' });
+    expect(org['timeZones']).toContain('Etc/UTC');
+    expect(org['timeZones']).toContain('Pacific/Kiritimati');
+    expect(admin.data?.['peopleHome']).toEqual({ hr: false, admin: true, finance: false });
+
+    roles = [];
+    const anybody = await send(ORG);
+    expect(anybody.data?.['peopleOrganisation']?.['canManage']).toBe(false);
+    expect(anybody.data?.['peopleHome']).toEqual({ hr: false, admin: false, finance: false });
+  });
+});

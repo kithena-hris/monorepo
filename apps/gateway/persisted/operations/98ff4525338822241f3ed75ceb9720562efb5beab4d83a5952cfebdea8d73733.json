@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CreateLegalEntity($name: String!, $country: String!, $timeZone: String!, $key: String!) {\n    createLegalEntity(name: $name, country: $country, timeZone: $timeZone, idempotencyKey: $key) { id }\n  }"}
