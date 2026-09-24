@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { Kafka } from 'kafkajs';
 import postgres from 'postgres';
 import { SchemaPublished, type EventEnvelope } from '@kithena/contracts';
+import { kafkaConfigFrom } from '@kithena/db-kit';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry';
 
@@ -99,9 +100,9 @@ export async function startBackground(
   env: NodeJS.ProcessEnv,
   options: BackgroundOptions = {},
 ): Promise<{ stop(): Promise<void> } | null> {
+  const kafka = kafkaConfigFrom(env, 'people-policies');
   const databaseUrl = env['PEOPLE_DATABASE_URL'];
-  const brokers = env['KAFKA_BROKERS'];
-  if (databaseUrl === undefined || brokers === undefined) {
+  if (databaseUrl === undefined || kafka === null) {
     logger.info('PEOPLE_DATABASE_URL or KAFKA_BROKERS unset; no background work');
     return null;
   }
@@ -122,9 +123,7 @@ export async function startBackground(
    * until the broker expires its offsets. Fine at deploy cadence.`
    */
   const reload = onSchemaPublished(inTenant, registry);
-  const policies = new Kafka({ clientId: 'people-policies', brokers: brokers.split(',') }).consumer(
-    { groupId: `people-policies-${randomUUID()}` },
-  );
+  const policies = new Kafka(kafka).consumer({ groupId: `people-policies-${randomUUID()}` });
   await policies.connect();
   await policies.subscribe({ topics: [SchemaPublished.topic], fromBeginning: true });
   await policies.run({

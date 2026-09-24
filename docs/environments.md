@@ -427,6 +427,8 @@ is in `.env.example`.
   `-pooler`: this is a long-lived process with its own pool, and it prepares
   statements.
 - `KAFKA_BROKERS` — without it People serves the graph and consumes nothing.
+  For a managed cluster add the `KAFKA_SASL_*` and `KAFKA_TLS*` settings in
+  "Kafka: SASL and TLS" below.
 - `IDENTITY_URL`, `PEOPLE_IDENTITY_TOKEN` — reconciliation against identity's
   account listing.
 - `MESSAGING_URL`, `MESSAGING_PEOPLE_TOKEN`, `TENANT_APP_BASE` — reminder mail.
@@ -437,13 +439,30 @@ is in `.env.example`.
   `PEOPLE_EXPORT_ENCRYPTION_KEY`, `PEOPLE_EXPORT_SIGNING_KEY`, `S3_*`,
   `VALKEY_URL` — exports; all optional, in memory when unset.
 
+#### Kafka: SASL and TLS
+
+People and identity build their Kafka client from one helper,
+`kafkaConfigFrom` in `packages/db-kit/src/kafka.ts`, so a broker that needs
+credentials works for every consumer or for none. A broker on a private
+network needs only `KAFKA_BROKERS`; a managed Redpanda needs SASL/SCRAM and
+TLS as well:
+
+| Setting | Holds |
+| --- | --- |
+| `KAFKA_BROKERS` | Comma-separated `host:port`. Unset: nothing consumes. |
+| `KAFKA_SASL_MECHANISM` | `scram-sha-256` or `scram-sha-512`, as the cluster's user was created. |
+| `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD` | The SCRAM user. A secret; never logged (kafkajs logs the broker only, and the password is not enumerable on the config object). |
+| `KAFKA_TLS` | `true` or `false`. Unset: on when SASL is set, off otherwise. |
+| `KAFKA_TLS_CA` | Optional PEM bundle for a broker with a private CA. Implies TLS. Certificate checks cannot be turned off. |
+
+The three SASL settings go together or not at all. Half of them, an unknown
+mechanism, an unreadable `KAFKA_TLS` or a `KAFKA_TLS_CA` that is not PEM stops
+the process at boot rather than connecting without the credentials it was
+meant to have; with `NODE_ENV=production`, SASL with `KAFKA_TLS=false` does as
+well. The error names the setting, never its value.
+
 #### Not covered here
 
-- **Kafka from Fly.** People's Kafka client takes a broker list and nothing
-  else — no SASL, no TLS — so it can reach a Redpanda on Fly's private network
-  but not a managed cluster that requires authentication. Which of the two to
-  run is a choice to make before `KAFKA_BROKERS` is set; the second needs a
-  change in `services/people`, not in a workflow.
 - **The outbox relay.** Debezium is not deployed anywhere yet, so People's
   outbox rows are written and nothing publishes them.
 
@@ -452,3 +471,37 @@ is in `.env.example`.
 `just dev` brings up the whole compose stack. Tenants resolve at
 `<company>.app.localhost`, which most browsers send to `127.0.0.1` without a
 hosts entry. `TENANT_HOST_SUFFIX` in `.env.example` is already set to match.
+
+### The local S3
+
+Production stores objects in Oracle Object Storage (exports, backups) and
+Cloudflare R2 (browser uploads), both through the S3 API. Locally and in the
+integration tests that is SeaweedFS, `weed mini`, pinned by digest in
+`docker-compose.yml` and `packages/testing/src/containers.ts` — keep the two
+the same. S3 is on `:9000` (`S3_ENDPOINT`), the admin UI on `:9001`, and the
+buckets `kithena-dev` and `people-exports` are created on boot by `-bucket`.
+
+It replaced MinIO in September 2026, when MinIO's images stopped being publicly
+pullable. Each candidate was run against the same checks:
+
+| Check | SeaweedFS 4.47 | RustFS 1.0.0 | Garage 2.4.1 |
+| --- | --- | --- | --- |
+| SigV4, wrong secret refused | yes | yes | yes |
+| Several buckets | yes, created on boot | yes | yes, after a layout and key bootstrap |
+| SSE-S3 (`AES256`) stored and reported | yes, no key to set | only with a master key set | accepted, not reported |
+| Presigned GET; tampered URL refused | yes | yes | yes |
+| Presigned PUT; a length other than the signed one refused | yes | yes | yes |
+| Rejects a checksum that does not match the body, as S3 does | yes | no | yes |
+| `PutBucketCors`; preflight allows the origin, refuses another | yes | yes | allows `*` to any origin |
+| 100 MB multipart round trip, checksum intact | yes | yes | no, CRC32 mismatch on read |
+| Ready from start | ~3 s | ~5 s | needs a CLI bootstrap |
+| linux/amd64 and linux/arm64 | yes | yes | yes |
+| Licence | Apache-2.0 | Apache-2.0 | AGPL-3.0 |
+
+RustFS passed nearly as much, but it accepted a presigned PUT carrying a
+checksum of the wrong body, which S3 refuses — a test against it would have
+passed for an upload production rejects. That checksum is worth knowing about
+for anyone presigning: AWS SDK v3 adds `x-amz-checksum-crc32` of an empty body
+to a presigned `PutObject` unless the client is built with
+`requestChecksumCalculation: 'WHEN_REQUIRED'`, and the browser's upload then
+fails with `BadDigest`.

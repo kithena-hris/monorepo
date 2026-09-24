@@ -43,34 +43,39 @@ export async function startValkey(): Promise<{ url: string; stop: () => Promise<
   };
 }
 
+/** Pinned by digest; `docker-compose.yml` names the same one. */
+const OBJECT_STORE_IMAGE =
+  'chrislusf/seaweedfs:4.47@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882';
+
 /**
- * MinIO, for object storage: the image `docker-compose.yml` runs.
+ * An S3-compatible object store: SeaweedFS, the image `docker-compose.yml`
+ * runs. Production is Oracle Object Storage and R2; this stands in for both.
  *
- * With a static KMS key, because server-side encryption (SSE-S3) is refused by
- * a MinIO that has no KMS, and a test that skipped SSE would pass against a
- * bucket production would not accept the request for.
+ * `weed mini` is the single-process mode, and it takes its one identity from
+ * `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, so SigV4 is really checked.
+ * It honours SSE-S3 with no key to configure, and rejects a checksum that does
+ * not match the body, as S3 does. `docs/environments.md` has why this one.
  */
-export async function startMinio(): Promise<{
+export async function startObjectStore(): Promise<{
   endpoint: string;
   accessKeyId: string;
   secretAccessKey: string;
   stop: () => Promise<void>;
 }> {
-  const container = await new GenericContainer('quay.io/minio/minio:latest')
+  const container = await new GenericContainer(OBJECT_STORE_IMAGE)
     .withEnvironment({
-      MINIO_ROOT_USER: 'minio',
-      MINIO_ROOT_PASSWORD: 'minio123',
-      MINIO_KMS_SECRET_KEY: 'kithena-test:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
+      AWS_ACCESS_KEY_ID: 'kithena',
+      AWS_SECRET_ACCESS_KEY: 'kithena-dev-secret',
     })
-    .withCommand(['server', '/data'])
-    .withExposedPorts(9000)
-    .withWaitStrategy(Wait.forHttp('/minio/health/ready', 9000))
+    .withCommand(['mini', '-dir=/data'])
+    .withExposedPorts(8333)
+    .withWaitStrategy(Wait.forHttp('/healthz', 8333))
     .start();
 
   return {
-    endpoint: `http://${container.getHost()}:${String(container.getMappedPort(9000))}`,
-    accessKeyId: 'minio',
-    secretAccessKey: 'minio123',
+    endpoint: `http://${container.getHost()}:${String(container.getMappedPort(8333))}`,
+    accessKeyId: 'kithena',
+    secretAccessKey: 'kithena-dev-secret',
     stop: async () => {
       await container.stop();
     },
@@ -87,7 +92,20 @@ export async function startMinio(): Promise<{
  * `ponytail: a free port can be taken between choosing and binding it. Retry
  * the file if that ever happens in CI.`
  */
-export async function startRedpanda(): Promise<{ brokers: string; stop: () => Promise<void> }> {
+export async function startRedpanda(
+  options: {
+    /**
+     * SCRAM users to create before SASL is switched on, for a test of a
+     * client that authenticates. Each is a superuser: what is under test is
+     * the handshake, not the ACLs. Plaintext listener either way.
+     */
+    readonly scramUsers?: readonly {
+      readonly username: string;
+      readonly password: string;
+      readonly mechanism: 'SCRAM-SHA-256' | 'SCRAM-SHA-512';
+    }[];
+  } = {},
+): Promise<{ brokers: string; stop: () => Promise<void> }> {
   const port = await freePort();
   const container = await new GenericContainer('redpandadata/redpanda:latest')
     .withExposedPorts({ container: 9092, host: port })
@@ -105,6 +123,20 @@ export async function startRedpanda(): Promise<{ brokers: string; stop: () => Pr
     ])
     .withWaitStrategy(Wait.forLogMessage(/Successfully started Redpanda/))
     .start();
+
+  const users = options.scramUsers ?? [];
+  const rpk = async (...args: string[]) => {
+    const run = await container.exec(['rpk', ...args]);
+    if (run.exitCode !== 0) throw new Error(`rpk ${args[0] ?? ''} failed: ${run.output}`);
+  };
+  for (const user of users) {
+    // eslint-disable-next-line no-await-in-loop -- one admin call at a time
+    await rpk('security', 'user', 'create', user.username, '-p', user.password, '--mechanism', user.mechanism);
+  }
+  if (users.length > 0) {
+    await rpk('cluster', 'config', 'set', 'superusers', JSON.stringify(users.map((u) => u.username)));
+    await rpk('cluster', 'config', 'set', 'enable_sasl', 'true');
+  }
 
   return {
     brokers: `localhost:${String(port)}`,
