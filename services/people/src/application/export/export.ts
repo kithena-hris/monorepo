@@ -420,8 +420,15 @@ async function workbook(
   }
 
   for (const d of repeating) {
-    const sheet = wb.addWorksheet(sheetName(label(d)));
-    for (const values of repeatingRows(d, rows)) {
+    // Label row, then the key row the importer recognises the sheet by (§15.3):
+    // the sheet's name is a label cut to 31 characters, so it cannot be.
+    const [header, ...items] = repeatingRows(d, rows);
+    const sheet = wb.addWorksheet(sheetName(label(d)), {
+      views: [{ state: 'frozen', ySplit: 2 }],
+    });
+    sheet.addRow(header).font = { bold: true };
+    sheet.addRow([PERSON_ID_COLUMN, 'employee_number', '#', d.key]);
+    for (const values of items) {
       const row = sheet.addRow(values.slice(0, 3));
       if (values[3] !== undefined) xlsxCell(row.getCell(4), d, values[3]);
     }

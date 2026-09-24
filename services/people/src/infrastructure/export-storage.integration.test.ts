@@ -125,9 +125,9 @@ describe('the bucket adapter', () => {
 
     const past = new Date(Date.now() - 60_000).toISOString();
     const future = new Date(Date.now() + 60_000).toISOString();
-    expect(await blobs.deleteOlderThan(past, 10)).toBe(0);
-    expect(await blobs.deleteOlderThan(future, 2)).toBe(2);
-    expect(await blobs.deleteOlderThan(future, 10)).toBe(1);
+    expect(await blobs.deleteExpired((_, at) => at < Date.parse(past), 10)).toBe(0);
+    expect(await blobs.deleteExpired((_, at) => at < Date.parse(future), 2)).toBe(2);
+    expect(await blobs.deleteExpired((_, at) => at < Date.parse(future), 10)).toBe(1);
     expect(await blobs.get('a')).toBeNull();
   });
 });

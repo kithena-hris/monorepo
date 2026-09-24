@@ -1,4 +1,8 @@
-import type { PendingEvent } from '@kithena/domain-kit';
+import { randomBytes } from 'node:crypto';
+
+import type { Clock, PendingEvent } from '@kithena/domain-kit';
+
+import { localObjectStore } from '../export/object-store.js';
 
 import {
   define,
@@ -9,7 +13,13 @@ import {
 } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
-import type { CommitDeps, ImportCounts, ImportLedger, RowScope } from './commit.js';
+import type {
+  CommitDeps,
+  ImportCounts,
+  ImportLedger,
+  ReportIndex,
+  RowScope,
+} from './commit.js';
 import { utcCalendars } from '../org/org.js';
 
 /**
@@ -243,11 +253,56 @@ export function inMemoryLedger(): ImportLedger & {
 /** No savepoints in memory; a refused row writes nothing before it is refused. */
 export const directRowScope: RowScope = (tx, fn) => fn(tx);
 
+/** The report index, in memory: `people.import_report`'s rows. */
+export function inMemoryReportIndex(): ReportIndex & {
+  readonly rows: Map<string, { personIds: readonly string[]; expiresAt: string }>;
+} {
+  const rows = new Map<string, { personIds: readonly string[]; expiresAt: string }>();
+  const id = (tenantId: string, checksum: string) => `${tenantId}:${checksum}`;
+  return {
+    rows,
+    save(_tx, e) {
+      rows.set(id(e.tenantId, e.checksum), { personIds: e.personIds, expiresAt: e.expiresAt });
+      return Promise.resolve();
+    },
+    expiresAt: (_tx, tenantId, checksum) =>
+      Promise.resolve(rows.get(id(tenantId, checksum))?.expiresAt ?? null),
+    containing: (_tx, tenantId, personId) =>
+      Promise.resolve(
+        [...rows.entries()]
+          .filter(([k, r]) => k.startsWith(`${tenantId}:`) && r.personIds.includes(personId))
+          .map(([k]) => k.slice(tenantId.length + 1)),
+      ),
+    remove(_tx, tenantId, checksums) {
+      for (const c of checksums) rows.delete(id(tenantId, c));
+      return Promise.resolve();
+    },
+  };
+}
+
+/** Sealed and in memory, as a dev box keeps export files, with the index beside. */
+export function reportStore(clock: Clock): {
+  readonly store: ReturnType<typeof localObjectStore>;
+  readonly index: ReturnType<typeof inMemoryReportIndex>;
+} {
+  return {
+    store: localObjectStore({
+      encryptionKey: randomBytes(32),
+      signingKey: randomBytes(32),
+      clock,
+      baseUrl: 'https://people.test/v1/exports/files',
+    }),
+    index: inMemoryReportIndex(),
+  };
+}
+
 export function commitDeps(
   store: InMemoryPeople,
   ledger: ImportLedger = inMemoryLedger(),
+  reports: CommitDeps['reports'] = reportStore(store.deps.clock),
 ): CommitDeps {
   return {
+    reports,
     calendars: utcCalendars,
     access: personAccess(store.deps),
     schemas: store.deps.schemas,

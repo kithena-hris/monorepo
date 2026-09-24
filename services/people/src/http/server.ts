@@ -13,7 +13,7 @@ import {
 } from '../application/export/full-values.js';
 import { drizzleFullValuesStore } from '../application/export/full-values-store.js';
 import { drizzleExportLedger } from '../application/export/ledger.js';
-import { keyOf } from '../application/export/object-store.js';
+import { keyOf, type ObjectStore } from '../application/export/object-store.js';
 import type { ExportQueue } from '../application/export/queue.js';
 import { orgAdmin } from '../application/org/org.js';
 import { uuidv7 } from '../application/person/ids.js';
@@ -47,7 +47,7 @@ import {
 import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
 import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
 import { listEndpoints } from '../infrastructure/webhooks/list.js';
-import { drizzleImportLedger, drizzleRowScope } from '../application/import/ledger.js';
+import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from '../application/import/ledger.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -379,7 +379,10 @@ function send(response: ServerResponse, answer: RestResponse): void {
 }
 
 /** What the screens' transports need beyond the person use cases (PEO-098). */
-function screenDeps(service: ReturnType<typeof peopleService>): ScreenRouteDeps {
+function screenDeps(
+  service: ReturnType<typeof peopleService>,
+  reports: ObjectStore,
+): ScreenRouteDeps {
   const schema = drizzleSchemaRepository();
   const reader = drizzlePersonReader();
   const base = (process.env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
@@ -407,6 +410,9 @@ function screenDeps(service: ReturnType<typeof peopleService>): ScreenRouteDeps 
       ledger: drizzleImportLedger(),
       rowScope: drizzleRowScope,
       newId: uuidv7,
+      // The export's store: its key seals the report, and its download route
+      // is the one that opens the link. The index names who each contains.
+      reports: { store: reports, index: drizzleReportIndex() },
       calendars,
     },
   };
@@ -444,7 +450,7 @@ export function wirePeople(server: Server): void {
     idempotency,
     exports,
     fullValues: exports.fullValues,
-    screens: screenRoutes(screenDeps(service), idempotency),
+    screens: screenRoutes(screenDeps(service, exports.deps.store), idempotency),
   });
   // Requests first, then what they use (PEO-118).
   onShutdown('requests, exports and the service pool', async () => {

@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   ListObjectsV2Command,
@@ -19,8 +20,9 @@ import type { Blobs } from '../application/export/object-store.js';
  * generous, which SSE does not — the bucket decrypts SSE for anyone it lets
  * read.
  *
- * The bucket holds export files and nothing else, which is what lets the
- * sweep delete by age without asking what an object is.
+ * The bucket holds export files and imports' blocked-row reports; the sweep
+ * deletes each by age against its own lifetime (`lifetimeOf`): a day for an
+ * export file, a week for a report.
  *
  * The bucket is never linked to directly (see `object-store.ts`), so nothing
  * here presigns.
@@ -88,8 +90,7 @@ export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client }
      * page until the live ones are swept. A bucket lifecycle rule is the
      * backstop worth adding in production.
      */
-    async deleteOlderThan(before, limit) {
-      const cutoff = Date.parse(before);
+    async deleteExpired(expired, limit) {
       let deleted = 0;
       let token: string | undefined;
       for (let page = 0; page < MAX_PAGES && deleted < limit; page += 1) {
@@ -97,7 +98,12 @@ export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client }
           new ListObjectsV2Command({ Bucket, MaxKeys: 1000, ContinuationToken: token }),
         );
         const stale = (listed.Contents ?? [])
-          .filter((o) => o.Key !== undefined && (o.LastModified?.getTime() ?? Infinity) < cutoff)
+          .filter(
+            (o) =>
+              o.Key !== undefined &&
+              o.LastModified !== undefined &&
+              expired(o.Key, o.LastModified.getTime()),
+          )
           .slice(0, limit - deleted)
           .map((o) => ({ Key: o.Key ?? '' }));
         if (stale.length > 0) {
@@ -110,6 +116,11 @@ export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client }
         if (!token) break;
       }
       return deleted;
+    },
+
+    async delete(key) {
+      // S3 answers a delete of a missing key with success.
+      await client.send(new DeleteObjectCommand({ Bucket, Key: key }));
     },
   };
 }

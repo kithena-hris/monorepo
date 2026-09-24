@@ -22,7 +22,12 @@ import type { PersonAccess, PersonView } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions, Viewer } from '../person/ports.js';
 import { coerceCell, coerceDate, isMasked, type DateOrder } from './cells.js';
 import { SYSTEM_COLUMNS, type ColumnMapping } from './mapping.js';
-import { PERSON_ID_COLUMN, type ParsedFile, type ParsedRow } from './parse.js';
+import {
+  PERSON_ID_COLUMN,
+  type ParsedFile,
+  type ParsedRow,
+  type RepeatingSheet,
+} from './parse.js';
 
 /**
  * The dry run (PRD §14.4): every row classified before anything is written.
@@ -77,10 +82,33 @@ export interface ClassifiedRow {
   /** The row confirms an existing provisional record as hired, from `hireDate`. */
   readonly hires: boolean;
   readonly effectiveFrom: string | null;
+  /**
+   * An existing person's start date, changed by this row: written as a
+   * correction carrying `supersedes` (§8.5), never as an overwrite.
+   */
+  readonly hireDateCorrection: { readonly from: string | null; readonly to: string } | null;
   /** Why it is blocked. Empty otherwise. */
   readonly problems: readonly CellProblem[];
   /** Required keys still missing once this row is written. */
   readonly missing: readonly string[];
+}
+
+/**
+ * One item on a repeating attribute's sheet that will not be imported, named
+ * by sheet, row and cell. It holds back that person's whole list for that
+ * attribute — the sheet is the full set, so importing the rest would delete
+ * it — and nothing else on their row.
+ */
+export interface BlockedItem {
+  readonly sheet: string;
+  readonly row: number;
+  /** A1 reference on that sheet. */
+  readonly cell: string;
+  readonly key: string;
+  readonly personId: string | null;
+  readonly value: string;
+  readonly kind: 'invalid' | 'unknown_person';
+  readonly reason: string;
 }
 
 export interface DryRun {
@@ -92,6 +120,19 @@ export interface DryRun {
   readonly incomplete: { readonly count: number; readonly byKey: Readonly<Record<string, number>> };
   /** Never silent: every column that will not be imported, by header. */
   readonly ignoredColumns: readonly string[];
+  /**
+   * The repeating attributes' sheets (§15.2), and whether each is read: one
+   * for an unknown, archived, sealed or unwritable attribute is not, and is
+   * listed rather than dropped.
+   */
+  readonly sheets: readonly {
+    readonly sheet: string;
+    readonly key: string;
+    readonly imported: boolean;
+  }[];
+  readonly blockedItems: readonly BlockedItem[];
+  /** Rows that correct an existing person's hire date. */
+  readonly corrections: number;
   /** Whether dated facts took a file column or the defaults (§14.5). */
   readonly effectiveFrom: 'column' | 'defaults';
   readonly rows: readonly ClassifiedRow[];
@@ -231,6 +272,18 @@ export async function dryRun(
   const schemes = new Map(
     ((await deps.numbering?.list(tx, input.tenantId)) ?? []).map((n) => [n.legalEntityId, n]),
   );
+  const sheets = input.file.repeating.map((sheet) => {
+    const d = version.document.attributes.find((a) => a.key === sheet.key);
+    const imported =
+      d !== undefined &&
+      d.cardinality === 'repeating' &&
+      d.deprecatedAt === null &&
+      !d.encrypted &&
+      canWrite(d, relations).ok;
+    return { sheet: sheet.sheet, key: sheet.key, imported, source: sheet };
+  });
+  const items = itemsByPerson(sheets.filter((s) => s.imported).map((s) => s.source));
+  const blockedItems: BlockedItem[] = [];
   const classify = rowClassifier(
     version,
     input,
@@ -239,8 +292,31 @@ export async function dryRun(
     deps.clock,
     calendar,
     schemes,
+    { items, blocked: blockedItems },
   );
   const rows = input.file.rows.map(classify);
+  // What no importable row claimed: an unknown id, or a person whose row is
+  // blocked, a duplicate, or not on the People sheet at all.
+  for (const [personId, lists] of items.unclaimed()) {
+    const known = existing.value.byId.has(personId);
+    const reason =
+      personId === ''
+        ? 'no person id'
+        : known
+          ? 'this person has no row that will import on the People sheet'
+          : 'no person with this id';
+    for (const [key, list] of lists) {
+      for (const r of list.rows) {
+        blockedItems.push({
+          ...itemAt(list.sheet, r),
+          key,
+          personId: personId === '' ? null : personId,
+          kind: known ? 'invalid' : 'unknown_person',
+          reason,
+        });
+      }
+    }
+  }
 
   const counts: Record<RowOutcome, number> = {
     create: 0,
@@ -252,12 +328,14 @@ export async function dryRun(
   const blockedBy: Record<string, number> = {};
   const byKey: Record<string, number> = {};
   let incomplete = 0;
+  const tallyBlocked = (p: { readonly kind: CellProblem['kind']; readonly key: string }) => {
+    const label = `${p.kind === 'unknown_person' ? 'unknown' : p.kind} ${p.key}`;
+    blockedBy[label] = (blockedBy[label] ?? 0) + 1;
+  };
+  for (const item of blockedItems) tallyBlocked(item);
   for (const r of rows) {
     counts[r.outcome] += 1;
-    for (const p of r.problems) {
-      const label = `${p.kind === 'unknown_person' ? 'unknown' : p.kind} ${p.key}`;
-      blockedBy[label] = (blockedBy[label] ?? 0) + 1;
-    }
+    for (const p of r.problems) tallyBlocked(p);
     if ((r.outcome === 'create' || r.outcome === 'update') && r.missing.length > 0) {
       incomplete += 1;
       for (const k of r.missing) byKey[k] = (byKey[k] ?? 0) + 1;
@@ -270,6 +348,9 @@ export async function dryRun(
     blockedBy,
     incomplete: { count: incomplete, byKey },
     ignoredColumns: input.mapping.filter((m) => m.status === 'ignored').map((m) => m.header),
+    sheets: sheets.map(({ sheet, key, imported }) => ({ sheet, key, imported })),
+    blockedItems,
+    corrections: rows.filter((r) => r.outcome === 'update' && r.hireDateCorrection).length,
     effectiveFrom: input.mapping.some((m) => m.status === 'mapped' && m.key === 'effective_from')
       ? 'column'
       : 'defaults',
@@ -286,6 +367,7 @@ function rowClassifier(
   clock: Clock,
   calendar: TenantCalendar,
   schemes: ReadonlyMap<string, NumberingScheme>,
+  repeating: { readonly items: ItemsByPerson; readonly blocked: BlockedItem[] },
 ) {
   const at = clock.instant();
   const definitions = version.document.attributes;
@@ -304,7 +386,10 @@ function rowClassifier(
       for (const m of mapped) {
         const key = m.key as string;
         const definition = byKey.get(key);
-        if (!definition) continue; // system columns, read below
+        // System columns are read below, the hire date among them even when
+        // it is a published field: it is hired or corrected, never written
+        // as a profile value.
+        if (!definition || key === 'hire_date') continue;
         const raw = cell(m);
         // A sealed value exports masked; the mask is "unchanged", not a value.
         if (definition.encrypted && isMasked(raw)) continue;
@@ -390,11 +475,33 @@ function rowClassifier(
     }
 
     const hires = person?.status === 'provisional' && hireDate !== null;
+
+    // An existing person's start date is a fact already recorded, so a new
+    // one is a correction of it (§8.5): typed, carrying `supersedes`, through
+    // the one correction path, and refused here when that path would refuse.
+    let hireDateCorrection: ClassifiedRow['hireDateCorrection'] = null;
+    if (person && !hires && hireDate !== null) {
+      const held = person.attributes['hire_date'];
+      const hireDefinition = byKey.get('hire_date');
+      if (!hireDefinition || !canWrite(hireDefinition, relations).ok) {
+        problems.push({
+          column: columnOf('hire_date')?.header ?? 'hire_date',
+          key: 'hire_date',
+          kind: 'invalid',
+          reason:
+            "an existing person's hire date changes only by a correction, and hire date is not a field you may correct",
+        });
+      } else if (held !== hireDate) {
+        hireDateCorrection = { from: typeof held === 'string' ? held : null, to: hireDate };
+      }
+    }
+
     const base = {
       row: parsed.row,
       cells: parsed.cells,
       hireDate,
       hires,
+      hireDateCorrection,
       effectiveFrom,
       matchedOn,
     };
@@ -452,6 +559,17 @@ function rowClassifier(
       }
     }
 
+    // The repeating sheets' lists for this person: each whole, or not at all.
+    if (person) {
+      for (const [key, list] of repeating.items.claim(person.id)) {
+        const definition = byKey.get(key);
+        if (!definition) continue;
+        const read = readList(definition, list, { today: personDay, dateOrder: order });
+        if (read.ok) values[key] = read.value;
+        else repeating.blocked.push(...read.error.map((b) => ({ ...b, personId: person.id })));
+      }
+    }
+
     const changes = person
       ? Object.fromEntries(
           Object.entries(values).filter(
@@ -492,7 +610,7 @@ function rowClassifier(
 
     const outcome: RowOutcome = !person
       ? 'create'
-      : Object.keys(changes).length > 0 || hires
+      : Object.keys(changes).length > 0 || hires || hireDateCorrection
         ? 'update'
         : 'unchanged';
     return { ...base, outcome, personId: person?.id ?? null, changes, problems: [], missing };
@@ -511,4 +629,81 @@ function countryOf(values: Readonly<Record<string, unknown>>): string | null {
     if (typeof country === 'string') return country;
   }
   return typeof values['country'] === 'string' ? values['country'] : null;
+}
+
+/* ------------------------------------------------------ repeating sheets -- */
+
+interface ItemList {
+  readonly sheet: string;
+  readonly rows: readonly ParsedRow[];
+}
+
+interface ItemsByPerson {
+  /** This person's lists by attribute key, handed out once. */
+  claim(personId: string): ReadonlyMap<string, ItemList>;
+  /** What nobody claimed, by person id ('' for rows with none). */
+  unclaimed(): Iterable<[string, ReadonlyMap<string, ItemList>]>;
+}
+
+/** Every item row, grouped by the person id in its first cell. */
+function itemsByPerson(sheets: readonly RepeatingSheet[]): ItemsByPerson {
+  const byPerson = new Map<string, Map<string, { sheet: string; rows: ParsedRow[] }>>();
+  for (const sheet of sheets) {
+    for (const r of sheet.rows) {
+      const id = r.cells[0] ?? '';
+      const lists = byPerson.get(id) ?? new Map<string, { sheet: string; rows: ParsedRow[] }>();
+      const list = lists.get(sheet.key) ?? { sheet: sheet.sheet, rows: [] };
+      list.rows.push(r);
+      lists.set(sheet.key, list);
+      byPerson.set(id, lists);
+    }
+  }
+  return {
+    claim(personId) {
+      const lists = byPerson.get(personId) ?? new Map<string, ItemList>();
+      byPerson.delete(personId);
+      return lists;
+    },
+    unclaimed: () => byPerson.entries(),
+  };
+}
+
+/** The item is the fourth column: person id, employee number, #, item. */
+const ITEM = 3;
+
+const itemAt = (sheet: string, r: ParsedRow) => ({
+  sheet,
+  row: r.row,
+  cell: `D${String(r.row)}`,
+  value: r.cells[ITEM] ?? '',
+});
+
+/**
+ * One person's list from its sheet, in sheet order: each item held to the
+ * attribute's type exactly as a single cell would be, or every bad one named.
+ * An empty item cell is not an item.
+ */
+function readList(
+  definition: AttributeDefinition,
+  list: ItemList,
+  ctx: { readonly today: string; readonly dateOrder: DateOrder },
+): Result<unknown[], Omit<BlockedItem, 'personId'>[]> {
+  const one: AttributeDefinition = { ...definition, cardinality: 'single' };
+  const values: unknown[] = [];
+  const bad: Omit<BlockedItem, 'personId'>[] = [];
+  for (const r of list.rows) {
+    const raw = r.cells[ITEM] ?? '';
+    if (raw === '') continue;
+    const read = coerceCell(one, raw, ctx);
+    if (read.ok) values.push(read.value);
+    else {
+      bad.push({
+        ...itemAt(list.sheet, r),
+        key: definition.key,
+        kind: 'invalid',
+        reason: read.error.message,
+      });
+    }
+  }
+  return bad.length > 0 ? err(bad) : ok(values);
 }

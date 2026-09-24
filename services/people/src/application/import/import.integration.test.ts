@@ -23,10 +23,11 @@ import { define, versionOf } from '../person/in-memory.js';
 import { inTenantResult, personAccess, type PersonAccessDeps } from '../person/person-access.js';
 import { commitImport, commitImportRetrying, type CommitDeps, type RowScope } from './commit.js';
 import { asking, attributes, csv, HEADERS, priyasRows } from './fixture.js';
-import { drizzleImportLedger, drizzleRowScope } from './ledger.js';
+import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from './ledger.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
 import { utcCalendars } from '../org/org.js';
+import { localObjectStore } from '../export/object-store.js';
 import { drizzleIdempotency } from '../../http/idempotency.js';
 import { idempotent, restHandler, type RestRequest } from '../../http/rest.js';
 import { screenRoutes, type ScreenRouteDeps } from '../../http/screens.js';
@@ -74,6 +75,15 @@ const deps: CommitDeps = {
   newId: randomUUID,
   ledger: drizzleImportLedger(),
   rowScope: drizzleRowScope,
+  reports: {
+    store: localObjectStore({
+      encryptionKey: randomBytes(32),
+      signingKey: randomBytes(32),
+      clock: fixedClock('2026-09-22T09:00:00.000Z'),
+      baseUrl: 'https://people.test/v1/exports/files',
+    }),
+    index: drizzleReportIndex(),
+  },
 };
 
 const migration = (file: string): Promise<string> =>
@@ -96,6 +106,7 @@ beforeAll(async () => {
     '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',
+    '20260924250000_people_import_report.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
   ]) {
@@ -458,6 +469,7 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
             rowScope: observed,
             newId: randomUUID,
             calendars: utcCalendars,
+            reports: deps.reports,
           },
         } as unknown as ScreenRouteDeps,
         idempotency,

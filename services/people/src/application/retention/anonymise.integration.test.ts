@@ -18,6 +18,9 @@ import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from '../schema/publish-schema.js';
+import { localObjectStore } from '../export/object-store.js';
+import { reportKey } from '../import/commit.js';
+import { drizzleReportIndex } from '../import/ledger.js';
 import { anonymiseDue } from './anonymise.js';
 import { utcCalendars } from '../org/org.js';
 
@@ -46,7 +49,26 @@ let ciphertext = '';
 
 let ids = 0;
 const newEventId = () => `01890000-0000-7000-8000-${String((ids += 1)).padStart(12, '0')}`;
-const anonymise = anonymiseDue({ calendars: utcCalendars, store: drizzleRetentionStore(), clock, newEventId });
+// Two stored import reports: one holds Ada's row, one somebody else's (PEO-090).
+const reports = {
+  store: localObjectStore({
+    encryptionKey: randomBytes(32),
+    signingKey: randomBytes(32),
+    clock,
+    baseUrl: 'https://people.test/v1/exports/files',
+  }),
+  index: drizzleReportIndex(),
+};
+const WITH_ADA = 'a'.repeat(64);
+const WITHOUT_ADA = 'b'.repeat(64);
+const SOMEBODY = '00000000-0000-4000-8000-0000000000b9';
+const anonymise = anonymiseDue({
+  calendars: utcCalendars,
+  store: drizzleRetentionStore(),
+  clock,
+  newEventId,
+  reports,
+});
 const run = () =>
   inTenant(ACME, ({ tx }) =>
     anonymise(tx, {
@@ -130,6 +152,7 @@ beforeAll(async () => {
     '20260924150000_people_unique_hash.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
+    '20260924250000_people_import_report.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -195,6 +218,24 @@ beforeAll(async () => {
   await history(H_PHONE_FIX, 'phone', PHONE, H_PHONE_OLD);
   await history(H_PAYSLIP, 'payslip_ref', 'P-1');
   await history(H_PENSION, 'pension_ref', 'DE-9');
+
+  for (const [checksum, personIds] of [
+    [WITH_ADA, [SOMEBODY, ADA]],
+    [WITHOUT_ADA, [SOMEBODY]],
+  ] as const) {
+    // eslint-disable-next-line no-await-in-loop -- two reports, in a test
+    await reports.store.put(reportKey(ACME, checksum), new TextEncoder().encode('Ada,…'), 'text/csv');
+    // eslint-disable-next-line no-await-in-loop -- two reports, in a test
+    await inTenant(ACME, ({ tx }) =>
+      reports.index.save(tx, {
+        tenantId: ACME,
+        checksum,
+        personIds,
+        storedAt: '2026-09-21T09:00:00.000Z',
+        expiresAt: '2026-09-28T09:00:00.000Z',
+      }),
+    );
+  }
 });
 
 afterAll(async () => {
@@ -227,6 +268,14 @@ describe('anonymising a leaver', () => {
     expect(row?.['family_name']).toBe('Lovelace');
     // pension_ref: the tenant said 12 months, German law says six years.
     expect(row?.['custom']).toEqual({ pension_ref: 'DE-9', hobby: 'chess' });
+  });
+
+  it('deletes every stored import report that contains them, and no other', async () => {
+    // The first test ran the anonymisation.
+    expect(reports.store.raw(reportKey(ACME, WITH_ADA))).toBeUndefined();
+    expect(reports.store.raw(reportKey(ACME, WITHOUT_ADA))).toBeDefined();
+    const left = await admin.execute(sql`SELECT checksum FROM people.import_report`);
+    expect([...left].map((r) => r['checksum'])).toEqual([WITHOUT_ADA]);
   });
 
   it('redacts every history row for a due key, corrections included, and leaves the timeline', async () => {

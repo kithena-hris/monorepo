@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { outboxTable, publish } from '@kithena/db-kit';
 import { err, type DomainFailure } from '@kithena/domain-kit';
 
-import type { ImportLedger, RowScope } from './commit.js';
+import type { ImportLedger, ReportIndex, RowScope } from './commit.js';
 
 /**
  * The import ledger, over `people.import`.
@@ -45,6 +45,54 @@ export function drizzleImportLedger(): ImportLedger {
     },
 
     publish: (tx, events) => publish(tx, outbox, events),
+  };
+}
+
+/**
+ * Which people each stored report contains, over `people.import_report`
+ * (`migrations/20260924250000_people_import_report.sql`). Ids only.
+ */
+export function drizzleReportIndex(): ReportIndex {
+  const ids = (list: readonly string[]) =>
+    sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(list)}::jsonb))::uuid[]`;
+  return {
+    async save(tx, entry) {
+      // ponytail: expired rows are cleared a tenant at a time, here, rather
+      // than by a sweep of its own; they hold ids and nothing else.
+      await tx.execute(sql`
+        DELETE FROM people.import_report
+         WHERE tenant_id = ${entry.tenantId}::uuid AND expires_at <= ${entry.storedAt}::timestamptz`);
+      await tx.execute(sql`
+        INSERT INTO people.import_report (tenant_id, checksum, person_ids, stored_at, expires_at)
+        VALUES (${entry.tenantId}::uuid, ${entry.checksum}, ${ids(entry.personIds)},
+                ${entry.storedAt}::timestamptz, ${entry.expiresAt}::timestamptz)
+        ON CONFLICT (tenant_id, checksum) DO UPDATE
+           SET person_ids = EXCLUDED.person_ids, stored_at = EXCLUDED.stored_at,
+               expires_at = EXCLUDED.expires_at`);
+    },
+
+    async expiresAt(tx, tenantId, checksum) {
+      const rows = await tx.execute<{ expires_at: string | Date }>(sql`
+        SELECT expires_at FROM people.import_report
+         WHERE tenant_id = ${tenantId}::uuid AND checksum = ${checksum}`);
+      const at = [...rows][0]?.expires_at;
+      return at === undefined ? null : new Date(at).toISOString();
+    },
+
+    async containing(tx, tenantId, personId) {
+      const rows = await tx.execute<{ checksum: string }>(sql`
+        SELECT checksum FROM people.import_report
+         WHERE tenant_id = ${tenantId}::uuid AND person_ids @> ARRAY[${personId}::uuid]`);
+      return [...rows].map((r) => r.checksum);
+    },
+
+    async remove(tx, tenantId, checksums) {
+      if (checksums.length === 0) return;
+      await tx.execute(sql`
+        DELETE FROM people.import_report
+         WHERE tenant_id = ${tenantId}::uuid
+           AND checksum IN (SELECT jsonb_array_elements_text(${JSON.stringify(checksums)}::jsonb))`);
+    },
   };
 }
 

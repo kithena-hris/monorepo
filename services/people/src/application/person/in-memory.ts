@@ -81,6 +81,9 @@ function toRecord(row: Row): PersonRecord {
     const value = row.fields[column];
     if (value !== null && value !== undefined) values[key] = value;
   }
+  // The lifecycle dates, as `valuesOf` reads them off their columns.
+  if (row.snapshot.hireDate !== null) values['hire_date'] = row.snapshot.hireDate;
+  if (row.snapshot.lastWorkingDay !== null) values['last_working_day'] = row.snapshot.lastWorkingDay;
   return {
     snapshot: row.snapshot,
     values,

@@ -11,6 +11,7 @@ import {
 import { TenantId, type Actor, type FieldPolicy } from '@kithena/contracts';
 
 import { personZone, type Placement } from '../../domain/org/calendar.js';
+import { forgetImportReports, type StoredReports } from '../import/commit.js';
 import type { Calendars } from '../org/org.js';
 import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
 
@@ -28,6 +29,11 @@ import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
  * than deleted — the trigger in 20260923140000_people_retention.sql allows
  * exactly that — so the timeline keeps its dates and actors and loses only
  * what the value was.
+ *
+ * And a fourth: every stored import report that contains the person is
+ * deleted whole (PEO-090). A report is the blocked rows as uploaded, so it
+ * holds their values too, and redacting a CSV in object storage is not a
+ * thing worth trusting; it is a working copy, and it goes.
  */
 
 export interface RetentionAttribute {
@@ -77,6 +83,8 @@ export function anonymiseDue(deps: {
   readonly newEventId: () => string;
   /** */
   readonly calendars: Calendars;
+  /** Import reports, deleted when they contain the person anonymised. */
+  readonly reports: StoredReports;
 }): (tx: PostgresJsDatabase, request: AnonymiseRequest) => Promise<Result<{ cleared: readonly string[] }>> {
   return async (tx, request) => {
     const { tenantId, personId } = request;
@@ -105,6 +113,7 @@ export function anonymiseDue(deps: {
 
     const keys = due.map((d) => d.key);
     await deps.store.clear(tx, tenantId, personId, keys, events);
+    await forgetImportReports(tx, deps.reports, tenantId, personId);
     return ok({ cleared: keys });
   };
 }
