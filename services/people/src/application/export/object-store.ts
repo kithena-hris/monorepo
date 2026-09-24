@@ -8,7 +8,8 @@ import {
 
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
-import { LINK_LIFETIME_MS } from './job.js';
+/** How long a signed export link, and the file behind it, lives: one day (PEO-043). */
+export const LINK_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Where an export's file lands (PRD §15.1): object storage, encrypted, behind
@@ -48,7 +49,10 @@ export interface Blobs {
   put(key: string, body: Uint8Array, mediaType: string): Promise<void>;
   get(key: string): Promise<{ body: Uint8Array; mediaType: string } | null>;
   /** Delete up to `limit` objects for which `expired(key, storedAtMs)` holds. */
-  deleteExpired(expired: (key: string, storedAt: number) => boolean, limit: number): Promise<number>;
+  deleteExpired(
+    expired: (key: string, storedAt: number) => boolean,
+    limit: number,
+  ): Promise<number>;
   delete(key: string): Promise<void>;
 }
 
