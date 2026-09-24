@@ -1,7 +1,7 @@
 import { createYoga } from 'graphql-yoga';
 import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
-import { schema } from './graphql/schema.js';
+import { yogaOptions } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 import { wirePeople } from './http/server.js';
@@ -11,7 +11,7 @@ startTelemetry(`kithena-${manifest.key}`);
 wireConsumers();
 wireBackground();
 
-const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
+const yoga = createYoga(yogaOptions);
 
 // Yoga's handler is async; a Node request listener is not. `void` says the
 // rejection is handled inside Yoga, which it is, rather than hiding it.

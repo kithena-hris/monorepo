@@ -25,7 +25,7 @@ import { startCosmoRouter, startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
 import { Person } from '../domain/person/person.js';
-import { schema } from '../graphql/schema.js';
+import { yogaOptions } from '../graphql/schema.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import { drizzleSchemaRepository } from '../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
@@ -177,7 +177,7 @@ beforeAll(async () => {
   process.env['PEOPLE_DATABASE_URL'] = asService.toString();
   process.env['PEOPLE_API_TOKEN'] = TOKEN;
   process.env['PEOPLE_SECRET_KEYS'] = `k1:${randomBytes(32).toString('base64')}`;
-  const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
+  const yoga = createYoga(yogaOptions);
   const people = createServer((request, response) => {
     void yoga(request, response);
   });

@@ -16,9 +16,10 @@ import type { Asking, PersonView } from '../application/person/person-access.js'
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from '../http/caller.js';
 import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
-import { RoleChangeBody } from '../http/roles.js';
+import type { RestRequest, RestResponse } from '../http/rest.js';
 import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS } from '../domain/person/person.js';
+import { defineScreens, IMPORT_MAX_BYTES } from './screens.js';
 
 /**
  * The People subgraph. Thin: it maps a request to a use case and a domain
@@ -35,18 +36,45 @@ import { LEAVING_REASONS } from '../domain/person/person.js';
  */
 
 /** Yoga's default context carries the Fetch request; that is all this needs. */
-interface RequestContext {
+export interface RequestContext {
   readonly request?: { readonly headers: Headers };
 }
 
-const builder = createBuilder<{ Context: RequestContext }>();
+const builder = createBuilder<{
+  Context: RequestContext;
+  Scalars: { Upload: { Input: File; Output: never } };
+}>();
+export type PeopleBuilder = typeof builder;
+
+builder.scalarType('Upload', {
+  description: 'A file, sent as the GraphQL multipart request spec describes.',
+  serialize: () => {
+    throw new Error('Upload is an input only');
+  },
+  // Yoga's File, which is not necessarily this realm's global one: a file is
+  // what reads like one.
+  parseValue: (value) => {
+    const file = value as Partial<File> | null;
+    if (typeof file?.arrayBuffer === 'function' && typeof file.name === 'string') {
+      return file as File;
+    }
+    throw new Error('Upload expects a file part');
+  },
+});
 
 /* ------------------------------------------------------------- wiring -- */
 
-let wiring: { service: PeopleService; callerFrom: CallerFrom } | null = null;
+/** REST's own dispatcher (`restHandler`): a write here is the same route's write. */
+export type RestDispatch = (request: RestRequest) => Promise<RestResponse | null>;
+
+let wiring: { service: PeopleService; callerFrom: CallerFrom; rest?: RestDispatch } | null = null;
 
 /** Called once at boot by the composition root. */
-export function configureGraphQL(next: { service: PeopleService; callerFrom: CallerFrom }): void {
+export function configureGraphQL(next: {
+  service: PeopleService;
+  callerFrom: CallerFrom;
+  rest?: RestDispatch;
+}): void {
   wiring = next;
 }
 
@@ -64,6 +92,64 @@ async function caller(ctx: RequestContext): Promise<{ service: PeopleService; as
 
 function unwrap<T>(result: Result<T>): T {
   return result.ok ? result.value : fail(result.error);
+}
+
+export type ViaRest = <T = unknown>(
+  ctx: RequestContext,
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH',
+  path: string,
+  options?: { readonly body?: unknown; readonly key?: string },
+) => Promise<T>;
+
+/**
+ * One of REST's routes, in-process, as this request's caller (PEO-113).
+ *
+ * A mutation is the REST write of the same name: the same Zod body parses its
+ * arguments, the same `Idempotency-Key` row makes a retry answer as the first
+ * did (PEO-116), and the same refusal comes back — here as a GraphQL error
+ * with the domain's code. The caller headers are the request's own, so the
+ * route's caller check is the one every transport runs; an idempotency key
+ * comes only from the argument.
+ */
+const viaRest: ViaRest = async <T>(
+  ctx: RequestContext,
+  method: string,
+  path: string,
+  options: { readonly body?: unknown; readonly key?: string } = {},
+): Promise<T> => {
+  const rest = wiring?.rest;
+  if (!rest) return fail(failure('UNAVAILABLE', 'People is not configured'));
+  const headers: Record<string, string> = {};
+  for (const [name, value] of ctx.request?.headers.entries() ?? []) {
+    if (name !== 'idempotency-key') headers[name] = value;
+  }
+  if (options.key !== undefined) headers['idempotency-key'] = options.key;
+  const answer = await rest({
+    method,
+    url: path,
+    headers,
+    body: options.body === undefined ? '' : JSON.stringify(options.body),
+  });
+  if (answer === null) return fail(failure('NOT_FOUND', 'No such route'));
+  if (answer.status >= 400) {
+    const refused = (answer.body as { error?: { code?: string; message?: string; path?: string[] } })
+      .error;
+    return fail(
+      failure(refused?.code ?? 'INTERNAL', refused?.message ?? 'People refused', refused?.path),
+    );
+  }
+  return answer.body as T;
+};
+
+/** The person a write answered with, typed by the version in force. */
+async function asPerson(ctx: RequestContext, view: PersonView): Promise<PersonShape> {
+  const { service, asking } = await caller(ctx);
+  const version = unwrap(
+    await run(service, asking.tenantId, async (tx) =>
+      ok(await service.schemas.current(tx, asking.tenantId)),
+    ),
+  );
+  return { view, version };
 }
 
 /* --------------------------------------------------------- attributes -- */
@@ -524,6 +610,14 @@ builder.queryType({
   }),
 });
 
+/**
+ * Every write takes an `idempotencyKey`, as every REST write takes an
+ * `Idempotency-Key` (PEO-116), and is that REST write (`viaRest`).
+ */
+const idempotencyKey = { type: 'String', required: true } as const;
+
+const personPath = (id: string | number) => `/v1/people/${encodeURIComponent(String(id))}`;
+
 builder.mutationType({
   fields: (t) => ({
     updatePerson: t.field({
@@ -532,35 +626,27 @@ builder.mutationType({
         id: t.arg.id({ required: true }),
         changes: t.arg({ type: [AttributeValueInput], required: true }),
         effectiveFrom: t.arg.string(),
+        idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: async (_root, args, ctx) => {
-        const { service, asking } = await caller(ctx);
-        const changes: Record<string, unknown> = {};
-        for (const input of args.changes) {
-          changes[input.key] = unwrap(valueOf(input));
-        }
-        return unwrap(
-          await run(service, asking.tenantId, async (tx) => {
-            const view = await service.access.update(tx, {
-              ...asking,
-              personId: args.id,
-              changes,
-              ...(args.effectiveFrom ? { effectiveFrom: args.effectiveFrom } : {}),
-            });
-            if (!view.ok) return view;
-            return ok({
-              view: view.value,
-              version: await service.schemas.current(tx, asking.tenantId),
-            });
-          }),
-        );
+        const attributes: Record<string, unknown> = {};
+        for (const input of args.changes) attributes[input.key] = unwrap(valueOf(input));
+        const view = await viaRest<PersonView>(ctx, 'PATCH', personPath(args.id), {
+          body: { attributes, ...sent({ effectiveFrom: args.effectiveFrom }) },
+          key: args.idempotencyKey,
+        });
+        return asPerson(ctx, view);
       },
     }),
     updatePeopleSettings: t.field({
       type: PeopleSettingsRef,
-      args: { defaultTimeZone: t.arg.string(), cohortMinimum: t.arg.int() },
-      resolve: (_root, args, ctx) =>
-        inOrg(ctx, (org, tx, asking) => org.updateSettings(tx, { ...asking, ...sent(args) })),
+      args: {
+        defaultTimeZone: t.arg.string(),
+        cohortMinimum: t.arg.int(),
+        idempotencyKey: t.arg(idempotencyKey),
+      },
+      resolve: (_root, { idempotencyKey: key, ...patch }, ctx) =>
+        viaRest<TenantSettings>(ctx, 'PATCH', '/v1/settings', { body: sent(patch), key }),
     }),
     createLegalEntity: t.field({
       type: LegalEntityRef,
@@ -568,9 +654,10 @@ builder.mutationType({
         name: t.arg.string({ required: true }),
         country: t.arg.string({ required: true }),
         timeZone: t.arg.string({ required: true }),
+        idempotencyKey: t.arg(idempotencyKey),
       },
-      resolve: (_root, args, ctx) =>
-        inOrg(ctx, (org, tx, asking) => org.createLegalEntity(tx, { ...asking, ...args })),
+      resolve: (_root, { idempotencyKey: key, ...entity }, ctx) =>
+        viaRest<LegalEntityView>(ctx, 'POST', '/v1/legal-entities', { body: entity, key }),
     }),
     updateLegalEntity: t.field({
       type: LegalEntityRef,
@@ -579,10 +666,14 @@ builder.mutationType({
         name: t.arg.string(),
         timeZone: t.arg.string(),
         archived: t.arg.boolean(),
+        idempotencyKey: t.arg(idempotencyKey),
       },
-      resolve: (_root, args, ctx) =>
-        inOrg(ctx, (org, tx, asking) =>
-          org.updateLegalEntity(tx, { ...asking, ...sent(args), id: args.id }),
+      resolve: (_root, { id, idempotencyKey: key, ...patch }, ctx) =>
+        viaRest<LegalEntityView>(
+          ctx,
+          'PATCH',
+          `/v1/legal-entities/${encodeURIComponent(String(id))}`,
+          { body: sent(patch), key },
         ),
     }),
     createLocation: t.field({
@@ -593,26 +684,27 @@ builder.mutationType({
         country: t.arg.string({ required: true }),
         timeZone: t.arg.string({ required: true }),
         effectiveFrom: t.arg.string(),
+        idempotencyKey: t.arg(idempotencyKey),
       },
-      resolve: (_root, args, ctx) =>
-        inOrg(ctx, (org, tx, asking) =>
-          org.createLocation(tx, {
-            ...asking,
-            ...sent(args),
-            legalEntityId: args.legalEntityId,
-            name: args.name,
-            country: args.country,
-            timeZone: args.timeZone,
-          }),
-        ),
+      resolve: (_root, { idempotencyKey: key, legalEntityId, ...place }, ctx) =>
+        viaRest<LocationView>(ctx, 'POST', '/v1/locations', {
+          body: { legalEntityId: String(legalEntityId), ...sent(place) },
+          key,
+        }),
     }),
     updateLocation: t.field({
       type: LocationRef,
-      args: { id: t.arg.id({ required: true }), name: t.arg.string(), archived: t.arg.boolean() },
-      resolve: (_root, args, ctx) =>
-        inOrg(ctx, (org, tx, asking) =>
-          org.updateLocation(tx, { ...asking, ...sent(args), id: args.id }),
-        ),
+      args: {
+        id: t.arg.id({ required: true }),
+        name: t.arg.string(),
+        archived: t.arg.boolean(),
+        idempotencyKey: t.arg(idempotencyKey),
+      },
+      resolve: (_root, { id, idempotencyKey: key, ...patch }, ctx) =>
+        viaRest<LocationView>(ctx, 'PATCH', `/v1/locations/${encodeURIComponent(String(id))}`, {
+          body: sent(patch),
+          key,
+        }),
     }),
     changeLocationZone: t.field({
       type: LocationRef,
@@ -621,15 +713,17 @@ builder.mutationType({
         id: t.arg.id({ required: true }),
         timeZone: t.arg.string({ required: true }),
         effectiveFrom: t.arg.string({ required: true }),
+        idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, args, ctx) =>
-        inOrg(ctx, (org, tx, asking) =>
-          org.changeLocationZone(tx, {
-            ...asking,
-            id: args.id,
-            timeZone: args.timeZone,
-            effectiveFrom: args.effectiveFrom,
-          }),
+        viaRest<LocationView>(
+          ctx,
+          'POST',
+          `/v1/locations/${encodeURIComponent(String(args.id))}/zones`,
+          {
+            body: { timeZone: args.timeZone, effectiveFrom: args.effectiveFrom },
+            key: args.idempotencyKey,
+          },
         ),
     }),
     correctAttribute: t.field({
@@ -639,23 +733,18 @@ builder.mutationType({
         supersedes: t.arg.id({ required: true }),
         value: t.arg({ type: AttributeValueInput, required: true }),
         reason: t.arg.string(),
+        idempotencyKey: t.arg(idempotencyKey),
       },
-      resolve: async (_root, args, ctx) => {
-        const { service, asking } = await caller(ctx);
+      resolve: (_root, args, ctx) =>
         // The attribute is the one `supersedes` names; `key` is not consulted.
-        const value = unwrap(valueOf(args.value));
-        return unwrap(
-          await run(service, asking.tenantId, (tx) =>
-            service.access.correct(tx, {
-              ...asking,
-              personId: args.personId,
-              supersedes: args.supersedes,
-              value,
-              reason: args.reason ?? null,
-            }),
-          ),
-        );
-      },
+        viaRest<HistoryEntry>(ctx, 'POST', `${personPath(args.personId)}/corrections`, {
+          body: {
+            supersedes: String(args.supersedes),
+            value: unwrap(valueOf(args.value)),
+            reason: args.reason ?? null,
+          },
+          key: args.idempotencyKey,
+        }),
     }),
   }),
 });
@@ -702,9 +791,15 @@ builder.mutationFields((t) => ({
       prefix: t.arg.string({ required: true }),
       digits: t.arg.int({ required: true }),
       start: t.arg.float({ required: true }),
+      idempotencyKey: t.arg(idempotencyKey),
     },
-    resolve: (_root, args, ctx) =>
-      inOrg(ctx, (org, tx, asking) => org.setNumbering(tx, { ...asking, ...args })),
+    resolve: (_root, { legalEntityId, idempotencyKey: key, ...scheme }, ctx) =>
+      viaRest<NumberingView>(
+        ctx,
+        'PUT',
+        `/v1/legal-entities/${encodeURIComponent(String(legalEntityId))}/numbering`,
+        { body: scheme, key },
+      ),
   }),
 }));
 
@@ -720,30 +815,17 @@ const LeavingReasonRef = builder.enumType('LeavingReason', { values: LEAVING_REA
 async function move(
   ctx: RequestContext,
   name: string,
-  personId: string,
+  personId: string | number,
   input: Record<string, unknown>,
+  key: string,
 ): Promise<PersonShape> {
   const action = LIFECYCLE_ACTIONS.find((a) => a.name === name);
   if (!action) return fail(failure('UNAVAILABLE', `No lifecycle action ${name}`));
-  const parsed = action.body.safeParse(input);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    return fail(
-      failure(
-        'BAD_INPUT',
-        issue?.message ?? 'invalid input',
-        issue?.path.map((p) => String(p)),
-      ),
-    );
-  }
-  const { service, asking } = await caller(ctx);
-  return unwrap(
-    await run(service, asking.tenantId, async (tx) => {
-      const view = await action.run(service.access, tx, { ...asking, personId }, parsed.data);
-      if (!view.ok) return view;
-      return ok({ view: view.value, version: await service.schemas.current(tx, asking.tenantId) });
-    }),
-  );
+  const view = await viaRest<PersonView>(ctx, 'POST', `${personPath(personId)}/${action.path}`, {
+    body: input,
+    key,
+  });
+  return asPerson(ctx, view);
 }
 
 builder.mutationFields((t) => ({
@@ -754,6 +836,7 @@ builder.mutationFields((t) => ({
       personId: t.arg.id({ required: true }),
       lastWorkingDay: t.arg.string({ required: true }),
       reason: t.arg({ type: LeavingReasonRef }),
+      idempotencyKey: t.arg(idempotencyKey),
     },
     resolve: (_root, args, ctx) =>
       move(
@@ -761,6 +844,7 @@ builder.mutationFields((t) => ({
         'giveNotice',
         args.personId,
         sent({ lastWorkingDay: args.lastWorkingDay, reason: args.reason }),
+        args.idempotencyKey,
       ),
   }),
   terminatePerson: t.field({
@@ -775,34 +859,35 @@ builder.mutationFields((t) => ({
       endAccessNow: t.arg.boolean({
         description: 'End their access now, for a dismissal for cause.',
       }),
+      idempotencyKey: t.arg(idempotencyKey),
     },
-    resolve: (_root, { personId, ...rest }, ctx) =>
-      move(ctx, 'terminatePerson', personId, sent(rest)),
+    resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
+      move(ctx, 'terminatePerson', personId, sent(rest), key),
   }),
   endPersonAccess: t.field({
     type: Person,
     description:
       'End a terminated person’s access now rather than at the end of their last working day; HR only.',
-    args: { personId: t.arg.id({ required: true }) },
-    resolve: (_root, args, ctx) => move(ctx, 'endPersonAccess', args.personId, {}),
+    args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
+    resolve: (_root, args, ctx) => move(ctx, 'endPersonAccess', args.personId, {}, args.idempotencyKey),
   }),
   startLeave: t.field({
     type: Person,
     description: 'An active person goes on leave from today, on their calendar; HR only.',
-    args: { personId: t.arg.id({ required: true }) },
-    resolve: (_root, args, ctx) => move(ctx, 'startLeave', args.personId, {}),
+    args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
+    resolve: (_root, args, ctx) => move(ctx, 'startLeave', args.personId, {}, args.idempotencyKey),
   }),
   endLeave: t.field({
     type: Person,
     description: 'A person on leave is back from today, on their calendar; HR only.',
-    args: { personId: t.arg.id({ required: true }) },
-    resolve: (_root, args, ctx) => move(ctx, 'endLeave', args.personId, {}),
+    args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
+    resolve: (_root, args, ctx) => move(ctx, 'endLeave', args.personId, {}, args.idempotencyKey),
   }),
   discardPerson: t.field({
     type: Person,
     description: 'Withdraw a provisional record that was never a person; HR only.',
-    args: { personId: t.arg.id({ required: true }) },
-    resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}),
+    args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
+    resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}, args.idempotencyKey),
   }),
 }));
 
@@ -836,21 +921,13 @@ async function inRoles<T>(
 
 async function changeRole(
   ctx: RequestContext,
-  kind: 'grant' | 'revoke',
-  input: Record<string, unknown>,
+  path: 'grants' | 'revocations',
+  { idempotencyKey: key, ...change }: { idempotencyKey: string; accountId: string | number; role: string; reason: string },
 ): Promise<RoleHolder> {
-  const parsed = RoleChangeBody.safeParse(input);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    return fail(
-      failure(
-        'BAD_INPUT',
-        issue?.message ?? 'invalid input',
-        issue?.path.map((p) => String(p)),
-      ),
-    );
-  }
-  return inRoles(ctx, (roles, tx, asking) => roles[kind](tx, { ...asking, ...parsed.data }));
+  return viaRest<RoleHolder>(ctx, 'POST', `/v1/roles/${path}`, {
+    body: { ...change, accountId: String(change.accountId) },
+    key,
+  });
 }
 
 builder.queryFields((t) => ({
@@ -871,8 +948,9 @@ builder.mutationFields((t) => ({
       accountId: t.arg.id({ required: true }),
       role: t.arg({ type: TenantRoleRef, required: true }),
       reason: t.arg.string({ required: true }),
+      idempotencyKey: t.arg(idempotencyKey),
     },
-    resolve: (_root, input, ctx) => changeRole(ctx, 'grant', input),
+    resolve: (_root, input, ctx) => changeRole(ctx, 'grants', input),
   }),
   revokeRole: t.field({
     type: RoleHolderRef,
@@ -881,12 +959,25 @@ builder.mutationFields((t) => ({
       accountId: t.arg.id({ required: true }),
       role: t.arg({ type: TenantRoleRef, required: true }),
       reason: t.arg.string({ required: true }),
+      idempotencyKey: t.arg(idempotencyKey),
     },
-    resolve: (_root, input, ctx) => changeRole(ctx, 'revoke', input),
+    resolve: (_root, input, ctx) => changeRole(ctx, 'revocations', input),
   }),
 }));
 
+defineScreens(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',
 });
+
+/**
+ * How People's Yoga is served, wherever it is (`main.ts`, the router test).
+ * An import's file comes as a multipart upload of up to 100 MB (PEO-038), so
+ * the body may be that and its two small JSON parts; Yoga's default is 25 MB.
+ */
+export const yogaOptions = {
+  schema,
+  graphqlEndpoint: '/graphql',
+  maxRequestBodySize: IMPORT_MAX_BYTES + 1024 * 1024,
+} as const;

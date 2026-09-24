@@ -441,8 +441,6 @@ export function wirePeople(server: Server): void {
     fga === null
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
-  configureGraphQL({ service, callerFrom });
-
   const exports = wireExports(service);
   const idempotency = drizzleIdempotency();
   const rest = restHandler({
@@ -453,6 +451,8 @@ export function wirePeople(server: Server): void {
     fullValues: exports.fullValues,
     screens: screenRoutes(screenDeps(service), idempotency),
   });
+  // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
+  configureGraphQL({ service, callerFrom, rest });
   // Requests first, then what they use (PEO-118).
   onShutdown('requests, exports and the service pool', async () => {
     await drain(server);

@@ -22,6 +22,37 @@ input AddressInput {
   postcode: String
 }
 
+type AnalyticsAttrition {
+  percent: Float
+  leavers: Int
+  formula: String
+}
+
+type AnalyticsComplete {
+  percent: Float
+  incomplete: Int
+}
+
+type AnalyticsHeadcount {
+  value: Int
+  change: Int
+  trend: [AnalyticsPoint!]
+}
+
+type AnalyticsMovement {
+  period: String
+  opening: Int
+  joiners: Int
+  moves: Int
+  leavers: Int
+  closing: Int
+}
+
+type AnalyticsPoint {
+  label: String
+  value: Float
+}
+
 """
 One attribute the viewer may read. A withheld attribute is absent from the list.
 """
@@ -52,11 +83,90 @@ type BooleanAttribute {
 }
 
 """
+protect (special category), suggest, or fallback to the section default.
+"""
+type ClassificationAdvice {
+  kind: String
+  classification: String
+  piiKind: String
+  reason: String
+  floor: String
+}
+
+type CompletenessField {
+  key: String
+  label: String
+  options: [FieldOption!]
+}
+
+type CompletenessRow {
+  personId: ID
+  name: String
+  department: String
+  manager: String
+  missing: [String!]
+}
+
+type CompletenessWaiting {
+  people: Int
+  lastReminded: String
+}
+
+"""
 A calendar date (YYYY-MM-DD) or an ISO 8601 instant, per the attribute.
 """
 type DateAttribute {
   key: String
   value: String
+}
+
+type DirectoryActions {
+  import: Boolean
+  export: Boolean
+}
+
+"""
+A column value; a column the viewer may not read on this person is absent.
+"""
+type DirectoryCell {
+  key: String
+  value: String
+}
+
+type DirectoryColumn {
+  key: String
+  label: String
+}
+
+type DirectoryFilter {
+  key: String
+  label: String
+  options: [FieldOption!]
+}
+
+type DirectoryPerson {
+  id: ID
+  name: String
+  email: String
+  avatarUrl: String
+  values: [DirectoryCell!]
+  missing: Int
+}
+
+input DraftFieldInput {
+  key: String!
+  sectionKey: String!
+  label: String!
+  description: String
+  dataType: String!
+  options: [String!]!
+  requiredness: String!
+  ownership: [String!]!
+  collectAt: String!
+  visibility: [String!]!
+  classification: String!
+  piiKind: String!
+  classificationSource: String!
 }
 
 """An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`."""
@@ -69,12 +179,190 @@ type EmployeeNumbering {
   nextValue: Float
 }
 
+"""A field the viewer may read that holds nothing yet."""
+type EmptyEntry {
+  key: String
+}
+
+type ExportAudience {
+  value: String
+  label: String
+  count: Int
+}
+
+type ExportField {
+  key: String
+  label: String
+}
+
+"""A signed link that expires (PEO-089); it carries its own authority."""
+type ExportLink {
+  name: String
+  url: String
+}
+
+type ExportSection {
+  key: String
+  label: String
+  fields: [ExportField!]
+}
+
+type FieldOption {
+  value: String
+  label: String
+}
+
+type FlagEntry {
+  key: String
+  flag: Boolean
+}
+
+"""
+One value of a record, keyed. A value the viewer may not read is absent from the list — never null.
+"""
+union FormEntry = TextEntry | FlagEntry | ListEntry | MoneyEntry | SealedEntry | EmptyEntry
+
+input FormMoneyInput {
+  amountMinor: String!
+  currency: String!
+}
+
+"""
+One value as a form holds it, in exactly one slot; clear: true empties it.
+"""
+input FormValueInput {
+  key: String!
+  text: String
+  flag: Boolean
+  items: [String!]
+  money: FormMoneyInput
+  clear: Boolean
+}
+
+"""Finance asks, HR decides, one download (PEO-088)."""
+type FullValuesRequest {
+  id: ID
+  state: String
+  requestedBy: ID
+  reason: String
+  attributeKeys: [String!]
+  expiresAt: String
+  decidedBy: ID
+
+  """The one download, for the requester only, until used or 24 hours pass."""
+  link: String
+}
+
+input GridCellInput {
+  key: String!
+  value: String!
+}
+
+input GridChangeInput {
+  personId: ID!
+  values: [GridCellInput!]!
+}
+
 type HistoryEntry {
   id: ID
   attributeKey: String
   effectiveFrom: String
   recordedAt: String
   supersedes: ID
+}
+
+type ImportBlockedRow {
+  row: Int
+  person: String
+  problem: String
+  cell: String
+}
+
+type ImportColumn {
+  index: Int
+  header: String
+  status: String
+  key: String
+  source: String
+  confidence: Float
+  reason: String
+}
+
+"""Column index → attribute key; no key ignores the column."""
+input ImportColumnInput {
+  column: Int!
+  key: String
+}
+
+type ImportCounts {
+  create: Int
+  update: Int
+  unchanged: Int
+  blocked: Int
+  duplicate: Int
+}
+
+type ImportDoneStage {
+  step: String
+  file: ImportFile
+  created: Int
+  updated: Int
+  blocked: Int
+  blockedCsv: String
+}
+
+type ImportDryRun {
+  counts: ImportCounts
+  incomplete: ImportIncomplete
+  ignoredColumns: [String!]
+  blocked: [ImportBlockedRow!]
+}
+
+type ImportFile {
+  name: String
+  rows: Int
+  sheet: String
+}
+
+type ImportIncomplete {
+  count: Int
+  byField: [ImportIncompleteField!]
+}
+
+type ImportIncompleteField {
+  label: String
+  count: Int
+}
+
+type ImportMapStage {
+  step: String
+  file: ImportFile
+  columns: [ImportColumn!]
+  fields: [ImportTarget!]
+}
+
+type ImportReviewStage {
+  step: String
+  file: ImportFile
+  dryRun: ImportDryRun
+
+  """The blocked rows, base64 CSV."""
+  blockedCsv: String
+}
+
+union ImportStage = ImportMapStage | ImportReviewStage | ImportDoneStage
+
+type ImportTarget {
+  key: String
+  label: String
+}
+
+type IntegrationField {
+  key: String
+  label: String
+
+  """special-category or encrypted: never sent to a webhook."""
+  refused: String
 }
 
 enum LeavingReason {
@@ -94,6 +382,11 @@ type LegalEntity {
 type ListAttribute {
   key: String
   values: [String!]
+}
+
+type ListEntry {
+  key: String
+  items: [String!]
 }
 
 type Location {
@@ -122,34 +415,41 @@ type MoneyAttribute {
   currency: String
 }
 
+"""Minor units as a string: money is never a float."""
+type MoneyEntry {
+  key: String
+  amountMinor: String
+  currency: String
+}
+
 input MoneyInput {
   amountMinor: String!
   currency: String!
 }
 
 type Mutation {
-  updatePerson(id: ID!, changes: [AttributeValueInput!]!, effectiveFrom: String): Person
-  updatePeopleSettings(defaultTimeZone: String, cohortMinimum: Int): PeopleSettings
-  createLegalEntity(name: String!, country: String!, timeZone: String!): LegalEntity
-  updateLegalEntity(id: ID!, name: String, timeZone: String, archived: Boolean): LegalEntity
-  createLocation(legalEntityId: ID!, name: String!, country: String!, timeZone: String!, effectiveFrom: String): Location
-  updateLocation(id: ID!, name: String, archived: Boolean): Location
+  updatePerson(id: ID!, changes: [AttributeValueInput!]!, effectiveFrom: String, idempotencyKey: String!): Person
+  updatePeopleSettings(defaultTimeZone: String, cohortMinimum: Int, idempotencyKey: String!): PeopleSettings
+  createLegalEntity(name: String!, country: String!, timeZone: String!, idempotencyKey: String!): LegalEntity
+  updateLegalEntity(id: ID!, name: String, timeZone: String, archived: Boolean, idempotencyKey: String!): LegalEntity
+  createLocation(legalEntityId: ID!, name: String!, country: String!, timeZone: String!, effectiveFrom: String, idempotencyKey: String!): Location
+  updateLocation(id: ID!, name: String, archived: Boolean, idempotencyKey: String!): Location
 
   """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
-  changeLocationZone(id: ID!, timeZone: String!, effectiveFrom: String!): Location
-  correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String): HistoryEntry
+  changeLocationZone(id: ID!, timeZone: String!, effectiveFrom: String!, idempotencyKey: String!): Location
+  correctAttribute(personId: ID!, supersedes: ID!, value: AttributeValueInput!, reason: String, idempotencyKey: String!): HistoryEntry
 
   """
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
-  setEmployeeNumbering(legalEntityId: ID!, prefix: String!, digits: Int!, start: Float!): EmployeeNumbering
+  setEmployeeNumbering(legalEntityId: ID!, prefix: String!, digits: Int!, start: Float!, idempotencyKey: String!): EmployeeNumbering
 
   """
   Put an active or on-leave person on notice until a last working day; HR only.
   """
-  giveNotice(personId: ID!, lastWorkingDay: String!, reason: LeavingReason): Person
+  giveNotice(personId: ID!, lastWorkingDay: String!, reason: LeavingReason, idempotencyKey: String!): Person
 
   """End the employment once its last working day has come; HR only."""
   terminatePerson(
@@ -161,34 +461,175 @@ type Mutation {
 
     """End their access now, for a dismissal for cause."""
     endAccessNow: Boolean
+    idempotencyKey: String!
   ): Person
 
   """
   End a terminated person’s access now rather than at the end of their last working day; HR only.
   """
-  endPersonAccess(personId: ID!): Person
+  endPersonAccess(personId: ID!, idempotencyKey: String!): Person
 
   """An active person goes on leave from today, on their calendar; HR only."""
-  startLeave(personId: ID!): Person
+  startLeave(personId: ID!, idempotencyKey: String!): Person
 
   """A person on leave is back from today, on their calendar; HR only."""
-  endLeave(personId: ID!): Person
+  endLeave(personId: ID!, idempotencyKey: String!): Person
 
   """Withdraw a provisional record that was never a person; HR only."""
-  discardPerson(personId: ID!): Person
+  discardPerson(personId: ID!, idempotencyKey: String!): Person
 
   """
   people_admin only, never to oneself. A role already held changes nothing.
   """
-  grantRole(accountId: ID!, role: TenantRole!, reason: String!): RoleHolder
+  grantRole(accountId: ID!, role: TenantRole!, reason: String!, idempotencyKey: String!): RoleHolder
 
   """people_admin only; never the last people_admin."""
-  revokeRole(accountId: ID!, role: TenantRole!, reason: String!): RoleHolder
+  revokeRole(accountId: ID!, role: TenantRole!, reason: String!, idempotencyKey: String!): RoleHolder
+  saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): WriteOutcome
+  savePersonSection(personId: ID!, changed: [FormValueInput!]!, idempotencyKey: String!): WriteOutcome
+  saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): WriteOutcome
+  confirmSetupEntity(name: String!, country: String!, idempotencyKey: String!): WriteOutcome
+
+  """
+  The first publish, from a country pack. A retry answers the version in force.
+  """
+  publishSetup(country: String!, sections: [String!]!, idempotencyKey: String!): PublishedVersionNumber
+  addDraftSection(label: String!, idempotencyKey: String!): WriteOutcome
+  reorderDraftSections(order: [String!]!, idempotencyKey: String!): WriteOutcome
+  reorderDraftFields(sectionKey: String!, order: [String!]!, idempotencyKey: String!): WriteOutcome
+
+  """Add or change a field in the draft; the draft decides whether it may."""
+  saveDraftField(input: DraftFieldInput!, editing: String, idempotencyKey: String!): WriteOutcome
+
+  """Publish the draft. A retry answers the version in force."""
+  publishDraft(requiredFrom: String!, idempotencyKey: String!): PublishedVersionNumber
+  createWebhookEndpoint(url: String!, events: [String!]!, allowlist: [String!]!, alertEmail: String!, idempotencyKey: String!): WebhookEndpointSecret
+  updateWebhookEndpoint(id: ID!, url: String, events: [String!], allowlist: [String!], alertEmail: String, enabled: Boolean, idempotencyKey: String!): WriteOutcome
+  rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
+  replayWebhookDelivery(deliveryId: ID!, idempotencyKey: String!): WebhookReplay
+
+  """Upload → the proposed mapping. Changes nothing, so takes no key."""
+  proposeImport(file: Upload!): ImportStage
+
+  """
+  The five counts and the blocked rows. Changes nothing, so takes no key.
+  """
+  dryRunImport(file: Upload!, mapping: [ImportColumnInput!]!): ImportStage
+
+  """
+  Import. A retry of the same key is refused ALREADY_IMPORTED: the report is not kept.
+  """
+  commitImport(file: Upload!, mapping: [ImportColumnInput!]!, idempotencyKey: String!): ImportStage
+
+  """
+  Over 2,000 rows the export is queued; ask `peopleExport` for its links.
+  """
+  requestExport(format: String!, fields: [String!], asOf: String, includeArchived: Boolean, personIds: [ID!], filter: String, reason: String, idempotencyKey: String!): PeopleExport
+
+  """Finance asks for sealed fields in full, with a reason; HR decides."""
+  requestFullValues(fields: [String!]!, reason: String!, asOf: String, personIds: [ID!], filter: String, idempotencyKey: String!): FullValuesRequest
+
+  """HR approves or rejects; a retry answers the request as it now stands."""
+  decideFullValues(id: ID!, approve: Boolean!, note: String, idempotencyKey: String!): FullValuesRequest
 }
 
 type NumberAttribute {
   key: String
   value: Float
+}
+
+type OnboardingSection {
+  key: String
+  label: String
+  visibility: [String!]
+  fields: [RecordField!]
+
+  """required, optional or voluntary"""
+  ask: String
+}
+
+"""
+A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).
+"""
+type PeopleAnalytics {
+  asOf: String
+  source: String
+  sourceNote: String
+  headcount: AnalyticsHeadcount
+  attrition: AnalyticsAttrition
+  complete: AnalyticsComplete
+  expiringIn90Days: Int
+  movement: AnalyticsMovement
+  completenessBySection: [AnalyticsPoint!]
+}
+
+type PeopleCompleteness {
+  since: String
+  waiting: CompletenessWaiting
+  completedThisWeek: Int
+  fields: [CompletenessField!]
+  rows: [CompletenessRow!]
+}
+
+type PeopleDirectory {
+  active: Int
+  incomplete: Int
+  columns: [DirectoryColumn!]
+  filterable: [DirectoryFilter!]
+  people: [DirectoryPerson!]
+  next: String
+  can: DirectoryActions
+}
+
+type PeopleExport {
+  id: ID
+
+  """queued, completed or expired"""
+  status: String
+  rowCount: Int
+  expiresAt: String
+  links: [ExportLink!]
+}
+
+"""Only what the requester can read is offered (§15.1)."""
+type PeopleExportBuilder {
+  today: String
+  who: [ExportAudience!]
+  sections: [ExportSection!]
+}
+
+type PeopleIntegrations {
+  schemaVersion: Int
+  deliveries24h: Int
+  events: [String!]
+  fields: [IntegrationField!]
+  endpoints: [WebhookEndpoint!]
+}
+
+type PeopleOnboarding {
+  firstName: String
+  sections: [OnboardingSection!]
+  values: [FormEntry!]
+  saved: [String!]
+}
+
+type PeopleProfile {
+  person: ProfilePerson
+  sections: [ProfileSection!]
+  values: [FormEntry!]
+}
+
+type PeopleRegistry {
+  published: RegistryPublished
+  unpublishedChanges: Int
+  sections: [RegistrySection!]
+  fields: [RegistryField!]
+}
+
+type PeopleRoleSettings {
+  viewerAccountId: ID
+  canManage: Boolean
+  people: [RoleSettingsPerson!]
 }
 
 type PeopleSchema {
@@ -203,6 +644,18 @@ type PeopleSettings {
   cohortMinimum: Int
   slug: String
   displayName: String
+}
+
+type PeopleSetup {
+  """
+  The company’s first legal entity; null until the back office or an admin made one.
+  """
+  legalEntity: SetupLegalEntity
+  entityConfirmed: Boolean
+  countries: [SetupCountry!]
+  packs: [SetupPack!]
+  published: Int
+  profile: SetupProfile
 }
 
 type Person
@@ -221,6 +674,50 @@ type PersonPage {
   nextCursor: String
 }
 
+type ProfilePerson {
+  name: String
+  summary: String
+  avatarUrl: String
+
+  """Null when the viewer may not judge this record’s completeness."""
+  missing: Int
+}
+
+type ProfileSection {
+  key: String
+  label: String
+  visibility: [String!]
+  fields: [RecordField!]
+  readsLogged: Boolean
+}
+
+type PublishChange {
+  kind: String
+  key: String
+  summary: String
+  specialCategory: Boolean
+}
+
+type PublishImpact {
+  evaluated: Int
+  becomingIncomplete: Int
+  becomingComplete: Int
+  forEmployees: Int
+  forStaff: Int
+}
+
+type PublishPreview {
+  nextVersion: Int
+  unchanged: Boolean
+  changes: [PublishChange!]
+  impact: PublishImpact
+  integrationsNotified: Int
+}
+
+type PublishedVersionNumber {
+  version: Int
+}
+
 type Query {
   person(id: ID!, asOf: String): Person
   people(first: Int, after: String, asOf: String): PersonPage
@@ -234,6 +731,81 @@ type Query {
 
   """Who holds a tenant role; HR and people_admin only."""
   peopleRoles: [RoleHolder!]
+  peopleOnboarding: PeopleOnboarding
+
+  """One person as the viewer may see them; no id is "my profile"."""
+  peopleProfile(personId: ID): PeopleProfile
+  peopleDirectory(search: String, filter: String, after: ID): PeopleDirectory
+  peopleCompleteness: PeopleCompleteness
+  peopleRoleSettings: PeopleRoleSettings
+  peopleRegistry: PeopleRegistry
+  peopleSetup: PeopleSetup
+  peopleIntegrations: PeopleIntegrations
+  peopleExportBuilder: PeopleExportBuilder
+  peopleAnalytics: PeopleAnalytics
+
+  """The requester’s own export, its links signed again."""
+  peopleExport(id: ID!): PeopleExport
+  fullValuesRequest(id: ID!): FullValuesRequest
+
+  """What publishing the draft would do, from requiredFrom; rolled back."""
+  peoplePublishPreview(requiredFrom: String!): PublishPreview
+  peopleClassificationAdvice(label: String!, description: String, dataType: String!, sectionKey: String!, options: [String!]!): ClassificationAdvice
+}
+
+"""A field the viewer may read, as a form draws it."""
+type RecordField {
+  key: String
+  label: String
+  description: String
+  dataType: String
+  options: [FieldOption!]
+  required: Boolean
+  readOnly: Boolean
+  currency: String
+
+  """Who changes a read-only field; null when the viewer does."""
+  ownedBy: String
+}
+
+type RecordSection {
+  key: String
+  label: String
+  visibility: [String!]
+  fields: [RecordField!]
+}
+
+type RegistryField {
+  key: String
+  sectionKey: String
+  label: String
+  description: String
+  dataType: String
+  options: [String!]
+  requiredness: String
+  ownership: [String!]
+  visibility: [String!]
+  collectAt: String
+  classification: String
+  piiKind: String
+  origin: String
+
+  """added, changed or archived since the published version; null for none."""
+  pending: String
+}
+
+type RegistryPublished {
+  version: Int
+  publishedAt: String
+}
+
+type RegistrySection {
+  key: String
+  label: String
+  visibility: [String!]
+  ownership: [String!]
+  origin: String
+  fixed: Boolean
 }
 
 type RepeatingAttribute {
@@ -247,10 +819,57 @@ type RoleHolder {
   roles: [TenantRole!]
 }
 
+type RoleSettingsPerson {
+  accountId: ID
+
+  """Null for an account People has no person for yet."""
+  personId: ID
+  name: String
+  workEmail: String
+  roles: [String!]
+}
+
 """An encrypted value. Only its last four characters are ever served."""
 type SealedAttribute {
   key: String
   last4: String
+}
+
+"""An encrypted value. Only its last four characters are ever served."""
+type SealedEntry {
+  key: String
+  last4: String
+}
+
+type SetupCountry {
+  code: String
+  name: String
+}
+
+type SetupLegalEntity {
+  name: String
+  country: String
+}
+
+type SetupPack {
+  country: String
+  countryName: String
+  fields: Int
+  sections: [SetupPackSection!]
+}
+
+type SetupPackSection {
+  key: String
+  label: String
+  summary: String
+  required: Int
+  requiredByLaw: Int
+  onByDefault: Boolean
+}
+
+type SetupProfile {
+  sections: [RecordSection!]
+  values: [FormEntry!]
 }
 
 enum TenantRole {
@@ -262,4 +881,40 @@ enum TenantRole {
 type TextAttribute {
   key: String
   value: String
+}
+
+type TextEntry {
+  key: String
+  text: String
+}
+
+"""A file, sent as the GraphQL multipart request spec describes."""
+scalar Upload
+
+type WebhookEndpoint {
+  id: ID
+  url: String
+  enabled: Boolean
+  events: [String!]
+  allowlist: [String!]
+  alertEmail: String
+  retrying: Int
+  problem: String
+  lastDelivery: String
+  secretRotated: String
+}
+
+type WebhookEndpointSecret {
+  id: ID
+
+  """Shown once. Null when a retry of the same key answers: rotate again."""
+  secret: String
+}
+
+type WebhookReplay {
+  deliveryId: ID
+}
+
+type WriteOutcome {
+  ok: Boolean
 }

@@ -11,7 +11,7 @@ import { startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
 import { Person } from '../domain/person/person.js';
-import { schema } from '../graphql/schema.js';
+import { yogaOptions } from '../graphql/schema.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import { drizzleSchemaRepository } from '../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../infrastructure/unit-of-work.js';
@@ -123,7 +123,7 @@ beforeAll(async () => {
   process.env['PEOPLE_API_TOKEN'] = 'router-secret';
   process.env['PEOPLE_SECRET_KEYS'] = `k1:${randomBytes(32).toString('base64')}`;
 
-  const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
+  const yoga = createYoga(yogaOptions);
   server = createServer((request, response) => {
     void yoga(request, response);
   });
@@ -233,7 +233,7 @@ describe('the booted service', () => {
       method: 'POST',
       headers: headers(HR_ACCOUNT),
       body: JSON.stringify({
-        query: `mutation { revokeRole(accountId: "${MARCO_ACCOUNT}", role: finance, reason: "Moved team") { accountId roles } }`,
+        query: `mutation { revokeRole(accountId: "${MARCO_ACCOUNT}", role: finance, reason: "Moved team", idempotencyKey: "graph-1") { accountId roles } }`,
       }),
     });
     expect(await graph.json()).toEqual({
@@ -260,5 +260,124 @@ describe('the booted service', () => {
     expect(Object.keys(doc.paths)).toEqual(
       expect.arrayContaining(['/v1/roles', '/v1/roles/grants', '/v1/roles/revocations']),
     );
+  });
+});
+
+/*
+ * The screens over GraphQL (PEO-113): what the tenant app reads and writes
+ * through the router, against the same booted service.
+ */
+describe('the screens over GraphQL', () => {
+  const graph = async (
+    as: Record<string, string>,
+    query: string,
+    variables: Record<string, unknown> = {},
+  ): Promise<{ data?: Record<string, unknown>; errors?: { extensions: { code: string } }[] }> => {
+    const response = await fetch(`${base}/graphql`, {
+      method: 'POST',
+      headers: as,
+      body: JSON.stringify({ query, variables }),
+    });
+    return (await response.json()) as never;
+  };
+  const PROFILE = `query ($id: ID) {
+    peopleProfile(personId: $id) {
+      person { name }
+      sections { key fields { key } }
+      values {
+        __typename
+        ... on TextEntry { key text }
+        ... on MoneyEntry { key amountMinor currency }
+        ... on EmptyEntry { key }
+      }
+    }
+  }`;
+  interface Profile {
+    sections: { key: string; fields: { key: string }[] }[];
+    values: { key: string }[];
+  }
+
+  it('leaves a field the viewer may not read out of the values and the sections — no key, no null', async () => {
+    await fetch(`${base}/v1/people/${ADA}`, {
+      method: 'PATCH',
+      headers: { ...headers(HR_ACCOUNT, ['hr']), 'idempotency-key': 'screens-seed' },
+      body: JSON.stringify({
+        attributes: { base_salary: { amountMinor: 5_500_000, currency: 'EUR' } },
+      }),
+    });
+
+    const manager = await graph(headers(MARCO_ACCOUNT), PROFILE, { id: ADA });
+    expect(manager.errors).toBeUndefined();
+    const seen = manager.data?.['peopleProfile'] as Profile;
+    expect(seen.values.map((v) => v.key)).not.toContain('base_salary');
+    expect(seen.sections.flatMap((s) => s.fields.map((f) => f.key))).not.toContain('base_salary');
+    expect(JSON.stringify(manager.data)).not.toContain('base_salary');
+
+    const hr = await graph(headers(HR_ACCOUNT, ['hr']), PROFILE, { id: ADA });
+    expect(hr.errors).toBeUndefined();
+    expect((hr.data?.['peopleProfile'] as Profile).values).toContainEqual({
+      __typename: 'MoneyEntry',
+      key: 'base_salary',
+      amountMinor: '5500000',
+      currency: 'EUR',
+    });
+  });
+
+  it('writes a section with a key, and answers a retry of that key without writing again', async () => {
+    const SAVE = `mutation ($id: ID!, $key: String!) {
+      savePersonSection(personId: $id, changed: [{ key: "job_title", text: "Staff Engineer" }], idempotencyKey: $key) { ok }
+    }`;
+    const hr = headers(HR_ACCOUNT, ['hr']);
+    expect((await graph(hr, SAVE, { id: ADA, key: 'section-1' })).data).toEqual({
+      savePersonSection: { ok: true },
+    });
+    expect((await graph(hr, SAVE, { id: ADA, key: 'section-1' })).data).toEqual({
+      savePersonSection: { ok: true },
+    });
+    const keys = await clients[0]?.unsafe<{ n: number }[]>(
+      `SELECT count(*)::int AS n FROM people.idempotency_key WHERE key = 'section-1'`,
+    );
+    expect(keys?.[0]?.n).toBe(1);
+    const profile = await graph(hr, PROFILE, { id: ADA });
+    expect((profile.data?.['peopleProfile'] as Profile).values).toContainEqual({
+      __typename: 'TextEntry',
+      key: 'job_title',
+      text: 'Staff Engineer',
+    });
+
+    const unkeyed = await graph(
+      hr,
+      `mutation { savePersonSection(personId: "${ADA}", changed: [{ key: "job_title", text: "x" }]) { ok } }`,
+    );
+    expect(unkeyed.errors).toBeDefined();
+  });
+
+  it('takes an import file as a multipart upload, as the router forwards it', async () => {
+    const form = new FormData();
+    form.set(
+      'operations',
+      JSON.stringify({
+        query: `mutation ($file: Upload!) { proposeImport(file: $file) {
+          __typename ... on ImportMapStage { step file { name rows } columns { header status } }
+        } }`,
+        variables: { file: null },
+      }),
+    );
+    form.set('map', JSON.stringify({ '0': ['variables.file'] }));
+    form.set(
+      '0',
+      new File(['work_email,job_title\nnew@acme.example,Engineer\n'], 'people.csv', {
+        type: 'text/csv',
+      }),
+    );
+    const { 'content-type': _json, ...hr } = headers(HR_ACCOUNT, ['hr']);
+    const response = await fetch(`${base}/graphql`, { method: 'POST', headers: hr, body: form });
+    const body = (await response.json()) as { data?: { proposeImport: unknown }; errors?: unknown };
+    expect(body.errors).toBeUndefined();
+    expect(body.data?.proposeImport).toMatchObject({
+      __typename: 'ImportMapStage',
+      step: 'map',
+      file: { name: 'people.csv', rows: 1 },
+    });
   });
 });
