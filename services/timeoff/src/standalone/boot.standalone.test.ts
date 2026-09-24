@@ -94,8 +94,9 @@ describe('it contributes to the People Graph without owning it', () => {
     const info = { schema } as never;
 
     const service: unknown = await fields['_service']?.resolve?.(undefined, {}, {}, info);
-    expect(service).toMatchObject({ sdl: expect.stringContaining('@key(fields: "id")') });
-    expect(service).not.toMatchObject({ sdl: expect.stringContaining('@0(') });
+    const sdl = service !== null && typeof service === 'object' && 'sdl' in service ? String(service.sdl) : '';
+    expect(sdl).toContain('@key(fields: "id")');
+    expect(sdl).not.toContain('@0(');
 
     const representations = [{ __typename: 'Person', id: 'person-1' }];
     const entities: unknown = await fields['_entities']?.resolve?.(undefined, { representations }, {}, info);
