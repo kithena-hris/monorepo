@@ -399,6 +399,7 @@ describe('notice, then termination', () => {
           tenantId: ACME,
           personId: KIRI,
           actor: { kind: 'system', process: 'retention' },
+          mode: { kind: 'automated' },
           correlationId: '00000000-0000-4000-8000-0000000000c1',
         }),
       );

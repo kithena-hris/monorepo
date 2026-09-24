@@ -599,6 +599,11 @@ export const PersonAnonymised = defineEvent(
     attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
     /** Which policy decided, so an auditor can tell law from configuration. */
     under: z.enum(['tenant_policy', 'statutory_floor']).register(policy, asPublic()),
+    /**
+     * Present when HR erased by hand rather than a job (PEO-126): their words
+     * for why, the actor on the envelope says who. Absent on an automated run.
+     */
+    manualReason: z.string().min(1).max(500).optional().register(policy, asFreeText()),
   }),
 );
 
