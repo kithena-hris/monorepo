@@ -36,6 +36,12 @@ export function createBuilder<
   // subgraph passes a concrete `TTypes`, where the same options do check.
   const options = {
     plugins: [DirectivesPlugin, FederationPlugin, ZodPlugin],
+    // `@apollo/subgraph` 2.15 prints `_service.sdl` with graphql-tools'
+    // `printSchemaWithDirectives`, which reads extension directives only in
+    // its own `{ name: [args] }` shape. Pothos' default is an ordered array,
+    // which that printer renders as `@0(name: "key", …)` — and the router,
+    // which composes from that SDL, then fails to parse it.
+    directives: { useGraphQLToolsUnorderedDirectives: true },
   } as ConstructorParameters<typeof SchemaBuilder<Types>>[0];
 
   return new SchemaBuilder<Types>(options);

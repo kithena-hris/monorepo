@@ -18,7 +18,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@apollo/subgraph": "~2.14.3",
+    "@apollo/subgraph": "^2.15.1",
     "@escape.tech/graphql-armor": "^3.2.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
@@ -26,7 +26,7 @@
     "@kithena/telemetry": "workspace:*",
     "@pothos/core": "^4.15.1",
     "@pothos/plugin-directives": "^4.3.2",
-    "@pothos/plugin-federation": "^4.3.0",
+    "@pothos/plugin-federation": "^4.5.3",
     "@pothos/plugin-zod": "^4.3.2",
     "graphql": "^16.11.0",
     "graphql-yoga": "^5.24.1",
