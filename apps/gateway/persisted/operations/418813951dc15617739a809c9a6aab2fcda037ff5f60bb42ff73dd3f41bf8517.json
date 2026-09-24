@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RevealIdentifier($personId: ID!, $attributeKey: String!) {\n    revealIdentifier(personId: $personId, attributeKey: $attributeKey) { attributeKey value }\n  }"}

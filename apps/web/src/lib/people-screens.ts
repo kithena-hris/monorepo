@@ -77,6 +77,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('Organisation');
     case 'FullValues':
       return read('FullValues');
+    case 'IdentifierReviews':
+      return read('IdentifierReviews');
     case 'WebhookLog':
       return read('WebhookDeliveries', {
         endpointId: query.params['id'] ?? '',

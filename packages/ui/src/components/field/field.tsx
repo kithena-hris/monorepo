@@ -113,12 +113,24 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
   );
 }
 
+/**
+ * `tone="warning"` is for a value that was accepted but looks doubtful: a
+ * caution the person may read and act on, never an error that stops them.
+ * It stays in the accessible description, so it is read with the control.
+ */
 export function FieldDescription({
   className,
+  tone = 'muted',
   ...props
-}: ComponentPropsWithoutRef<'p'>): JSX.Element {
+}: ComponentPropsWithoutRef<'p'> & { readonly tone?: 'muted' | 'warning' }): JSX.Element {
   const { descriptionId } = useField('FieldDescription');
-  return <p id={descriptionId} className={cn('text-xs text-fg-muted', className)} {...props} />;
+  return (
+    <p
+      id={descriptionId}
+      className={cn('text-xs', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
+      {...props}
+    />
+  );
 }
 
 /**

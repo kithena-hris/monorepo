@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReviewIdentifier(\n    $personId: ID!, $attributeKey: String!, $decision: IdentifierReviewDecision!, $note: String, $key: String!\n  ) {\n    reviewIdentifier(\n      personId: $personId, attributeKey: $attributeKey, decision: $decision, note: $note, idempotencyKey: $key\n    ) { reviewId state }\n  }"}

@@ -46,5 +46,26 @@ export function Loaded<T>({
   return <>{children(load.data)}</>;
 }
 
-/** What every async action a screen is handed resolves to. */
-export type Outcome = { readonly ok: true } | { readonly ok: false; readonly message: string };
+/**
+ * What our checks found on a national identifier a form carried: a warning,
+ * never a refusal. The message never repeats the value.
+ */
+export interface IdentifierFinding {
+  readonly key: string;
+  readonly label: string;
+  readonly level: 'attention' | 'mismatch';
+  readonly code: string;
+  readonly message: string;
+  /** `pending`: HR will review it. `accepted`: HR already accepted this value. */
+  readonly review: 'pending' | 'accepted' | 'none';
+}
+
+/** What every async action a screen is handed resolves to. A save may carry findings. */
+export type Outcome =
+  | { readonly ok: true; readonly findings?: readonly IdentifierFinding[] }
+  | { readonly ok: false; readonly message: string };
+
+/** The warning a form asks for before it saves: nothing is kept. */
+export type Checked =
+  | { readonly ok: true; readonly findings: readonly IdentifierFinding[] }
+  | { readonly ok: false; readonly message: string };

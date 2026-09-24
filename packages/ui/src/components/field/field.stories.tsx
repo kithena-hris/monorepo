@@ -140,6 +140,30 @@ export const Text: Story = {
   ),
 };
 
+export const Caution: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A value that was accepted but looks doubtful: `FieldDescription tone="warning"`. Not an error, so the field is not invalid and nothing stops the person submitting; the caution is still read with the control.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="max-w-sm">
+      <Field {...args}>
+        <FieldLabel>Reference number</FieldLabel>
+        <FieldControl>
+          <Input defaultValue="12345678A" />
+        </FieldControl>
+        <FieldDescription tone="warning">
+          This may be mistyped: its last character does not match the rest. You can still save it.
+        </FieldDescription>
+      </Field>
+    </div>
+  ),
+};
+
 export const Invalid: Story = {
   args: { required: true, invalid: true },
   parameters: {

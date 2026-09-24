@@ -1,1 +1,0 @@
-{"version":1,"body":"mutation SavePersonSection($personId: ID!, $changed: [FormValueInput!]!, $key: String!) {\n    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok }\n  }"}

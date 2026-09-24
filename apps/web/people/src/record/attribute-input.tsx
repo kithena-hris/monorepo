@@ -168,11 +168,14 @@ export function AttributeInput({
   field,
   value,
   problem,
+  warning,
   onChange,
 }: {
   readonly field: RecordField;
   readonly value: AttributeValue;
   readonly problem?: string | undefined;
+  /** Our checks doubt this value; it can still be saved (PEO-125). */
+  readonly warning?: string | undefined;
   readonly onChange: (value: AttributeValue) => void;
 }): JSX.Element | null {
   const invalid = problem !== undefined;
@@ -181,7 +184,14 @@ export function AttributeInput({
   const owner =
     field.readOnly && field.ownedBy !== undefined ? `Changed by ${field.ownedBy}.` : null;
   const note = [field.description, owner].filter((x) => x !== null).join(' ');
-  const described = note === '' ? null : <FieldDescription>{note}</FieldDescription>;
+  // A caution about a value that was accepted (PEO-125) is read with the
+  // field's own help, in the one description the control points at.
+  const described =
+    warning !== undefined ? (
+      <FieldDescription tone="warning">{[note, warning].filter((x) => x !== '').join(' ')}</FieldDescription>
+    ) : note === '' ? null : (
+      <FieldDescription>{note}</FieldDescription>
+    );
   const error = <FieldError>{problem}</FieldError>;
   const disabled = field.readOnly;
 

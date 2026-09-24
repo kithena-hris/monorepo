@@ -41,18 +41,68 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 
 /* ------------------------------------------------------------- records -- */
 
-export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Outcome> {
+/** What People's checks warned about on a national identifier (PEO-125). Never the value. */
+type Finding = Readonly<Record<string, string>>;
+export type Saved =
+  | { readonly ok: true; readonly findings: readonly Finding[] }
+  | { readonly ok: false; readonly message: string };
+
+const saved = async (answer: Promise<PeopleAnswer<{ findings?: Finding[] }>>): Promise<Saved> => {
+  const a = await answer;
+  return a.ok ? { ok: true, findings: a.data.findings ?? [] } : { ok: false, message: a.message };
+};
+
+export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Saved> {
   void sectionKey;
-  return outcome(people('SaveOwnSection', { changed: formInputs(changed) }));
+  return saved(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
 export async function savePersonSection(
   personId: string,
   sectionKey: string,
   changed: Values,
-): Promise<Outcome> {
+): Promise<Saved> {
   void sectionKey;
-  return outcome(people('SavePersonSection', { personId, changed: formInputs(changed) }));
+  return saved(people('SavePersonSection', { personId, changed: formInputs(changed) }));
+}
+
+/**
+ * What saving these identifiers would be warned about, before they are saved
+ * (PEO-125): nothing is kept. No person id is the signed-in person's own record.
+ */
+export async function checkIdentifiers(
+  personId: string | null,
+  sectionKey: string,
+  changed: Values,
+): Promise<Saved> {
+  void sectionKey;
+  return saved(people('IdentifierCheck', { personId, changed: formInputs(changed) }));
+}
+
+/** HR's decision on a doubted identifier: final, audited by People. */
+export async function reviewIdentifier(
+  personId: string,
+  attributeKey: string,
+  decision: 'accept' | 'send_back',
+  note: string | null,
+): Promise<Outcome> {
+  return outcome(
+    people('ReviewIdentifier', {
+      personId,
+      attributeKey,
+      decision,
+      ...(note === null ? {} : { note }),
+    }),
+  );
+}
+
+/** The doubted value in full, for HR deciding it; People audits the read. */
+export async function revealIdentifier(
+  personId: string,
+  attributeKey: string,
+): Promise<{ ok: true; value: string } | { ok: false; message: string }> {
+  const answer = await people<{ value: string }>('RevealIdentifier', { personId, attributeKey });
+  return answer.ok ? { ok: true, value: answer.data.value } : { ok: false, message: answer.message };
 }
 
 /** Move a person to a legal entity and location from a date (PEO-123); People decides who may. */

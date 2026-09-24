@@ -48,6 +48,22 @@ describe('<Field>', () => {
     expect(screen.getByLabelText(/legal first name/i)).toHaveAttribute('aria-required', 'true');
   });
 
+  it('carries a caution in the description without making the field invalid', () => {
+    render(
+      <Field>
+        <FieldLabel>Reference</FieldLabel>
+        <FieldControl>
+          <Input />
+        </FieldControl>
+        <FieldDescription tone="warning">This may be mistyped.</FieldDescription>
+      </Field>,
+    );
+    const input = screen.getByLabelText(/reference/i);
+    expect(input).toHaveAccessibleDescription('This may be mistyped.');
+    expect(input).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('This may be mistyped.')).toHaveClass('text-warning-fg');
+  });
+
   it('fails loudly when a part is used outside a Field', () => {
     expect(() => render(<FieldLabel>Orphan</FieldLabel>)).toThrow(/inside a <Field>/);
   });
