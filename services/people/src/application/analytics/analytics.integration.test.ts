@@ -1026,6 +1026,23 @@ describe('the expiry timeline, live and item by item (PEO-122)', () => {
 
 describe('at 50,000 people', () => {
   beforeAll(async () => {
+    /*
+     * Everybody first, their managers second, with ANALYZE between.
+     *
+     * `manager_id` is a foreign key into this same table on (tenant_id, id),
+     * so every row checks its manager exists. `admin` is one connection, and
+     * it has already run that check for the handful of people seeded above:
+     * Postgres keeps the check's plan per connection, made for a table of a
+     * few rows, and reuses it here. It walked a tenant-prefixed index rather
+     * than the key — 50,000 checks, each over up to 50,000 rows: 2 to 5
+     * minutes on two cores, against under a second for the same insert on a
+     * fresh connection. Anything that invalidated the plan first (autovacuum
+     * analyzing the table) turned it back into seconds, which is what made
+     * the 180 s hook limit a coin toss. Setting managers after
+     * ANALYZE plans the check against a table that knows this tenant has
+     * 50,000 people, so it looks each manager up by key.
+     */
+    const seeding = performance.now();
     await admin.execute(sql`
       INSERT INTO people.person
         (id, tenant_id, status, hire_date, last_working_day, manager_id, org_unit_id, location_id,
@@ -1034,13 +1051,24 @@ describe('at 50,000 people', () => {
              CASE WHEN i % 15 = 0 THEN 'terminated' WHEN i % 40 = 0 THEN 'on_leave' ELSE 'active' END,
              DATE '2015-01-01' + (i % 4000),
              CASE WHEN i % 15 = 0 THEN DATE '2015-01-01' + (i % 4000) + 200 END,
-             CASE WHEN i = 1 THEN NULL ELSE md5('perf' || ((i - 2) / 8 + 1))::uuid END,
+             NULL,
              md5('ou' || (i % 20))::uuid, md5('loc' || (i % 5))::uuid,
              (ARRAY['permanent', 'fixed_term', 'contractor', 'intern'])[1 + i % 4],
              CASE WHEN i % 7 = 0 THEN 'incomplete' ELSE 'complete' END,
              jsonb_build_object('ethnicity', (ARRAY['a', 'b', 'prefer_not_to_say'])[1 + i % 3],
                                 'cost_centre', 'CC' || (i % 10))
         FROM generate_series(1, 50000) AS i`);
+    await admin.execute(sql`ANALYZE people.person`);
+    await admin.execute(sql`
+      UPDATE people.person p SET manager_id = md5('perf' || ((i - 2) / 8 + 1))::uuid
+        FROM generate_series(2, 50000) AS i
+       WHERE p.tenant_id = ${PERF}::uuid AND p.id = md5('perf' || i)::uuid`);
+    // The update leaves a dead version of every row; the snapshot should read
+    // a table as production's looks, not one twice its size.
+    await admin.execute(sql`VACUUM ANALYZE people.person`);
+    console.info(
+      `seeding 50,000 people took ${String(Math.round(performance.now() - seeding))} ms`,
+    );
 
     const start = performance.now();
     expect(await dailyJob(PERF, '2026-03-31')).toEqual(['self_id:ethnicity']);
