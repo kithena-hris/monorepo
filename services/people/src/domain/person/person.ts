@@ -74,6 +74,11 @@ export interface CurrentEmployment {
   readonly noticeFrom: 'active' | 'on_leave' | null;
   /** Why HR rehired somebody marked not eligible, when it did. */
   readonly rehireOverrideReason: string | null;
+  /**
+   * The period's first day (PEO-123): the hire or rehire date, or the day a
+   * transfer opened it. Absent reads as the record's hire date.
+   */
+  readonly startedOn?: string | null;
 }
 
 /** A period as the repository writes it: the facts, and the dates from the record. */
@@ -209,6 +214,12 @@ export function hireFactsOf(
   });
 }
 
+/** The calendar day before a calendar date. Arithmetic on the date, never on a clock. */
+function dayBefore(date: string): string {
+  const [y = 0, m = 1, d = 1] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+}
+
 const InvalidTransition = (from: PersonState, action: string) =>
   failure('INVALID_TRANSITION', `A record that is ${from} cannot be ${action}`);
 
@@ -220,6 +231,8 @@ export class Person extends AggregateRoot<string> {
   #employment: CurrentEmployment | null;
   /** Whether the current period's row needs writing: drained by the repository. */
   #periodChanged = false;
+  /** The period a transfer closed (PEO-123), until the repository writes it. */
+  #closedPeriod: EmploymentPeriodRow | null = null;
   readonly #tenantId: TenantId;
   readonly #identityAccountId: string | null;
   /** Lifecycle dates as history rows, drained by the repository with the events. */
@@ -287,7 +300,18 @@ export class Person extends AggregateRoot<string> {
     const employment = this.#employment;
     if (!this.#periodChanged || employment === null || this.#hireDate === null) return null;
     this.#periodChanged = false;
-    return { ...employment, startedOn: this.#hireDate, lastWorkingDay: this.#lastWorkingDay };
+    return {
+      ...employment,
+      startedOn: employment.startedOn ?? this.#hireDate,
+      lastWorkingDay: this.#lastWorkingDay,
+    };
+  }
+
+  /** The period a transfer closed since the last drain (PEO-123); written before the current one. */
+  drainClosedPeriod(): EmploymentPeriodRow | null {
+    const closed = this.#closedPeriod;
+    this.#closedPeriod = null;
+    return closed;
   }
 
   #period(change: Partial<CurrentEmployment>): void {
@@ -427,6 +451,7 @@ export class Person extends AggregateRoot<string> {
       eligibleForRehire: null,
       noticeFrom: null,
       rehireOverrideReason: overrideReason,
+      startedOn: hireDate,
     };
     this.#periodChanged = true;
   }
@@ -818,7 +843,10 @@ export class Person extends AggregateRoot<string> {
     }
     const superseded = this.#hireDate;
     this.#hireDate = hireDate;
-    this.#period({});
+    // The period that began on the corrected date moves with it; one a
+    // transfer opened keeps its own start (PEO-123).
+    const began = this.#employment?.startedOn ?? superseded;
+    this.#period(began === superseded ? { startedOn: hireDate } : {});
     const today = ctx.clock.date(timeZone);
     if (this.#status === 'pre_hire' && hireDate <= today) {
       return this.#moveTo('active', 'corrected', ctx, hireDate);
@@ -930,6 +958,66 @@ export class Person extends AggregateRoot<string> {
       effectiveFrom,
     );
     return true;
+  }
+
+  /**
+   * The person's legal entity changed, effective on a date (PEO-123, §8.5).
+   *
+   * **A move between legal entities is a transfer**: the employer of record
+   * changed, so the current employment period ends the day before and a new
+   * one opens on the date, in the new entity, with continuous service — the
+   * hire date, the status and access are the employment's and stay as they
+   * are, and no leaving reason is written on the period that closed. A
+   * location or org change inside the entity is not a period change at all.
+   *
+   * Nothing to leave, and the period itself moves instead: a pre-hire who has
+   * not started, somebody with no entity yet, or a date on or before the
+   * current period's first day (a correction of where it began). Refused on
+   * notice, where the employment is ending rather than moving, and for a
+   * leaver, whose next employment is a rehire. Raises nothing itself: the
+   * caller raises `org_changed`, which names the new entity.
+   */
+  place(
+    legalEntityId: string | null,
+    effectiveFrom: string,
+  ): Result<'transferred' | 'placed' | 'unchanged'> {
+    if (this.#status === 'terminated' || this.#status === 'discarded') {
+      return err(InvalidTransition(this.#status, 'placed'));
+    }
+    const current = this.#employment;
+    if (current === null || current.legalEntityId === legalEntityId) return ok('unchanged');
+    const began = current.startedOn ?? this.#hireDate;
+    if (
+      current.legalEntityId === null ||
+      legalEntityId === null ||
+      this.#status === 'pre_hire' ||
+      began === null ||
+      effectiveFrom <= began
+    ) {
+      this.#period({ legalEntityId });
+      return ok('placed');
+    }
+    if (this.#status === 'notice') {
+      return err(
+        failure(
+          'TRANSFER_ON_NOTICE',
+          'Somebody on notice is leaving, not moving; withdraw the notice to transfer them',
+          ['legalEntityId'],
+        ),
+      );
+    }
+    this.#closedPeriod = { ...current, startedOn: began, lastWorkingDay: dayBefore(effectiveFrom) };
+    this.#employment = {
+      period: current.period + 1,
+      legalEntityId,
+      leavingReason: null,
+      eligibleForRehire: null,
+      noticeFrom: null,
+      rehireOverrideReason: null,
+      startedOn: effectiveFrom,
+    };
+    this.#periodChanged = true;
+    return ok('transferred');
   }
 
   /** Where the person sits moved: org unit, cost centre, legal entity or location. */
