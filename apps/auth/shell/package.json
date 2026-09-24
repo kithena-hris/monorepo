@@ -17,7 +17,7 @@
     "@modern-js/runtime": "3.8.2",
     "@modern-js/server-runtime": "3.8.2",
     "@reach/ui": "workspace:*",
-    "@simplewebauthn/browser": "^13.2.2",
+    "@simplewebauthn/browser": "^14.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

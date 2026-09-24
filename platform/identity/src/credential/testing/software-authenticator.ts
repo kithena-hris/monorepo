@@ -57,6 +57,8 @@ export interface AssertionOptions {
   readonly userVerified?: boolean;
   readonly backedUp?: boolean;
   readonly userHandle?: string;
+  /** Set, the ceremony ran in an iframe whose top-level page is this origin. */
+  readonly topOrigin?: string;
 }
 
 export interface AssertionResponse {
@@ -129,7 +131,8 @@ export function softwareAuthenticator(credentialId = 'test-credential'): Authent
           type: 'webauthn.get',
           challenge: options.challenge,
           origin: options.origin,
-          crossOrigin: false,
+          crossOrigin: options.topOrigin !== undefined,
+          ...(options.topOrigin === undefined ? {} : { topOrigin: options.topOrigin }),
         }),
       );
 
