@@ -819,3 +819,83 @@ describe('PEO-122: what is about to expire, to whom', () => {
     expect(manager).not.toContain('Sana');
   });
 });
+
+describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by HR', () => {
+  it('warns the employee before saving, still saves it, and HR’s acceptance is final and audited', async () => {
+    // 12345678 mod 23 is Z; A is the wrong control letter.
+    const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
+    const own = await employee.newPage();
+    await own.goto(`${stack.shell}/people/me`);
+    await own.waitForLoadState('networkidle');
+    await own.getByRole('button', { name: 'Edit Identification & right to work' }).click();
+    const form = own.getByRole('form', { name: 'Identification & right to work' });
+    const nif = form.getByRole('textbox', { name: /NIF \/ NIE/ });
+    await nif.fill('12345678A');
+    await form.getByRole('button', { name: 'Save' }).click();
+
+    // Warned, on the field and above the button, and nothing is saved yet.
+    await form.getByText('Our checks suggest this may be wrong').waitFor({ timeout: 30_000 });
+    const describedBy = (await nif.getAttribute('aria-describedby')) ?? '';
+    const description = await own
+      .locator(describedBy.split(' ').map((id) => `[id="${id}"]`).join(', '))
+      .allTextContents();
+    expect(description.join(' ')).toMatch(/control letter does not compute/);
+    const before = await stack.sql`
+      SELECT 1 FROM people.person_secret WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`;
+    expect(before).toHaveLength(0);
+
+    // Submitted anyway: saved, and queued for HR.
+    await form.getByRole('button', { name: 'Save anyway' }).click();
+    const [pending] = await eventually(
+      'the review',
+      () => stack.sql<{ state: string; findings: { code: string }[] }[]>`
+        SELECT state, findings FROM people.identifier_review
+         WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
+      (rows) => rows.length === 1,
+    );
+    expect(pending?.state).toBe('pending');
+    expect(pending?.findings.map((f) => f.code)).toEqual(['check_mismatch']);
+    await own.reload();
+    await own.getByText('NIF / NIE is with HR for review').waitFor({ timeout: 30_000 });
+    await employee.close();
+
+    // HR sees what the checks found, reveals the value, and accepts it.
+    const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const reviews = await hr.newPage();
+    await reviews.goto(`${stack.shell}/people`);
+    await reviews.getByRole('link', { name: 'Identifiers to review' }).click();
+    await reviews.waitForURL(/\/people\/identifier-reviews$/);
+    await reviews.waitForLoadState('networkidle');
+    const table = reviews.getByRole('table', { name: 'Identifiers to review' });
+    await table.getByText(/control letter does not compute/).waitFor({ timeout: 30_000 });
+    expect(await table.getByText('12345678A').count()).toBe(0);
+    await table.getByRole('button', { name: /^Show .* NIF \/ NIE in full$/ }).click();
+    await table.getByText('12345678A').waitFor({ timeout: 30_000 });
+    await table.getByRole('button', { name: /^Accept / }).click();
+    await reviews.getByRole('dialog').getByRole('button', { name: 'Accept' }).click();
+    await eventually(
+      'the decision',
+      () => stack.sql<{ state: string }[]>`
+        SELECT state FROM people.identifier_review
+         WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
+      ([row]) => row?.state === 'accepted',
+    );
+    await reviews.getByText('Nothing to review').waitFor({ timeout: 30_000 });
+    await hr.close();
+
+    // Audited by codes, never by value; the reveal is audited too.
+    const audit = await stack.sql<{ event_name: string; envelope: unknown }[]>`
+      SELECT event_name, envelope FROM people.outbox
+       WHERE event_name IN ('people.person.identifier_reviewed', 'people.person.identifier_revealed')
+         AND envelope -> 'payload' ->> 'personId' = ${EMPLOYEE.person}
+       ORDER BY created_at`;
+    expect(audit.map((e) => e.event_name)).toEqual([
+      'people.person.identifier_revealed',
+      'people.person.identifier_reviewed',
+    ]);
+    expect(JSON.stringify(audit)).not.toContain('12345678');
+    const reviewed = audit[1]?.envelope as { payload: Record<string, unknown>; actor: unknown };
+    expect(reviewed.payload).toMatchObject({ decision: 'accepted', findingCodes: ['check_mismatch'] });
+    expect(reviewed.actor).toEqual({ kind: 'user', userId: ADMIN.account });
+  });
+});
