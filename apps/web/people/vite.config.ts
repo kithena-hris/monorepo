@@ -46,5 +46,5 @@ export default defineConfig({
       bundleAllCSS: true,
     }),
   ],
-  build: { target: 'es2022', rollupOptions: { input: {} } },
+  build: { target: 'es2022', rolldownOptions: { input: {} } },
 });
