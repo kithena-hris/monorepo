@@ -19,9 +19,9 @@
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",
-    "@openfga/sdk": "^0.8.0",
-    "jose": "^6.0.0",
-    "zod": "^4.4.3"
+    "@openfga/sdk": "^0.9.7",
+    "jose": "^6.2.12",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.15.0"

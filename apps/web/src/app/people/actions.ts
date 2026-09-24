@@ -53,7 +53,6 @@ const saved = async (answer: Promise<PeopleAnswer<{ findings?: Finding[] }>>): P
 };
 
 export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Saved> {
-  void sectionKey;
   return saved(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
@@ -62,7 +61,6 @@ export async function savePersonSection(
   sectionKey: string,
   changed: Values,
 ): Promise<Saved> {
-  void sectionKey;
   return saved(people('SavePersonSection', { personId, changed: formInputs(changed) }));
 }
 
@@ -75,7 +73,6 @@ export async function checkIdentifiers(
   sectionKey: string,
   changed: Values,
 ): Promise<Saved> {
-  void sectionKey;
   return saved(people('IdentifierCheck', { personId, changed: formInputs(changed) }));
 }
 

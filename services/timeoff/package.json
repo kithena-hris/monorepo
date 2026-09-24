@@ -21,13 +21,13 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "graphql-yoga": "^5.24.1",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.5",
-    "zod": "^4.4.3",
-    "@temporalio/client": "^1.13.0",
-    "@temporalio/worker": "^1.13.0"
+    "zod": "^4.6.5",
+    "@temporalio/client": "^1.24.0",
+    "@temporalio/worker": "^1.24.0"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",

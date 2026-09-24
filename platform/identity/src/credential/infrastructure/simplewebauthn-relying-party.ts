@@ -4,6 +4,7 @@ import {
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
+import { COSEALG } from '@simplewebauthn/server/helpers';
 
 import type { RelyingParty } from '../application/relying-party.js';
 
@@ -22,6 +23,22 @@ export interface RelyingPartyConfig {
   readonly rpId: string;
   readonly rpName: string;
 }
+
+/**
+ * The public key algorithms offered at registration and accepted when one is
+ * verified: Ed25519, P-256, RSA-2048 — the same list whatever Node is running.
+ *
+ * Pinned rather than left to the library. From v14 its default grows ML-DSA-44
+ * whenever the runtime can verify it, so upgrading Node would silently start
+ * minting post-quantum passkeys, and rolling Node back would then lock every
+ * one of those people out (`PQCNotSupportedError` at sign-in). Offering PQC is
+ * worth doing, and worth doing on purpose: a runtime floor first, then this list.
+ */
+export const SUPPORTED_ALGORITHMS: readonly COSEALG[] = [
+  COSEALG.EdDSA,
+  COSEALG.ES256,
+  COSEALG.RS256,
+];
 
 export function simpleWebAuthnRelyingParty(config: RelyingPartyConfig): RelyingParty {
   return {
@@ -44,6 +61,7 @@ export function simpleWebAuthnRelyingParty(config: RelyingPartyConfig): RelyingP
         // for a tenant that has asked to restrict models.
         attestationType: request.requireHardwareBound ? 'direct' : 'none',
         excludeCredentials: request.excludeCredentialIds.map((id) => ({ id })),
+        supportedAlgorithmIDs: [...SUPPORTED_ALGORITHMS],
         authenticatorSelection: {
           // Discoverable, so signing in is a tap rather than a tap preceded by
           // typing an email nobody should have to remember.
@@ -64,6 +82,9 @@ export function simpleWebAuthnRelyingParty(config: RelyingPartyConfig): RelyingP
         expectedOrigin: expected.origin,
         expectedRPID: config.rpId,
         requireUserVerification: true,
+        // The same list that was offered, so a response carrying an algorithm
+        // nobody asked for is refused rather than stored.
+        supportedAlgorithmIDs: [...SUPPORTED_ALGORITHMS],
       });
 
       const info = verification.registrationInfo;
@@ -99,6 +120,9 @@ export function simpleWebAuthnRelyingParty(config: RelyingPartyConfig): RelyingP
         expectedOrigin: expected.origin,
         expectedRPID: config.rpId,
         requireUserVerification: true,
+        // No `expectedTopOrigin`, deliberately. Sign-in is never framed by
+        // another site, and with it unset v14 refuses an assertion whose client
+        // data says it was made inside a cross-origin iframe.
         credential: {
           id: expected.credential.externalId,
           publicKey: expected.credential.publicKey,
