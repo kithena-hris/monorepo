@@ -3,6 +3,7 @@ import type { AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { COHORT_FLOOR } from '../../domain/org/calendar.js';
+import { EXPIRIES, type ExpiryKind } from './snapshot.js';
 
 export { COHORT_FLOOR };
 
@@ -148,6 +149,77 @@ export function suppressSmallCohorts<T extends { readonly count: number }>(
     return { status: 'insufficient_data', minimum };
   }
   return { status: 'ok', cells };
+}
+
+/**
+ * The expiry kinds this viewer may be shown at all: the field is published,
+ * is not special-category, and the viewer's relation to the population they
+ * chart reads it. Whether they see a given person's item is `readableExpiries`.
+ */
+export function expiryKinds(
+  definitions: readonly AttributeDefinition[],
+  viewer: ChartViewer,
+): ExpiryKind[] {
+  const relations = relationsOf(viewer);
+  return (Object.keys(EXPIRIES) as ExpiryKind[]).filter((kind) => {
+    const definition = definitions.find((d) => d.key === EXPIRIES[kind]);
+    return definition !== undefined && !isSpecial(definition) && visibleTo(definition, relations);
+  });
+}
+
+const NAME_KEYS = ['given_name', 'family_name', 'preferred_name'] as const;
+
+/** One dated value somebody holds, as the row holds it: not yet authorized. */
+export interface ExpiryCandidate {
+  readonly personId: string;
+  readonly kind: ExpiryKind;
+  /** The expiry, a calendar date. */
+  readonly day: string;
+  readonly names: Readonly<Record<(typeof NAME_KEYS)[number], string | null>>;
+}
+
+export interface ExpiryItem {
+  readonly personId: string;
+  readonly kind: ExpiryKind;
+  readonly day: string;
+  /** Only what the viewer reads of the name; null when none of it. */
+  readonly name: string | null;
+}
+
+/**
+ * The items a viewer may see, each decided on that person (PEO-122).
+ *
+ * `visibleTo` with the viewer's relations to that person — the decision a
+ * profile read makes — so an item they could not read on the profile is not
+ * on the timeline either. It is dropped, not blanked: an empty bar would say
+ * there is something to hide, and the count on the tile is these items.
+ */
+export function readableExpiries(
+  candidates: readonly ExpiryCandidate[],
+  definitions: readonly AttributeDefinition[],
+  relations: ReadonlyMap<string, ViewerRelations>,
+): ExpiryItem[] {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  const reads = (key: string, to: ViewerRelations): boolean => {
+    const definition = byKey.get(key);
+    return definition !== undefined && !isSpecial(definition) && visibleTo(definition, to);
+  };
+  return candidates.flatMap((c) => {
+    const to = relations.get(c.personId);
+    if (to === undefined || !reads(EXPIRIES[c.kind], to)) return [];
+    const shown = (key: (typeof NAME_KEYS)[number]) => (reads(key, to) ? c.names[key] : null);
+    const parts = [shown('preferred_name') ?? shown('given_name'), shown('family_name')].filter(
+      (p): p is string => p !== null && p !== '',
+    );
+    return [
+      {
+        personId: c.personId,
+        kind: c.kind,
+        day: c.day,
+        name: parts.length === 0 ? null : parts.join(' '),
+      },
+    ];
+  });
 }
 
 const INSUFFICIENT = 'insufficient data';

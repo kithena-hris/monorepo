@@ -15,7 +15,8 @@ import { snapshot, snapshotMeasure, snapshotRun } from './tables.js';
  *
  * This file is the only analytics code that reads `people.person`. Charts read
  * what it wrote; an `asOf` off the grid asks it to compute the same shape on
- * the fly, and the result says it did.
+ * the fly, and the result says it did. The one live read is the expiry
+ * timeline's (`expiringWithin`), whose items name people: see `queries.ts`.
  *
  * ### Membership comes from dated facts
  *
@@ -260,6 +261,59 @@ SELECT f.scope_id, 'self_id:' || k.key AS measure, COALESCE(a.answer, '(unanswer
 
   return sql`${scopedFacts(tenantId, day, sql`${day}::date - 1`, days)}
 ${sql.join(parts, sql`\nUNION ALL\n`)}`;
+}
+
+/**
+ * Who holds a dated value in (their day, their day + horizon], live, for the
+ * expiry timeline (PEO-122): one row per person and kind, with the name
+ * columns, not yet authorized. `root` narrows to one manager's chain.
+ *
+ * Present people only, counted as the snapshot counts them, each on their
+ * legal entity's day (`dayOf`). The same predicate as `measuresAt`'s
+ * expiries, so the tile and a snapshot of the same instant agree.
+ */
+export function expiringWithin(
+  tenantId: string,
+  days: Days,
+  horizon: number,
+  kinds: readonly ExpiryKind[],
+  root: string | null,
+): SQL {
+  const inChain =
+    root === null
+      ? sql`true`
+      : sql`p.id IN (SELECT id FROM chain) AND p.id <> ${root}::uuid`;
+  return sql`
+WITH RECURSIVE chain (id) AS (
+  SELECT id FROM people.person WHERE tenant_id = ${tenantId}::uuid AND manager_id = ${root}::uuid
+  UNION
+  SELECT p.id FROM people.person p JOIN chain c ON p.manager_id = c.id
+   WHERE p.tenant_id = ${tenantId}::uuid
+)
+SELECT DISTINCT p.id::text AS person_id, e.kind, e.on_day AS day,
+       p.given_name, p.family_name, p.preferred_name
+  FROM people.person p
+ CROSS JOIN LATERAL (SELECT ${dayOf(days)} AS day) AS d
+ CROSS JOIN LATERAL (
+         SELECT 'work_permit' AS kind, p.custom ->> ${EXPIRIES.work_permit} AS on_day
+   UNION ALL SELECT 'fixed_term', p.custom ->> ${EXPIRIES.fixed_term}
+   UNION ALL SELECT 'probation',  p.custom ->> ${EXPIRIES.probation}
+   UNION ALL SELECT 'certification', x #>> '{}'
+               FROM jsonb_path_query(p.custom, 'lax $.*[*].certification_expiry') AS x
+       ) AS e
+ WHERE p.tenant_id = ${tenantId}::uuid
+   AND p.status NOT IN ('provisional', 'discarded')
+   AND p.hire_date <= d.day
+   AND (p.last_working_day IS NULL OR p.last_working_day >= d.day)
+   AND ${inChain}
+   AND e.kind IN (${sql.join(
+     kinds.map((k) => sql`${k}`),
+     sql`, `,
+   )})
+   AND e.on_day ~ '^\\d{4}-\\d{2}-\\d{2}$'
+   AND e.on_day::date > d.day
+   AND e.on_day::date <= d.day + ${horizon}::int
+ ORDER BY day, person_id, kind`;
 }
 
 export interface SnapshotDeps {

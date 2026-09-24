@@ -8,7 +8,8 @@ import { fixedClock } from '@kithena/domain-kit';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 import { startPostgres } from '@kithena/testing';
 
-import type { TenantCalendar } from '../../domain/org/calendar.js';
+import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
+import { drizzleRelations } from '../../infrastructure/drizzle-person-reader.js';
 import { drizzlePeopleFacts } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { fixedCalendars } from '../org/org.js';
@@ -18,6 +19,7 @@ import {
   completeness,
   composition,
   expiries,
+  expiryTimeline,
   headcountTrend,
   joinerHeatmap,
   movementWaterfall,
@@ -131,6 +133,15 @@ const definitions = [
 ];
 
 const hr: ChartViewer = { kind: 'hr' };
+const NO_RELATIONS = {
+  isSelf: false,
+  isManager: false,
+  isInManagerChain: false,
+  isHr: false,
+  isFinance: false,
+  isAdmin: false,
+};
+const HR_RELATIONS = { ...NO_RELATIONS, isHr: true };
 const managerOf = (personId: string): ChartViewer => ({ kind: 'manager', personId });
 
 const facts = drizzlePeopleFacts();
@@ -857,6 +868,159 @@ describe('a tenant with entities in Madrid and Bangalore (PRD §6.8, §16)', () 
     // The tenant's figure is the sum of the entities' own-day figures: 0 + 1.
     expect(row).toEqual({ headcount: 1, joiners: 1 });
   });
+
+  it('opens each person’s expiry window on their entity’s day (PEO-122)', async () => {
+    // At 20:00 UTC on 31 March, Madrid's window is (31 Mar, 29 Jun] and
+    // Bangalore's (1 Apr, 30 Jun]: the same two dates fall either side.
+    const people = [
+      ['00000000-0000-4000-8000-000000000221', SL, '2026-04-01'],
+      ['00000000-0000-4000-8000-000000000222', SL, '2026-06-30'],
+      ['00000000-0000-4000-8000-000000000223', INDIA, '2026-04-01'],
+      ['00000000-0000-4000-8000-000000000224', INDIA, '2026-06-30'],
+    ] as const;
+    for (const [id, entity, expiry] of people) {
+      // eslint-disable-next-line no-await-in-loop -- four rows
+      await admin.execute(sql`
+        INSERT INTO people.person (id, tenant_id, status, hire_date, legal_entity_id, completeness, custom)
+        VALUES (${id}, ${TENANT}, 'active', '2020-01-01', ${entity}, 'complete',
+                ${JSON.stringify({ work_permit_expiry: expiry })}::jsonb)`);
+    }
+    const viewer = { accountId: '00000000-0000-4000-8000-0000000002ff', roles: new Set(['hr']) };
+    const result = await chart(TENANT, hr, (ctx) =>
+      expiryTimeline(ctx, {
+        calendar,
+        at: '2026-03-31T20:00:00.000Z',
+        everyone: HR_RELATIONS,
+        relations: (id) => drizzleRelations().relations(ctx.tx, TENANT, viewer, id),
+      }),
+    );
+    expect(result).toMatchObject({ ok: true, value: { today: '2026-03-31', horizon: 90 } });
+    expect(result.ok && result.value.items.map((i) => [i.personId, i.day])).toEqual([
+      [people[0][0], '2026-04-01'],
+      [people[3][0], '2026-06-30'],
+    ]);
+  });
+});
+
+describe('the expiry timeline, live and item by item (PEO-122)', () => {
+  const TENANT = '00000000-0000-4000-8000-00000000000f';
+  const TOP = '00000000-0000-4000-8000-000000000301';
+  const MGR = '00000000-0000-4000-8000-000000000302';
+  const MINE = '00000000-0000-4000-8000-000000000303';
+  const DEEP = '00000000-0000-4000-8000-000000000304';
+  const OTHER = '00000000-0000-4000-8000-000000000305';
+  const GONE = '00000000-0000-4000-8000-000000000306';
+  const MGR_ACCOUNT = '00000000-0000-4000-8000-0000000003a2';
+  const AT = '2026-03-31T12:00:00.000Z';
+
+  // A permit is its holder's and HR's; a contract end is HR's and the chain's.
+  const defs = [
+    define({ key: 'work_permit_expiry', visibility: ['self', 'hr'] }),
+    define({ key: 'contract_end', visibility: ['hr', 'manager_chain'] }),
+    define({ key: 'given_name', visibility: ['directory'] }),
+    define({ key: 'family_name', visibility: ['directory'] }),
+  ];
+
+  beforeAll(async () => {
+    const rows: [string, string | null, string, string | null, Record<string, string>][] = [
+      [TOP, null, 'active', null, {}],
+      [MGR, TOP, 'active', null, {}],
+      [MINE, MGR, 'active', null, { work_permit_expiry: '2026-04-30', contract_end: '2026-05-10' }],
+      [DEEP, MINE, 'active', null, { contract_end: '2026-07-15' }],
+      // Not in the manager's chain, expiring in 30 days like theirs.
+      [OTHER, TOP, 'active', null, { work_permit_expiry: '2026-04-30' }],
+      // Gone before the window opens: nothing of theirs expires for us.
+      [GONE, MGR, 'terminated', '2026-03-01', { work_permit_expiry: '2026-04-30' }],
+    ];
+    for (const [id, manager, status, lastDay, custom] of rows) {
+      // eslint-disable-next-line no-await-in-loop -- six rows
+      await admin.execute(sql`
+        INSERT INTO people.person (id, tenant_id, status, hire_date, last_working_day, manager_id,
+                                   identity_account_id, given_name, family_name, completeness, custom)
+        VALUES (${id}, ${TENANT}, ${status}, '2020-01-01', ${lastDay}, ${manager},
+                ${id === MGR ? MGR_ACCOUNT : null}, 'Given', ${id.slice(-3)}, 'complete',
+                ${JSON.stringify({ ...custom, certification: [{ certification_expiry: '2027-01-01' }] })}::jsonb)`);
+    }
+  });
+
+  const timeline = (viewer: ChartViewer, account: { accountId: string; roles: Set<string> }) =>
+    chart(
+      TENANT,
+      viewer,
+      (ctx) =>
+        expiryTimeline(ctx, {
+          calendar: UTC_CALENDAR,
+          at: AT,
+          everyone: account.roles.has('hr') ? HR_RELATIONS : NO_RELATIONS,
+          relations: (id) => drizzleRelations().relations(ctx.tx, TENANT, account, id),
+        }),
+      defs,
+    );
+
+  it('shows HR every permit and contract in the next 90 days, named, earliest first', async () => {
+    const result = await timeline(hr, {
+      accountId: '00000000-0000-4000-8000-0000000003ff',
+      roles: new Set(['hr']),
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        today: '2026-03-31',
+        horizon: 90,
+        kinds: ['work_permit', 'fixed_term'],
+        items: [
+          { personId: MINE, kind: 'work_permit', day: '2026-04-30', name: 'Given 303' },
+          { personId: OTHER, kind: 'work_permit', day: '2026-04-30', name: 'Given 305' },
+          { personId: MINE, kind: 'fixed_term', day: '2026-05-10', name: 'Given 303' },
+        ],
+      },
+    });
+  });
+
+  it('shows a manager their chain’s contracts and no permit, not even the item', async () => {
+    const result = await timeline(
+      { kind: 'manager', personId: MGR },
+      { accountId: MGR_ACCOUNT, roles: new Set() },
+    );
+    // OTHER is outside the chain; MINE's permit is MINE's and HR's. Nothing
+    // is drawn for either, so there is no gap to count.
+    expect(result.ok && result.value.items).toEqual([
+      { personId: MINE, kind: 'fixed_term', day: '2026-05-10', name: 'Given 303' },
+    ]);
+    expect(result.ok && result.value.kinds).toEqual(['fixed_term']);
+  });
+
+  it('looks as far ahead as asked, and refuses a horizon that is not a number of days', async () => {
+    const far = await chart(
+      TENANT,
+      hr,
+      (ctx) =>
+        expiryTimeline(ctx, {
+          calendar: UTC_CALENDAR,
+          at: AT,
+          horizon: 120,
+          everyone: HR_RELATIONS,
+          // HR reads both fields tenant-wide, so nobody's relations are asked.
+          relations: () => Promise.reject(new Error('not asked')),
+        }),
+      defs,
+    );
+    expect(far.ok && far.value.items.map((i) => i.personId)).toContain(DEEP);
+    const refused = await chart(
+      TENANT,
+      hr,
+      (ctx) =>
+        expiryTimeline(ctx, {
+          calendar: UTC_CALENDAR,
+          at: AT,
+          horizon: 0,
+          everyone: HR_RELATIONS,
+          relations: () => Promise.reject(new Error('not asked')),
+        }),
+      defs,
+    );
+    expect(refused).toMatchObject({ ok: false, error: { code: 'INVALID_HORIZON' } });
+  });
 });
 
 describe('at 50,000 people', () => {
@@ -938,6 +1102,28 @@ describe('at 50,000 people', () => {
       ),
     );
     expect(result.ok).toBe(true);
+    expect(ms).toBeLessThan(400);
+  });
+
+  it('answers the live expiry timeline in under 400 ms', async () => {
+    await admin.execute(sql`
+      UPDATE people.person
+         SET custom = custom || jsonb_build_object('work_permit_expiry',
+                                 (DATE '2026-04-01' + (hashtext(id::text) & 255))::text)
+       WHERE tenant_id = ${PERF}::uuid AND hashtext(id::text) % 50 = 0`);
+    const { ms, result } = await timed(() =>
+      chart(PERF, hr, (ctx) =>
+        expiryTimeline(ctx, {
+          calendar: UTC_CALENDAR,
+          at: '2026-03-31T12:00:00.000Z',
+          everyone: HR_RELATIONS,
+          // HR reads the permit on everybody: no per-person question is asked.
+          relations: () => Promise.reject(new Error('not asked')),
+        }),
+      ),
+    );
+    expect(result.ok && result.value.items.length).toBeGreaterThan(100);
+    console.info(`the expiry timeline over 50,000 people took ${String(Math.round(ms))} ms`);
     expect(ms).toBeLessThan(400);
   });
 
