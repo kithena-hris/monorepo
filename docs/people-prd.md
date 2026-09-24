@@ -2257,6 +2257,10 @@ Of the 389 rows that will import, 88 will be incomplete.
   27  missing Home address  (required in Spain)
 ```
 
+A company with **one** live legal entity has one answer to "which entity", so
+a new person's row with no legal entity takes it rather than blocking
+(PEO-123); with two or more, the cell is required as above.
+
 That last pair of lines is the point: the admin learns, before committing, that
 a successful import still leaves 88 people to chase — and that this is normal
 rather than a failure.
