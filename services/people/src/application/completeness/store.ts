@@ -97,6 +97,11 @@ export interface CompletenessStore {
    * it closes when HR terminates or corrects the date forward, with nothing
    * to clear.
    *
+   * And one `scheduled_change_refused` row per attribute and refusal code:
+   * values scheduled ahead that the domain refused on their day (PEO-124),
+   * naming the people. It closes when a newer row for that key is recorded
+   * for the person — a correction or a replacement value.
+   *
    * And one `unique_conflict` row per attribute where a key rotation found a
    * value two people hold (PEO-082), naming both. It closes when either of
    * them changes the value and the next rotation re-keys the claim.
@@ -126,11 +131,19 @@ export interface GridRow {
   /**
    * `missing`: `key` has no value. `confirm_termination`: `key` is
    * `last_working_day`, and it has passed. `unique_conflict`: `key` is unique
-   * and these people hold the same value. `identifier_review`: `key` is a
-   * national identifier these people entered that our checks doubted, waiting
-   * for HR's review (PEO-125).
+   * and these people hold the same value. `scheduled_change_refused`: a value
+   * of `key` scheduled for these people was refused on its day, for `reason`.
+   * `identifier_review`: `key` is a national identifier these people entered
+   * that our checks doubted, waiting for HR's review (PEO-125).
    */
-  readonly task: 'missing' | 'confirm_termination' | 'unique_conflict' | 'identifier_review';
+  readonly task:
+    | 'missing'
+    | 'confirm_termination'
+    | 'unique_conflict'
+    | 'scheduled_change_refused'
+    | 'identifier_review';
   readonly key: string;
   readonly personIds: readonly string[];
+  /** The refusal's code, for `scheduled_change_refused` only; never a value. */
+  readonly reason?: string;
 }

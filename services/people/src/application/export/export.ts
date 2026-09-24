@@ -10,7 +10,13 @@ import { writeCsv } from '../import/csv.js';
 import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
 import { PERSON_ID_COLUMN } from '../import/parse.js';
 import type { Calendars } from '../org/org.js';
-import type { Asking, PersonAccess, PersonView, SealedValue } from '../person/person-access.js';
+import {
+  relationsToMany,
+  type Asking,
+  type PersonAccess,
+  type PersonView,
+  type SealedValue,
+} from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
 
 /**
@@ -163,14 +169,17 @@ export async function buildExport(
       ...(request.asOf ? { asOf: request.asOf } : {}),
     });
     if (!page.ok) return page;
-    for (const person of page.value.items) {
-      if (selection && !selection.has(person.id)) continue;
-      const relations = await deps.relations.relations(
-        tx,
-        request.tenantId,
-        request.viewer,
-        person.id,
-      );
+    const chosen = page.value.items.filter((p) => !selection || selection.has(p.id));
+    const related = await relationsToMany(
+      deps.relations,
+      tx,
+      request.tenantId,
+      request.viewer,
+      chosen.map((p) => p.id),
+    );
+    for (const person of chosen) {
+      const relations = related.get(person.id);
+      if (relations === undefined) continue;
       for (const d of requested) if (visibleTo(d, relations)) readableKeys.add(d.key);
       const judged = judgedBy
         ? await judge(

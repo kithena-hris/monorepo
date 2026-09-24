@@ -8,6 +8,7 @@ import type { RecomputePerson } from '../completeness/recompute.js';
 import type { Calendars } from '../org/org.js';
 import type { TenantRoles } from '../roles/roles.js';
 import type { PersonRepository } from '../person-repository.js';
+import type { PersonAccess } from './person-access.js';
 import type { PersonReader, PersonRecord } from './ports.js';
 import type { InTenant } from './service.js';
 
@@ -205,4 +206,87 @@ function lifecycleJob(
     }
     return { moved, waiting: due.length - moved - failed.length, failed };
   };
+}
+
+/**
+ * PEO-124: a value dated ahead comes into force on its day, on the person's
+ * own calendar (§8.5).
+ *
+ * A write dated ahead is history at once and the projection only on its day.
+ * This is the job that moves it, hourly, in PEO-104's shape: candidates are
+ * people with a scheduled row dated on or before the latest date anywhere on
+ * Earth (UTC+14) and after their watermark; each is then judged on their own
+ * day by `PersonAccess.bringIntoForce`, which brings in only what has arrived
+ * there. Run hourly, a manager change dated the 1st lands within an hour of
+ * midnight in Auckland, and eleven hours later in Los Angeles.
+ *
+ * **Bounded and idempotent.** At most `limit` people a run, one transaction
+ * each, the row locked; what is brought in is what history holds in force and
+ * the row does not, so a rerun or a second replica finds nothing to do. The
+ * watermark (`people.person.applied_through`) is then set to the person's
+ * day, which takes them off the candidate list until their next scheduled
+ * row. One person refused or failing does not stop the rest.
+ */
+
+/** People with a scheduled value that may have arrived somewhere, and their watermark. */
+export interface Scheduled {
+  due(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    onOrBefore: string,
+    limit: number,
+  ): Promise<readonly string[]>;
+  /** Every dated value on or before `day` is in this person's row. */
+  through(tx: PostgresJsDatabase, tenantId: string, personId: string, day: string): Promise<void>;
+}
+
+export interface EffectiveDeps {
+  readonly inTenant: InTenant;
+  readonly scheduled: Scheduled;
+  readonly access: Pick<PersonAccess, 'bringIntoForce'>;
+  readonly clock: Clock;
+  readonly limit?: number;
+}
+
+
+export function bringDueIntoForce(deps: EffectiveDeps) {
+  return async (
+    tenantId: string,
+    correlationId: string,
+  ): Promise<{
+    readonly applied: number;
+    readonly failed: readonly { personId: string; error: unknown }[];
+  }> => {
+    const latest = localDate(deps.clock.instant(), EARLIEST_ZONE);
+    const due = await deps.inTenant(tenantId, ({ tx }) =>
+      deps.scheduled.due(tx, tenantId, latest, deps.limit ?? 500),
+    );
+
+    let applied = 0;
+    const failed: { personId: string; error: unknown }[] = [];
+    for (const personId of due) {
+      // eslint-disable-next-line no-await-in-loop -- one transaction at a time is the bound
+      await deps
+        .inTenant(tenantId, async ({ tx }) => {
+          const brought = await deps.access.bringIntoForce(tx, { tenantId, personId, correlationId });
+          // Thrown so the transaction rolls back: nothing half-applied.
+          if (!brought.ok) throw new Refused(brought.error.code, brought.error.message);
+          await deps.scheduled.through(tx, tenantId, personId, brought.value.day);
+          applied += brought.value.applied;
+        })
+        .catch((error: unknown) => {
+          failed.push({ personId, error });
+        });
+    }
+    return { applied, failed };
+  };
+}
+
+/** A person the domain refused on the day, with its code for the log. */
+class Refused extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(`${code}: ${message}`);
+    this.code = code;
+  }
 }

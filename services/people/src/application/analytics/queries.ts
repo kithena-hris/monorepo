@@ -653,7 +653,8 @@ export async function expiryTimeline(
     readonly horizon?: number;
     /** The viewer's tenant-wide relations: who they are to nobody in particular. */
     readonly everyone: ViewerRelations;
-    readonly relations: (personId: string) => Promise<ViewerRelations>;
+    /** Who the viewer is to each of these people, asked once for all of them. */
+    readonly relations: (personIds: readonly string[]) => Promise<ReadonlyMap<string, ViewerRelations>>;
   },
 ): Promise<Result<ExpiryTimeline>> {
   const horizon = request.horizon ?? EXPIRY_HORIZON_DAYS;
@@ -678,19 +679,18 @@ export async function expiryTimeline(
    * A relation to somebody only ever adds scopes to the tenant-wide ones, so
    * when those already read every field an item shows — HR, usually — no
    * person's relations can change the answer and none is asked for. A
-   * manager's are asked per person in the window.
-   * ponytail: one lookup per person then, as `list` does per page; batch it
-   * with OpenFGA's ListObjects.
+   * manager's are asked once for everybody in the window (`relationsToMany`:
+   * OpenFGA's ListObjects), not once per person.
    */
   const shown = [...kinds.map((k) => EXPIRIES[k]), 'given_name', 'family_name', 'preferred_name'];
   const settled = shown.every((key) => {
     const definition = ctx.definitions.find((d) => d.key === key);
     return definition === undefined || visibleTo(definition, request.everyone);
   });
-  const relations = new Map<string, ViewerRelations>();
-  for (const id of new Set(found.map((f) => f.person_id))) {
-    relations.set(id, settled ? request.everyone : await request.relations(id));
-  }
+  const ids = [...new Set(found.map((f) => f.person_id))];
+  const relations: ReadonlyMap<string, ViewerRelations> = settled
+    ? new Map(ids.map((id) => [id, request.everyone]))
+    : await request.relations(ids);
   const candidates = found.map((f) => ({
     personId: f.person_id,
     kind: f.kind,

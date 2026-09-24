@@ -249,12 +249,9 @@ describe('a move inside the entity', () => {
 });
 
 describe('refusals', () => {
-  it('refuses the future, an archived office, a mismatch and an unknown entity', async () => {
-    const future = await place('2026-06-02T12:00:00.000Z', {
-      locationId: MAD,
-      effectiveFrom: '2026-07-01',
-    });
-    expect(!future.ok && future.error.code).toBe('PLACEMENT_IN_FUTURE');
+  // A date ahead is accepted and comes into force on its day (PEO-124,
+  // effective.integration.test.ts).
+  it('refuses an archived office, a mismatch and an unknown entity', async () => {
     const archived = await place('2026-06-02T12:00:00.000Z', { locationId: OLD });
     expect(!archived.ok && archived.error.code).toBe('LOCATION_ARCHIVED');
     const mismatch = await place('2026-06-02T12:00:00.000Z', {
