@@ -411,9 +411,10 @@ Four of these carry country-specific behaviour and are not generic strings:
   `packages/contracts/src/address.ts` — the country decides the subdivision
   label, the postcode label and the postcode rule, and Spain's province/postcode
   cross-check already exists there.
-- `national_id` takes a country in `typeConfig` and validates against that
-  country's rule: NIF/NIE checksum in Spain, National Insurance shape in the UK,
-  PAN in India. An unknown country validates on length only and says so.
+- `national_id` takes a country and a scheme in `typeConfig` and is judged
+  against that country's strictest published rule — **as findings, never as a
+  block** (PEO-125, below). An unknown scheme is checked on length only and
+  says so.
 - `bank_account` takes a country and validates IBAN (mod-97) or the local
   equivalent. Always encrypted, always financial, never in an event.
 - `money` is `Money` — minor units and a currency, never a float, per the rule
@@ -421,6 +422,44 @@ Four of these carry country-specific behaviour and are not generic strings:
 
 `document_ref` points at the Documents module when it exists and at object
 storage when it does not. People stores a reference and never bytes.
+
+#### National identifiers: findings, not pass/fail (PEO-125)
+
+The product decision: tighten the checks, and still accept the value. A
+validator that refuses a real employee's real identifier stops their payroll,
+and one that waves a mistyped one through sends it to a tax authority. So a
+check reports what it found and a person decides:
+
+| Level       | Meaning                                                                                       | What happens                                      |
+| ----------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| refused     | Cannot be the identifier at all: the wrong length or characters once spacing is removed        | `VALUE_INVALID`, not saved                        |
+| `ok`        | Matches, and its check computes — or no public check exists, which the finding says           | Saved                                             |
+| `attention` | Matches the national format, but somebody should look: a company's PAN, a NI number with no suffix | Saved, warned about, queued for HR's review (§8.4) |
+| `mismatch`  | Has the shape, and a published rule says it is wrong: a control letter that does not compute  | Saved, warned about, queued for HR's review (§8.4) |
+
+A finding is `{ level, code, message }`. The message is written for the person
+("matches the national format but the check digit does not compute", "valid
+shape, but the holder-type letter says a company, not a person", "cannot be
+verified: the Income Tax Department does not publish the PAN check letter")
+and **never repeats the value**; the code is stable for a client to key on.
+
+| Country | Scheme      | Refused unless                        | Rules checked                                                                                                                                                         | Check character                                   |
+| ------- | ----------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| ES      | `nif`       | nine letters and digits               | DNI (8 digits + letter), NIE (X/Y/Z = 0/1/2 + 7 digits + letter), K/L/M NIF; a company CIF is `attention` (`holder_not_person`); anything else `format_mismatch`       | Verified: mod-23 letter (`check_mismatch`)        |
+| ES      | `naf`       | twelve digits                         | Province, number, two control digits                                                                                                                                  | Verified: mod 97 over province × 10⁸ + number, or × 10⁷ when the number is under 10,000,000 |
+| GB      | `nino`      | two letters, six digits, a letter or none | HMRC's allocation rules: first letter not D F I Q U V, second not those or O, never BG GB KN NK NT TN ZZ (`prefix_not_issued`); suffix A–D (`suffix_invalid`), a missing one `attention` (`suffix_missing`) | None exists                                        |
+| DE      | `steuer_id` | eleven digits, no leading zero        | Digit rule over the first ten: exactly one digit repeated, twice (before 2016) or three times never all adjacent (from 2016), the rest once (`digit_pattern`)           | Verified: ISO 7064 MOD 11,10                      |
+| DE      | `sv_nummer` | 8 digits, a letter, 3 digits          | Birth-date part a calendar date, else `attention` (`birth_date_invalid`)                                                                                               | Verified: the letter as its alphabet position, weights 2 1 2 5 7 1 2 1 2 1 2 1, digit sums, mod 10 |
+| IN      | `pan`       | five letters, four digits, a letter   | Fourth letter a holder type: P a person; C H F A T B L J G `attention` (`holder_not_person`); any other `mismatch` (`holder_unknown`)                                    | **Cannot be verified**: the algorithm is unpublished; reported as `check_unavailable`, never invented |
+| IN      | `uan`       | twelve digits                         | Shape                                                                                                                                                                 | **Cannot be verified**: EPFO publishes none (`check_unavailable`) |
+| US      | `ssn`       | nine digits                           | SSA never issues area 000, 666 or 9xx, group 00, serial 0000 (`not_issued`)                                                                                            | None exists                                        |
+
+**Where the findings go.** Every write returns them — REST's `identifierFindings`
+on the person after a write, GraphQL's `findings` on a section save, the
+import dry run per cell (§14.5). A form asks before it saves
+(`peopleIdentifierCheck`, which stores nothing) and warns on the field and above
+the button; the next press saves it anyway. Normalising for the unique claim is
+unchanged: `12345678 z` and `12345678Z` are one NIF.
 
 ### 6.5 Requiredness
 
@@ -1048,6 +1087,36 @@ Completeness is exposed on the API and in reporting, so a customer who _wants_
 to gate something on it — an onboarding module, an access request — can do that
 themselves, with their own rules, rather than having ours imposed.
 
+#### A value our checks doubt: HR's review (PEO-125)
+
+A national identifier saved with an `attention` or `mismatch` finding (§6.4)
+is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
+
+- **The record.** `people.identifier_review`, one row per doubted write, keyed
+  to the history row that wrote the value — history itself is never touched.
+  It holds the findings and the decision, never the value. At most one is open
+  (pending or sent back) per person and attribute; a new value supersedes it.
+- **Where HR sees it.** An `identifier_review` row on HR's grid per attribute,
+  naming the people, and the review screen (`/people/identifier-reviews`,
+  `peopleIdentifierReviews`, `GET /v1/identifier-reviews`): each value's
+  person, field, last four and findings, oldest first, only on attributes HR
+  may read on that person. The value in full only on request, through the
+  audited reveal (`revealIdentifier`, `POST
+  /v1/people/{id}/identifier-reviews/reveal`, `people.person.identifier_revealed`).
+- **The decision is final.** `accept`: the value stands and is never flagged
+  again — saving the same value later (however it is spaced) asks nobody, and
+  no later automated check overrides it. `send_back`: the employee is asked to
+  correct it; their profile and onboarding say so, with HR's note, and
+  completeness lists the key under `attention` (present, so not missing) until
+  a new value supersedes the review. Either is
+  `people.person.identifier_reviewed`: the reviewer on the envelope, the
+  person, the attribute, the decision, the finding codes and the note — never
+  the value. `reviewIdentifier`, `POST /v1/people/{id}/identifier-reviews`
+  (Idempotency-Key). HR only.
+- **A different value** written after an acceptance is checked afresh; one
+  written after a send-back supersedes the review and opens a new one only if
+  it is doubted too.
+
 ### 8.5 Effective dating and corrections
 
 Per the repository rule, and it is load-bearing here rather than decorative:
@@ -1423,6 +1492,8 @@ New:
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
+| `people.person.identifier_reviewed` v1 | HR decided a national identifier our checks doubted (§6.4, §8.4): the person, the attribute key, the review id, `accepted` or `sent_back`, the finding codes and the reviewer's note (free text); the reviewer is the envelope's actor. Never the value |
+| `people.person.identifier_revealed` v1 | A reviewer read a doubted identifier in full to decide it (§8.4): the person, the attribute key, the review id; who is the envelope's actor. Never the value |
 | `people.person.access_restored` v1 | Access came back (§5, §8.1): a rehired person's new employment started (reason `rehired`), or a notice's last working day was corrected forward to a day not yet ended (reason `last_working_day_corrected`). `restoredAt`, the account id. Identity reinstates on it |
 | `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
 | `people.role.revoked` v1 | The reverse, with the same fields; also `via: system`, `by` null and reason `access_ended` for each role a leaver held when their access ended (§8.1) |
@@ -2332,6 +2403,13 @@ rather than a failure.
 
 ### 14.5 The rest of the rules
 
+- **A national identifier our checks doubt imports** (§6.4, PEO-125). Only a
+  cell that cannot be the identifier at all blocks its row. One that has the
+  shape but fails a published rule — a control letter that does not compute, a
+  company's PAN — is listed in the dry run per cell, by row, cell reference,
+  field and finding (never the value), under a warning; the row imports, and
+  the value goes to HR's review (§8.4) as a form's would. The done step says
+  how many went to review.
 - **Matching.** On work email first, then employee number, then a duplicate
   judgment over name plus date of birth (§12.4). A suspected duplicate is never
   merged automatically; it is a review item.
@@ -3198,6 +3276,24 @@ deleted and cannot have their classification loosened.
 `work_permit_number` (encrypted), `work_permit_expiry`,
 `right_to_work_checked_on`, `right_to_work_checked_by`, `driving_licence_number`
 (encrypted), `sponsorship_required` (boolean).
+
+The country packs' identifiers, each `national_id` with the rule §6.4 names,
+checked as findings and reviewed by HR when doubted (§8.4). **Review status**
+is whether somebody who knows that country's paperwork has signed the rule
+off (PEO-059); until then the rule is the published one as implemented here,
+and a doubted value is saved and reviewed rather than refused, which is what
+makes an unreviewed rule safe to ship.
+
+| Pack | Key            | Scheme      | Required         | Rule review status                                                                                     |
+| ---- | -------------- | ----------- | ---------------- | ------------------------------------------------------------------------------------------------------ |
+| ES   | `es_nif`       | `nif`       | yes, in Spain    | Implemented to the published mod-23 rule; **awaiting a country reviewer**                              |
+| ES   | `es_naf`       | `naf`       | yes, in Spain    | Implemented to TGSS's mod-97 rule with the short-number case; **awaiting a country reviewer**          |
+| GB   | `gb_ni_number` | `nino`      | yes, in the UK   | Implemented to HMRC's allocation rules (NIM39110); **awaiting a country reviewer**                     |
+| DE   | `de_steuer_id` | `steuer_id` | yes, in Germany  | Implemented to § 139b AO's ISO 7064 check and both digit rules; **awaiting a country reviewer**        |
+| DE   | `de_sv_nummer` | `sv_nummer` | yes, in Germany  | Implemented to the Rentenversicherung check digit; **awaiting a country reviewer**                     |
+| IN   | `in_pan`       | `pan`       | yes, in India    | Holder types checked; the check letter **cannot be verified** (unpublished); **awaiting a country reviewer** |
+| IN   | `in_uan`       | `uan`       | no               | Shape only; **cannot be verified** (no public check); **awaiting a country reviewer**                  |
+| US   | `us_ssn`       | `ssn`       | yes, in the US   | Implemented to SSA's never-issued ranges; no check digit exists; **awaiting a country reviewer**       |
 
 ### Emergency contacts _(repeating)_
 

@@ -126,6 +126,20 @@ derived from the secrets' master key, so a dump of it yields no identifier. Hist
 `redacted_at` and `redaction_reason` stamped) rather than deleted; the history
 trigger permits that one change and nothing else.
 
+A national identifier our checks doubt (PEO-125) is saved and goes to HR's
+review. The review record, `people.identifier_review`, holds the finding codes,
+levels and messages and the id of the history row that wrote the value — never
+the value, and no message repeats it (a unit test holds that). The reviewer's
+queue shows the last four characters. The value in full reaches a reviewer
+only through `reveal`, for an open review, to HR who may read the attribute on
+that person; each reveal is the secret store's logged read and a
+`people.person.identifier_revealed` event naming who, whose and which
+attribute. The decision is `people.person.identifier_reviewed`, carrying the
+finding codes and the reviewer's note (free text), never the value. The write
+path also reads the stored value back once, internally, when a value HR
+already accepted is saved again, to tell whether it is the same one; that
+comparison is not shown to anybody.
+
 An import's blocked-row report is the one other place a value lives: the
 blocked rows as uploaded, sealed (AES-256-GCM) in object storage. It is kept
 **7 days**, then deleted by the export sweep, and never outlives an erasure:

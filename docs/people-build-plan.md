@@ -1474,6 +1474,37 @@ it is written down here rather than left in a PR description.
       expiry window are `relationsToMany` — OpenFGA `ListObjects` for self,
       manager and chain (`RelationsResolver.reach`), a per-person check only
       for whoever a list capped at 1,000 may have missed.*
+- [x] **PEO-125** National identifiers were checked permissively (a PAN of
+      any holder type, a NI number without its suffix, the Steuer-ID's
+      digit rule skipped, NAF, SV-Nummer and UAN by shape only) and a failed
+      check refused the value. Product decision: tighten the checks, never
+      block — warn the employee, save the value, and let HR's reviewer
+      decide, finally. *(PRD §6.4, §8.4, §14.5, appendix A)* *Landed as
+      findings, not pass/fail: `checkNationalId` returns `{ level: ok |
+      attention | mismatch, code, message }` per rule and refuses only what
+      cannot be the identifier (length or characters after normalising).
+      PAN holder types with a company/firm/trust as `attention` and the check
+      letter as "cannot be verified" (unpublished); NIF/NIE/K-L-M mod 23 and
+      a CIF as `attention`; NAF mod 97 with the short-number case; SV-Nummer
+      check digit with the letter weighted as its alphabet position; Steuer-ID
+      ISO 7064 and the digit rule, pre- and post-2016; NINO prefixes and an
+      A–D suffix, a missing one `attention`; UAN shape, "cannot be verified".
+      Every write goes through `PersonAccess.update`, so each is checked and
+      queued; profile, onboarding, import, REST and GraphQL return the
+      findings (the completeness grid does not show them yet); a form asks `peopleIdentifierCheck` before it saves one
+      and warns on the field (`FieldDescription tone="warning"`, new in
+      Reach) and above the button, then saves on "Save anyway". A doubted
+      value opens `people.identifier_review` (20260924330000), keyed to the
+      history row that wrote it, never the value: HR's grid gets an
+      `identifier_review` row, `/people/identifier-reviews` lists each with
+      its findings and last four, the value through the audited reveal
+      (`people.person.identifier_revealed`). Accept is final — the same
+      value saved again is not flagged — and send back shows on the
+      employee's record and as `attention` in completeness until a new
+      value supersedes it; both audited as
+      `people.person.identifier_reviewed` (codes, never the value). The
+      import dry run lists doubted cells without blocking; the commit counts
+      what went to review.*
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*
