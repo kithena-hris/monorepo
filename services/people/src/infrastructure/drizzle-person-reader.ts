@@ -341,5 +341,30 @@ export function drizzleRelations(): RelationsResolver {
         isAdmin: viewer.roles.has('people_admin'),
       };
     },
+
+    /** Who they are, their reports and everybody below them, in one walk down, bounded like the walk up. */
+    async reach(tx, tenantId, viewer) {
+      const rows = await tx.execute<{ kind: 'self' | 'direct' | 'chain'; id: string }>(sql`
+        WITH RECURSIVE me AS (
+          SELECT id FROM people.person
+           WHERE tenant_id = ${tenantId}::uuid AND identity_account_id = ${viewer.accountId}::uuid
+        ),
+        below(id, depth) AS (
+          SELECT id, 1 FROM people.person
+           WHERE tenant_id = ${tenantId}::uuid AND manager_id IN (SELECT id FROM me)
+          UNION
+          SELECT p.id, b.depth + 1
+            FROM people.person p JOIN below b ON p.manager_id = b.id
+           WHERE p.tenant_id = ${tenantId}::uuid AND b.depth < 32
+        )
+        SELECT 'self' AS kind, id FROM me
+        UNION ALL
+        SELECT 'direct', id FROM below WHERE depth = 1
+        UNION ALL
+        SELECT DISTINCT 'chain', id FROM below
+      `);
+      const of = (kind: string) => new Set([...rows].filter((r) => r.kind === kind).map((r) => r.id));
+      return { self: of('self'), direct: of('direct'), chain: of('chain'), complete: true };
+    },
   };
 }

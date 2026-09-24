@@ -31,7 +31,13 @@ import { tenantTransaction, type InTenantTransaction } from '../../infrastructur
 import { recomputeCompleteness, recomputePerson } from '../completeness/recompute.js';
 import { uuidv7 } from './ids.js';
 import { define, versionOf } from './in-memory.js';
-import { inTenantResult, personAccess, type PlacementChange } from './person-access.js';
+import { exportBuilderView } from '../screens/operations.js';
+import {
+  inTenantResult,
+  personAccess,
+  relationsToMany,
+  type PlacementChange,
+} from './person-access.js';
 import type { Viewer } from './ports.js';
 import { bringDueIntoForce } from './start.js';
 
@@ -411,5 +417,49 @@ describe('a value dated in the past', () => {
     expect((await write(LUCY.person, { cost_centre: 'CC-9' }, '2026-09-01')).ok).toBe(true);
     expect(await row(LUCY.person)).toMatchObject({ cost_centre: 'CC-9' });
     expect(await runAt('2026-10-12T12:00:00.000Z')).toEqual({ applied: 0, failed: [] });
+  });
+});
+
+describe('who a viewer is to many people, in a handful of questions', () => {
+  it('matches one check per person, from OpenFGA and from the rows alike', async () => {
+    const everybody = [AROHA, BEN, KIRI, LUCY, TAMA, RIA].map((p) => p.person);
+    const ben: Viewer = { accountId: BEN.account, roles: new Set() };
+    for (const resolver of [fga.relations, drizzleRelations()]) {
+      const reach = await inTenant(ACME, async ({ tx }) => resolver.reach?.(tx, ACME, ben));
+      expect(reach).toMatchObject({ self: new Set([BEN.person]), complete: true });
+      expect(reach?.direct).toEqual(new Set([KIRI.person, LUCY.person]));
+      const many = await inTenant(ACME, ({ tx }) =>
+        relationsToMany(resolver, tx, ACME, ben, everybody),
+      );
+      for (const person of everybody) {
+        const one = await inTenant(ACME, ({ tx }) => resolver.relations(tx, ACME, ben, person));
+        expect(many.get(person), person).toEqual(one);
+      }
+    }
+  });
+
+  it('offers the export builder’s fields from the schema and the viewer’s relations, not a sample', async () => {
+    const deps = {
+      service: { access: at(TODAY), schemas: drizzleSchemaVersions(), inTenant },
+      relations: fga.relations,
+      clock: fixedClock(TODAY),
+      personOf: drizzlePersonReader().personOf,
+      calendars: drizzleOrgStore(),
+    };
+    const offered = async (viewer: Viewer) => {
+      const view = await exportBuilderView(deps, { tenantId: ACME, viewer, correlationId: id(902) });
+      if (!view.ok) throw new Error(view.error.code);
+      return {
+        count: view.value.who[0]?.count,
+        keys: view.value.sections.flatMap((s) => s.fields.map((f) => f.key)),
+      };
+    };
+    // Ben manages two people, so their manager is his to export.
+    const ben = await offered({ accountId: BEN.account, roles: new Set() });
+    expect(ben.count).toBe(6);
+    expect(ben.keys).toContain('manager_id');
+    // An account with no record and nobody to manage reads no manager.
+    const stranger = await offered({ accountId: id(150), roles: new Set() });
+    expect(stranger.keys).not.toContain('manager_id');
   });
 });

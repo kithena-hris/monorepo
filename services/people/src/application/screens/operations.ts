@@ -518,8 +518,13 @@ export interface ExportBuilderView {
 
 /**
  * The builder offers only what the requester can read (§15.1): a field
- * withheld from them on everybody they can list is not offered, so there is
- * no "export everything" to press. The export itself checks again.
+ * withheld from them on everybody is not offered, so there is no "export
+ * everything" to press. The export itself checks again, person by person.
+ *
+ * Decided from the published schema and the relations the viewer can hold
+ * to anybody — their tenant roles, and self, manager and chain where `reach`
+ * says they have somebody to hold them to — never from a sample of people,
+ * so the 201st person's fields are offered as readily as the first's.
  */
 export async function exportBuilderView(
   deps: ScreenDeps,
@@ -528,18 +533,27 @@ export async function exportBuilderView(
   return run(deps.service, asking.tenantId, async (tx) => {
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published to export'));
-    const listed = await deps.service.access.list(tx, { ...asking, limit: 200 });
-    if (!listed.ok) return listed;
-    const readable = new Set<string>();
-    for (const person of listed.value.items) {
-      const relations = await deps.relations.relations(
-        tx,
-        asking.tenantId,
-        asking.viewer,
-        person.id,
-      );
-      for (const d of version.document.attributes) if (visibleTo(d, relations)) readable.add(d.key);
-    }
+    const counted = await deps.service.access.count(tx, asking);
+    if (!counted.ok) return counted;
+    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+    const reach = await deps.relations.reach?.(tx, asking.tenantId, asking.viewer);
+    const isSelf =
+      reach === undefined
+        ? (await deps.personOf(tx, asking.tenantId, asking.viewer.accountId)) !== null
+        : reach.self.size > 0;
+    const manages = reach !== undefined && reach.direct.size > 0;
+    const inChain = reach !== undefined && (reach.chain.size > 0 || manages);
+    const held = [
+      everyone,
+      ...(isSelf ? [{ ...everyone, isSelf: true }] : []),
+      ...(manages ? [{ ...everyone, isManager: true, isInManagerChain: true }] : []),
+      ...(inChain ? [{ ...everyone, isInManagerChain: true }] : []),
+    ];
+    const readable = new Set(
+      version.document.attributes
+        .filter((d) => held.some((relations) => visibleTo(d, relations)))
+        .map((d) => d.key as string),
+    );
     const columns = exportableColumns(version).filter((d) => readable.has(d.key));
     return ok({
       today: await tenantToday(deps, tx, asking.tenantId),
@@ -547,7 +561,7 @@ export async function exportBuilderView(
         {
           value: 'everyone',
           label: 'Everybody you can see',
-          count: listed.value.items.length,
+          count: counted.value.all,
         },
       ],
       sections: version.document.sections

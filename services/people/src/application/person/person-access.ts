@@ -336,6 +336,41 @@ export function filterable(
   return ok(undefined);
 }
 
+/**
+ * Who the viewer is to each of many people: their tenant-wide relations once,
+ * and `reach` once for who they are, manage and have in their chain — not
+ * one resolver round trip per person. A resolver without `reach`, or a reach
+ * that hit its cap, is asked per person for whoever it could not place.
+ */
+export async function relationsToMany(
+  resolver: RelationsResolver,
+  tx: Tx,
+  tenantId: string,
+  viewer: Viewer,
+  personIds: readonly string[],
+): Promise<ReadonlyMap<string, ViewerRelations>> {
+  const out = new Map<string, ViewerRelations>();
+  if (personIds.length === 0) return out;
+  const reach = await resolver.reach?.(tx, tenantId, viewer);
+  const everyone = reach && (await resolver.relations(tx, tenantId, viewer, NOBODY));
+  for (const id of personIds) {
+    const placed =
+      reach !== undefined && (reach.self.has(id) || reach.direct.has(id) || reach.chain.has(id));
+    if (reach === undefined || everyone === undefined || (!reach.complete && !placed)) {
+      // eslint-disable-next-line no-await-in-loop -- the fallback, per person by definition
+      out.set(id, await resolver.relations(tx, tenantId, viewer, id));
+      continue;
+    }
+    out.set(id, {
+      ...everyone,
+      isSelf: reach.self.has(id),
+      isManager: reach.direct.has(id),
+      isInManagerChain: reach.chain.has(id) || reach.direct.has(id),
+    });
+  }
+  return out;
+}
+
 const SEARCHED = ['given_name', 'family_name', 'preferred_name', 'work_email'] as const;
 
 /**
@@ -1236,10 +1271,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     },
 
     /**
-     * A page of people, each filtered for this viewer.
-     *
-     * ponytail: one relations lookup per person on the page. Batch it when
-     * OpenFGA's `ListObjects` is wired and a page of 100 is measurably slow.
+     * A page of people, each filtered for this viewer: who the viewer is to
+     * each comes from `relationsToMany`, a handful of questions for the page.
      */
     async list(
       tx: Tx,
@@ -1263,14 +1296,17 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         query.value.where,
         query.value.search,
       );
+      const related = await relationsToMany(
+        deps.relations,
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        rows.map((r) => r.snapshot.id),
+      );
       const items: PersonView[] = [];
       for (const row of rows) {
-        const relations = await deps.relations.relations(
-          tx,
-          asking.tenantId,
-          asking.viewer,
-          row.snapshot.id,
-        );
+        const relations = related.get(row.snapshot.id);
+        if (relations === undefined) continue;
         items.push(await view(tx, asking, row, version, relations, asking.asOf));
       }
       const next = rows.length === asking.limit ? (rows.at(-1)?.snapshot.id ?? null) : null;

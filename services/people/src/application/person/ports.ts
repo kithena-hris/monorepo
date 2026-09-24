@@ -105,6 +105,26 @@ export interface RelationsResolver {
     viewer: Viewer,
     personId: string,
   ): Promise<ViewerRelations>;
+  /**
+   * Who the viewer is to everybody at once: the people they sign in as,
+   * manage directly, and have anywhere below them — OpenFGA's `ListObjects`,
+   * three questions for a whole page rather than one check per person.
+   * Absent, `relationsToMany` asks per person.
+   */
+  reach?(tx: PostgresJsDatabase, tenantId: string, viewer: Viewer): Promise<Reach>;
+}
+
+/** The person-level half of a viewer's relations, for everybody at once. */
+export interface Reach {
+  readonly self: ReadonlySet<string>;
+  readonly direct: ReadonlySet<string>;
+  readonly chain: ReadonlySet<string>;
+  /**
+   * False when a list hit the resolver's cap (OpenFGA answers at most 1,000
+   * objects), so a person in none of the sets may still be reached: ask them
+   * one at a time. Never read as a no.
+   */
+  readonly complete: boolean;
 }
 
 /** `drizzleSecretStore` satisfies this; the application never sees a ciphertext. */
