@@ -30,6 +30,20 @@ import {
   SettingsBody,
 } from './rest.js';
 import { EmploymentPeriodsBody, LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
+import {
+  Advice,
+  Entity,
+  EndpointBody,
+  EndpointPatch,
+  Field,
+  Grid,
+  Label,
+  Order,
+  RequiredFrom,
+  Sections,
+  SetupChoice,
+  Upload,
+} from './screens.js';
 
 /**
  * The OpenAPI document for REST v1, generated from the Zod schemas `rest.ts`
@@ -71,6 +85,19 @@ const components = {
   CreateFullValues: CreateFullValuesBody,
   FullValuesDecision: FullValuesDecisionBody,
   FullValues: FullValuesBody,
+  // The screens' writes (PEO-098, keyed and documented in PEO-116).
+  SectionChanges: Sections,
+  CompletenessChanges: Grid,
+  NewSection: Label,
+  Order,
+  DraftField: Field,
+  FieldAdvice: Advice,
+  RequiredFrom,
+  SetupEntity: Entity,
+  SetupChoice,
+  CreateWebhookEndpoint: EndpointBody,
+  PatchWebhookEndpoint: EndpointPatch,
+  ImportUpload: Upload,
   Error: ErrorBody,
 } as const;
 
@@ -104,6 +131,153 @@ function lifecyclePaths(): Record<string, unknown> {
 }
 
 type Component = keyof typeof components;
+
+/**
+ * One of the screens' POST/PUT/PATCH routes. `safe` ones compute and change
+ * nothing, so take no key; every other one does (PEO-116).
+ */
+function screenWrite(
+  summary: string,
+  body: Component | null,
+  status: 200 | 201,
+  answered: string,
+  options: { readonly path?: 'id' | 'key'; readonly safe?: true } = {},
+): object {
+  const at =
+    options.path === 'id'
+      ? [id]
+      : options.path === 'key'
+        ? [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }]
+        : [];
+  return {
+    summary,
+    parameters: options.safe ? at : [...at, idempotencyKey],
+    ...(body === null ? {} : { requestBody: { required: true, ...json(body) } }),
+    responses: { [status]: { description: answered }, ...failure },
+  };
+}
+
+function screenPaths(): Record<string, unknown> {
+  return {
+    '/v1/views/me/sections': {
+      post: screenWrite('Save a section of my own record', 'SectionChanges', 200, 'Saved'),
+    },
+    '/v1/views/people/{id}/sections': {
+      post: screenWrite("Save a section of someone's record", 'SectionChanges', 200, 'Saved', {
+        path: 'id',
+      }),
+    },
+    '/v1/views/completeness': {
+      post: screenWrite(
+        "The completeness grid's bulk save; one write per person",
+        'CompletenessChanges',
+        200,
+        'Saved',
+      ),
+    },
+    '/v1/schema/draft/sections': {
+      post: screenWrite('Add a section to the draft', 'NewSection', 201, 'Added'),
+    },
+    '/v1/schema/draft/sections/order': {
+      put: screenWrite('Order the draft sections', 'Order', 200, 'Ordered'),
+    },
+    '/v1/schema/draft/sections/{key}/order': {
+      put: screenWrite("Order a draft section's fields", 'Order', 200, 'Ordered', { path: 'key' }),
+    },
+    '/v1/schema/draft/attributes': {
+      post: screenWrite('Add a field to the draft, or change one', 'DraftField', 200, 'Saved'),
+    },
+    '/v1/schema/draft/advice': {
+      post: screenWrite('The classification suggested for a field', 'FieldAdvice', 200, 'Advice', {
+        safe: true,
+      }),
+    },
+    '/v1/schema/draft/preview': {
+      post: screenWrite(
+        'What publishing the draft would change; nothing is kept',
+        'RequiredFrom',
+        200,
+        'The preview',
+        { safe: true },
+      ),
+    },
+    '/v1/schema/draft/publish': {
+      post: screenWrite('Publish the draft', 'RequiredFrom', 201, '{ version }'),
+    },
+    '/v1/views/setup/entity': {
+      post: screenWrite("Confirm the setup wizard's legal entity", 'SetupEntity', 200, 'Kept'),
+    },
+    '/v1/views/setup/publish': {
+      post: screenWrite(
+        'Accept the core fields and a country pack, and publish version 1',
+        'SetupChoice',
+        201,
+        '{ version }; the version in force when one is already published',
+      ),
+    },
+    '/v1/webhooks/endpoints': {
+      post: screenWrite(
+        'Register a webhook endpoint; people_admin only',
+        'CreateWebhookEndpoint',
+        201,
+        '{ id, secret }. A retry answers { id }: the secret is shown once',
+      ),
+    },
+    '/v1/webhooks/endpoints/{id}': {
+      patch: screenWrite(
+        'Change or re-enable an endpoint',
+        'PatchWebhookEndpoint',
+        200,
+        'Changed',
+        { path: 'id' },
+      ),
+    },
+    '/v1/webhooks/endpoints/{id}/rotate': {
+      post: screenWrite(
+        "Rotate an endpoint's secret; the old one signs for 24 hours more",
+        null,
+        200,
+        '{ secret }. A retry answers { id }: the secret is shown once',
+        { path: 'id' },
+      ),
+    },
+    '/v1/webhooks/deliveries/{id}/replay': {
+      post: screenWrite('Send a stored delivery again', null, 201, '{ deliveryId }', {
+        path: 'id',
+      }),
+    },
+    '/v1/imports/proposal': {
+      post: screenWrite(
+        'Upload a file and get the proposed mapping',
+        'ImportUpload',
+        200,
+        'The mapping',
+        {
+          safe: true,
+        },
+      ),
+    },
+    '/v1/imports/dry-run': {
+      post: screenWrite(
+        'The dry run of a mapped file; nothing is written',
+        'ImportUpload',
+        200,
+        'The review',
+        {
+          safe: true,
+        },
+      ),
+    },
+    '/v1/imports': {
+      post: screenWrite(
+        'Commit a mapped file',
+        'ImportUpload',
+        201,
+        'The report. A retry answers ALREADY_IMPORTED: the report is not kept',
+      ),
+    },
+  };
+}
 
 const ref = (name: Component) => ({ $ref: `#/components/schemas/${name}` });
 const json = (name: Component) => ({ content: { 'application/json': { schema: ref(name) } } });
@@ -337,10 +511,14 @@ export function openApiDocument(): Record<string, unknown> {
           summary: "Change a location's zone from a date; the same date again is a correction",
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('LocationZone') },
-          responses: { 201: { description: 'The location after', ...json('Location') }, ...failure },
+          responses: {
+            201: { description: 'The location after', ...json('Location') },
+            ...failure,
+          },
         },
       },
       ...lifecyclePaths(),
+      ...screenPaths(),
     },
     components: {
       schemas: Object.fromEntries(

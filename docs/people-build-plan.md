@@ -10,14 +10,14 @@ git, and nowhere else.
 
 **Specs**
 
-| What | Where |
-| --- | --- |
-| Requirements | [`docs/people-prd.md`](./people-prd.md) · [published](https://claude.ai/code/artifact/aec9b244-64f7-4f53-ab16-7ae6e572da6a) |
-| Screens | [published design, 13 screens](https://claude.ai/code/artifact/4d719b45-46cb-45da-9a0a-6b845f03332f) |
+| What                        | Where                                                                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Requirements                | [`docs/people-prd.md`](./people-prd.md) · [published](https://claude.ai/code/artifact/aec9b244-64f7-4f53-ab16-7ae6e572da6a)               |
+| Screens                     | [published design, 13 screens](https://claude.ai/code/artifact/4d719b45-46cb-45da-9a0a-6b845f03332f)                                      |
 | This file, to read or share | [read-only copy](https://claude.ai/code/artifact/647ccf50-72b0-43ab-bd0a-7cbdd3ce9fd0) — a snapshot. Its checkboxes do not track progress |
-| Repo rules | [`CLAUDE.md`](../CLAUDE.md) |
-| Layer boundaries | [`docs/code-structure.md`](./code-structure.md) |
-| Reach usage | `.claude/skills/reach-ui/SKILL.md` |
+| Repo rules                  | [`CLAUDE.md`](../CLAUDE.md)                                                                                                               |
+| Layer boundaries            | [`docs/code-structure.md`](./code-structure.md)                                                                                           |
+| Reach usage                 | `.claude/skills/reach-ui/SKILL.md`                                                                                                        |
 
 ---
 
@@ -250,7 +250,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Depends on** PEO-006, PEO-011
 - **Approach** Pure evaluation of a predicate against a person's facts. A
   predicate that **cannot** be evaluated — it names an archived attribute —
-  evaluates to *not required* and returns a signal for an operational alert.
+  evaluates to _not required_ and returns a signal for an operational alert.
   Failing towards "required" would lock a tenant out of their own records over
   a configuration typo.
 - **Done when** a test covers each operand, `requiredFrom` in the past and
@@ -273,7 +273,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Files** `services/people/src/domain/person/`
 - **Depends on** PEO-010
 - **Approach** `provisional → pre_hire → active → on_leave / notice →
-  terminated`, plus `discarded` from provisional only. Terminated is a
+terminated`, plus `discarded` from provisional only. Terminated is a
   tombstone — employment records outlive employment. `discarded` is the only
   state permitting a hard delete.
 - **Done when** every illegal transition has a test proving it is refused.
@@ -378,7 +378,7 @@ Test-first, all of it. No drivers, no I/O.
   runtime. This is what makes a 50,000-row directory filter on a custom field
   survivable.
 - **Done when** running the tool emits a valid Atlas migration and `just
-  check-strict` passes on the generated code.
+check-strict` passes on the generated code.
 
 ### Application
 
@@ -585,7 +585,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Files** `services/people/src/application/import/dry-run.ts`
 - **Depends on** PEO-039, PEO-014
 - **Approach** Classify every row: create, update, unchanged, **blocked**,
-  duplicate — and separately count how many will import *incomplete*. The three
+  duplicate — and separately count how many will import _incomplete_. The three
   outcomes are deliberately asymmetric:
   - missing **core identity** field → row blocked;
   - missing any other **required** field → row imports, person incomplete;
@@ -714,7 +714,7 @@ Test-first, all of it. No drivers, no I/O.
   test.
 - **Done when** a fresh tenant reaches a published version 1 and a complete
   first profile without touching an API by hand.
-- *Landed in PEO-098.* `apps/web/acceptance/people.acceptance.test.ts` runs
+- _Landed in PEO-098._ `apps/web/acceptance/people.acceptance.test.ts` runs
   the wizard in the shell at 390×844, with the keyboard raised for each
   section. It publishes version 1 (the core fields plus the Spanish pack),
   saves the names, and abandons before identification, which leaves a partial
@@ -791,7 +791,7 @@ Test-first, all of it. No drivers, no I/O.
   offending cell and download as CSV.
 - **Done when** an admin can take a broken file, fix the blocked rows from the
   downloaded CSV, and import them without re-mapping.
-- *Landed in PEO-098.* The acceptance test uploads four rows, two of them
+- _Landed in PEO-098._ The acceptance test uploads four rows, two of them
   broken (an empty work email, `31/02/2025`). It downloads the blocked-rows
   CSV at the dry run and imports the two good rows. It then fixes the two
   cells in the downloaded file and uploads it, and every column maps itself.
@@ -864,44 +864,44 @@ Ordered, but none of it blocks Phase 1 shipping.
 
 - [ ] **PEO-061** PDF employee record — per person, section headings matching
       the UI, **"Not provided"** rather than a blank, withheld-field count in
-      the footer. *(PRD §15.5)*
+      the footer. _(PRD §15.5)_
 - [ ] **PEO-062** PDF roster — landscape, repeating headers, filter printed in
-      the header so a printout is self-describing. *(PRD §15.5)*
+      the header so a printout is self-describing. _(PRD §15.5)_
 - [ ] **PEO-063** Document import — a zip or folder matched to people by a
       filename pattern the admin confirms. An unmatched file goes to a review
-      list, **never onto the nearest-looking person**. *(PRD §14.1)*
+      list, **never onto the nearest-looking person**. _(PRD §14.1)_
 - [ ] **PEO-064** Effective-dated history UI — "what did this look like in
-      March", per attribute. *(PRD §8.5)*
+      March", per attribute. _(PRD §8.5)_
 - [ ] **PEO-065** The full predicate editor for conditional requiredness.
-      *(PRD §6.5)*
-- [ ] **PEO-066** Custom visibility rules beyond the presets. *(PRD §6.6)*
+      _(PRD §6.5)_
+- [ ] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
 - [ ] **PEO-067** The remaining charts — attrition, tenure, span of control,
-      joiner heatmap, composition stacked. *(PRD §16.2)*
+      joiner heatmap, composition stacked. _(PRD §16.2)_
 - [ ] **PEO-068** Saved segments shared across directory, export and analytics.
-      *(PRD §16.3)*
+      _(PRD §16.3)_
 - [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
-      carries a link, not the data. *(PRD §16.3)*
+      carries a link, not the data. _(PRD §16.3)_
 - [ ] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
       enforced in the query. Its design follows PEO-083: served from the
       monthly publication, rounded to 5, never from the live snapshot.
-      *(PRD §6.7, §16.1)*
-- [ ] **PEO-071** Bulk edit beyond the completeness grid. *(PRD §8.4)*
+      _(PRD §6.7, §16.1)_
+- [ ] **PEO-071** Bulk edit beyond the completeness grid. _(PRD §8.4)_
 
 ## Phase 3
 
 - [ ] **PEO-072** SCIM 2.0 `/Users` and `/Groups` with an extension for
-      tenant-defined attributes; Okta and Entra verified first. *(PRD §13.5)*
+      tenant-defined attributes; Okta and Entra verified first. _(PRD §13.5)_
 - [ ] **PEO-073** Mirror mode — `sourceOfRecord: external`, per-attribute
       ownership, every other writer refused with the owning system named.
-      *(PRD §13.6)*
+      _(PRD §13.6)_
 - [ ] **PEO-074** Duplicate detection and merge. A merge is **always** a human
       decision, and it is additive — both histories survive, the absorbed
-      record becomes a tombstone pointing at the survivor. *(PRD §12.4)*
-- [ ] **PEO-075** Automated anonymisation on retention expiry. *(PRD §8.1)*
-- [ ] **PEO-076** `document_ref` wired to the Documents module. *(PRD §6.4)*
+      record becomes a tombstone pointing at the survivor. _(PRD §12.4)_
+- [ ] **PEO-075** Automated anonymisation on retention expiry. _(PRD §8.1)_
+- [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
 - [ ] **PEO-077** Approval workflows on sensitive changes, via Temporal.
 - [ ] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
-      relation. *(PRD §16.2)*
+      relation. _(PRD §16.2)_
 
 ---
 
@@ -918,33 +918,33 @@ it is written down here rather than left in a PR description.
       correctly stops `svc_people` enumerating them, so the snapshot job
       (PEO-044), the policy registry's boot load (PEO-034) and the reminder
       sweep (PEO-026) are built but nothing calls them. Needs a tenant source
-      and the wiring in `main.ts`. *Landed as `people.tenant`, filled by the
-      consumer; the sweep is scheduled only once PEO-084 supplies a mailer.*
+      and the wiring in `main.ts`. _Landed as `people.tenant`, filled by the
+      consumer; the sweep is scheduled only once PEO-084 supplies a mailer._
 - [x] **PEO-081** Identity has no endpoint listing a tenant's accounts.
       Reconciliation (PEO-028) is written against an assumed
       `GET /api/internal/tenants/<id>/accounts` returning
       `{ accounts, nextCursor }`; identity must serve that shape or the
-      caller changes. *(PRD §8.2)*
+      caller changes. _(PRD §8.2)_
 - [x] **PEO-082** Unique claims hold `normalised_value` in plaintext, so an
       encrypted attribute cannot be unique without its plaintext sitting next
       to the ciphertext. Store a keyed hash instead; until then no national
       identifier in a country pack is marked unique. Found in PEO-059.
-      *Landed as `value_hash`, HMAC-SHA-256 under a per-tenant key derived
+      _Landed as `value_hash`, HMAC-SHA-256 under a per-tenant key derived
       from the secrets' master key, for every attribute; rotation and the
       backfill are one hourly job. The packs' identifiers are unique per
       tenant. Dropping `normalised_value` is the contract step, once no claim
-      has a null `key_id` (see 20260924150000).*
+      has a null `key_id` (see 20260924150000)._
 - [x] **PEO-083** Differencing across snapshots. Reading the latest snapshot
       on two days can reveal who changed in between, which is the attack the
       cohort minimum exists to stop for special-category breakdowns. Needs
       noise or a coarser publishing cadence; a product decision first.
-      Found in PEO-045. *(PRD §16.1)* *Decided as a monthly publication,
+      Found in PEO-045. _(PRD §16.1)_ _Decided as a monthly publication,
       republished only after N changes, rounded to 5; landed as
-      `people.published_breakdown`.*
+      `people.published_breakdown`._
 - [x] **PEO-084** Reminder delivery. The sweep and its one-per-week cap exist
       (PEO-026) but `platform/messaging` has no reminder endpoint and nothing
       schedules a sweep. The PRD's day 1 / 3 / 7 cadence collapses to weekly
-      under the cap; confirm that is intended. *(PRD §8.4)* — Confirmed: day 1,
+      under the cap; confirm that is intended. _(PRD §8.4)_ — Confirmed: day 1,
       then weekly. Messaging serves `POST /api/internal/messaging/notice`;
       People's mailer is configured by `MESSAGING_URL` and
       `MESSAGING_PEOPLE_TOKEN`, and the hourly sweep runs only when it is. The
@@ -957,7 +957,7 @@ it is written down here rather than left in a PR description.
       migration (DELETE grant, nullable `redacted_at` / `redaction_reason`, the
       trigger widened to allow exactly one redaction shape) and `anonymise`
       then erasing all three places. **Do not schedule retention before this
-      lands.** Found in PEO-037. *(PRD §8.1, §12)*
+      lands.** Found in PEO-037. _(PRD §8.1, §12)_
 - [x] **PEO-086** Wire governance at runtime. The policy registry, the AI
       gateway's deny list and the refresh on `people.schema.published` are
       exported but nothing calls them. Needs the Kafka consumer PEO-027 added
@@ -968,33 +968,33 @@ it is written down here rather than left in a PR description.
       and PEO-035.
 - [x] **PEO-088** An audited way to read a secret for export. Encrypted fields
       are always masked in an export, but §15.2 lets finance see the full value
-      with a stated reason. Found in PEO-042. *(PRD §15.2)* *Replaced, by
+      with a stated reason. Found in PEO-042. _(PRD §15.2)_ _Replaced, by
       product decision, with an approval: finance asks with a reason, HR
       decides within seven days, an approval issues one single-use 24-hour
       download, every step an event. A Temporal workflow per request; the
-      approval rules live in `domain/approval/` for PEO-077 to reuse.*
+      approval rules live in `domain/approval/` for PEO-077 to reuse._
 - [x] **PEO-089** A real object-storage adapter behind `ObjectStore`, and a
       queue to hand exports over 2,000 rows to. Today the port has one
       in-memory implementation and nothing decides when to queue. Found in
-      PEO-043. *(PRD §15.1)* *Landed as an S3 adapter (SSE under the
+      PEO-043. _(PRD §15.1)_ _Landed as an S3 adapter (SSE under the
       service's own AES-GCM), BullMQ on Valkey keyed by export id, the
       `people.export` ledger, an hourly bounded sweep, and `POST
-      /v1/exports` / `GET /v1/exports/{id}`. The export-ready email waits on
-      platform/messaging, as PEO-084's reminders do.*
+    /v1/exports` / `GET /v1/exports/{id}`. The export-ready email waits on
+      platform/messaging, as PEO-084's reminders do._
 - [ ] **PEO-090** Import gaps: repeating-attribute sheets in an XLSX are not
       imported, a row matching an existing person does not change their
       `hire_date`, the import checksum is not on `people.import.started`, and a
       re-upload cannot re-serve the blocked-row report because it is not
-      stored. Found in PEO-038 to PEO-041. *(PRD §14)*
+      stored. Found in PEO-038 to PEO-041. _(PRD §14)_
 - [x] **PEO-091** Export gaps: the Missing information sheet reflects today's
       completeness even for an `asOf` export, and grey not-applicable cells are
-      not rendered. Found in PEO-042. *(PRD §15.4)* *Status, employment type,
+      not rendered. Found in PEO-042. _(PRD §15.4)_ _Status, employment type,
       work model, legal entity and whether a secret exists are still read as
-      of today; none has a dated read yet.*
+      of today; none has a dated read yet._
 - [x] **PEO-092** Authorization and transport setup. OpenFGA has no client
       yet, so relations come from `people.person` and roles; the Cosmo Router
       must be configured to forward the principal header with the internal
-      token. Found in PEO-025 and PEO-030. *Landed as People's own OpenFGA
+      token. Found in PEO-025 and PEO-030. _Landed as People's own OpenFGA
       store and model (`infrastructure/openfga.ts`; PRD §6.6 "As built"),
       tuples synced from the row on each of People's person events, the first
       person in a tenant granted `people_admin` and `hr`, and
@@ -1008,18 +1008,18 @@ it is written down here rather than left in a PR description.
       `router.integration.test.ts` (the shipped config in the real router in
       front of the real subgraph). Still open: a role-management transport
       for any grant after the first, and per-tenant entitlements, which
-      nothing in the platform stores.*
+      nothing in the platform stores._
 - [x] **PEO-093** Webhooks: a disabled endpoint only logs a warning instead of
       telling the tenant (needs an event, a contract and a manifest change),
       and a pending retry waits after a restart for that tenant's next
-      transaction. Found in PEO-032. *(PRD §13.3)* — `people.webhook.endpoint_disabled`,
+      transaction. Found in PEO-032. _(PRD §13.3)_ — `people.webhook.endpoint_disabled`,
       an alert email to the endpoint's `alert_email` (migration
       20260924120100), a boot-and-every-minute poller, and a lease claim per
       delivery.
 - [x] **PEO-094** The People remote: no server-side rendering, and the
       remote's host needs `no-cache` and CORS for `remoteEntry.js` and
       `routes.json`. Found in PEO-046.
-      *Settled in PEO-047:* the CSS. The remote compiles its own utilities
+      _Settled in PEO-047:_ the CSS. The remote compiles its own utilities
       (`apps/web/people/src/styles.css`, against `@reach/ui/theme.css`, no
       preflight and no tokens) and `bundleAllCSS` loads them with the expose;
       the shell no longer scans `apps/web/people`, so a class missing from the
@@ -1027,7 +1027,7 @@ it is written down here rather than left in a PR description.
       production shell build: a remote-only class was styled, a rebuild of
       the remote alone restyled it, and the same build without the remote's
       stylesheet left it unstyled. The sidebar item is enabled.
-      *Still open:* SSR (the screen is client-only behind a spinner; the shell
+      _Still open:_ SSR (the screen is client-only behind a spinner; the shell
       is Next, not Modern.js) and the hosting headers.
       *Landed:* the SSR and the hosting headers.
       - **Server rendering by the remote's own server build.** Module
@@ -1057,23 +1057,21 @@ it is written down here rather than left in a PR description.
       callbacks as server actions, and transports for what only the
       application layer has today — draft edits, reorder, publish preview and
       publish, the setup pack, import, export, analytics and webhook endpoint
-      management. Found in PEO-047. *Landed as:*
-      - `/v1/views/*` view models, plus REST for the draft, publishing, setup,
-        import and webhook endpoints (PRD §13.2), all under
-        `application/screens/*`;
-      - the shell fetching each route's data on the server as the signed-in
-        person (`lib/people.ts`, directly and not through the router, because
-        nothing mints a token yet);
-      - server actions for every callback;
-      - every screen in `routes.json`.
+      management. Found in PEO-047. _Landed as:_ - `/v1/views/*` view models, plus REST for the draft, publishing, setup,
+      import and webhook endpoints (PRD §13.2), all under
+      `application/screens/*`; - the shell fetching each route's data on the server as the signed-in
+      person (`lib/people.ts`, directly and not through the router, because
+      nothing mints a token yet); - server actions for every callback; - every screen in `routes.json`.
 
       Field-level absence is proven in the HTML the shell sends. *Not done:*
-      - Idempotency keys on the new writes, and OpenAPI entries for them.
-      - A finance full-values screen (PEO-088 has transports, no screen).
-      - A webhook delivery log (replay is a transport only).
-      - The expiry timeline and the onboarding funnel in analytics.
-      - Screens for legal entities, locations and settings. #100 has REST for
-        them and no screen exists. The wizard's legal entity step is wired.
+          - Idempotency keys on the new writes, and OpenAPI entries for them.
+            *Landed in PEO-116.*
+          - A finance full-values screen (PEO-088 has transports, no screen).
+          - A webhook delivery log (replay is a transport only).
+          - The expiry timeline and the onboarding funnel in analytics.
+          - Screens for legal entities, locations and settings. #100 has REST for
+            them and no screen exists. The wizard's legal entity step is wired.
+
 - [x] **PEO-095** Hiring raises nothing to identity. `Person.shareIdentityFacts`
       exists and the name paths call it, but no hire path does, so a new
       person's start date never reaches identity. The import commit (PEO-041)
@@ -1082,19 +1080,19 @@ it is written down here rather than left in a PR description.
 - [x] **PEO-096** Correcting `last_working_day` writes into `custom` while
       every reader uses the typed column, the same bug PEO-029 fixed for
       `hire_date`. A hire-date correction also does not re-evaluate status.
-      Found in PEO-029. *(PRD §8.5)*
+      Found in PEO-029. _(PRD §8.5)_
 - [x] **PEO-097** Name drift at enrolment. Identity writes the name typed at
       enrolment onto the account even after People has set one, and People
       only fills its own name when empty, so the two can differ until People's
-      next name change. Decide which wins. Found in PEO-029. *(PRD §5)* —
+      next name change. Decide which wins. Found in PEO-029. _(PRD §5)_ —
       People's wins once it has written the account (`people_facts_at` set);
       the typed name is still published on `profile_captured`.
 - [x] **PEO-100** Corrections that contradict the state. An active person whose
       start date is corrected into the future stays active, and a person on
       notice whose last working day is corrected into the past has nothing
-      asking HR to end the employment. *Decided: the first returns to
+      asking HR to end the employment. _Decided: the first returns to
       `pre_hire`; the second stays on notice and HR's grid gets a
-      `confirm_termination` row.* Found in PEO-096. *(PRD §8.1, §8.5)*
+      `confirm_termination` row._ Found in PEO-096. _(PRD §8.1, §8.5)_
 - [x] **PEO-099** Whose day it is. Every "today" in People — required-from,
       the reminder window, retention due dates, the daily snapshot, the
       monthly self-ID publication — ran on UTC or on whatever zone a request
@@ -1107,38 +1105,38 @@ it is written down here rather than left in a PR description.
       day and summed. One resolver (`Calendars`), one conversion
       (`localDate`); the company wizard carries the first zone and country to
       People on `identity.tenant.provisioned`, with the slug and name that
-      `identity.tenant.amended` keeps current. *(PRD §6.8, §8.4, §8.5, §9.4,
-      §10.2a, §11, §12, §16)*
+      `identity.tenant.amended` keeps current. _(PRD §6.8, §8.4, §8.5, §9.4,
+      §10.2a, §11, §12, §16)_
 - [x] **PEO-101** Employee numbering per legal entity (§7): format, prefix,
       sequence start. Found in PEO-099, which added the legal entity it hangs
-      off. *(PRD §7, §9.4, Appendix A)* *Landed as `people.employee_numbering`
+      off. _(PRD §7, §9.4, Appendix A)_ _Landed as `people.employee_numbering`
       (20260924200000), set by `people_admin` over `PUT
-      /v1/legal-entities/{id}/numbering`; a hire takes the next number under
+    /v1/legal-entities/{id}/numbering`; a hire takes the next number under
       the entity's row lock, gap-free; a typed or imported number is held to
-      the format, claimed tenant-wide and moves the sequence past it.*
-      off. *(PRD §7, §9.4, Appendix A)*
+      the format, claimed tenant-wide and moves the sequence past it._
+      off. _(PRD §7, §9.4, Appendix A)_
 - [x] **PEO-102** Completeness was recomputed only on a publish, so the stored
       state, the gap rows and the reminder went stale on every write. Each
       write now re-judges its one person in its transaction, through the
       publish recompute's own reader and `settle`, raising
       `profile_incomplete`/`profile_completed` only on a real transition; the
-      reader counts a sealed value as present. *(PRD §8.4)*
+      reader counts a sealed value as present. _(PRD §8.4)_
 - [x] **PEO-103** `assessCompleteness` asked a pre-hire for everything, where
       §8.1 asks only for fields collected at signup, enrolment or onboarding.
       Applied in the one function, and the import dry run judges a hired row
-      in the state the commit leaves it in. *(PRD §8.1)*
+      in the state the commit leaves it in. _(PRD §8.1)_
 - [x] **PEO-104** Nothing moved a pre-hire to active on their start date. An
       hourly, bounded, idempotent job in the background wiring starts each
       one once the date has begun on their own calendar, with the events a
-      start raises and a completeness re-judge. *(PRD §8.1)*
+      start raises and a completeness re-judge. _(PRD §8.1)_
 - [x] **PEO-105** `secret-store.rotate` was never called, so no encrypted value
       ever moved off an old master key and step 4 of the rollout could never
       happen. An hourly, bounded, idempotent re-wrap job beside PEO-082's,
-      refusing when a secret sits under a key the ring lacks. *(PRD §11.2)*
+      refusing when a secret sits under a key the ring lacks. _(PRD §11.2)_
 - [x] **PEO-106** Two concurrent imports claiming the same unique attributes
       in different orders deadlocked (40P01). `commitImportRetrying` retries
       the commit three times with backoff, idempotent by checksum, and refuses
-      clearly when it still loses. *(PRD §14.5)*
+      clearly when it still loses. _(PRD §14.5)_
 - [x] **PEO-107** The full-values decision route had no Idempotency-Key, so a
       retried decision got 409 rather than a replay. Now keyed like every
       other People REST write. *(PRD §13.2)*
@@ -1253,12 +1251,21 @@ it is written down here rather than left in a PR description.
       *Still open:* the profile's person picker and the completeness grid
       read only the first 200 people through `everybody()`; another lane
       pages them.
+- [x] **PEO-116** PEO-098's screen writes took no Idempotency-Key and were
+      missing from OpenAPI. The router now refuses any write without a key
+      before its handler runs (four compute-only POSTs are `safe`); each
+      screen write runs its use case inside the key's transaction (`sharing`,
+      savepoints), and a retry is answered from what exists now — no secret,
+      no import report. Every write is in `/v1/openapi.json` from its Zod
+      body, and `writes.contract.test.ts` fails when a state-changing route
+      lacks either. The shell sends a key per action. Found in PEO-098.
+      _(PRD §13.2, §17.2)_
 
 ## Blocked, and by what
 
-| Ticket | Blocked on | Note |
-| --- | --- | --- |
-| PEO-027 | PEO-002 | People cannot see a name captured at enrolment until identity publishes it |
-| PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked |
-| PEO-045 | nothing technical | The cohort minimum default of 10 is a product decision; confirm before shipping |
-| PEO-037 | legal review | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
+| Ticket  | Blocked on          | Note                                                                                                                                      |
+| ------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| PEO-027 | PEO-002             | People cannot see a name captured at enrolment until identity publishes it                                                                |
+| PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked                         |
+| PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
+| PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
