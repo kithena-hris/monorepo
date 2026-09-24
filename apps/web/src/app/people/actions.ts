@@ -1,31 +1,49 @@
 'use server';
 
-import { people } from '../../lib/people';
+import { people, type PeopleAnswer } from '../../lib/people';
+import { VIEWS } from '../../lib/people-views';
 
 /**
- * What the People screens' buttons do: server actions, each one request to
- * People as the person signed in (PEO-098).
+ * What the People screens' buttons do: server actions, each one operation
+ * sent to People through the router as the person signed in (PEO-098,
+ * PEO-113).
  *
- * One action per thing a screen can ask for, each with its path fixed here.
- * The browser chooses the arguments and never the endpoint, and every
+ * One action per thing a screen can ask for, each naming its operation here.
+ * The browser chooses the arguments and never the operation, and every
  * argument is validated again by People, which also decides whether this
- * person may do it at all. Nothing here authorizes anything.
+ * person may do it at all. Nothing here authorizes anything. Every write
+ * carries a fresh idempotency key (`lib/people.ts`).
  */
 
 export type Outcome = { readonly ok: true } | { readonly ok: false; readonly message: string };
 
-const outcome = async (answer: Promise<{ ok: boolean; message?: string }>): Promise<Outcome> => {
+const outcome = async (answer: Promise<PeopleAnswer<unknown>>): Promise<Outcome> => {
   const a = await answer;
-  return a.ok ? { ok: true } : { ok: false, message: a.message ?? 'That did not go through' };
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
 };
 
 type Values = Readonly<Record<string, unknown>>;
+
+/** A form's changed values as People's `FormValueInput`s: one slot each, null clears. */
+function formInputs(changed: Values): Record<string, unknown>[] {
+  return Object.entries(changed).flatMap(([key, value]): Record<string, unknown>[] => {
+    if (value === null || value === undefined) return [{ key, clear: true }];
+    if (typeof value === 'string') return [{ key, text: value }];
+    if (typeof value === 'boolean') return [{ key, flag: value }];
+    if (Array.isArray(value)) return [{ key, items: value.map(String) }];
+    if (typeof value === 'object' && 'amountMinor' in value && 'currency' in value) {
+      return [{ key, money: { amountMinor: String(value.amountMinor), currency: String(value.currency) } }];
+    }
+    // A sealed value's last four is what was shown, not something to write back.
+    return [];
+  });
+}
 
 /* ------------------------------------------------------------- records -- */
 
 export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Outcome> {
   void sectionKey;
-  return outcome(people('POST', '/v1/views/me/sections', { changed }));
+  return outcome(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
 export async function savePersonSection(
@@ -34,9 +52,7 @@ export async function savePersonSection(
   changed: Values,
 ): Promise<Outcome> {
   void sectionKey;
-  return outcome(
-    people('POST', `/v1/views/people/${encodeURIComponent(personId)}/sections`, { changed }),
-  );
+  return outcome(people('SavePersonSection', { personId, changed: formInputs(changed) }));
 }
 
 export async function saveGrid(
@@ -45,61 +61,72 @@ export async function saveGrid(
     readonly values: Readonly<Record<string, string>>;
   }[],
 ): Promise<Outcome> {
-  return outcome(people('POST', '/v1/views/completeness', { changes }));
+  return outcome(
+    people('SaveCompletenessGrid', {
+      changes: changes.map((c) => ({
+        personId: c.personId,
+        values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
+      })),
+    }),
+  );
 }
 
 /* --------------------------------------------------------------- setup -- */
 
 export async function confirmEntity(entity: { name: string; country: string }): Promise<Outcome> {
-  return outcome(people('POST', '/v1/views/setup/entity', entity));
+  return outcome(people('ConfirmSetupEntity', { name: entity.name, country: entity.country }));
 }
 
 export async function publishSetup(pack: {
   country: string;
   sections: readonly string[];
 }): Promise<Outcome> {
-  return outcome(people('POST', '/v1/views/setup/publish', pack));
+  return outcome(people('PublishSetup', { country: pack.country, sections: [...pack.sections] }));
 }
 
 /* ------------------------------------------------------------ registry -- */
 
 export async function reorderSections(order: readonly string[]): Promise<Outcome> {
-  return outcome(people('PUT', '/v1/schema/draft/sections/order', { order }));
+  return outcome(people('ReorderDraftSections', { order: [...order] }));
 }
 
 export async function reorderFields(
   sectionKey: string,
   order: readonly string[],
 ): Promise<Outcome> {
-  return outcome(
-    people('PUT', `/v1/schema/draft/sections/${encodeURIComponent(sectionKey)}/order`, { order }),
-  );
+  return outcome(people('ReorderDraftFields', { sectionKey, order: [...order] }));
 }
 
 export async function addSection(label: string): Promise<Outcome> {
-  return outcome(people('POST', '/v1/schema/draft/sections', { label }));
+  return outcome(people('AddDraftSection', { label }));
 }
 
 export async function saveField(input: Values, editing: string | null): Promise<Outcome> {
-  return outcome(people('POST', '/v1/schema/draft/attributes', { input, editing }));
+  return outcome(people('SaveDraftField', { input, editing }));
 }
 
 export async function advise(field: Values): Promise<unknown> {
-  const answer = await people<unknown>('POST', '/v1/schema/draft/advice', field);
+  const answer = await people<Record<string, unknown>>('ClassificationAdvice', {
+    label: field['label'],
+    description: field['description'] ?? null,
+    dataType: field['dataType'],
+    sectionKey: field['sectionKey'],
+    options: field['options'] ?? [],
+  });
   // No judgment is a judgment the editor already draws: the section's default.
   return answer.ok
-    ? answer.data
+    ? VIEWS.Advice(answer.data)
     : { kind: 'fallback', classification: 'confidential', piiKind: 'none', floor: 'internal' };
 }
 
 export async function previewPublish(requiredFrom: string): Promise<unknown> {
-  const answer = await people<unknown>('POST', '/v1/schema/draft/preview', { requiredFrom });
+  const answer = await people<unknown>('PublishPreview', { requiredFrom });
   if (!answer.ok) throw new Error(answer.message);
   return answer.data;
 }
 
 export async function publishDraft(requiredFrom: string): Promise<Outcome> {
-  return outcome(people('POST', '/v1/schema/draft/publish', { requiredFrom }));
+  return outcome(people('PublishDraft', { requiredFrom }));
 }
 
 /* -------------------------------------------------------- integrations -- */
@@ -107,65 +134,55 @@ export async function publishDraft(requiredFrom: string): Promise<Outcome> {
 export type WithSecret =
   { readonly ok: true; readonly secret: string } | { readonly ok: false; readonly message: string };
 
+const withSecret = (answer: PeopleAnswer<{ secret: string | null }>): WithSecret =>
+  !answer.ok
+    ? { ok: false, message: answer.message }
+    : answer.data.secret === null
+      ? // A retry of a request that already went through: the secret was shown once.
+        { ok: false, message: 'Done, but the secret was not shown. Rotate it to see a new one.' }
+      : { ok: true, secret: answer.data.secret };
+
 export async function createEndpoint(input: {
   url: string;
   events: readonly string[];
   allowlist: readonly string[];
   alertEmail: string;
 }): Promise<WithSecret> {
-  const answer = await people<{ secret: string }>('POST', '/v1/webhooks/endpoints', input);
-  return answer.ok
-    ? { ok: true, secret: answer.data.secret }
-    : { ok: false, message: answer.message };
+  return withSecret(
+    await people('CreateWebhookEndpoint', {
+      url: input.url,
+      events: [...input.events],
+      allowlist: [...input.allowlist],
+      alertEmail: input.alertEmail,
+    }),
+  );
 }
 
 export async function updateEndpoint(id: string, patch: Values): Promise<Outcome> {
-  return outcome(people('PATCH', `/v1/webhooks/endpoints/${encodeURIComponent(id)}`, patch));
+  const known = ['url', 'events', 'allowlist', 'alertEmail', 'enabled'];
+  return outcome(
+    people('UpdateWebhookEndpoint', {
+      id,
+      ...Object.fromEntries(Object.entries(patch).filter(([key]) => known.includes(key))),
+    }),
+  );
 }
 
 export async function rotateEndpoint(id: string): Promise<WithSecret> {
-  const answer = await people<{ secret: string }>(
-    'POST',
-    `/v1/webhooks/endpoints/${encodeURIComponent(id)}/rotate`,
-    {},
-  );
-  return answer.ok
-    ? { ok: true, secret: answer.data.secret }
-    : { ok: false, message: answer.message };
+  return withSecret(await people('RotateWebhookSecret', { id }));
 }
 
 /* --------------------------------------------------------------- roles -- */
 
 type TenantRole = 'hr' | 'finance' | 'people_admin';
 
-/**
- * Grant or revoke a tenant role (PEO-112). One Idempotency-Key per press, so a
- * retried request is answered as the first was rather than acted on twice.
- */
-async function changeRole(
-  path: 'grants' | 'revocations',
-  accountId: string,
-  role: TenantRole,
-  reason: string,
-): Promise<Outcome> {
-  return outcome(
-    people(
-      'POST',
-      `/v1/roles/${path}`,
-      { accountId, role, reason },
-      {
-        'idempotency-key': randomUUID(),
-      },
-    ),
-  );
-}
-
+/** Grant or revoke a tenant role (PEO-112), keyed per press. */
 export async function grantRole(
   accountId: string,
   role: TenantRole,
   reason: string,
 ): Promise<Outcome> {
-  return changeRole('grants', accountId, role, reason);
+  return outcome(people('GrantRole', { accountId, role, reason }));
 }
 
 export async function revokeRole(
@@ -173,7 +190,7 @@ export async function revokeRole(
   role: TenantRole,
   reason: string,
 ): Promise<Outcome> {
-  return changeRole('revocations', accountId, role, reason);
+  return outcome(people('RevokeRole', { accountId, role, reason }));
 }
 
 /* -------------------------------------------------------------- import -- */
@@ -181,28 +198,40 @@ export async function revokeRole(
 /** The file travels with every step: People keeps nothing between them (§14.2). */
 export type Staged = { ok: true; stage: unknown } | { ok: false; message: string };
 
-async function upload(path: string, form: FormData): Promise<Staged> {
+async function upload(
+  name: 'ProposeImport' | 'DryRunImport' | 'CommitImport',
+  form: FormData,
+): Promise<Staged> {
   const file = form.get('file');
   if (!(file instanceof File)) return { ok: false, message: 'Choose a file' };
   const mapping = form.get('mapping');
-  const answer = await people<unknown>('POST', path, {
-    name: file.name,
-    file: Buffer.from(await file.arrayBuffer()).toString('base64'),
-    ...(typeof mapping === 'string' ? { mapping: JSON.parse(mapping) as unknown } : {}),
-  });
-  return answer.ok ? { ok: true, stage: answer.data } : { ok: false, message: answer.message };
+  const columns =
+    typeof mapping === 'string'
+      ? Object.entries(JSON.parse(mapping) as Record<string, string | null>).map(
+          ([column, key]) => ({ column: Number(column), key }),
+        )
+      : [];
+  // Sent as a multipart upload through the router, the file as it was chosen.
+  const answer = await people<Record<string, unknown>>(
+    name,
+    name === 'ProposeImport' ? {} : { mapping: columns },
+    file,
+  );
+  return answer.ok
+    ? { ok: true, stage: VIEWS.ImportStage(answer.data) }
+    : { ok: false, message: answer.message };
 }
 
 export async function proposeImport(form: FormData): Promise<Staged> {
-  return upload('/v1/imports/proposal', form);
+  return upload('ProposeImport', form);
 }
 
 export async function dryRunImport(form: FormData): Promise<Staged> {
-  return upload('/v1/imports/dry-run', form);
+  return upload('DryRunImport', form);
 }
 
 export async function commitImport(form: FormData): Promise<Staged> {
-  return upload('/v1/imports', form);
+  return upload('CommitImport', form);
 }
 
 /* -------------------------------------------------------------- export -- */
@@ -215,12 +244,11 @@ export async function requestExport(choice: {
 }): Promise<
   { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }
 > {
-  const answer = await people<{ links?: { name: string; url: string }[] }>('POST', '/v1/exports', {
+  // The links are signed and expire (PEO-089); they carry their own authority.
+  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', {
     format: choice.format,
-    fields: choice.fields,
+    fields: [...choice.fields],
     asOf: choice.asOf,
   });
-  return answer.ok
-    ? { ok: true, links: answer.data.links ?? [] }
-    : { ok: false, message: answer.message };
+  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
 }

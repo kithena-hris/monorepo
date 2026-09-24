@@ -1,0 +1,267 @@
+/**
+ * Every GraphQL operation the tenant app sends People, through the router
+ * (PEO-113).
+ *
+ * A fixed list, and the only one: the router runs a persisted-operation
+ * safelist in production, and `apps/gateway/persisted/` is generated from this
+ * file (`pnpm --filter @kithena/gateway persist`), so an operation that is not
+ * here is refused before People sees it. The browser never chooses one — the
+ * server actions and the page loader name them.
+ *
+ * Plain text, no `server-only`: the generator reads it too.
+ */
+
+const RECORD_FIELD = `
+  fragment RecordFieldParts on RecordField {
+    key label description dataType options { value label } required readOnly currency ownedBy
+  }`;
+
+const ENTRY = `
+  fragment EntryParts on FormEntry {
+    __typename
+    ... on TextEntry { key text }
+    ... on FlagEntry { key flag }
+    ... on ListEntry { key items }
+    ... on MoneyEntry { key amountMinor currency }
+    ... on SealedEntry { key last4 }
+    ... on EmptyEntry { key }
+  }`;
+
+const STAGE = `
+  fragment StageParts on ImportStage {
+    __typename
+    ... on ImportMapStage {
+      step file { name rows sheet }
+      columns { index header status key source confidence reason }
+      fields { key label }
+    }
+    ... on ImportReviewStage {
+      step file { name rows sheet }
+      dryRun {
+        counts { create update unchanged blocked duplicate }
+        incomplete { count byField { label count } }
+        ignoredColumns
+        blocked { row person problem cell }
+      }
+      blockedCsv
+    }
+    ... on ImportDoneStage { step file { name rows sheet } created updated blocked blockedCsv }
+  }`;
+
+export const OPERATIONS = {
+  /* ------------------------------------------------------------- reads -- */
+  Onboarding: `query Onboarding {
+    peopleOnboarding {
+      firstName
+      sections { key label visibility ask fields { ...RecordFieldParts } }
+      values { ...EntryParts }
+      saved
+    }
+  }${RECORD_FIELD}${ENTRY}`,
+
+  Profile: `query Profile($personId: ID) {
+    peopleProfile(personId: $personId) {
+      person { name summary avatarUrl missing }
+      sections { key label visibility readsLogged fields { ...RecordFieldParts } }
+      values { ...EntryParts }
+    }
+  }${RECORD_FIELD}${ENTRY}`,
+
+  Directory: `query Directory($search: String, $filter: String, $after: ID) {
+    peopleDirectory(search: $search, filter: $filter, after: $after) {
+      active incomplete
+      columns { key label }
+      filterable { key label options { value label } }
+      people { id name email avatarUrl values { key value } missing }
+      next
+      can { import export }
+    }
+  }`,
+
+  Completeness: `query Completeness {
+    peopleCompleteness {
+      since
+      waiting { people lastReminded }
+      completedThisWeek
+      fields { key label options { value label } }
+      rows { personId name department manager missing }
+    }
+  }`,
+
+  RoleSettings: `query RoleSettings {
+    peopleRoleSettings {
+      viewerAccountId canManage
+      people { accountId personId name workEmail roles }
+    }
+  }`,
+
+  Registry: `query Registry {
+    peopleRegistry {
+      published { version publishedAt }
+      unpublishedChanges
+      sections { key label visibility ownership origin fixed }
+      fields {
+        key sectionKey label description dataType options requiredness ownership visibility
+        collectAt classification piiKind origin pending
+      }
+    }
+  }`,
+
+  Setup: `query Setup {
+    peopleSetup {
+      legalEntity { name country }
+      entityConfirmed
+      countries { code name }
+      packs {
+        country countryName fields
+        sections { key label summary required requiredByLaw onByDefault }
+      }
+      published
+      profile {
+        sections { key label visibility fields { ...RecordFieldParts } }
+        values { ...EntryParts }
+      }
+    }
+  }${RECORD_FIELD}${ENTRY}`,
+
+  Integrations: `query Integrations {
+    peopleIntegrations {
+      schemaVersion deliveries24h events
+      fields { key label refused }
+      endpoints {
+        id url enabled events allowlist alertEmail retrying problem lastDelivery secretRotated
+      }
+    }
+  }`,
+
+  ExportBuilder: `query ExportBuilder {
+    peopleExportBuilder {
+      today
+      who { value label count }
+      sections { key label fields { key label } }
+    }
+  }`,
+
+  Analytics: `query Analytics {
+    peopleAnalytics {
+      asOf source sourceNote
+      headcount { value change trend { label value } }
+      attrition { percent leavers formula }
+      complete { percent incomplete }
+      expiringIn90Days
+      movement { period opening joiners moves leavers closing }
+      completenessBySection { label value }
+    }
+  }`,
+
+  PublishPreview: `query PublishPreview($requiredFrom: String!) {
+    peoplePublishPreview(requiredFrom: $requiredFrom) {
+      nextVersion unchanged
+      changes { kind key summary specialCategory }
+      impact { evaluated becomingIncomplete becomingComplete forEmployees forStaff }
+      integrationsNotified
+    }
+  }`,
+
+  ClassificationAdvice: `query ClassificationAdvice(
+    $label: String!, $description: String, $dataType: String!, $sectionKey: String!, $options: [String!]!
+  ) {
+    peopleClassificationAdvice(
+      label: $label, description: $description, dataType: $dataType, sectionKey: $sectionKey, options: $options
+    ) { kind classification piiKind reason floor }
+  }`,
+
+  /* ------------------------------------------------------------ writes -- */
+  SaveOwnSection: `mutation SaveOwnSection($changed: [FormValueInput!]!, $key: String!) {
+    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok }
+  }`,
+
+  SavePersonSection: `mutation SavePersonSection($personId: ID!, $changed: [FormValueInput!]!, $key: String!) {
+    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok }
+  }`,
+
+  SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
+    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok }
+  }`,
+
+  ConfirmSetupEntity: `mutation ConfirmSetupEntity($name: String!, $country: String!, $key: String!) {
+    confirmSetupEntity(name: $name, country: $country, idempotencyKey: $key) { ok }
+  }`,
+
+  PublishSetup: `mutation PublishSetup($country: String!, $sections: [String!]!, $key: String!) {
+    publishSetup(country: $country, sections: $sections, idempotencyKey: $key) { version }
+  }`,
+
+  AddDraftSection: `mutation AddDraftSection($label: String!, $key: String!) {
+    addDraftSection(label: $label, idempotencyKey: $key) { ok }
+  }`,
+
+  ReorderDraftSections: `mutation ReorderDraftSections($order: [String!]!, $key: String!) {
+    reorderDraftSections(order: $order, idempotencyKey: $key) { ok }
+  }`,
+
+  ReorderDraftFields: `mutation ReorderDraftFields($sectionKey: String!, $order: [String!]!, $key: String!) {
+    reorderDraftFields(sectionKey: $sectionKey, order: $order, idempotencyKey: $key) { ok }
+  }`,
+
+  SaveDraftField: `mutation SaveDraftField($input: DraftFieldInput!, $editing: String, $key: String!) {
+    saveDraftField(input: $input, editing: $editing, idempotencyKey: $key) { ok }
+  }`,
+
+  PublishDraft: `mutation PublishDraft($requiredFrom: String!, $key: String!) {
+    publishDraft(requiredFrom: $requiredFrom, idempotencyKey: $key) { version }
+  }`,
+
+  CreateWebhookEndpoint: `mutation CreateWebhookEndpoint(
+    $url: String!, $events: [String!]!, $allowlist: [String!]!, $alertEmail: String!, $key: String!
+  ) {
+    createWebhookEndpoint(
+      url: $url, events: $events, allowlist: $allowlist, alertEmail: $alertEmail, idempotencyKey: $key
+    ) { id secret }
+  }`,
+
+  UpdateWebhookEndpoint: `mutation UpdateWebhookEndpoint(
+    $id: ID!, $url: String, $events: [String!], $allowlist: [String!], $alertEmail: String,
+    $enabled: Boolean, $key: String!
+  ) {
+    updateWebhookEndpoint(
+      id: $id, url: $url, events: $events, allowlist: $allowlist, alertEmail: $alertEmail,
+      enabled: $enabled, idempotencyKey: $key
+    ) { ok }
+  }`,
+
+  RotateWebhookSecret: `mutation RotateWebhookSecret($id: ID!, $key: String!) {
+    rotateWebhookSecret(id: $id, idempotencyKey: $key) { id secret }
+  }`,
+
+  GrantRole: `mutation GrantRole($accountId: ID!, $role: TenantRole!, $reason: String!, $key: String!) {
+    grantRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }
+  }`,
+
+  RevokeRole: `mutation RevokeRole($accountId: ID!, $role: TenantRole!, $reason: String!, $key: String!) {
+    revokeRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }
+  }`,
+
+  ProposeImport: `mutation ProposeImport($file: Upload!) {
+    proposeImport(file: $file) { ...StageParts }
+  }${STAGE}`,
+
+  DryRunImport: `mutation DryRunImport($file: Upload!, $mapping: [ImportColumnInput!]!) {
+    dryRunImport(file: $file, mapping: $mapping) { ...StageParts }
+  }${STAGE}`,
+
+  CommitImport: `mutation CommitImport($file: Upload!, $mapping: [ImportColumnInput!]!, $key: String!) {
+    commitImport(file: $file, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
+  }${STAGE}`,
+
+  RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $key: String!) {
+    requestExport(format: $format, fields: $fields, asOf: $asOf, idempotencyKey: $key) {
+      id status rowCount expiresAt links { name url }
+    }
+  }`,
+} as const;
+
+export type OperationName = keyof typeof OPERATIONS;
+
+/** Who the router's safelist and logs know this client as. */
+export const CLIENT_NAME = 'kithena-web';
