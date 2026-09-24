@@ -110,6 +110,7 @@ beforeAll(async () => {
     '20260924220000_people_access_end.sql',
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
+    '20260924350000_people_unique_key_lookup.sql',
     '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',

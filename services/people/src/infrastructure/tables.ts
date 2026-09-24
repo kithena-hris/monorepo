@@ -220,8 +220,9 @@ export const attributeUnique = people.table(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('attribute_unique_hash_key').on(t.tenantId, t.attributeKey, t.scopeId, t.valueHash),
-    index('attribute_unique_person_lookup').on(t.tenantId, t.personId),
+    // The value leads, so for a tenant the statistics have not seen no other
+    // lookup can take this index for a scan of the tenant (20260924350000).
+    uniqueIndex('attribute_unique_value_key').on(t.valueHash, t.tenantId, t.attributeKey, t.scopeId),
   ],
 );
 
