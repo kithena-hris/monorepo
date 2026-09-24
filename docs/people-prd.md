@@ -2268,7 +2268,7 @@ JSX runtime and Reach, plus `ssr/people.css`.
   looping is refused or stopped, and that the next build still renders.
 - **The switch.** `PEOPLE_REMOTE_SSR=off` still turns server rendering off.
 - **Residual risk.** What remains, stated plainly:
-  - *Network.* The permission model in Node 22 does not cover sockets. The
+  - *Network.* The permission model in Node 24 does not cover sockets. The
     renderer removes `fetch` and refuses the network modules, but code that
     escaped the context and the renderer's own lockdown could open a
     connection from the shell's network position — with nothing to

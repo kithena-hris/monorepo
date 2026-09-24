@@ -12,7 +12,6 @@
     "test:contract": "vitest run --config vitest.contract.ts",
     "test:integration": "vitest run --config vitest.integration.ts",
     "test:standalone": "vitest run --config vitest.standalone.ts",
-    "db:migrate": "atlas migrate apply --env local",
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {

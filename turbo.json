@@ -38,7 +38,6 @@
     // honest answer; the walk takes a few hundred milliseconds.
     "@kithena/contracts#codegen": { "dependsOn": ["^build"], "cache": false },
 
-    "db:migrate": { "cache": false, "persistent": false },
     "dev": { "cache": false, "persistent": true }
   }
 }

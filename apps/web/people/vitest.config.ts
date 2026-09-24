@@ -60,6 +60,9 @@ export default defineConfig({
               contextOptions: { isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
             }),
             viewport: { width: 390, height: 844 },
+            // One IPv4 address for the port check, the bind and the URL the
+            // browser loads; see apps/storybook/vitest.config.ts.
+            api: { host: '127.0.0.1' },
             instances: [{ browser: 'chromium' }],
           },
         },
