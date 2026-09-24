@@ -80,7 +80,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await producer.disconnect();
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  await (producer as Producer | undefined)?.disconnect();
   await serviceClient?.end();
   await adminClient?.end();
   await Promise.all([stopPg?.(), stopKafka?.()]);

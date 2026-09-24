@@ -75,21 +75,25 @@ services:
     ports: ['8108:8108']
     volumes: [typesense:/data]
 
-  # `quay.io`, because MinIO stopped publishing `minio/minio` to Docker Hub
-  # and a pull of it now fails as a repository that does not exist.
+  # The local S3: SeaweedFS in its single-process mode. Production is Oracle
+  # Object Storage and R2; this stands in for both. MinIO was here until its
+  # images stopped being publicly pullable. `docs/environments.md` has why this
+  # one, and `packages/testing` starts the same image for the tests.
   #
-  # The KMS key lets the bucket take server-side encryption (SSE-S3), which
-  # People asks for on every export file; MinIO refuses the request without
-  # one. A dev-only static key, like the passwords beside it.
-  minio:
-    image: quay.io/minio/minio:latest
-    command: server /data --console-address ":9001"
+  # `-bucket` creates the buckets `.env.example` names, so nothing else has to.
+  # S3 on :9000, where `S3_ENDPOINT` points; the admin UI on :9001.
+  object-store:
+    image: chrislusf/seaweedfs:4.47@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882
+    command: mini -dir=/data -bucket=kithena-dev,people-exports
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
-      MINIO_KMS_SECRET_KEY: kithena-dev:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-    ports: ['9000:9000', '9001:9001']
-    volumes: [minio:/data]
+      AWS_ACCESS_KEY_ID: kithena
+      AWS_SECRET_ACCESS_KEY: kithena-dev-secret
+    ports: ['9000:8333', '9001:23646']
+    volumes: [object-store:/data]
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8333/healthz']
+      interval: 5s
+      retries: 20
 
   # Valkey: identity's session cache and People's export queue (BullMQ). The
   # recipes have always pointed `VALKEY_URL` at localhost:6379; this is the
@@ -109,4 +113,4 @@ services:
 volumes:
   pgdata:
   typesense:
-  minio:
+  object-store:
