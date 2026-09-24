@@ -66,3 +66,14 @@ const shared = new AsyncLocalStorage<TenantScope>();
 export function sharing<T>(scope: TenantScope, fn: () => Promise<T>): Promise<T> {
   return shared.run(scope, fn);
 }
+
+/**
+ * Whether this code runs inside `sharing`, where a unit of work that returns
+ * has not committed: the enclosing transaction decides, later. Work that must
+ * follow a commit — and must not itself join the enclosing transaction, which
+ * anything started here would, the store travelling with every promise — waits
+ * for the outermost unit instead.
+ */
+export function insideSharedUnit(): boolean {
+  return shared.getStore() !== undefined;
+}

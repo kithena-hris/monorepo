@@ -40,14 +40,14 @@ import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
-import { tenantTransaction } from '../infrastructure/unit-of-work.js';
+import { insideSharedUnit, tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import {
   NO_TENANT_APP_BASE,
   tenantAppBase,
   tenantCompanies,
 } from '../infrastructure/tenant-origin.js';
-import { pinnedPoster, systemResolver } from '../infrastructure/webhooks/egress.js';
+import { egressPolicyFrom, pinnedPoster } from '../infrastructure/webhooks/egress.js';
 import { webhooks, type WebhookService } from '../infrastructure/webhooks/webhooks.js';
 import { listDeliveries, listEndpoints } from '../infrastructure/webhooks/list.js';
 import { drizzleImportLedger, drizzleReportIndex, drizzleRowScope } from '../application/import/ledger.js';
@@ -96,12 +96,9 @@ export function peopleService(
   const raw = tenantTransaction(db);
   const schemas = drizzleSchemaVersions();
 
-  // Plain http only when a developer says so; production has no such switch set.
-  const egress = {
-    resolve: systemResolver,
-    allowHttp:
-      process.env['NODE_ENV'] !== 'production' && process.env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1',
-  };
+  // Plain http or a loopback receiver only when a developer or a test says so;
+  // production ignores both switches (`egressPolicyFrom`).
+  const egress = egressPolicyFrom(process.env);
   // No base (production without a safe `TENANT_APP_BASE`): no alert email,
   // the event alone — never a link to localhost.
   const base = tenantAppBase(process.env);
@@ -224,7 +221,13 @@ export function peopleService(
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
-      kick(tenantId);
+      // Not from inside `sharing` (a screen's keyed write): nothing has
+      // committed yet, and a pass started there inherits the request's
+      // transaction through AsyncLocalStorage, runs its queries as savepoints
+      // on it, and hangs once it commits — holding `running` for the tenant,
+      // so no delivery went out again until a restart. The outermost unit,
+      // which is outside, kicks after its commit (found in PEO-060).
+      if (!insideSharedUnit()) kick(tenantId);
       return result;
     },
     webhooks: hooks,
