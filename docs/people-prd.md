@@ -403,7 +403,7 @@ classify.
 `date`, `datetime`, `duration`, `select`, `multi_select`, `tags`, `email`,
 `phone`, `url`, `country`, `currency`, `language`, `time_zone`, `address`,
 `national_id`, `bank_account`, `person_ref`, `org_unit_ref`,
-`legal_entity_ref`, `document_ref`, `image`.
+`legal_entity_ref`, `location_ref`, `document_ref`, `image`.
 
 Four of these carry country-specific behaviour and are not generic strings:
 
@@ -631,8 +631,10 @@ What that means for the attributes that point at them:
   take nobody new. It writes the dated rows, raises `org_changed` (§10.2),
   re-judges completeness and moves the person onto the new calendar from the
   effective date. A move between legal entities is a transfer (§8.5). The
-  core pack defines `legal_entity_id` and `location_id`, both effective-dated
-  and HR-owned.
+  core pack defines `legal_entity_id` (`legal_entity_ref`) and `location_id`
+  (`location_ref`, a data type of its own), both effective-dated and
+  HR-owned; on the profile HR changes them through the placement control
+  rather than the section form, because only it carries the date.
 - `time_zone` stays identity's projection (§5). It is the person's own zone
   and it only decides their day when neither their location nor their entity
   does.
@@ -3209,6 +3211,7 @@ export const AttributeDataType = z.enum([
   'person_ref',
   'org_unit_ref',
   'legal_entity_ref',
+  'location_ref',
   'document_ref',
   'image',
 ]);
