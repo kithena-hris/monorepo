@@ -48,7 +48,11 @@ export function markReviewed(source: string, floor: Floor, review: Review, today
   }
   if (review.reviewedOn > today) throw new Error('--on cannot be in the future');
 
-  const entry = new RegExp(`^  '${floor}': \\{[^{}]*\\},$`, 'mu');
+  if (!FLOORS.includes(floor)) throw new Error(`Unknown floor ${floor}`);
+  // Escaped even though `floor` is one of FLOORS: the pattern must never be
+  // shaped by its input.
+  const literal = floor.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const entry = new RegExp(`^  '${literal}': \\{[^{}]*\\},$`, 'mu');
   if (!entry.test(source)) throw new Error(`No entry for ${floor} in FLOOR_REVIEWS`);
   const q = (s: string): string => `'${s.trim().replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
   return source.replace(
