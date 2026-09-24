@@ -292,10 +292,7 @@ export async function saveField(
           ? draft.addAttribute(definition)
           : (() => {
               // A key, an origin and a place in the order are not an edit's to change.
-              const { key, origin, order, ...patch } = definition;
-              void key;
-              void origin;
-              void order;
+              const { key: _key, origin: _origin, order: _order, ...patch } = definition;
               return draft.updateAttribute(editing, patch);
             })();
       if (!saved.ok) return saved;

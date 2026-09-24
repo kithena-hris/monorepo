@@ -15,8 +15,7 @@ export interface GeneratedOrg {
   readonly legalEntities: readonly { id: string; country: string }[];
 }
 
-export function generateOrg(shape: OrgShape, seed = 1): GeneratedOrg {
-  void seed;
+export function generateOrg(shape: OrgShape, _seed = 1): GeneratedOrg {
   switch (shape) {
     case 'startup_flat':
       return { people: [], legalEntities: [{ id: 'le-es', country: 'ES' }] };
