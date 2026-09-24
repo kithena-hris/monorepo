@@ -1237,7 +1237,7 @@ it is written down here rather than left in a PR description.
       another later. The first-person rule is gone; the migration carries
       over what it granted. A leaver's roles are revoked when their access
       ends, and not restored with it — closed in PEO-113's lane
-      (20260924260000).*
+      (20260924280000).*
 - [x] **PEO-113** The shell goes through the router. Identity can mint a token
       but nothing issues one, so the shell calls People directly with the
       internal token and a principal it builds itself. Needs identity issuing a
@@ -1262,7 +1262,7 @@ it is written down here rather than left in a PR description.
       left, and a test says so. The acceptance suite runs identity, the router
       and People for real. Also: a leaver's tenant roles are revoked with their
       access (system actor, reason `access_ended`; the last `people_admin` too,
-      migration 20260924260000), and restored access restores no role.
+      migration 20260924280000), and restored access restores no role.
 - [x] **PEO-114** Entitlements per tenant. Which modules a tenant bought was
       one deployment-wide list. Found in PEO-092. *(PRD §7, §8.2, §13.1)*
       *Landed as `platform.tenant.entitlements` (20260924230000; null is
@@ -1328,6 +1328,9 @@ it is written down here rather than left in a PR description.
       body, and `writes.contract.test.ts` fails when a state-changing route
       lacks either. The shell sends a key per action. Found in PEO-098.
       _(PRD §13.2, §17.2)_
+- [ ] Router deployment mounts apps/gateway/persisted at /persisted;
+      production router config and a timed 100 MB import through it. Found
+      in PEO-113. *(PRD §13.1)*
 
 ## Blocked, and by what
 

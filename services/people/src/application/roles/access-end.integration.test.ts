@@ -34,7 +34,7 @@ import { tenantRoles, type TenantRoles } from './roles.js';
  * ends her access at Auckland's midnight; Marco (people_admin) is dismissed for cause and HR
  * ends his access at once. In another company Sole is the only People
  * administrator, and leaves too: the trigger that keeps an administrator lets
- * a leaver's grant go (20260924260000), and refuses it for anybody else.
+ * a leaver's grant go (20260924280000), and refuses it for anybody else.
  */
 
 const ACME = '00000000-0000-4000-8000-00000000000a';

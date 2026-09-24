@@ -520,7 +520,7 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
     a trigger on `people.role_grant` refuses it for any path that skips the
     application; the one exception is a leaver, whose roles all end with
     their access (§8.1; the trigger lets a grant go once its account's
-    person has `access_ended_at`, 20260924260000);
+    person has `access_ended_at`, 20260924280000);
   - each needs a reason, up to 500 characters;
   - a role already held, or not held, changes nothing and raises nothing.
 
