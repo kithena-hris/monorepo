@@ -263,6 +263,22 @@ describe('what identity is told', () => {
     ]);
   });
 
+  it('audits an identifier review by codes, never the value (PEO-125)', () => {
+    expect(payloadKeys('people.person.identifier_reviewed').toSorted()).toEqual([
+      'attributeKey',
+      'decision',
+      'findingCodes',
+      'note',
+      'personId',
+      'reviewId',
+    ]);
+    expect(payloadKeys('people.person.identifier_revealed').toSorted()).toEqual([
+      'attributeKey',
+      'personId',
+      'reviewId',
+    ]);
+  });
+
   it('is only for a person who has an account to correct', () => {
     const facts = peopleEvents.find((e) => e.name === 'people.person.identity_facts_changed');
     const unlinked = facts?.payload.safeParse({
