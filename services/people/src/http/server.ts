@@ -37,6 +37,7 @@ import { keysFrom, staticKeyRing } from '../infrastructure/envelope.js';
 import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
 import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
+import { drizzleIdentifierReviews } from '../infrastructure/drizzle-identifier-reviews.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
@@ -193,13 +194,16 @@ export function peopleService(
 
   const org = drizzleOrgStore();
   const numbers = drizzleEmployeeNumbers();
+  const secrets = drizzleSecretStore(ring, logger);
   return {
     access: personAccess({
       people: drizzlePersonRepository(),
       reader: drizzlePersonReader(),
       schemas,
       relations: relationsFrom(process.env),
-      secrets: drizzleSecretStore(ring, logger),
+      secrets,
+      // Doubted national identifiers, queued for HR (PEO-125).
+      reviews: drizzleIdentifierReviews(ring, secrets),
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,

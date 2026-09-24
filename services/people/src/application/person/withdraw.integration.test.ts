@@ -127,7 +127,11 @@ const events = async (personId: string, name: string) =>
        ORDER BY created_at, event_id`)),
   ].map(
     (row) =>
-      row['envelope'] as { eventId: string; effectiveFrom: string | null; payload: Record<string, unknown> },
+      row['envelope'] as {
+        eventId: string;
+        effectiveFrom: string | null;
+        payload: Record<string, unknown>;
+      },
   );
 
 const migration = (file: string): Promise<string> =>
@@ -162,7 +166,13 @@ beforeAll(async () => {
   inTenant = tenantTransaction(drizzle(serviceClient));
 
   await inTenant(ACME, ({ tx }) =>
-    drizzleSchemaRepository().appendVersion(tx, ACME, versionOf(1, [handover, lastDay]), [], '2026-01-01'),
+    drizzleSchemaRepository().appendVersion(
+      tx,
+      ACME,
+      versionOf(1, [handover, lastDay]),
+      [],
+      '2026-01-01',
+    ),
   );
   await admin.execute(sql`
     INSERT INTO people.person
@@ -177,7 +187,10 @@ beforeAll(async () => {
   // Both give notice ending on the 30th, a week before.
   for (const personId of [KIRI, LUCY]) {
     const given = await inTenantResult(inTenant, ACME, (tx) =>
-      at('2026-09-23T12:00:00.000Z').giveNotice(tx, { ...on(personId), lastWorkingDay: '2026-09-30' }),
+      at('2026-09-23T12:00:00.000Z').giveNotice(tx, {
+        ...on(personId),
+        lastWorkingDay: '2026-09-30',
+      }),
     );
     expect(given.ok).toBe(true);
   }
@@ -194,7 +207,10 @@ const withdraw = (personId: string, v: Viewer = hr) =>
 
 describe('withdrawing notice', () => {
   it('is HR’s alone', async () => {
-    for (const v of [viewer(LUCY_ACCOUNT), viewer('00000000-0000-4000-8000-0000000000fa', 'people_admin')]) {
+    for (const v of [
+      viewer(LUCY_ACCOUNT),
+      viewer('00000000-0000-4000-8000-0000000000fa', 'people_admin'),
+    ]) {
       const refused = await withdraw(LUCY, v);
       expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
     }
@@ -267,7 +283,9 @@ describe('withdrawing notice', () => {
     // Auckland's 30th ended at 11:00 UTC.
     const late = await withdraw(KIRI);
     expect(!late.ok && late.error.code).toBe('LAST_DAY_ENDED');
-    const [row] = await admin.execute(sql`SELECT status FROM people.person WHERE id = ${KIRI}::uuid`);
+    const [row] = await admin.execute(
+      sql`SELECT status FROM people.person WHERE id = ${KIRI}::uuid`,
+    );
     expect(row?.['status']).toBe('notice');
 
     const again = await withdraw(LUCY);

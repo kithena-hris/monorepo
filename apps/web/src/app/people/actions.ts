@@ -41,16 +41,65 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 
 /* ------------------------------------------------------------- records -- */
 
-export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Outcome> {
-  return outcome(people('SaveOwnSection', { changed: formInputs(changed) }));
+/** What People's checks warned about on a national identifier (PEO-125). Never the value. */
+type Finding = Readonly<Record<string, string>>;
+export type Saved =
+  | { readonly ok: true; readonly findings: readonly Finding[] }
+  | { readonly ok: false; readonly message: string };
+
+const saved = async (answer: Promise<PeopleAnswer<{ findings?: Finding[] }>>): Promise<Saved> => {
+  const a = await answer;
+  return a.ok ? { ok: true, findings: a.data.findings ?? [] } : { ok: false, message: a.message };
+};
+
+export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Saved> {
+  return saved(people('SaveOwnSection', { changed: formInputs(changed) }));
 }
 
 export async function savePersonSection(
   personId: string,
   sectionKey: string,
   changed: Values,
+): Promise<Saved> {
+  return saved(people('SavePersonSection', { personId, changed: formInputs(changed) }));
+}
+
+/**
+ * What saving these identifiers would be warned about, before they are saved
+ * (PEO-125): nothing is kept. No person id is the signed-in person's own record.
+ */
+export async function checkIdentifiers(
+  personId: string | null,
+  sectionKey: string,
+  changed: Values,
+): Promise<Saved> {
+  return saved(people('IdentifierCheck', { personId, changed: formInputs(changed) }));
+}
+
+/** HR's decision on a doubted identifier: final, audited by People. */
+export async function reviewIdentifier(
+  personId: string,
+  attributeKey: string,
+  decision: 'accept' | 'send_back',
+  note: string | null,
 ): Promise<Outcome> {
-  return outcome(people('SavePersonSection', { personId, changed: formInputs(changed) }));
+  return outcome(
+    people('ReviewIdentifier', {
+      personId,
+      attributeKey,
+      decision,
+      ...(note === null ? {} : { note }),
+    }),
+  );
+}
+
+/** The doubted value in full, for HR deciding it; People audits the read. */
+export async function revealIdentifier(
+  personId: string,
+  attributeKey: string,
+): Promise<{ ok: true; value: string } | { ok: false; message: string }> {
+  const answer = await people<{ value: string }>('RevealIdentifier', { personId, attributeKey });
+  return answer.ok ? { ok: true, value: answer.data.value } : { ok: false, message: answer.message };
 }
 
 /** Move a person to a legal entity and location from a date (PEO-123); People decides who may. */
@@ -70,16 +119,25 @@ export async function saveGrid(
     readonly personId: string;
     readonly values: Readonly<Record<string, string>>;
   }[],
-): Promise<Outcome> {
-  return outcome(
-    people('SaveCompletenessGrid', {
-      changes: changes.map((c) => ({
-        personId: c.personId,
-        values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
-      })),
-    }),
-  );
+): Promise<Saved> {
+  return saved(people('SaveCompletenessGrid', { changes: gridChanges(changes) }));
 }
+
+/** What saving these grid cells would be warned about, before they are saved (PEO-125). */
+export async function checkGrid(changes: GridChanges): Promise<Saved> {
+  return saved(people('GridCheck', { changes: gridChanges(changes) }));
+}
+
+type GridChanges = readonly {
+  readonly personId: string;
+  readonly values: Readonly<Record<string, string>>;
+}[];
+
+const gridChanges = (changes: GridChanges) =>
+  changes.map((c) => ({
+    personId: c.personId,
+    values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
+  }));
 
 /**
  * People a person field may name, found by name over everybody, as the

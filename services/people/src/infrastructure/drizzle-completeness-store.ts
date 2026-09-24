@@ -179,6 +179,12 @@ export function drizzleCompletenessStore(): CompletenessStore {
                  SELECT 1 FROM people.person_attribute_history h
                   WHERE h.tenant_id = r.tenant_id AND h.person_id = r.person_id
                     AND h.attribute_key = r.attribute_key AND h.recorded_at > r.refused_at)
+            UNION ALL
+            -- A doubted national identifier waiting for HR (PEO-125).
+            SELECT 'identifier_review', r.attribute_key, NULL, r.person_id
+              FROM people.identifier_review r
+             WHERE r.tenant_id = ${tenantId}::uuid
+               AND r.state = 'pending'
           ) AS work
          GROUP BY task, key, reason
          ORDER BY task DESC, key, reason

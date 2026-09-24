@@ -187,6 +187,34 @@ describe('ImportFlow', () => {
     expect(onCommit).toHaveBeenCalledOnce();
   });
 
+  it('lists doubted identifiers per cell without blocking the rows (PEO-125)', async () => {
+    const onCommit = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const doubted: ImportStage = {
+      ...review,
+      dryRun: {
+        ...review.dryRun,
+        findings: [
+          {
+            row: 12,
+            cell: 'E12',
+            label: 'NIF / NIE',
+            level: 'mismatch',
+            message: 'Matches the national format, but the control letter does not compute.',
+          },
+        ],
+      },
+    };
+    const { container } = render(
+      <ImportFlow {...props({ status: 'ready', data: doubted }, { onCommit })} />,
+    );
+    expect(screen.getByText('Our checks suggest 1 identifier may be wrong')).toBeInTheDocument();
+    expect(screen.getByText('E12')).toBeInTheDocument();
+    expect(screen.getByText(/control letter does not compute/)).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    await fast().click(screen.getByRole('button', { name: 'Import 389 rows' }));
+    expect(onCommit).toHaveBeenCalledOnce();
+  });
+
   it('has loading and error states, and says why a step was refused', async () => {
     const user = fast();
     const { container, rerender } = render(<ImportFlow {...props({ status: 'loading' })} />);

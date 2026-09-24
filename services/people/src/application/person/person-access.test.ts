@@ -456,7 +456,11 @@ describe('telling identity what it caches', () => {
     });
   });
 
-  const lastDay = define({ key: 'last_working_day', dataType: 'date', typeConfig: { kind: 'date' } });
+  const lastDay = define({
+    key: 'last_working_day',
+    dataType: 'date',
+    typeConfig: { kind: 'date' },
+  });
 
   /** A history row for a lifecycle date, as a correction needs one to supersede. */
   function dated(store: ReturnType<typeof inMemoryPeople>, key: string, value: string): string {
@@ -510,7 +514,10 @@ describe('telling identity what it caches', () => {
       reason: 'started a month earlier than entered',
     });
     expect(corrected.ok).toBe(true);
-    expect(store.rows.get(ADA)?.snapshot).toMatchObject({ status: 'active', hireDate: '2026-09-01' });
+    expect(store.rows.get(ADA)?.snapshot).toMatchObject({
+      status: 'active',
+      hireDate: '2026-09-01',
+    });
     const moved = store.events.find((e) => e.eventName === 'people.person.status_changed');
     expect(moved).toMatchObject({
       effectiveFrom: '2026-09-01',
@@ -532,7 +539,10 @@ describe('telling identity what it caches', () => {
       reason: 'the start moved and nobody told us',
     });
     expect(corrected.ok).toBe(true);
-    expect(store.rows.get(ADA)?.snapshot).toMatchObject({ status: 'pre_hire', hireDate: '2026-10-15' });
+    expect(store.rows.get(ADA)?.snapshot).toMatchObject({
+      status: 'pre_hire',
+      hireDate: '2026-10-15',
+    });
 
     const byName = (name: string) => store.events.find((e) => e.eventName === name);
     const correction = byName('people.person.attribute_corrected');
@@ -647,7 +657,9 @@ describe('hiring', () => {
       changes: { family_name: 'Byron' },
     });
     expect(hired.ok).toBe(true);
-    const facts = store.events.filter((e) => e.eventName === 'people.person.identity_facts_changed');
+    const facts = store.events.filter(
+      (e) => e.eventName === 'people.person.identity_facts_changed',
+    );
     expect(facts).toHaveLength(1);
     expect(facts[0]?.payload).toMatchObject({
       name: { given: 'Ada', family: 'Byron', preferred: null },
@@ -667,7 +679,11 @@ describe('hiring', () => {
 
   it('is HR’s to do', async () => {
     const { store, people } = provisional(ADA_ACCOUNT);
-    const refused = await people.hire(tx, { ...asking(ada), personId: ADA, hireDate: '2026-10-01' });
+    const refused = await people.hire(tx, {
+      ...asking(ada),
+      personId: ADA,
+      hireDate: '2026-10-01',
+    });
     expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
     expect(store.events).toEqual([]);
   });

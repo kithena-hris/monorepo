@@ -154,48 +154,54 @@ function lifecycleJob(
     const failed: { personId: string; error: unknown }[] = [];
     for (const personId of due) {
       // eslint-disable-next-line no-await-in-loop -- one transaction at a time is the bound
-      const done = await deps.inTenant(tenantId, async ({ tx }) => {
-        const record = await deps.reader.record(tx, tenantId, personId, true);
-        if (!record) return false;
+      const done = await deps
+        .inTenant(tenantId, async ({ tx }) => {
+          const record = await deps.reader.record(tx, tenantId, personId, true);
+          if (!record) return false;
 
-        const at = deps.clock.instant();
-        const zone = personZone(await deps.calendars.load(tx, tenantId), placementOf(record.values), at);
-        const ctx: EventContext = {
-          clock: deps.clock,
-          newEventId: deps.newId,
-          actor: ACTOR,
-          correlationId,
-          causationId: null,
-        };
-        const person = Person.rehydrate(record.snapshot);
-        if (!act(record, person, zone, ctx)) return false;
-        await deps.people.save(tx, person);
-        // Access ended by this move: the leaver's tenant roles end with it.
-        const account = person.identityAccountId;
-        const endedNow =
-          (record.snapshot.accessEndedAt ?? null) === null && person.accessEndedAt !== null;
-        if (endedNow && account !== null) {
-          await deps.roles?.accessEnded(tx, {
-            tenantId,
-            accountId: account,
-            correlationId,
-            causationId: null,
-          });
-        }
-        if (rejudge) {
-          await deps.completeness?.(tx, {
-            tenantId,
-            personId,
+          const at = deps.clock.instant();
+          const zone = personZone(
+            await deps.calendars.load(tx, tenantId),
+            placementOf(record.values),
+            at,
+          );
+          const ctx: EventContext = {
+            clock: deps.clock,
+            newEventId: deps.newId,
             actor: ACTOR,
             correlationId,
             causationId: null,
-          });
-        }
-        return true;
-      }).catch((error: unknown) => {
-        failed.push({ personId, error });
-        return false;
-      });
+          };
+          const person = Person.rehydrate(record.snapshot);
+          if (!act(record, person, zone, ctx)) return false;
+          await deps.people.save(tx, person);
+          // Access ended by this move: the leaver's tenant roles end with it.
+          const account = person.identityAccountId;
+          const endedNow =
+            (record.snapshot.accessEndedAt ?? null) === null && person.accessEndedAt !== null;
+          if (endedNow && account !== null) {
+            await deps.roles?.accessEnded(tx, {
+              tenantId,
+              accountId: account,
+              correlationId,
+              causationId: null,
+            });
+          }
+          if (rejudge) {
+            await deps.completeness?.(tx, {
+              tenantId,
+              personId,
+              actor: ACTOR,
+              correlationId,
+              causationId: null,
+            });
+          }
+          return true;
+        })
+        .catch((error: unknown) => {
+          failed.push({ personId, error });
+          return false;
+        });
       if (done) moved += 1;
     }
     return { moved, waiting: due.length - moved - failed.length, failed };

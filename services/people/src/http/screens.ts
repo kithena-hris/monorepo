@@ -17,8 +17,11 @@ import {
   type IntegrationDeps,
 } from '../application/screens/operations.js';
 import {
+  checkGrid,
+  checkSection,
   completenessView,
   directoryView,
+  identifierReviewsView,
   onboardingView,
   pickerView,
   profileView,
@@ -155,6 +158,21 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   const keys = { service: deps.service, idempotency };
   type Asking = Parameters<Route['handle']>[0];
   const done = (): Promise<RestResponse> => Promise.resolve({ status: 200, body: { ok: true } });
+  /**
+   * A retried section save, answered as the first was (PEO-125): the same
+   * findings, from the same function the save and the form's check answer
+   * with — recomputed, not stored, so there is one code path.
+   */
+  const saved = async (
+    asking: Asking,
+    personId: string,
+    changed: Readonly<Record<string, unknown>>,
+  ): Promise<RestResponse> => {
+    const found = await checkSection(deps, asking, personId, changed);
+    return found.ok
+      ? { status: 200, body: { ok: true, findings: found.value.findings } }
+      : refused(found.error);
+  };
 
   /**
    * A keyed write. `resource` names what it produced (the tenant when it is
@@ -167,7 +185,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       options: {
         readonly status?: number;
         readonly resource?: (asking: Asking, id: string, value: R) => string;
-        readonly again?: (asking: Asking, resourceId: string) => Promise<RestResponse>;
+        readonly again?: (asking: Asking, resourceId: string, input: T) => Promise<RestResponse>;
       } = {},
     ): Route['handle'] =>
     async (asking, request, params) => {
@@ -192,7 +210,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         (resourceId, replayed) =>
           !replayed && first !== undefined
             ? Promise.resolve(first)
-            : (options.again ?? done)(asking, resourceId),
+            : (options.again ?? done)(asking, resourceId, input.value),
       );
     };
 
@@ -238,18 +256,57 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/views\/me\/sections$/,
-      handle: write(Sections, async (asking, input) => {
+      handle: write(
+        Sections,
+        async (asking, input) => {
+          const own = await run(deps.service, asking.tenantId, (tx) =>
+            personOfViewer(deps, tx, asking),
+          );
+          return own.ok ? saveSection(deps, asking, own.value, input.changed) : own;
+        },
+        {
+          again: async (asking, _resource, input) => {
+            const own = await run(deps.service, asking.tenantId, (tx) =>
+              personOfViewer(deps, tx, asking),
+            );
+            return own.ok ? saved(asking, own.value, input.changed) : refused(own.error);
+          },
+        },
+      ),
+    },
+    // What saving would be warned about, saving nothing (PEO-125).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/me\/identifier-check$/,
+      safe: true,
+      handle: compute(Sections, async (asking, input) => {
         const own = await run(deps.service, asking.tenantId, (tx) =>
           personOfViewer(deps, tx, asking),
         );
-        return own.ok ? saveSection(deps, asking, own.value, input.changed) : own;
+        return own.ok ? checkSection(deps, asking, own.value, input.changed) : own;
       }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/people/${UUID}/identifier-check$`),
+      safe: true,
+      handle: async (asking, request, params) => {
+        const input = body(Sections, request.body);
+        if (!input.ok) return refused(input.error);
+        return answer(await checkSection(deps, asking, params['id'] ?? '', input.value.changed));
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/identifier-reviews$/,
+      handle: async (asking) => answer(await identifierReviewsView(deps, asking)),
     },
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/views/people/${UUID}/sections$`),
       handle: write(Sections, (asking, input, id) => saveSection(deps, asking, id, input.changed), {
         resource: (_asking, id) => id,
+        again: (asking, id, input) => saved(asking, id, input.changed),
       }),
     },
     {
@@ -306,7 +363,22 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/views\/completeness$/,
-      handle: write(Grid, (asking, input) => saveGrid(deps, asking, input.changes)),
+      handle: write(Grid, (asking, input) => saveGrid(deps, asking, input.changes), {
+        // A retry answers with the same cell warnings, from the grid's own check.
+        again: async (asking, _resource, input) => {
+          const found = await checkGrid(deps, asking, input.changes);
+          return found.ok
+            ? { status: 200, body: { ok: true, findings: found.value.findings } }
+            : refused(found.error);
+        },
+      }),
+    },
+    // What saving these cells would be warned about, saving nothing (PEO-125).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/completeness\/identifier-check$/,
+      safe: true,
+      handle: compute(Grid, (asking, input) => checkGrid(deps, asking, input.changes)),
     },
 
     /* roles (PEO-112): the view here, the writes at /v1/roles/* */

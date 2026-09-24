@@ -59,6 +59,20 @@ import type {
   Viewer,
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
+import {
+  checkIdentifier,
+  decide as decideIdentifier,
+  findingsFor,
+  gateIdentifiers,
+  reveal as revealIdentifier,
+  reviewable,
+  type AttributeFindings,
+  type Carried,
+  type IdentifierReviews,
+  type ReviewItem,
+} from './identifier-review.js';
+import type { IdentifierReview, ReviewDecision } from '../../domain/person/identifier-review.js';
+import type { NationalIdCheck } from '../../country-packs/national-id.js';
 
 /**
  * Reading and writing a person, for every transport.
@@ -110,6 +124,11 @@ export interface PersonAccessDeps {
    * the person in `bringIntoForce` instead of being recorded once.
    */
   readonly refusals?: ScheduledRefusals;
+  /**
+   * HR's review of doubted national identifiers (PEO-125). Absent, a write
+   * still returns its findings and nothing is queued.
+   */
+  readonly reviews?: IdentifierReviews;
 }
 
 export interface Asking {
@@ -124,6 +143,11 @@ export interface PersonView {
   readonly schemaVersion: number | null;
   /** Only what this viewer may read. A withheld key is absent, never null. */
   readonly attributes: Readonly<Record<string, unknown>>;
+  /**
+   * On a write only: what the country checks found on each national
+   * identifier it carried (PEO-125). A warning, never a refusal.
+   */
+  readonly findings?: readonly AttributeFindings[];
 }
 
 /** What an encrypted value reads as. The plaintext has its own, audited, path. */
@@ -186,7 +210,7 @@ export interface PersonAccess {
       readonly value: unknown;
       readonly reason: string | null;
     }>,
-  ): Promise<Result<HistoryEntry>>;
+  ): Promise<Result<CorrectedEntry>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
   /**
    * Confirm a provisional record as an employee, from a start date. The one
@@ -282,7 +306,37 @@ export interface PersonAccess {
     tx: Tx,
     on: { readonly tenantId: string; readonly personId: string; readonly correlationId: string },
   ): Promise<Result<{ readonly day: string; readonly applied: number }>>;
+  /**
+   * What the country checks would find on these identifiers, storing nothing
+   * (PEO-125): the warning a form shows before it is submitted. Only keys the
+   * viewer may write on this person are checked.
+   */
+  checkIdentifiers(
+    tx: Tx,
+    asking: On<{ readonly values: Readonly<Record<string, unknown>> }>,
+  ): Promise<Result<readonly AttributeFindings[]>>;
+  /** HR's queue of doubted identifiers, oldest first, only what HR may read (PEO-125). */
+  identifierReviews(
+    tx: Tx,
+    asking: Asking & { readonly limit?: number },
+  ): Promise<Result<readonly ReviewItem[]>>;
+  /** One person's open reviews, only on attributes the viewer may read. */
+  personReviews(tx: Tx, asking: On<object>): Promise<Result<readonly IdentifierReview[]>>;
+  /** HR decides a doubted identifier: final, audited. */
+  reviewIdentifier(
+    tx: Tx,
+    asking: On<{
+      readonly attributeKey: string;
+      readonly decision: ReviewDecision;
+      readonly note?: string | null;
+    }>,
+  ): Promise<Result<IdentifierReview>>;
+  /** The value under review in full, for HR deciding it: audited. */
+  revealIdentifier(tx: Tx, asking: On<{ readonly attributeKey: string }>): Promise<Result<string>>;
 }
+
+/** A correction's new row, and what the checks found if it was a national identifier (PEO-125). */
+export type CorrectedEntry = HistoryEntry & { readonly findings: readonly AttributeFindings[] };
 
 /** A placement, as HR asks for it. An absent field is not changed; null clears it. */
 export interface PlacementChange {
@@ -567,20 +621,43 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     };
   }
 
-  /** Validate one proposed value against its definition, or say which key is wrong. */
-  function validate(definition: AttributeDefinition, value: unknown, day: string): Result<unknown> {
+  /**
+   * Validate one proposed value against its definition, or say which key is
+   * wrong. Every write path — `update` and `correct` — admits a value here and
+   * nowhere else, so a national identifier is always judged by its country's
+   * rule (PEO-125): refused only when it cannot be the identifier at all, and
+   * otherwise carried with its check for `gateIdentifiers`.
+   */
+  function validate(
+    definition: AttributeDefinition,
+    value: unknown,
+    day: string,
+  ): Result<{ readonly value: unknown; readonly check: NationalIdCheck | null }> {
     if (value === null) {
       return definition.encrypted
         ? err(failure('VALUE_INVALID', `${definition.key} cannot be cleared`, [definition.key]))
-        : ok(null);
+        : ok({ value: null, check: null });
     }
     const parsed = valueSchemaFor(definition, day).safeParse(value);
     if (!parsed.success) {
       const reason = parsed.error.issues[0]?.message ?? 'invalid';
       return err(failure('VALUE_INVALID', `${definition.key}: ${reason}`, [definition.key]));
     }
-    return ok(parsed.data);
+    const checked = checkIdentifier(definition, parsed.data);
+    return checked.ok ? ok({ value: parsed.data, check: checked.value }) : checked;
   }
+
+  /** The identifiers a write carries, gated: the one path to their reviews (PEO-125). */
+  const carried = (admitted: readonly (readonly [AttributeDefinition, NationalIdCheck | null])[]) =>
+    admitted.filter(([d]) => d.typeConfig.kind === 'national_id');
+  const gate = (tx: Tx, tenantId: string, personId: string, admitted: readonly Carried[]) =>
+    gateIdentifiers(
+      tx,
+      { reviews: deps.reviews, clock: deps.clock, newId: deps.newId },
+      tenantId,
+      personId,
+      carried(admitted),
+    );
 
   /**
    * Tell identity, in the same transaction, when a fact it caches moved.
@@ -771,12 +848,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // Every value checked before anything is written, so a bad sixth field
     // does not leave five claims behind.
     const accepted: [AttributeDefinition, unknown][] = [];
+    const checks: Carried[] = [];
     for (const [key, proposed] of Object.entries(allowed)) {
       const definition = byKey.get(key);
       if (!definition) continue; // partitionWrites refused unknown keys already
       const valid = validate(definition, proposed, day);
       if (!valid.ok) return valid;
-      accepted.push([definition, valid.value]);
+      checks.push([definition, valid.value.check]);
+      accepted.push([definition, valid.value.value]);
     }
 
     const legalEntityId =
@@ -826,10 +905,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }),
     );
 
+    // What each identifier does to its reviews, decided before it is stored.
+    const identifiers = await gate(tx, asking.tenantId, asking.personId, checks);
+
     const eventId = deps.newId();
     const custom = new Map(Object.entries(person.custom));
     const fields: Record<string, unknown> = {};
     const projected = new Map<string, unknown>();
+    const historyIds = new Map<string, string>();
     let history: readonly HistoryEntry[] = [];
 
     // Loaded only when something is dated: a backdated change must not
@@ -843,6 +926,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!claimed.ok) return claimed;
 
       const id = deps.newId();
+      historyIds.set(definition.key, id);
       history = record(history, {
         id,
         attributeKey: definition.key,
@@ -953,6 +1037,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       },
       history,
     });
+    await identifiers.apply(tx, historyIds);
+    const findings = await identifiers.findings(tx);
     await rejudge(tx, asking, asking.personId, eventId);
 
     // Moved from one entity to another: the new entity's number, when its
@@ -966,7 +1052,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         person.values['employee_number'],
       );
       if (next !== null) {
-        return update(tx, { ...asking, changes: { employee_number: next }, effectiveFrom }, tellIdentity);
+        const numbered = await update(
+          tx,
+          { ...asking, changes: { employee_number: next }, effectiveFrom },
+          tellIdentity,
+        );
+        return numbered.ok ? ok({ ...numbered.value, findings }) : numbered;
       }
     }
 
@@ -978,7 +1069,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       systemOf(asking) === undefined
         ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
         : SYSTEM_RELATIONS;
-    return ok(await view(tx, asking, after, version, now));
+    return ok({ ...(await view(tx, asking, after, version, now)), findings });
   }
 
   /**
@@ -1043,6 +1134,37 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     CALENDAR_DATE.test(asking.lastWorkingDay)
       ? ok(asking.lastWorkingDay)
       : err(failure('VALUE_INVALID', 'lastWorkingDay is a calendar date', ['lastWorkingDay']));
+
+  /** The open review a reviewer asks about, if they may decide it (PEO-125). */
+  async function reviewTarget(tx: Tx, asking: On<{ readonly attributeKey: string }>) {
+    const version = await deps.schemas.current(tx, asking.tenantId);
+    if (!version) return err(NotPublished());
+    const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
+    if (!person) return err(PersonNotFound());
+    const reviews = deps.reviews;
+    if (!reviews) return err(failure('NOT_FOUND', 'Nothing is waiting for review'));
+    const relations = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      asking.personId,
+    );
+    const definition = version.document.attributes.find((d) => d.key === asking.attributeKey);
+    const review = await reviewable(
+      tx,
+      { reviews, clock: deps.clock, newId: deps.newId },
+      {
+        tenantId: asking.tenantId,
+        personId: asking.personId,
+        attributeKey: asking.attributeKey,
+        definition,
+        relations,
+      },
+    );
+    if (!review.ok) return review;
+    if (!definition) return err(PersonNotFound());
+    return ok({ review: review.value, reviews, definition, person });
+  }
 
   const api: PersonAccess = {
     giveNotice: (tx, asking) => {
@@ -1336,7 +1458,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!version) return err(NotPublished());
       const query = await narrowing(tx, asking, version);
       if (!query.ok) return query;
-      return ok(await deps.reader.count(tx, asking.tenantId, query.value.where, query.value.search));
+      return ok(
+        await deps.reader.count(tx, asking.tenantId, query.value.where, query.value.search),
+      );
     },
 
     update: (tx, asking) => update(tx, asking),
@@ -1419,7 +1543,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly value: unknown;
         readonly reason: string | null;
       },
-    ): Promise<Result<HistoryEntry>> {
+    ): Promise<Result<CorrectedEntry>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
@@ -1470,8 +1594,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           ]),
         );
       }
-      const valid = validate(definition, asking.value, day);
-      if (!valid.ok) return valid;
+      const admitted = validate(definition, asking.value, day);
+      if (!admitted.ok) return admitted;
+      const valid = { value: admitted.value.value };
+      // A correction is a write like any other: a doubted identifier is
+      // checked and queued for HR by the same gate (PEO-125).
+      const identifiers = await gate(tx, asking.tenantId, asking.personId, [
+        [definition, admitted.value.check],
+      ]);
 
       const eventId = deps.newId();
       const corrected = correct(history, {
@@ -1578,8 +1708,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             : {},
         history: [entry],
       });
+      await identifiers.apply(tx, new Map([[definition.key, entry.id]]));
+      const findings = await identifiers.findings(tx);
       await rejudge(tx, asking, asking.personId, eventId);
-      return ok(entry);
+      return ok({ ...entry, findings });
     },
 
     /** What is missing, limited to what this viewer may know exists. */
@@ -1625,7 +1757,117 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         const definition = byKey.get(m.key);
         return definition !== undefined && visibleTo(definition, relations);
       });
-      return ok({ ...verdict, missing, unevaluable: [] });
+      // A value HR sent back is the employee's to correct: needing attention,
+      // not missing (PEO-125).
+      const open = deps.reviews
+        ? await deps.reviews.open(tx, asking.tenantId, asking.personId)
+        : [];
+      const attention = open
+        .filter((r) => r.state === 'sent_back')
+        .map((r) => r.attributeKey)
+        .filter((key) => {
+          const definition = byKey.get(key);
+          return definition !== undefined && visibleTo(definition, relations);
+        });
+      return ok({ ...verdict, missing, unevaluable: [], attention });
+    },
+
+    async checkIdentifiers(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      const definitions = version.document.attributes;
+      const { allowed } = partitionWrites(definitions, asking.values, relations);
+      const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+      const checks: Carried[] = [];
+      for (const [key, value] of Object.entries(allowed)) {
+        const definition = byKey.get(key);
+        if (!definition || value === null) continue;
+        const checked = checkIdentifier(definition, value);
+        if (!checked.ok) return checked;
+        checks.push([definition, checked.value]);
+      }
+      // The same answer a write gives, and a retry of it replays (PEO-125).
+      return ok(await findingsFor(tx, deps.reviews, asking.tenantId, asking.personId, carried(checks)));
+    },
+
+    async identifierReviews(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews identifiers'));
+      if (!deps.reviews) return ok([]);
+      const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+      const pending = await deps.reviews.pending(tx, asking.tenantId, asking.limit ?? 100);
+      const items: ReviewItem[] = [];
+      // ponytail: one relation lookup per review, as `list` does per person.
+      for (const review of pending) {
+        const definition = byKey.get(review.attributeKey);
+        const relations = await deps.relations.relations(
+          tx,
+          asking.tenantId,
+          asking.viewer,
+          review.personId,
+        );
+        if (!definition || !visibleTo(definition, relations)) continue;
+        const sealed = definition.encrypted
+          ? await deps.secrets.list(tx, asking.tenantId, review.personId)
+          : [];
+        const last4 = sealed.find((s) => s.attributeKey === review.attributeKey)?.last4 ?? null;
+        items.push({ ...review, label: definition.label.default, last4 });
+      }
+      return ok(items);
+    },
+
+    async personReviews(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (!deps.reviews) return ok([]);
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+      const open = await deps.reviews.open(tx, asking.tenantId, asking.personId);
+      return ok(
+        open.filter((r) => {
+          const definition = byKey.get(r.attributeKey);
+          return definition !== undefined && visibleTo(definition, relations);
+        }),
+      );
+    },
+
+    async reviewIdentifier(tx, asking) {
+      const target = await reviewTarget(tx, asking);
+      if (!target.ok) return target;
+      const { review, reviews } = target.value;
+      return decideIdentifier(tx, { reviews, clock: deps.clock, newId: deps.newId }, review, {
+        tenantId: asking.tenantId,
+        by: asking.viewer.accountId,
+        correlationId: asking.correlationId,
+        decision: asking.decision,
+        note: asking.note ?? null,
+      });
+    },
+
+    async revealIdentifier(tx, asking) {
+      const target = await reviewTarget(tx, asking);
+      if (!target.ok) return target;
+      const { review, reviews, definition, person } = target.value;
+      return revealIdentifier(tx, { reviews, clock: deps.clock, newId: deps.newId }, review, {
+        tenantId: asking.tenantId,
+        by: asking.viewer.accountId,
+        correlationId: asking.correlationId,
+        definition,
+        values: person.values,
+      });
     },
 
     /**
@@ -1740,7 +1982,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (locationId !== undefined && locationId !== null) {
         const location = calendar.locations.get(locationId);
         if (!location) {
-          return err(failure('LOCATION_NOT_FOUND', 'No such location in this workspace', ['locationId']));
+          return err(
+            failure('LOCATION_NOT_FOUND', 'No such location in this workspace', ['locationId']),
+          );
         }
         if (location.archived === true && locationId !== current('location_id')) {
           return err(failure('LOCATION_ARCHIVED', `${location.name} is archived`, ['locationId']));
@@ -1766,13 +2010,16 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           );
         }
         if (found.archived === true && entity !== current('legal_entity_id')) {
-          return err(failure('LEGAL_ENTITY_ARCHIVED', `${found.name} is archived`, ['legalEntityId']));
+          return err(
+            failure('LEGAL_ENTITY_ARCHIVED', `${found.name} is archived`, ['legalEntityId']),
+          );
         }
       }
       if (entity !== undefined && locationId === undefined && defines('location_id')) {
         const at = current('location_id');
         const location = at === null ? undefined : calendar.locations.get(at);
-        if (location !== undefined && location.legalEntityId !== entity) asked['location_id'] = null;
+        if (location !== undefined && location.legalEntityId !== entity)
+          asked['location_id'] = null;
       }
 
       const history = await deps.people.history(tx, asking.tenantId, asking.personId);
@@ -1806,7 +2053,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         }
         for (const correction of corrections) {
           // eslint-disable-next-line no-await-in-loop -- one correction per attribute, in order
-          const fixed = await api.correct(tx, { ...on, ...correction, reason: 'Placement corrected' });
+          const fixed = await api.correct(tx, {
+            ...on,
+            ...correction,
+            reason: 'Placement corrected',
+          });
           if (!fixed.ok) return fixed;
         }
       }

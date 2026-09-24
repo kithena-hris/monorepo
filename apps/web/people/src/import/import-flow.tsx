@@ -60,6 +60,21 @@ export interface DryRunView {
   readonly ignoredColumns: readonly string[];
   /** The first rows of the blocked list, each with the offending cell. */
   readonly blocked: readonly BlockedRow[];
+  /**
+   * National identifiers our checks doubt (PEO-125): they import, and go to
+   * HR's review. Named by cell, never by value.
+   */
+  readonly findings?: readonly CellFinding[];
+}
+
+export interface CellFinding {
+  readonly row: number;
+  /** "E14". */
+  readonly cell: string;
+  readonly label: string;
+  /** attention or mismatch. */
+  readonly level: string;
+  readonly message: string;
 }
 
 export type ImportStage =
@@ -78,6 +93,8 @@ export type ImportStage =
       readonly created: number;
       readonly updated: number;
       readonly blocked: number;
+      /** Doubted identifiers that imported and went to HR's review (PEO-125). */
+      readonly forReview?: number;
     };
 
 export interface ImportFlowProps {
@@ -135,6 +152,9 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
                   ? `, ${String(stage.blocked)} left out and in the blocked file`
                   : ''}
                 .
+                {(stage.forReview ?? 0) > 0
+                  ? ` ${String(stage.forReview)} national identifiers our checks doubt went to HR's review.`
+                  : ''}
               </Alert>
             ) : null}
           </Stack>
@@ -303,7 +323,32 @@ function Review({
 }: ImportFlowProps & { readonly stage: Extract<ImportStage, { step: 'review' }> }): JSX.Element {
   const [busy, refused, attempt] = useAttempt();
   const { counts, incomplete, blocked, ignoredColumns } = stage.dryRun;
+  const findings = stage.dryRun.findings ?? [];
   const importing = counts.create + counts.update;
+
+  const findingColumns: DataColumn<CellFinding>[] = [
+    { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+    {
+      id: 'cell',
+      header: 'Cell',
+      cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
+    },
+    { id: 'label', header: 'Field', cell: (r) => r.label },
+    {
+      id: 'message',
+      header: 'What the checks found',
+      cell: (r) => (
+        <span className="flex flex-col gap-1">
+          <span>
+            <Badge tone={r.level === 'mismatch' ? 'danger' : 'warning'} size="sm">
+              {r.level === 'mismatch' ? 'Does not compute' : 'Needs attention'}
+            </Badge>
+          </span>
+          {r.message}
+        </span>
+      ),
+    },
+  ];
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
@@ -337,6 +382,24 @@ function Review({
       ) : null}
       {ignoredColumns.length > 0 ? (
         <Alert tone="info">Not imported: {ignoredColumns.join(', ')}.</Alert>
+      ) : null}
+
+      {findings.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <Alert
+            tone="warning"
+            title={`Our checks suggest ${String(findings.length)} ${findings.length === 1 ? 'identifier' : 'identifiers'} may be wrong`}
+          >
+            These rows still import. Each value goes to HR&apos;s review, and whatever HR decides is
+            final. Fix the cell in the file first if you know it is wrong.
+          </Alert>
+          <DataTable
+            label="Identifiers to check"
+            rows={findings}
+            columns={findingColumns}
+            rowId={(r) => `${r.cell}/${r.message}`}
+          />
+        </div>
       ) : null}
 
       {counts.blocked + counts.duplicate > 0 ? (

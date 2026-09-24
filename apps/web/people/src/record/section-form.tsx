@@ -1,7 +1,7 @@
 import { Alert, Button, Stack } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
-import type { Outcome } from '../load';
+import type { Checked, IdentifierFinding, Outcome } from '../load';
 import { AttributeInput } from './attribute-input';
 import { isMissing, type AttributeValue, type RecordSection, type Values } from './model';
 
@@ -12,17 +12,25 @@ import { isMissing, type AttributeValue, type RecordSection, type Values } from 
  * way has everything they saved, and each save is its own `profile_updated`.
  * Only what changed is sent, so a save cannot overwrite a value somebody else
  * wrote since this form was opened.
+ *
+ * **A doubtful national identifier is warned about, never refused**
+ * (PEO-125). Before saving one, the form asks People what its checks find;
+ * if they doubt it, the warning is shown on the field and above the button,
+ * and the next press saves it anyway — to HR's review.
  */
 export function SectionForm({
   section,
   values,
   onSave,
+  onCheck,
   submitLabel = 'Save',
   footer,
 }: {
   readonly section: RecordSection;
   readonly values: Values;
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
+  /** Ask what the checks would find before saving an identifier. Absent: save straight away. */
+  readonly onCheck?: (sectionKey: string, changed: Values) => Promise<Checked>;
   readonly submitLabel?: string;
   /** Beside the save button: a skip, a note. */
   readonly footer?: ReactNode;
@@ -31,8 +39,34 @@ export function SectionForm({
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  /** The identifiers warned about, and the values they were warned about for. */
+  const [warned, setWarned] = useState<{
+    readonly values: string;
+    readonly findings: readonly IdentifierFinding[];
+  } | null>(null);
+  /** After a save: what went to HR's review. */
+  const [reviewed, setReviewed] = useState<readonly IdentifierFinding[]>([]);
 
   const writable = section.fields.filter((f) => !f.readOnly);
+  const identifiers = new Set(
+    writable.filter((f) => f.dataType === 'national_id').map((f) => f.key),
+  );
+
+  const changedValues = (): Values =>
+    Object.fromEntries(
+      writable
+        .filter(
+          (f) => JSON.stringify(draft[f.key] ?? null) !== JSON.stringify(values[f.key] ?? null),
+        )
+        .map((f) => [f.key, draft[f.key] ?? null]),
+    );
+  const identifierValues = (changed: Values): Values =>
+    Object.fromEntries(
+      Object.entries(changed).filter(([key, v]) => identifiers.has(key) && typeof v === 'string'),
+    );
+  // Still the values the warning was about: the next press saves them anyway.
+  const stillWarned =
+    warned !== null && warned.values === JSON.stringify(identifierValues(changedValues()));
 
   const save = async (): Promise<void> => {
     const missing = Object.fromEntries(
@@ -43,19 +77,44 @@ export function SectionForm({
     setProblems(missing);
     if (Object.keys(missing).length > 0) return;
 
-    const changed = Object.fromEntries(
-      writable
-        .filter(
-          (f) => JSON.stringify(draft[f.key] ?? null) !== JSON.stringify(values[f.key] ?? null),
-        )
-        .map((f) => [f.key, draft[f.key] ?? null]),
-    );
+    const changed = changedValues();
+    const asked = identifierValues(changed);
     setSaving(true);
     setRefused(null);
+    setReviewed([]);
+
+    if (onCheck !== undefined && Object.keys(asked).length > 0 && !stillWarned) {
+      const checked = await onCheck(section.key, asked);
+      if (!checked.ok) {
+        setSaving(false);
+        setRefused(checked.message);
+        return;
+      }
+      // A value HR already accepted is final: nothing to warn about.
+      const doubted = checked.findings.filter((f) => f.review !== 'accepted');
+      if (doubted.length > 0) {
+        setSaving(false);
+        setWarned({ values: JSON.stringify(asked), findings: doubted });
+        return;
+      }
+    }
+
     const outcome = await onSave(section.key, changed);
     setSaving(false);
-    if (!outcome.ok) setRefused(outcome.message);
+    if (!outcome.ok) {
+      setRefused(outcome.message);
+      return;
+    }
+    setWarned(null);
+    setReviewed((outcome.findings ?? []).filter((f) => f.review === 'pending'));
   };
+
+  const shown = stillWarned ? warned.findings : [];
+  const warningFor = (key: string): string | undefined => {
+    const messages = shown.filter((f) => f.key === key).map((f) => f.message);
+    return messages.length === 0 ? undefined : `Our checks suggest this may be wrong: ${messages.join(' ')}`;
+  };
+  const labels = [...new Set(shown.map((f) => f.label))];
 
   return (
     <form
@@ -73,11 +132,24 @@ export function SectionForm({
             field={field}
             value={draft[field.key] ?? null}
             problem={problems[field.key]}
+            warning={warningFor(field.key)}
             onChange={(value: AttributeValue) => {
               setDraft((d) => ({ ...d, [field.key]: value }));
             }}
           />
         ))}
+        {shown.length === 0 ? null : (
+          <Alert tone="warning" title="Our checks suggest this may be wrong">
+            Please look again at {labels.join(' and ')}. If it is right as it is, save anyway: HR
+            will review it, and what they decide is final.
+          </Alert>
+        )}
+        {reviewed.length === 0 ? null : (
+          <Alert tone="info" title="Saved, and sent to HR for review">
+            Our checks doubted {[...new Set(reviewed.map((f) => f.label))].join(' and ')}. HR will
+            look at it; you will see here if they ask you to correct it.
+          </Alert>
+        )}
         {refused === null ? null : (
           <Alert tone="danger" title="Not saved">
             {refused}
@@ -87,7 +159,7 @@ export function SectionForm({
             never below the keyboard or behind a scroll. */}
         <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 bg-surface pt-3 pb-[calc(0.75rem+var(--spacing-safe-bottom))]">
           <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving">
-            {submitLabel}
+            {shown.length > 0 ? 'Save anyway' : submitLabel}
           </Button>
           {footer}
         </div>

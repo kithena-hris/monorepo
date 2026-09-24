@@ -29,6 +29,11 @@ const SAFE = [
   'POST /v1/schema/draft/preview',
   'POST /v1/imports/proposal',
   'POST /v1/imports/dry-run',
+  // PEO-125: a check that stores nothing, and an audited read.
+  'POST /v1/views/me/identifier-check',
+  'POST /v1/views/people/{id}/identifier-check',
+  'POST /v1/people/{id}/identifier-reviews/reveal',
+  'POST /v1/views/completeness/identifier-check',
 ];
 
 const callerFrom: CallerFrom = () =>

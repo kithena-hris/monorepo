@@ -11,8 +11,9 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { Loaded, type Loadable, type Outcome } from '../load';
+import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { seenBy, type RecordSection, type Values } from '../record/model';
+import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
 
 export interface OnboardingSection extends RecordSection {
@@ -27,12 +28,16 @@ export interface OnboardingState {
   readonly values: Values;
   /** Sections already saved, on this device or another. */
   readonly saved: readonly string[];
+  /** Their doubted identifiers still open (PEO-125). */
+  readonly reviews?: readonly IdentifierReview[];
 }
 
 export interface OnboardingProps {
   readonly load: Loadable<OnboardingState>;
   /** One section, only what changed. Each save is its own `profile_updated`. */
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
+  /** What our checks would warn about a national identifier, before it is saved (PEO-125). */
+  readonly onCheck?: (sectionKey: string, changed: Values) => Promise<Checked>;
 }
 
 const ASK = {
@@ -49,10 +54,10 @@ const ASK = {
  * first section not yet saved. Each section says who will read the answers,
  * because that is the question somebody filling in a form on a train is asking.
  */
-export function Onboarding({ load, onSave }: OnboardingProps): JSX.Element {
+export function Onboarding({ load, onSave, onCheck }: OnboardingProps): JSX.Element {
   return (
     <Loaded load={load} what="your onboarding">
-      {(state) => <Sections state={state} onSave={onSave} />}
+      {(state) => <Sections state={state} onSave={onSave} onCheck={onCheck} />}
     </Loaded>
   );
 }
@@ -60,9 +65,11 @@ export function Onboarding({ load, onSave }: OnboardingProps): JSX.Element {
 function Sections({
   state,
   onSave,
+  onCheck,
 }: {
   readonly state: OnboardingState;
   readonly onSave: OnboardingProps['onSave'];
+  readonly onCheck: OnboardingProps['onCheck'];
 }): JSX.Element {
   const [saved, setSaved] = useState<ReadonlySet<string>>(() => new Set(state.saved));
   const [values, setValues] = useState<Values>(state.values);
@@ -95,6 +102,7 @@ function Sections({
         }
       />
       <Progress value={done} max={total} label="Sections done" />
+      <ReviewNotices reviews={state.reviews} />
       <Accordion type="single" collapsible value={open} onValueChange={setOpen}>
         {state.sections.map((section, index) => {
           const ask = ASK[section.ask];
@@ -124,6 +132,7 @@ function Sections({
                     section={section}
                     values={values}
                     submitLabel={next === undefined ? 'Save' : 'Save and continue'}
+                    {...(onCheck === undefined ? {} : { onCheck })}
                     onSave={async (key, changed) => {
                       const outcome = await onSave(key, changed);
                       if (outcome.ok) {

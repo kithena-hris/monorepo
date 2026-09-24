@@ -8,6 +8,7 @@ import {
   EmptyState,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   Input,
   PageHeader,
@@ -23,7 +24,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { Loaded, type Loadable, type Outcome } from '../load';
+import { Loaded, type IdentifierFinding, type Loadable, type Outcome } from '../load';
 import { PeopleSearch, PersonPicker, type SearchPeople } from '../record/attribute-input';
 
 /** An HR-owned field somebody is missing. */
@@ -63,9 +64,22 @@ export interface GridSave {
   readonly values: Readonly<Record<string, string>>;
 }
 
+/** A cell our checks doubt (PEO-125): which person, and what was found. Never the value. */
+export type GridFinding = IdentifierFinding & { readonly personId: string };
+
+/** What saving cells would be warned about, or saved with. */
+export type GridOutcome =
+  | { readonly ok: true; readonly findings?: readonly GridFinding[] }
+  | { readonly ok: false; readonly message: string };
+
 export interface CompletenessGridProps {
   readonly load: Loadable<CompletenessState>;
-  readonly onSave: (changes: readonly GridSave[]) => Promise<Outcome>;
+  readonly onSave: (changes: readonly GridSave[]) => Promise<GridOutcome>;
+  /**
+   * What our checks would warn about a national identifier in these cells,
+   * before they are saved (PEO-125). Absent: save straight away.
+   */
+  readonly onCheck?: (changes: readonly GridSave[]) => Promise<GridOutcome>;
   /** Finds people for a person field, by name, over everybody (PEO-122). */
   readonly searchPeople?: SearchPeople;
   /** Present when there are more people after this page (PEO-122). */
@@ -102,6 +116,7 @@ export function CompletenessGrid({
 function Grid({
   state,
   onSave,
+  onCheck,
   onNextPage,
   onFirstPage,
 }: Omit<CompletenessGridProps, 'load' | 'searchPeople'> & {
@@ -114,6 +129,13 @@ function Grid({
   );
   const [saving, setSaving] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  /** Cells our checks doubt, and the edits they were found in: the next press saves anyway. */
+  const [warned, setWarned] = useState<{
+    readonly edits: string;
+    readonly findings: readonly GridFinding[];
+  } | null>(null);
+  /** After a save: how many values went to HR's review. */
+  const [reviewed, setReviewed] = useState(0);
 
   const field = state.fields.find((f) => f.key === fieldKey);
   const pending = Object.values(edits).reduce((n, v) => n + Object.keys(v).length, 0);
@@ -121,7 +143,18 @@ function Grid({
 
   const set = (personId: string, key: string, value: string): void => {
     setOutcome(null);
+    setReviewed(0);
     setEdits((e) => ({ ...e, [personId]: { ...e[personId], [key]: value } }));
+  };
+  const stillWarned = warned !== null && warned.edits === JSON.stringify(edits);
+  const shown = stillWarned ? warned.findings : [];
+  const warningFor = (personId: string, key: string): string | undefined => {
+    const messages = shown
+      .filter((f) => f.personId === personId && f.key === key)
+      .map((f) => f.message);
+    return messages.length === 0
+      ? undefined
+      : `Our checks suggest this may be wrong: ${messages.join(' ')}`;
   };
 
   const save = async (): Promise<void> => {
@@ -132,10 +165,29 @@ function Grid({
       }))
       .filter((c) => Object.keys(c.values).length > 0);
     setSaving(true);
+    if (onCheck !== undefined && !stillWarned) {
+      const checked = await onCheck(changes);
+      if (!checked.ok) {
+        setSaving(false);
+        setOutcome(checked);
+        return;
+      }
+      // A value HR already accepted is final: nothing to warn about (PEO-125).
+      const found = (checked.findings ?? []).filter((f) => f.review !== 'accepted');
+      if (found.length > 0) {
+        setSaving(false);
+        setWarned({ edits: JSON.stringify(edits), findings: found });
+        return;
+      }
+    }
     const result = await onSave(changes);
     setSaving(false);
     setOutcome(result);
-    if (result.ok) setEdits({});
+    if (result.ok) {
+      setEdits({});
+      setWarned(null);
+      setReviewed((result.findings ?? []).filter((f) => f.review === 'pending').length);
+    }
   };
 
   const wide = useBreakpoint('md');
@@ -175,14 +227,22 @@ function Grid({
         </SelectContent>
       </Select>
     ) : (
-      <Input
-        aria-label={name}
-        size="sm"
-        value={value}
-        onChange={(e) => {
-          set(r.personId, field.key, e.target.value);
-        }}
-      />
+      <Field>
+        <FieldControl>
+          <Input
+            aria-label={name}
+            size="sm"
+            value={value}
+            onChange={(e) => {
+              set(r.personId, field.key, e.target.value);
+            }}
+          />
+        </FieldControl>
+        {/* A doubted identifier (PEO-125), on its own cell: saved anyway on the next press. */}
+        {warningFor(r.personId, field.key) === undefined ? null : (
+          <FieldDescription tone="warning">{warningFor(r.personId, field.key)}</FieldDescription>
+        )}
+      </Field>
     );
   };
 
@@ -224,9 +284,11 @@ function Grid({
               void save();
             }}
           >
-            {pending === 0
-              ? 'Save'
-              : `Save ${String(pending)} ${pending === 1 ? 'change' : 'changes'}`}
+            {shown.length > 0
+              ? 'Save anyway'
+              : pending === 0
+                ? 'Save'
+                : `Save ${String(pending)} ${pending === 1 ? 'change' : 'changes'}`}
           </Button>
         }
       />
@@ -242,8 +304,19 @@ function Grid({
         </p>
       )}
 
+      {shown.length === 0 ? null : (
+        <Alert tone="warning" title="Our checks suggest some of these may be wrong">
+          Look again at the cells marked below. If they are right as they are, save anyway: HR
+          will review them, and what HR decides is final.
+        </Alert>
+      )}
       {outcome === null ? null : outcome.ok ? (
-        <Alert tone="success">Saved. Each person's record now carries what you filled in.</Alert>
+        <Alert tone="success">
+          Saved. Each person's record now carries what you filled in.
+          {reviewed > 0
+            ? ` ${String(reviewed)} ${reviewed === 1 ? 'value our checks doubted went' : 'values our checks doubted went'} to HR's review.`
+            : ''}
+        </Alert>
       ) : (
         <Alert tone="danger" title="Nothing was saved">
           {outcome.message}

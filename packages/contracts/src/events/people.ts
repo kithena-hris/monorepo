@@ -579,6 +579,45 @@ export const PersonRehireOverride = defineEvent(
 );
 
 /**
+ * HR decided a national identifier our checks doubted (PEO-125; PRD §8.4).
+ *
+ * The audit record of the decision: who is the envelope's `actor`; whose
+ * value, which attribute, what was decided, and the codes of the findings
+ * the reviewer saw. **Never the value** — an identifier is sealed in
+ * `people.person_secret` and no event carries it — and never the finding
+ * messages, which a consumer can look up by code. `accepted` is final: the
+ * value is not flagged again. `sent_back` asks the employee to correct it.
+ * The note is what the reviewer typed, so it is free text.
+ */
+export const PersonIdentifierReviewed = defineEvent(
+  'people.person.identifier_reviewed',
+  1,
+  z.object({
+    personId: PersonId,
+    attributeKey: AttributeKey,
+    reviewId: z.uuid().register(policy, asPublic()),
+    decision: z.enum(['accepted', 'sent_back']).register(policy, asPublic()),
+    findingCodes: z.array(z.string().min(1).max(64)).register(policy, asInternal()),
+    note: z.string().max(500).nullable().register(policy, asFreeText()),
+  }),
+);
+
+/**
+ * A reviewer read a doubted national identifier in full, to decide it
+ * (PEO-125). The audit record of the reveal: who on the envelope, whose value
+ * and which attribute here. Never the value.
+ */
+export const PersonIdentifierRevealed = defineEvent(
+  'people.person.identifier_revealed',
+  1,
+  z.object({
+    personId: PersonId,
+    attributeKey: AttributeKey,
+    reviewId: z.uuid().register(policy, asPublic()),
+  }),
+);
+
+/**
  * A record is missing something, with the keys and who owns each.
  *
  * The owners are in the payload because that is what decides what happens
@@ -1010,6 +1049,8 @@ export const peopleEvents = [
   PersonAccessEnded,
   PersonAccessRestored,
   PersonRehireOverride,
+  PersonIdentifierReviewed,
+  PersonIdentifierRevealed,
   PersonProfileIncomplete,
   PersonProfileCompleted,
   PersonMerged,

@@ -302,6 +302,20 @@ type FullValuesRequest {
   state: String
 }
 
+"""
+A grid cell our checks doubt (PEO-125): saved all the same, and reviewed by HR.
+"""
+type GridCellFinding {
+  code: String
+  key: String
+  label: String
+  level: String
+  message: String
+  personId: ID
+  """pending, accepted, sent_back or none"""
+  review: String
+}
+
 input GridCellInput {
   key: String!
   value: String!
@@ -312,6 +326,15 @@ input GridChangeInput {
   values: [GridCellInput!]!
 }
 
+type GridIdentifierCheck {
+  findings: [GridCellFinding!]
+}
+
+type GridSaved {
+  findings: [GridCellFinding!]
+  ok: Boolean
+}
+
 type HistoryEntry {
   attributeKey: String
   effectiveFrom: String
@@ -320,10 +343,83 @@ type HistoryEntry {
   supersedes: ID
 }
 
+type IdentifierCheck {
+  findings: [IdentifierFindingNotice!]
+}
+
+type IdentifierDecision {
+  attributeKey: String
+  personId: ID
+  reviewId: ID
+  """accepted or sent_back"""
+  state: String
+}
+
+"""What a country check found on a national identifier. Never the value."""
+type IdentifierFinding {
+  code: String
+  """ok, attention or mismatch"""
+  level: String
+  message: String
+}
+
+"""
+A warning on one field of a form: saved all the same, and reviewed by HR.
+"""
+type IdentifierFindingNotice {
+  code: String
+  key: String
+  label: String
+  level: String
+  message: String
+  """pending, accepted or none"""
+  review: String
+}
+
+"""The value in full, for HR deciding it. Audited."""
+type IdentifierRevealed {
+  attributeKey: String
+  value: String
+}
+
+enum IdentifierReviewDecision {
+  accept
+  send_back
+}
+
+"""A person’s own doubted identifier, still with HR or sent back to them."""
+type IdentifierReviewEntry {
+  findings: [IdentifierFinding!]
+  key: String
+  label: String
+  note: String
+  """pending or sent_back"""
+  state: String
+}
+
+type IdentifierReviewItem {
+  attributeKey: String
+  enteredAt: String
+  findings: [IdentifierFinding!]
+  label: String
+  last4: String
+  name: String
+  personId: ID
+}
+
 type ImportBlockedRow {
   cell: String
   person: String
   problem: String
+  row: Int
+}
+
+"""A cell our checks doubt. Named by its reference, never by its value."""
+type ImportCellFinding {
+  cell: String
+  label: String
+  level: String
+  message: String
   row: Int
 }
 
@@ -356,6 +452,8 @@ type ImportDoneStage {
   blockedCsv: String
   created: Int
   file: ImportFile
+  """Doubted national identifiers that imported and went to HR’s review."""
+  forReview: Int
   """The same report, stored sealed; a signed link that expires in a day."""
   reportUrl: String
   step: String
@@ -366,6 +464,10 @@ type ImportDryRun {
   blocked: [ImportBlockedRow!]
   corrections: [ImportHireDateCorrection!]
   counts: ImportCounts
+  """
+  Doubted national identifiers, per cell: imported, then reviewed by HR (PEO-125).
+  """
+  findings: [ImportCellFinding!]
   ignoredColumns: [String!]
   incomplete: ImportIncomplete
   sheets: [ImportSheet!]
@@ -554,14 +656,20 @@ type Mutation {
   requestExport(asOf: String, fields: [String!], filter: String, format: String!, idempotencyKey: String!, includeArchived: Boolean, personIds: [ID!], reason: String): PeopleExport
   """Finance asks for sealed fields in full, with a reason; HR decides."""
   requestFullValues(asOf: String, fields: [String!]!, filter: String, idempotencyKey: String!, personIds: [ID!], reason: String!): FullValuesRequest
+  """The doubted value in full, for HR deciding it (PEO-125). Audited."""
+  revealIdentifier(attributeKey: String!, personId: ID!): IdentifierRevealed
+  """
+  HR decides a doubted identifier (PEO-125): accept is final; send_back asks the employee to correct it.
+  """
+  reviewIdentifier(attributeKey: String!, decision: IdentifierReviewDecision!, idempotencyKey: String!, note: String, personId: ID!): IdentifierDecision
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
-  saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): WriteOutcome
+  saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
   """Add or change a field in the draft; the draft decides whether it may."""
   saveDraftField(editing: String, idempotencyKey: String!, input: DraftFieldInput!): WriteOutcome
-  saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): WriteOutcome
-  savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): WriteOutcome
+  saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): SectionSaved
+  savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
   """
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
@@ -677,6 +785,11 @@ type PeopleHome {
   hr: Boolean
 }
 
+"""HR’s queue of doubted national identifiers, oldest first."""
+type PeopleIdentifierReviews {
+  items: [IdentifierReviewItem!]
+}
+
 type PeopleIntegrations {
   deliveries24h: Int
   endpoints: [WebhookEndpoint!]
@@ -687,6 +800,7 @@ type PeopleIntegrations {
 
 type PeopleOnboarding {
   firstName: String
+  reviews: [IdentifierReviewEntry!]
   saved: [String!]
   sections: [OnboardingSection!]
   values: [FormEntry!]
@@ -723,6 +837,10 @@ type PeopleProfile {
   Null unless the viewer is HR and there is somewhere to place the person.
   """
   placement: ProfilePlacement
+  """
+  Their doubted identifiers still open, on fields the viewer reads (PEO-125).
+  """
+  reviews: [IdentifierReviewEntry!]
   sections: [ProfileSection!]
   values: [FormEntry!]
 }
@@ -876,7 +994,17 @@ type Query {
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder: PeopleExportBuilder
   peopleFullValues: PeopleFullValues
+  """
+  What saving these grid cells would be warned about (PEO-125); nothing is kept.
+  """
+  peopleGridCheck(changes: [GridChangeInput!]!): GridIdentifierCheck
   peopleHome: PeopleHome
+  """
+  What saving these values would be warned about; nothing is kept. No person id is "my record".
+  """
+  peopleIdentifierCheck(changed: [FormValueInput!]!, personId: ID): IdentifierCheck
+  """Doubted national identifiers waiting for HR (PEO-125); HR only."""
+  peopleIdentifierReviews: PeopleIdentifierReviews
   peopleIntegrations: PeopleIntegrations
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
@@ -996,6 +1124,14 @@ type SealedAttribute {
 type SealedEntry {
   key: String
   last4: String
+}
+
+type SectionSaved {
+  """
+  Warnings on national identifiers the save carried (PEO-125); saved all the same.
+  """
+  findings: [IdentifierFindingNotice!]
+  ok: Boolean
 }
 
 type SetupCountry {

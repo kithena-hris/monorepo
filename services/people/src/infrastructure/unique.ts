@@ -20,6 +20,8 @@ import { claimText } from '../application/person/person-access.js';
 import { drizzlePersonReader, drizzleSchemaVersions } from './drizzle-person-reader.js';
 import { keysFrom, staticKeyRing, type KeyRing, type MasterKey } from './envelope.js';
 import { drizzleSecretStore } from './secret-store.js';
+import { drizzleIdentifierReviews } from './drizzle-identifier-reviews.js';
+import { normaliseNationalId } from '../country-packs/national-id.js';
 import { attributeUnique } from './tables.js';
 import type { InTenantTransaction } from './unit-of-work.js';
 
@@ -485,6 +487,7 @@ export function claimRotation(
   const claims = drizzleUniqueClaims(ring);
   const secrets = drizzleSecretStore(ring);
   const reader = drizzlePersonReader();
+  const reviews = drizzleIdentifierReviews(ring, secrets);
   const clock = options.clock ?? systemClock;
   const newEventId = options.newEventId ?? uuidv7;
   let halted = false;
@@ -531,9 +534,22 @@ export function claimRotation(
         );
         return result;
       });
-      if (batch.seen < ROTATION_BATCH || batch.last === null) return;
+      if (batch.seen < ROTATION_BATCH || batch.last === null) break;
       after = batch.last;
     }
+
+    // Accepted identifier reviews carry a keyed fingerprint of their value
+    // (PEO-125): re-keyed here, with the claims, so an acceptance outlives the
+    // key it was taken under. Read back as the claims are; shown to nobody.
+    await inTenant(tenantId, ({ tx }) =>
+      reviews.rekey(tx, tenantId, async (at, personId, attributeKey) => {
+        const record = await reader.record(at, tenantId, personId);
+        const value =
+          record?.values[attributeKey] ??
+          (await secrets.reveal(at, { tenantId, personId, attributeKey }));
+        return typeof value === 'string' ? normaliseNationalId(value) : null;
+      }),
+    );
   };
 }
 

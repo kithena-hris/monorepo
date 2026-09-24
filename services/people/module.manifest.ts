@@ -30,6 +30,8 @@ export default ModuleManifest.parse({
     'people.person.access_ended',
     'people.person.access_restored',
     'people.person.rehire_override',
+    'people.person.identifier_reviewed',
+    'people.person.identifier_revealed',
     'people.person.profile_incomplete',
     'people.person.profile_completed',
     'people.person.merged',

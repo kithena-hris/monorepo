@@ -35,6 +35,7 @@ const WORK: readonly Place[] = [
   { href: '/people/directory', label: 'Directory', open: everybody },
   { href: '/people/me', label: 'My profile', open: everybody },
   { href: '/people/completeness', label: 'Missing information', open: hr },
+  { href: '/people/identifier-reviews', label: 'Identifiers to review', open: hr },
   { href: '/people/analytics', label: 'Analytics', open: hr },
   { href: '/people/import', label: 'Import', open: hr },
   { href: '/people/export', label: 'Export', open: everybody },
