@@ -1,7 +1,14 @@
 // Migrations.
 //
-// `services/*/package.json` has called `atlas migrate apply --env local` since
-// the first commit, against a config that did not exist. This is that config.
+// `pnpm db:migrate` (and so `just dev`) runs `atlas migrate apply --env local`
+// from the repository root, which is where Atlas looks for this file. It runs
+// once, not per package: there is one directory and one revision history.
+//
+// With `--allow-dirty`, because `tools/scripts/init-db.sql` has already made
+// the schemas, extensions and `svc_*` roles by the time Atlas connects — the
+// local stand-in for what is made by hand once on Neon — and Atlas otherwise
+// refuses any database that is not empty. The migrations create each of those
+// `IF NOT EXISTS`, so applying over them is safe.
 //
 // One migration directory for the whole repository rather than one per module.
 // The modules own separate *schemas* inside one database, and a migration that
@@ -23,7 +30,9 @@ variable "dev_url" {
 }
 
 env "local" {
-  url     = var.url != "" ? var.url : "postgres://kithena:kithena@localhost:5432/kithena?sslmode=disable"
+  // `sslmode=disable` forced on, because `.env`'s DATABASE_URL has no sslmode,
+  // Atlas then asks for TLS, and the compose Postgres has none. Local only.
+  url     = urlqueryset(var.url != "" ? var.url : "postgres://kithena:kithena@localhost:5432/kithena", "sslmode", "disable")
   dev     = var.dev_url != "" ? var.dev_url : "docker://postgres/17/dev?search_path=public"
 
   migration {
