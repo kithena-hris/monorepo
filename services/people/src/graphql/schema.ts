@@ -815,6 +815,13 @@ builder.mutationFields((t) => ({
     resolve: (_root, { personId, ...rest }, ctx) =>
       move(ctx, 'terminatePerson', personId, sent(rest)),
   }),
+  withdrawNotice: t.field({
+    type: Person,
+    description:
+      'Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only.',
+    args: { personId: t.arg.id({ required: true }) },
+    resolve: (_root, args, ctx) => move(ctx, 'withdrawNotice', args.personId, {}),
+  }),
   rehirePerson: t.field({
     type: Person,
     description:

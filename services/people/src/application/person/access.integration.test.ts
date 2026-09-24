@@ -51,6 +51,11 @@ const AROHA = '00000000-0000-4000-8000-0000000000a5';
 const DEV = '00000000-0000-4000-8000-0000000000a6';
 const AROHA_ACCOUNT = '00000000-0000-4000-8000-0000000000b5';
 const DEV_ACCOUNT = '00000000-0000-4000-8000-0000000000b6';
+// On notice in Los Angeles, last day 30 September; HR later moves it to 1 October.
+const ELI = '00000000-0000-4000-8000-0000000000a7';
+const ELI_ACCOUNT = '00000000-0000-4000-8000-0000000000b7';
+const AROHA_ROW = '01890000-0000-7000-8000-00000000f0a5';
+const ELI_ROW = '01890000-0000-7000-8000-00000000f0a7';
 
 const calendar: TenantCalendar = {
   defaultZone: 'Europe/Madrid',
@@ -169,7 +174,15 @@ beforeAll(async () => {
     drizzleSchemaRepository().appendVersion(
       tx,
       ACME,
-      versionOf(1, [define({ key: 'job_title' })]),
+      versionOf(1, [
+        define({ key: 'job_title' }),
+        define({
+          key: 'last_working_day',
+          dataType: 'date',
+          typeConfig: { kind: 'date' },
+          effectiveDated: true,
+        }),
+      ]),
       [],
       '2026-09-01',
     ),
@@ -190,7 +203,19 @@ beforeAll(async () => {
       (${ACME}::uuid, ${AROHA}::uuid, 'notice', ${AROHA_ACCOUNT}::uuid, '2025-01-01', '2026-09-30', ${NZ}::uuid,
        'Aroha', 'Tane', 'aroha@acme.test', 1),
       (${ACME}::uuid, ${DEV}::uuid, 'notice', ${DEV_ACCOUNT}::uuid, '2025-01-01', '2026-09-30', ${US}::uuid,
-       'Dev', 'Patel', 'dev@acme.test', 1)
+       'Dev', 'Patel', 'dev@acme.test', 1),
+      (${ACME}::uuid, ${ELI}::uuid, 'notice', ${ELI_ACCOUNT}::uuid, '2025-01-01', '2026-09-30', ${US}::uuid,
+       'Eli', 'Stone', 'eli@acme.test', 1)
+  `);
+  // Their notices' last-working-day rows, which a correction supersedes.
+  await admin.execute(sql`
+    INSERT INTO people.person_attribute_history
+      (id, tenant_id, person_id, attribute_key, value, effective_from, recorded_at, actor)
+    VALUES
+      (${AROHA_ROW}::uuid, ${ACME}::uuid, ${AROHA}::uuid, 'last_working_day', '"2026-09-30"'::jsonb,
+       '2026-09-30', '2026-09-01', '{"kind":"system","process":"seed"}'::jsonb),
+      (${ELI_ROW}::uuid, ${ACME}::uuid, ${ELI}::uuid, 'last_working_day', '"2026-09-30"'::jsonb,
+       '2026-09-30', '2026-09-01', '{"kind":"system","process":"seed"}'::jsonb)
   `);
 });
 
@@ -204,7 +229,7 @@ describe('the hourly job, on each leaver’s own calendar', () => {
   it('ends Auckland at its midnight while Los Angeles is still on its last day', async () => {
     const run = await jobAt('2026-09-30T11:30:00.000Z');
     // Kiri and Aroha (Auckland) end; Lucy and Dev (Los Angeles) wait.
-    expect(run).toMatchObject({ ended: 2, waiting: 2, failed: [] });
+    expect(run).toMatchObject({ ended: 2, waiting: 3, failed: [] });
 
     expect(await ended(KIRI)).toEqual([
       expect.objectContaining({
@@ -224,7 +249,7 @@ describe('the hourly job, on each leaver’s own calendar', () => {
   });
 
   it('ends Los Angeles at its own midnight, and nobody twice', async () => {
-    expect(await jobAt('2026-10-01T07:30:00.000Z')).toMatchObject({ ended: 2, waiting: 0 });
+    expect(await jobAt('2026-10-01T07:30:00.000Z')).toMatchObject({ ended: 3, waiting: 0 });
     // Ended from its midnight, not from when the job got round to it; no account to name.
     expect((await ended(LUCY)).map((e) => e.payload)).toEqual([
       expect.objectContaining({ identityAccountId: null, endedAt: '2026-10-01T07:00:00.000Z' }),
@@ -336,5 +361,57 @@ describe('HR ending access at once', () => {
     );
     expect(again.ok && again.value.status).toBe('terminated');
     expect(await ended(KIRI)).toHaveLength(1);
+  });
+});
+
+describe('a notice’s last working day corrected forward after access ended (PEO-111)', () => {
+  // 11:30 UTC on 1 October: the 1st has ended in Auckland (at 11:00 UTC) and
+  // is still going in Los Angeles.
+  const at = '2026-10-01T11:30:00.000Z';
+  const correct = (supersedes: string) =>
+    inTenantResult(inTenant, ACME, (tx) =>
+      accessAt(at).correct(tx, {
+        ...on(hr, supersedes === ELI_ROW ? ELI : AROHA),
+        supersedes,
+        value: '2026-10-01',
+        reason: 'Handover extended by a day',
+      }),
+    );
+  const restored = async (personId: string) =>
+    [
+      ...(await admin.execute(sql`
+        SELECT envelope FROM people.outbox
+         WHERE aggregate_id = ${personId} AND event_name = 'people.person.access_restored'`)),
+    ].map((row) => row['envelope'] as { effectiveFrom: string; payload: Record<string, unknown> });
+
+  it('gives Los Angeles its access back, in the correction’s transaction', async () => {
+    expect((await correct(ELI_ROW)).ok).toBe(true);
+    expect(await restored(ELI)).toEqual([
+      expect.objectContaining({
+        effectiveFrom: '2026-10-01',
+        payload: {
+          personId: ELI,
+          identityAccountId: ELI_ACCOUNT,
+          restoredAt: at,
+          reason: 'last_working_day_corrected',
+        },
+      }),
+    ]);
+    expect(await endedAt(ELI)).toBeNull();
+  });
+
+  it('keeps Auckland’s ended: the corrected day has already ended there', async () => {
+    expect((await correct(AROHA_ROW)).ok).toBe(true);
+    expect(await restored(AROHA)).toEqual([]);
+    expect(await endedAt(AROHA)).toBe('2026-09-30T11:00:00.000Z');
+  });
+
+  it('ends Los Angeles again when the new last day ends there', async () => {
+    expect(await jobAt('2026-10-02T06:30:00.000Z')).toMatchObject({ ended: 0 });
+    expect(await jobAt('2026-10-02T07:30:00.000Z')).toMatchObject({ ended: 1 });
+    expect((await ended(ELI)).map((e) => e.payload['endedAt'])).toEqual([
+      '2026-10-01T07:00:00.000Z',
+      '2026-10-02T07:00:00.000Z',
+    ]);
   });
 });

@@ -675,7 +675,9 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
      │              │           │      │            └ end of last working day, own calendar:
      │              │           │      │              access ends, on notice or terminated
      │              │           │      │              (identity suspends; PEO-109)
-     │              │           │      └ last working day passed: HR confirms (a task, not a date)
+     │              │           │      ├ last working day passed: HR confirms (a task, not a date)
+     │              │           │      └ withdrawn before the last day ends ──▶ active | on_leave
+     │              │           │        (the status notice was given from; PEO-111)
      │              │           │
      └──────────────┴───────────┴──▶ discarded          (provisional only)
 ```
@@ -721,7 +723,14 @@ definitions above are about dates, so a correction to one of those dates
   past **stays on notice**. Termination is a deliberate act, so HR gets a task
   to confirm it, in the same grid as HR's missing fields (§8.4) rather than one
   task per person. The task is read off the state and the date: it closes when
-  HR terminates or corrects the date forward.
+  HR terminates or corrects the date forward. Their access ended at the end
+  of the old day all the same (§5); **corrected forward to a day that has not
+  ended on their calendar**, it comes back in the correction's transaction —
+  `access_restored`, reason `last_working_day_corrected`, and identity
+  reinstates the account to the status it suspended it from, as for a rehire
+  — and ends again when the new day ends. Corrected to a day that has already
+  ended there (Auckland's 1st at 11:00 UTC, while Los Angeles's is still
+  going), it stays ended. A terminated record keeps it ended.
 - **on_leave** and **terminated** keep their state whatever either date is
   corrected to.
 
@@ -786,9 +795,21 @@ answered with the record and raises nothing.
   next number, as a new hire there would. Someone with no number rejoining an
   entity that numbers gets one. The old number stays in history.
 
-**Withdrawing notice** is neither drawn nor built; today a resignation
-withdrawn is a correction of the last working day at best. Identity hears the
-end of access and its return (§5): it caches a start date, not an end.
+- **Withdraw notice** (PEO-111) — `notice` only, HR only, until the last
+  working day has ended on the person's calendar (during that day it is still
+  allowed; after it, the answer is termination or a later rehire). Returns
+  them to the status they gave notice from — `active`, or `on_leave` for
+  somebody who resigned from leave; a notice recorded before periods existed
+  reads as from `active`. Raises `status_changed` (reason
+  `notice_withdrawn`) effective today on their calendar, and writes a
+  `last_working_day` row of null that supersedes the notice's row from the
+  date it was effective (§8.5), so no "as of" read shows the withdrawn end.
+  With no last working day there is no access end pending (§5). Completeness
+  is re-judged. A repeat is refused; a REST retry is answered by its
+  Idempotency-Key.
+
+Identity hears the end of access and its return (§5): it caches a start date,
+not an end.
 
 A person on notice whose last working day has passed without HR terminating
 stays on notice — termination is HR's act — but **loses access at the end of
@@ -972,6 +993,16 @@ Per the repository rule, and it is load-bearing here rather than decorative:
   cause. A start that arrived is effective from the corrected start date. A
   start that had not is effective from the start date it corrects, the day the
   record wrongly became active, so an "as of" read of that span says pre-hire.
+- Withdrawn notice (§8.1) is the same shape: the notice's `last_working_day`
+  row is superseded by a null one effective from the same date, tied to the
+  `status_changed` (reason `notice_withdrawn`) that is effective the day it
+  was withdrawn. The notice stays on record as something that was given; its
+  end date stops being a fact about the employment.
+- A last working day corrected forward after access ended (§8.1) restores
+  access from the day of the correction, on the person's calendar: the
+  `access_restored` is effective that day and caused by the
+  `attribute_corrected` that carries `supersedes`. The span between the old
+  day's end and the correction stays a span without access — it was one.
 
 An attribute marked `effectiveDated: false` — a phone number, a personal email —
 keeps only the correction path: history records who changed it and when, but
@@ -1202,11 +1233,12 @@ New:
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
-| `people.person.access_restored` v1 | A rehired person's new employment started (§5, §8.1): `restoredAt`, reason `rehired`, the account id. Identity reinstates on it |
+| `people.person.access_restored` v1 | Access came back (§5, §8.1): a rehired person's new employment started (reason `rehired`), or a notice's last working day was corrected forward to a day not yet ended (reason `last_working_day_corrected`). `restoredAt`, the account id. Identity reinstates on it |
 
 A rehire (§8.1) raises `status_changed` with the new reason `rehired` and a
 `hired` for the new period — the same event a first hire raises, whose
-`employment.from` is the new start.
+`employment.from` is the new start. Withdrawing notice raises `status_changed`
+with the new reason `notice_withdrawn`.
 
 ### 10.2a Calendar events
 
@@ -1632,7 +1664,8 @@ and schema types; tenant-defined attributes exposed as a typed union rather than
 a stringly-typed bag, generated per tenant from the published schema version.
 Extends federated types rather than owning what People does not own. The
 lifecycle moves of §8.1 are mutations — `giveNotice`, `terminatePerson`
-(with `endAccessNow`), `endPersonAccess`, `rehirePerson`, `startLeave`, `endLeave`,
+(with `endAccessNow`), `endPersonAccess`, `withdrawNotice`, `rehirePerson`,
+`startLeave`, `endLeave`,
 `discardPerson` — each answering with the person
 after, their arguments parsed by the same Zod body REST parses. The query
 `employmentPeriods(personId)` lists a person's employments, HR only.
@@ -1682,6 +1715,7 @@ GET    /v1/people/{id}/history         effective-dated, per attribute
 POST   /v1/people/{id}/corrections     a correction carrying supersedes
 GET    /v1/people/{id}/completeness    what is missing and who owns it
 POST   /v1/people/{id}/notice          HR: on notice until a last working day (§8.1)
+POST   /v1/people/{id}/notice/withdraw HR: notice withdrawn before the last day ends
 POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
 POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
 POST   /v1/people/{id}/rehire          HR: a new employment period on the same record (§8.1)

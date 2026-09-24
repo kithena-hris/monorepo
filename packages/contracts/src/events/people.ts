@@ -434,6 +434,7 @@ export const PersonStatusChanged = defineEvent(
         'discarded',
         'corrected',
         'rehired',
+        'notice_withdrawn',
       ])
       .register(policy, asInternal()),
   }),
@@ -492,6 +493,10 @@ export const PersonAccessEnded = defineEvent(
  * Raised when the new employment starts on the person's own calendar: with
  * the rehire when its start has already come, else by the hourly job that
  * starts pre-hires. The envelope's `effectiveFrom` is the start date.
+ *
+ * Also raised (reason `last_working_day_corrected`, PEO-111) when a notice's
+ * last working day is corrected forward, after its access ended, to a day not
+ * yet ended on the person's calendar; effective the day of the correction.
  */
 export const PersonAccessRestored = defineEvent(
   'people.person.access_restored',
@@ -500,7 +505,7 @@ export const PersonAccessRestored = defineEvent(
     personId: PersonId,
     identityAccountId: z.uuid().nullable().register(policy, asPublic()),
     restoredAt: Instant,
-    reason: z.enum(['rehired']).register(policy, asInternal()),
+    reason: z.enum(['rehired', 'last_working_day_corrected']).register(policy, asInternal()),
   }),
 );
 

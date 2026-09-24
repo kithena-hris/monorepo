@@ -175,6 +175,11 @@ type Mutation {
   ): Person
 
   """
+  Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only.
+  """
+  withdrawNotice(personId: ID!): Person
+
+  """
   Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.
   """
   rehirePerson(personId: ID!, startDate: String!, legalEntityId: ID, overrideReason: String): Person

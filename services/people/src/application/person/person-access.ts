@@ -228,6 +228,11 @@ export interface PersonAccess {
       readonly overrideReason?: string | null;
     }>,
   ): Promise<Result<PersonView>>;
+  /**
+   * Withdraw a person's notice (PEO-111), HR only, until their last working
+   * day has ended on their calendar: back to the status they gave it from.
+   */
+  withdrawNotice(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   /** Every employment period on a person, first first (PEO-110). HR only. */
   employmentPeriods(tx: Tx, asking: On<object>): Promise<Result<readonly EmploymentPeriodRow[]>>;
   startLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
@@ -967,6 +972,35 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       return ok(await view(tx, asking, after, version, relations));
     },
 
+    /**
+     * The notice's `last_working_day` row is the standing one when it holds
+     * the date the record does; that is what the withdrawal supersedes. A
+     * notice recorded before its row existed has nothing to supersede.
+     * Never settled: once withdrawn the person is not on notice, and a
+     * repeat is refused — a REST retry is answered by its Idempotency-Key.
+     */
+    async withdrawNotice(tx, asking) {
+      const history = await deps.people.history(
+        tx,
+        asking.tenantId,
+        asking.personId,
+        'last_working_day',
+      );
+      const standing = currentValue(history, 'last_working_day');
+      return lifecycle(
+        tx,
+        asking,
+        'withdraws notice',
+        () => false,
+        (p, zone, ctx) =>
+          p.withdrawNotice(
+            ctx,
+            zone,
+            standing !== undefined && standing.value === p.lastWorkingDay ? standing : null,
+          ),
+      );
+    },
+
     async employmentPeriods(tx, asking) {
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!person) return err(PersonNotFound());
@@ -1258,7 +1292,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         );
         if (!moved.ok) return moved;
       } else if (moves && definition.key === 'last_working_day') {
-        const moved = aggregate.correctLastWorkingDay(valid.value as string);
+        // Moved to a day still going on their calendar after the job ended
+        // their access, a person on notice gets it back (PEO-111).
+        const moved = aggregate.correctLastWorkingDay(
+          valid.value as string,
+          { ...contextFor(asking), causationId: eventId },
+          zone,
+        );
         if (!moved.ok) return moved;
       } else if (moves) {
         project(fields, custom, definition.key, valid.value);

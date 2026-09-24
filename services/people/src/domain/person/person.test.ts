@@ -1002,3 +1002,128 @@ describe('employment periods and rehire (PEO-110)', () => {
     expect(!overlapping.ok && overlapping.error.code).toBe('REHIRE_BEFORE_LAST_DAY');
   });
 });
+
+describe('withdrawing notice (PEO-111)', () => {
+  const noticeRow = { id: '01890000-0000-7000-8000-00000000aaaa', effectiveFrom: '2026-09-30' };
+  const onNotice = (noticeFrom: 'active' | 'on_leave' | null = 'active') =>
+    person({
+      status: 'notice',
+      hireDate: '2026-01-01',
+      lastWorkingDay: '2026-09-30',
+      employment: {
+        period: 1,
+        legalEntityId: null,
+        leavingReason: null,
+        eligibleForRehire: null,
+        noticeFrom,
+        rehireOverrideReason: null,
+      },
+    });
+  // 11:30 UTC on 30 September: the 30th has ended in Auckland, not in Los Angeles.
+  const aucklandMidnight = context('2026-09-30T11:30:00.000Z');
+
+  it('returns them to the status they gave notice from, dated today on their calendar', () => {
+    const p = onNotice('on_leave');
+    expect(p.withdrawNotice(aucklandMidnight, 'America/Los_Angeles', noticeRow).ok).toBe(true);
+    expect(p.status).toBe('on_leave');
+    expect(p.lastWorkingDay).toBeNull();
+    expect(p.drainEvents().map((e) => [e.eventName, e.effectiveFrom, e.payload])).toEqual([
+      [
+        'people.person.status_changed',
+        '2026-09-30',
+        { personId: PERSON, previous: 'notice', next: 'on_leave', reason: 'notice_withdrawn' },
+      ],
+    ]);
+    expect(p.drainPeriod()).toMatchObject({ lastWorkingDay: null, noticeFrom: null });
+  });
+
+  it('supersedes the notice’s last working day, from the date it was effective (§8.5)', () => {
+    const p = onNotice();
+    p.withdrawNotice(aucklandMidnight, 'America/Los_Angeles', noticeRow);
+    const [event] = p.drainEvents();
+    expect(p.drainHistory()).toEqual([
+      expect.objectContaining({
+        attributeKey: 'last_working_day',
+        value: null,
+        effectiveFrom: '2026-09-30',
+        supersedes: noticeRow.id,
+        eventId: event?.eventId,
+      }),
+    ]);
+    expect(p.status).toBe('active');
+  });
+
+  it('is refused once the last working day has ended on their calendar', () => {
+    const p = onNotice();
+    const late = p.withdrawNotice(aucklandMidnight, 'Pacific/Auckland', noticeRow);
+    expect(!late.ok && late.error.code).toBe('LAST_DAY_ENDED');
+    expect(p.status).toBe('notice');
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('reads a notice from before periods recorded where from as active', () => {
+    const p = onNotice(null);
+    expect(p.withdrawNotice(aucklandMidnight, 'America/Los_Angeles', null).ok).toBe(true);
+    expect(p.status).toBe('active');
+    expect(p.drainHistory()).toEqual([]);
+  });
+
+  it('is refused for anybody not on notice', () => {
+    for (const status of ['active', 'on_leave', 'terminated', 'pre_hire'] as const) {
+      const r = person({ status, hireDate: '2026-01-01' }).withdrawNotice(ctx, UTC, null);
+      expect(!r.ok && r.error.code, status).toBe('INVALID_TRANSITION');
+    }
+  });
+});
+
+describe('correcting a notice’s last working day forward after access ended', () => {
+  // Access ended at the end of 30 September, Auckland (11:00 UTC on the 30th).
+  const ended = (over: Partial<PersonSnapshot> = {}) =>
+    person({
+      status: 'notice',
+      hireDate: '2026-01-01',
+      lastWorkingDay: '2026-09-30',
+      accessEndedAt: '2026-09-30T11:00:00.000Z',
+      ...over,
+    });
+  // 11:30 UTC on 1 October: the 1st has ended nowhere west of Kiritimati; it is
+  // the 2nd in Auckland from 11:00 UTC, still the 1st in Los Angeles.
+  const at = context('2026-10-01T11:30:00.000Z');
+
+  it('restores access when the corrected day has not ended on their calendar', () => {
+    const p = ended();
+    expect(p.correctLastWorkingDay('2026-10-01', at, 'America/Los_Angeles').ok).toBe(true);
+    expect(p.accessEndedAt).toBeNull();
+    expect(p.drainEvents()).toMatchObject([
+      {
+        eventName: 'people.person.access_restored',
+        effectiveFrom: '2026-10-01',
+        payload: {
+          personId: PERSON,
+          restoredAt: '2026-10-01T11:30:00.000Z',
+          reason: 'last_working_day_corrected',
+        },
+      },
+    ]);
+    // …and the job can end it again when the new day ends.
+    expect(p.endAccess(context('2026-10-02T07:00:00.000Z'), 'America/Los_Angeles', 'day_ended').ok).toBe(true);
+  });
+
+  it('keeps it ended when the corrected day has already ended where they work', () => {
+    const p = ended();
+    expect(p.correctLastWorkingDay('2026-10-01', at, 'Pacific/Auckland').ok).toBe(true);
+    expect(p.accessEndedAt).toBe('2026-09-30T11:00:00.000Z');
+    expect(p.drainEvents()).toEqual([]);
+  });
+
+  it('restores nothing for a correction backwards, or for a terminated record', () => {
+    const back = ended({ lastWorkingDay: '2026-09-30' });
+    back.correctLastWorkingDay('2026-09-29', at, 'America/Los_Angeles');
+    expect(back.drainEvents()).toEqual([]);
+
+    const left = ended({ status: 'terminated' });
+    left.correctLastWorkingDay('2026-10-01', at, 'America/Los_Angeles');
+    expect(left.accessEndedAt).toBe('2026-09-30T11:00:00.000Z');
+    expect(left.drainEvents()).toEqual([]);
+  });
+});

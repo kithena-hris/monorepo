@@ -157,6 +157,19 @@ describe('the lifecycle routes', () => {
     expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
   });
 
+  it('withdraws notice back to where it was given from (PEO-111)', async () => {
+    const { post, store } = setup();
+    await post(`${ADA}/notice`, { lastWorkingDay: '2026-09-30' }, 'w0');
+    const back = await post(`${ADA}/notice/withdraw`, undefined, 'w1');
+    expect([back.status, status(back)]).toEqual([200, 'active']);
+    expect(store.events.at(-1)).toMatchObject({
+      eventName: 'people.person.status_changed',
+      payload: { next: 'active', reason: 'notice_withdrawn' },
+    });
+    const again = await post(`${ADA}/notice/withdraw`, undefined, 'w2');
+    expect(code(again)).toBe('INVALID_TRANSITION');
+  });
+
   it('answers a retried key without moving twice', async () => {
     const { post, store } = setup();
     const first = await post(`${ADA}/notice`, { lastWorkingDay: '2026-12-31' }, 'k');

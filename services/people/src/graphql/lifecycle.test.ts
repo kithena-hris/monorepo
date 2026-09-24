@@ -139,6 +139,15 @@ describe('the lifecycle mutations', () => {
     ]);
   });
 
+  it('withdraws notice, as HR (PEO-111)', async () => {
+    wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
+    await mutate(
+      `mutation { giveNotice(personId: "${ADA}", lastWorkingDay: "2026-09-30") { status } }`,
+    );
+    const back = await mutate(`mutation { withdrawNotice(personId: "${ADA}") { status } }`);
+    expect(back.data?.['withdrawNotice']).toEqual({ status: 'active' });
+  });
+
   it('discards a provisional record', async () => {
     wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
     const answer = await mutate(`mutation { discardPerson(personId: "${NEW}") { id status } }`);
