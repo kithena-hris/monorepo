@@ -19,6 +19,7 @@ import {
   type Grant,
 } from '../../domain/approval/approval.js';
 import type { Asking } from '../person/person-access.js';
+import { nameOf } from '../screens/record.js';
 import { buildExport, exportableColumns, type Reveal } from './export.js';
 import type { ExportJobDeps } from './job.js';
 
@@ -69,6 +70,15 @@ export interface FullValuesRequest {
 export interface FullValuesStore {
   insert(tx: PostgresJsDatabase, request: FullValuesRequest): Promise<void>;
   find(tx: PostgresJsDatabase, tenantId: string, id: string): Promise<FullValuesRequest | null>;
+  /**
+   * The newest requests first, up to `limit`: one requester's, or everybody's
+   * when `requestedBy` is null. Ids are UUIDv7, so the key orders them.
+   */
+  list(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    where: { readonly requestedBy: string | null; readonly limit: number },
+  ): Promise<readonly FullValuesRequest[]>;
   /**
    * Write `next` only if the stored row is still as `prior` left it: the same
    * state, and not yet issued or used. False when somebody got there first.
@@ -460,5 +470,93 @@ export async function viewFullValues(
             g.expiresAt,
           )
         : null,
+  });
+}
+
+/* ------------------------------------------------------------- screen -- */
+
+/** What the full-values screen draws (PEO-121): finance's own requests, or every one for HR. */
+export interface FullValuesScreen {
+  readonly canRequest: boolean;
+  readonly canDecide: boolean;
+  /** What finance may ask for: exportable fields that are masked in an export. */
+  readonly fields: readonly { readonly key: string; readonly label: string }[];
+  readonly requests: readonly {
+    readonly id: string;
+    readonly state: string;
+    readonly mine: boolean;
+    /** The requester's name as this viewer reads it, or null when they read none. */
+    readonly requestedBy: string | null;
+    readonly reason: string;
+    readonly fields: readonly string[];
+    readonly requestedAt: string;
+    readonly expiresAt: string;
+    readonly note: string | null;
+    readonly link: string | null;
+  }[];
+}
+
+const SHOWN = 50;
+
+/**
+ * Finance sees its own requests and HR sees everybody's; anybody else is
+ * refused. The link is only ever the requester's, as `viewFullValues` says.
+ */
+export async function fullValuesScreen(
+  tx: PostgresJsDatabase,
+  deps: FullValuesDeps,
+  asking: Asking,
+): Promise<Result<FullValuesScreen>> {
+  const finance = asking.viewer.roles.has('finance');
+  const hr = asking.viewer.roles.has('hr');
+  if (!finance && !hr) {
+    return err(failure('FORBIDDEN', 'Full values are for finance and HR'));
+  }
+  const version = await deps.schemas.current(tx, asking.tenantId);
+  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+  const labels = new Map(
+    version.document.attributes.map((d) => [d.key as string, d.label.default]),
+  );
+  const listed = await deps.requests.list(tx, asking.tenantId, {
+    requestedBy: hr ? null : asking.viewer.accountId,
+    limit: SHOWN,
+  });
+
+  const names = new Map<string, string | null>();
+  const nameOfAccount = async (accountId: string): Promise<string | null> => {
+    if (!names.has(accountId)) {
+      const personId = await deps.records.reader.personOf(tx, asking.tenantId, accountId);
+      const read = personId === null ? null : await deps.access.read(tx, { ...asking, personId });
+      names.set(accountId, read?.ok ? nameOf(read.value.attributes) : null);
+    }
+    return names.get(accountId) ?? null;
+  };
+
+  const requests: FullValuesScreen['requests'][number][] = [];
+  for (const request of listed) {
+    const seen = await viewFullValues(tx, deps, { ...asking, requestId: request.approval.id });
+    if (!seen.ok) continue;
+    requests.push({
+      id: request.approval.id,
+      state: seen.value.state,
+      mine: request.approval.requestedBy === asking.viewer.accountId,
+      requestedBy: await nameOfAccount(request.approval.requestedBy),
+      reason: request.approval.reason,
+      fields: request.attributeKeys.map((k) => labels.get(k) ?? k),
+      requestedAt: request.approval.requestedAt,
+      expiresAt: request.approval.expiresAt,
+      note: request.approval.note,
+      link: seen.value.link,
+    });
+  }
+  return ok({
+    canRequest: finance,
+    canDecide: hr,
+    fields: finance
+      ? exportableColumns(version)
+          .filter((d) => d.encrypted)
+          .map((d) => ({ key: d.key, label: d.label.default }))
+      : [],
+    requests,
   });
 }

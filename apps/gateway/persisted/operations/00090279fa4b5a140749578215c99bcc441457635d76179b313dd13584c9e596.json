@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DecideFullValues($id: ID!, $approve: Boolean!, $note: String, $key: String!) {\n    decideFullValues(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { id }\n  }"}

@@ -621,3 +621,107 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     await context.close();
   });
 });
+
+describe('PEO-121: finance asks for full values, HR approves, one download', () => {
+  it('issues one file behind a link that works once', async () => {
+    // Adam holds finance since PEO-112's test granted it; the tuple that grant
+    // syncs to OpenFGA arrives by Kafka, which this stack has not got.
+    await stack.writeTuples([
+      { user: `user:${EMPLOYEE.account}`, relation: 'finance', object: `tenant:${TENANT}` },
+    ]);
+    const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
+    const asks = await finance.newPage();
+    await asks.goto(`${stack.shell}/people`);
+    await asks.getByRole('link', { name: 'Full values' }).click();
+    await asks.waitForURL(/\/people\/full-values$/);
+    await asks.waitForLoadState('networkidle');
+    await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
+    await asks.getByRole('textbox', { name: /Reason/ }).fill('Social security filing, September');
+    await asks.getByRole('button', { name: 'Ask HR' }).click();
+    const [request] = await eventually(
+      'the request',
+      () => stack.sql<{ id: string; state: string }[]>`
+        SELECT id::text, state FROM people.full_values_request WHERE tenant_id = ${TENANT}`,
+      (rows) => rows.length === 1,
+    );
+
+    const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const decides = await hr.newPage();
+    await decides.goto(`${stack.shell}/people/full-values`);
+    await decides.waitForLoadState('networkidle');
+    await decides
+      .getByRole('table', { name: 'Waiting for a decision' })
+      .getByRole('button', { name: /^Approve the request from/ })
+      .click();
+    const dialog = decides.getByRole('dialog', { name: 'Approve the request' });
+    await dialog.getByRole('button', { name: 'Approve' }).click();
+    // No Temporal here: the decision settles in-process, and the file is issued.
+    await eventually(
+      'the file',
+      () => stack.sql<{ export_id: string | null }[]>`
+        SELECT export_id::text FROM people.full_values_request WHERE id = ${request?.id ?? ''}`,
+      ([row]) => row?.export_id !== null && row?.export_id !== undefined,
+    );
+    // HR is never handed the link.
+    await decides.reload();
+    await decides.getByText('Ready to download').waitFor({ timeout: 30_000 });
+    expect(await decides.getByRole('link', { name: 'Download, once' }).count()).toBe(0);
+    await hr.close();
+
+    await asks.reload();
+    const link = asks.getByRole('link', { name: 'Download, once' });
+    await link.waitFor({ timeout: 30_000 });
+    const href = (await link.getAttribute('href')) ?? '';
+    expect((await fetch(href)).status).toBe(200);
+    expect((await fetch(href)).status).toBe(410);
+    const [spent] = await stack.sql<{ downloaded_at: Date | null }[]>`
+      SELECT downloaded_at FROM people.full_values_request WHERE id = ${request?.id ?? ''}`;
+    expect(spent?.downloaded_at).not.toBeNull();
+    await asks.reload();
+    await asks.getByText('Downloaded', { exact: true }).waitFor({ timeout: 30_000 });
+    await finance.close();
+  });
+});
+
+describe('PEO-121: the webhook delivery log', () => {
+  it('shows a failed delivery and replays it', async () => {
+    // An endpoint, as the integrations screen makes one, subscribed to an
+    // event nothing in this run raises.
+    const made = await stack.writeAsPeople(ADMIN.account, '/v1/webhooks/endpoints', {
+      url: 'https://example.com/kithena-acceptance',
+      events: ['people.schema.published'],
+      allowlist: [],
+      alertEmail: 'integrations@acme.example',
+    });
+    expect(made.status).toBe(201);
+    const endpointId = (made.body as { id: string }).id;
+    // A delivery that failed for good: what 24 hours of refusals leave behind.
+    await stack.sql`
+      INSERT INTO people.webhook_delivery
+             (tenant_id, endpoint_id, event_id, event_name, aggregate_id, envelope, status, attempts, last_response)
+      VALUES (${TENANT}, ${endpointId}, gen_random_uuid(), 'people.person.hired', ${ADMIN.person},
+              '{}'::jsonb, 'failed', 12, 500)`;
+
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/settings/integrations`);
+    await page.waitForLoadState('networkidle');
+    await page
+      .getByRole('button', { name: 'Delivery log for https://example.com/kithena-acceptance' })
+      .click();
+    await page.waitForURL(new RegExp(`/people/settings/integrations/${endpointId}$`));
+    await page.waitForLoadState('networkidle');
+    const table = page.getByRole('table', { name: 'Deliveries' });
+    await table.getByText('Failed').waitFor({ timeout: 30_000 });
+    expect(await table.getByText('HTTP 500').count()).toBe(1);
+
+    await table.getByRole('button', { name: /^Replay people\.person\.hired/ }).click();
+    await page.getByText(/Replayed\./).waitFor({ timeout: 30_000 });
+    const rows = await stack.sql<{ replay_of: string | null }[]>`
+      SELECT replay_of::text FROM people.webhook_delivery WHERE endpoint_id = ${endpointId} ORDER BY seq`;
+    expect(rows).toHaveLength(2);
+    expect(rows[1]?.replay_of).not.toBeNull();
+    await table.getByText('A replay').waitFor({ timeout: 30_000 });
+    await context.close();
+  });
+});

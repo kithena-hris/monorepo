@@ -12,6 +12,7 @@ import {
   claimDownload,
   decideFullValues,
   fullValuesOf,
+  fullValuesScreen,
   requestFullValues,
   settleFullValues,
   viewFullValues,
@@ -285,5 +286,41 @@ describe('the audit trail', () => {
     expect(all).not.toContain(IBAN);
     expect(all).not.toContain('people.test');
     expect(all).not.toContain('Ada');
+  });
+});
+
+describe('the full-values screen (PEO-121)', () => {
+  it('shows finance its own requests and what it may ask for, HR every request, anybody else nothing', async () => {
+    const { deps } = setup();
+    await requested(deps);
+    const other = await ask(deps, FINANCE_TOO);
+    expect(other.ok).toBe(true);
+
+    const mine = await fullValuesScreen(tx, deps, asking(FINANCE));
+    if (!mine.ok) throw new Error(mine.error.message);
+    expect(mine.value.canRequest && !mine.value.canDecide).toBe(true);
+    expect(mine.value.fields.map((f) => f.key)).toEqual(['iban']);
+    expect(mine.value.requests).toHaveLength(1);
+    expect(mine.value.requests[0]).toMatchObject({ state: 'pending', mine: true, link: null });
+
+    const hr = await fullValuesScreen(tx, deps, asking(HR));
+    if (!hr.ok) throw new Error(hr.error.message);
+    expect(hr.value.canDecide && !hr.value.canRequest).toBe(true);
+    expect(hr.value.fields).toEqual([]);
+    expect(hr.value.requests.map((r) => r.mine)).toEqual([false, false]);
+
+    const refused = await fullValuesScreen(tx, deps, asking(MANAGER));
+    expect(refused.ok || refused.error.code).toBe('FORBIDDEN');
+  });
+
+  it('hands the requester the one link once issued, and HR never', async () => {
+    const { deps } = setup();
+    const id = await requested(deps);
+    await decideFullValues(tx, deps, { ...asking(HR), requestId: id, approve: true });
+    await settle(deps, id);
+    const mine = await fullValuesScreen(tx, deps, asking(FINANCE));
+    expect(mine.ok && mine.value.requests[0]?.link).toMatch(/^https:\/\/people\.test\//);
+    const hr = await fullValuesScreen(tx, deps, asking(HR));
+    expect(hr.ok && hr.value.requests[0]).toMatchObject({ state: 'issued', link: null });
   });
 });

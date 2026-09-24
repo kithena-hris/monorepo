@@ -1375,6 +1375,21 @@ it is written down here rather than left in a PR description.
       PEO-088's request, decision and one download, and PEO-032/093's
       delivery log with replay, have transports and no screen; neither has a
       list to read from. *(PRD §13.3, §15.2)*
+      *Landed as two reads and two screens.* `GET /v1/exports/full-values` /
+      `peopleFullValues`: finance's own requests and the sealed, exportable
+      fields it may ask for; HR's every request; anybody else refused
+      (`fullValuesScreen`, the newest 50, the link only ever the requester's).
+      `/people/full-values` is both halves: finance asks with a reason and
+      downloads once, HR approves or rejects with a note. `GET
+      /v1/webhooks/endpoints/{id}/deliveries` / `peopleWebhookDeliveries`:
+      one endpoint's deliveries, newest first, keyset pages of 50 by `seq`,
+      status, attempts and last response and never a body, `people_admin`
+      only; `/people/settings/integrations/{id}` lists them with Replay on
+      each, reached from the endpoint's card. People's home lists Full values
+      for finance and HR. Proven by the acceptance tests: finance asks, HR
+      approves, the link answers 200 once and 410 after, and HR is never
+      handed it; a failed delivery is shown and replayed, the replay a row of
+      its own naming the original.*
 - [ ] **PEO-122** The expiry timeline, and paging the person picker and the
       completeness grid. The analytics landing drew no timeline although
       `expiries` answers it (§16.2); the profile's picker and the grid still

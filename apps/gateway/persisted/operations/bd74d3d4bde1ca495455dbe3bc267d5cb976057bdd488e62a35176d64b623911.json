@@ -1,0 +1,1 @@
+{"version":1,"body":"query FullValues {\n    peopleFullValues {\n      canRequest canDecide\n      fields { key label }\n      requests { id state mine requestedBy reason fields requestedAt expiresAt note link }\n    }\n  }"}

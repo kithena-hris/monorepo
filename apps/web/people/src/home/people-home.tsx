@@ -38,6 +38,7 @@ const WORK: readonly Place[] = [
   { href: '/people/analytics', label: 'Analytics', open: hr },
   { href: '/people/import', label: 'Import', open: hr },
   { href: '/people/export', label: 'Export', open: everybody },
+  { href: '/people/full-values', label: 'Full values', open: (can) => can.finance || can.hr },
 ];
 
 const SETTINGS: readonly Place[] = [

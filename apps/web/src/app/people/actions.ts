@@ -172,6 +172,25 @@ export async function rotateEndpoint(id: string): Promise<WithSecret> {
   return withSecret(await people('RotateWebhookSecret', { id }));
 }
 
+export async function replayDelivery(deliveryId: string): Promise<Outcome> {
+  return outcome(people('ReplayWebhookDelivery', { deliveryId }));
+}
+
+/* --------------------------------------------------------- full values -- */
+
+/** Finance asks for sealed fields in full, with a reason (PEO-088); HR decides. */
+export async function requestFullValues(fields: readonly string[], reason: string): Promise<Outcome> {
+  return outcome(people('RequestFullValues', { fields: [...fields], reason }));
+}
+
+export async function decideFullValues(
+  id: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Outcome> {
+  return outcome(people('DecideFullValues', { id, approve, ...(note === null ? {} : { note }) }));
+}
+
 /* --------------------------------------------------------------- roles -- */
 
 type TenantRole = 'hr' | 'finance' | 'people_admin';

@@ -8,10 +8,12 @@
     { "path": "/people/completeness", "component": "CompletenessGrid" },
     { "path": "/people/settings/fields", "component": "FieldRegistry" },
     { "path": "/people/settings/integrations", "component": "Integrations" },
+    { "path": "/people/settings/integrations/:id", "component": "WebhookLog" },
     { "path": "/people/settings/roles", "component": "RoleSettings" },
     { "path": "/people/settings/organisation", "component": "Organisation" },
     { "path": "/people/import", "component": "ImportFlow" },
     { "path": "/people/export", "component": "ExportBuilder" },
+    { "path": "/people/full-values", "component": "FullValues" },
     { "path": "/people/analytics", "component": "Analytics" },
     { "path": "/people/:id", "component": "Profile" }
   ]
