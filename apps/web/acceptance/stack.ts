@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { startCosmoRouter, startMinio, startOpenFga, startPostgres } from '@kithena/testing';
+import { startCosmoRouter, startObjectStore, startOpenFga, startPostgres } from '@kithena/testing';
 
 /**
  * The tenant app as a person meets it, for the acceptance tests (PEO-098,
@@ -273,7 +273,7 @@ export async function startStack(): Promise<Stack> {
   let receiver: Awaited<ReturnType<typeof startReceiver>> | undefined;
   const receiverDir = await mkdtemp(join(tmpdir(), 'kithena-receiver-'));
   // The bucket an import is uploaded to, straight from the browser (§14.2).
-  const [pg, fga, storage] = await Promise.all([startPostgres(), startOpenFga(), startMinio()]);
+  const [pg, fga, storage] = await Promise.all([startPostgres(), startOpenFga(), startObjectStore()]);
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
   const stop = async (): Promise<void> => {

@@ -22,12 +22,12 @@ just dev              # compose up, migrate, seed, run everything
 ```
 
 The gateway comes up on `http://localhost:4000`. Temporal UI is on `:8233`,
-Mailpit on `:8025`, MinIO console on `:9001`.
+Mailpit on `:8025`, the SeaweedFS (local S3) admin UI on `:9001`.
 
 ### Working on a screen
 
 `just dev` starts the whole infrastructure stack — Redpanda, Temporal, OpenFGA,
-Typesense, MinIO. Most days none of that is running for a reason. Use:
+Typesense, SeaweedFS. Most days none of that is running for a reason. Use:
 
 ```bash
 just local            # postgres, migrate, then every app, in one shell

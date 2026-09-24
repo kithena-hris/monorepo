@@ -7,7 +7,7 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { ok, type Clock, type Result } from '@kithena/domain-kit';
-import { startMinio, startPostgres } from '@kithena/testing';
+import { startObjectStore, startPostgres } from '@kithena/testing';
 
 import { drizzleUploadIntents } from '../application/import/ledger.js';
 import { finishUpload, readUpload, startUpload, type UploadDeps } from '../application/import/upload.js';
@@ -23,7 +23,7 @@ import { tenantTransaction } from './unit-of-work.js';
  * The PUTs here are plain `fetch`, as a browser sends one: what the bucket
  * refuses is what storage enforces, and what `finishUpload` refuses is what
  * People verifies. Only the S3 API is used, so any S3-compatible server can
- * stand in for the one `startMinio` starts.
+ * stand in for the one `startObjectStore` starts.
  */
 
 const ACME = '00000000-0000-4000-8000-00000000000a';
@@ -54,7 +54,7 @@ const inTx =
     tenantTransaction(asService)(tenantId, ({ tx }) => fn(tx));
 
 beforeAll(async () => {
-  const [m, pg] = await Promise.all([startMinio(), startPostgres()]);
+  const [m, pg] = await Promise.all([startObjectStore(), startPostgres()]);
   stops.push(m.stop, pg.stop);
   endpoint = m.endpoint;
   credentials = { accessKeyId: m.accessKeyId, secretAccessKey: m.secretAccessKey };
@@ -179,21 +179,18 @@ describe('an import upload, browser to bucket', () => {
   });
 
   it('configures the bucket for the app origins alone, over the S3 API', async () => {
-    const set = await configureUploadBucket(store.client, 'configured', [
+    await configureUploadBucket(store.client, 'configured', [
       'https://*.app.kithena.com',
       'http://acme.app.localhost:3000',
     ]);
-    // A server that does not take bucket CORS says so rather than failing;
-    // where it does, a PUT preflight from a tenant is answered and one from
-    // anywhere else is not.
-    if (!set.cors) return;
+    // A PUT preflight from a tenant is answered; one from anywhere else is not.
     const preflight = (origin: string) =>
       fetch(`${endpoint}/configured/x`, {
         method: 'OPTIONS',
         headers: {
           origin,
           'access-control-request-method': 'PUT',
-          'access-control-request-headers': 'content-type,if-none-match',
+          'access-control-request-headers': 'content-type,if-none-match,x-amz-server-side-encryption',
         },
       });
     const tenant = await preflight('https://acme.app.kithena.com');

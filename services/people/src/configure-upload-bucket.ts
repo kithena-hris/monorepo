@@ -21,7 +21,5 @@ if (!bucket || origins.length === 0) {
   process.exit(1);
 }
 const { client } = s3Uploads(s3ConfigFrom(process.env, 'PEOPLE_UPLOAD', bucket));
-const set = await configureUploadBucket(client, bucket, origins);
-logger.info({ bucket, origins, ...set }, 'upload bucket configured');
-if (!set.cors) logger.warn({ bucket }, 'this server does not take bucket CORS; configure it on the server');
-if (!set.lifecycle) logger.warn({ bucket }, 'this server does not take a lifecycle rule; People’s sweep is the only cleanup');
+await configureUploadBucket(client, bucket, origins);
+logger.info({ bucket, origins }, 'upload bucket configured: CORS and a one-day lifecycle');

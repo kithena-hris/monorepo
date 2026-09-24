@@ -19,8 +19,8 @@ import { s3ConfigFrom, type S3Config } from './s3-blobs.js';
 
 /**
  * Import uploads in an S3-compatible bucket the browser writes to directly:
- * Cloudflare R2 in production, MinIO (or whatever serves S3 locally) on a
- * laptop. Its own bucket, credentials and endpoint (`PEOPLE_UPLOAD_*`),
+ * Cloudflare R2 in production, SeaweedFS (or whatever serves S3 locally) on
+ * a laptop. Its own bucket, credentials and endpoint (`PEOPLE_UPLOAD_*`),
  * separate from the export store's, because the two are different trust
  * boundaries: this one takes bytes from a browser, the other only from People.
  *

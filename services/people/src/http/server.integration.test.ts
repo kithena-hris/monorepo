@@ -8,7 +8,7 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createYoga } from 'graphql-yoga';
 import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
-import { startMinio, startPostgres } from '@kithena/testing';
+import { startObjectStore, startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
 import { Person } from '../domain/person/person.js';
@@ -31,7 +31,7 @@ const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
 const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
 
 let stopPg: (() => Promise<void>) | undefined;
-let stopMinio: (() => Promise<void>) | undefined;
+let stopObjects: (() => Promise<void>) | undefined;
 const clients: ReturnType<typeof postgres>[] = [];
 let server: Server;
 let base = '';
@@ -51,20 +51,20 @@ const migration = (file: string): Promise<string> =>
   readFile(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8');
 
 beforeAll(async () => {
-  const [pg, minio] = await Promise.all([startPostgres(), startMinio()]);
+  const [pg, objects] = await Promise.all([startPostgres(), startObjectStore()]);
   stopPg = pg.stop;
-  stopMinio = minio.stop;
+  stopObjects = objects.stop;
   // The bucket an import is uploaded to, straight from the browser (§14.2).
   await new S3Client({
-    endpoint: minio.endpoint,
+    endpoint: objects.endpoint,
     region: 'us-east-1',
     forcePathStyle: true,
-    credentials: { accessKeyId: minio.accessKeyId, secretAccessKey: minio.secretAccessKey },
+    credentials: { accessKeyId: objects.accessKeyId, secretAccessKey: objects.secretAccessKey },
   }).send(new CreateBucketCommand({ Bucket: 'uploads' }));
   process.env['PEOPLE_UPLOAD_BUCKET'] = 'uploads';
-  process.env['PEOPLE_UPLOAD_S3_ENDPOINT'] = minio.endpoint;
-  process.env['PEOPLE_UPLOAD_S3_ACCESS_KEY_ID'] = minio.accessKeyId;
-  process.env['PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY'] = minio.secretAccessKey;
+  process.env['PEOPLE_UPLOAD_S3_ENDPOINT'] = objects.endpoint;
+  process.env['PEOPLE_UPLOAD_S3_ACCESS_KEY_ID'] = objects.accessKeyId;
+  process.env['PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY'] = objects.secretAccessKey;
   const adminClient = postgres(pg.url, { max: 1 });
   clients.push(adminClient);
   const admin = drizzle(adminClient);
@@ -150,10 +150,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve));
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  const listening = server as Server | undefined;
+  if (listening) await new Promise((resolve) => listening.close(resolve));
   for (const c of clients) await c.end();
   await stopPg?.();
-  await stopMinio?.();
+  await stopObjects?.();
 });
 
 describe('the booted service', () => {

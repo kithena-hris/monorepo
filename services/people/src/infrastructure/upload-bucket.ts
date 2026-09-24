@@ -50,44 +50,26 @@ export const UPLOAD_LIFECYCLE: LifecycleRule[] = [
 
 /**
  * Create the bucket if it is missing, then set its CORS and lifecycle. A
- * server that does not implement one of the two (some local ones do not) is
- * reported, not fatal: the answer says which were set.
+ * store that refuses either fails the call: an upload bucket without its
+ * CORS is one the browser cannot reach, or one it can reach from anywhere.
  */
 export async function configureUploadBucket(
   client: S3Client,
   bucket: string,
   origins: readonly string[],
-): Promise<{ readonly cors: boolean; readonly lifecycle: boolean }> {
+): Promise<void> {
   try {
     await client.send(new HeadBucketCommand({ Bucket: bucket }));
   } catch {
     await client.send(new CreateBucketCommand({ Bucket: bucket }));
   }
-  const attempt = async (send: () => Promise<unknown>): Promise<boolean> => {
-    try {
-      await send();
-      return true;
-    } catch (cause) {
-      if ((cause as { name?: string }).name === 'NotImplemented') return false;
-      throw cause;
-    }
-  };
-  return {
-    cors: await attempt(() =>
-      client.send(
-        new PutBucketCorsCommand({
-          Bucket: bucket,
-          CORSConfiguration: { CORSRules: uploadCors(origins) },
-        }),
-      ),
-    ),
-    lifecycle: await attempt(() =>
-      client.send(
-        new PutBucketLifecycleConfigurationCommand({
-          Bucket: bucket,
-          LifecycleConfiguration: { Rules: UPLOAD_LIFECYCLE },
-        }),
-      ),
-    ),
-  };
+  await client.send(
+    new PutBucketCorsCommand({ Bucket: bucket, CORSConfiguration: { CORSRules: uploadCors(origins) } }),
+  );
+  await client.send(
+    new PutBucketLifecycleConfigurationCommand({
+      Bucket: bucket,
+      LifecycleConfiguration: { Rules: UPLOAD_LIFECYCLE },
+    }),
+  );
 }
