@@ -114,7 +114,7 @@ const asOf = async (day: string) => {
 const migration = (file: string): Promise<string> =>
   readFile(new URL(`../../../../../migrations/${file}`, import.meta.url), 'utf8');
 
-const dated = (key: string, dataType: 'text' | 'legal_entity_ref' = 'text') =>
+const dated = (key: string, dataType: 'text' | 'legal_entity_ref' | 'location_ref' = 'text') =>
   define({ key, dataType, typeConfig: { kind: dataType }, effectiveDated: true });
 
 beforeAll(async () => {
@@ -178,7 +178,7 @@ beforeAll(async () => {
         define({ key: 'work_email' }),
         define({ key: 'employee_number' }),
         dated('legal_entity_id', 'legal_entity_ref'),
-        dated('location_id'),
+        dated('location_id', 'location_ref'),
         dated('cost_centre'),
       ]),
       [],

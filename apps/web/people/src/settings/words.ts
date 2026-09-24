@@ -37,6 +37,7 @@ export const DATA_TYPE_LABEL: Record<DataType, string> = {
   person_ref: 'A person',
   org_unit_ref: 'A team or department',
   legal_entity_ref: 'A legal entity',
+  location_ref: 'A work location',
   document_ref: 'A document',
   image: 'An image',
 };
