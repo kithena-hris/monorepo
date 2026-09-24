@@ -857,7 +857,9 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
     await form.getByRole('button', { name: 'Save' }).click();
 
     // Warned, on the field and above the button, and nothing is saved yet.
-    await form.getByText('Our checks suggest this may be wrong').waitFor({ timeout: 30_000 });
+    await form
+      .getByText('Our checks suggest this may be wrong', { exact: true })
+      .waitFor({ timeout: 30_000 });
     const describedBy = (await nif.getAttribute('aria-describedby')) ?? '';
     const description = await own
       .locator(describedBy.split(' ').map((id) => `[id="${id}"]`).join(', '))
