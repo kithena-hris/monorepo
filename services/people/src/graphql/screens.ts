@@ -15,7 +15,7 @@ import type { RolesView } from '../application/screens/roles.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
 import type { ListedEndpoint } from '../infrastructure/webhooks/list.js';
-import type { PeopleBuilder, RequestContext, ViaRest } from './schema.js';
+import type { PeopleBuilder, RequestContext, ViaRest } from './builder.js';
 
 /**
  * The tenant app's screens over GraphQL (PEO-113): the path the shell takes,

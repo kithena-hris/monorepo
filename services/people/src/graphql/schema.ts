@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { maskError } from 'graphql-yoga';
-import { createBuilder, toGraphQLError } from '@kithena/graphql-kit';
+import { toGraphQLError } from '@kithena/graphql-kit';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
 import type { Attribute } from '../domain/schema/draft.js';
@@ -20,7 +20,10 @@ import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
 import type { RestRequest, RestResponse } from '../http/rest.js';
 import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
+import { builder, type RequestContext, type ViaRest } from './builder.js';
 import { defineScreens, IMPORT_MAX_BYTES } from './screens.js';
+
+export type { RequestContext } from './builder.js';
 
 /**
  * The People subgraph. Thin: it maps a request to a use case and a domain
@@ -35,33 +38,6 @@ import { defineScreens, IMPORT_MAX_BYTES } from './screens.js';
  * Which member of the union an attribute is comes from its `dataType` in the
  * published version, never from the shape of the value.
  */
-
-/** Yoga's default context carries the Fetch request; that is all this needs. */
-export interface RequestContext {
-  readonly request?: { readonly headers: Headers };
-}
-
-const builder = createBuilder<{
-  Context: RequestContext;
-  Scalars: { Upload: { Input: File; Output: never } };
-}>();
-export type PeopleBuilder = typeof builder;
-
-builder.scalarType('Upload', {
-  description: 'A file, sent as the GraphQL multipart request spec describes.',
-  serialize: () => {
-    throw new Error('Upload is an input only');
-  },
-  // Yoga's File, which is not necessarily this realm's global one: a file is
-  // what reads like one.
-  parseValue: (value) => {
-    const file = value as Partial<File> | null;
-    if (typeof file?.arrayBuffer === 'function' && typeof file.name === 'string') {
-      return file as File;
-    }
-    throw new Error('Upload expects a file part');
-  },
-});
 
 /* ------------------------------------------------------------- wiring -- */
 
@@ -95,12 +71,6 @@ function unwrap<T>(result: Result<T>): T {
   return result.ok ? result.value : fail(result.error);
 }
 
-export type ViaRest = <T = unknown>(
-  ctx: RequestContext,
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH',
-  path: string,
-  options?: { readonly body?: unknown; readonly key?: string },
-) => Promise<T>;
 
 /**
  * One of REST's routes, in-process, as this request's caller (PEO-113).
