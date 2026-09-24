@@ -40,7 +40,7 @@ export default defineConfig({
       fileName: () => 'people.cjs',
       cssFileName: 'people',
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: (id) => shell.some((s) => id === s || id.startsWith(`${s}/`)),
     },
   },
