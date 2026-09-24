@@ -277,7 +277,9 @@ describe('PEO-094: the remote, rendered on the server', () => {
     });
     live.on('pageerror', (error) => problems.push(error.message));
     await live.goto(`${stack.shell}/people/me`);
-    // Pressed as soon as it is on screen: it answers once the remote hydrates.
+    // Pressed once the remote has hydrated: a press on the server's markup
+    // before then does nothing, and on a loaded runner that lost the race.
+    await live.waitForLoadState('networkidle');
     await live.getByRole('button', { name: 'Edit Personal information' }).click();
     const personal = live.getByRole('form', { name: 'Personal information' });
     await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pri');
@@ -481,6 +483,8 @@ describe('PEO-112: granting a role on the roles screen', () => {
     const context = await signedIn(ADMIN.session);
     const page = await context.newPage();
     await page.goto(`${stack.shell}/people/settings/roles`);
+    // Hydrated first, as elsewhere here: a press on the server's markup is lost.
+    await page.waitForLoadState('networkidle');
     await page.getByRole('checkbox', { name: `Finance for ${EMPLOYEE.email}` }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox', { name: /Reason/ }).fill('Covers payroll this quarter');
@@ -705,9 +709,11 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
 describe('PEO-121: the webhook delivery log', () => {
   it('shows a failed delivery and replays it', async () => {
     // An endpoint, as the integrations screen makes one, subscribed to an
-    // event nothing in this run raises.
+    // event nothing in this run raises. It points at the harness's own HTTPS
+    // receiver on loopback: a replay really sends, and never to the internet.
+    const hookUrl = `${stack.receiver.url}/kithena-acceptance`;
     const made = await stack.writeAsPeople(ADMIN.account, '/v1/webhooks/endpoints', {
-      url: 'https://example.com/kithena-acceptance',
+      url: hookUrl,
       events: ['people.schema.published'],
       allowlist: [],
       alertEmail: 'integrations@acme.example',
@@ -715,18 +721,26 @@ describe('PEO-121: the webhook delivery log', () => {
     expect(made.status).toBe(201);
     const endpointId = (made.body as { id: string }).id;
     // A delivery that failed for good: what 24 hours of refusals leave behind.
+    // A hire's envelope, which every allowlist lets through, so the replay is
+    // sent rather than skipped.
+    const eventId = '00000000-0000-4000-8000-0000000121e0';
+    const envelope = stack.sql.json({
+      eventId,
+      eventName: 'people.person.hired',
+      payload: { personId: ADMIN.person, name: null },
+    });
     await stack.sql`
       INSERT INTO people.webhook_delivery
              (tenant_id, endpoint_id, event_id, event_name, aggregate_id, envelope, status, attempts, last_response)
-      VALUES (${TENANT}, ${endpointId}, gen_random_uuid(), 'people.person.hired', ${ADMIN.person},
-              '{}'::jsonb, 'failed', 12, 500)`;
+      VALUES (${TENANT}, ${endpointId}, ${eventId}, 'people.person.hired', ${ADMIN.person},
+              ${envelope}, 'failed', 12, 500)`;
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
     await page.goto(`${stack.shell}/people/settings/integrations`);
     await page.waitForLoadState('networkidle');
     await page
-      .getByRole('button', { name: 'Delivery log for https://example.com/kithena-acceptance' })
+      .getByRole('button', { name: `Delivery log for ${hookUrl}` })
       .click();
     await page.waitForURL(new RegExp(`/people/settings/integrations/${endpointId}$`));
     await page.waitForLoadState('networkidle');
@@ -741,6 +755,15 @@ describe('PEO-121: the webhook delivery log', () => {
     expect(rows).toHaveLength(2);
     expect(rows[1]?.replay_of).not.toBeNull();
     await table.getByText('A replay').waitFor({ timeout: 30_000 });
+    // The replay was sent, signed, to the receiver and nowhere else.
+    await expect
+      .poll(() => stack.receiver.received.filter((r) => r.path === '/kithena-acceptance').length, {
+        timeout: 30_000,
+      })
+      .toBe(1);
+    const [sent] = stack.receiver.received.filter((r) => r.path === '/kithena-acceptance');
+    expect(sent?.headers['kithena-event-id']).toBe(eventId);
+    expect(sent?.headers['kithena-signature']).toBeTruthy();
     await context.close();
   });
 });
