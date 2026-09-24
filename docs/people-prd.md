@@ -1105,7 +1105,10 @@ is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
   /v1/people/{id}/identifier-reviews/reveal`, `people.person.identifier_revealed`).
 - **The decision is final.** `accept`: the value stands and is never flagged
   again — saving the same value later (however it is spaced) asks nobody, and
-  no later automated check overrides it. `send_back`: the employee is asked to
+  no later automated check overrides it. "The same value" is a keyed-hash
+  comparison: the review stores an HMAC of the normalised value under the
+  tenant's derived key, as a unique claim does, and the key rotation re-keys
+  it; nothing is decrypted to compare. `send_back`: the employee is asked to
   correct it; their profile and onboarding say so, with HR's note, and
   completeness lists the key under `attention` (present, so not missing) until
   a new value supersedes the review. Either is
@@ -1116,6 +1119,12 @@ is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
 - **A different value** written after an acceptance is checked afresh; one
   written after a send-back supersedes the review and opens a new one only if
   it is doubted too.
+- **Every write path, one gate.** An edit, a section save (profile,
+  onboarding, GraphQL, REST), the completeness grid's bulk save, an import
+  row, a hire and a correction (`supersedes`) all admit their values through
+  the same check and the same review gate, and answer with the same findings;
+  a retry with the same Idempotency-Key answers as the first request did. The
+  grid, like a form, warns per cell before it saves and then saves anyway.
 
 ### 8.5 Effective dating and corrections
 

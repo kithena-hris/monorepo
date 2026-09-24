@@ -1525,11 +1525,17 @@ it is written down here rather than left in a PR description.
       check digit with the letter weighted as its alphabet position; Steuer-ID
       ISO 7064 and the digit rule, pre- and post-2016; NINO prefixes and an
       A–D suffix, a missing one `attention`; UAN shape, "cannot be verified".
-      Every write goes through `PersonAccess.update`, so each is checked and
-      queued; profile, onboarding, import, REST and GraphQL return the
-      findings (the completeness grid does not show them yet); a form asks
-      `peopleIdentifierCheck` before it saves one and warns on the field (`FieldDescription tone="warning"`, new in
-      Reach) and above the button, then saves on "Save anyway". A doubted
+      Every write — an edit, a section save, the grid, an import row, a
+      hire, a correction — admits its values through one `validate` and one
+      `gateIdentifiers`, so none can skip the check or the queue; each answers
+      with the findings from one function (`findingsFor`), and a retried
+      write with the same key recomputes the same answer. A form and the
+      completeness grid ask before they save (`peopleIdentifierCheck`,
+      `peopleGridCheck`) and warn on the field or cell (`FieldDescription
+      tone="warning"`, new in Reach) and above the button, then save on
+      "Save anyway". Whether a value is the one HR accepted is a keyed-hash
+      comparison (`value_hash` on the review, re-keyed by the claim
+      rotation): nothing is decrypted to compare. A doubted
       value opens `people.identifier_review` (20260924330000), keyed to the
       history row that wrote it, never the value: HR's grid gets an
       `identifier_review` row, `/people/identifier-reviews` lists each with
