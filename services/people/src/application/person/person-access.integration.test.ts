@@ -11,6 +11,7 @@ import { Person } from '../../domain/person/person.js';
 import { drizzleCompletenessStore } from '../../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../../infrastructure/drizzle-person-repository.js';
 import {
+  drizzleGapTotals,
   drizzlePersonReader,
   drizzleRelations,
   drizzleSchemaVersions,
@@ -608,6 +609,55 @@ describe('the directory at 50,000 people', () => {
       ),
     );
     expect(page.ok && page.value.items.length).toBeGreaterThan(0);
+  });
+
+  describe('the completeness grid, a page at a time (PEO-122)', () => {
+    beforeAll(async () => {
+      // One in 25 is missing a cost centre HR fills in; one in 10 owes a phone.
+      await admin.execute(sql`
+        INSERT INTO people.completeness_gap (tenant_id, person_id, schema_version, employee_keys, staff_keys)
+        SELECT ${PERF}::uuid, md5('dir' || i)::uuid, 1,
+               CASE WHEN i % 10 = 0 THEN ARRAY['phone'] ELSE '{}' END,
+               CASE WHEN i % 25 = 0 THEN ARRAY['cost_centre'] ELSE '{}' END
+          FROM generate_series(1, 50000) AS i
+         WHERE i % 10 = 0 OR i % 25 = 0`);
+      await admin.execute(sql`ANALYZE people.completeness_gap`);
+    });
+
+    it('pages every person HR owes a value, and nobody else, within the budget', async () => {
+      const pageOf = (after: string | null) =>
+        inTenantResult(inTenant, PERF, (tx) =>
+          people.list(tx, { ...asking(hr, PERF), gaps: 'staff', after, limit: 50 }),
+        );
+      const first = await timed('a completeness grid page', () => pageOf(null));
+      expect(first.ok && first.value.items).toHaveLength(50);
+
+      let seen = 0;
+      let next: string | null = null;
+      do {
+        const page = await pageOf(next);
+        if (!page.ok) throw new Error(page.error.message);
+        seen += page.value.items.length;
+        next = page.value.next;
+      } while (next !== null);
+      // Everybody with a gap, not a first 200.
+      expect(seen).toBe(2000);
+    });
+
+    it('counts the grid over everybody within the budget', async () => {
+      const totals = await timed('the completeness totals', () =>
+        inTenant(PERF, ({ tx }) => drizzleGapTotals()(tx, PERF)),
+      );
+      // i % 10 = 0: 5,000 owe a phone; i % 25 = 0: 2,000 owe a cost centre.
+      expect(totals).toEqual({ waiting: 5000, staff: [{ key: 'cost_centre', people: 2000 }] });
+    });
+
+    it('lists who is missing what to HR only', async () => {
+      const page = await inTenantResult(inTenant, PERF, (tx) =>
+        people.list(tx, { ...asking(viewer(ADA_ACCOUNT), PERF), gaps: 'staff', limit: 50 }),
+      );
+      expect(page.ok ? 'listed' : page.error.code).toBe('FORBIDDEN');
+    });
   });
 
   it('takes % and _ in a search as the characters they are', async () => {
