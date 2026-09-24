@@ -167,14 +167,27 @@ describe('SIGTERM (PEO-118)', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     child.kill('SIGTERM');
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Not a fixed sleep: on a loaded runner the listener may still be open
+    // 500 ms after the signal. Poll until a new connection is refused, within a
+    // bound; the half-sent request keeps the process alive meanwhile.
+    const until = async (done: () => Promise<boolean> | boolean, ms: number) => {
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        // eslint-disable-next-line no-await-in-loop -- polling one condition, in order
+        if (await done()) return true;
+        // eslint-disable-next-line no-await-in-loop -- as above
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const refuses = () =>
+      fetch(`http://127.0.0.1:${String(port)}/v1/openapi.json`).then(
+        () => false,
+        () => true,
+      );
+    expect(await until(refuses, 10_000), log()).toBe(true);
     // Still running: the half-sent request holds the drain open.
     expect(child.exitCode).toBeNull();
-    const refused = await fetch(`http://127.0.0.1:${String(port)}/v1/openapi.json`).then(
-      () => 'answered',
-      () => 'refused',
-    );
-    expect(refused).toBe('refused');
 
     inFlight.finish();
     const answer = await inFlight.answer;
