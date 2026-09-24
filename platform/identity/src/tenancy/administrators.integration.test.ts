@@ -17,7 +17,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await identity.stop();
+  // Missing when `beforeAll` failed, which is then the only error worth reading.
+  await (identity as Composed | undefined)?.stop();
 });
 
 async function named(tenantId: string) {
