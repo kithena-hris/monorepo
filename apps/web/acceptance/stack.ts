@@ -1,4 +1,4 @@
-import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
@@ -67,7 +67,11 @@ export interface Stack {
    */
   readonly receiver: { readonly url: string; readonly received: readonly ReceivedHook[] };
   /** A keyed write to People's REST, as the router would send it, for a test's setup. */
-  writeAsPeople(account: string, path: string, body: unknown): Promise<{ status: number; body: unknown }>;
+  writeAsPeople(
+    account: string,
+    path: string,
+    body: unknown,
+  ): Promise<{ status: number; body: unknown }>;
   stop(): Promise<void>;
 }
 
@@ -81,19 +85,30 @@ export interface ReceivedHook {
 async function loopbackCertificate(dir: string): Promise<{ key: string; cert: string }> {
   const key = join(dir, 'receiver.key');
   const cert = join(dir, 'receiver.crt');
-  await new Promise<void>((resolve, reject) => {
-    execFile(
-      'openssl',
-      ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes',
-        '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=127.0.0.1',
-        '-addext', 'subjectAltName=IP:127.0.0.1'],
-      { timeout: 30_000 },
-      (error) => {
-        if (error) reject(error);
-        else resolve();
-      },
-    );
-  });
+  await run(
+    'openssl',
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'ec',
+      '-pkeyopt',
+      'ec_paramgen_curve:prime256v1',
+      '-nodes',
+      '-keyout',
+      key,
+      '-out',
+      cert,
+      '-days',
+      '1',
+      '-subj',
+      '/CN=127.0.0.1',
+      '-addext',
+      'subjectAltName=IP:127.0.0.1',
+    ],
+    dir,
+    30_000,
+  );
   return { key, cert };
 }
 
@@ -267,7 +282,13 @@ export async function startStack(): Promise<Stack> {
     await router?.stop().catch(() => undefined);
     await sql.end({ timeout: 5 }).catch(() => undefined);
     await Promise.allSettled([pg.stop(), fga.stop()]);
-    await new Promise((resolve) => (receiver ? receiver.server.close(resolve) : resolve(undefined)));
+    await new Promise<void>((resolve) => {
+      if (receiver)
+        receiver.server.close(() => {
+          resolve();
+        });
+      else resolve();
+    });
     await rm(receiverDir, { recursive: true, force: true });
     if (dir !== '') await rm(dir, { recursive: true, force: true });
     // After everything else is down, so a failure still cleans up.
