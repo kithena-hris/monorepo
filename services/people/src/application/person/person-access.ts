@@ -278,7 +278,7 @@ export interface PlacementChange {
   readonly locationId?: string | null;
   readonly orgUnitId?: string | null;
   readonly costCentre?: string | null;
-  /** On the person's new calendar; today there when absent, never later. */
+  /** On the person's new calendar; today there when absent. A date ahead comes into force on its day (PEO-124). */
   readonly effectiveFrom?: string;
 }
 
