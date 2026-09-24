@@ -26,6 +26,7 @@ import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { recomputePerson } from '../completeness/recompute.js';
 import { fixedCalendars } from '../org/org.js';
+import { reportStore } from '../import/fixture.js';
 import { anonymiseDue } from '../retention/anonymise.js';
 import { define, versionOf } from './in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
@@ -393,6 +394,7 @@ describe('notice, then termination', () => {
           store: drizzleRetentionStore(),
           clock: fixedClock(at),
           newEventId: newId,
+          reports: reportStore(fixedClock(at)),
         })(tx, {
           tenantId: ACME,
           personId: KIRI,

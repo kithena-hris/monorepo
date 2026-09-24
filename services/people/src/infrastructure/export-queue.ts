@@ -11,7 +11,6 @@ import {
   type ObjectStore,
 } from '../application/export/object-store.js';
 import {
-  purgeBefore,
   runQueuedExport,
   type ExportQueue,
   type QueuedExport,
@@ -110,8 +109,8 @@ async function runOne(
 }
 
 async function sweep(store: ObjectStore, clock: Clock): Promise<void> {
-  const deleted = await store.purge(purgeBefore(clock.instant()), SWEEP_LIMIT);
-  if (deleted > 0) logger.info({ module: 'people', deleted }, 'expired export files deleted');
+  const deleted = await store.purge(clock.instant(), SWEEP_LIMIT);
+  if (deleted > 0) logger.info({ module: 'people', deleted }, 'expired export files and import reports deleted');
 }
 
 export async function startExportRunner(

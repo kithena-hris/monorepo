@@ -213,6 +213,10 @@ describe('an import or an export', () => {
       }
     }
   });
+
+  it('names the file an import started from by its checksum (§14.5)', () => {
+    expect(payloadKeys('people.import.started')).toContain('checksum');
+  });
 });
 
 describe('what identity is told', () => {

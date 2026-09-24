@@ -1,8 +1,10 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
-import { err, failure } from '@kithena/domain-kit';
+import { err, failure, fixedClock } from '@kithena/domain-kit';
 
 import { noTransaction as tx } from '../person/in-memory.js';
-import { commitImport, type CommitDeps } from './commit.js';
+import { commitImport, forgetImportReports, reportKey, type CommitDeps } from './commit.js';
 import {
   asking,
   commitDeps,
@@ -11,9 +13,16 @@ import {
   inMemoryLedger,
   priyasRows,
   priyasTenant,
+  reportStore,
 } from './fixture.js';
 import { proposeMapping, resolveMapping } from './mapping.js';
 import { parseUpload } from './parse.js';
+
+/** The lookalike Priya's file names as a duplicate, and somebody it updates. */
+const TWIN_26 = '00000000-0000-4000-8000-000000000926';
+const EXISTING_1 = '00000000-0000-4000-8000-000000000901';
+
+const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
 const HR_RELATIONS = {
   isSelf: false,
@@ -74,23 +83,69 @@ describe('committing Priya’s file', () => {
     ]);
     const audit = JSON.stringify(ledger.events);
     expect(audit).not.toMatch(/@acme\.test|CC-2|New\d/u);
-    const started = ledger.events[0]?.payload as { rowCount: number; attributeKeys: string[] };
+    const started = ledger.events[0]?.payload as {
+      rowCount: number;
+      attributeKeys: string[];
+      checksum: string;
+    };
     expect(started.rowCount).toBe(412);
+    expect(started.checksum).toBe(sha256(csv(HEADERS, priyasRows())));
     expect(started.attributeKeys).toEqual(expect.arrayContaining(['work_email', 'hire_date']));
   });
 
-  it('twice creates one set of people', async () => {
+  it('twice creates one set of people, and the second upload is handed the first report', async () => {
     const store = priyasTenant();
-    const deps = commitDeps(store);
+    const reports = reportStore(store.deps.clock);
+    const ledger = inMemoryLedger();
+    const deps = commitDeps(store, ledger, reports);
     const bytes = csv(HEADERS, priyasRows());
     const first = await upload(deps, bytes);
+    if (first.status !== 'imported') throw new Error('not imported');
     const people = store.rows.size;
     const events = store.events.length;
 
     const second = await upload(deps, bytes);
-    expect(second).toEqual({ status: 'already_imported', importId: first.importId });
+    expect(second).toMatchObject({ status: 'already_imported', importId: first.importId });
     expect(store.rows.size).toBe(people);
     expect(store.events.length).toBe(events);
+
+    // The report is kept, sealed: the bytes at rest are not the CSV, and the
+    // link the re-upload was given opens to exactly the first report.
+    const key = reportKey(asking.tenantId, sha256(bytes));
+    const atRest = new TextDecoder().decode(reports.store.raw(key));
+    expect(atRest).not.toContain('NoEmail0');
+    const opened = await reports.store.open(second.reportUrl ?? '');
+    expect(opened.ok && opened.value.bytes).toEqual(first.report);
+    expect(new TextDecoder().decode(first.report)).toContain('NoEmail0');
+
+    // Beside it, who it contains, by id only: the two lookalikes it names.
+    expect(await reports.index.containing(tx, asking.tenantId, TWIN_26)).toEqual([sha256(bytes)]);
+
+    // A week on, the sweep deletes it and a re-upload is told it has expired.
+    const later = '2026-09-29T09:00:01.000Z';
+    const third = await upload({ ...deps, clock: fixedClock(later) }, bytes);
+    expect(third).toEqual({ status: 'already_imported', importId: first.importId, reportUrl: null });
+    expect(await reports.store.purge(later, 10)).toBe(1);
+    expect(reports.store.raw(key)).toBeUndefined();
+  });
+
+  it('is deleted, with its index row, when somebody it contains is erased', async () => {
+    const store = priyasTenant();
+    const reports = reportStore(store.deps.clock);
+    const deps = commitDeps(store, inMemoryLedger(), reports);
+    const bytes = csv(HEADERS, priyasRows());
+    await upload(deps, bytes);
+    const key = reportKey(asking.tenantId, sha256(bytes));
+
+    // Somebody not in it: nothing goes.
+    expect(await forgetImportReports(tx, reports, asking.tenantId, EXISTING_1)).toBe(0);
+    expect(reports.store.raw(key)).toBeDefined();
+
+    expect(await forgetImportReports(tx, reports, asking.tenantId, TWIN_26)).toBe(1);
+    expect(reports.store.raw(key)).toBeUndefined();
+    expect(reports.index.rows.size).toBe(0);
+    const again = await upload(deps, bytes);
+    expect(again).toMatchObject({ status: 'already_imported', reportUrl: null });
   });
 });
 

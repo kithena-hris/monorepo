@@ -35,7 +35,8 @@ import type { ObjectStore } from './object-store.js';
  * notifies nobody, and answers with the export as the first run left it.
  */
 
-export const LINK_LIFETIME_MS = 24 * 60 * 60 * 1000;
+export { LINK_LIFETIME_MS } from './object-store.js';
+import { LINK_LIFETIME_MS } from './object-store.js';
 
 /** How the requester hears the file is ready. A link and when it dies; never the file. */
 export interface ExportNotifier {

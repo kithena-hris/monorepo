@@ -136,6 +136,26 @@ describe('the three outcomes, one at a time', () => {
     });
   });
 
+  it('never drops an existing person’s new hire date: with no hire date field to correct, the row blocks', async () => {
+    // Priya's tenant publishes no hire_date, so there is nothing to correct
+    // through and no overwrite to fall back on (§8.5, PEO-090).
+    const { result } = await run(
+      csv(HEADERS, [
+        row({
+          'Given name': 'Existing1',
+          'Family name': 'Person',
+          'Work email': 'e1@acme.test',
+          'Hire date': '2025-06-01',
+        }),
+      ]),
+    );
+    const only = result.ok ? result.value.rows[0] : undefined;
+    expect(only?.outcome).toBe('blocked');
+    expect(only?.problems).toEqual([
+      expect.objectContaining({ kind: 'invalid', key: 'hire_date', column: 'Hire date' }),
+    ]);
+  });
+
   it('refuses an ambiguous date unless told the file’s order', async () => {
     const { result } = await run(csv(HEADERS, [row({ ...good, 'Hire date': '03/04/2026' })]));
     expect(result.ok && result.value.rows[0]?.outcome).toBe('blocked');

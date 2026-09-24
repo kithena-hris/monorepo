@@ -24,6 +24,7 @@ import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
 import { drizzleUniqueClaims } from '../../infrastructure/unique.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { fixedCalendars } from '../org/org.js';
+import { reportStore } from '../import/fixture.js';
 import { anonymiseDue } from '../retention/anonymise.js';
 import { define, versionOf } from './in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
@@ -139,6 +140,7 @@ const anonymiseAt = (instant: string) =>
       store: drizzleRetentionStore(),
       clock: fixedClock(instant),
       newEventId: newId,
+      reports: reportStore(fixedClock(instant)),
     })(tx, {
       tenantId: ACME,
       personId: KIRI,

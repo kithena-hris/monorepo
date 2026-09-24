@@ -307,6 +307,7 @@ export function refused(error: DomainFailure): RestResponse {
         code: error.code,
         message: error.message,
         ...(error.path ? { path: error.path } : {}),
+        ...(error.link ? { link: error.link } : {}),
       },
     },
   };

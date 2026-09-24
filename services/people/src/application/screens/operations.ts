@@ -199,10 +199,23 @@ export type ImportStageView =
           readonly byField: readonly { readonly label: string; readonly count: number }[];
         };
         readonly ignoredColumns: readonly string[];
+        /** Repeating attributes' sheets; one not imported is listed, never dropped. */
+        readonly sheets: readonly {
+          readonly sheet: string;
+          readonly key: string;
+          readonly imported: boolean;
+        }[];
+        /** Existing people whose hire date the file corrects (§8.5), not overwrites. */
+        readonly corrections: readonly {
+          readonly row: number;
+          readonly from: string | null;
+          readonly to: string;
+        }[];
         readonly blocked: readonly {
           readonly row: number;
           readonly person: string | null;
           readonly problem: string;
+          /** `C14 — “x”` on the people sheet, `Languages!D7 — “x”` on another. */
           readonly cell: string;
         }[];
       };
@@ -216,6 +229,8 @@ export type ImportStageView =
       readonly updated: number;
       readonly blocked: number;
       readonly blockedCsv: string;
+      /** The same report, stored sealed; the link expires in a day. */
+      readonly reportUrl: string;
     };
 
 export interface ImportUpload {
@@ -345,7 +360,14 @@ export async function dryRunImport(
           })),
         },
         ignoredColumns: plan.ignoredColumns,
-        blocked: blocked.map((r) => {
+        sheets: plan.sheets,
+        corrections: plan.rows.flatMap((r) =>
+          r.outcome === 'update' && r.hireDateCorrection
+            ? [{ row: r.row, ...r.hireDateCorrection }]
+            : [],
+        ),
+        blocked: [
+          ...blocked.map((r) => {
           const problem = r.problems[0];
           const at = problem === undefined ? -1 : (indexOf.get(problem.column) ?? -1);
           const value = at < 0 ? '' : (r.cells[at] ?? '');
@@ -360,7 +382,14 @@ export async function dryRunImport(
                 ? `row ${String(r.row)}`
                 : `${column(at)}${String(r.row)} — ${value === '' ? 'empty' : `“${value}”`}`,
           };
-        }),
+          }),
+          ...plan.blockedItems.map((item) => ({
+            row: item.row,
+            person: item.personId,
+            problem: item.reason,
+            cell: `${item.sheet}!${item.cell} — ${item.value === '' ? 'empty' : `“${item.value}”`}`,
+          })),
+        ],
       },
       blockedCsv: b64(
         blockedReport(
@@ -369,6 +398,7 @@ export async function dryRunImport(
             row: r,
             reason: r.problems.map((p) => p.reason).join('; ') || r.outcome,
           })),
+          plan.blockedItems,
         ),
       ),
     });
@@ -410,9 +440,19 @@ export async function commitImportView(
   });
   if (!committed.ok) return committed;
   if (committed.value.status === 'already_imported') {
-    return err(failure('ALREADY_IMPORTED', 'This exact file has already been imported'));
+    // The report that import stored, for the HR user `prepare` let this far;
+    // after its 7 days, or once somebody in it was erased, there is none.
+    const link = committed.value.reportUrl;
+    return err(
+      link === null
+        ? failure(
+            'ALREADY_IMPORTED',
+            'This exact file has already been imported. Its blocked-row report has expired: reports are kept 7 days.',
+          )
+        : { ...failure('ALREADY_IMPORTED', 'This exact file has already been imported'), link },
+    );
   }
-  const { counts, report } = committed.value;
+  const { counts, report, reportUrl } = committed.value;
   return ok({
     step: 'done' as const,
     file: fileView(upload.name, planned.value.file),
@@ -420,6 +460,7 @@ export async function commitImportView(
     updated: counts.updated,
     blocked: counts.blocked + counts.duplicate,
     blockedCsv: b64(report),
+    reportUrl,
   });
 }
 
