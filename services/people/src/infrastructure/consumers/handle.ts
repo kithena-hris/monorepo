@@ -32,6 +32,7 @@ import type { OrgAdmin } from '../../application/org/org.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
 import type { TenantRoles } from '../../application/roles/roles.js';
 import type { OpenFga } from '../openfga.js';
+import type { ReportRoles } from '../role-report.js';
 import { rememberEntitlements } from '../entitlements.js';
 import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
@@ -63,6 +64,11 @@ export interface ConsumerDeps {
   readonly authz?: Pick<OpenFga, 'sync' | 'syncRoles'>;
   /** Tenant roles (PEO-112): the back office naming the first administrator. */
   readonly roles?: TenantRoles;
+  /**
+   * Tell identity who holds People's administrator roles, after a role event
+   * committed (`role-report.ts`). Never throws. Absent without `IDENTITY_URL`.
+   */
+  readonly reportRoles?: ReportRoles;
   /** Legal entities and settings, for the company the back office created (PEO-099). */
   readonly org?: OrgAdmin;
   /**
@@ -251,6 +257,7 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           return roles.administratorRemoved(tx, {
             tenantId: event.tenantId,
             accountId: event.payload.accountId,
+            confirmedLast: event.payload.confirmedLast,
             correlationId: event.correlationId,
             causationId: event.eventId,
           });
@@ -280,16 +287,24 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         return 'applied';
       }
 
-      /* A role granted or revoked: that account's tuples follow the rows. */
+      /*
+       * A role granted or revoked: that account's tuples follow the rows, and
+       * identity hears who now holds the administrator roles, for the back
+       * office to show beside what it set.
+       */
       case RoleGranted.name:
       case RoleRevoked.name: {
         const event = parse(name === RoleGranted.name ? RoleGranted : RoleRevoked, raw);
         if (!event) return 'rejected';
-        const { authz } = deps;
-        if (!authz) return 'ignored';
-        return deps.inTenant(event.tenantId, ({ tx }) =>
-          authz.syncRoles(tx, event.tenantId, event.payload.accountId),
-        );
+        const { authz, reportRoles } = deps;
+        if (!authz && !reportRoles) return 'ignored';
+        const synced = authz
+          ? await deps.inTenant(event.tenantId, ({ tx }) =>
+              authz.syncRoles(tx, event.tenantId, event.payload.accountId),
+            )
+          : 'applied';
+        await reportRoles?.(event.tenantId);
+        return synced;
       }
 
       /*

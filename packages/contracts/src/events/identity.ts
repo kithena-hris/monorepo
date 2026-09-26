@@ -459,7 +459,8 @@ export const TenantAdministratorNamed = defineEvent(
  *
  * The reverse of `administrator_named`, raised only for an account the back
  * office had named: the module takes back what naming gave (People revokes
- * `people_admin` and `hr`, never the last `people_admin`). Every role the
+ * `people_admin` and `hr`, and the last holder of either only when
+ * `confirmedLast`). Every role the
  * company granted itself stays the company's business. Identity refuses to
  * remove a module's last named administrator, so there is always somebody the
  * back office can point at.
@@ -472,6 +473,13 @@ export const TenantAdministratorRemoved = defineEvent(
     accountId: AccountId,
     /** The back-office operator who removed them; not an account at the company. */
     removedBy: z.uuid().nullable().register(policy, asInternal()),
+    /**
+     * The operator was warned this removal leaves the module without somebody
+     * holding one of its administrator roles — People with no `hr` or no
+     * `people_admin` — and went ahead. Without it the module keeps the roles
+     * that would have been the last. Absent on events raised before it existed.
+     */
+    confirmedLast: z.boolean().default(false).register(policy, asInternal()),
   }),
 );
 

@@ -37,7 +37,9 @@ export function AddressCard({
       aria-labelledby="address-heading"
       className="border-border bg-surface overflow-hidden rounded-lg border"
     >
-      {place === null ? null : <Sky condition={place.condition} isDay={place.isDay} className="h-28 sm:h-32" />}
+      {place === null ? null : (
+        <Sky condition={place.condition} isDay={place.isDay} className="h-28 sm:h-32" />
+      )}
 
       <div className="p-4 sm:p-5">
         <h2 id="address-heading" className="text-md text-fg flex items-center gap-2 font-semibold">

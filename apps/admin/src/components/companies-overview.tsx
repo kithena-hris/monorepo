@@ -354,7 +354,10 @@ function summarise(rows: readonly CompanyRow[]): {
     }
   }
 
-  const byMonth = months.map((month) => ({ label: month.label, value: counts.get(month.key) ?? 0 }));
+  const byMonth = months.map((month) => ({
+    label: month.label,
+    value: counts.get(month.key) ?? 0,
+  }));
 
   const countries = byCountry(rows);
 
@@ -370,7 +373,8 @@ function summarise(rows: readonly CompanyRow[]): {
     // they bought, they cannot use it.
     unreachable: rows.filter((row) => row.admins === 0).length,
     countries,
-    leader: countries.length > 0 && (countries[1]?.value ?? 0) < (countries[0]?.value ?? 0)
+    leader:
+      countries.length > 0 && (countries[1]?.value ?? 0) < (countries[0]?.value ?? 0)
         ? (countries[0] ?? null)
         : null,
     companiesAwaiting: rows.filter((row) => row.pendingInvites > 0).length,

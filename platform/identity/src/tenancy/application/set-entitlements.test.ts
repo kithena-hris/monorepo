@@ -33,14 +33,16 @@ function registry(defaults: ModuleEntitlement[] = []) {
           writes.push(entitlements);
           return Promise.resolve();
         },
-        name: (a, by) => {
-          named.push(`${a.entitlement} ${a.accountId} ${String(by)}`);
+        name: (a, by, announce = true) => {
+          named.push(`${a.entitlement} ${a.accountId} ${String(by)}${announce ? '' : ' listed'}`);
           const list = (held[a.entitlement] ??= []);
           if (!list.includes(a.accountId)) list.push(a.accountId);
           return Promise.resolve();
         },
-        remove: (a, by) => {
-          removed.push(`${a.entitlement} ${a.accountId} ${String(by)}`);
+        remove: (a, by, confirmedLast) => {
+          removed.push(
+            `${a.entitlement} ${a.accountId} ${String(by)}${confirmedLast ? ' confirmed' : ''}`,
+          );
           held[a.entitlement] = (held[a.entitlement] ?? []).filter((id) => id !== a.accountId);
           return Promise.resolve();
         },
@@ -150,7 +152,10 @@ describe('naming who administers People (PEO-112)', () => {
 
   it('adds and removes administrators of a module already on, with the operator', async () => {
     const r = registry(['module.people']);
-    await r.set(ACME, { entitlements: ['module.people'], administrators: { 'module.people': [ADA] } });
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ADA] },
+    });
     const set = await r.set(ACME, {
       entitlements: ['module.people'],
       administrators: { 'module.people': [GRACE] },
@@ -164,9 +169,27 @@ describe('naming who administers People (PEO-112)', () => {
     expect(r.held['module.people']).toEqual([GRACE]);
   });
 
+  it('carries the operator confirming a removal that leaves no role holder', async () => {
+    const r = registry(['module.people']);
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ADA, GRACE] },
+    });
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [GRACE] },
+      namedBy: OPERATOR,
+      confirmLast: true,
+    });
+    expect(r.removed).toEqual([`module.people ${ADA} ${OPERATOR} confirmed`]);
+  });
+
   it('refuses to remove the last administrator, and writes nothing', async () => {
     const r = registry(['module.people']);
-    await r.set(ACME, { entitlements: ['module.people'], administrators: { 'module.people': [ADA] } });
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ADA] },
+    });
     const writes = r.writes.length;
     const set = await r.set(ACME, {
       entitlements: ['module.people', 'module.timeoff'],
@@ -188,5 +211,26 @@ describe('naming who administers People (PEO-112)', () => {
 
     const timeoff = await on.name(ACME, { entitlement: 'module.timeoff', accountId: ADA });
     expect(timeoff.ok ? null : timeoff.error.code).toBe('MODULE_NOT_ENABLED');
+  });
+
+  it('adds somebody to the list without a grant only when asked not to grant', async () => {
+    const r = registry(['module.people']);
+    await r.name(ACME, {
+      entitlement: 'module.people',
+      accountId: ADA,
+      namedBy: OPERATOR,
+      grant: false,
+    });
+    await r.name(ACME, {
+      entitlement: 'module.people',
+      accountId: GRACE,
+      namedBy: OPERATOR,
+      grant: true,
+    });
+    expect(r.named).toEqual([
+      `module.people ${ADA} ${OPERATOR} listed`,
+      `module.people ${GRACE} ${OPERATOR}`,
+    ]);
+    expect(r.held['module.people']).toEqual([ADA, GRACE]);
   });
 });

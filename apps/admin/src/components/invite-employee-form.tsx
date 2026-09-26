@@ -105,7 +105,12 @@ export function InviteEmployeeForm({ action, companyName }: InviteEmployeeFormPr
         ) : null}
 
         <div className="flex items-center gap-3">
-          <Button type="submit" variant="primary" loading={pending} loadingLabel="Sending the invitation">
+          <Button
+            type="submit"
+            variant="primary"
+            loading={pending}
+            loadingLabel="Sending the invitation"
+          >
             Send invitation
           </Button>
           <Button

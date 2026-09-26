@@ -4,16 +4,9 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { outboxTable, publish as publishToOutbox } from '@kithena/db-kit';
-import {
-  err,
-  failure,
-  ok,
-  systemClock,
-  type PendingEvent,
-  type Result,
-} from '@kithena/domain-kit';
+import { err, failure, ok, systemClock, type PendingEvent, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
-import { moduleEntitlements, type ModuleEntitlement } from '@kithena/contracts';
+import { ModuleRoleReport, moduleEntitlements, type ModuleEntitlement } from '@kithena/contracts';
 
 import { startSession } from './account/application/start-session.js';
 import {
@@ -60,6 +53,7 @@ import { provisionTenant } from './tenancy/application/provision-tenant.js';
 import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
 import { adminRoutes } from './tenancy/http/admin-routes.js';
+import { moduleRoleRoutes } from './tenancy/http/module-role-routes.js';
 import {
   nameAdministrator,
   setEntitlements,
@@ -599,7 +593,9 @@ export async function compose(config: Config): Promise<RequestHandler> {
       });
       return {
         token,
-        expiresAt: new Date(systemClock.now().getTime() + ACCESS_TOKEN_SECONDS * 1000).toISOString(),
+        expiresAt: new Date(
+          systemClock.now().getTime() + ACCESS_TOKEN_SECONDS * 1000,
+        ).toISOString(),
       };
     },
     issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
@@ -681,6 +677,35 @@ export async function compose(config: Config): Promise<RequestHandler> {
     internalToken: config.peopleToken ?? config.internalToken,
     page: (tenantId, after, limit) =>
       inTenantTransaction(tenantId, (tx) => accountsPage(tx, after, limit)),
+  });
+
+  /*
+   * Who holds each module's administrator roles, as the module last reported
+   * it: a read model for the back office, beside what it set. Newest `asOf`
+   * wins, so a late or repeated report never overwrites a newer one.
+   */
+  const moduleRoles = moduleRoleRoutes({
+    tokens: { 'module.people': config.peopleToken ?? config.internalToken },
+    record: (tenantId, entitlement, report) =>
+      inTenantTransaction(tenantId, async (tx) => {
+        const known = [
+          ...(await tx.execute(sql`SELECT 1 FROM platform.tenant WHERE id = ${tenantId}::uuid`)),
+        ];
+        if (known.length === 0) return false;
+        await tx.execute(sql`
+          INSERT INTO platform.module_role_report
+                 (tenant_id, entitlement, administrator_roles, holders, as_of)
+          VALUES (${tenantId}::uuid, ${entitlement}, ${textArray(report.administratorRoles)},
+                  ${JSON.stringify(report.holders)}::jsonb, ${report.asOf}::timestamptz)
+          ON CONFLICT (tenant_id, entitlement) DO UPDATE
+             SET administrator_roles = EXCLUDED.administrator_roles,
+                 holders = EXCLUDED.holders,
+                 as_of = EXCLUDED.as_of,
+                 received_at = now()
+           WHERE platform.module_role_report.as_of <= EXCLUDED.as_of
+        `);
+        return true;
+      }),
   });
 
   const tenants = tenantRoutes({
@@ -1136,6 +1161,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     administrator: { entitlement: string; accountId: string },
     namedBy: string | null,
     process: string,
+    announce = true,
   ): Promise<void> => {
     await tx.execute(sql`
       INSERT INTO platform.tenant_administrator (tenant_id, entitlement, account_id, named_by)
@@ -1143,6 +1169,15 @@ export async function compose(config: Config): Promise<RequestHandler> {
               ${namedBy}::uuid)
       ON CONFLICT DO NOTHING
     `);
+    if (!announce) {
+      // "Add to list": the row, with its operator and time, is the record;
+      // the module is not told, so it grants nothing.
+      logger.info(
+        { tenantId, ...administrator, namedBy },
+        'administrator added to the list without a grant',
+      );
+      return;
+    }
     await tenantEvent(tx, tenantId, 'identity.tenant.administrator_named', process, {
       entitlement: administrator.entitlement,
       accountId: administrator.accountId,
@@ -1193,9 +1228,16 @@ export async function compose(config: Config): Promise<RequestHandler> {
             );
           },
           administrators: () => namedAdministrators(tx, tenantId),
-          name: (administrator, namedBy) =>
-            nameAdministratorIn(tx, tenantId, administrator, namedBy, 'name-administrator'),
-          remove: async (administrator, removedBy) => {
+          name: (administrator, namedBy, announce) =>
+            nameAdministratorIn(
+              tx,
+              tenantId,
+              administrator,
+              namedBy,
+              'name-administrator',
+              announce,
+            ),
+          remove: async (administrator, removedBy, confirmedLast) => {
             await tx.execute(sql`
               DELETE FROM platform.tenant_administrator
                WHERE tenant_id = ${tenantId}::uuid
@@ -1207,7 +1249,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
               tenantId,
               'identity.tenant.administrator_removed',
               'name-administrator',
-              { ...administrator, removedBy },
+              { ...administrator, removedBy, confirmedLast },
             );
           },
         });
@@ -1306,7 +1348,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
       // connection this returns zero rows for every company — not an error, an
       // empty list, which renders as "nobody can sign in" on a company that has
       // three administrators.
-      const [people, administrators] = await inTenantTransaction(
+      const [people, administrators, reports] = await inTenantTransaction(
         id,
         async (tx) =>
           [
@@ -1317,6 +1359,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
                ORDER BY created_at
             `),
             await namedAdministrators(tx, id),
+            await tx.execute(sql`
+              SELECT entitlement, administrator_roles, holders,
+                     to_char(as_of AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS as_of
+                FROM platform.module_role_report
+               WHERE tenant_id = ${id}::uuid
+            `),
           ] as const,
       );
 
@@ -1349,6 +1397,18 @@ export async function compose(config: Config): Promise<RequestHandler> {
           config.defaultEntitlements ?? [],
         ),
         administrators,
+        moduleRoles: Object.fromEntries(
+          [...reports].map((report) => [
+            text(report['entitlement']),
+            {
+              asOf: text(report['as_of']),
+              administratorRoles: Array.isArray(report['administrator_roles'])
+                ? report['administrator_roles'].map(text)
+                : [],
+              holders: ModuleRoleReport.shape.holders.catch([]).parse(report['holders']),
+            },
+          ]),
+        ),
         people: [...people].map((person) => ({
           id: String(person['id']),
           email: String(person['work_email']),
@@ -1444,8 +1504,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
       // `platform.tenant` is not.
       write: (tenantId, change) =>
         db.transaction(async (tx) => {
-        await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
-        const rows = await tx.execute(sql`
+          await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+          const rows = await tx.execute(sql`
           UPDATE platform.tenant
              SET display_name = ${change.displayName},
                  theme_id = ${change.themeId},
@@ -1462,13 +1522,13 @@ export async function compose(config: Config): Promise<RequestHandler> {
            WHERE id = ${tenantId}::uuid
     RETURNING id, slug
         `);
-        const row = [...rows][0];
-        if (!row) return false;
-        await tenantEvent(tx, tenantId, 'identity.tenant.amended', 'amend-tenant', {
-          slug: text(row['slug']),
-          displayName: change.displayName,
-        });
-        return true;
+          const row = [...rows][0];
+          if (!row) return false;
+          await tenantEvent(tx, tenantId, 'identity.tenant.amended', 'amend-tenant', {
+            slug: text(row['slug']),
+            displayName: change.displayName,
+          });
+          return true;
         }),
     }),
     /*
@@ -1587,5 +1647,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await operator(request, response)) ||
     (await admin(request, response)) ||
     (await directory(request, response)) ||
+    (await moduleRoles(request, response)) ||
     (await tenants(request, response));
 }

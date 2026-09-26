@@ -141,7 +141,15 @@ export function EditCompanyForm({
    * them. Running it in the setter would compare against the previous frame
    * and report the change one keystroke late.
    */
-  useEffect(recheck, [recheck, themeId, logoUrl, coverImageUrl, brandingPublic, country, subdivision]);
+  useEffect(recheck, [
+    recheck,
+    themeId,
+    logoUrl,
+    coverImageUrl,
+    brandingPublic,
+    country,
+    subdivision,
+  ]);
 
   const rules = countryRules(country);
   // The field a failure names, so the message lands under the input that caused
@@ -172,9 +180,10 @@ export function EditCompanyForm({
     'address.subdivision',
     'address.postcode',
   ]);
-  const shownInline = result && !result.ok && result.path?.[0] !== undefined
-    ? INLINE_FIELDS.has(result.path[0])
-    : false;
+  const shownInline =
+    result && !result.ok && result.path?.[0] !== undefined
+      ? INLINE_FIELDS.has(result.path[0])
+      : false;
 
   return (
     // `onInput` covers the text inputs, which are uncontrolled; the effect
@@ -197,12 +206,7 @@ export function EditCompanyForm({
 
         <Field invalid={failed('displayName') !== undefined}>
           <FieldLabel htmlFor="displayName">Company name</FieldLabel>
-          <Input
-            id="displayName"
-            name="displayName"
-            defaultValue={company.displayName}
-            required
-          />
+          <Input id="displayName" name="displayName" defaultValue={company.displayName} required />
           <FieldDescription>
             Shown on their sign-in page and in this list. The hostname they sign in on does not
             change — that is baked into links already sent.
@@ -247,9 +251,9 @@ export function EditCompanyForm({
               Show their name and images on the sign-in page
             </FieldLabel>
             <FieldDescription>
-              Turn this off for a company that does not want to be named on a page nobody has
-              signed in to — mid-acquisition, or in a regulated matter. Their accent colour still
-              applies, because it identifies nobody.
+              Turn this off for a company that does not want to be named on a page nobody has signed
+              in to — mid-acquisition, or in a regulated matter. Their accent colour still applies,
+              because it identifies nobody.
             </FieldDescription>
           </div>
         </Field>
@@ -283,12 +287,7 @@ export function EditCompanyForm({
 
         <Field invalid={failed('address.line1') !== undefined}>
           <FieldLabel htmlFor="line1">Street address</FieldLabel>
-          <Input
-            id="line1"
-            name="line1"
-            defaultValue={stored.line1}
-            required
-          />
+          <Input id="line1" name="line1" defaultValue={stored.line1} required />
           <FieldError>{failed('address.line1')}</FieldError>
         </Field>
 
@@ -301,12 +300,7 @@ export function EditCompanyForm({
         <div className="grid gap-5 sm:grid-cols-2">
           <Field invalid={failed('address.city') !== undefined}>
             <FieldLabel htmlFor="city">City or town</FieldLabel>
-            <Input
-              id="city"
-              name="city"
-              defaultValue={stored.city}
-              required
-              />
+            <Input id="city" name="city" defaultValue={stored.city} required />
             <FieldError>{failed('address.city')}</FieldError>
           </Field>
 
@@ -335,7 +329,7 @@ export function EditCompanyForm({
               name="postcode"
               defaultValue={stored.postcode ?? ''}
               placeholder={rules.postcodeExample}
-              />
+            />
             <FieldError>{failed('address.postcode')}</FieldError>
           </Field>
         ) : null}

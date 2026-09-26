@@ -16,8 +16,9 @@ import {
 } from '@reach/ui';
 import { useState, useTransition, type JSX } from 'react';
 
-import { MODULE_CHOICES } from '../lib/modules';
+import { MODULE_CHOICES, roleLabel, rolePhrase, type ModuleRoles } from '../lib/modules';
 import { ModulesEditor, type ModulesDraft } from './modules-editor';
+import { ModuleRolesDrift, rolesLeftWithNobody, type GrantAgainResult } from './module-roles-drift';
 
 export type SaveModulesResult = { ok: true } | { ok: false; message: string };
 
@@ -84,18 +85,41 @@ export function CompanyModules({
   recorded,
   effective,
   administrators,
+  moduleRoles = {},
   accounts,
   save,
+  name,
+  companyName = 'The company',
 }: {
   readonly recorded: readonly string[] | null;
   readonly effective: readonly string[];
   /** Module → the accounts named to administer it. */
   readonly administrators: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Module → who holds its administrator roles, as the module last reported
+   * it. Shown beside `administrators`, never synced with it; a module missing
+   * has not reported.
+   */
+  readonly moduleRoles?: Readonly<Record<string, ModuleRoles>>;
   readonly accounts: readonly NameableAccount[];
+  /** `confirmLast` only when the operator confirmed leaving a module with nobody in a role. */
   readonly save: (
     entitlements: string[],
     administrators: Record<string, string[]>,
+    options?: { confirmLast: true },
   ) => Promise<SaveModulesResult>;
+  /**
+   * Add somebody to a module's list. `grant`: also tell the module, so it
+   * grants what naming gives. Grant again does; Add to list never does,
+   * because the person already holds the roles there.
+   */
+  readonly name?: (
+    entitlement: string,
+    accountId: string,
+    grant: boolean,
+  ) => Promise<GrantAgainResult>;
+  /** What the operator knows the company by, for the warning before a last removal. */
+  readonly companyName?: string;
 }): JSX.Element {
   const [saved, setSaved] = useState<ModulesDraft>({ on: effective, administrators });
   const [draft, setDraft] = useState<ModulesDraft>(saved);
@@ -103,7 +127,9 @@ export function CompanyModules({
   // Bumped to start the editor afresh from `saved` when a draft is discarded.
   const [edition, setEdition] = useState(0);
   const [outcome, setOutcome] = useState<SaveModulesResult | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState<'last' | 'off' | null>(null);
+  // Carried from the first confirmation to the second, when both are asked.
+  const [confirmedLast, setConfirmedLast] = useState(false);
   const [pending, start] = useTransition();
 
   const emails = new Map(accounts.map((a) => [a.id, a.email]));
@@ -128,8 +154,45 @@ export function CompanyModules({
   }
   const blocked = Object.keys(problems).length > 0;
 
-  function apply(): void {
-    setConfirming(false);
+  /*
+   * Removing an administrator takes every role naming gave in the module. When
+   * that leaves nobody there holding one — People with no HR — the operator is
+   * told, per the module's own report, and the save goes ahead only on their
+   * say; the module is told they confirmed.
+   */
+  const leftWithNobody = MODULE_CHOICES.flatMap((choice) => {
+    const report = moduleRoles[choice.key];
+    if (!report || !choice.administered || !draft.on.includes(choice.key)) return [];
+    const kept = draft.administrators[choice.key] ?? [];
+    const removed = (saved.administrators[choice.key] ?? []).filter((id) => !kept.includes(id));
+    const roles = rolesLeftWithNobody(report, removed);
+    return roles.length === 0
+      ? []
+      : [
+          {
+            label: choice.label,
+            roles,
+            removed: removed.filter((id) => report.holders.some((h) => h.accountId === id)),
+          },
+        ];
+  });
+
+  const leavesNoAdministrator = leftWithNobody.some((m) => m.roles.includes('people_admin'));
+
+  function proceed(from: 'save' | 'last'): void {
+    if (from === 'save' && leftWithNobody.length > 0) {
+      setConfirming('last');
+    } else if (switchedOff.length > 0) {
+      setConfirmedLast(from === 'last');
+      setConfirming('off');
+    } else {
+      apply(from === 'last');
+    }
+  }
+
+  function apply(confirmLast: boolean): void {
+    setConfirming(null);
+    setConfirmedLast(false);
     setOutcome(null);
     // Each administered module switched on, with its whole list: the ones
     // left out keep what they have.
@@ -137,13 +200,19 @@ export function CompanyModules({
     for (const choice of MODULE_CHOICES) {
       const list = draft.administrators[choice.key] ?? [];
       const had = saved.administrators[choice.key] ?? [];
-      if (choice.administered && draft.on.includes(choice.key) && (list.length > 0 || had.length > 0)) {
+      if (
+        choice.administered &&
+        draft.on.includes(choice.key) &&
+        (list.length > 0 || had.length > 0)
+      ) {
         lists[choice.key] = [...list];
       }
     }
     const next = draft;
     start(async () => {
-      const result = await save([...next.on], lists);
+      const result = confirmLast
+        ? await save([...next.on], lists, { confirmLast: true })
+        : await save([...next.on], lists);
       if (result.ok) {
         setSaved(next);
         setOnDefault(false);
@@ -184,6 +253,44 @@ export function CompanyModules({
           emptyMessage="Nobody at the company matches."
         />
 
+        {MODULE_CHOICES.map((choice) => {
+          const report = moduleRoles[choice.key];
+          if (!report || !choice.administered || !saved.on.includes(choice.key)) return null;
+          return (
+            <ModuleRolesDrift
+              key={choice.key}
+              entitlement={choice.key}
+              label={choice.label}
+              set={saved.administrators[choice.key] ?? []}
+              report={report}
+              email={email}
+              name={async (entitlement, accountId, grant) => {
+                if (!name) return { ok: false, message: 'Not available here.' };
+                const result = await name(entitlement, accountId, grant);
+                // On the list now: shown as set here, and kept by the next save.
+                if (result.ok) {
+                  const add = (was: ModulesDraft): ModulesDraft => {
+                    const list = was.administrators[entitlement] ?? [];
+                    return list.includes(accountId)
+                      ? was
+                      : {
+                          ...was,
+                          administrators: {
+                            ...was.administrators,
+                            [entitlement]: [...list, accountId],
+                          },
+                        };
+                  };
+                  setSaved(add);
+                  setDraft(add);
+                  setEdition((n) => n + 1);
+                }
+                return result;
+              }}
+            />
+          );
+        })}
+
         {outcome?.ok === false ? (
           <Alert tone="danger" title="Nothing was changed">
             {outcome.message}
@@ -191,8 +298,8 @@ export function CompanyModules({
         ) : null}
         {outcome?.ok === true && changes.length === 0 ? (
           <Alert tone="success">
-            Saved. The company&apos;s app shows it on the next page load, and each module grants
-            its administrators within a minute.
+            Saved. The company&apos;s app shows it on the next page load, and each module grants its
+            administrators within a minute.
           </Alert>
         ) : null}
 
@@ -203,7 +310,9 @@ export function CompanyModules({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <p className="text-fg text-sm font-medium">
-                  {changes.length === 1 ? 'One unsaved change' : `${String(changes.length)} unsaved changes`}
+                  {changes.length === 1
+                    ? 'One unsaved change'
+                    : `${String(changes.length)} unsaved changes`}
                 </p>
                 <ul className="text-fg-muted mt-1 flex flex-col gap-0.5 text-sm">
                   {changes.map((change) => (
@@ -229,8 +338,7 @@ export function CompanyModules({
                   variant="primary"
                   disabled={pending || blocked}
                   onClick={() => {
-                    if (switchedOff.length > 0) setConfirming(true);
-                    else apply();
+                    proceed('save');
                   }}
                 >
                   {pending ? 'Saving…' : 'Save changes'}
@@ -241,12 +349,74 @@ export function CompanyModules({
         ) : null}
       </Stack>
 
-      <Dialog open={confirming} onOpenChange={setConfirming}>
+      <Dialog
+        open={confirming === 'last'}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Switch off {switchedOff.map((c) => c.label).join(' and ')}
+              {companyName} will be left without{' '}
+              {[...new Set(leftWithNobody.flatMap((m) => m.roles))].map(rolePhrase).join(' or ')}
             </DialogTitle>
+            <DialogDescription>
+              {leavesNoAdministrator
+                ? `Nobody at ${companyName} will then be able to manage ${leftWithNobody
+                    .map((m) => m.label)
+                    .join(
+                      ' or ',
+                    )} or name a new administrator themselves. The back office has to be contacted to set one up again.`
+                : `Nobody at ${companyName} will hold ${leftWithNobody
+                    .flatMap((m) => m.roles)
+                    .map(roleLabel)
+                    .join(
+                      ' or ',
+                    )} until an administrator grants it again or the back office names somebody.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <ul className="text-fg-muted flex flex-col gap-1 text-sm">
+              {leftWithNobody.map((m) => (
+                <li key={m.label}>
+                  {m.label}: {m.removed.map(email).join(', ')}{' '}
+                  {m.removed.length === 1 ? 'is' : 'are'} the only{' '}
+                  {m.roles.map(roleLabel).join(' and ')}.
+                </li>
+              ))}
+            </ul>
+            <p className="text-fg mt-3 text-sm font-medium">Do you want to confirm?</p>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setConfirming(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                proceed('last');
+              }}
+            >
+              Remove anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirming === 'off'}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Switch off {switchedOff.map((c) => c.label).join(' and ')}</DialogTitle>
             <DialogDescription>
               {switchedOff.length === 1 ? 'It disappears' : 'They disappear'} from the
               company&apos;s app for everyone at once. Its data is kept, and switching it back on
@@ -263,12 +433,17 @@ export function CompanyModules({
           <DialogFooter>
             <Button
               onClick={() => {
-                setConfirming(false);
+                setConfirming(null);
               }}
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={apply}>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                apply(confirmedLast);
+              }}
+            >
               Switch off and save
             </Button>
           </DialogFooter>

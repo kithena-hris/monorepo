@@ -38,7 +38,11 @@ export function CompanySummaryTile({
       className="border-border bg-surface rounded-xl border p-5 sm:p-6"
     >
       <dl className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
-        <Figure icon={<PeopleIcon aria-hidden className="size-4" />} label="Can sign in" value={counts.active} />
+        <Figure
+          icon={<PeopleIcon aria-hidden className="size-4" />}
+          label="Can sign in"
+          value={counts.active}
+        />
         <Figure
           icon={<PendingIcon aria-hidden className="size-4" />}
           label="Awaiting enrolment"
@@ -47,7 +51,11 @@ export function CompanySummaryTile({
              gets a colour. Everything highlighted is nothing highlighted. */
           alarm={counts.invited > 0}
         />
-        <Figure icon={<PersonIcon aria-hidden className="size-4" />} label="Other accounts" value={counts.other} />
+        <Figure
+          icon={<PersonIcon aria-hidden className="size-4" />}
+          label="Other accounts"
+          value={counts.other}
+        />
         <Figure
           icon={<CalendarIcon aria-hidden className="size-4" />}
           label="Customer since"
@@ -78,7 +86,9 @@ function Figure({
         {icon}
         {label}
       </dt>
-      <dd className={`mt-1 text-2xl font-semibold tabular-nums ${alarm ? 'text-warning-fg' : 'text-fg'}`}>
+      <dd
+        className={`mt-1 text-2xl font-semibold tabular-nums ${alarm ? 'text-warning-fg' : 'text-fg'}`}
+      >
         {value}
       </dd>
     </div>

@@ -32,6 +32,7 @@ function store(
       );
       return Promise.resolve();
     },
+    releaseLastAdministrator: () => Promise.resolve(),
     candidates: () => Promise.resolve([]),
     publish: (_tx, published) => {
       events.push(...published);

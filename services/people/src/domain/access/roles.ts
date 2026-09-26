@@ -81,3 +81,28 @@ export function decideRevoke(held: Holdings, change: RoleChange): Result<'revoke
   }
   return ok('revoke');
 }
+
+/** What the back office naming somebody grants, and removing them takes back. */
+export const ADMINISTRATOR_ROLES = ['people_admin', 'hr'] as const satisfies readonly TenantRole[];
+
+/**
+ * The back office removing an administrator it named: which of
+ * `ADMINISTRATOR_ROLES` to take back, and which of those nobody else holds.
+ *
+ * Leaving the company with no People administrator or no HR is something an
+ * operator is warned about and has to confirm. Confirmed, everything naming
+ * gave goes; not confirmed — an older back office, a caller that skipped the
+ * warning — nothing does, so an unconfirmed removal can never strand a
+ * company. `last` says why, for the log.
+ */
+export function backOfficeRemoval(
+  held: Holdings,
+  accountId: string,
+  confirmedLast: boolean,
+): { readonly revoke: readonly TenantRole[]; readonly last: readonly TenantRole[] } {
+  const revoke = ADMINISTRATOR_ROLES.filter((role) => holds(held, accountId, role));
+  const last = revoke.filter(
+    (role) => ![...held].some(([account, roles]) => account !== accountId && roles.has(role)),
+  );
+  return { revoke: last.length > 0 && !confirmedLast ? [] : revoke, last };
+}

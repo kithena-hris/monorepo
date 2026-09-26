@@ -34,8 +34,22 @@ export interface ModulesScope {
   /** Module → who the back office has named and can still sign in. */
   administrators(): Promise<Readonly<Record<string, readonly string[]>>>;
   save(entitlements: readonly ModuleEntitlement[]): Promise<void>;
-  name(administrator: NamedAdministrator, namedBy: string | null): Promise<void>;
-  remove(administrator: NamedAdministrator, removedBy: string | null): Promise<void>;
+  /**
+   * Remember the naming and, when `announce` (the default), raise
+   * `administrator_named` so the module grants. Not announced, the list
+   * records somebody the module already has, and the module hears nothing.
+   */
+  name(
+    administrator: NamedAdministrator,
+    namedBy: string | null,
+    announce?: boolean,
+  ): Promise<void>;
+  /** `confirmedLast`: the operator was warned it leaves the module without a role holder. */
+  remove(
+    administrator: NamedAdministrator,
+    removedBy: string | null,
+    confirmedLast: boolean,
+  ): Promise<void>;
 }
 
 export interface ModulesDeps {
@@ -54,6 +68,12 @@ export type SetEntitlements = (
     readonly administrators?: Readonly<Record<string, AskedAdministrators>>;
     /** The back-office operator making the change. */
     readonly namedBy?: string | null;
+    /**
+     * The operator was warned that a removal leaves a module with nobody
+     * holding one of its administrator roles, and went ahead. Carried on each
+     * `administrator_removed`; the module decides what it means.
+     */
+    readonly confirmLast?: boolean;
   },
 ) => Promise<
   Result<{
@@ -70,6 +90,12 @@ export type NameAdministrator = (
     readonly entitlement: string;
     readonly accountId: string;
     readonly namedBy?: string | null;
+    /**
+     * False: only add them to the back office's list — "Add to list" for
+     * somebody who already administers the module there — without telling the
+     * module, so nothing is granted. Default true.
+     */
+    readonly grant?: boolean;
   },
 ) => Promise<Result<NamedAdministrator>>;
 
@@ -115,7 +141,7 @@ export function setEntitlements({ inTenant }: ModulesDeps): SetEntitlements {
       if (changed) await scope.save(checked.value);
       for (const administrator of named) await scope.name(administrator, asked.namedBy ?? null);
       for (const administrator of removed) {
-        await scope.remove(administrator, asked.namedBy ?? null);
+        await scope.remove(administrator, asked.namedBy ?? null, asked.confirmLast === true);
       }
       return ok({ entitlements: checked.value, changed, named, removed });
     });
@@ -138,7 +164,7 @@ export function nameAdministrator({ inTenant }: ModulesDeps): NameAdministrator 
       const administrator = { entitlement, accountId: asked.accountId };
       const accounts = await usable(scope, [administrator]);
       if (!accounts.ok) return accounts;
-      await scope.name(administrator, asked.namedBy ?? null);
+      await scope.name(administrator, asked.namedBy ?? null, asked.grant !== false);
       return ok(administrator);
     });
 }
