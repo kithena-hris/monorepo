@@ -839,6 +839,25 @@ describe('searching the directory (PEO-117)', () => {
     );
   });
 
+  it('counts nobody’s status for a viewer who may not read it', async () => {
+    // A search that finds one person and answers "0 active" says they are on
+    // leave. Outside HR the count is who is listed, and a leaver is not (§6.3).
+    const store = inMemoryPeople([versionOf(4, [given, family, email])]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT, fields: { givenName: 'Marco' } });
+    store.seed(ADA, { account: ADA_ACCOUNT, fields: { givenName: 'Ada' }, status: 'on_leave' });
+    store.seed('00000000-0000-4000-8000-0000000000a9', {
+      fields: { givenName: 'Adam' },
+      status: 'terminated',
+    });
+    const people = personAccess(store.deps);
+    expect(await people.count(tx, { ...asking(marco), search: 'Ada' })).toEqual(
+      ok({ all: 1, active: 1 }),
+    );
+    expect(await people.count(tx, { ...asking(hr), search: 'Ada' })).toEqual(
+      ok({ all: 2, active: 0 }),
+    );
+  });
+
   it('matches an email only for a viewer who reads everybody’s', async () => {
     const people = directory();
     // HR reads every work email; Ada reads only her own, so for her an email

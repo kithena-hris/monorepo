@@ -88,6 +88,19 @@ export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelatio
 }
 
 /**
+ * Whether this viewer may read a person's employment status (§6.3).
+ *
+ * Status is a lifecycle state, not an attribute, so no visibility setting or
+ * rule reaches it. HR reads it, and the person reads their own; nobody else
+ * does. "On leave" or "on notice" shown to a manager or a peer is the
+ * disclosure §7 refuses a visibility rule for, and finance and `people_admin`
+ * need it for nothing they do. A withheld status is absent, like a field.
+ */
+export function statusVisibleTo(viewer: ViewerRelations): boolean {
+  return viewer.isHr || viewer.isSelf;
+}
+
+/**
  * The values this viewer may see, with the rest absent.
  *
  * Driven by the definitions rather than by the values, which is what makes the

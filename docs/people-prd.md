@@ -379,7 +379,7 @@ setting twenty rules by hand and how Marco avoids seeing a salary by accident.
 | Personal information           | self, hr           | employee, hr          | Name, preferred name, pronouns, date of birth, nationality, personal contact, home address, photo                                         |
 | Identification & right to work | hr                 | hr, employee          | National identifiers, passport, visa, permit expiry, right-to-work check. Heavily country-dependent                                       |
 | Emergency contacts             | self, hr           | employee              | Repeating. Nobody else needs these, including the manager                                                                                 |
-| HR information                 | self, manager, hr  | hr                    | Employee number, status, hire date, legal entity, department, location, manager, job title, level                                         |
+| HR information                 | self, manager, hr  | hr                    | Employee number, hire date, legal entity, department, location, manager, job title, level. Not status (below)                             |
 | Employment terms               | self, hr           | hr                    | Contract type and dates, working pattern, FTE, probation, notice, collective agreement, work model                                        |
 | Compensation & finance         | self, finance, hr  | finance, hr, employee | Salary, pay frequency, variable pay, bank account, tax and social security, pension. Bank details are employee-owned and finance-readable |
 | Public profile                 | directory          | employee              | Display name, photo, title, department, work contact, time zone, bio, skills, languages                                                   |
@@ -389,6 +389,33 @@ setting twenty rules by hand and how Marco avoids seeing a salary by accident.
 | Health & safety                | hr                 | hr, employee          | Occupational health, accommodations, dietary requirements. Article 9 throughout                                                           |
 | Diversity & voluntary self-ID  | **nobody**         | employee              | Special category, voluntary, answerable only in aggregate. See §6.7                                                                       |
 | _(tenant-defined)_             | tenant's choice    | tenant's choice       |                                                                                                                                           |
+
+**Employment status is HR's, and the person's own — nobody else's.** Status
+(§8.1) is a lifecycle state on the record, not an attribute, so no section,
+visibility setting or rule reaches it; `statusVisibleTo` decides it once, in
+the domain, and every read follows. HR reads every status, and a person reads
+their own. A manager, the chain above, finance, `people_admin` and a peer do
+not: "on leave" or "on notice" told to a manager is the disclosure §7 refuses
+a rule for, and a leave is often the first sign of a health or family matter.
+Withheld means absent over REST (`status` is left out of the person) and null
+over GraphQL (`Person.status`), on a record and on every row of a list. The
+rest follows from it:
+
+- **A leaver is listed to HR alone.** `GET /v1/people`, `people`, the
+  directory, its search and its count leave out `terminated`, `discarded` and
+  `merged` records for anybody who is not HR — existence, not status, and the
+  coarsest fact a list can hold. A record read by its id is still answered,
+  with its status withheld.
+- **"Active" outside HR is everybody listed.** A search that finds one person
+  and counts "0 active" would name them as away, so the directory's `active`
+  is a status count for HR and the listed count for anybody else.
+- **A chart by status is HR's.** A manager's charts count their own chain,
+  and a team of three with one `on_leave` names who it is; `status` is refused
+  as a dimension or filter for a manager whatever a tenant field of that name
+  says, and served to HR without one.
+- Not status, and decided by their own sections: `hire_date`, and
+  `last_working_day` among the termination fields (Onboarding & offboarding:
+  HR and manager), which a manager reads because offboarding is partly theirs.
 
 A full inventory of the attributes each section ships with is in
 [Appendix A](#appendix-a-default-attribute-inventory).
@@ -643,9 +670,9 @@ and never reaches past one. The rules that keep it that way:
   `legal_entity_id`, country through `home_address` and `country`, employment
   type and work model through `employment_type` and `work_model`. A fact with
   no such field in the schema is refused too. Status has no field and is HR's
-  alone (the profile's employment panel, §8.1), so "managers see this for
-  people on leave" — which would tell every manager who is on leave — is
-  refused, and a status rule may grant `hr` only.
+  (and the person's own; §6.3, the profile's employment panel, §8.1), so
+  "managers see this for people on leave" — which would tell every manager
+  who is on leave — is refused, and a status rule may grant `hr` only.
 - **No subject, no rule.** A rule is decided per record, in `visibleTo`, with
   the person's facts carried on the viewer's relations to them. Wherever the
   question is about everybody — a directory filter, a search, a list's
@@ -2335,7 +2362,7 @@ POST   /v1/imports                     commit
 `GET /v1/views/directory?search=&filter=key:value,…&after=<person id>` answers
 one keyset page of 50 in id order, the cursor for the next (`next`, null on
 the last), and `active`, counted over everybody the search and filters match
-rather than over the page. Before this the view read the first 200 people and
+rather than over the page (for anybody but HR, everybody listed: §6.3). Before this the view read the first 200 people and
 searched those in memory, so nobody past the 200th could be found. `GET
 /v1/people` takes the same `search`. Both authorize it as a filter is
 authorized, in `PersonAccess.list` and so for every transport: a filter key
@@ -3645,7 +3672,8 @@ makes an unreviewed rule safe to ship.
 ### HR information
 
 `employee_number`**core** (numbered per legal entity, unique in the tenant;
-§9.4), `status`**core**,
+§9.4), `status`**core** (a lifecycle state, not an attribute: HR's and the
+person's own, §6.3),
 `hire_date`**core**, `seniority_date`, `legal_entity`**core**, `org_unit`,
 `cost_centre`, `work_location`, `manager`**core**, `dotted_line_manager`,
 `work_email`**core**, `work_phone`, `job_title`**core**, `job_family`,

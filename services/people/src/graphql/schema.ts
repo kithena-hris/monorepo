@@ -317,7 +317,11 @@ interface PersonShape {
 const Person = builder.objectRef<PersonShape>('Person').implement({
   fields: (t) => ({
     id: t.id({ resolve: (p) => p.view.id }),
-    status: t.string({ resolve: (p) => p.view.status }),
+    status: t.string({
+      nullable: true,
+      description: 'Employment status: HR’s, and the person’s own. Null for anybody else (§6.3).',
+      resolve: (p) => p.view.status ?? null,
+    }),
     schemaVersion: t.int({ nullable: true, resolve: (p) => p.view.schemaVersion }),
     attributes: t.field({ type: [AnyAttribute], resolve: (p) => attributesOf(p.view, p.version) }),
   }),
