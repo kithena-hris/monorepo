@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
-import type { Result } from '@kithena/domain-kit';
+import { ok, type Result } from '@kithena/domain-kit';
 
 import { LEAVING_REASONS } from '../domain/person/person.js';
 import type { Asking, PersonAccess, PersonView } from '../application/person/person-access.js';
@@ -61,7 +61,9 @@ export const HireBody = z.strictObject({
   legalEntityId: z
     .uuid()
     .optional()
-    .describe('Where they are employed, for somebody placed nowhere yet.'),
+    .describe(
+      'Where they are employed, from the start date, for somebody placed nowhere that day; somebody placed keeps their placement.',
+    ),
   locationId: z.uuid().optional().describe('Their work location; it names its legal entity.'),
 });
 
@@ -195,13 +197,15 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
     summary:
       'Hire a provisional person from a start date: active once it has begun on their calendar, pre-hire until then; HR only',
     body: HireBody,
-    run: (access, tx, on, input) =>
-      access.hireExisting(tx, {
+    run: async (access, tx, on, input) => {
+      const hired = await access.hireExisting(tx, {
         ...on,
         hireDate: input.hireDate,
         ...(input.legalEntityId === undefined ? {} : { legalEntityId: input.legalEntityId }),
         ...(input.locationId === undefined ? {} : { locationId: input.locationId }),
-      }),
+      });
+      return hired.ok ? ok(hired.value.view) : hired;
+    },
   }),
   action({
     path: 'rehire',

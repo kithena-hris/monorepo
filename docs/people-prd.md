@@ -932,9 +932,13 @@ answered with the record and raises nothing.
   or provisioned from an account — from their profile or a page at a time
   from bulk edit. The last is refused, in words HR can act on, for somebody
   already employed, a leaver (rehire them instead), a discarded or merged
-  record, and a record placed nowhere while the tenant has a legal entity to
-  place them in; the profile's Hire asks for the entity and location then,
-  and places them from the start date when it has passed, today otherwise.
+  record, and a record placed nowhere on their start date while the tenant
+  has a legal entity to place them in. The profile's Hire asks for the
+  entity and location then, and bulk hire takes one for everybody placed
+  nowhere, changeable per person; either places them from the start date,
+  past or ahead, recorded now, and somebody placed keeps their placement.
+  The hire reads where they sit as of the start date, so a placement
+  scheduled for that day is the one it is hired into.
 - **Leave** — `active → on_leave → active`, effective from today. Bringing back
   somebody who was never away is refused, not answered.
 - **Notice** — from `active`, and from `on_leave` (somebody resigns during
@@ -2469,7 +2473,7 @@ POST   /v1/people/{id}/notice          HR: on notice until a last working day (�
 POST   /v1/people/{id}/notice/withdraw HR: notice withdrawn before the last day ends
 POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
 POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
-POST   /v1/people/{id}/hire            HR: a provisional person hired from a start date, placed first if given (§8.1)
+POST   /v1/people/{id}/hire            HR: a provisional person hired from a start date, placed from it if placed nowhere (§8.1)
 POST   /v1/people/{id}/rehire          HR: a new employment period on the same record (§8.1)
 GET    /v1/people/{id}/employment-periods   HR: every employment, first first
 POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
@@ -38,7 +39,15 @@ import {
   saveGrid,
   saveSection,
 } from '../application/screens/people.js';
-import { BULK_PAGE, bulkEdit, bulkEditView, bulkHire } from '../application/screens/bulk-edit.js';
+import {
+  BULK_PAGE,
+  bulkEdit,
+  bulkEditView,
+  bulkHire,
+  keptRows,
+  replayed,
+  type KeptRow,
+} from '../application/screens/bulk-edit.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
@@ -164,7 +173,15 @@ export const BulkEditBody = z.strictObject({
 /** A page of a bulk hire: provisional people, each from a start date on their own calendar. */
 export const BulkHireBody = z.strictObject({
   hires: z
-    .array(z.strictObject({ personId: z.uuid(), hireDate: z.iso.date() }))
+    .array(
+      z.strictObject({
+        personId: z.uuid(),
+        hireDate: z.iso.date(),
+        /** For somebody placed nowhere on their start date; somebody placed keeps theirs. */
+        legalEntityId: z.uuid().optional(),
+        locationId: z.uuid().optional(),
+      }),
+    )
     .min(1)
     .max(BULK_PAGE),
 });
@@ -589,13 +606,40 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/views\/bulk-hire$/,
-      handle: write(BulkHireBody, (asking, input) => bulkHire(deps, asking, input, 'commit'), {
-        // ponytail: a retry is answered from what stands now, so those the
-        // first request hired read as already employed; store the first
-        // answer if a lost response ever confuses anybody.
-        again: async (asking, _resource, input) =>
-          answer(await bulkHire(deps, asking, input, 'preview')),
-      }),
+      // A retry is answered with the first request's answer, kept with the
+      // key: recomputed, those it hired would read as already employed.
+      handle: async (asking, request) => {
+        const input = body(BulkHireBody, request.body);
+        if (!input.ok) return refused(input.error);
+        let first: RestResponse | undefined;
+        return idempotent(
+          keys,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const done = await sharing({ tx, tenantId: asking.tenantId }, () =>
+              bulkHire(deps, asking, input.value, 'commit'),
+            );
+            if (!done.ok) return done;
+            first = answer(done);
+            const id = randomUUID();
+            await idempotency.keep(tx, asking.tenantId, id, keptRows(done.value));
+            return ok(id);
+          },
+          async (id, again) => {
+            if (!again && first !== undefined) return first;
+            const kept = await run(deps.service, asking.tenantId, async (tx) =>
+              ok(await idempotency.kept(tx, asking.tenantId, id)),
+            );
+            if (!kept.ok) return refused(kept.error);
+            if (!Array.isArray(kept.value)) {
+              return refused(failure('NOT_FOUND', 'The first answer to this key is gone'));
+            }
+            return answer(await replayed(deps, asking, kept.value as KeptRow[]));
+          },
+        );
+      },
     },
 
     /* roles (PEO-112): the view here, the writes at /v1/roles/* */

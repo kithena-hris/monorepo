@@ -1052,14 +1052,22 @@ Ordered, but none of it blocks Phase 1 shipping.
       layout's cards; a person field's before/after shows the id, not the
       name._
       _Added later: **bulk hire**, a Hire tab beside Set values. One start
-      date for all, or one each; the preview is `hireExisting` per person in
-      a savepoint, rolled back, so who is skipped and why (already employed,
-      no placement, no work email) is the commit's answer, and the commit
+      date for all, changed per person in the preview's rows; one legal
+      entity and work location for everybody placed nowhere on their start
+      date, changed per person the same way, and placed from the start date
+      in the hire's own savepoint (somebody placed keeps theirs). The
+      preview is `hireExisting` per person in a savepoint, rolled back, so
+      who is skipped and why (already employed, placed nowhere with nowhere
+      chosen, no work email) is the commit's answer. Once shown it follows
+      every edit, recomputed after a pause with an older answer never drawn
+      over a newer one, and Hire is not offered while it recomputes; the
+      commit sends exactly what the preview on screen was computed from and
       reports partial success. REST `/v1/views/bulk-hire[/preview]`, GraphQL
       `peopleBulkHirePreview`, `bulkHirePeople`, answered in bulk edit's
-      shape. Nobody is placed in bulk: place them on the profile first. A
-      retried commit is answered from what stands now, so those it hired
-      read as already employed._
+      shape; `peopleBulkEdit` carries the placement choices. A retried
+      commit is answered with the first answer, kept without names in
+      `people.bulk_answer` (migration `20260926231500`) and its names read
+      again, not recomputed._
 
 ## Phase 3
 
@@ -1630,13 +1638,17 @@ it is written down here rather than left in a PR description.
       *Added later: **Hire** on a not-started (provisional) person, which
       nothing offered before — somebody added without a start date stayed
       provisional for good. `hireRefusal` (domain) and
-      `PersonAccess.hireExisting` (status first, then an optional placement,
-      then `hire` exactly as the import hires); REST
-      `POST /v1/people/{id}/hire`, GraphQL `hirePerson`, keyed. The dialog
-      asks the start date, and a legal entity and location when they have
-      none. Proven by `http/hire.integration.test.ts` and the acceptance
-      test: HR adds a person with no date, hires them on the profile, and
-      they are active. No migration.*
+      `PersonAccess.hireExisting` (status first, then a placement for
+      somebody placed nowhere on their start date, then `hire` exactly as
+      the import hires); REST `POST /v1/people/{id}/hire`, GraphQL
+      `hirePerson`, keyed. The dialog asks the start date, and a legal
+      entity and location when they have none. Everything is read as of the
+      start date (`valuesOn`): a placement is dated from it, past or ahead,
+      recorded now, and one already scheduled for that day satisfies the
+      hire and names its entity. A tenant with no legal entity hires without
+      one. Proven by `http/hire.integration.test.ts` (a start date ahead
+      placed and hired on it) and the acceptance test: HR adds a person with
+      no date, hires them on the profile, and they are active.*
 - [x] **PEO-121** Finance full values and the webhook delivery log on screen.
       PEO-088's request, decision and one download, and PEO-032/093's
       delivery log with replay, have transports and no screen; neither has a

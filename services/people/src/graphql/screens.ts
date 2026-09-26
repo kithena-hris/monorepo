@@ -1964,6 +1964,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
       today: t.exposeString('today'),
       limit: t.exposeInt('limit', { description: 'People per request.' }),
+      placement: t.field({
+        type: PlacementRef,
+        nullable: true,
+        description:
+          'Where a bulk hire may place somebody placed nowhere: the live entities and locations. Null when there is nowhere to place anybody.',
+        resolve: (v) => v.placement ?? null,
+      }),
     }),
   });
   const BulkChangeRef = builder
@@ -2070,10 +2077,27 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       personId: t.id({ required: true }),
       hireDate: t.string({ required: true, description: 'On the person’s own calendar.' }),
+      legalEntityId: t.id({
+        description:
+          'For somebody placed nowhere on their start date, placed from it; somebody placed keeps theirs.',
+      }),
+      locationId: t.id({ description: 'Their work location; it names its legal entity.' }),
     }),
   });
-  const hireBody = (hires: readonly { personId: string | number; hireDate: string }[]) => ({
-    hires: hires.map((h) => ({ personId: String(h.personId), hireDate: h.hireDate })),
+  const hireBody = (
+    hires: readonly {
+      personId: string | number;
+      hireDate: string;
+      legalEntityId?: string | number | null | undefined;
+      locationId?: string | number | null | undefined;
+    }[],
+  ) => ({
+    hires: hires.map((h) => ({
+      personId: String(h.personId),
+      hireDate: h.hireDate,
+      ...(h.legalEntityId == null ? {} : { legalEntityId: String(h.legalEntityId) }),
+      ...(h.locationId == null ? {} : { locationId: String(h.locationId) }),
+    })),
   });
   builder.queryField('peopleBulkHirePreview', (t) =>
     t.field({

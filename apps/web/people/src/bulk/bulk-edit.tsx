@@ -27,9 +27,10 @@ import {
   useBreakpoint,
   type DataColumn,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded, type IdentifierFinding, type Loadable } from '../load';
+import { PlacementPickers, type PlacementState } from '../profile/employment';
 import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
 import type { AttributeValue, RecordField, RecordSection } from '../record/model';
@@ -43,6 +44,8 @@ export interface BulkEditState {
   readonly today: string;
   /** People per request: a larger selection is sent a page at a time. */
   readonly limit: number;
+  /** Where a bulk hire may place somebody placed nowhere; absent or null, nowhere to choose. */
+  readonly placement?: Pick<PlacementState, 'entities' | 'locations'> | null;
 }
 
 /** A page of a bulk edit: the same values for these people, from one date. */
@@ -77,8 +80,16 @@ export type BulkOutcome =
   | { readonly ok: true; readonly committed: boolean; readonly rows: readonly BulkRow[] }
   | { readonly ok: false; readonly message: string };
 
-/** A page of a bulk hire: each person not started yet, from their start date. */
-export type BulkHirePage = readonly { readonly personId: string; readonly hireDate: string }[];
+/**
+ * A page of a bulk hire: each person not started yet, from their start date,
+ * and where to place them should they be placed nowhere that day.
+ */
+export type BulkHirePage = readonly {
+  readonly personId: string;
+  readonly hireDate: string;
+  readonly legalEntityId?: string;
+  readonly locationId?: string;
+}[];
 
 export interface BulkEditProps {
   readonly load: Loadable<BulkEditState>;
@@ -413,10 +424,18 @@ function Editor({
 
 /**
  * Bulk hire: the people chosen who were added without a start date, hired
- * from one — the same for all, or one each. The preview is People hiring
- * them and throwing it away, so who it skips and why (already employed,
- * nowhere to work, no work email) is the commit's own answer. Each person is
- * hired on their own: one skipped leaves the others hired.
+ * from one — the same for all, changed person by person in the preview. The
+ * preview is People hiring them and throwing it away, so who it skips and
+ * why (already employed, nowhere to work, no work email) is the commit's own
+ * answer. Each person is hired on their own: one skipped leaves the others
+ * hired.
+ *
+ * Somebody placed nowhere on their start date is placed where HR says: one
+ * legal entity and location for all of them, changed per person in the
+ * preview; somebody placed keeps theirs. Once shown, the preview follows
+ * every change — recomputed after a pause, an older answer never drawn over
+ * a newer one — and the hire sends exactly what the preview on screen was
+ * computed from, and is not offered while it is being recomputed.
  */
 function Hire({
   state,
@@ -430,35 +449,109 @@ function Hire({
   readonly onBack?: () => void;
 }): JSX.Element {
   const [day, setDay] = useState(state.today);
-  const [each, setEach] = useState(false);
+  const [place, setPlace] = useState<Placed>(NOWHERE);
   const [dates, setDates] = useState<Readonly<Record<string, string>>>({});
-  const [shown, setShown] = useState<{ committed: boolean; rows: readonly BulkRow[] } | null>(
-    null,
-  );
-  const [busy, setBusy] = useState(false);
+  const [places, setPlaces] = useState<Readonly<Record<string, Placed>>>({});
+  const [shown, setShown] = useState<{
+    committed: boolean;
+    rows: readonly BulkRow[];
+    /** What this answer was computed from: what a hire sends. */
+    sent: BulkHirePage;
+  } | null>(null);
+  const [busy, setBusy] = useState<'preview' | 'commit' | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const reset = (): void => {
-    setShown(null);
-    setProblem(null);
-  };
-  const dateOf = (id: string): string => (each ? (dates[id] ?? day) : day);
+  // Every run is numbered; only the latest one's answer is drawn.
+  const latest = useRef(0);
 
-  const run = async (act: (hires: BulkHirePage) => Promise<BulkOutcome>): Promise<void> => {
-    setBusy(true);
+  const placeOf = (id: string): Placed => places[id] ?? place;
+  const hires: BulkHirePage = state.people.map(({ id }) => {
+    const { entity, location } = placeOf(id);
+    return {
+      personId: id,
+      hireDate: dates[id] ?? day,
+      ...(entity === '' ? {} : { legalEntityId: entity }),
+      ...(location === '' ? {} : { locationId: location }),
+    };
+  });
+  const asked = JSON.stringify(hires);
+
+  const run = async (kind: 'preview' | 'commit', sent: BulkHirePage): Promise<void> => {
+    const act = kind === 'preview' ? onPreview : onCommit;
+    latest.current += 1;
+    const mine = latest.current;
+    setBusy(kind);
     setProblem(null);
+    const byId = new Map(sent.map((h) => [h.personId, h]));
     const done = await pages(
-      state.people.map((p) => p.id),
+      sent.map((h) => h.personId),
       state.limit,
-      (ids) => act(ids.map((personId) => ({ personId, hireDate: dateOf(personId) }))),
+      (ids) => act(ids.flatMap((id) => byId.get(id) ?? [])),
     );
+    if (mine !== latest.current) return;
     setProblem(done.problem);
-    setShown(done.rows.length === 0 ? null : { committed: done.committed, rows: done.rows });
-    setBusy(false);
+    setShown(done.rows.length === 0 ? null : { committed: done.committed, rows: done.rows, sent });
+    setBusy(null);
   };
+
+  // A preview on screen follows every change, after a pause for typing.
+  const previewed = shown !== null && !shown.committed;
+  const stale = previewed && JSON.stringify(shown.sent) !== asked;
+  // Not while hiring: the hire's answer is the one to draw.
+  const waiting = stale && busy !== 'commit';
+  useEffect(() => {
+    if (!waiting) return undefined;
+    // This render's inputs: the effect runs again whenever `asked` changes.
+    const timer = setTimeout(() => {
+      void run('preview', hires);
+    }, RECOMPUTE_AFTER_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [waiting, asked]);
+
   const count = (outcome: BulkRow['outcome']) =>
     shown?.rows.filter((r) => r.outcome === outcome).length ?? 0;
   const hired = count('changed');
   const skipped = count('refused');
+  const recomputing = stale || busy === 'preview';
+
+  const placing = state.placement ?? null;
+  const edit = (r: BulkRow): JSX.Element => {
+    const who = r.name;
+    const needsPlace =
+      placing !== null &&
+      (r.refusal?.code === 'PLACEMENT_REQUIRED' || r.changes.some((c) => c.key === 'legal_entity_id'));
+    const mine = placeOf(r.personId);
+    const setMine = (next: (p: Placed) => Placed): void => {
+      setPlaces((p) => ({ ...p, [r.personId]: next(p[r.personId] ?? place) }));
+    };
+    return (
+      <Stack gap={2}>
+        <DatePicker
+          label={`Start date for ${who}`}
+          size="sm"
+          value={dates[r.personId] ?? day}
+          onChange={(next) => {
+            setDates((d) => ({ ...d, [r.personId]: next ?? day }));
+          }}
+        />
+        {needsPlace ? (
+          <PlacementPickers
+            placement={placing}
+            who={who}
+            entity={mine.entity}
+            location={mine.location}
+            onEntity={(entity) => {
+              setMine((p) => ({ ...p, entity }));
+            }}
+            onLocation={(location) => {
+              setMine((p) => ({ ...p, location }));
+            }}
+          />
+        ) : null}
+      </Stack>
+    );
+  };
 
   return (
     <Stack gap={6}>
@@ -472,41 +565,27 @@ function Hire({
           label="Start date"
           value={day}
           onChange={(next) => {
-            reset();
             setDay(next ?? state.today);
           }}
         />
-        <Field orientation="horizontal" className="justify-start">
-          <FieldControl>
-            <Checkbox
-              checked={each}
-              onCheckedChange={(on) => {
-                reset();
-                setEach(on === true);
-              }}
-            />
-          </FieldControl>
-          <FieldLabel>Set a start date per person</FieldLabel>
-        </Field>
-        {each ? (
-          <ul className="flex flex-col gap-3" aria-label="Start date per person">
-            {state.people.map((p) => (
-              <li key={p.id}>
-                <DatePicker
-                  label={p.name}
-                  value={dateOf(p.id)}
-                  onChange={(next) => {
-                    reset();
-                    setDates((d) => ({ ...d, [p.id]: next ?? day }));
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        ) : null}
         <p className="text-sm text-fg-muted">
-          Each date is a day on the person’s own calendar, past or future.
+          Each date is a day on the person’s own calendar, past or future. Change it for one person
+          in the preview.
         </p>
+        {placing === null ? null : (
+          <PlacementPickers
+            placement={placing}
+            entity={place.entity}
+            location={place.location}
+            onEntity={(entity) => {
+              setPlace((p) => ({ ...p, entity }));
+            }}
+            onLocation={(location) => {
+              setPlace((p) => ({ ...p, location }));
+            }}
+            locationHint="For anybody placed nowhere on their start date, placed from it; change it for one person in the preview. Somebody already placed keeps their placement."
+          />
+        )}
       </Card>
 
       {problem === null ? null : (
@@ -519,10 +598,10 @@ function Hire({
         <div>
           <Button
             variant="primary"
-            loading={busy}
+            loading={busy === 'preview'}
             loadingLabel="Working out who would be hired"
             onClick={() => {
-              void run(onPreview);
+              void run('preview', hires);
             }}
           >
             Preview hire
@@ -547,20 +626,28 @@ function Hire({
             <Stat label={shown.committed ? 'Hired' : 'Will be hired'} value={hired} />
             <Stat label="Skipped" value={skipped} />
           </AutoGrid>
-          <Results rows={shown.rows} byKey={new Map()} words={HIRE_WORD} />
+          <Results
+            rows={shown.rows}
+            byKey={new Map()}
+            words={HIRE_WORD}
+            {...(shown.committed ? {} : { edit, editHeader: 'Start date and placement' })}
+          />
           {shown.committed ? null : (
-            <div>
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 variant="primary"
-                disabled={hired === 0}
-                loading={busy}
+                disabled={hired === 0 || recomputing}
+                loading={busy === 'commit'}
                 loadingLabel="Hiring"
                 onClick={() => {
-                  void run(onCommit);
+                  void run('commit', shown.sent);
                 }}
               >
                 {`Hire ${String(hired)} ${hired === 1 ? 'person' : 'people'}`}
               </Button>
+              <p role="status" className="text-sm text-fg-muted">
+                {recomputing ? 'Updating the preview…' : ''}
+              </p>
             </div>
           )}
         </Stack>
@@ -568,6 +655,16 @@ function Hire({
     </Stack>
   );
 }
+
+/** A legal entity and location, `''` for none chosen. */
+interface Placed {
+  readonly entity: string;
+  readonly location: string;
+}
+const NOWHERE: Placed = { entity: '', location: '' };
+
+/** How long a preview waits after a change before it is recomputed. */
+const RECOMPUTE_AFTER_MS = 400;
 
 const HIRE_WORD: Record<BulkRow['outcome'], string> = {
   changed: 'Hired',
@@ -580,10 +677,15 @@ function Results({
   rows,
   byKey,
   words = WORD,
+  edit,
+  editHeader = '',
 }: {
   readonly rows: readonly BulkRow[];
   readonly byKey: ReadonlyMap<string, RecordField>;
   readonly words?: Readonly<Record<BulkRow['outcome'], string>>;
+  /** What may still be changed for one person, beside what the preview says. */
+  readonly edit?: (row: BulkRow) => JSX.Element;
+  readonly editHeader?: string;
 }): JSX.Element {
   const wide = useBreakpoint('md');
   const what = (r: BulkRow): JSX.Element | null => {
@@ -624,6 +726,7 @@ function Results({
     { id: 'person', header: 'Person', cell: (r) => r.name },
     { id: 'outcome', header: 'Outcome', cell: badge },
     { id: 'what', header: 'What', cell: what },
+    ...(edit === undefined ? [] : [{ id: 'edit', header: editHeader, cell: edit }]),
   ];
   return wide ? (
     <DataTable label="Per person" rows={rows} columns={columns} rowId={(r) => r.personId} />
@@ -637,6 +740,7 @@ function Results({
               {badge(r)}
             </span>
             {what(r)}
+            {edit?.(r)}
           </Card>
         </li>
       ))}
