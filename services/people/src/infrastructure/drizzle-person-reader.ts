@@ -92,10 +92,12 @@ function likePattern(text: string): string {
  *
  * Containment is what `person_custom_idx` (GIN, jsonb_path_ops) answers, one
  * `@>` for every key at once. The search is `ILIKE` over at most four short
- * text columns and the two full names, which one tenant's rows answer inside
- * the 300 ms budget at 50,000 people (PEO-117's test).
- * ponytail: no trigram index; add `pg_trgm` GIN indexes on the name columns
- * when a tenant is large enough that the scan misses the budget.
+ * text columns and the two full names. Under RLS that predicate cannot use an
+ * index, so the trigram index narrows it first, through
+ * `people.person_search_candidates` (20260924370000_people_directory_search.sql
+ * has why that is safe). The candidates only narrow: the predicate below is
+ * still what decides a match. Under three characters there is no trigram to
+ * look up, so a short search is the scan it always was.
  */
 function matching(
   tenantId: string,
@@ -121,6 +123,11 @@ function matching(
       ? undefined
       : sql`${person.custom} @> ${JSON.stringify(where)}::jsonb`,
     text === '' ? undefined : matches.length === 0 ? sql`false` : or(...matches),
+    // A scalar subquery, so it runs once per statement and never at plan time;
+    // the cast keeps `ANY` from reading it as `= ANY (subquery)`.
+    text.length < 3 || matches.length === 0
+      ? undefined
+      : sql`${person.id} = ANY((SELECT people.person_search_candidates(${pattern}))::uuid[])`,
     // The gap row's key is the person's, so this is one index probe per row.
     gaps === undefined
       ? undefined
