@@ -59,6 +59,8 @@ import type {
   Viewer,
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
+import { countryOf, factsOf } from './subject.js';
+import type { PersonFacts } from '../../domain/schema/requiredness.js';
 import {
   checkIdentifier,
   decide as decideIdentifier,
@@ -414,6 +416,12 @@ export async function relationsToMany(
   tenantId: string,
   viewer: Viewer,
   personIds: readonly string[],
+  /**
+   * The facts of records the caller already read, for custom visibility
+   * rules (PEO-066). A person without them gets no rule, which hides what a
+   * rule would have shown and never shows more.
+   */
+  facts?: ReadonlyMap<string, PersonFacts>,
 ): Promise<ReadonlyMap<string, ViewerRelations>> {
   const out = new Map<string, ViewerRelations>();
   if (personIds.length === 0) return out;
@@ -427,11 +435,13 @@ export async function relationsToMany(
       out.set(id, await resolver.relations(tx, tenantId, viewer, id));
       continue;
     }
+    const subject = facts?.get(id);
     out.set(id, {
       ...everyone,
       isSelf: reach.self.has(id),
       isManager: reach.direct.has(id),
       isInManagerChain: reach.chain.has(id) || reach.direct.has(id),
+      ...(subject === undefined ? {} : { subject }),
     });
   }
   return out;
@@ -1442,6 +1452,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.tenantId,
         asking.viewer,
         rows.map((r) => r.snapshot.id),
+        new Map(rows.map((r) => [r.snapshot.id, factsOf(r)])),
       );
       const items: PersonView[] = [];
       for (const row of rows) {
@@ -2232,17 +2243,6 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     },
   };
   return api;
-}
-
-/** The same convention `drizzlePeopleFacts` reads: an address's country, else a plain one. */
-function countryOf(values: Record<string, unknown>): string | null {
-  const address = values['home_address'];
-  if (typeof address === 'object' && address !== null) {
-    const country = (address as { country?: unknown }).country;
-    if (typeof country === 'string') return country;
-  }
-  const direct = values['country'];
-  return typeof direct === 'string' ? direct : null;
 }
 
 /**
