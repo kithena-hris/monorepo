@@ -84,9 +84,19 @@ jobs:
           if any "$shared" || any "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
-  verify:
+  # Three streams at once, each on its own runner: lint (with the module
+  # boundaries and the two drift checks), the TS 6 typecheck, and the unit
+  # tests. Serially they were about six minutes; the build each needs is shared
+  # through turbo's remote cache, so only the first stream to reach a package
+  # builds it.
+  verify-stream:
+    name: verify (${{ matrix.stream }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        stream: [lint, typecheck, unit]
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -100,22 +110,14 @@ jobs:
       - name: install
         run: pnpm install --frozen-lockfile
 
-      # Build first, because `lint` and `boundaries` are the two checks that do
-      # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
-      # and so builds what it needs, but `pnpm lint` is a bare `oxlint && eslint`
-      # and `pnpm boundaries` a bare `depcruise`. `dist/` is not committed and
-      # `@kithena/contracts` resolves through `./dist/index.d.ts`, so on a clean
-      # checkout both see an unbuilt workspace and typescript-eslint reports the
-      # whole codebase as `error typed value`.
+      # `lint` and `boundaries` do not go through turbo, so they need the
+      # workspace built first; the typecheck and unit tests build what they need.
       - name: build
+        if: matrix.stream == 'lint'
         run: pnpm build
 
-      # Cheap rules first, then the type-aware pass. ESLint resolves against
-      # the pinned TypeScript 6 API until 7.1 ships a stable one. The
-      # type-aware pass holds the whole program in memory and outgrew Node's
-      # default heap (about 4 GB) with the People Phase 2/3 code; the runner
-      # has 16 GB.
       - name: lint
+        if: matrix.stream == 'lint'
         env:
           NODE_OPTIONS: --max-old-space-size=8192
         run: pnpm lint
@@ -123,14 +125,17 @@ jobs:
       # Architectural boundaries. A cross-module import fails here, which is
       # the only thing stopping the anti-sticky property from eroding.
       - name: module boundaries
+        if: matrix.stream == 'lint'
         run: pnpm boundaries
 
       # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
       # compilers can still disagree and the authoritative one should decide.
       - name: typecheck on TS 6
+        if: matrix.stream == 'typecheck'
         run: pnpm typecheck:authoritative
 
       - name: unit tests
+        if: matrix.stream == 'unit'
         run: pnpm test
 
       # The invitation email carries concrete sRGB values, because a mail client
@@ -144,6 +149,7 @@ jobs:
       # conversion is checked against `reach-tokens.json`, which a browser
       # produced, so it is verified against the renderer it stands in for.
       - name: email theme drift
+        if: matrix.stream == 'lint'
         run: pnpm email:theme-drift
 
       # `atlas migrate apply` verifies the directory against `atlas.sum` before
@@ -167,6 +173,7 @@ jobs:
       # lint` behind a paid tier in v0.38 and broke a production deploy on a
       # release nobody here made.
       - name: migration ledger
+        if: matrix.stream == 'lint'
         run: |
           ATLAS_VERSION=v0.37.0
           curl -sSf "https://release.ariga.io/atlas/atlas-linux-amd64-${ATLAS_VERSION}" -o /usr/local/bin/atlas
@@ -178,6 +185,20 @@ jobs:
             exit 1
           fi
           echo "migration ledger matches the directory"
+
+  # The required check keeps its name: green only when every stream is.
+  verify:
+    needs: verify-stream
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every stream passed
+        env:
+          RESULT: ${{ needs.verify-stream.result }}
+        run: |
+          echo "streams: $RESULT"
+          [ "$RESULT" = success ]
 
   contracts:
     needs: changes
@@ -213,9 +234,22 @@ jobs:
         run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). It runs in full on main."
 
 
-  integration:
+  # Four streams at once. People's suite is most of the time and runs its files
+  # one after another (each starts its own containers), so it is split three
+  # ways with Vitest's `--shard`; every other package's suite is the fourth.
+  # A shard is a whole file, so a file's containers never span two runners.
+  integration-shard:
+    name: integration (${{ matrix.stream }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { stream: 'people 1/3', filter: '@kithena/people', shard: '1/3' }
+          - { stream: 'people 2/3', filter: '@kithena/people', shard: '2/3' }
+          - { stream: 'people 3/3', filter: '@kithena/people', shard: '3/3' }
+          - { stream: 'the rest', filter: '!@kithena/people', shard: '' }
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -226,8 +260,32 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - name: install
         run: pnpm install --frozen-lockfile
+      # Through turbo, so each package's dependencies are built first.
       - name: integration tests, real postgres
-        run: pnpm test:integration
+        env:
+          FILTER: ${{ matrix.filter }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          args=(--filter "$FILTER")
+          if [ -n "$SHARD" ]; then
+            pnpm turbo run test:integration "${args[@]}" -- --shard="$SHARD"
+          else
+            pnpm turbo run test:integration "${args[@]}"
+          fi
+
+  # The required check keeps its name: green only when every stream is.
+  integration:
+    needs: integration-shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every stream passed
+        env:
+          RESULT: ${{ needs.integration-shard.result }}
+        run: |
+          echo "streams: $RESULT"
+          [ "$RESULT" = success ]
 
   standalone:
     runs-on: ubuntu-latest
