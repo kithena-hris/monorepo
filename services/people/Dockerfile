@@ -9,8 +9,9 @@
 # requests has no consumer to keep in a group and no clock to tick.
 #
 # Built from the repository root, like identity's: the build needs the
-# workspace and the lockfile. Built on a native arm64 runner for the Oracle
-# VM; `docs/environments.md` "Hosting" has the host and the settings.
+# workspace and the lockfile. Built on a native runner of the VM's
+# architecture (`VM_PLATFORM`); `docs/environments.md` "Hosting" has the host
+# and the settings.
 #
 # Debian, not Alpine as identity's is. `@temporalio/core-bridge` ships a
 # glibc-linked native module, and on musl the process dies at import with

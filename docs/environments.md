@@ -323,8 +323,8 @@ Schema, then service, then client, one layer further out each time. Production
 rolls all of them back when a smoke test fails — clients first, then the
 router, then People — and never the database.
 
-**People and the router run on one Oracle Cloud Always Free VM, under Docker
-Compose, for $0.** People holds three things a function-per-request runtime
+**People and the router run on one 4 GB Ubuntu 24.04 VM, x86_64 or arm64,
+under Docker Compose, for about €5 a month.** People holds three things a function-per-request runtime
 takes away: Kafka consumer groups, the hourly and daily jobs in
 `infrastructure/background.ts`, and the SIGTERM drain that lets a message in
 hand and a job in flight finish (PEO-118). The Cosmo Router is a Go binary with
@@ -336,7 +336,7 @@ identity and messaging stay Vercel functions.
                          Cloudflare edge (TLS, DNS)
     browser / shell ──▶  api.kithena.com
                               │  Cloudflare Tunnel (outbound from the VM; no inbound port)
-┌─ Oracle A1 VM, arm64 ───────┼──────────────────────────────────────────────┐
+┌─ one 4 GB VM, amd64/arm64 ──┼──────────────────────────────────────────────┐
 │  compose project kithena-production                                        │
 │   cloudflared ──▶ router :4000 ──▶ people :4001 ──┬─▶ redpanda :9092       │
 │        └──── /v1/exports/files/* ─────────▶┘      ├─▶ temporal :7233 ─┐    │
@@ -345,7 +345,7 @@ identity and messaging stay Vercel functions.
 │                                                    └─▶ postgres :5432 ◀┘    │
 │                                   (People's data as svc_people; Temporal;   │
 │                                    OpenFGA — one server, three databases)   │
-│  (kithena-staging: the same again, opt-in, smaller)                         │
+│  (kithena-staging: the same again, opt-in, needs an 8 GB VM)                │
 │  tailscaled ◀── GitHub Actions deploys, founder SSH (tailnet only)         │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                         ├─▶ Oracle Object Storage (exports, backups)
@@ -373,8 +373,10 @@ change's job.
 
 #### What ships, and how
 
-- **Images** — a job on a native arm64 runner (`ubuntu-24.04-arm`, free for a
-  public repository) builds both images and proves them before anything is
+- **Images** — a job on a native runner of the VM's architecture, chosen by the
+  `VM_PLATFORM` repository variable (`linux/amd64`, the default, on
+  `ubuntu-24.04`; `linux/arm64` on `ubuntu-24.04-arm`; both free for a public
+  repository, and no QEMU) builds both images and proves them before anything is
   pushed. The router image is `apps/gateway/Dockerfile` with the supergraph
   composed against `http://people:4001` — People's name on the Compose
   network, the same in every environment, so one router image serves both —
@@ -436,39 +438,73 @@ before any of this exists.
 
 **Staging is opt-in.** It is a second Compose project on the same VM
 (`kithena-staging`, `compose.staging.yaml`, its own tunnel and volumes) and it
-only deploys once `ROUTER_URL_STAGING` is set. With one person testing, leaving
-it unset is the default: it would take another 3.7 GB of the VM's 12.
+only deploys once `ROUTER_URL_STAGING` is set. On a 4 GB VM leave it unset:
+staging runs at production's limits, and the two together are 5.3 GB of
+limits. It needs an 8 GB VM for both (Hetzner CX32/CAX21), or a second 4 GB
+VM of its own.
 
 #### Memory budget
 
-Limits, not reservations: the stack measured about 0.8 GB resident per
-environment with nothing to do. `bootstrap.sh` adds 4 GB of swap as headroom.
+Sized for 4 GB. The limits add up to 2.66 GB, leaving the kernel, Docker,
+containerd, tailscaled and the page cache (which Postgres leans on) about a
+gigabyte. `bootstrap.sh` adds 4 GB of swap as headroom, at swappiness 10. They
+are limits, not reservations, and they were set from measurement: the stack
+run locally from these files through `deploy.sh` (arm64, cgroup v2), idle
+after boot, then under a light load — every persisted operation through the
+router ten times over, two imports through the GraphQL flow the People screens
+use (2,000 and 1,600 rows: upload, dry run, commit) and two exports, the
+second over 2,000 rows so it went through the BullMQ queue. Peak is the
+highest `docker stats` reading across two such runs.
 
-| Container | Production | Staging (opt-in) |
+| Container | Idle | Light load, peak | Limit | Knobs |
+| --- | --- | --- | --- | --- |
+| people | 233 MB | 566 MB | **768 MB** | `NODE_OPTIONS=--max-old-space-size=384` |
+| postgres (People's data, Temporal, OpenFGA) | 99 MB | 247 MB | **512 MB** | `shared_buffers=128MB`, `effective_cache_size=512MB`, `work_mem=4MB`, `maintenance_work_mem=32MB`, `max_connections=80` |
+| redpanda | 78 MB | 100 MB | **512 MB** | `--memory 320M`, `--smp 1`, dev-container mode (overprovisioned, no reserved memory) |
+| temporal (auto-setup) | 138 MB | 303 MB | **448 MB** | `GOMEMLIMIT=320MiB`; pools `SQL_MAX_CONNS=5`, `SQL_VIS_MAX_CONNS=2` |
+| router | 28 MB | 52 MB | **128 MB** | `GOMEMLIMIT=100MiB` |
+| openfga | 16 MB | 57 MB | **128 MB** | `GOMEMLIMIT=100MiB`; `MAX_OPEN_CONNS=10` |
+| valkey | 7 MB | 15 MB | **128 MB** | `maxmemory 64mb`, `noeviction` (BullMQ); limit twice that for the AOF rewrite's fork |
+| cloudflared | 20 MB | 46 MB | **96 MB** | — |
+| **Total** | **0.6 GB** | **1.4 GB** | **2.66 GB** | |
+
+Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
+a dummy token and no tunnel to reach, so its figure is the binary retrying, not
+carrying traffic. People is the one that moves: its peak was a 2,000-row
+commit, and a much larger import is the first thing to watch
+(`docker stats`); the heap cap turns a runaway into a heap error rather than
+the OOM killer taking the consumers and the workers down with it. Postgres
+connections at rest were 40 of 80 — Temporal's four services each open their
+own pools, which at the image's defaults (30 each) would exceed Postgres' 100
+on their own. CPU limits are caps on 2 vCPUs, deliberately oversubscribed.
+
+Staging (`compose.staging.yaml`) overrides nothing: it runs at these sizes,
+so it wants a VM of its own or an 8 GB one shared.
+
+#### The host
+
+Any 4 GB Ubuntu 24.04 VM with a public IPv4 address, x86_64 or arm64. Every
+image in `compose.yaml` is pinned by its multi-arch index digest (each lists
+`linux/amd64` and `linux/arm64`), the kithena images are built natively for
+whichever `VM_PLATFORM` says, and `bootstrap.sh` does not care which it is on.
+IPv4 is not optional: GitHub and GHCR are not reachable over IPv6.
+
+| Host | Shape | About | Notes |
+| --- | --- | --- | --- |
+| **Hetzner CX22 / CX23** (recommended) | 2 vCPU (x86), 4 GB, 40 GB SSD | €4–5 a month with the IPv4 address | `VM_PLATFORM=linux/amd64`. Falkenstein, Nuremberg or Helsinki. Hetzner's backups are +20% of the server price and optional: the nightly `backup.sh` to Oracle is the one relied on. |
+| Hetzner CAX11 | 2 vCPU (Ampere, arm64), 4 GB, 40 GB | ~€4 + €0.50 IPv4 | `VM_PLATFORM=linux/arm64`. Often out of stock; the same scripts when it is not. |
+| DigitalOcean Basic, 4 GB | 2 vCPU (x86), 4 GB, 80 GB | $24 a month | `VM_PLATFORM=linux/amd64`. The fallback where Hetzner has no capacity. |
+| Oracle Always Free, `VM.Standard.A1.Flex` | 1 OCPU / 6 GB or more (arm64), up to the grant's 2 OCPU / 12 GB | $0 | `VM_PLATFORM=linux/arm64`. When A1 capacity exists, which in popular regions it often does not. An instance idle under 20% CPU, network *and* memory for 7 days may be reclaimed unless the account is Pay As You Go. |
+
+#### The bill of materials
+
+| Piece | Service, plan | Limits that matter here |
 | --- | --- | --- |
-| people | 1 GB | 768 MB |
-| router | 384 MB | 256 MB |
-| redpanda (`--memory 768M` / `512M`) | 1 GB | 768 MB |
-| postgres (People's data, Temporal, OpenFGA) | 1.5 GB | 1 GB |
-| temporal (auto-setup) | 768 MB | 512 MB |
-| openfga | 256 MB | 192 MB |
-| valkey (`maxmemory` 192 MB / 96 MB, `noeviction`) | 256 MB | 128 MB |
-| cloudflared | 128 MB | 128 MB |
-| **Total** | **5.3 GB** | **3.7 GB** |
-
-9 GB for both against the VM's 12 GB, leaving the OS and Docker about three,
-plus the swap. Measured idle, Postgres used 150 MB of its 1.5 GB with People's
-schema migrated. CPU limits are caps on 2 OCPUs, deliberately oversubscribed.
-
-#### The $0 bill of materials
-
-| Piece | Service, plan | Free limits that matter here |
-| --- | --- | --- |
-| People, router, Redpanda, Temporal, OpenFGA, Valkey | **Oracle Cloud Always Free**, one `VM.Standard.A1.Flex` | 1,500 OCPU-hours and 9,000 GB-hours a month of A1 = **2 OCPU / 12 GB** (the current grant; older write-ups, and the plan this was first sized for, say 4 OCPU / 24 GB). 200 GB block storage in total, 10 TB/month egress. **Idle reclaim:** an Always Free instance whose CPU (95th percentile), network *and* memory all stay under 20% for 7 days may be stopped — this stack at rest is ~2 GB of 12, under the line. **Upgrading the account to Pay As You Go removes the reclaim** and is still billed $0 while usage stays inside the Always Free limits; do it, and set a budget alert at $1. |
+| People, router, Redpanda, Temporal, OpenFGA, Valkey | **One 4 GB VM** (above; Hetzner CX22 / CX23 recommended) | ~€5 a month: the server, plus €0.50 for its IPv4 address on Hetzner. 40 GB of disk holds the images, the volumes and the swapfile; People's image is ~520 MB. Staging does not fit beside production (see "Memory budget"). |
 | Public HTTPS for the router | **Cloudflare Tunnel** (Zero Trust Free) | Free, no bandwidth charge; the VM opens no inbound port. |
 | People's database | **The VM's Postgres** | Inside the VM's disk and memory above; no separate bill. No point-in-time restore — see "Backups". |
 | Identity's database | **Neon Free** (unchanged) | 100 CU-hours per project a month, 0.5 GB storage, 5 GB egress; scale-to-zero after 5 minutes. Identity is request-driven and sleeps, so it sits well inside the hours. |
-| Export files, nightly backups | **Oracle Object Storage** (Always Free, same account) via its S3 Compatibility API | 20 GB across tiers (10 GB Standard on a PAYG account), 50,000 API requests a month, egress inside the 10 TB. |
+| Export files, nightly backups | **Oracle Object Storage** (Always Free; the account needs no VM) via its S3 Compatibility API | 20 GB across tiers (10 GB Standard on a PAYG account), 50,000 API requests a month, egress inside the 10 TB. |
 | Browser uploads (imports, up to 100 MB) | **Cloudflare R2** Free | 10 GB-month storage, 1M Class A and 10M Class B operations a month, no egress fees. |
 | Frontends, identity, messaging | **Vercel Hobby** | 100 deployments a day — every PR run spends several, one per project. **No deployment protection on production or a custom domain** (the API refuses `ssoProtection` there), which is why the back-office's own check is its only door. Hobby is non-commercial use only: the first paying customer is the trigger for Pro. |
 | Email | **Resend Free** | 3,000 emails a month, 100 a day, one domain. |
@@ -488,37 +524,63 @@ on the host, beside Docker rather than inside it.
 
 #### Created by hand, once
 
-**Accounts** (all free): Oracle Cloud, Cloudflare (already has the DNS),
+**Accounts**: the VM's provider (Hetzner, recommended, is the only paid one),
+Oracle Cloud (for the two buckets), Cloudflare (already has the DNS),
 Tailscale, Neon (exists), Vercel (exists), Resend (exists).
 
-1. **VM.** Oracle Console → Compute → Create instance: image Ubuntu 24.04
-   (aarch64), shape `VM.Standard.A1.Flex`, **2 OCPU, 12 GB**, boot volume 100 GB.
-   Region: the one nearest the Neon project's region (Neon console → project
-   settings; `aws-eu-central-1` means `eu-frankfurt-1`). It becomes the home
-   region, which is where Always Free compute lives. Your SSH public key.
-   A1 capacity is often short in popular regions; retry, or try another
-   availability domain. Then upgrade the account to **Pay As You Go** (Billing →
-   Upgrade) and add a $1 budget alert.
+1. **VM.** Nearest the Neon project's region (Neon console → project
+   settings; `aws-eu-central-1` is Frankfurt).
+   - **Hetzner** (recommended): Hetzner account → Cloud Console → a new
+     project (`kithena`). Security → SSH keys → add your public key. Firewalls
+     → create `kithena-vm`: one inbound rule, **TCP 22 from your own IP only**
+     (`curl -4 ifconfig.me`), nothing else. Servers → Add server: location
+     Falkenstein, Nuremberg or Helsinki; image **Ubuntu 24.04**; type **CX22**
+     (or CX23; **CAX11** if the arm64 one is in stock); networking **public
+     IPv4 on** (IPv6 too, harmless); the SSH key; the firewall. Backups off.
+     An API token (Security → API tokens, read & write) is only needed to
+     script this; the console does it by hand.
+   - **DigitalOcean**: Create → Droplet, Ubuntu 24.04 (x64), Basic, 4 GB /
+     2 vCPU, your SSH key. Networking → Firewalls → create one with a single
+     inbound rule, SSH from your IP, applied to the droplet.
+   - **Oracle Always Free**: Compute → Create instance, Ubuntu 24.04
+     (aarch64), `VM.Standard.A1.Flex`, 1–2 OCPU and 6–12 GB, in the home
+     region; the SSH key. Upgrade the account to Pay As You Go. Oracle's
+     firewall is the subnet's security list.
+
+   Then set the repository variable `VM_PLATFORM` to the VM's platform
+   (`linux/amd64` for CX22/CX23 and DigitalOcean, `linux/arm64` for CAX11 and
+   Oracle; `bootstrap.sh` prints it). **Oracle account** either way, for the
+   buckets in step 5: in the region nearest Neon's, upgraded to **Pay As You
+   Go** (Billing → Upgrade; still $0 inside the Always Free limits) with a
+   $1 budget alert.
 2. **Tailscale.** Create a tailnet. In the access policy add tags and rules:
    ```json
    "tagOwners": { "tag:vm": ["autogroup:admin"], "tag:ci": ["autogroup:admin"] },
    "grants": [ { "src": ["tag:ci"], "dst": ["tag:vm"], "ip": ["22"] } ],
    "ssh": [
      { "action": "accept", "src": ["tag:ci"], "dst": ["tag:vm"], "users": ["deploy"] },
-     { "action": "check",  "src": ["autogroup:admin"], "dst": ["tag:vm"], "users": ["deploy", "ubuntu"] }
+     { "action": "check",  "src": ["autogroup:admin"], "dst": ["tag:vm"], "users": ["deploy"] }
    ]
    ```
    Generate an auth key tagged `tag:vm` (one-off), and an **OAuth client** with
    the `auth_keys` write scope and tag `tag:ci` for the workflows.
-3. **Bootstrap.** From a checkout:
+3. **Bootstrap.** From a checkout, as root (Hetzner, DigitalOcean):
+   `ssh root@<public ip> 'TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh`
+   — on Oracle, whose image logs in as `ubuntu`:
    `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh`.
    It installs Docker and Compose, unattended upgrades with a 04:30 reboot,
-   4 GB swap, SSH key-only, Tailscale (hostname `kithena-vm`), ufw (nothing in
-   but the tailnet), the `deploy` user and the backup timer. Then in the
-   Oracle console delete the **port 22 ingress rule** from the subnet's
-   security list: from here on nothing reaches the VM except through Tailscale
-   and nothing is served except through the tunnel. Rerunning the script is how
-   a change to it reaches the VM.
+   4 GB swap (swappiness 10), Tailscale (hostname `kithena-vm`), then SSH
+   key-only with root login off, ufw (reset, then nothing in but the tailnet),
+   the `deploy` user and the backup timer, and prints the `VM_PLATFORM` to
+   set. Check `tailscale ssh deploy@kithena-vm` works, then **remove the SSH
+   rule** from the provider's firewall — Hetzner: Firewalls → `kithena-vm` →
+   delete the inbound rule, leaving a firewall with no inbound rules, which
+   drops everything; DigitalOcean: the same on its Cloud Firewall; Oracle: the
+   subnet security list's port 22 ingress rule. From here on nothing reaches
+   the VM except through Tailscale (which dials out) and nothing is served
+   except through the tunnel. Rerunning the script, now over
+   `ssh deploy@kithena-vm 'sudo TS_AUTHKEY=… bash -s' < …`, is how a change to
+   it reaches the VM.
 4. **Tunnel.** Cloudflare Zero Trust → Networks → Tunnels → Create
    (`cloudflared`), one per environment (`kithena-production`, and
    `kithena-staging` if wanted). Copy the token. Public hostnames, in this
@@ -527,7 +589,7 @@ Tailscale, Neon (exists), Vercel (exists), Resend (exists).
    - `api.kithena.com` (no path) → `http://router:4000`
 
    (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.
-5. **Buckets, Oracle** (Object Storage, same region, both **private**, no
+5. **Buckets, Oracle** (Object Storage, the home region, both **private**, no
    pre-authenticated requests):
    - `kithena-exports` — lifecycle rules: delete objects matching `*/exports/*`
      after **2 days** (a link lives 24 hours) and `*/imports/*` after **8 days**
@@ -537,7 +599,7 @@ Tailscale, Neon (exists), Vercel (exists), Resend (exists).
      want the backup key separate from People's. The S3 endpoint is
      `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com`
      (the older `…oraclecloud.com` form also works); the namespace is on the
-     tenancy page. Region is the VM's region identifier, e.g. `eu-frankfurt-1`.
+     tenancy page. Region is the buckets' region identifier, e.g. `eu-frankfurt-1`.
 6. **Bucket, Cloudflare R2** — `kithena-uploads`, private. CORS: `PUT` (and
    `GET`, `HEAD`) from `https://*.app.kithena.com` (staging:
    `https://*.staging.app.kithena.com`), header `content-type`, max age 3600.
@@ -636,6 +698,7 @@ presigns against Oracle.
 | Variable | Holds |
 | --- | --- |
 | `VM_TAILSCALE_HOST` | The VM's tailnet name, `kithena-vm`. |
+| `VM_PLATFORM` | The VM's platform, `linux/amd64` (unset means this) or `linux/arm64`. Picks the native runner the images are built on; anything else fails the images job. |
 | `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION` | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`. |
 | `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION` | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token. |
 | `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION` | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`. |
@@ -714,7 +777,7 @@ host or a URL, not a rewrite.
 
 | Move | When | What changes |
 | --- | --- | --- |
-| Oracle PAYG → paid A1 (more OCPU/GB) | The VM runs out of memory or CPU, or staging and production need to stop sharing | The shape. Same scripts. |
+| 4 GB VM → 8 GB (Hetzner CX32 or CAX21, then CX42/CAX31) | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production | Rescale the server (Hetzner keeps the disk and IP; a few minutes down), then raise the limits in `compose.yaml`. Same scripts. |
 | People and router → ECS/Fargate or Kubernetes | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA | Same images from GHCR (or pushed to ECR); `compose.yaml`'s environment becomes the task definition; the tunnel becomes a load balancer. |
 | Redpanda → Redpanda Cloud (or MSK) | Real event volume, or People running more than one replica | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted. |
 | Temporal → Temporal Cloud | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted. |

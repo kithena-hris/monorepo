@@ -81,7 +81,7 @@ env "production" {
   }
 }
 
-// People's database on the Oracle VM (`docs/environments.md`, "Hosting"). The
+// People's database on the backends' VM (`docs/environments.md`, "Hosting"). The
 // same directory, applied by `deploy/vm/deploy.sh <env> migrate` from a pinned
 // Atlas container on the VM's Compose network, after the step above has
 // linted and applied it to Neon for identity. One directory, so both databases

@@ -2306,7 +2306,7 @@ JSX runtime and Reach, plus `ssr/people.css`.
   `https://*.app.kithena.com` and `*.staging.app.kithena.com`, which the
   stylesheet now needs, being fetched with `crossorigin` for its integrity
   check. The subgraph and the router the remote reads through do not run on
-  Vercel: they run on one Oracle Cloud Always Free VM under Docker Compose,
+  Vercel: they run on one 4 GB VM (Hetzner, ~€5 a month) under Docker Compose,
   with Redpanda, Temporal, OpenFGA, Valkey and People's own Postgres beside
   them (identity's data stays on Neon), and only the router
   is public (`api.<domain>`, through a Cloudflare Tunnel). People's own REST
