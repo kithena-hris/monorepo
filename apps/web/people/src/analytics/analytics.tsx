@@ -8,6 +8,7 @@ import {
   HorizontalBarChart,
   PageHeader,
   PageSection,
+  RangeChart,
   ScrollArea,
   ScrollBar,
   Sparkline,
@@ -24,6 +25,7 @@ import {
   TrendChart,
   WaterfallChart,
   type ChartPoint,
+  type RangeBand,
   type FunnelStage,
   type ChartTone,
   type IsoDate,
@@ -110,6 +112,11 @@ export interface AnalyticsState {
    * minimum. A withheld one has no numbers here to show.
    */
   readonly selfId?: readonly SelfIdChart[] | null;
+  /**
+   * Pay in aggregate, finance's only (PEO-078): quartiles per group, one
+   * currency each. A group under the cohort minimum has no number here at all.
+   */
+  readonly pay?: PayState | null;
   /** The saved segment applied, and those the viewer could apply (PEO-068). */
   readonly segment?: SegmentRef | null;
   readonly segments?: readonly SegmentRef[];
@@ -124,6 +131,30 @@ export interface SelfIdChart {
   readonly total: number | null;
   readonly note: string;
   readonly cells: readonly ChartPoint[];
+}
+
+export interface PayGroup {
+  readonly label: string;
+  readonly currency: string;
+  readonly status: 'ok' | 'insufficient_data';
+  readonly people: number | null;
+  /** Minor units for salary, a ratio for compa-ratio; null when withheld. */
+  readonly p25: string | null;
+  readonly median: string | null;
+  readonly p75: string | null;
+  readonly band: {
+    readonly minimumMinor: string;
+    readonly midpointMinor: string;
+    readonly maximumMinor: string;
+  } | null;
+}
+
+export interface PayState {
+  readonly asOf: string | null;
+  readonly minimum: number;
+  readonly grade: readonly PayGroup[];
+  readonly tenure: readonly PayGroup[];
+  readonly compa: readonly PayGroup[];
 }
 
 export interface ExpiryItem {
@@ -441,6 +472,8 @@ function Workforce({
         ? null
         : state.selfId.map((q) => <SelfIdSection key={q.key} question={q} />)}
 
+      {state.pay == null ? null : <PaySections pay={state.pay} />}
+
       {state.funnel === null ? null : (
         <ChartSection
           title="Where new joiners stall"
@@ -488,6 +521,192 @@ function SelfIdSection({ question }: { readonly question: SelfIdChart }): JSX.El
     >
       <BarChart label={question.label} data={question.cells} showValues />
     </ChartSection>
+  );
+}
+
+/** A currency's minor unit, as Intl knows it: 2 for EUR, 0 for JPY. */
+const digits = (currency: string): number =>
+  new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
+    .maximumFractionDigits ?? 2;
+
+/** Minor units as a number to draw. The figure itself stays the string People sent. */
+const major = (minor: string, currency: string): number => Number(minor) / 10 ** digits(currency);
+
+const money = (currency: string) => (value: number) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const ratio = (value: number): string => value.toFixed(2);
+
+const byCurrency = (groups: readonly PayGroup[]): [string, PayGroup[]][] => {
+  const found = new Map<string, PayGroup[]>();
+  for (const g of groups) found.set(g.currency, [...(found.get(g.currency) ?? []), g]);
+  return [...found];
+};
+
+/** "47,750 / 50,500 / 53,250", or the words for a withheld group: never a number. */
+const quartileText = (g: PayGroup, format: (v: number) => string, scale: (v: string) => number) =>
+  g.status !== 'ok' || g.p25 === null || g.median === null || g.p75 === null
+    ? 'Insufficient data'
+    : `${format(scale(g.p25))} / ${format(scale(g.median))} / ${format(scale(g.p75))} (${String(g.people)} people)`;
+
+/** The groups a chart could not draw, said in words beneath it. */
+function Unshown({
+  withheld,
+  unbanded = [],
+  minimum,
+}: {
+  readonly withheld: readonly PayGroup[];
+  readonly unbanded?: readonly PayGroup[];
+  readonly minimum: number;
+}): JSX.Element | null {
+  if (withheld.length === 0 && unbanded.length === 0) return null;
+  return (
+    <p className="mt-3 text-xs text-fg-muted">
+      {withheld.length === 0
+        ? ''
+        : `Insufficient data, fewer than ${String(minimum)} people: ${withheld.map((g) => g.label).join(', ')}. `}
+      {unbanded.length === 0 ? '' : `No band set: ${unbanded.map((g) => g.label).join(', ')}.`}
+    </p>
+  );
+}
+
+/**
+ * Pay in aggregate (PRD §16.2, PEO-078), finance's only. Per currency, never
+ * mixed: the median and middle half of each grade inside its band, pay
+ * against tenure by band, and compa-ratio against the band midpoint. A group
+ * under the cohort minimum is named as insufficient data and drawn nowhere.
+ */
+function PaySections({ pay }: { readonly pay: PayState }): JSX.Element {
+  const when = pay.asOf === null ? 'No pay snapshot yet' : `From the snapshot of ${pay.asOf}`;
+  if (pay.asOf === null) {
+    return (
+      <PageSection surface title="How pay is distributed" description={when}>
+        <Alert tone="info">Pay in aggregate appears after the next nightly snapshot.</Alert>
+      </PageSection>
+    );
+  }
+  const note = `${when} · quartiles only; groups under ${String(pay.minimum)} people are not shown`;
+  return (
+    <>
+      {byCurrency(pay.grade).map(([currency, groups]) => {
+        const format = money(currency);
+        const scale = (v: string) => major(v, currency);
+        const drawn = groups.filter((g) => g.status === 'ok' && g.band !== null);
+        const data: RangeBand[] = drawn.map((g) => ({
+          label: g.label,
+          meta: `${String(g.people)} people`,
+          min: scale(g.band?.minimumMinor ?? '0'),
+          mid: scale(g.band?.midpointMinor ?? '0'),
+          max: scale(g.band?.maximumMinor ?? '0'),
+          value: scale(g.median ?? '0'),
+          spread: { low: scale(g.p25 ?? '0'), high: scale(g.p75 ?? '0') },
+        }));
+        return (
+          <ChartSection
+            key={`grade:${currency}`}
+            title={`How pay sits in each band, ${currency}`}
+            description={note}
+            numbers={groups.map((g) => [
+              `${g.label}: 25th / median / 75th`,
+              quartileText(g, format, scale),
+            ])}
+          >
+            {data.length === 0 ? null : (
+              <RangeChart
+                label={`Base salary by grade, ${currency}`}
+                valueLabel="Median"
+                spreadLabel="Middle half"
+                data={data}
+                format={format}
+              />
+            )}
+            <Unshown
+              withheld={groups.filter((g) => g.status !== 'ok')}
+              unbanded={groups.filter((g) => g.status === 'ok' && g.band === null)}
+              minimum={pay.minimum}
+            />
+          </ChartSection>
+        );
+      })}
+
+      {byCurrency(pay.tenure).map(([currency, groups]) => {
+        const format = money(currency);
+        const scale = (v: string) => major(v, currency);
+        const shown = groups.filter((g) => g.status === 'ok');
+        const series = (name: string, tone: ChartTone, pick: (g: PayGroup) => string | null) => ({
+          label: name,
+          tone,
+          data: shown.map((g) => ({ label: g.label, value: scale(pick(g) ?? '0') })),
+        });
+        return (
+          <ChartSection
+            key={`tenure:${currency}`}
+            title={`Pay against tenure, ${currency}`}
+            description={`${note} · by tenure band, never a point per person`}
+            numbers={groups.map((g) => [
+              `${g.label}: 25th / median / 75th`,
+              quartileText(g, format, scale),
+            ])}
+          >
+            {shown.length < 2 ? null : (
+              <TrendChart
+                label={`Base salary by tenure band, ${currency}`}
+                format={format}
+                series={[
+                  series('75th percentile', 'neutral', (g) => g.p75),
+                  series('Median', 'accent', (g) => g.median),
+                  series('25th percentile', 'neutral', (g) => g.p25),
+                ]}
+              />
+            )}
+            <Unshown withheld={groups.filter((g) => g.status !== 'ok')} minimum={pay.minimum} />
+          </ChartSection>
+        );
+      })}
+
+      {byCurrency(pay.compa).map(([currency, groups]) => {
+        const scale = (v: string) => Number(v);
+        const drawn = groups.filter((g) => g.status === 'ok' && g.band !== null);
+        const data: RangeBand[] = drawn.map((g) => {
+          const mid = Number(g.band?.midpointMinor ?? '1');
+          return {
+            label: g.label,
+            meta: `${String(g.people)} people`,
+            min: Number(g.band?.minimumMinor ?? '0') / mid,
+            mid: 1,
+            max: Number(g.band?.maximumMinor ?? '0') / mid,
+            value: scale(g.median ?? '0'),
+            spread: { low: scale(g.p25 ?? '0'), high: scale(g.p75 ?? '0') },
+          };
+        });
+        return (
+          <ChartSection
+            key={`compa:${currency}`}
+            title={`Compa-ratio by grade, ${currency}`}
+            description={`${note} · salary over the band midpoint; 1.00 is on midpoint`}
+            numbers={groups.map((g) => [
+              `${g.label}: 25th / median / 75th`,
+              quartileText(g, ratio, scale),
+            ])}
+          >
+            {data.length === 0 ? null : (
+              <RangeChart
+                label={`Compa-ratio by grade, ${currency}`}
+                valueLabel="Median compa-ratio"
+                spreadLabel="Middle half"
+                data={data}
+                format={ratio}
+              />
+            )}
+            <Unshown withheld={groups.filter((g) => g.status !== 'ok')} minimum={pay.minimum} />
+          </ChartSection>
+        );
+      })}
+    </>
   );
 }
 

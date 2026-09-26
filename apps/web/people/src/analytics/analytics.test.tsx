@@ -285,6 +285,108 @@ describe('Analytics', () => {
     expect(screen.queryByRole('heading', { name: 'Is the org shaped sensibly' })).toBeNull();
   });
 
+  const band = { minimumMinor: '4000000', midpointMinor: '5000000', maximumMinor: '6000000' };
+  const withheld = {
+    status: 'insufficient_data' as const,
+    people: null,
+    p25: null,
+    median: null,
+    p75: null,
+    band: null,
+  };
+  const pay: NonNullable<AnalyticsState['pay']> = {
+    asOf: '2026-09-01',
+    minimum: 10,
+    grade: [
+      {
+        label: 'Level 3',
+        currency: 'EUR',
+        status: 'ok',
+        people: 12,
+        p25: '4775000',
+        median: '5050000',
+        p75: '5325000',
+        band,
+      },
+      { label: 'Level 4', currency: 'EUR', ...withheld },
+      {
+        label: 'Level 3',
+        currency: 'GBP',
+        status: 'ok',
+        people: 10,
+        p25: '3112500',
+        median: '3225000',
+        p75: '3337500',
+        band: null,
+      },
+    ],
+    tenure: [
+      { ...workforceTenure('Under 6 months', '3000000'), currency: 'EUR' },
+      { ...workforceTenure('2 to 5 years', '5000000'), currency: 'EUR' },
+      { label: '5 years or more', currency: 'EUR', ...withheld },
+    ],
+    compa: [
+      {
+        label: 'Level 3',
+        currency: 'EUR',
+        status: 'ok',
+        people: 12,
+        p25: '0.9550',
+        median: '1.0100',
+        p75: '1.0650',
+        band,
+      },
+    ],
+  };
+  function workforceTenure(label: string, median: string) {
+    return {
+      label,
+      status: 'ok' as const,
+      people: 20,
+      p25: String(Number(median) - 100000),
+      median,
+      p75: String(Number(median) + 100000),
+      band: null,
+    };
+  }
+
+  it('draws pay per currency, median inside the band, and a small group as words only (PEO-078)', async () => {
+    const user = fast();
+    const { container } = render(
+      <Analytics load={{ status: 'ready', data: { ...remaining, pay } }} />,
+    );
+    for (const title of [
+      'How pay sits in each band, EUR',
+      'How pay sits in each band, GBP',
+      'Pay against tenure, EUR',
+      'Compa-ratio by grade, EUR',
+    ]) {
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    }
+    const eur = screen
+      .getByRole('heading', { name: 'How pay sits in each band, EUR' })
+      .closest('section');
+    if (eur === null) throw new Error('no EUR section');
+    await user.click(within(eur).getByRole('button', { name: 'Show the numbers' }));
+    const table = within(eur).getByRole('table', {
+      name: 'How pay sits in each band, EUR: the numbers',
+    });
+    expect(table).toHaveTextContent('Level 4: 25th / median / 75thInsufficient data');
+    expect(eur.textContent).toContain('Insufficient data, fewer than 10 people: Level 4');
+    // GBP has no band: said in words, not drawn against a made-up range.
+    const gbp = screen
+      .getByRole('heading', { name: 'How pay sits in each band, GBP' })
+      .closest('section');
+    expect(gbp?.textContent).toContain('No band set: Level 3');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('draws no pay section for anybody People sent none (PEO-078)', () => {
+    render(<Analytics load={{ status: 'ready', data: { ...remaining, pay: null } }} />);
+    expect(screen.queryByRole('heading', { name: /How pay sits/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Compa-ratio/ })).toBeNull();
+  });
+
   it('has loading and error states', async () => {
     const { container, rerender } = render(<Analytics load={{ status: 'loading' }} />);
     expect(screen.getByText('Loading the analytics')).toBeInTheDocument();

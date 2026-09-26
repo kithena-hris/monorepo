@@ -373,6 +373,18 @@ export async function setNumbering(
   return outcome(people('SetEmployeeNumbering', { legalEntityId, ...scheme }));
 }
 
+/** A pay band from a day, in minor units (PEO-078); HR or finance, as People decides. */
+export async function setPayBand(band: {
+  grade: string;
+  currency: string;
+  minimumMinor: string;
+  midpointMinor: string;
+  maximumMinor: string;
+  effectiveFrom: string;
+}): Promise<Outcome> {
+  return outcome(people('SetPayBand', { ...band }));
+}
+
 /* ----------------------------------------------------------- lifecycle -- */
 
 type LeavingReason = 'resigned' | 'dismissed' | 'end_of_contract';
