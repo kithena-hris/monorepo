@@ -151,6 +151,18 @@ export function drizzleRetentionStore(): RetentionStore {
            AND redacted_at IS NULL
       `);
 
+      /*
+       * A change once held for approval keeps its value as the audit of what
+       * was asked (PEO-077); it goes with the value it would have changed. A
+       * change still waiting cannot then be approved: there is nothing to apply.
+       */
+      await tx.execute(sql`
+        UPDATE people.pending_change
+           SET value = NULL, last4 = NULL, ciphertext = NULL, key_id = NULL
+         WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid
+           AND attribute_key = ANY(${sql.param([...keys])}::text[])
+      `);
+
       // Same transaction as the write, like every other person write here.
       await publish(tx, outbox, events);
     },

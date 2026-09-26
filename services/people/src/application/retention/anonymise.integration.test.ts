@@ -36,6 +36,7 @@ const ADA = '00000000-0000-4000-8000-0000000000a1';
 const IBAN = 'ES9121000418450200051332';
 const PHONE_OLD = '+34 611 111 111';
 const PHONE = '+34 600 000 000';
+const REJECTED_PHONE = '+34 622 222 222';
 const clock = fixedClock('2026-09-22T09:00:00.000Z');
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 
@@ -229,6 +230,18 @@ beforeAll(async () => {
   await history(H_PHONE_FIX, 'phone', PHONE, H_PHONE_OLD);
   await history(H_PAYSLIP, 'payslip_ref', 'P-1');
   await history(H_PENSION, 'pension_ref', 'DE-9');
+  // A phone number somebody asked for and HR rejected (PEO-077): its value is kept as the
+  // audit of what was asked, until the phone number itself is erased.
+  await admin.execute(sql`
+    INSERT INTO people.pending_change
+      (tenant_id, id, person_id, attribute_key, kind, sealed, value, effective_from, requested_by,
+       requested_at, expires_at, state, decided_by, decided_at)
+    VALUES (${ACME}::uuid, '01890000-0000-7000-8000-00000000c0de'::uuid, ${ADA}::uuid, 'phone',
+            'value', false, ${JSON.stringify(REJECTED_PHONE)}::jsonb, '2021-01-01',
+            '00000000-0000-4000-8000-0000000000b1'::uuid, '2021-01-01T09:00:00Z',
+            '2021-01-08T09:00:00Z', 'rejected', '00000000-0000-4000-8000-0000000000b2'::uuid,
+            '2021-01-02T09:00:00Z')
+  `);
 
   for (const [checksum, personIds] of [
     [WITH_ADA, [SOMEBODY, ADA]],
@@ -272,7 +285,7 @@ describe('anonymising a leaver', () => {
     expect([...result.value.cleared].toSorted()).toEqual(['bank_account', 'given_name', 'payslip_ref', 'phone']);
 
     const everything = await everythingStored();
-    for (const gone of [IBAN, ciphertext, PHONE, PHONE_OLD, '"P-1"', '"Ada"']) {
+    for (const gone of [IBAN, ciphertext, PHONE, PHONE_OLD, REJECTED_PHONE, '"P-1"', '"Ada"']) {
       expect(everything).not.toContain(gone);
     }
     // The last four of the account went with the row. Matched as the end of a
