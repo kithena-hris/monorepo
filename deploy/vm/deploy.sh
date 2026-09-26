@@ -77,6 +77,109 @@ retry() {
 [ -n "$(get PEOPLE_IMAGE)" ] || export PEOPLE_IMAGE=not-deployed-yet
 [ -n "$(get ROUTER_IMAGE)" ] || export ROUTER_IMAGE=not-deployed-yet
 
+# Postgres 17 to 18, once, before anything here starts Postgres. 18 cannot
+# open a 17 data directory, and its image keeps the cluster in a versioned
+# directory under a volume mounted one level up, so `compose.yaml` names a new
+# volume, `postgres18`, and this moves the data across by dump and restore:
+#
+#   1. back up to S3 with `backup.sh`, and stop if that fails;
+#   2. stop everything but the old Postgres, and `pg_dumpall` it to disk;
+#   3. start 18 on the new volume and restore; the roles come with their
+#      password hashes, so every login works as before;
+#   4. compare roles and the row count of every table, both sides, and only
+#      then mark the new volume as the upgraded one.
+#
+# The marker is what makes the next run a no-op; a run that failed part way
+# left an unmarked volume, which the next run throws away and starts again.
+# The old volume is never touched. `KITHENA_PG_UPGRADE_SKIP_BACKUP=1` skips
+# step 1 and exists for the local rehearsal; nothing on the VM sets it.
+old_volume="kithena-${env}_postgres" new_volume="kithena-${env}_postgres18"
+old_container="kithena-$env-postgres-1"
+marker=upgraded-from-17 # at the root of the new volume
+# The image `compose.yaml` ran before 18, only ever to read the old volume.
+pg17=postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+# `yes` or `no`; a Docker failure fails the deploy rather than reading as `no`,
+# which would start 18 on an empty volume beside the real data.
+in_volume() { # <volume> <shell test>, the volume at /v
+  docker volume inspect "$1" >/dev/null 2>&1 || { echo no; return; }
+  docker run --rm --network none --entrypoint sh -v "$1:/v:ro" "$pg17" \
+    -c "if $2; then echo yes; else echo no; fi"
+}
+# Every role with a hash of its password, and every table with its row count.
+snapshot() { # <container>
+  docker exec "$1" psql -U kithena -d postgres -XAtqc \
+    "SELECT rolname || ' ' || md5(coalesce(rolpassword, '')) FROM pg_authid WHERE rolname !~ '^pg_' ORDER BY 1"
+  for db in $(docker exec "$1" psql -U kithena -d postgres -XAtqc \
+    "SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate ORDER BY 1"); do
+    docker exec "$1" psql -U kithena -d "$db" -XAtqc "
+      SELECT '$db.' || table_schema || '.' || table_name || ' ' ||
+             (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I',
+               table_schema, table_name), false, true, '')))[1]::text
+        FROM information_schema.tables
+       WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')
+       ORDER BY 1"
+  done
+}
+old_is_17="$(in_volume "$old_volume" "grep -qx 17 /v/PG_VERSION")"
+new_is_done="$(in_volume "$new_volume" "test -e /v/$marker")"
+if [ "$old_is_17" = yes ] && [ "$new_is_done" = no ]; then
+  echo "$env: moving Postgres 17 ($old_volume) to 18 ($new_volume)"
+  running="$(compose ps --services --status running | grep -vx postgres || true)"
+  # The dump comes from 17 on the old volume, always. Once an earlier run got as
+  # far as replacing the container, that is a stand-in 17 under the same name,
+  # so that `backup.sh` finds it; nothing has written to 17 since.
+  case "$(docker inspect -f '{{.Config.Image}}' "$old_container" 2>/dev/null)" in
+    postgres:17*) ;;
+    *)
+      docker rm -f "$old_container" >/dev/null 2>&1 || true
+      docker run -d --name "$old_container" --network none \
+        -v "$old_volume:/var/lib/postgresql/data" "$pg17" >/dev/null
+      ;;
+  esac
+  docker start "$old_container" >/dev/null
+  retry docker exec "$old_container" pg_isready -q -U kithena
+  if [ "${KITHENA_PG_UPGRADE_SKIP_BACKUP:-}" = 1 ]; then
+    echo "$env: backup skipped (KITHENA_PG_UPGRADE_SKIP_BACKUP=1)"
+  else
+    docker start "kithena-$env-redpanda-1" >/dev/null || true
+    bash "$here/backup.sh" "$env" || {
+      echo "::error::the backup before the Postgres upgrade failed; nothing was changed" >&2
+      exit 1
+    }
+  fi
+  # Nothing writes while the dump runs, or the writes after it would be lost.
+  # shellcheck disable=SC2046 # one argument per service
+  compose stop $(compose config --services | grep -vx postgres)
+  dump="$dir/postgres17.sql"
+  docker exec "$old_container" pg_dumpall -U kithena > "$dump"
+  snapshot "$old_container" > "$dir/postgres17.snapshot"
+  # From here a failure leaves 18 stopped, so neither a boot nor a restart
+  # policy puts anything on a half-restored database; 17 is still untouched.
+  trap 'echo "::error::the Postgres 18 upgrade stopped part way; 18 is stopped, $old_volume untouched; deploy again to retry" >&2
+        compose stop postgres' EXIT
+  # A volume left by a run that failed before the marker holds nothing ours.
+  docker rm -f "$old_container" >/dev/null
+  docker volume rm "$new_volume" >/dev/null 2>&1 || true
+  compose up --detach --wait --wait-timeout 120 postgres
+  # The image made `kithena` and an empty `openfga`, and the dump makes both.
+  compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U kithena -d postgres -c 'DROP DATABASE openfga'
+  sed '/^CREATE ROLE kithena;$/d' "$dump" \
+    | compose exec -T postgres psql -q -X -v ON_ERROR_STOP=1 -U kithena -d postgres >/dev/null
+  compose exec -T postgres vacuumdb -q -U kithena --all --analyze-only
+  snapshot "kithena-$env-postgres-1" > "$dir/postgres18.snapshot"
+  diff -q "$dir/postgres17.snapshot" "$dir/postgres18.snapshot" >/dev/null || {
+    echo "::error::Postgres 18 does not hold what 17 did; the diff is in $dir, 17 is untouched" >&2
+    diff "$dir/postgres17.snapshot" "$dir/postgres18.snapshot" | cut -d' ' -f1-2 >&2 || true
+    exit 1
+  }
+  compose exec -T postgres touch "/var/lib/postgresql/$marker"
+  trap - EXIT
+  rm -f "$dump" "$dir/postgres17.snapshot" "$dir/postgres18.snapshot"
+  # shellcheck disable=SC2086 # one argument per service
+  [ -z "$running" ] || compose up --detach $running
+  echo "$env: Postgres 18 is serving; $old_volume is kept. Once satisfied: docker volume rm $old_volume"
+fi
+
 if [ "$service" = migrate ]; then
   compose up --detach --wait --wait-timeout 120 postgres
   # On stdin, so no password is in an argv. Idempotent: a role or database

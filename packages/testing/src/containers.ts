@@ -9,7 +9,7 @@ import { GenericContainer, Wait } from 'testcontainers';
  * fire.
  */
 export async function startPostgres(): Promise<{ url: string; stop: () => Promise<void> }> {
-  const container = await new PostgreSqlContainer('postgres:17-alpine')
+  const container = await new PostgreSqlContainer('postgres:18-alpine')
     .withDatabase('kithena')
     .withUsername('kithena')
     .withPassword('kithena')
