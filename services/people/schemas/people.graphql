@@ -675,7 +675,19 @@ type Mutation {
   """
   Over 2,000 rows the export is queued; ask `peopleExport` for its links.
   """
-  requestExport(asOf: String, fields: [String!], filter: String, format: String!, idempotencyKey: String!, includeArchived: Boolean, personIds: [ID!], reason: String): PeopleExport
+  requestExport(
+    asOf: String
+    fields: [String!]
+    filter: String
+    """csv, xlsx or pdf."""
+    format: String!
+    idempotencyKey: String!
+    includeArchived: Boolean
+    personIds: [ID!]
+    reason: String
+    """With pdf: this person’s employee record instead of a roster."""
+    recordOf: ID
+  ): PeopleExport
   """Finance asks for sealed fields in full, with a reason; HR decides."""
   requestFullValues(asOf: String, fields: [String!]!, filter: String, idempotencyKey: String!, personIds: [ID!], reason: String!): FullValuesRequest
   """The doubted value in full, for HR deciding it (PEO-125). Audited."""

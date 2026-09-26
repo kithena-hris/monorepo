@@ -213,7 +213,12 @@ export function filterIn(filter: string | undefined): Record<string, string> {
 export const AsOfQuery = z.object({ asOf: z.iso.date().optional() });
 
 export const CreateExportBody = z.strictObject({
-  format: z.enum(['csv', 'xlsx']),
+  /** `pdf` is a landscape roster, or with `recordOf` one person's employee record. */
+  format: z.enum(['csv', 'xlsx', 'pdf']),
+  recordOf: z
+    .uuid()
+    .optional()
+    .describe('With format pdf: this person’s employee record instead of a roster.'),
   fields: z.array(z.string()).max(500).optional(),
   asOf: z.iso.date().optional(),
   includeArchived: z.boolean().optional(),
@@ -823,6 +828,7 @@ export function restRoutes(deps: RestDeps): Route[] {
         const asked: ExportJobRequest = {
           ...asking,
           format: v.format,
+          ...(v.recordOf ? { recordOf: v.recordOf } : {}),
           ...(v.fields ? { fields: v.fields } : {}),
           ...(v.asOf ? { asOf: v.asOf } : {}),
           ...(v.includeArchived !== undefined ? { includeArchived: v.includeArchived } : {}),
