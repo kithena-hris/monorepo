@@ -413,11 +413,13 @@ jobs:
           if [ "$SKIP_STORY_SWEEP" = "true" ]; then
             echo "::notice::No design-system change on this pull request. The story contrast sweep runs in full on main."
           elif [ -n "$STORY_FILTER" ] && [ "$STORY_FILTER" != "__ALL__" ]; then
-            # Already a narrow set; sharding it further would leave most shards
-            # with nothing and pay four installs to discover that.
-            if [ "${{ matrix.shard }}" = "1" ]; then
-              SHARD= node tools/a11y/affected-contrast.mjs
-            fi
+            # Sharded like the full sweep: SHARD divides whatever the affected
+            # set resolved to. An affected set is not necessarily small — a
+            # change to a shared component reached 362 of 479 entries, which on
+            # one runner took 24.6 minutes against the full sweep's 8 per shard,
+            # while the other three shards idled. The four runners are paid for
+            # either way, and a shard left with nothing exits clean.
+            node tools/a11y/affected-contrast.mjs
           else
             node tools/a11y/contrast-sweep.mjs
           fi
