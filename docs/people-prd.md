@@ -1463,9 +1463,19 @@ either way on any field.
   the field, the value asked for beside the value in force, who asked, when,
   why (a correction's reason) and when it lapses. HR approves or rejects with
   an optional note there; a requester withdraws there or on the record.
-- **Retention.** A closed change keeps the value asked for as the audit of
-  the request; the retention job erases it with the attribute it would have
-  changed.
+- **Retention.** A closed change keeps the value asked for, by design, as
+  the audit of what was requested and decided — a sealed one only by its last
+  four, since its ciphertext goes when the change closes. The retention job
+  erases it with the attribute it would have changed, so an anonymised
+  leaver's changes hold nothing of them.
+- **Subject access.** The subject's pack (§15.5) lists every change to their
+  record that waited or waits for approval, on the attributes it exports:
+  the value asked for (a sealed one in full while it waits, by its last four
+  once closed), its state, dates and reason, and HR's note. Who asked and who
+  decided are given by role — the subject, HR, the requester — never by name.
+- **Key rotation.** A sealed value waiting for approval is re-wrapped by the
+  hourly secret rotation with the stored secrets, so an old key can be
+  dropped as soon as a run is done.
 
 **As built.** The wait is a Temporal workflow per change on task queue
 `people-pending-change`, modelled on full values (§15.2): People starts it
@@ -1483,11 +1493,6 @@ and an undecided change expires lazily. REST: `GET /v1/pending-changes`,
 `pendingChanges`, and a held correction with `pendingChange`. GraphQL:
 `peopleApprovals`, `PeopleProfile.pending`, `decidePendingChange`,
 `withdrawPendingChange`. Migration `20260926180000`.
-
-**Not done.** A subject access request does not yet include a person's pending
-or decided changes. A pending sealed value is not re-wrapped by the key
-rotation job: an old key may be dropped no sooner than seven days after the
-rotation that replaced it.
 
 ---
 
