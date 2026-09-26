@@ -29,6 +29,7 @@
     "@temporalio/worker": "^1.24.0",
     "@temporalio/workflow": "^1.24.0",
     "bullmq": "^6.3.8",
+    "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.45.3",
     "exceljs": "4.4.0",
     "graphql-yoga": "^5.24.1",
