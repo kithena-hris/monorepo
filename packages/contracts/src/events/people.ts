@@ -34,6 +34,8 @@ export const PersonState = z.enum([
   'notice',
   'terminated',
   'discarded',
+  /** Absorbed into another record as a duplicate (PEO-074): a tombstone. */
+  'merged',
 ]);
 
 const PersonName = z.object({
@@ -487,6 +489,7 @@ export const PersonStatusChanged = defineEvent(
         'corrected',
         'rehired',
         'notice_withdrawn',
+        'merged',
       ])
       .register(policy, asInternal()),
   }),
@@ -661,6 +664,11 @@ export const PersonProfileCompleted = defineEvent(
  * a tombstone pointing at the survivor. The event carries both ids for that
  * reason — a consumer holding the absorbed id has to be able to follow it
  * rather than discover its rows have vanished.
+ *
+ * Raised on the absorbed record's aggregate, after its `status_changed` to
+ * `merged` (PEO-074), so it arrives behind everything that record ever said.
+ * The values themselves travel on the survivor's own `profile_updated`, under
+ * §10.3's rules; who decided is the envelope's actor.
  */
 export const PersonMerged = defineEvent(
   'people.person.merged',
@@ -670,6 +678,12 @@ export const PersonMerged = defineEvent(
     absorbedPersonId: PersonId,
     /** Keys whose value came from the absorbed record. Names, not values. */
     attributesTaken: z.array(AttributeKey).register(policy, asInternal()),
+    /**
+     * The account the absorbed record signed in with, which now signs in as
+     * the survivor; null when it had none. Identity keys nothing by person, so
+     * it has nothing to follow; People's own relations do.
+     */
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
   }),
 );
 

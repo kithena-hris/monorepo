@@ -183,6 +183,15 @@ describe('the events a person record produces', () => {
     }
   });
 
+  it('says who a merge absorbed and which keys it took, never a value (PEO-074)', () => {
+    expect(payloadKeys('people.person.merged')).toEqual([
+      'survivingPersonId',
+      'absorbedPersonId',
+      'attributesTaken',
+      'identityAccountId',
+    ]);
+  });
+
   it('says which schema version a hire was written under', () => {
     expect(payloadKeys('people.person.hired')).toEqual(
       expect.arrayContaining(['schemaVersion', 'sourceOfRecord']),
