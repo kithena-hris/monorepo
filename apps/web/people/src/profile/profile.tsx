@@ -4,6 +4,14 @@ import {
   Badge,
   Button,
   DatePicker,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   EmptyState,
   Field,
   FieldControl,
@@ -17,13 +25,15 @@ import {
   SelectTrigger,
   SelectValue,
   Stack,
+  Textarea,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
-import type { RecordSection, Values } from '../record/model';
+import type { PendingValue, RecordSection, Values } from '../record/model';
+import { PendingNote, SensitiveMark } from '../record/pending';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
 import { Employment, type EmploymentState, type LifecycleMove } from './employment';
@@ -60,6 +70,11 @@ export interface ProfileState {
   readonly placement?: PlacementState | null;
   /** Their doubted identifiers still open, on fields the viewer reads (PEO-125). */
   readonly reviews?: readonly IdentifierReview[];
+  /**
+   * Changes waiting for HR's approval (PEO-077), on fields the viewer reads.
+   * Never in `values`, which are what is in force.
+   */
+  readonly pending?: readonly PendingValue[];
 }
 
 export interface PlacementState {
@@ -90,6 +105,14 @@ export interface ProfileProps {
   readonly onPlace?: (placement: PlacementChange) => Promise<Outcome>;
   /** Finds people for a person field, by name, over everybody (PEO-122). */
   readonly searchPeople?: SearchPeople;
+  /** Open the record as of a date, and its changes (PEO-064). */
+  readonly onHistory?: () => void;
+  /** Take back a change of one's own that waits for approval (PEO-077). */
+  readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
+  /** Open the approvals inbox, where HR decides (PEO-077). */
+  readonly onApprovals?: () => void;
+  /** This record as a PDF, as the viewer may read it (PEO-061). Absent where not offered. */
+  readonly onDownloadRecord?: (reason: string) => Promise<Outcome>;
 }
 
 /**
@@ -109,6 +132,10 @@ export function Profile({
   onMove,
   onPlace,
   searchPeople,
+  onHistory,
+  onWithdraw,
+  onApprovals,
+  onDownloadRecord,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
@@ -120,6 +147,10 @@ export function Profile({
             onCheck={onCheck}
             onMove={onMove}
             onPlace={onPlace}
+            onHistory={onHistory}
+            onWithdraw={onWithdraw}
+            onApprovals={onApprovals}
+            onDownloadRecord={onDownloadRecord}
           />
         )}
       </Loaded>
@@ -133,15 +164,27 @@ function Record({
   onCheck,
   onMove,
   onPlace,
+  onHistory,
+  onWithdraw,
+  onApprovals,
+  onDownloadRecord,
 }: {
   readonly state: ProfileState;
   readonly onSave: ProfileProps['onSave'];
   readonly onCheck: ProfileProps['onCheck'];
   readonly onMove: ProfileProps['onMove'];
   readonly onPlace: ProfileProps['onPlace'];
+  readonly onHistory: ProfileProps['onHistory'];
+  readonly onWithdraw: ProfileProps['onWithdraw'];
+  readonly onApprovals: ProfileProps['onApprovals'];
+  readonly onDownloadRecord: ProfileProps['onDownloadRecord'];
 }): JSX.Element {
   const [editing, setEditing] = useState<string | null>(null);
   const [values, setValues] = useState<Values>(state.values);
+  /** Per section, the fields its last save sent for approval rather than saved (PEO-077). */
+  const [held, setHeld] = useState<Readonly<Record<string, readonly string[]>>>({});
+  const pending = state.pending ?? [];
+  const decidable = pending.filter((p) => p.canDecide).length;
   // Defensive as well as tidy: a section handed over with no fields would
   // still print its heading, and a heading is a disclosure.
   const sections = state.sections.filter((s) => s.fields.length > 0);
@@ -158,14 +201,35 @@ function Record({
         }
         description={person.summary ?? undefined}
         actions={
-          person.missing === null ? undefined : (
-            <Badge tone={person.missing === 0 ? 'success' : 'warning'}>
-              {person.missing === 0 ? 'Complete' : `${String(person.missing)} missing`}
-            </Badge>
+          person.missing === null && onHistory === undefined && onDownloadRecord === undefined ? undefined : (
+            <span className="flex items-center gap-2">
+              {person.missing === null ? null : (
+                <Badge tone={person.missing === 0 ? 'success' : 'warning'}>
+                  {person.missing === 0 ? 'Complete' : `${String(person.missing)} missing`}
+                </Badge>
+              )}
+              {onHistory === undefined ? null : <Button onClick={onHistory}>History</Button>}
+              {onDownloadRecord ? <RecordPdf onDownload={onDownloadRecord} /> : null}
+            </span>
           )
         }
       />
       <ReviewNotices reviews={state.reviews} />
+      {decidable === 0 ? null : (
+        <Alert
+          tone="warning"
+          title={`${String(decidable)} ${decidable === 1 ? 'change waits' : 'changes wait'} for your approval`}
+          action={
+            onApprovals === undefined ? undefined : (
+              <Button size="sm" onClick={onApprovals}>
+                Review
+              </Button>
+            )
+          }
+        >
+          Pending values are shown under their fields and are not applied until approved.
+        </Alert>
+      )}
       {state.calendar ? (
         <Employment
           state={{ calendar: state.calendar, employment: state.employment ?? null }}
@@ -203,10 +267,19 @@ function Record({
                 </span>
               }
             >
+              {(held[section.key] ?? []).length === 0 || editing === section.key ? null : (
+                <Alert tone="info" title="Sent to HR for approval">
+                  {(held[section.key] ?? []).join(' and ')}{' '}
+                  {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
+                  approves; the record keeps what it had until then.
+                </Alert>
+              )}
               {editing === section.key ? (
                 <SectionForm
                   section={section}
                   values={values}
+                  pending={pending}
+                  {...(onWithdraw === undefined ? {} : { onWithdraw })}
                   {...(onCheck === undefined ? {} : { onCheck })}
                   footer={
                     <Button
@@ -220,7 +293,15 @@ function Record({
                   onSave={async (key, changed) => {
                     const outcome = await onSave(key, changed);
                     if (outcome.ok) {
-                      setValues((v) => ({ ...v, ...changed }));
+                      // A value sent for approval is not the record's yet (PEO-077).
+                      const waiting = new Set(outcome.held ?? []);
+                      const applied = Object.fromEntries(
+                        Object.entries(changed).filter(
+                          ([k]) => !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
+                        ),
+                      );
+                      setValues((v) => ({ ...v, ...applied }));
+                      setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
                       setEditing(null);
                     }
                     return outcome;
@@ -230,9 +311,22 @@ function Record({
                 <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
                   {section.fields.map((field) => (
                     <div key={field.key} className="contents">
-                      <dt className="text-sm text-fg-muted">{field.label}</dt>
-                      <dd className="text-sm">
+                      <dt className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+                        {field.label}
+                        <SensitiveMark field={field} />
+                      </dt>
+                      <dd className="flex flex-col gap-1 text-sm">
                         <DisplayValue field={field} value={values[field.key]} />
+                        {pending
+                          .filter((p) => p.key === field.key)
+                          .map((p) => (
+                            <PendingNote
+                              key={p.id}
+                              field={field}
+                              pending={p}
+                              onWithdraw={onWithdraw}
+                            />
+                          ))}
                       </dd>
                     </div>
                   ))}
@@ -367,5 +461,96 @@ function PlacementSection({
         </Stack>
       </form>
     </PageSection>
+  );
+}
+
+/**
+ * The employee record as a PDF (PRD §15.5): what this viewer may read, the
+ * rest counted in its footer. An export with pay or bank details in it needs
+ * a reason, recorded with it (§15.1), so the reason is asked for up front
+ * rather than after a refusal.
+ */
+function RecordPdf({
+  onDownload,
+}: {
+  readonly onDownload: (reason: string) => Promise<Outcome>;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setReason('');
+          setRefused(null);
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm">Download PDF</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Download the employee record</DialogTitle>
+          <DialogDescription>
+            A PDF of what you can see here. Anything withheld from you is counted in its footer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap={4}>
+            <Field>
+              <FieldLabel>Reason</FieldLabel>
+              <FieldControl>
+                <Textarea
+                  value={reason}
+                  maxLength={500}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>
+                Needed when the record includes pay or bank details. Kept with the export.
+              </FieldDescription>
+            </Field>
+            {refused === null ? null : (
+              <Alert tone="danger" title="No PDF was made">
+                {refused}
+              </Alert>
+            )}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            loadingLabel="Preparing PDF"
+            onClick={() => {
+              setBusy(true);
+              setRefused(null);
+              void onDownload(reason.trim()).then((outcome) => {
+                setBusy(false);
+                if (outcome.ok) setOpen(false);
+                else setRefused(outcome.message);
+              });
+            }}
+          >
+            Download
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

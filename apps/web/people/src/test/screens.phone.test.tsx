@@ -6,13 +6,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
 import { Analytics } from '../analytics/analytics';
+import { BulkEdit } from '../bulk/bulk-edit';
 import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
 import { Onboarding } from '../onboarding/onboarding';
+import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
 import type { RecordField } from '../record/model';
+import { FieldEditor } from '../settings/field-editor';
 import { FieldRegistry } from '../settings/field-registry';
 import { Integrations } from '../settings/integrations/integrations';
 import { Organisation } from '../settings/organisation';
@@ -20,6 +23,7 @@ import { WebhookLog } from '../settings/integrations/webhook-log';
 import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
 import { IdentifierReviews } from '../review/identifier-reviews';
+import { Duplicates } from '../review/duplicates';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
 
@@ -132,8 +136,10 @@ describe('at 390×844, with a finger', () => {
                 dataType: 'select',
                 options: ['ENG-204'],
                 requiredness: 'always',
+                requiredWhen: null,
                 ownership: ['hr'],
                 visibility: ['hr'],
+                visibilityRules: [],
                 collectAt: 'hr_only',
                 classification: 'internal',
                 piiKind: 'none',
@@ -141,6 +147,7 @@ describe('at 390×844, with a finger', () => {
                 pending: 'added',
               },
             ],
+            choices: { legalEntities: [], countries: [] },
           },
         }}
         today="2026-09-22"
@@ -153,6 +160,62 @@ describe('at 390×844, with a finger', () => {
         onPublish={ok}
       />,
     );
+  });
+
+  it('the predicate editor and custom visibility rules, on steps two and three (PEO-065, PEO-066)', async () => {
+    const when = {
+      combine: 'all' as const,
+      clauses: [
+        { operand: 'country' as const, in: ['ES'] },
+        { operand: 'attribute' as const, key: 'grade', is: 'equals' as const, equals: 'senior' },
+      ],
+    };
+    mount(
+      <FieldEditor
+        open
+        onOpenChange={vi.fn()}
+        section={{
+          key: 'hr',
+          label: 'HR information',
+          visibility: ['hr'],
+          ownership: ['hr'],
+          origin: 'core',
+          fixed: false,
+        }}
+        field={{
+          key: 'permit',
+          sectionKey: 'hr',
+          label: 'Permit',
+          description: null,
+          dataType: 'text',
+          options: [],
+          requiredness: 'conditional',
+          requiredWhen: when,
+          ownership: ['hr'],
+          visibility: ['hr'],
+          visibilityRules: [{ scopes: ['manager'], when }],
+          collectAt: 'hr_only',
+          classification: 'internal',
+          piiKind: 'none',
+          origin: 'tenant',
+          pending: null,
+        }}
+        takenKeys={[]}
+        choices={{ legalEntities: [], countries: [{ value: 'ES', label: 'Spain' }] }}
+        fields={[{ key: 'grade', label: 'Grade', options: [] }]}
+        advise={never}
+        onSave={ok}
+      />,
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Edit Permit' });
+    for (let step = 1; step <= 2; step += 1) {
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Next' }));
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      // The conditions and the rules; the stepper above them is Reach's, and
+      // measured where Reach is.
+      for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
+    }
   });
 
   it('publishing, as a sheet from the bottom', async () => {
@@ -266,6 +329,61 @@ describe('at 390×844, with a finger', () => {
     expect(underFloor(document.body)).toEqual([]);
   });
 
+  it('a history, as of a date (PEO-064)', async () => {
+    await checked(
+      <PersonHistory
+        load={{
+          status: 'ready',
+          data: {
+            person: { id: 'p', name: 'Adam Reyes' },
+            asOf: '2026-04-15',
+            sections: [
+              {
+                key: 'compensation',
+                label: 'Compensation',
+                visibility: ['self', 'hr'],
+                fields: [
+                  field({
+                    key: 'base_salary',
+                    label: 'Base salary',
+                    dataType: 'money',
+                    readOnly: true,
+                  }),
+                ],
+              },
+            ],
+            dated: ['base_salary'],
+            values: { base_salary: { amountMinor: '5100000', currency: 'EUR' } },
+            changes: [
+              {
+                id: 'fix',
+                key: 'base_salary',
+                value: { amountMinor: '5100000', currency: 'EUR' },
+                effectiveFrom: '2026-03-01',
+                recordedAt: '2026-06-02T08:30:00.000Z',
+                by: 'Priya Shah',
+                supersedes: 'typo',
+                supersededBy: null,
+              },
+              {
+                id: 'typo',
+                key: 'base_salary',
+                value: { amountMinor: '5000000', currency: 'EUR' },
+                effectiveFrom: '2026-03-01',
+                recordedAt: '2026-03-15T09:12:00.000Z',
+                by: 'Priya Shah',
+                supersedes: null,
+                supersededBy: 'fix',
+              },
+            ],
+          },
+        }}
+        onAsOf={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+  });
+
   it('People home', async () => {
     await checked(
       <PeopleHome load={{ status: 'ready', data: { hr: true, admin: true, finance: false } }} />,
@@ -273,14 +391,25 @@ describe('at 390×844, with a finger', () => {
   });
 
   it('the organisation settings, and a dialog over them', async () => {
-    const entity = { id: 'e1', name: 'Acme Iberia SL', country: 'ES', timeZone: 'Europe/Madrid', archived: false };
+    const entity = {
+      id: 'e1',
+      name: 'Acme Iberia SL',
+      country: 'ES',
+      timeZone: 'Europe/Madrid',
+      archived: false,
+    };
     await checked(
       <Organisation
         load={{
           status: 'ready',
           data: {
             canManage: true,
-            settings: { defaultTimeZone: 'Europe/Madrid', cohortMinimum: 10, slug: 'acme', displayName: 'Acme' },
+            settings: {
+              defaultTimeZone: 'Europe/Madrid',
+              cohortMinimum: 10,
+              slug: 'acme',
+              displayName: 'Acme',
+            },
             legalEntities: [entity],
             locations: [
               {
@@ -297,7 +426,13 @@ describe('at 390×844, with a finger', () => {
             countries: [{ code: 'ES', name: 'Spain' }],
             timeZones: ['Etc/UTC', 'Europe/Madrid'],
             retentionFloors: [
-              { floor: 'es-labour', months: 48, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
+              {
+                floor: 'es-labour',
+                months: 48,
+                status: 'unreviewed',
+                reviewedBy: null,
+                reviewedOn: null,
+              },
             ],
           },
         }}
@@ -410,6 +545,64 @@ describe('at 390×844, with a finger', () => {
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await userEvent.keyboard('{Tab}');
     expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
+  });
+
+  it('bulk edit, its preview as one card per person (PEO-071)', async () => {
+    await checked(
+      <BulkEdit
+        load={{
+          status: 'ready',
+          data: {
+            people: [
+              { id: 'l', name: 'Lena Moreau' },
+              { id: 'j', name: 'Joan Bosch' },
+            ],
+            sections: [
+              {
+                key: 'hr',
+                label: 'HR',
+                visibility: ['hr'],
+                fields: [field({ key: 'job_title', label: 'Job title' }), field({ key: 'desk', label: 'Desk' })],
+              },
+            ],
+            today: '2026-09-26',
+            limit: 50,
+          },
+        }}
+        onPreview={() =>
+          Promise.resolve({
+            ok: true,
+            committed: false,
+            rows: [
+              {
+                personId: 'l',
+                name: 'Lena Moreau',
+                outcome: 'changed',
+                changes: [{ key: 'job_title', label: 'Job title', dated: true, before: null, after: 'Lead' }],
+                refusal: null,
+                findings: [],
+              },
+              {
+                personId: 'j',
+                name: 'Joan Bosch',
+                outcome: 'refused',
+                changes: [],
+                refusal: { code: 'UNIQUE_VALUE_TAKEN', message: 'Somebody else holds that value' },
+                findings: [],
+              },
+            ],
+          })
+        }
+        onCommit={never}
+        onBack={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Preview changes' }));
+    const list = await screen.findByRole('list', { name: 'Per person' });
+    expect(within(list).getByText('Somebody else holds that value')).toBeVisible();
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    expect(underFloor(document.body)).toEqual([]);
   });
 
   it('integrations', async () => {
@@ -533,7 +726,8 @@ describe('at 390×844, with a finger', () => {
                   {
                     level: 'mismatch',
                     code: 'check_mismatch',
-                    message: 'Matches the national format, but the control letter does not compute.',
+                    message:
+                      'Matches the national format, but the control letter does not compute.',
                   },
                 ],
                 enteredAt: '2026-09-24T09:00:00.000Z',
@@ -543,6 +737,38 @@ describe('at 390×844, with a finger', () => {
         }}
         onDecide={ok}
         onReveal={() => Promise.resolve({ ok: true as const, value: '12345678A' })}
+      />,
+    );
+  });
+
+  it('two possible duplicates side by side, for HR (PEO-074)', async () => {
+    await checked(
+      <Duplicates
+        load={{
+          status: 'ready',
+          data: {
+            items: [],
+            comparison: {
+              people: [
+                { id: 'p1', name: 'Ada Lovelace', status: 'active', refusal: null },
+                { id: 'p2', name: 'Augusta Lovelace', status: 'provisional', refusal: 'Never hired.' },
+              ],
+              rows: [
+                {
+                  key: 'given_name',
+                  label: 'Legal first name',
+                  values: ['Ada', 'Augusta'],
+                  same: false,
+                  takeable: [false, true],
+                },
+              ],
+            },
+          },
+        }}
+        onCompare={vi.fn()}
+        onBack={vi.fn()}
+        onMerge={ok}
+        onDismiss={ok}
       />,
     );
   });

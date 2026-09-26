@@ -34,6 +34,8 @@ export const PersonState = z.enum([
   'notice',
   'terminated',
   'discarded',
+  /** Absorbed into another record as a duplicate (PEO-074): a tombstone. */
+  'merged',
 ]);
 
 const PersonName = z.object({
@@ -304,6 +306,12 @@ export const PersonProfileUpdated = defineEvent(
       aiEligible: false,
     }),
     schemaVersion: SchemaVersion,
+    /**
+     * Keys that require approval and were applied without it, because an HR
+     * user chose to (PEO-077): the import's "apply sensitive values without
+     * approval". Absent when there were none.
+     */
+    appliedWithoutApproval: z.array(AttributeKey).min(1).optional().register(policy, asInternal()),
   }),
 );
 
@@ -402,6 +410,8 @@ export const PersonAttributeCorrected = defineEvent(
     attribute: ChangedAttribute,
     supersedes: z.uuid().register(policy, asPublic()),
     reason: z.string().max(500).nullable().register(policy, asFreeText()),
+    /** True when a correction that requires approval was applied without it by HR (PEO-077). */
+    appliedWithoutApproval: z.literal(true).optional().register(policy, asPublic()),
   }),
 );
 
@@ -487,6 +497,7 @@ export const PersonStatusChanged = defineEvent(
         'corrected',
         'rehired',
         'notice_withdrawn',
+        'merged',
       ])
       .register(policy, asInternal()),
   }),
@@ -661,6 +672,11 @@ export const PersonProfileCompleted = defineEvent(
  * a tombstone pointing at the survivor. The event carries both ids for that
  * reason — a consumer holding the absorbed id has to be able to follow it
  * rather than discover its rows have vanished.
+ *
+ * Raised on the absorbed record's aggregate, after its `status_changed` to
+ * `merged` (PEO-074), so it arrives behind everything that record ever said.
+ * The values themselves travel on the survivor's own `profile_updated`, under
+ * §10.3's rules; who decided is the envelope's actor.
  */
 export const PersonMerged = defineEvent(
   'people.person.merged',
@@ -670,6 +686,12 @@ export const PersonMerged = defineEvent(
     absorbedPersonId: PersonId,
     /** Keys whose value came from the absorbed record. Names, not values. */
     attributesTaken: z.array(AttributeKey).register(policy, asInternal()),
+    /**
+     * The account the absorbed record signed in with, which now signs in as
+     * the survivor; null when it had none. Identity keys nothing by person, so
+     * it has nothing to follow; People's own relations do.
+     */
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
   }),
 );
 
@@ -980,6 +1002,57 @@ export const FullValuesDownloaded = defineEvent(
 );
 
 /**
+ * A change held for approval (PEO-077): a value, or a correction carrying
+ * `supersedes`, to a field that requires approval, recorded and **not
+ * applied**. HR decides within seven days or it expires; the requester may
+ * withdraw it while it waits. On approval the change is applied through the
+ * ordinary write path — `profile_updated` or `attribute_corrected`, caused by
+ * `change_decided` — from the `effectiveFrom` this envelope carries.
+ *
+ * Every step names the change, the person and the key; never a value, not
+ * even a masked one. Who asked and who decided are the envelope's actor.
+ */
+const ChangeKind = z.enum(['value', 'correction']).register(policy, asPublic());
+
+export const PersonChangeRequested = defineEvent(
+  'people.person.change_requested',
+  1,
+  z.object({
+    changeId: z.uuid().register(policy, asPublic()),
+    personId: PersonId,
+    attributeKey: AttributeKey,
+    kind: ChangeKind,
+    /** The history row a correction replaces. */
+    supersedes: z.uuid().nullable().register(policy, asPublic()),
+    /** A correction's stated reason; null for a plain change. */
+    reason: z.string().max(500).nullable().register(policy, asFreeText()),
+    /** Undecided by then, it expires. */
+    expiresAt: Instant,
+  }),
+);
+
+export const PersonChangeDecided = defineEvent(
+  'people.person.change_decided',
+  1,
+  z.object({
+    changeId: z.uuid().register(policy, asPublic()),
+    personId: PersonId,
+    attributeKey: AttributeKey,
+    decision: z.enum(['approved', 'rejected']).register(policy, asPublic()),
+    note: z.string().max(500).nullable().register(policy, asFreeText()),
+  }),
+);
+
+const ChangeClosed = z.object({
+  changeId: z.uuid().register(policy, asPublic()),
+  personId: PersonId,
+  attributeKey: AttributeKey,
+});
+
+export const PersonChangeWithdrawn = defineEvent('people.person.change_withdrawn', 1, ChangeClosed);
+export const PersonChangeExpired = defineEvent('people.person.change_expired', 1, ChangeClosed);
+
+/**
  * A webhook endpoint was disabled because nothing reached it for 24 hours
  * (§13.3, PEO-093).
  *
@@ -1023,6 +1096,55 @@ const RoleChange = z.object({
 
 export const RoleGranted = defineEvent('people.role.granted', 1, RoleChange);
 export const RoleRevoked = defineEvent('people.role.revoked', 1, RoleChange);
+
+/**
+ * A pay band set or corrected (PEO-078): minimum, midpoint and maximum for one
+ * grade in one currency, from a day. People maintains them until a
+ * Compensation module takes them over, and this is what it would replay to do
+ * so. A band is company policy, not a person's pay, and names nobody.
+ *
+ * `set` is a band from a new day; `corrected` replaces what was recorded for
+ * the same grade, currency and day, and names the row it `supersedes`. The
+ * envelope's `effectiveFrom` is the band's day, its actor who changed it.
+ */
+const PayBandPayload = z.object({
+  bandId: z.uuid().register(policy, asPublic()),
+  grade: z.string().min(1).max(64).register(policy, asInternal()),
+  minimum: Money,
+  midpoint: Money,
+  maximum: Money,
+  effectiveFrom: CalendarDate,
+});
+
+export const PayBandSet = defineEvent('people.pay_band.set', 1, PayBandPayload);
+export const PayBandCorrected = defineEvent(
+  'people.pay_band.corrected',
+  1,
+  PayBandPayload.extend({ supersedes: z.uuid().register(policy, asPublic()) }),
+);
+
+/**
+ * A SCIM connection changed (PEO-072, PEO-073; PRD §13.5, §13.6): created,
+ * its token rotated, revoked, or its approved mapping set. The audit record
+ * of who let which system provision people and own which attributes — the
+ * envelope's actor is the People administrator who did it.
+ *
+ * Never the token, nor its hash. `ownedKeys` is every attribute the system
+ * is the source of record for after the change: empty once revoked.
+ */
+export const ScimConnectionChanged = defineEvent(
+  'people.scim.connection_changed',
+  1,
+  z.object({
+    connectionId: z.uuid().register(policy, asPublic()),
+    change: z
+      .enum(['created', 'token_rotated', 'revoked', 'mapping_set'])
+      .register(policy, asPublic()),
+    /** What the tenant calls the system, as refusals name it. */
+    system: z.string().min(1).max(80).register(policy, asInternal()),
+    ownedKeys: z.array(AttributeKey).register(policy, asInternal()),
+  }),
+);
 
 export const peopleEvents = [
   SectionCreated,
@@ -1072,7 +1194,14 @@ export const peopleEvents = [
   FullValuesExpired,
   FullValuesIssued,
   FullValuesDownloaded,
+  PersonChangeRequested,
+  PersonChangeDecided,
+  PersonChangeWithdrawn,
+  PersonChangeExpired,
   WebhookEndpointDisabled,
   RoleGranted,
   RoleRevoked,
+  PayBandSet,
+  PayBandCorrected,
+  ScimConnectionChanged,
 ] as const;

@@ -21,7 +21,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  * Pure: instants in, `Result` out. The caller brings the clock.
  */
 
-export type ApprovalState = 'pending' | 'approved' | 'rejected' | 'expired';
+export type ApprovalState = 'pending' | 'approved' | 'rejected' | 'expired' | 'withdrawn';
 
 export interface Approval {
   readonly id: string;
@@ -46,9 +46,15 @@ export function openApproval(input: {
   readonly at: string;
   /** Decided by the caller, which owns the clock and the policy for how long. */
   readonly expiresAt: string;
+  /**
+   * A request nobody typed (PEO-077): a held form edit or an import row asks
+   * no question, so there is nothing to require. Still bounded when given.
+   * The reason is then `''`.
+   */
+  readonly reasonOptional?: boolean;
 }): Result<Approval> {
   const reason = input.reason?.trim() ?? '';
-  if (reason === '') {
+  if (reason === '' && input.reasonOptional !== true) {
     return err(failure('REASON_REQUIRED', 'Say why; it is recorded with the request', ['reason']));
   }
   if (reason.length > REASON_MAX) {
@@ -122,6 +128,28 @@ export function expire(approval: Approval, at: string): Result<Approval> {
     return err(failure('APPROVAL_PENDING', 'This request has not expired yet'));
   }
   return ok({ ...approval, state: 'expired' });
+}
+
+/**
+ * The requester takes their own request back (PEO-077). Only theirs, only
+ * while it is still pending: a decision or an expiry is already an answer.
+ * Recorded like a decision — who and when — because it closes the request.
+ */
+export function withdraw(
+  approval: Approval,
+  withdrawal: { readonly by: string; readonly at: string },
+): Result<Approval> {
+  const state = stateAt(approval, withdrawal.at);
+  if (state === 'expired') {
+    return err(failure('APPROVAL_EXPIRED', 'This request expired before it was withdrawn'));
+  }
+  if (state !== 'pending') {
+    return err(failure('APPROVAL_DECIDED', `This request was already ${state}`));
+  }
+  if (withdrawal.by !== approval.requestedBy) {
+    return err(failure('FORBIDDEN', 'Only whoever asked withdraws a request'));
+  }
+  return ok({ ...approval, state: 'withdrawn', decidedBy: withdrawal.by, decidedAt: withdrawal.at });
 }
 
 /** Something an approval issued that may be used once, until it expires. */

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RotateScimToken($id: ID!, $key: String!) {\n    rotateScimToken(id: $id, idempotencyKey: $key) { id token }\n  }"}

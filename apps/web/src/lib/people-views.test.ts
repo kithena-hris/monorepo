@@ -39,6 +39,52 @@ describe('a record back from GraphQL', () => {
     expect(Object.hasOwn(profile.values, 'base_salary')).toBe(false);
     expect(profile.sections[0]?.fields[0]).toEqual({ key: 'job_title', label: 'Job title' });
   });
+
+  it('puts each change of a history back as a form value, a sealed one still sealed (PEO-064)', () => {
+    const history = VIEWS.PersonHistory({
+      sections: [],
+      values: [],
+      changes: [
+        {
+          id: 'a',
+          value: {
+            __typename: 'MoneyEntry',
+            key: 'base_salary',
+            amountMinor: '1',
+            currency: 'EUR',
+          },
+        },
+        { id: 'b', value: { __typename: 'SealedEntry', key: 'iban', last4: null } },
+        { id: 'c', value: { __typename: 'EmptyEntry', key: 'nickname' } },
+      ],
+    });
+    expect(history.changes.map((c) => c.value)).toEqual([
+      { amountMinor: '1', currency: 'EUR' },
+      { last4: null },
+      null,
+    ]);
+  });
+});
+
+describe('a bulk edit back from GraphQL (PEO-071)', () => {
+  it('puts each change’s two values back as form values', () => {
+    const result = VIEWS.BulkEditResult({
+      committed: false,
+      rows: [
+        {
+          personId: 'a',
+          changes: [
+            {
+              key: 'job_title',
+              before: { __typename: 'EmptyEntry', key: 'job_title' },
+              after: { __typename: 'TextEntry', key: 'job_title', text: 'Lead' },
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.rows[0]?.changes[0]).toMatchObject({ before: null, after: 'Lead' });
+  });
 });
 
 describe('the shell', () => {

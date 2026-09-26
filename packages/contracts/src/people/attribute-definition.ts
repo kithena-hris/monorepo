@@ -5,7 +5,7 @@ import { asInternal, asPublic, policy } from '../classification.js';
 import { AttributeDataType, AttributeTypeConfig, configMatchesType } from './data-type.js';
 import { FieldPolicySchema } from './policy.js';
 import { AttributeKey, LocalizedString, SectionKey } from './primitives.js';
-import { Requiredness } from './requiredness.js';
+import { Requiredness, RequirednessPredicate } from './requiredness.js';
 
 /**
  * One field on a person record, as the registry holds it.
@@ -36,6 +36,25 @@ export const ViewerScope = z
   .enum(['self', 'manager', 'manager_chain', 'hr', 'finance', 'admin', 'directory'])
   .register(policy, asPublic());
 export type ViewerScope = z.infer<typeof ViewerScope>;
+
+/**
+ * A custom visibility rule (PEO-066; PRD §6.6): these scopes may also read the
+ * field, on the records where the predicate holds.
+ *
+ * The predicate is requiredness's closed grammar, reused rather than forked —
+ * a legal entity, a country, a contract type, a work model, a status, another
+ * field set or equal. A rule only ever grants a scope the presets could have
+ * granted outright, to fewer records, so it can narrow what a preset would
+ * have shown and can never reach a scope the presets cannot. Where the record
+ * is not known — a directory filter, a search, a column over everybody — no
+ * rule holds, because "may filter by it" would answer for the records where
+ * it does not.
+ */
+export const VisibilityRule = z.object({
+  scopes: z.array(ViewerScope).min(1, 'a rule has to show the field to somebody').max(7),
+  when: RequirednessPredicate,
+});
+export type VisibilityRule = z.infer<typeof VisibilityRule>;
 
 /** Which moment asks for the value. */
 export const CollectAt = z
@@ -77,6 +96,17 @@ const shape = z.object({
   ownership: z.array(WriterRole).min(1, 'a field nobody may write cannot be filled in'),
   /** Empty is legitimate. See `ViewerScope`. */
   visibility: z.array(ViewerScope),
+  /**
+   * Absent rather than empty when there are none, so every document published
+   * before rules existed keeps its checksum and its "nothing changed" answer.
+   * Classified as a whole, like `requiredness`: configuration, not a value.
+   */
+  visibilityRules: z
+    .array(VisibilityRule)
+    .min(1)
+    .max(5, 'five rules at most; more is a section of its own')
+    .optional()
+    .register(policy, asInternal()),
   collectAt: CollectAt,
 
   classification: FieldPolicySchema,
@@ -106,6 +136,15 @@ const shape = z.object({
   origin: AttributeOrigin,
   /** Hidden from forms, still exported, still in history. */
   deprecatedAt: Instant.nullable().default(null),
+  /**
+   * Whether a change waits for HR's approval before it is applied (PEO-077).
+   * Absent is the default, which `requiresApproval` computes from the policy,
+   * so a sensitive field a tenant adds tomorrow is held without anybody
+   * remembering a checkbox. Absent rather than defaulted, like
+   * `visibilityRules`: a document published before this existed keeps its
+   * checksum and its "nothing changed" answer.
+   */
+  requiresApproval: z.boolean().optional().register(policy, asPublic()),
 });
 
 /**
@@ -184,12 +223,45 @@ export const AttributeDefinition = shape
    * invariants in the domain check the stricter version of this against the
    * whole section; this catches the case that needs no context at all.
    */
+  /*
+   * Article 9 data is never shown conditionally (§6.7).
+   *
+   * A rule is the one place a tenant could hand a health note to a manager
+   * for "people in Spain" — the careless build §6.7 exists to prevent. Who
+   * reads special-category data is the presets' call, all or nothing.
+   */
+  .refine(
+    (a) =>
+      a.classification.classification !== 'special-category' || a.visibilityRules === undefined,
+    {
+      message: 'special-category data is never shown by a custom rule',
+      path: ['visibilityRules'],
+    },
+  )
+  // Rules do not count here: they hold of some records, and the field is
+  // required of all of them.
   .refine((a) => a.requiredness.mode === 'never' || a.visibility.length > 0, {
     message: 'a required field nobody may read cannot be filled in',
     path: ['visibility'],
   });
 
 export type AttributeDefinition = z.infer<typeof AttributeDefinition>;
+
+/**
+ * Whether a change to this attribute is held for approval (PEO-077): what the
+ * tenant chose, else on for financial or encrypted data — the bank account,
+ * the salary, the national identifiers — and off for everything else.
+ */
+export function requiresApproval(definition: {
+  readonly requiresApproval?: boolean | undefined;
+  readonly encrypted: boolean;
+  readonly classification: { readonly piiKind: string };
+}): boolean {
+  return (
+    definition.requiresApproval ??
+    (definition.classification.piiKind === 'financial' || definition.encrypted)
+  );
+}
 
 /**
  * The definition as a draft, before the defaults are applied.

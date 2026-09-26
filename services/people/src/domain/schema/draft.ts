@@ -11,6 +11,8 @@ import {
 } from '@kithena/contracts';
 import * as z from 'zod';
 
+import { specialCategoryReads } from './requiredness.js';
+
 /**
  * The registry as a tenant edits it, before anybody publishes.
  *
@@ -90,6 +92,132 @@ function ownerCanRead(owners: readonly WriterRole[], visibility: readonly string
     // A writer with no human reader is not a person who can be locked out.
     return scopes.length === 0 || scopes.some((scope) => visibility.includes(scope));
   });
+}
+
+/**
+ * Which scopes a viewer holding `scope` also holds (`scopesOf` in
+ * `field-access.ts`): everybody is the directory, and a direct manager is in
+ * their report's chain.
+ */
+const ALSO_HOLDS: Record<string, readonly string[]> = {
+  manager: ['manager', 'manager_chain', 'directory'],
+};
+
+/**
+ * A custom visibility rule may not disclose what it depends on (PEO-066).
+ *
+ * "Managers see the bonus band when grade is senior" shows a manager the
+ * grade of every report, one visible field at a time. So every attribute a
+ * rule's predicate names must be one each scope the rule grants can already
+ * read — outright, by preset, since a rule holding is itself the thing being
+ * decided — and never special-category data, which does not decide access to
+ * anything (§6.7). A name the document does not hold is refused too: it would
+ * never hold, and it would start holding the day somebody re-used the key.
+ *
+ * A placement fact is held to the same rule, through the field it is read
+ * from (`factsOf` in `application/person/subject.ts`): "managers see this for
+ * people on leave" tells every manager who is on leave. Status has no field;
+ * it is HR's alone, as the profile's employment panel and `employmentPeriods`
+ * already decide (PEO-120).
+ *
+ * Checked on the edited attribute when it is saved, and on every attribute
+ * when the draft is published, because narrowing or archiving the field a
+ * rule depends on is an edit to a different attribute.
+ */
+export function checkVisibilityRules(
+  attribute: Pick<Attribute, 'key' | 'visibilityRules'>,
+  attributes: readonly Attribute[],
+): Result<void> {
+  const byKey = new Map(attributes.map((a) => [a.key as string, a]));
+  for (const rule of attribute.visibilityRules ?? []) {
+    for (const clause of rule.when.clauses) {
+      const discloses =
+        clause.operand === 'status'
+          ? rule.scopes.some((scope) => scope !== 'hr')
+          : readsUnseen(
+              clause.operand === 'attribute' ? [clause.key] : PLACEMENT_SOURCES[clause.operand],
+              rule.scopes,
+              byKey,
+            );
+      if (discloses) {
+        const named = clause.operand === 'attribute' ? clause.key : FACT_WORDS[clause.operand];
+        return err(
+          failure(
+            'VISIBILITY_RULE_DISCLOSES',
+            `${attribute.key} is shown by a rule on ${named}, which not everybody it is shown to may read`,
+            ['visibilityRules'],
+          ),
+        );
+      }
+    }
+  }
+  return ok(undefined);
+}
+
+/** How a refusal names a placement fact to the administrator reading it. */
+const FACT_WORDS = {
+  legalEntity: 'legal entity',
+  country: 'country',
+  employmentType: 'employment type',
+  workModel: 'work model',
+  status: 'employment status',
+} as const;
+
+/** The fields each placement fact is read from, as `factsOf` reads them. */
+const PLACEMENT_SOURCES = {
+  legalEntity: ['legal_entity_id'],
+  // `countryOf`: the home address's country, else a `country` field.
+  country: ['home_address', 'country'],
+  employmentType: ['employment_type'],
+  workModel: ['work_model'],
+} as const;
+
+/**
+ * Whether a rule reading these fields would show any of them to a scope that
+ * may not read it by preset. No field at all discloses too: the rule would
+ * start holding the day somebody added one.
+ */
+function readsUnseen(
+  keys: readonly string[],
+  scopes: readonly string[],
+  byKey: ReadonlyMap<string, Attribute>,
+): boolean {
+  const named = keys.flatMap((k) => byKey.get(k) ?? []);
+  return (
+    named.length === 0 ||
+    named.some(
+      (a) =>
+        a.deprecatedAt !== null ||
+        a.classification.classification === 'special-category' ||
+        scopes.some(
+          (scope) =>
+            !(ALSO_HOLDS[scope] ?? [scope, 'directory']).some((s) =>
+              a.visibility.includes(s as never),
+            ),
+        ),
+    )
+  );
+}
+
+/**
+ * A requiredness predicate may not name special-category data (PEO-065): a
+ * gap it opens is shown to managers and HR, and "workplace adjustment
+ * missing" tells them the disability field is filled in. Checked on save and
+ * at publish, because reclassifying the named field is an edit to another.
+ */
+export function checkRequirednessPredicate(
+  attribute: Pick<Attribute, 'key' | 'requiredness'>,
+  attributes: readonly Attribute[],
+): Result<void> {
+  const [named] = specialCategoryReads(attribute.requiredness, attributes);
+  if (named === undefined) return ok(undefined);
+  return err(
+    failure(
+      'PREDICATE_DISCLOSES',
+      `${attribute.key} is required on a condition over ${named}, which is special-category data: a missing value would tell whoever sees it that the condition held`,
+      ['requiredness'],
+    ),
+  );
 }
 
 const DuplicateKey = (what: string, key: string) =>
@@ -207,6 +335,12 @@ export class SchemaDraft {
     const readable = this.#checkReadableByOwner(definition);
     if (!readable.ok) return readable;
 
+    const discloses = checkVisibilityRules(definition, [...this.#attributes.values()]);
+    if (!discloses.ok) return discloses;
+
+    const predicate = checkRequirednessPredicate(definition, [...this.#attributes.values()]);
+    if (!predicate.ok) return predicate;
+
     this.#attributes.set(definition.key, definition);
     return ok(definition);
   }
@@ -248,6 +382,12 @@ export class SchemaDraft {
 
     const readable = this.#checkReadableByOwner(next);
     if (!readable.ok) return readable;
+
+    const discloses = checkVisibilityRules(next, [...this.#attributes.values()]);
+    if (!discloses.ok) return discloses;
+
+    const predicate = checkRequirednessPredicate(next, [...this.#attributes.values()]);
+    if (!predicate.ok) return predicate;
 
     const attribute: Attribute = { ...next, deprecatedAt: current.deprecatedAt };
     this.#attributes.set(key, attribute);

@@ -28,6 +28,16 @@ on:
         description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, docs, storybook, people-remote, people, router, migrations'
         type: string
         default: ''
+  # `deploy-production.yml`, the checkbox form: the same jobs, with `only`
+  # deploying exactly the targets it names.
+  workflow_call:
+    inputs:
+      targets:
+        type: string
+        default: ''
+      only:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -98,9 +108,11 @@ jobs:
         id: plan
         env:
           FORCE: ${{ inputs.targets }}
+          ONLY: ${{ inputs.only }}
         run: |
-          pnpm exec tsx tools/scripts/src/affected-targets.ts \
-            --env production --head "$DEPLOY_SHA" --force "$FORCE"
+          args=(--env production --head "$DEPLOY_SHA" --force "$FORCE")
+          [ "$ONLY" = true ] && args+=(--only)
+          pnpm exec tsx tools/scripts/src/affected-targets.ts "${args[@]}"
 
   # People's and the router's images, built natively for the VM's platform
   # (`VM_PLATFORM`, `docs/environments.md` "Hosting") and proven before they
@@ -266,7 +278,7 @@ jobs:
     # created in it first. See the `atlas dev roles` step for why that matters.
     services:
       atlas-dev:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_USER: dev
           POSTGRES_PASSWORD: dev

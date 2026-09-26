@@ -38,6 +38,8 @@ export interface PersonRecord {
   readonly legalEntityId: string | null;
   readonly employmentType: string | null;
   readonly workModel: string | null;
+  /** `external` when an upstream system provisioned it (PEO-072); absent reads as `own`. */
+  readonly sourceOfRecord?: 'own' | 'external';
 }
 
 /** A directory search: the text, and the core keys it may be matched against. */
@@ -68,6 +70,9 @@ export interface PersonReader {
    * `gaps` narrows to people with a staff gap (`people.completeness_gap`)
    * in one of these keys: the completeness grid's pages (PEO-122), which
    * name the keys it shows so no page comes up short.
+   *
+   * `leavers` false leaves out anybody in a `LEAVERS` state: what a list is
+   * to a viewer who may not read status (§6.3).
    */
   page(
     tx: PostgresJsDatabase,
@@ -77,6 +82,7 @@ export interface PersonReader {
     where?: Readonly<Record<string, string>>,
     search?: PersonSearch,
     gaps?: readonly string[],
+    leavers?: boolean,
   ): Promise<readonly PersonRecord[]>;
 
   /** How many people `where` and `search` match, by status: the directory's summary. */
@@ -85,6 +91,7 @@ export interface PersonReader {
     tenantId: string,
     where?: Readonly<Record<string, string>>,
     search?: PersonSearch,
+    leavers?: boolean,
   ): Promise<{ readonly all: number; readonly active: number }>;
 
   /** Which person signs in as this account, if any: "my profile" starts here. */
@@ -186,4 +193,25 @@ export interface Uniques {
     tenantId: string,
     where: { personId: string; attributeKey: string },
   ): Promise<void>;
+}
+
+/** Whoever has left, or was never a person: listed to HR alone (§6.3). */
+export const LEAVERS = ['terminated', 'discarded', 'merged'] as const;
+
+export interface Asking {
+  readonly tenantId: string;
+  readonly viewer: Viewer;
+  readonly correlationId: string;
+  /**
+   * Write values that require approval straight through, recorded on the
+   * event as applied without it (PEO-077): the import's "apply sensitive
+   * values without approval", and bulk edit's. HR's alone; anybody else
+   * asking is refused.
+   */
+  readonly applySensitiveWithoutApproval?: boolean;
+}
+
+/** What an encrypted value reads as. The plaintext has its own, audited, path. */
+export interface SealedValue {
+  readonly last4: string | null;
 }

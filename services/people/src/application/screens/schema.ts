@@ -1,5 +1,12 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition, AttributeDefinitionInput } from '@kithena/contracts';
+import {
+  COUNTRIES,
+  requiresApproval,
+  type AttributeDefinition,
+  type AttributeDefinitionInput,
+  type RequirednessPredicate,
+  type VisibilityRule,
+} from '@kithena/contracts';
 
 import { CORE_PACK } from '../../country-packs/core.js';
 import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
@@ -73,14 +80,30 @@ export interface RegistryView {
     readonly dataType: string;
     readonly options: readonly string[];
     readonly requiredness: string;
+    /** The predicate of a `conditional` rule (PEO-065); null otherwise. */
+    readonly requiredWhen: RequirednessPredicate | null;
     readonly ownership: readonly string[];
     readonly visibility: readonly string[];
+    /** Custom visibility rules (PEO-066). */
+    readonly visibilityRules: readonly VisibilityRule[];
     readonly collectAt: string;
     readonly classification: string;
     readonly piiKind: string;
+    /** Whether a change waits for HR's approval (PEO-077): the tenant's choice, else the default. */
+    readonly requiresApproval: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
+  /** What a predicate's legal-entity and country clauses may name. */
+  readonly choices: {
+    readonly legalEntities: readonly Choice[];
+    readonly countries: readonly Choice[];
+  };
+}
+
+export interface Choice {
+  readonly value: string;
+  readonly label: string;
 }
 
 function pendingOf(draft: Attribute, published: PublishedVersion | null): Pending {
@@ -115,14 +138,26 @@ export async function registryView(
         dataType: a.dataType,
         options: optionsOf(a),
         requiredness: a.requiredness.mode,
+        requiredWhen: a.requiredness.mode === 'conditional' ? a.requiredness.when : null,
         ownership: a.ownership,
         visibility: a.visibility,
+        visibilityRules: a.visibilityRules ?? [],
         collectAt: a.collectAt,
         classification: a.classification.classification,
         piiKind: a.classification.piiKind,
+        requiresApproval: requiresApproval(a),
         origin: a.origin,
         pending: pendingOf(a, published),
       }));
+      const entities = deps.service.org
+        ? await deps.service.org.legalEntities(tx, asking)
+        : ok([]);
+      const choices = {
+        legalEntities: (entities.ok ? entities.value : [])
+          .filter((e) => !e.archived)
+          .map((e) => ({ value: e.id, label: e.name })),
+        countries: COUNTRIES.map((c) => ({ value: c.code, label: c.name })),
+      };
       const newSections = draft.sections.filter(
         (s) => !(published?.document.sections.some((p) => p.key === s.key) ?? false),
       ).length;
@@ -132,6 +167,7 @@ export async function registryView(
             ? null
             : { version: published.version, publishedAt: published.publishedAt },
         unpublishedChanges: fields.filter((f) => f.pending !== null).length + newSections,
+        choices,
         sections: draft.sections
           .filter((s) => s.archivedAt === null)
           .map((s) => {
@@ -222,13 +258,23 @@ export interface FieldInput {
   readonly description: string | null;
   readonly dataType: string;
   readonly options: readonly string[];
-  readonly requiredness: 'never' | 'always';
+  readonly requiredness: 'never' | 'always' | 'conditional';
+  /** Required when this holds (PEO-065). Only read when `conditional`. */
+  readonly requiredWhen: RequirednessPredicate | null;
   readonly ownership: readonly string[];
   readonly collectAt: string;
   readonly visibility: readonly string[];
+  /** Custom visibility rules (PEO-066); empty for none. */
+  readonly visibilityRules: readonly VisibilityRule[];
   readonly classification: string;
   readonly piiKind: string;
   readonly classificationSource: 'suggested' | 'human' | 'section_default';
+  /**
+   * Whether a change waits for HR's approval (PEO-077). Null, or the value
+   * the policy would give anyway, keeps the default — so a field saved
+   * without touching it follows its classification, now and later.
+   */
+  readonly requiresApproval: boolean | null;
 }
 
 function definitionOf(input: FieldInput, order: number): AttributeDefinitionInput {
@@ -258,9 +304,16 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
           }
         : {}),
     },
-    requiredness: { mode: input.requiredness },
+    // A conditional rule without a predicate is refused by the contract, which
+    // names the field; nothing here invents one.
+    requiredness:
+      input.requiredness === 'conditional'
+        ? { mode: 'conditional', when: input.requiredWhen }
+        : { mode: input.requiredness },
     ownership: input.ownership,
     visibility: input.visibility,
+    // Absent when there are none, as the contract keeps it (PEO-066).
+    ...(input.visibilityRules.length === 0 ? {} : { visibilityRules: input.visibilityRules }),
     collectAt: input.collectAt,
     classification: {
       classification: input.classification,
@@ -270,6 +323,13 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
     },
     classificationSource: input.classificationSource,
     encrypted: secret,
+    ...(input.requiresApproval === null ||
+    input.requiresApproval === requiresApproval({
+      encrypted: secret,
+      classification: { piiKind: input.piiKind },
+    })
+      ? {}
+      : { requiresApproval: input.requiresApproval }),
     origin: 'tenant',
   } as AttributeDefinitionInput;
 }
@@ -293,7 +353,12 @@ export async function saveField(
           : (() => {
               // A key, an origin and a place in the order are not an edit's to change.
               const { key: _key, origin: _origin, order: _order, ...patch } = definition;
-              return draft.updateAttribute(editing, patch);
+              // Named even when absent, so removing the last rule removes it.
+              return draft.updateAttribute(editing, {
+                ...patch,
+                visibilityRules: patch.visibilityRules,
+                requiresApproval: patch.requiresApproval,
+              });
             })();
       if (!saved.ok) return saved;
       await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
@@ -308,7 +373,7 @@ export interface PublishPreviewView {
   readonly nextVersion: number;
   readonly unchanged: boolean;
   readonly changes: readonly {
-    readonly kind: 'added' | 'tightened' | 'loosened' | 'archived';
+    readonly kind: 'added' | 'tightened' | 'loosened' | 'changed' | 'archived';
     readonly key: string;
     readonly summary: string;
     readonly specialCategory: boolean;
@@ -327,6 +392,7 @@ const WORDS = {
   added: 'added',
   tightened: 'now asks more',
   loosened: 'now asks less',
+  changed: 'is shown or required under different rules',
   archived: 'archived',
 } as const;
 
@@ -401,7 +467,7 @@ export async function previewPublish(
               .map((a) => a.key as string),
           );
           const { diff, impact } = preview.value;
-          const changes = (['added', 'tightened', 'loosened', 'archived'] as const).flatMap(
+          const changes = (['added', 'tightened', 'loosened', 'changed', 'archived'] as const).flatMap(
             (kind) =>
               diff[kind].map((key) => ({
                 kind,

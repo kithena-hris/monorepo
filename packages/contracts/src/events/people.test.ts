@@ -103,8 +103,15 @@ describe('a profile update', () => {
 
 describe('a value coming into force on its day (PEO-124)', () => {
   it('carries what a profile update carries, and refuses a special-category value alike', () => {
+    // Every key but `appliedWithoutApproval` (PEO-077). Whether a value skipped
+    // approval is a fact about the write that recorded it, and that write's
+    // `profile_updated` says so; the history row it left does not record it,
+    // so coming into force could only repeat it by guessing. The audit is the
+    // write's event, which the history row names.
     expect(payloadKeys('people.person.attribute_effective').toSorted()).toEqual(
-      payloadKeys('people.person.profile_updated').toSorted(),
+      payloadKeys('people.person.profile_updated')
+        .filter((k) => k !== 'appliedWithoutApproval')
+        .toSorted(),
     );
     const effective = peopleEvents.find((e) => e.name === 'people.person.attribute_effective');
     const refused = effective?.payload.safeParse({
@@ -181,6 +188,15 @@ describe('the events a person record produces', () => {
     ]) {
       expect(names, expected).toContain(expected);
     }
+  });
+
+  it('says who a merge absorbed and which keys it took, never a value (PEO-074)', () => {
+    expect(payloadKeys('people.person.merged')).toEqual([
+      'survivingPersonId',
+      'absorbedPersonId',
+      'attributesTaken',
+      'identityAccountId',
+    ]);
   });
 
   it('says which schema version a hire was written under', () => {
@@ -315,5 +331,30 @@ describe('what identity is told', () => {
       employmentStart: '2026-10-01',
     });
     expect(unlinked?.success).toBe(false);
+  });
+});
+
+describe('a pay band (PEO-078)', () => {
+  it('is company policy in minor units, naming nobody', () => {
+    const keys = ['bandId', 'effectiveFrom', 'grade', 'maximum', 'midpoint', 'minimum'];
+    expect(payloadKeys('people.pay_band.set').toSorted()).toEqual(keys);
+    expect(payloadKeys('people.pay_band.corrected').toSorted()).toEqual(
+      [...keys, 'supersedes'].toSorted(),
+    );
+  });
+
+  it('refuses an amount that is not whole minor units', () => {
+    const set = peopleEvents.find((e) => e.name === 'people.pay_band.set');
+    const eur = (amountMinor: number) => ({ amountMinor, currency: 'EUR' });
+    const band = {
+      bandId: '00000000-0000-4000-8000-0000000000a1',
+      grade: 'L3',
+      minimum: eur(4_000_000),
+      midpoint: eur(5_000_000),
+      maximum: eur(6_000_000),
+      effectiveFrom: '2026-01-01',
+    };
+    expect(set?.payload.safeParse(band).success).toBe(true);
+    expect(set?.payload.safeParse({ ...band, midpoint: eur(5_000_000.5) }).success).toBe(false);
   });
 });

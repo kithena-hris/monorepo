@@ -1,0 +1,99 @@
+name: deploy to production
+
+# Production by hand, one checkbox per thing that ships. Runs the same jobs as
+# the automatic deploy after a merge (`vercel-production.yml`): migrations
+# first, the smoke tests, the rollbacks and the deploy markers. By default it
+# deploys exactly what is ticked, whether or not it changed; "also changed"
+# adds whatever differs from what production runs. Runs from `main` only.
+on:
+  workflow_dispatch:
+    inputs:
+      everything:
+        description: 'Everything, whatever is ticked below'
+        type: boolean
+        default: false
+      people:
+        description: 'People: the service, its screens, the router and database migrations'
+        type: boolean
+        default: false
+      tenant_app:
+        description: 'Tenant app (the shell companies sign in to)'
+        type: boolean
+        default: false
+      back_office:
+        description: 'Back office'
+        type: boolean
+        default: false
+      identity:
+        description: 'Identity and the sign-in pages'
+        type: boolean
+        default: false
+      messaging:
+        description: 'Messaging (email)'
+        type: boolean
+        default: false
+      design_system:
+        description: 'Reach docs and Storybook'
+        type: boolean
+        default: false
+      also_changed:
+        description: 'Also deploy anything else that changed since the last deploy'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  choose:
+    name: what to deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      targets: ${{ steps.pick.outputs.targets }}
+    steps:
+      - name: pick
+        id: pick
+        env:
+          EVERYTHING: ${{ inputs.everything }}
+          PEOPLE: ${{ inputs.people }}
+          TENANT_APP: ${{ inputs.tenant_app }}
+          BACK_OFFICE: ${{ inputs.back_office }}
+          IDENTITY: ${{ inputs.identity }}
+          MESSAGING: ${{ inputs.messaging }}
+          DESIGN_SYSTEM: ${{ inputs.design_system }}
+          ALSO_CHANGED: ${{ inputs.also_changed }}
+        run: |
+          t=()
+          if [ "$EVERYTHING" = true ]; then
+            t=(all)
+          else
+            [ "$PEOPLE" = true ] && t+=(migrations people router people-remote)
+            [ "$TENANT_APP" = true ] && t+=(shell)
+            [ "$BACK_OFFICE" = true ] && t+=(admin)
+            [ "$IDENTITY" = true ] && t+=(identity auth)
+            [ "$MESSAGING" = true ] && t+=(messaging)
+            [ "$DESIGN_SYSTEM" = true ] && t+=(docs storybook)
+          fi
+          if [ "${#t[@]}" -eq 0 ] && [ "$ALSO_CHANGED" != true ]; then
+            echo "::error::Nothing ticked. Tick what to deploy, or 'Also deploy anything else that changed'."
+            exit 1
+          fi
+          targets="$(IFS=,; echo "${t[*]}")"
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Deploying: ${targets:-only what changed}"
+
+  # What the production jobs need: tags the deploy markers, pushes VM images,
+  # assumes the AWS role, comments on the merged pull request.
+  deploy:
+    needs: choose
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/vercel-production.yml
+    with:
+      targets: ${{ needs.choose.outputs.targets }}
+      only: ${{ !inputs.also_changed }}
+    secrets: inherit

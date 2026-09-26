@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AttributeDefinition } from './attribute-definition.js';
+import { AttributeDefinition, requiresApproval } from './attribute-definition.js';
 
 /**
  * The refinements that are not negotiable.
@@ -157,5 +157,84 @@ describe('the rest of the shape', () => {
     const without: Record<string, unknown> = { ...base };
     delete without['classification'];
     expect(AttributeDefinition.safeParse(without).success).toBe(false);
+  });
+});
+
+describe('custom visibility rules (PEO-066)', () => {
+  const rule = {
+    scopes: ['manager'],
+    when: { combine: 'all', clauses: [{ operand: 'country', in: ['ES'] }] },
+  };
+
+  it('are absent unless given, so a document published without them keeps its checksum', () => {
+    const parsed = define();
+    expect(parsed.success && 'visibilityRules' in parsed.data).toBe(false);
+  });
+
+  it('grant scopes on the closed predicate requiredness already uses', () => {
+    expect(define({ visibilityRules: [rule] }).success).toBe(true);
+    expect(
+      define({
+        visibilityRules: [{ ...rule, when: { clauses: [{ operand: 'salary', in: ['x'] }] } }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('refuses a rule that grants nobody', () => {
+    expect(define({ visibilityRules: [{ ...rule, scopes: [] }] }).success).toBe(false);
+  });
+
+  it('never apply to special-category data, which is not shown conditionally', () => {
+    expect(
+      define({
+        classification: {
+          classification: 'special-category',
+          piiKind: 'health',
+          exportable: true,
+          aiEligible: false,
+        },
+        visibilityRules: [rule],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('do not make a required field readable: they hold of some records only', () => {
+    expect(
+      define({ visibility: [], visibilityRules: [rule], requiredness: { mode: 'always' } })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe('requiresApproval (PEO-077)', () => {
+  const financial = {
+    classification: {
+      classification: 'confidential',
+      piiKind: 'financial',
+      exportable: true,
+      aiEligible: false,
+    },
+    encrypted: true,
+  };
+
+  it('defaults on for financial or encrypted data, and off for the rest', () => {
+    const bank = define(financial);
+    const notes = define();
+    const sealed = define({ encrypted: true });
+    if (!bank.success || !notes.success || !sealed.success) throw new Error('not parsed');
+    expect(requiresApproval(bank.data)).toBe(true);
+    expect(requiresApproval(sealed.data)).toBe(true);
+    expect(requiresApproval(notes.data)).toBe(false);
+  });
+
+  it('follows the tenant either way once set, and stays absent until it is', () => {
+    const off = define({ ...financial, requiresApproval: false });
+    const on = define({ requiresApproval: true });
+    const unset = define();
+    if (!off.success || !on.success || !unset.success) throw new Error('not parsed');
+    expect(requiresApproval(off.data)).toBe(false);
+    expect(requiresApproval(on.data)).toBe(true);
+    // Absent, not defaulted: a document published before it existed keeps its checksum.
+    expect('requiresApproval' in unset.data).toBe(false);
   });
 });

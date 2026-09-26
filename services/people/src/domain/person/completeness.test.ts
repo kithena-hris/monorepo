@@ -64,15 +64,18 @@ describe('a provisional record', () => {
     expect(verdict.missing).toEqual([]);
   });
 
-  it('is not applicable once discarded', () => {
-    expect(
-      assessCompleteness(
-        [define({ key: 'cost_centre' })],
-        facts({ status: 'discarded' }),
-        clock,
-        'Etc/UTC',
-      ).state,
-    ).toBe('not_applicable');
+  it('is not applicable once discarded, or merged into a survivor', () => {
+    for (const status of ['discarded', 'merged'] as const) {
+      expect(
+        assessCompleteness(
+          [define({ key: 'cost_centre' })],
+          facts({ status }),
+          clock,
+          'Etc/UTC',
+        ).state,
+        status,
+      ).toBe('not_applicable');
+    }
   });
 });
 
@@ -288,5 +291,43 @@ describe('a pre-hire (PRD §8.1)', () => {
         'Etc/UTC',
       ),
     ).toEqual(['cost_centre', 'bio']);
+  });
+});
+
+describe('a published predicate on special-category data (PEO-065)', () => {
+  // The draft refuses one now; a document published before that may hold one.
+  const definitions = [
+    define({
+      key: 'disability',
+      requiredness: { mode: 'never' },
+      classification: {
+        classification: 'special-category',
+        piiKind: 'health',
+        exportable: true,
+        aiEligible: false,
+      },
+    }),
+    define({
+      key: 'workplace_adjustment',
+      requiredness: {
+        mode: 'conditional',
+        when: { clauses: [{ operand: 'attribute', key: 'disability', is: 'set' }] },
+      },
+    }),
+  ];
+  const known = new Set(['disability', 'workplace_adjustment']);
+  const holding = facts({ values: { disability: 'yes' }, knownAttributes: known });
+  const not = facts({ values: {}, knownAttributes: known });
+
+  it('fails closed: the field is not required, and the rule is reported as broken', () => {
+    const verdict = assessCompleteness(definitions, holding, clock, 'Europe/Madrid');
+    expect(verdict.missing).toEqual([]);
+    expect(verdict.unevaluable).toEqual([{ key: 'workplace_adjustment', reads: ['disability'] }]);
+  });
+
+  it('shades it the same whether the condition holds or not', () => {
+    expect(notApplicable(definitions, holding, clock, 'Europe/Madrid')).toEqual(
+      notApplicable(definitions, not, clock, 'Europe/Madrid'),
+    );
   });
 });

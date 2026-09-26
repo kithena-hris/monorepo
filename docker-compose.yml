@@ -2,22 +2,30 @@ name: kithena
 
 services:
   postgres:
-    # `pgvector/pgvector:pg17`, not `postgres:17-alpine`.
+    # `pgvector/pgvector:pg18`, not `postgres:18-alpine`.
     #
     # `tools/scripts/init-db.sql` asks for `CREATE EXTENSION vector`, which the
     # official image does not ship. The extension fails, and because it fails
     # inside an init script the entrypoint aborts the whole file and exits 3 —
     # so `just dev` brought up a database container that was not running, with
     # the reason twenty lines up in a log nobody reads on a good day. This image
-    # is the same Postgres 17 with pgvector already built in.
-    image: pgvector/pgvector:pg17
+    # is the same Postgres 18 with pgvector already built in.
+    #
+    # 18 keeps its cluster in `18/docker` under a volume mounted at
+    # `/var/lib/postgresql` (and refuses one at `.../data`), and cannot open a
+    # 17 data directory. So the volume is `pgdata18`, new: an old `pgdata` is
+    # left alone rather than crashing this container, and `just dev` builds the
+    # empty one from the migrations and the seed. What only lived in the old
+    # one (the admin passkey enrolment) starts again from `just admin-seed`.
+    # `docker volume rm kithena_pgdata` once nothing there is wanted.
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: kithena
       POSTGRES_PASSWORD: kithena
       POSTGRES_DB: kithena
     ports: ['5432:5432']
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata18:/var/lib/postgresql
       - ./tools/scripts/init-db.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U kithena']
@@ -111,6 +119,6 @@ services:
     ports: ['1025:1025', '8025:8025']
 
 volumes:
-  pgdata:
+  pgdata18:
   typesense:
   object-store:

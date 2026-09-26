@@ -4,6 +4,7 @@ import { presentsInternalToken } from '@kithena/auth-kit';
 
 import { readJsonBody } from '../../shared/http.js';
 import type { SendNotice } from '../application/send-notice.js';
+import { REPORT_CADENCES, REPORT_FORMATS } from '../domain/notice.js';
 import { STATUS, refusalOf } from './messaging-routes.js';
 
 /**
@@ -24,6 +25,14 @@ const NoticeRequest = z.object({
   notice: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('profile_reminder'), missing: z.number().int().min(1).max(1000) }),
     z.object({ kind: z.literal('webhook_disabled'), host: z.string().min(1).max(253) }),
+    z.object({ kind: z.literal('approval_requested') }),
+    z.object({ kind: z.literal('approval_decided'), decision: z.enum(['approved', 'rejected']) }),
+    z.object({ kind: z.literal('approval_expired') }),
+    z.object({
+      kind: z.literal('scheduled_report'),
+      cadence: z.enum(REPORT_CADENCES),
+      format: z.enum(REPORT_FORMATS),
+    }),
   ]),
 });
 

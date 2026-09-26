@@ -1,1 +1,0 @@
-{"version":1,"body":"query Registry {\n    peopleRegistry {\n      published { version publishedAt }\n      unpublishedChanges\n      sections { key label visibility ownership origin fixed }\n      fields {\n        key sectionKey label description dataType options requiredness ownership visibility\n        collectAt classification piiKind origin pending\n      }\n    }\n  }"}

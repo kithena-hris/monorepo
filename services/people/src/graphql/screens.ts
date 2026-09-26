@@ -1,5 +1,6 @@
+import type { AnalyticsView } from '../application/screens/analytics.js';
+import type { SegmentView } from '../application/screens/segments.js';
 import type {
-  AnalyticsView,
   DeliveriesView,
   ExportBuilderView,
   ImportStageView,
@@ -7,9 +8,15 @@ import type {
   IntegrationsView,
 } from '../application/screens/operations.js';
 import type {
+  ApprovalsView,
   CompletenessView,
   DirectoryView,
+  HistoryChange,
+  HistoryView,
   IdentifierReviewsView,
+  ComparedPerson,
+  ComparedRow,
+  DuplicatesView,
   OnboardingView,
   PickerView,
   ProfileView,
@@ -18,10 +25,12 @@ import type {
   FormValue,
   IdentifierFindingView,
   IdentifierReviewEntry,
+  PendingFieldView,
   RecordField,
   RecordSection,
 } from '../application/screens/model.js';
 import type { RolesView } from '../application/screens/roles.js';
+import type { BulkEditView, BulkResult } from '../application/screens/bulk-edit.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
 import type { ListedEndpoint } from '../infrastructure/webhooks/list.js';
@@ -89,6 +98,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'Who changes a read-only field; null when the viewer does.',
         resolve: (f) => f.ownedBy ?? null,
+      }),
+      keptIn: t.string({
+        nullable: true,
+        description:
+          'The upstream system that is the source of record for this field on this person (PEO-073); change it there.',
+        resolve: (f) => f.keptIn ?? null,
+      }),
+      sensitive: t.exposeBoolean('sensitive', {
+        description:
+          'A change to it waits for HR approval (PEO-077); mark it wherever it is drawn.',
       }),
     }),
   });
@@ -236,6 +255,92 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
       }),
     });
+  /* ------------------------------------------------- duplicates (PEO-074) -- */
+
+  const DuplicateItemRef = builder
+    .objectRef<DuplicatesView['items'][number]>('DuplicatePair')
+    .implement({
+      description: 'Two records that look like one human, and why. Never a value.',
+      fields: (t) => ({
+        personIds: t.idList({ resolve: (d) => [...d.personIds] }),
+        names: t.stringList({ resolve: (d) => [...d.names] }),
+        reasons: t.stringList({ resolve: (d) => list(d.reasons) }),
+      }),
+    });
+  const ComparedPersonRef = builder.objectRef<ComparedPerson>('ComparedPerson').implement({
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      status: t.exposeString('status'),
+      refusal: t.exposeString('refusal', {
+        nullable: true,
+        description: 'Why this record may not absorb the other; null when it may.',
+      }),
+    }),
+  });
+  const ComparedRowRef = builder.objectRef<ComparedRow>('ComparedRow').implement({
+    description: 'One attribute side by side, as the viewer may read it. A sealed value is its last four.',
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      values: t.field({ type: ['String'], nullable: { items: true, list: false }, resolve: (r) => [...r.values] }),
+      same: t.exposeBoolean('same'),
+      takeable: t.field({ type: ['Boolean'], resolve: (r) => [...r.takeable] }),
+    }),
+  });
+  const ComparisonRef = builder
+    .objectRef<NonNullable<DuplicatesView['comparison']>>('DuplicateComparison')
+    .implement({
+      fields: (t) => ({
+        people: t.field({ type: [ComparedPersonRef], resolve: (c) => [...c.people] }),
+        rows: t.field({ type: [ComparedRowRef], resolve: (c) => list(c.rows) }),
+      }),
+    });
+  const DuplicatesRef = builder.objectRef<DuplicatesView>('PeopleDuplicates').implement({
+    description: 'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
+    fields: (t) => ({
+      items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
+      comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
+    }),
+  });
+  const DismissedRef = builder
+    .objectRef<{ personIds: readonly string[]; decision: string }>('DuplicateDismissed')
+    .implement({
+      fields: (t) => ({
+        personIds: t.idList({ resolve: (d) => [...d.personIds] }),
+        decision: t.exposeString('decision'),
+      }),
+    });
+  builder.queryField('peopleDuplicates', (t) =>
+    t.field({
+      type: DuplicatesRef,
+      description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
+      args: { a: t.arg.id(), b: t.arg.id() },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.a) query.set('a', args.a);
+        if (args.b) query.set('b', args.b);
+        const qs = query.toString();
+        return viaRest<DuplicatesView>(ctx, 'GET', `/v1/views/duplicates${qs === '' ? '' : `?${qs}`}`);
+      },
+    }),
+  );
+  builder.mutationField('dismissDuplicate', (t) =>
+    t.field({
+      type: DismissedRef,
+      description: 'HR says a pair are two people; the queue stops offering it.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ personIds: string[]; decision: string }>(ctx, 'POST', '/v1/duplicates/dismissals', {
+          body: { personIds: args.personIds.map(String) },
+          key: args.idempotencyKey,
+        }),
+    }),
+  );
+
   const FindingsRef = builder
     .objectRef<{ findings: readonly IdentifierFindingView[] }>('IdentifierCheck')
     .implement({
@@ -339,6 +444,103 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Their doubted identifiers still open, on fields the viewer reads (PEO-125).',
         resolve: (v) => list(v.reviews),
       }),
+      pending: t.field({
+        type: [PendingFieldRef],
+        description:
+          'Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.',
+        resolve: (v) => list(v.pending),
+      }),
+    }),
+  });
+
+  /* ------------------------------------------ held changes (PEO-077) -- */
+
+  const PendingFieldRef = builder.objectRef<PendingFieldView>('PendingField').implement({
+    description:
+      'A value waiting for HR approval. Never the field’s value, which stays what is in force.',
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      kind: t.exposeString('kind', { description: 'value, or a correction of a recorded one' }),
+      value: t.field({
+        type: FormEntry,
+        description: 'Masked as the field is: a sealed one is a SealedEntry with its last four.',
+        resolve: (c) => ({ key: c.key, value: c.value }),
+      }),
+      effectiveFrom: t.exposeString('effectiveFrom'),
+      requestedAt: t.exposeString('requestedAt'),
+      expiresAt: t.exposeString('expiresAt'),
+      requestedBy: t.exposeString('requestedBy'),
+      reason: t.exposeString('reason', { nullable: true }),
+      mine: t.exposeBoolean('mine', { description: 'The viewer asked; they may withdraw it.' }),
+      canDecide: t.exposeBoolean('canDecide'),
+    }),
+  });
+  const ApprovalItemRef = builder
+    .objectRef<ApprovalsView['items'][number]>('ApprovalItem')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        kind: t.exposeString('kind'),
+        value: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.value }) }),
+        effectiveFrom: t.exposeString('effectiveFrom'),
+        requestedAt: t.exposeString('requestedAt'),
+        expiresAt: t.exposeString('expiresAt'),
+        requestedBy: t.exposeString('requestedBy'),
+        reason: t.exposeString('reason', { nullable: true }),
+        mine: t.exposeBoolean('mine'),
+        canDecide: t.exposeBoolean('canDecide'),
+        personId: t.exposeID('personId'),
+        name: t.exposeString('name'),
+        readable: t.exposeBoolean('readable', {
+          description:
+            'False where the viewer may not read the field: value and current are empty.',
+        }),
+        current: t.field({
+          type: FormEntry,
+          description: 'What is in force now, masked the same way.',
+          resolve: (c) => ({ key: c.key, value: c.current }),
+        }),
+      }),
+    });
+  const ApprovalsRef = builder.objectRef<ApprovalsView>('PeopleApprovals').implement({
+    description: 'Changes waiting for approval: every one for HR, the viewer’s own otherwise.',
+    fields: (t) => ({
+      isHr: t.exposeBoolean('isHr'),
+      items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
+    }),
+  });
+
+  const HistoryChangeRef = builder.objectRef<HistoryChange>('HistoryChange').implement({
+    description:
+      'One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.',
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      key: t.exposeString('key'),
+      value: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.value }) }),
+      effectiveFrom: t.exposeString('effectiveFrom'),
+      recordedAt: t.exposeString('recordedAt'),
+      by: t.exposeString('by'),
+      supersedes: t.exposeID('supersedes', { nullable: true }),
+      supersededBy: t.exposeID('supersededBy', { nullable: true }),
+    }),
+  });
+  const HistoryPerson = builder
+    .objectRef<HistoryView['person']>('HistoryPerson')
+    .implement({ fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }) });
+  const HistoryRef = builder.objectRef<HistoryView>('PeopleHistory').implement({
+    description:
+      'A record as of a date, and every change behind it, as the viewer may read them now.',
+    fields: (t) => ({
+      person: t.field({ type: HistoryPerson, resolve: (v) => v.person }),
+      asOf: t.exposeString('asOf', { nullable: true }),
+      sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
+      dated: t.stringList({ resolve: (v) => list(v.dated) }),
+      values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
+      changes: t.field({ type: [HistoryChangeRef], resolve: (v) => list(v.changes) }),
     }),
   });
 
@@ -377,10 +579,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       import: t.exposeBoolean('import'),
       export: t.exposeBoolean('export'),
+      bulkEdit: t.exposeBoolean('bulkEdit', { description: 'HR’s: set values on the people chosen (PEO-071).' }),
     }),
   });
+  const SegmentRef = builder
+    .objectRef<{ readonly id: string; readonly name: string }>('PeopleSegmentRef')
+    .implement({
+      description: 'A saved segment, by name (PEO-068).',
+      fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
+    });
   const DirectoryRef = builder.objectRef<Directory>('PeopleDirectory').implement({
     fields: (t) => ({
+      segment: t.field({ type: SegmentRef, nullable: true, resolve: (v) => v.segment }),
+      segments: t.field({
+        type: [SegmentRef],
+        description: 'The saved segments this viewer could apply here.',
+        resolve: (v) => list(v.segments),
+      }),
       active: t.exposeInt('active'),
       incomplete: t.exposeInt('incomplete', { nullable: true }),
       columns: t.field({ type: [Column], resolve: (v) => list(v.columns) }),
@@ -407,6 +622,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         options: t.field({ type: [OptionRef], resolve: (f) => list(f.options) }),
         person: t.exposeBoolean('person', {
           description: 'A person reference: picked with peoplePicker, not from options',
+        }),
+        sensitive: t.exposeBoolean('sensitive', {
+          description: 'A change to it waits for HR approval (PEO-077).',
         }),
       }),
     });
@@ -482,6 +700,51 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         fixed: t.exposeBoolean('fixed'),
       }),
     });
+  /*
+   * The closed predicate (PEO-065) and custom visibility rules (PEO-066). One
+   * clause type rather than a union per operand: `in` for the five that list
+   * values, `key`/`is`/`equals` for another field, and REST's Zod — the
+   * contract's own schema — refuses any mix the grammar does not allow.
+   */
+  type Field = RegistryView['fields'][number];
+  type Clause = NonNullable<Field['requiredWhen']>['clauses'][number];
+  const Clause = builder.objectRef<Clause>('PredicateClause').implement({
+    fields: (t) => ({
+      operand: t.exposeString('operand'),
+      in: t.stringList({
+        nullable: true,
+        resolve: (c) => ('in' in c ? list<string>(c.in) : null),
+      }),
+      key: t.string({ nullable: true, resolve: (c) => ('key' in c ? c.key : null) }),
+      is: t.string({ nullable: true, resolve: (c) => ('is' in c ? c.is : null) }),
+      equals: t.string({ nullable: true, resolve: (c) => ('equals' in c ? c.equals : null) }),
+    }),
+  });
+  const Predicate = builder
+    .objectRef<NonNullable<Field['requiredWhen']>>('PersonPredicate')
+    .implement({
+      fields: (t) => ({
+        combine: t.exposeString('combine'),
+        clauses: t.field({ type: [Clause], resolve: (p) => list(p.clauses) }),
+      }),
+    });
+  const Rule = builder.objectRef<Field['visibilityRules'][number]>('VisibilityRule').implement({
+    fields: (t) => ({
+      scopes: t.stringList({ resolve: (r) => list<string>(r.scopes) }),
+      when: t.field({ type: Predicate, resolve: (r) => r.when }),
+    }),
+  });
+  const Choice = builder
+    .objectRef<RegistryView['choices']['countries'][number]>('RegistryChoice')
+    .implement({
+      fields: (t) => ({ value: t.exposeString('value'), label: t.exposeString('label') }),
+    });
+  const Choices = builder.objectRef<RegistryView['choices']>('RegistryChoices').implement({
+    fields: (t) => ({
+      legalEntities: t.field({ type: [Choice], resolve: (c) => list(c.legalEntities) }),
+      countries: t.field({ type: [Choice], resolve: (c) => list(c.countries) }),
+    }),
+  });
   const RegistryField = builder
     .objectRef<RegistryView['fields'][number]>('RegistryField')
     .implement({
@@ -493,11 +756,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         dataType: t.exposeString('dataType'),
         options: t.stringList({ resolve: (f) => list(f.options) }),
         requiredness: t.exposeString('requiredness'),
+        requiredWhen: t.field({
+          type: Predicate,
+          nullable: true,
+          description: 'When a conditional field is required; null unless it is conditional.',
+          resolve: (f) => f.requiredWhen,
+        }),
         ownership: t.stringList({ resolve: (f) => list(f.ownership) }),
         visibility: t.stringList({ resolve: (f) => list(f.visibility) }),
+        visibilityRules: t.field({
+          type: [Rule],
+          description: 'Scopes that may also read it, on the records each predicate holds for.',
+          resolve: (f) => list(f.visibilityRules),
+        }),
         collectAt: t.exposeString('collectAt'),
         classification: t.exposeString('classification'),
         piiKind: t.exposeString('piiKind'),
+        requiresApproval: t.exposeBoolean('requiresApproval', {
+          description: 'Whether a change waits for HR approval: the tenant’s choice, else the default.',
+        }),
         origin: t.exposeString('origin'),
         pending: t.exposeString('pending', {
           nullable: true,
@@ -511,6 +788,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       unpublishedChanges: t.exposeInt('unpublishedChanges'),
       sections: t.field({ type: [RegistrySection], resolve: (v) => list(v.sections) }),
       fields: t.field({ type: [RegistryField], resolve: (v) => list(v.fields) }),
+      choices: t.field({ type: Choices, resolve: (v) => v.choices }),
     }),
   });
 
@@ -640,6 +918,46 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       secretRotated: t.exposeString('secretRotated', { nullable: true }),
     }),
   });
+  type Scim = IntegrationsView['scim'];
+  const ScimMappingEntry = builder
+    .objectRef<Scim['connections'][number]['mapping'][number]>('ScimMappingEntry')
+    .implement({
+      fields: (t) => ({ path: t.exposeString('path'), key: t.exposeString('key') }),
+    });
+  const ScimConnectionRef = builder
+    .objectRef<Scim['connections'][number]>('ScimConnection')
+    .implement({
+      description: 'An upstream system provisioning people over SCIM (PEO-072).',
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        system: t.exposeString('system'),
+        createdAt: t.exposeString('createdAt'),
+        tokenRotatedAt: t.exposeString('tokenRotatedAt', { nullable: true }),
+        revokedAt: t.exposeString('revokedAt', { nullable: true }),
+        linked: t.exposeInt('linked', { description: 'How many people it provisions.' }),
+        mapping: t.field({
+          type: [ScimMappingEntry],
+          description: 'The approved mapping: every attribute it names is kept in this system.',
+          resolve: (c) => list(c.mapping),
+        }),
+      }),
+    });
+  const ScimAttribute = builder
+    .objectRef<Scim['mappable'][number]>('ScimMappableAttribute')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
+    });
+  const ScimRef = builder.objectRef<Scim>('PeopleScim').implement({
+    fields: (t) => ({
+      url: t.exposeString('url', { description: 'The SCIM base URL to give the provider.' }),
+      paths: t.stringList({ resolve: (s) => list(s.paths) }),
+      extension: t.exposeString('extension', {
+        description: 'The schema a tenant attribute is mapped under, as `<extension>:<key>`.',
+      }),
+      mappable: t.field({ type: [ScimAttribute], resolve: (s) => list(s.mappable) }),
+      connections: t.field({ type: [ScimConnectionRef], resolve: (s) => list(s.connections) }),
+    }),
+  });
   const Integrations = builder.objectRef<IntegrationsView>('PeopleIntegrations').implement({
     fields: (t) => ({
       schemaVersion: t.exposeInt('schemaVersion'),
@@ -647,6 +965,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       events: t.stringList({ resolve: (v) => list(v.events) }),
       fields: t.field({ type: [IntegrationField], resolve: (v) => list(v.fields) }),
       endpoints: t.field({ type: [Endpoint], resolve: (v) => list(v.endpoints) }),
+      scim: t.field({ type: ScimRef, resolve: (v) => v.scim }),
     }),
   });
 
@@ -701,6 +1020,69 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       percent: t.exposeFloat('percent'),
       leavers: t.exposeInt('leavers'),
       formula: t.exposeString('formula'),
+      trend: t.field({
+        type: [Point],
+        description: 'Rolling 12-month attrition, in percent, by month',
+        resolve: (a) => list(a.trend),
+      }),
+    }),
+  });
+  const TenureBand = builder
+    .objectRef<NonNullable<A['tenure']>[number]>('AnalyticsTenureBand')
+    .implement({
+      fields: (t) => ({
+        label: t.exposeString('label'),
+        headcount: t.exposeInt('headcount'),
+        leavers: t.exposeInt('leavers', {
+          description: 'Left in the 12 months before, by tenure at leaving',
+        }),
+      }),
+    });
+  type Joiners = NonNullable<A['joiners']>;
+  const HeatCell = builder.objectRef<Joiners['cells'][number]>('AnalyticsHeatCell').implement({
+    fields: (t) => ({
+      row: t.exposeString('row'),
+      column: t.exposeString('column'),
+      value: t.exposeInt('value'),
+    }),
+  });
+  const JoinerHeatmap = builder.objectRef<Joiners>('AnalyticsJoiners').implement({
+    fields: (t) => ({
+      months: t.exposeStringList('months'),
+      departments: t.exposeStringList('departments'),
+      cells: t.field({ type: [HeatCell], resolve: (j) => list(j.cells) }),
+    }),
+  });
+  type Composition = NonNullable<A['composition']>;
+  const Series = builder.objectRef<Composition['series'][number]>('AnalyticsSeries').implement({
+    fields: (t) => ({
+      label: t.exposeString('label'),
+      values: t.exposeIntList('values'),
+    }),
+  });
+  const CompositionRef = builder.objectRef<Composition>('AnalyticsComposition').implement({
+    fields: (t) => ({
+      categories: t.exposeStringList('categories'),
+      series: t.field({ type: [Series], resolve: (c) => list(c.series) }),
+    }),
+  });
+  const SelfId = builder.objectRef<NonNullable<A['selfId']>[number]>('AnalyticsSelfId').implement({
+    description:
+      'One self-identification question in aggregate, from its monthly publication (§6.7, §16.1).',
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      status: t.exposeString('status', {
+        description: 'ok, or insufficient_data below the cohort minimum',
+      }),
+      minimum: t.exposeInt('minimum', { nullable: true }),
+      publishedAsOf: t.exposeString('publishedAsOf', { nullable: true }),
+      total: t.exposeInt('total', {
+        nullable: true,
+        description: 'Rounded to 5 on its own; not the sum of the rounded counts',
+      }),
+      note: t.exposeString('note'),
+      cells: t.field({ type: [Point], resolve: (c) => list(c.cells) }),
     }),
   });
   const Complete = builder.objectRef<NonNullable<A['complete']>>('AnalyticsComplete').implement({
@@ -737,6 +1119,47 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       items: t.field({ type: [Expiry], resolve: (e) => list(e.items) }),
     }),
   });
+  type Pay = NonNullable<A['pay']>;
+  const PayBandFigures = builder
+    .objectRef<NonNullable<Pay['grade'][number]['band']>>('AnalyticsPayBand')
+    .implement({
+      description: 'The band in force for a grade and currency, in minor units.',
+      fields: (t) => ({
+        minimumMinor: t.exposeString('minimumMinor'),
+        midpointMinor: t.exposeString('midpointMinor'),
+        maximumMinor: t.exposeString('maximumMinor'),
+      }),
+    });
+  const PayGroup = builder.objectRef<Pay['grade'][number]>('AnalyticsPayGroup').implement({
+    description:
+      'Quartiles for one group in one currency, or insufficient_data with no count and no figure (PEO-078).',
+    fields: (t) => ({
+      label: t.exposeString('label'),
+      currency: t.exposeString('currency'),
+      status: t.exposeString('status', {
+        description: 'ok, or insufficient_data below the cohort minimum',
+      }),
+      people: t.exposeInt('people', { nullable: true }),
+      p25: t.exposeString('p25', {
+        nullable: true,
+        description: 'Minor units for salary; a ratio to four places for compa-ratio',
+      }),
+      median: t.exposeString('median', { nullable: true }),
+      p75: t.exposeString('p75', { nullable: true }),
+      band: t.field({ type: PayBandFigures, nullable: true, resolve: (g) => g.band }),
+    }),
+  });
+  const PayRef = builder.objectRef<Pay>('AnalyticsPay').implement({
+    description:
+      'Pay in aggregate, finance only: quartiles per group, never a minimum, a maximum or a person (PEO-078).',
+    fields: (t) => ({
+      asOf: t.exposeString('asOf', { nullable: true }),
+      minimum: t.exposeInt('minimum', { description: 'The cohort minimum in force' }),
+      grade: t.field({ type: [PayGroup], resolve: (p) => list(p.grade) }),
+      tenure: t.field({ type: [PayGroup], resolve: (p) => list(p.tenure) }),
+      compa: t.field({ type: [PayGroup], resolve: (p) => list(p.compa) }),
+    }),
+  });
   const Analytics = builder.objectRef<A>('PeopleAnalytics').implement({
     description:
       'A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).',
@@ -755,6 +1178,61 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         resolve: (v) => (v.completenessBySection === null ? null : list(v.completenessBySection)),
       }),
+      segment: t.field({ type: SegmentRef, nullable: true, resolve: (v) => v.segment }),
+      segments: t.field({ type: [SegmentRef], resolve: (v) => list(v.segments) }),
+      tenure: t.field({
+        type: [TenureBand],
+        nullable: true,
+        resolve: (v) => (v.tenure === null ? null : list(v.tenure)),
+      }),
+      span: t.field({
+        type: [Point],
+        nullable: true,
+        description: 'Managers by number of direct reports',
+        resolve: (v) => (v.span === null ? null : list(v.span)),
+      }),
+      joiners: t.field({ type: JoinerHeatmap, nullable: true, resolve: (v) => v.joiners }),
+      composition: t.field({
+        type: CompositionRef,
+        nullable: true,
+        resolve: (v) => v.composition,
+      }),
+      selfId: t.field({
+        type: [SelfId],
+        nullable: true,
+        description: "HR's only; never under a segment",
+        resolve: (v) => (v.selfId === null ? null : list(v.selfId)),
+      }),
+      pay: t.field({
+        type: PayRef,
+        nullable: true,
+        description: "Finance's only; never under a segment",
+        resolve: (v) => v.pay,
+      }),
+    }),
+  });
+
+  const SegmentCondition = builder
+    .objectRef<SegmentView['filter'][number]>('PeopleSegmentCondition')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), value: t.exposeString('value') }),
+    });
+  const SegmentUse = builder.objectRef<SegmentView['usableIn']>('PeopleSegmentUse').implement({
+    fields: (t) => ({
+      directory: t.exposeBoolean('directory'),
+      analytics: t.exposeBoolean('analytics'),
+    }),
+  });
+  const Segment = builder.objectRef<SegmentView>('PeopleSegment').implement({
+    description:
+      'A saved segment (PEO-068): a filter, never a list of people. Using it shows you only the people you may see.',
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      filter: t.field({ type: [SegmentCondition], resolve: (v) => list(v.filter) }),
+      shared: t.exposeBoolean('shared'),
+      mine: t.exposeBoolean('mine'),
+      usableIn: t.field({ type: SegmentUse, resolve: (v) => v.usableIn }),
     }),
   });
 
@@ -780,8 +1258,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
   const ImportTarget = builder
-    .objectRef<{ readonly key: string; readonly label: string }>('ImportTarget')
-    .implement({ fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }) });
+    .objectRef<{ readonly key: string; readonly label: string; readonly sensitive: boolean }>(
+      'ImportTarget',
+    )
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        sensitive: t.exposeBoolean('sensitive', {
+          description: 'A change to it waits for HR approval (PEO-077).',
+        }),
+      }),
+    });
   type Review = Extract<Stage, { step: 'review' }>;
   type DryRun = Review['dryRun'];
   const Counts = builder.objectRef<DryRun['counts']>('ImportCounts').implement({
@@ -839,6 +1327,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         message: t.exposeString('message'),
       }),
     });
+  const SensitiveRef = builder.objectRef<DryRun['sensitive']>('ImportSensitive').implement({
+    description:
+      'Mapped fields a change to which waits for HR approval, and how many values the rows carry for them (PEO-077).',
+    fields: (t) => ({
+      fields: t.stringList({ resolve: (s) => list(s.fields) }),
+      values: t.exposeInt('values'),
+    }),
+  });
   const DryRunRef = builder.objectRef<DryRun>('ImportDryRun').implement({
     fields: (t) => ({
       counts: t.field({ type: Counts, resolve: (d) => d.counts }),
@@ -852,6 +1348,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Doubted national identifiers, per cell: imported, then reviewed by HR (PEO-125).',
         resolve: (d) => list(d.findings),
       }),
+      sensitive: t.field({ type: SensitiveRef, resolve: (d) => d.sensitive }),
     }),
   });
   const MapStage = builder.objectRef<Extract<Stage, { step: 'map' }>>('ImportMapStage').implement({
@@ -889,6 +1386,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         forReview: t.exposeInt('forReview', {
           description: 'Doubted national identifiers that imported and went to HR’s review.',
         }),
+        held: t.exposeInt('held', {
+          description: 'Values waiting for HR approval rather than written (PEO-077).',
+        }),
+        appliedWithoutApproval: t.exposeBoolean('appliedWithoutApproval'),
       }),
     });
   const UploadHeader = builder
@@ -1059,13 +1560,35 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             : `/v1/views/profile/${encodeURIComponent(args.personId)}`,
         ),
     }),
+    peopleHistory: t.field({
+      type: HistoryRef,
+      description:
+        'One person as of a date (default today), and every change; no id is "my history".',
+      args: { personId: t.arg.id(), asOf: t.arg.string() },
+      resolve: (_root, args, ctx) =>
+        viaRest<HistoryView>(
+          ctx,
+          'GET',
+          `/v1/views/history${
+            args.personId === null || args.personId === undefined
+              ? ''
+              : `/${encodeURIComponent(args.personId)}`
+          }${args.asOf ? `?asOf=${encodeURIComponent(args.asOf)}` : ''}`,
+        ),
+    }),
     peopleDirectory: t.field({
       type: DirectoryRef,
-      args: { search: t.arg.string(), filter: t.arg.string(), after: t.arg.id() },
+      args: {
+        search: t.arg.string(),
+        filter: t.arg.string(),
+        after: t.arg.id(),
+        segment: t.arg.id(),
+      },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.search) query.set('search', args.search);
         if (args.filter) query.set('filter', args.filter);
+        if (args.segment) query.set('segment', args.segment);
         if (args.after) query.set('after', args.after);
         const qs = query.toString();
         return viaRest<DirectoryView>(ctx, 'GET', `/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
@@ -1114,7 +1637,21 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleAnalytics: t.field({
       type: Analytics,
-      resolve: view<AnalyticsView>(() => '/v1/views/analytics'),
+      args: { segment: t.arg.id() },
+      resolve: (_root, args, ctx) =>
+        viaRest<AnalyticsView>(
+          ctx,
+          'GET',
+          args.segment
+            ? `/v1/views/analytics?segment=${encodeURIComponent(args.segment)}`
+            : '/v1/views/analytics',
+        ),
+    }),
+    peopleSegments: t.field({
+      type: [Segment],
+      description: 'The saved segments you see and could use somewhere (PEO-068).',
+      resolve: async (_root, _args, ctx) =>
+        list((await viaRest<{ items: SegmentView[] }>(ctx, 'GET', '/v1/segments')).items),
     }),
     peopleExport: t.field({
       type: ExportRef,
@@ -1171,6 +1708,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       clear: t.boolean(),
     }),
   });
+  const SegmentConditionInput = builder.inputType('PeopleSegmentConditionInput', {
+    fields: (t) => ({
+      key: t.string({ required: true }),
+      value: t.string({ required: true }),
+    }),
+  });
   const CellInput = builder.inputType('GridCellInput', {
     fields: (t) => ({ key: t.string({ required: true }), value: t.string({ required: true }) }),
   });
@@ -1178,6 +1721,27 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       personId: t.id({ required: true }),
       values: t.field({ type: [CellInput], required: true }),
+    }),
+  });
+  const ClauseInput = builder.inputType('PredicateClauseInput', {
+    fields: (t) => ({
+      operand: t.string({ required: true }),
+      in: t.stringList(),
+      key: t.string(),
+      is: t.string(),
+      equals: t.string(),
+    }),
+  });
+  const PredicateInput = builder.inputType('PersonPredicateInput', {
+    fields: (t) => ({
+      combine: t.string({ required: true }),
+      clauses: t.field({ type: [ClauseInput], required: true }),
+    }),
+  });
+  const RuleInput = builder.inputType('VisibilityRuleInput', {
+    fields: (t) => ({
+      scopes: t.stringList({ required: true }),
+      when: t.field({ type: PredicateInput, required: true }),
     }),
   });
   const DraftField = builder.inputType('DraftFieldInput', {
@@ -1189,12 +1753,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       dataType: t.string({ required: true }),
       options: t.stringList({ required: true }),
       requiredness: t.string({ required: true }),
+      requiredWhen: t.field({ type: PredicateInput }),
       ownership: t.stringList({ required: true }),
       collectAt: t.string({ required: true }),
       visibility: t.stringList({ required: true }),
+      visibilityRules: t.field({ type: [RuleInput] }),
       classification: t.string({ required: true }),
       piiKind: t.string({ required: true }),
       classificationSource: t.string({ required: true }),
+      requiresApproval: t.boolean({
+        description: 'Whether a change waits for HR approval; null keeps the default.',
+      }),
     }),
   });
   const ColumnInput = builder.inputType('ImportColumnInput', {
@@ -1222,6 +1791,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
       }),
     });
+  const ScimToken = builder
+    .objectRef<{ id: string; token: string | null }>('ScimConnectionToken')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        token: t.exposeString('token', {
+          nullable: true,
+          description: 'Shown once. Null when a retry of the same key answers: rotate again.',
+        }),
+      }),
+    });
+  const ScimMappingInput = builder.inputType('ScimMappingInput', {
+    fields: (t) => ({
+      path: t.string({ required: true }),
+      key: t.string({ required: true }),
+    }),
+  });
   const Replayed = builder.objectRef<{ deliveryId: string }>('WebhookReplay').implement({
     fields: (t) => ({ deliveryId: t.exposeID('deliveryId') }),
   });
@@ -1247,12 +1833,19 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   });
 
   /** What a section save answers: a retry answers `{ ok }` alone, so findings default to none. */
-  const saved = (answer: { findings?: readonly IdentifierFindingView[] } | null) => ({
+  const saved = (
+    answer: { findings?: readonly IdentifierFindingView[]; held?: readonly string[] } | null,
+  ) => ({
     ok: true as const,
     findings: answer?.findings ?? [],
+    held: answer?.held ?? [],
   });
   const SectionSaved = builder
-    .objectRef<{ ok: true; findings: readonly IdentifierFindingView[] }>('SectionSaved')
+    .objectRef<{
+      ok: true;
+      findings: readonly IdentifierFindingView[];
+      held: readonly string[];
+    }>('SectionSaved')
     .implement({
       fields: (t) => ({
         ok: t.boolean({ resolve: () => true }),
@@ -1260,6 +1853,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           type: [FindingNoticeRef],
           description: 'Warnings on national identifiers the save carried (PEO-125); saved all the same.',
           resolve: (v) => list(v.findings),
+        }),
+        held: t.stringList({
+          description:
+            'Labels of the fields sent to HR for approval rather than saved (PEO-077); empty on a retry.',
+          resolve: (v) => list(v.held),
         }),
       }),
     });
@@ -1298,11 +1896,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
   const GridSaved = builder
-    .objectRef<{ ok: true; findings: readonly GridFinding[] }>('GridSaved')
+    .objectRef<{ ok: true; findings: readonly GridFinding[]; held: number }>('GridSaved')
     .implement({
       fields: (t) => ({
         ok: t.boolean({ resolve: () => true }),
         findings: t.field({ type: [GridFindingRef], resolve: (v) => list(v.findings) }),
+        held: t.exposeInt('held', {
+          description: 'Cells sent to HR for approval rather than saved (PEO-077).',
+        }),
       }),
     });
   const GridChecked = builder
@@ -1331,6 +1932,121 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
     }),
   );
+  /* ------------------------------------------------ bulk edit (PEO-071) -- */
+
+  type BulkRow = BulkResult['rows'][number];
+  const BulkPerson = builder
+    .objectRef<BulkEditView['people'][number]>('BulkEditPerson')
+    .implement({ fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }) });
+  const BulkEditRef = builder.objectRef<BulkEditView>('PeopleBulkEdit').implement({
+    description: 'The people chosen, and the fields HR may set on them in bulk.',
+    fields: (t) => ({
+      people: t.field({ type: [BulkPerson], resolve: (v) => list(v.people) }),
+      sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
+      today: t.exposeString('today'),
+      limit: t.exposeInt('limit', { description: 'People per request.' }),
+    }),
+  });
+  const BulkChangeRef = builder
+    .objectRef<BulkRow['changes'][number]>('BulkEditChange')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        dated: t.exposeBoolean('dated', {
+          description: 'False: kept without dates, so it changes on the day whatever the date says.',
+        }),
+        before: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.before }) }),
+        after: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.after }) }),
+      }),
+    });
+  const BulkRefusalRef = builder
+    .objectRef<NonNullable<BulkRow['refusal']>>('BulkEditRefusal')
+    .implement({
+      fields: (t) => ({
+        code: t.exposeString('code'),
+        message: t.exposeString('message'),
+        keys: t.stringList({ resolve: (r) => list(r.keys) }),
+      }),
+    });
+  const BulkRowRef = builder.objectRef<BulkRow>('BulkEditRow').implement({
+    fields: (t) => ({
+      personId: t.exposeID('personId'),
+      name: t.exposeString('name'),
+      outcome: t.exposeString('outcome', {
+        description: 'changed, unchanged, refused, or held: every value it would change waits for approval',
+      }),
+      changes: t.field({ type: [BulkChangeRef], resolve: (r) => list(r.changes) }),
+      held: t.stringList({
+        description: 'Fields sent to HR for approval rather than written (PEO-077).',
+        resolve: (r) => list(r.held),
+      }),
+      refusal: t.field({ type: BulkRefusalRef, nullable: true, resolve: (r) => r.refusal }),
+      findings: t.field({ type: [FindingNoticeRef], resolve: (r) => list(r.findings) }),
+    }),
+  });
+  const BulkResultRef = builder.objectRef<BulkResult>('BulkEditResult').implement({
+    fields: (t) => ({
+      committed: t.exposeBoolean('committed'),
+      rows: t.field({ type: [BulkRowRef], resolve: (v) => list(v.rows) }),
+    }),
+  });
+  const bulkBody = (args: {
+    personIds: readonly (string | number)[];
+    values: readonly FormInput[];
+    effectiveFrom: string;
+    applySensitiveWithoutApproval?: boolean | null | undefined;
+  }) => ({
+    personIds: args.personIds.map(String),
+    values: changed(args.values),
+    effectiveFrom: args.effectiveFrom,
+    ...(args.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
+  });
+  builder.queryFields((t) => ({
+    peopleBulkEdit: t.field({
+      type: BulkEditRef,
+      args: { personIds: t.arg.idList({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkEditView>(
+          ctx,
+          'GET',
+          `/v1/views/bulk-edit?people=${encodeURIComponent(args.personIds.map(String).join(','))}`,
+        ),
+    }),
+    peopleBulkEditPreview: t.field({
+      type: BulkResultRef,
+      description: 'What a bulk edit would change and refuse, per person, and why; nothing is kept.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        values: t.arg({ type: [FormValueInput], required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+        applySensitiveWithoutApproval: t.arg.boolean(),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit/preview', { body: bulkBody(args) }),
+    }),
+  }));
+  builder.mutationField('bulkEditPeople', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description: 'A page of a bulk edit: one ordinary write per person, each atomic, each answered.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        values: t.arg({ type: [FormValueInput], required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+        applySensitiveWithoutApproval: t.arg.boolean({
+          description: 'HR only: write values that require approval without it (PEO-077).',
+        }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, { idempotencyKey, ...args }, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit', {
+          body: bulkBody(args),
+          key: idempotencyKey,
+        }),
+    }),
+  );
+
   const IdentifierDecisionEnum = builder.enumType('IdentifierReviewDecision', {
     values: ['accept', 'send_back'] as const,
   });
@@ -1410,13 +2126,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, args, ctx) => {
-        const answer = await viaRest<{ findings?: GridFinding[] } | null>(
+        const answer = await viaRest<{ findings?: GridFinding[]; held?: number } | null>(
           ctx,
           'POST',
           '/v1/views/completeness',
           { body: { changes: gridChanges(args.changes) }, key: args.idempotencyKey },
         );
-        return { ok: true as const, findings: answer?.findings ?? [] };
+        return { ok: true as const, findings: answer?.findings ?? [], held: answer?.held ?? 0 };
       },
     }),
     confirmSetupEntity: t.field({
@@ -1578,6 +2294,56 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         return { id, secret: rotated.secret ?? null };
       },
     }),
+    createScimConnection: t.field({
+      type: ScimToken,
+      args: { system: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        const made = await viaRest<{ id: string; token?: string }>(ctx, 'POST', '/v1/scim/connections', {
+          body: { system: args.system },
+          key: args.idempotencyKey,
+        });
+        return { id: made.id, token: made.token ?? null };
+      },
+    }),
+    rotateScimToken: t.field({
+      type: ScimToken,
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        const rotated = await viaRest<{ token?: string }>(
+          ctx,
+          'POST',
+          `/v1/scim/connections/${encodeURIComponent(args.id)}/rotate`,
+          { body: {}, key: args.idempotencyKey },
+        );
+        return { id: args.id, token: rotated.token ?? null };
+      },
+    }),
+    revokeScimConnection: t.field({
+      type: Outcome,
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/scim/connections/${encodeURIComponent(args.id)}/revoke`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    setScimMapping: t.field({
+      type: Outcome,
+      args: {
+        id: t.arg.id({ required: true }),
+        mapping: t.arg({ type: [ScimMappingInput], required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'PUT', `/v1/scim/connections/${encodeURIComponent(args.id)}/mapping`, {
+          body: { mapping: args.mapping.map((m) => ({ path: m.path, key: m.key })) },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
     replayWebhookDelivery: t.field({
       type: Replayed,
       args: { deliveryId: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
@@ -1633,11 +2399,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       args: {
         uploadId: t.arg.id({ required: true }),
         mapping: t.arg({ type: [ColumnInput], required: true }),
+        applySensitiveWithoutApproval: t.arg.boolean({
+          description:
+            'HR only: write values that require approval without it; each row’s event says so (PEO-077).',
+        }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: (_root, args, ctx) =>
         viaRest<Stage>(ctx, 'POST', '/v1/imports', {
-          body: importStep(args.uploadId, args.mapping),
+          body: {
+            ...importStep(args.uploadId, args.mapping),
+            ...(args.applySensitiveWithoutApproval === true
+              ? { applySensitiveWithoutApproval: true }
+              : {}),
+          },
           key: args.idempotencyKey,
         }),
     }),
@@ -1645,12 +2420,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: ExportRef,
       description: 'Over 2,000 rows the export is queued; ask `peopleExport` for its links.',
       args: {
-        format: t.arg.string({ required: true }),
+        format: t.arg.string({ required: true, description: 'csv, xlsx or pdf.' }),
+        recordOf: t.arg.id({
+          description: 'With pdf: this person’s employee record instead of a roster.',
+        }),
         fields: t.arg.stringList(),
         asOf: t.arg.string(),
         includeArchived: t.arg.boolean(),
         personIds: t.arg.idList(),
         filter: t.arg.string(),
+        segmentId: t.arg.id(),
         reason: t.arg.string(),
         idempotencyKey: t.arg.string({ required: true }),
       },
@@ -1659,6 +2438,36 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           body: sent(asked),
           key: idempotencyKey,
         }),
+    }),
+    savePeopleSegment: t.field({
+      type: Segment,
+      description: 'Save a named filter, for yourself or shared within the tenant (PEO-068).',
+      args: {
+        name: t.arg.string({ required: true }),
+        filter: t.arg({ type: [SegmentConditionInput], required: true }),
+        shared: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<SegmentView>(ctx, 'POST', '/v1/segments', {
+          body: {
+            name: args.name,
+            filter: Object.fromEntries(args.filter.map((c) => [c.key, c.value])),
+            shared: args.shared,
+          },
+          key: args.idempotencyKey,
+        }),
+    }),
+    deletePeopleSegment: t.field({
+      type: Outcome,
+      description: 'Delete a segment you saved.',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'DELETE', `/v1/segments/${encodeURIComponent(args.id)}`, {
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
     }),
     requestFullValues: t.field({
       type: FullValues,
@@ -1676,6 +2485,38 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           body: sent(asked),
           key: idempotencyKey,
         }),
+    }),
+    decidePendingChange: t.field({
+      type: Outcome,
+      description:
+        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.',
+      args: {
+        id: t.arg.id({ required: true }),
+        approve: t.arg.boolean({ required: true }),
+        note: t.arg.string(),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, { id, idempotencyKey, ...decision }, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(id)}/decision`, {
+          body: sent(decision),
+          key: idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    withdrawPendingChange: t.field({
+      type: Outcome,
+      description: 'The requester takes a held change back while it waits (PEO-077).',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/pending-changes/${encodeURIComponent(args.id)}/withdrawal`,
+          { body: {}, key: args.idempotencyKey },
+        );
+        return done();
+      },
     }),
     decideFullValues: t.field({
       type: FullValues,
@@ -1697,6 +2538,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   }));
 
   builder.queryFields((t) => ({
+    peopleApprovals: t.field({
+      type: ApprovalsRef,
+      description:
+        'Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.',
+      resolve: view<ApprovalsView>(() => '/v1/views/approvals'),
+    }),
     peopleIdentifierReviews: t.field({
       type: ReviewsRef,
       description: 'Doubted national identifiers waiting for HR (PEO-125); HR only.',

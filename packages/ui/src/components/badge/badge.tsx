@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
+import { icons } from '../../icons';
 import { cn } from '../../lib/cn';
 
 const badge = cva(
@@ -14,6 +15,9 @@ const badge = cva(
         warning: 'border-warning-border bg-warning-subtle text-warning-fg',
         danger: 'border-danger-border bg-danger-subtle text-danger-fg',
         info: 'border-info-border bg-info-subtle text-info-fg',
+        // Not a status but a property of what is marked: outlined rather than
+        // washed, and always with its glyph, so it reads apart from a state.
+        sensitive: 'border-border-strong bg-surface text-fg',
       },
       size: {
         sm: 'h-5 px-2 text-2xs',
@@ -37,6 +41,8 @@ export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantPro
  *
  * The tone is never the only signal, the label carries the meaning, because
  * roughly one in twelve men cannot separate the success and danger washes.
+ * `tone="sensitive"` marks what is handled with more care than most — a
+ * value whose change waits for somebody else — and brings its own glyph.
  */
 export function Badge({
   className,
@@ -49,6 +55,7 @@ export function Badge({
   return (
     <span className={cn(badge({ tone, size }), className)} {...props}>
       {dot ? <span className="size-1.5 rounded-full bg-current" aria-hidden="true" /> : null}
+      {tone === 'sensitive' ? <icons.sensitive aria-hidden="true" /> : null}
       {children}
     </span>
   );

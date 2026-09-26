@@ -266,6 +266,8 @@ function Registry({
           section={section}
           field={editing?.field ?? null}
           takenKeys={draft.fields.map((f) => f.key)}
+          choices={draft.choices}
+          fields={draft.fields}
           advise={advise}
           onSave={(input) => onSaveField(input, editing?.field?.key ?? null)}
         />
@@ -386,6 +388,11 @@ function FieldRow({
               {pending.text}
             </Badge>
           )}
+          {field.requiresApproval === true ? (
+            <Badge tone="sensitive" size="sm" className="ms-2 align-middle">
+              Sensitive
+            </Badge>
+          ) : null}
         </p>
         <p className="truncate font-mono text-xs text-fg-muted">{field.key}</p>
       </div>

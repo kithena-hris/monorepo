@@ -6,7 +6,8 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { startPostgres } from '@kithena/testing';
 
-import { staticKeyRing, type MasterKey } from './envelope.js';
+import { open, seal, staticKeyRing, type MasterKey } from './envelope.js';
+import { drizzlePendingChangeStore } from '../application/person/pending-store.js';
 import { drizzleSecretStore, secretRotation, type SecretLogger } from './secret-store.js';
 import { tenantTransaction } from './unit-of-work.js';
 
@@ -63,8 +64,11 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20260926140000_people_visibility_rules.sql',
+    '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
@@ -302,6 +306,71 @@ describe('the rotation job (PEO-105)', () => {
     expect(await rotate(ACME)).toEqual({ rewrapped: 0 });
     const keys = await admin.execute(sql`SELECT key_id FROM people.person_secret`);
     expect([...keys].map((r) => String(r['key_id']))).toEqual(['k0']);
+  });
+
+  it('re-wraps a value waiting for approval too: with the old key dropped it still opens (PEO-077)', async () => {
+    const older = key('k1');
+    const newer = key('k2');
+    const change = '01890000-0000-7000-8000-0000000000c1';
+    const sealer = (ring: ReturnType<typeof staticKeyRing>) =>
+      drizzlePendingChangeStore({
+        seal: (plaintext) => seal(plaintext, ring),
+        open: (sealed) => open(sealed, ring),
+      });
+    await inTenant(ACME, ({ tx }) =>
+      sealer(staticKeyRing([older])).insert(
+        tx,
+        {
+          tenantId: ACME,
+          personId: ADA,
+          attributeKey: 'bank_account',
+          kind: 'value',
+          approval: {
+            id: change,
+            requestedBy: '00000000-0000-4000-8000-0000000000b1',
+            requestedAt: '2026-09-22T09:00:00.000Z',
+            reason: '',
+            expiresAt: '2026-09-29T09:00:00.000Z',
+            state: 'pending',
+            decidedBy: null,
+            decidedAt: null,
+            note: null,
+          },
+          effectiveFrom: '2026-09-22',
+          supersedes: null,
+          sealed: true,
+          value: null,
+          last4: '1332',
+        },
+        JSON.stringify(IBAN),
+      ),
+    );
+
+    const rotate = secretRotation(inTenant, env(newer, older));
+    expect(await rotate(ACME)).toEqual({ rewrapped: 1 });
+    expect(await rotate(ACME)).toEqual({ rewrapped: 0 });
+    const keys = await admin.execute(sql`SELECT key_id FROM people.pending_change`);
+    expect([...keys].map((r) => String(r['key_id']))).toEqual(['k2']);
+
+    // k1 dropped: the value an approval would apply still opens.
+    const plaintext = await inTenant(ACME, ({ tx }) =>
+      sealer(staticKeyRing([newer])).unseal(tx, ACME, change),
+    );
+    expect(JSON.parse(plaintext ?? 'null')).toBe(IBAN);
+    await admin.execute(sql`DELETE FROM people.pending_change`);
+  });
+
+  it('refuses when a value waiting for approval sits under a key the ring does not hold (PEO-077)', async () => {
+    await admin.execute(sql`
+      INSERT INTO people.pending_change
+        (tenant_id, id, person_id, attribute_key, kind, sealed, ciphertext, key_id, effective_from,
+         requested_by, requested_at, expires_at)
+      VALUES (${ACME}::uuid, '01890000-0000-7000-8000-0000000000c2'::uuid, ${ADA}::uuid, 'bank_account',
+              'value', true, '\\x00'::bytea, 'k0', '2026-09-22',
+              '00000000-0000-4000-8000-0000000000b1'::uuid, now(), now() + interval '7 days')`);
+    const rotate = secretRotation(inTenant, env(key('k2'), key('k1')));
+    expect(await rotate(ACME)).toEqual({ rewrapped: 0 });
+    await admin.execute(sql`DELETE FROM people.pending_change`);
   });
 
   it('is a no-op without keys', async () => {

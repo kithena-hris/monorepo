@@ -7,9 +7,16 @@ name: vercel-preview
 # makes it possible to look at. It deliberately does not gate the pull request:
 # a deployment failing is not a reason to block a correct change, and the
 # production deploy is guarded by `ci` passing instead.
+#
+# Opt-in, while the Vercel projects are on the Hobby plan: its 100 deployments
+# a day were spent on previews nobody opened, and production then could not
+# deploy. The `preview` label is the switch: while a pull request carries it,
+# adding it and every push after deploy the apps that push affected, and
+# nothing else. Drop the label condition below when the projects move off
+# Hobby.
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
     paths:
       # Every app, not the two Reach ones. A change to the back-office or the
       # tenant app is exactly the kind a reviewer wants to look at, and until
@@ -61,7 +68,11 @@ jobs:
     #
     # A skip reports neutral, not green. Neither of these is a required check,
     # so nothing that gated a merge before gates it any differently now.
-    if: github.actor != 'dependabot[bot]'
+    # Labelled `preview`, and not re-run when some other label is added.
+    if: >
+      github.actor != 'dependabot[bot]' &&
+      contains(github.event.pull_request.labels.*.name, 'preview') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'preview')
     runs-on: ubuntu-latest
     # Up to six builds and six uploads rather than two. Usually far fewer —
     # see the scope step — but a change to shared code fans out to all of them,

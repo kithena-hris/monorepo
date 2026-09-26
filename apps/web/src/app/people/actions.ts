@@ -43,13 +43,30 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 
 /** What People's checks warned about on a national identifier (PEO-125). Never the value. */
 type Finding = Readonly<Record<string, string>>;
+/**
+ * A save's answer: what the checks found, and what it sent to HR for approval
+ * instead of saving (PEO-077) — the fields' labels for a form, a count for the
+ * grid.
+ */
 export type Saved =
-  | { readonly ok: true; readonly findings: readonly Finding[] }
+  | {
+      readonly ok: true;
+      readonly findings: readonly Finding[];
+      readonly held?: readonly string[] | number;
+    }
   | { readonly ok: false; readonly message: string };
 
-const saved = async (answer: Promise<PeopleAnswer<{ findings?: Finding[] }>>): Promise<Saved> => {
+const saved = async (
+  answer: Promise<PeopleAnswer<{ findings?: Finding[]; held?: readonly string[] | number | null }>>,
+): Promise<Saved> => {
   const a = await answer;
-  return a.ok ? { ok: true, findings: a.data.findings ?? [] } : { ok: false, message: a.message };
+  if (!a.ok) return { ok: false, message: a.message };
+  const held = a.data.held;
+  return {
+    ok: true,
+    findings: a.data.findings ?? [],
+    ...(held === undefined || held === null ? {} : { held }),
+  };
 };
 
 export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Saved> {
@@ -102,6 +119,25 @@ export async function revealIdentifier(
   return answer.ok ? { ok: true, value: answer.data.value } : { ok: false, message: answer.message };
 }
 
+/**
+ * HR merges a duplicate into the record that survives (PEO-074): People
+ * decides who may, which way, and which values may be taken.
+ */
+export async function mergePerson(
+  survivorId: string,
+  absorbedPersonId: string,
+  take: readonly string[],
+): Promise<Outcome> {
+  return outcome(
+    people('MergePerson', { personId: survivorId, absorbedPersonId, take: [...take] }),
+  );
+}
+
+/** HR says two records are two people; the queue stops offering them. */
+export async function dismissDuplicate(personIds: readonly [string, string]): Promise<Outcome> {
+  return outcome(people('DismissDuplicate', { personIds: [...personIds] }));
+}
+
 /** Move a person to a legal entity and location from a date (PEO-123); People decides who may. */
 export async function placePerson(
   personId: string,
@@ -138,6 +174,46 @@ const gridChanges = (changes: GridChanges) =>
     personId: c.personId,
     values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
   }));
+
+/* ----------------------------------------------------------- bulk edit -- */
+
+/** A page of a bulk edit (PEO-071): the same values for these people, from one date. */
+export interface BulkEditPage {
+  readonly personIds: readonly string[];
+  readonly values: Values;
+  readonly effectiveFrom: string;
+  /** HR writes values that need approval straight through (PEO-077). */
+  readonly applySensitiveWithoutApproval?: boolean;
+}
+export type BulkEdited =
+  | { readonly ok: true; readonly committed: boolean; readonly rows: readonly unknown[] }
+  | { readonly ok: false; readonly message: string };
+
+const bulk = async (answer: Promise<PeopleAnswer<never>>): Promise<BulkEdited> => {
+  const a = await answer;
+  if (!a.ok) return { ok: false, message: a.message };
+  const result = VIEWS.BulkEditResult(a.data) as {
+    committed: boolean;
+    rows: unknown[];
+  };
+  return { ok: true, committed: result.committed, rows: result.rows };
+};
+const bulkVariables = (page: BulkEditPage) => ({
+  personIds: [...page.personIds],
+  values: formInputs(page.values),
+  effectiveFrom: page.effectiveFrom,
+  ...(page.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
+});
+
+/** What this page would change and refuse, per person; nothing is kept. */
+export async function previewBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
+  return bulk(people('BulkEditPreview', bulkVariables(page)));
+}
+
+/** This page, written: one ordinary, effective-dated write per person. */
+export async function commitBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
+  return bulk(people('BulkEditPeople', bulkVariables(page)));
+}
 
 /**
  * People a person field may name, found by name over everybody, as the
@@ -258,11 +334,62 @@ export async function replayDelivery(deliveryId: string): Promise<Outcome> {
   return outcome(people('ReplayWebhookDelivery', { deliveryId }));
 }
 
+/* --------------------------------------------------------------- SCIM -- */
+
+export type WithToken =
+  { readonly ok: true; readonly token: string } | { readonly ok: false; readonly message: string };
+
+const withToken = (answer: PeopleAnswer<{ token: string | null }>): WithToken =>
+  !answer.ok
+    ? { ok: false, message: answer.message }
+    : answer.data.token === null
+      ? { ok: false, message: 'Done, but the token was not shown. Rotate it to see a new one.' }
+      : { ok: true, token: answer.data.token };
+
+export async function createScimConnection(system: string): Promise<WithToken> {
+  return withToken(await people('CreateScimConnection', { system }));
+}
+
+export async function rotateScimToken(id: string): Promise<WithToken> {
+  return withToken(await people('RotateScimToken', { id }));
+}
+
+export async function revokeScimConnection(id: string): Promise<Outcome> {
+  return outcome(people('RevokeScimConnection', { id }));
+}
+
+export async function setScimMapping(
+  id: string,
+  mapping: readonly { readonly path: string; readonly key: string }[],
+): Promise<Outcome> {
+  return outcome(
+    people('SetScimMapping', { id, mapping: mapping.map((m) => ({ path: m.path, key: m.key })) }),
+  );
+}
+
 /* --------------------------------------------------------- full values -- */
 
 /** Finance asks for sealed fields in full, with a reason (PEO-088); HR decides. */
 export async function requestFullValues(fields: readonly string[], reason: string): Promise<Outcome> {
   return outcome(people('RequestFullValues', { fields: [...fields], reason }));
+}
+
+/* ---------------------------------------------- approvals (PEO-077) -- */
+
+/** HR approves or rejects a change held for approval; People decides who may. */
+export async function decidePendingChange(
+  id: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Outcome> {
+  return outcome(
+    people('DecidePendingChange', { id, approve, ...(note === null ? {} : { note }) }),
+  );
+}
+
+/** The requester takes their change back while it waits. */
+export async function withdrawPendingChange(id: string): Promise<Outcome> {
+  return outcome(people('WithdrawPendingChange', { id }));
 }
 
 export async function decideFullValues(
@@ -352,6 +479,18 @@ export async function setNumbering(
   scheme: { prefix: string; digits: number; start: number },
 ): Promise<Outcome> {
   return outcome(people('SetEmployeeNumbering', { legalEntityId, ...scheme }));
+}
+
+/** A pay band from a day, in minor units (PEO-078); HR or finance, as People decides. */
+export async function setPayBand(band: {
+  grade: string;
+  currency: string;
+  minimumMinor: string;
+  midpointMinor: string;
+  maximumMinor: string;
+  effectiveFrom: string;
+}): Promise<Outcome> {
+  return outcome(people('SetPayBand', { ...band }));
 }
 
 /* ----------------------------------------------------------- lifecycle -- */
@@ -455,25 +594,114 @@ export async function dryRunImport(
 export async function commitImport(
   uploadId: string,
   mapping: Readonly<Record<number, string | null>>,
+  applySensitiveWithoutApproval = false,
 ): Promise<Staged> {
-  return staged(people('CommitImport', { uploadId, mapping: columns(mapping) }));
+  return staged(
+    people('CommitImport', {
+      uploadId,
+      mapping: columns(mapping),
+      ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+    }),
+  );
 }
 
 /* -------------------------------------------------------------- export -- */
+
+type Exported =
+  | { ok: true; links: readonly { name: string; url: string }[] }
+  | { ok: false; message: string };
+
+// The links are signed and expire (PEO-089); they carry their own authority.
+async function exported(variables: Record<string, unknown>): Promise<Exported> {
+  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', variables);
+  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+}
 
 export async function requestExport(choice: {
   who: string;
   fields: readonly string[];
   asOf: string;
-  format: 'xlsx' | 'csv';
-}): Promise<
-  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }
-> {
-  // The links are signed and expire (PEO-089); they carry their own authority.
-  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', {
-    format: choice.format,
-    fields: [...choice.fields],
-    asOf: choice.asOf,
-  });
-  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+  format: 'xlsx' | 'csv' | 'pdf';
+}): Promise<Exported> {
+  // A saved segment is an audience (PEO-068): People applies it as this person.
+  const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
+  return exported({ format: choice.format, fields: [...choice.fields], asOf: choice.asOf, segmentId });
+}
+
+/** One person's employee record as a PDF (PEO-061): what this viewer may read of them. */
+export async function exportRecord(personId: string, reason: string): Promise<Exported> {
+  return exported({ format: 'pdf', recordOf: personId, ...(reason === '' ? {} : { reason }) });
+}
+
+/* ------------------------------------------------------------ segments -- */
+
+/** Save the directory's filters as a named segment (PEO-068). */
+export async function saveSegment(segment: {
+  name: string;
+  shared: boolean;
+  filter: Readonly<Record<string, string>>;
+}): Promise<Outcome> {
+  return outcome(
+    people('SaveSegment', {
+      name: segment.name,
+      shared: segment.shared,
+      filter: Object.entries(segment.filter).map(([key, value]) => ({ key, value })),
+    }),
+  );
+}
+
+/* ---------------------------------------------------- scheduled reports -- */
+
+/** A schedule as the screen's form holds it (PEO-069); People checks every part again. */
+export interface ScheduleDraft {
+  readonly name: string;
+  readonly segmentId: string | null;
+  /** A filter somebody saved over the API; kept as it is, not edited here. */
+  readonly filter: readonly { readonly key: string; readonly value: string }[];
+  readonly kind: 'export' | 'summary';
+  readonly format: 'xlsx' | 'pdf';
+  readonly fields: readonly string[] | null;
+  readonly reason: string | null;
+  readonly every: 'day' | 'week' | 'month';
+  readonly weekday: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly legalEntityId: string | null;
+  readonly recipients: readonly string[];
+}
+
+const scheduleVariables = (d: ScheduleDraft): Record<string, unknown> => ({
+  name: d.name,
+  segmentId: d.segmentId,
+  filter: d.segmentId === null ? d.filter : null,
+  kind: d.kind,
+  format: d.kind === 'export' ? d.format : null,
+  fields: d.kind === 'export' ? d.fields : null,
+  reason: d.kind === 'export' ? d.reason : null,
+  every: d.every,
+  weekday: d.every === 'week' ? d.weekday : null,
+  day: d.every === 'month' ? d.day : null,
+  hour: d.hour,
+  legalEntityId: d.legalEntityId,
+  recipients: d.recipients,
+});
+
+export async function createReportSchedule(draft: ScheduleDraft): Promise<Outcome> {
+  return outcome(people('CreateReportSchedule', scheduleVariables(draft)));
+}
+
+export async function updateReportSchedule(id: string, draft: ScheduleDraft): Promise<Outcome> {
+  return outcome(people('UpdateReportSchedule', { id, ...scheduleVariables(draft) }));
+}
+
+export async function pauseReportSchedule(id: string): Promise<Outcome> {
+  return outcome(people('PauseReportSchedule', { id }));
+}
+
+export async function resumeReportSchedule(id: string): Promise<Outcome> {
+  return outcome(people('ResumeReportSchedule', { id }));
+}
+
+export async function deleteReportSchedule(id: string): Promise<Outcome> {
+  return outcome(people('DeleteReportSchedule', { id }));
 }

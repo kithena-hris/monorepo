@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required readOnly currency ownedBy
+    key label description dataType options { value label } required readOnly currency ownedBy keptIn sensitive
   }`;
 
 const ENTRY = `
@@ -33,7 +33,7 @@ const STAGE = `
     ... on ImportMapStage {
       step file { name rows sheet }
       columns { index header status key source confidence reason }
-      fields { key label }
+      fields { key label sensitive }
     }
     ... on ImportReviewStage {
       step file { name rows sheet }
@@ -45,16 +45,26 @@ const STAGE = `
         corrections { row from to }
         blocked { row person problem cell }
         findings { row cell label level message }
+        sensitive { fields values }
       }
       blockedUrl
     }
-    ... on ImportDoneStage { step file { name rows sheet } created updated blocked reportUrl forReview }
+    ... on ImportDoneStage {
+      step file { name rows sheet } created updated blocked reportUrl forReview held appliedWithoutApproval
+    }
   }`;
 
 /** A person's doubted identifiers still open (PEO-125). Never the value. */
 const REVIEW = `
   fragment ReviewParts on IdentifierReviewEntry {
     key label state findings { level code message } note
+  }`;
+
+/** A value waiting for HR's approval (PEO-077), masked as its field is. */
+const PENDING = `
+  fragment PendingParts on PendingField {
+    id key label kind value { ...EntryParts } effectiveFrom requestedAt expiresAt requestedBy reason
+    mine canDecide
   }`;
 
 /** What the country checks warned about, on a save or before one (PEO-125). */
@@ -93,8 +103,37 @@ export const OPERATIONS = {
         locations { value label legalEntityId }
       }
       reviews { ...ReviewParts }
+      pending { ...PendingParts }
     }
-  }${RECORD_FIELD}${ENTRY}${REVIEW}`,
+  }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
+
+  /** A record as of a date, and every change behind it (PEO-064). */
+  History: `query History($personId: ID, $asOf: String) {
+    peopleHistory(personId: $personId, asOf: $asOf) {
+      person { id name }
+      asOf
+      sections { key label visibility fields { ...RecordFieldParts } }
+      dated
+      values { ...EntryParts }
+      changes {
+        id key effectiveFrom recordedAt by supersedes supersededBy
+        value { ...EntryParts }
+      }
+    }
+  }${RECORD_FIELD}${ENTRY}`,
+
+  /** Changes waiting for approval (PEO-077): every one for HR, the viewer's own otherwise. */
+  Approvals: `query Approvals {
+    peopleApprovals {
+      isHr
+      items {
+        id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+        reason mine canDecide
+        value { ...EntryParts }
+        current { ...EntryParts }
+      }
+    }
+  }${ENTRY}`,
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
@@ -102,9 +141,40 @@ export const OPERATIONS = {
     }
   }`,
 
+  Duplicates: `query Duplicates($a: ID, $b: ID) {
+    peopleDuplicates(a: $a, b: $b) {
+      items { personIds names reasons }
+      comparison {
+        people { id name status refusal }
+        rows { key label values same takeable }
+      }
+    }
+  }`,
+
   GridCheck: `query GridCheck($changes: [GridChangeInput!]!) {
     peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
   }`,
+
+  /** The people chosen for a bulk edit, and what HR may set on them (PEO-071). */
+  BulkEdit: `query BulkEdit($personIds: [ID!]!) {
+    peopleBulkEdit(personIds: $personIds) {
+      people { id name }
+      sections { key label visibility fields { ...RecordFieldParts } }
+      today limit
+    }
+  }${RECORD_FIELD}`,
+
+  /** What a page of a bulk edit would change and refuse; nothing is kept. */
+  BulkEditPreview: `query BulkEditPreview(
+    $personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $applySensitiveWithoutApproval: Boolean
+  ) {
+    peopleBulkEditPreview(
+      personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval
+    ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
 
   IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
     peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
@@ -140,17 +210,20 @@ export const OPERATIONS = {
       countries { code name }
       timeZones
       retentionFloors { floor months status reviewedBy reviewedOn }
+      payBands { id grade currency minimumMinor midpointMinor maximumMinor effectiveFrom recordedAt supersedes }
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID) {
-    peopleDirectory(search: $search, filter: $filter, after: $after) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment) {
       active incomplete
+      segment { id name }
+      segments { id name }
       columns { key label }
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } missing }
       next
-      can { import export }
+      can { import export bulkEdit }
     }
   }`,
 
@@ -160,7 +233,7 @@ export const OPERATIONS = {
       waiting { people lastReminded }
       completedThisWeek
       toFill
-      fields { key label options { value label } person }
+      fields { key label options { value label } person sensitive }
       rows { personId name department manager missing }
       next
     }
@@ -187,9 +260,16 @@ export const OPERATIONS = {
       sections { key label visibility ownership origin fixed }
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
-        collectAt classification piiKind origin pending
+        collectAt classification piiKind requiresApproval origin pending
+        requiredWhen { ...PredicateParts }
+        visibilityRules { scopes when { ...PredicateParts } }
       }
+      choices { legalEntities { value label } countries { value label } }
     }
+  }
+  fragment PredicateParts on PersonPredicate {
+    combine
+    clauses { operand in key is equals }
   }`,
 
   Setup: `query Setup {
@@ -216,6 +296,11 @@ export const OPERATIONS = {
       endpoints {
         id url enabled events allowlist alertEmail retrying problem lastDelivery secretRotated
       }
+      scim {
+        url paths extension
+        mappable { key label }
+        connections { id system createdAt tokenRotatedAt revokedAt linked mapping { path key } }
+      }
     }
   }`,
 
@@ -227,17 +312,39 @@ export const OPERATIONS = {
     }
   }`,
 
-  Analytics: `query Analytics {
-    peopleAnalytics {
+  /* A scheduled report's file, from the link in its email (PEO-069): the requester's own only. */
+  ScheduledExport: `query ScheduledExport($id: ID!) {
+    peopleExport(id: $id) { id status expiresAt links { name url } }
+  }`,
+
+  Analytics: `query Analytics($segment: ID) {
+    peopleAnalytics(segment: $segment) {
       asOf source sourceNote
+      segment { id name }
+      segments { id name }
       headcount { value change trend { label value } }
-      attrition { percent leavers formula }
+      attrition { percent leavers formula trend { label value } }
       complete { percent incomplete }
       expiringIn90Days
       expiries { today items { kind personId name day } }
       movement { period opening joiners moves leavers closing }
       completenessBySection { label value }
+      tenure { label headcount leavers }
+      span { label value }
+      joiners { months departments cells { row column value } }
+      composition { categories series { label values } }
+      selfId { key label status minimum publishedAsOf total note cells { label value } }
+      pay {
+        asOf minimum
+        grade { ...PayGroup }
+        tenure { ...PayGroup }
+        compa { ...PayGroup }
+      }
     }
+  }
+  fragment PayGroup on AnalyticsPayGroup {
+    label currency status people p25 median p75
+    band { minimumMinor midpointMinor maximumMinor }
   }`,
 
   PublishPreview: `query PublishPreview($requiredFrom: String!) {
@@ -259,11 +366,11 @@ export const OPERATIONS = {
 
   /* ------------------------------------------------------------ writes -- */
   SaveOwnSection: `mutation SaveOwnSection($changed: [FormValueInput!]!, $key: String!) {
-    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok ${FINDINGS} }
+    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok held ${FINDINGS} }
   }`,
 
   SavePersonSection: `mutation SavePersonSection($personId: ID!, $changed: [FormValueInput!]!, $key: String!) {
-    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok ${FINDINGS} }
+    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok held ${FINDINGS} }
   }`,
 
   ReviewIdentifier: `mutation ReviewIdentifier(
@@ -282,8 +389,20 @@ export const OPERATIONS = {
     placePerson(personId: $personId, legalEntityId: $legalEntityId, locationId: $locationId, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
   }`,
 
+  BulkEditPeople: `mutation BulkEditPeople(
+    $personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $applySensitiveWithoutApproval: Boolean,
+    $key: String!
+  ) {
+    bulkEditPeople(
+      personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
+    ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
-    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok ${GRID_FINDINGS} }
+    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok held ${GRID_FINDINGS} }
   }`,
 
   ConfirmSetupEntity: `mutation ConfirmSetupEntity($name: String!, $country: String!, $key: String!) {
@@ -334,6 +453,22 @@ export const OPERATIONS = {
 
   RotateWebhookSecret: `mutation RotateWebhookSecret($id: ID!, $key: String!) {
     rotateWebhookSecret(id: $id, idempotencyKey: $key) { id secret }
+  }`,
+
+  CreateScimConnection: `mutation CreateScimConnection($system: String!, $key: String!) {
+    createScimConnection(system: $system, idempotencyKey: $key) { id token }
+  }`,
+
+  RotateScimToken: `mutation RotateScimToken($id: ID!, $key: String!) {
+    rotateScimToken(id: $id, idempotencyKey: $key) { id token }
+  }`,
+
+  RevokeScimConnection: `mutation RevokeScimConnection($id: ID!, $key: String!) {
+    revokeScimConnection(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  SetScimMapping: `mutation SetScimMapping($id: ID!, $mapping: [ScimMappingInput!]!, $key: String!) {
+    setScimMapping(id: $id, mapping: $mapping, idempotencyKey: $key) { ok }
   }`,
 
   ReplayWebhookDelivery: `mutation ReplayWebhookDelivery($deliveryId: ID!, $key: String!) {
@@ -397,6 +532,16 @@ export const OPERATIONS = {
     ) { legalEntityId }
   }`,
 
+  SetPayBand: `mutation SetPayBand(
+    $grade: String!, $currency: String!, $minimumMinor: String!, $midpointMinor: String!,
+    $maximumMinor: String!, $effectiveFrom: String!, $key: String!
+  ) {
+    setPayBand(
+      grade: $grade, currency: $currency, minimumMinor: $minimumMinor, midpointMinor: $midpointMinor,
+      maximumMinor: $maximumMinor, effectiveFrom: $effectiveFrom, idempotencyKey: $key
+    ) { id }
+  }`,
+
   GiveNotice: `mutation GiveNotice($personId: ID!, $lastWorkingDay: String!, $reason: LeavingReason, $key: String!) {
     giveNotice(personId: $personId, lastWorkingDay: $lastWorkingDay, reason: $reason, idempotencyKey: $key) { id }
   }`,
@@ -435,6 +580,14 @@ export const OPERATIONS = {
     rehirePerson(personId: $personId, startDate: $startDate, overrideReason: $overrideReason, idempotencyKey: $key) { id }
   }`,
 
+  MergePerson: `mutation MergePerson($personId: ID!, $absorbedPersonId: ID!, $take: [String!], $key: String!) {
+    mergePerson(personId: $personId, absorbedPersonId: $absorbedPersonId, take: $take, idempotencyKey: $key) { id }
+  }`,
+
+  DismissDuplicate: `mutation DismissDuplicate($personIds: [ID!]!, $key: String!) {
+    dismissDuplicate(personIds: $personIds, idempotencyKey: $key) { decision }
+  }`,
+
   StartImportUpload: `mutation StartImportUpload($name: String!, $size: Int!) {
     startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
   }`,
@@ -447,14 +600,98 @@ export const OPERATIONS = {
     dryRunImport(uploadId: $uploadId, mapping: $mapping) { ...StageParts }
   }${STAGE}`,
 
-  CommitImport: `mutation CommitImport($uploadId: ID!, $mapping: [ImportColumnInput!]!, $key: String!) {
-    commitImport(uploadId: $uploadId, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
+  CommitImport: `mutation CommitImport(
+    $uploadId: ID!, $mapping: [ImportColumnInput!]!, $applySensitiveWithoutApproval: Boolean, $key: String!
+  ) {
+    commitImport(
+      uploadId: $uploadId, mapping: $mapping,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
+    ) { ...StageParts }
   }${STAGE}`,
 
-  RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $key: String!) {
-    requestExport(format: $format, fields: $fields, asOf: $asOf, idempotencyKey: $key) {
+  DecidePendingChange: `mutation DecidePendingChange($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
+    decidePendingChange(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { ok }
+  }`,
+
+  WithdrawPendingChange: `mutation WithdrawPendingChange($id: ID!, $key: String!) {
+    withdrawPendingChange(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  RequestExport: `mutation RequestExport(
+    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String, $key: String!
+  ) {
+    requestExport(
+      format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
+      idempotencyKey: $key
+    ) {
       id status rowCount expiresAt links { name url }
     }
+  }`,
+
+  SaveSegment: `mutation SaveSegment(
+    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $shared: Boolean!, $key: String!
+  ) {
+    savePeopleSegment(name: $name, filter: $filter, shared: $shared, idempotencyKey: $key) { id }
+  }`,
+
+  /* Scheduled reports (PEO-069): HR's list, a schedule's history, and the five writes. */
+  ReportSchedules: `query ReportSchedules {
+    peopleReportSchedules {
+      canManage
+      schedules {
+        id name ownerName paused segmentId segmentName filter { key value }
+        kind format fields reason every weekday day hour legalEntityId
+        recipients { accountId name }
+        lastRun { period missed startedAt finishedAt outcome }
+      }
+      segments { id name forExport forSummary }
+      people { accountId name workEmail }
+      legalEntities { id name }
+      fields { key label section }
+    }
+  }`,
+
+  ReportRuns: `query ReportRuns($id: ID!) {
+    peopleReportRuns(id: $id) {
+      id name
+      runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }
+    }
+  }`,
+
+  CreateReportSchedule: `mutation CreateReportSchedule(
+    $name: String!, $segmentId: ID, $filter: [ReportConditionInput!], $kind: ReportKind!,
+    $format: ReportFormat, $fields: [String!], $reason: String, $every: ReportEvery!,
+    $weekday: Int, $day: Int, $hour: Int!, $legalEntityId: ID, $recipients: [ID!]!, $key: String!
+  ) {
+    createReportSchedule(
+      name: $name, segmentId: $segmentId, filter: $filter, kind: $kind, format: $format,
+      fields: $fields, reason: $reason, every: $every, weekday: $weekday, day: $day, hour: $hour,
+      legalEntityId: $legalEntityId, recipients: $recipients, idempotencyKey: $key
+    ) { id }
+  }`,
+
+  UpdateReportSchedule: `mutation UpdateReportSchedule(
+    $id: ID!, $name: String!, $segmentId: ID, $filter: [ReportConditionInput!], $kind: ReportKind!,
+    $format: ReportFormat, $fields: [String!], $reason: String, $every: ReportEvery!,
+    $weekday: Int, $day: Int, $hour: Int!, $legalEntityId: ID, $recipients: [ID!]!, $key: String!
+  ) {
+    updateReportSchedule(
+      id: $id, name: $name, segmentId: $segmentId, filter: $filter, kind: $kind, format: $format,
+      fields: $fields, reason: $reason, every: $every, weekday: $weekday, day: $day, hour: $hour,
+      legalEntityId: $legalEntityId, recipients: $recipients, idempotencyKey: $key
+    ) { id }
+  }`,
+
+  PauseReportSchedule: `mutation PauseReportSchedule($id: ID!, $key: String!) {
+    pauseReportSchedule(id: $id, idempotencyKey: $key) { id }
+  }`,
+
+  ResumeReportSchedule: `mutation ResumeReportSchedule($id: ID!, $key: String!) {
+    resumeReportSchedule(id: $id, idempotencyKey: $key) { id }
+  }`,
+
+  DeleteReportSchedule: `mutation DeleteReportSchedule($id: ID!, $key: String!) {
+    deleteReportSchedule(id: $id, idempotencyKey: $key) { id }
   }`,
 } as const;
 

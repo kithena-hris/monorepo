@@ -15,7 +15,7 @@ export type PeopleBuilder = typeof builder;
 
 export type ViaRest = <T = unknown>(
   ctx: RequestContext,
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   options?: { readonly body?: unknown; readonly key?: string },
 ) => Promise<T>;

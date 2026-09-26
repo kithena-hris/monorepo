@@ -16,12 +16,21 @@ import {
   type FullValuesDeps,
 } from '../application/export/full-values.js';
 import type { Asking } from '../application/person/person-access.js';
+import {
+  approvalsInbox,
+  decidePendingChange,
+  pendingFor,
+  withdrawPendingChange,
+  type PendingValue,
+} from '../application/person/pending-changes.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
 import { RoleChangeBody } from './roles.js';
 import { schemaArtifact } from './schema-artifact.js';
+import { seenBy } from '../domain/segment/segment.js';
+import type { SegmentStore } from '../infrastructure/drizzle-segments.js';
 
 /**
  * REST v1, per §13.2. The same application layer as GraphQL, so the same
@@ -62,7 +71,10 @@ const Attributes = z
 
 export const PersonBody = z.object({
   id: z.uuid(),
-  status: z.string(),
+  status: z
+    .string()
+    .optional()
+    .describe('Employment status: HR’s, and the person’s own. Absent for anybody else.'),
   schemaVersion: z.int().nullable(),
   attributes: Attributes,
 });
@@ -123,18 +135,62 @@ export const IdentifierFindingsBody = z.object({
 });
 
 /** A person after a write, with what the checks found on each national identifier it carried. */
+/**
+ * A change held for approval (PEO-077): a value that is **not** in the
+ * record's attributes until HR approves it. `value` is masked as the field is
+ * (`{ last4 }` for a sealed one), and absent from the inbox where the viewer
+ * may not read the field.
+ */
+export const PendingChangeBody = z.object({
+  id: z.uuid(),
+  personId: z.uuid().optional(),
+  attributeKey: z.string(),
+  kind: z.enum(['value', 'correction']),
+  value: z.unknown(),
+  effectiveFrom: z.iso.date(),
+  requestedAt: z.string(),
+  expiresAt: z.string().describe('Undecided by then, it expires.'),
+  requestedBy: z.uuid(),
+  reason: z.string().nullable(),
+  mine: z.boolean().describe('The caller asked for it, and may withdraw it.'),
+  canDecide: z
+    .boolean()
+    .describe('The caller holds hr and is neither the requester nor the subject.'),
+  /** On a single change read: where it stands, and who closed it. */
+  state: z.enum(['pending', 'approved', 'rejected', 'withdrawn', 'expired']).optional(),
+  decidedBy: z.uuid().nullable().optional(),
+  note: z.string().nullable().optional(),
+});
+
+export const PendingChangesBody = z.object({ items: z.array(PendingChangeBody) });
+
+export const PendingChangeDecisionBody = z.strictObject({
+  approve: z.boolean(),
+  note: z.string().max(500).optional(),
+});
+
 export const PersonWriteBody = PersonBody.extend({
   identifierFindings: z
     .array(IdentifierFindingsBody)
     .describe(
       'One entry per national identifier in the request. A warning, never a refusal: the value was saved.',
     ),
+  pendingChanges: z
+    .array(PendingChangeBody)
+    .describe(
+      'Changes to this person waiting for HR, this one’s included: a field that requires approval is held, not written, and `attributes` still reads what is in force.',
+    ),
 });
 
 /** A correction's new row, with what the checks found if it was a national identifier. */
-export const CorrectionWriteBody = HistoryEntryBody.extend({
-  identifierFindings: z.array(IdentifierFindingsBody),
-});
+export const CorrectionWriteBody = z.union([
+  HistoryEntryBody.extend({
+    identifierFindings: z.array(IdentifierFindingsBody),
+  }),
+  z
+    .object({ pendingChange: PendingChangeBody })
+    .describe('The field requires approval: the correction waits for HR and nothing was written.'),
+]);
 
 export const IdentifierReviewBody = z.object({
   id: z.uuid(),
@@ -145,6 +201,25 @@ export const IdentifierReviewBody = z.object({
   findings: z.array(IdentifierFindingBody),
   createdAt: z.string(),
   last4: z.string().nullable().describe('What a screen shows. The value only through /reveal.'),
+});
+
+/** A suspected duplicate (PEO-074): two ids and why, never a value. */
+export const DuplicateBody = z.object({
+  personIds: z.tuple([z.uuid(), z.uuid()]),
+  signals: z.array(
+    z.object({
+      signal: z.enum(['unique_value', 'work_email', 'name_and_birth_date']),
+      attributeKey: z
+        .string()
+        .nullable()
+        .describe('The unique attribute whose keyed hash both hold; null for the others.'),
+    }),
+  ),
+});
+
+/** HR says a pair are two people: the queue stops offering it. */
+export const DuplicateDismissalBody = z.strictObject({
+  personIds: z.tuple([z.uuid(), z.uuid()]),
 });
 
 export const IdentifierReviewDecisionBody = z.strictObject({
@@ -213,12 +288,19 @@ export function filterIn(filter: string | undefined): Record<string, string> {
 export const AsOfQuery = z.object({ asOf: z.iso.date().optional() });
 
 export const CreateExportBody = z.strictObject({
-  format: z.enum(['csv', 'xlsx']),
+  /** `pdf` is a landscape roster, or with `recordOf` one person's employee record. */
+  format: z.enum(['csv', 'xlsx', 'pdf']),
+  recordOf: z
+    .uuid()
+    .optional()
+    .describe('With format pdf: this person’s employee record instead of a roster.'),
   fields: z.array(z.string()).max(500).optional(),
   asOf: z.iso.date().optional(),
   includeArchived: z.boolean().optional(),
   personIds: z.array(z.uuid()).max(50_000).optional(),
   filter: z.string().max(500).optional(),
+  /** Only the people a saved segment matches, of those you may list (PEO-068). */
+  segmentId: z.uuid().optional(),
   /** Required when a financial field is in the file; recorded with the export. */
   reason: z.string().max(500).optional(),
 });
@@ -352,6 +434,11 @@ const STATUS: Record<string, number> = {
   UNIQUE_VALUE_TAKEN: 409,
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
+  // PEO-074: a merge the records' states refuse.
+  MERGE_ABSORBS_EMPLOYMENT: 409,
+  MERGE_TOMBSTONE: 409,
+  MERGE_TWO_ACCOUNTS: 409,
+  MERGE_HAS_REPORTS: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
   // PEO-112: a grant to oneself, and the last administrator.
   SELF_GRANT: 403,
@@ -368,6 +455,9 @@ const STATUS: Record<string, number> = {
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
+  // An upstream system is the source of record for it (PEO-073): change it there.
+  SOURCE_OF_RECORD_EXTERNAL: 403,
+  SCIM_CONNECTION_REVOKED: 409,
   UNAVAILABLE: 503,
 };
 
@@ -508,6 +598,8 @@ export interface RestDeps {
   };
   /** The routes the tenant app's screens read and act through (PEO-098, `screens.ts`). */
   readonly screens?: readonly Route[];
+  /** Saved segments, for an export of one (PEO-068). */
+  readonly segments?: SegmentStore;
 }
 
 export type Handler = (
@@ -562,13 +654,67 @@ export function restRoutes(deps: RestDeps): Route[] {
     const found = await run(service, asking.tenantId, (tx) =>
       service.access.checkIdentifiers(tx, { ...asking, personId, values: attributes }),
     );
+    const pending = await pendingOn(asking, personId);
     return {
       ...person,
       body: {
         ...(person.body as Record<string, unknown>),
         identifierFindings: found.ok ? found.value : [],
+        pendingChanges: pending,
       },
     };
+  };
+
+  /** A person's changes waiting for HR, as this caller may see them (PEO-077). */
+  const pendingOn = async (asking: Asking, personId: string): Promise<PendingValue[]> => {
+    const deps = service.pending;
+    if (!deps) return [];
+    const found = await run(service, asking.tenantId, (tx) =>
+      pendingFor(tx, deps, { ...asking, personId }),
+    );
+    return found.ok ? [...found.value] : [];
+  };
+
+  /** One pending change, as the inbox shows it to this caller; anybody it is not shown to gets NOT_FOUND. */
+  const readChange = async (asking: Asking, changeId: string): Promise<RestResponse> => {
+    const deps = service.pending;
+    if (!deps) return refused(failure('UNAVAILABLE', 'Approvals are not configured'));
+    const found = await run<Record<string, unknown>>(service, asking.tenantId, async (tx) => {
+      const change = await deps.store.find(tx, asking.tenantId, changeId);
+      if (!change) return err(failure('NOT_FOUND', 'No such pending change'));
+      const open = await pendingFor(tx, deps, { ...asking, personId: change.personId });
+      const shown = open.ok ? open.value.find((c) => c.id === changeId) : undefined;
+      if (shown) return ok({ ...shown, personId: change.personId, state: 'pending' });
+      // Closed, or not this caller's to see: only its requester and HR learn the outcome.
+      const everyone = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        change.personId,
+      );
+      if (change.approval.requestedBy !== asking.viewer.accountId && !everyone.isHr) {
+        return err(failure('NOT_FOUND', 'No such pending change'));
+      }
+      return ok({
+        id: change.approval.id,
+        personId: change.personId,
+        attributeKey: change.attributeKey,
+        kind: change.kind,
+        // Closed: its value is either in force now or never was.
+        value: null,
+        effectiveFrom: change.effectiveFrom,
+        requestedAt: change.approval.requestedAt,
+        expiresAt: change.approval.expiresAt,
+        requestedBy: change.approval.requestedBy,
+        reason: change.approval.reason === '' ? null : change.approval.reason,
+        mine: change.approval.requestedBy === asking.viewer.accountId,
+        canDecide: false,
+        state: change.approval.state,
+        decidedBy: change.approval.decidedBy,
+        note: change.approval.note,
+      });
+    });
+    return respond(found, 200, (c) => c);
   };
 
   /** A legal entity, location or settings use case, in its own transaction. */
@@ -712,7 +858,94 @@ export function restRoutes(deps: RestDeps): Route[] {
     );
   };
 
+  const approvals = () => service.pending;
+  const noApprovals = () => refused(failure('UNAVAILABLE', 'Approvals are not configured'));
+
   return [
+    /* ------------------------------------------ held changes (PEO-077) -- */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/pending-changes$/,
+      handle: async (asking) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        return respond(
+          await run(service, asking.tenantId, (tx) => approvalsInbox(tx, pending, asking)),
+          200,
+          ({ items }) => ({
+            items: items.map(({ readable: _readable, ...item }) => item),
+          }),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}$`),
+      handle: (asking, _request, params) => readChange(asking, params['id'] ?? ''),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/decision$`),
+      handle: async (asking, request, params) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        const body = json(request.body);
+        const input = body.ok ? parse(PendingChangeDecisionBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        const changeId = params['id'] ?? '';
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const decided = await decidePendingChange(tx, pending, {
+              ...asking,
+              changeId,
+              approve: input.value.approve,
+              note: input.value.note ?? null,
+            });
+            return decided.ok ? ok(changeId) : decided;
+          },
+          (id) => readChange(asking, id),
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/withdrawal$`),
+      handle: async (asking, request, params) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        const changeId = params['id'] ?? '';
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const withdrawn = await withdrawPendingChange(tx, pending, { ...asking, changeId });
+            return withdrawn.ok ? ok(changeId) : withdrawn;
+          },
+          (id) => readChange(asking, id),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/people/${UUID}/pending-changes$`),
+      handle: async (asking, _request, params) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        return respond(
+          await run(service, asking.tenantId, (tx) =>
+            pendingFor(tx, pending, { ...asking, personId: params['id'] ?? '' }),
+          ),
+          200,
+          (items) => ({ items }),
+        );
+      },
+    },
     {
       method: 'POST',
       pattern: /^\/v1\/exports\/full-values$/,
@@ -823,6 +1056,7 @@ export function restRoutes(deps: RestDeps): Route[] {
         const asked: ExportJobRequest = {
           ...asking,
           format: v.format,
+          ...(v.recordOf ? { recordOf: v.recordOf } : {}),
           ...(v.fields ? { fields: v.fields } : {}),
           ...(v.asOf ? { asOf: v.asOf } : {}),
           ...(v.includeArchived !== undefined ? { includeArchived: v.includeArchived } : {}),
@@ -836,7 +1070,18 @@ export function restRoutes(deps: RestDeps): Route[] {
           request,
           201,
           async (tx) => {
-            const requested = await requestExport(tx, exports.deps, asked);
+            let request = asked;
+            if (v.segmentId !== undefined) {
+              const all = (await deps.segments?.all(tx, asking.tenantId)) ?? [];
+              const segment = all.find(
+                (s) => s.id === v.segmentId && seenBy(s, asking.viewer.accountId),
+              );
+              if (segment === undefined) {
+                return err(failure('NOT_FOUND', 'There is no such segment', ['segmentId']));
+              }
+              request = { ...asked, where: segment.filter, filter: v.filter ?? segment.name };
+            }
+            const requested = await requestExport(tx, exports.deps, request);
             if (!requested.ok) return requested;
             if (requested.value.status === 'queued') pending.job = requested.value.job;
             return ok(requested.value.exportId);
@@ -997,6 +1242,37 @@ export function restRoutes(deps: RestDeps): Route[] {
         );
       },
     },
+    // Suspected duplicates, for HR (PEO-074). A ranking; the merge is its own write.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/duplicates$/,
+      handle: async (asking) =>
+        respond(
+          await run(service, asking.tenantId, (tx) => service.access.duplicates(tx, asking)),
+          200,
+          (items) => ({ items }),
+        ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/duplicates\/dismissals$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(DuplicateDismissalBody, request);
+        if (!input.ok) return refused(input.error);
+        const { personIds } = input.value;
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const dismissed = await service.access.dismissDuplicate(tx, { ...asking, personIds });
+            return dismissed.ok ? ok(personIds[0]) : dismissed;
+          },
+          () => Promise.resolve({ status: 200, body: { personIds, decision: 'not_duplicate' } }),
+        );
+      },
+    },
     // Doubted national identifiers, for HR (PEO-125).
     {
       method: 'GET',
@@ -1118,9 +1394,18 @@ export function restRoutes(deps: RestDeps): Route[] {
               value: input.value.value,
               reason: input.value.reason ?? null,
             });
-            return entry.ok ? ok(entry.value.id) : entry;
+            if (!entry.ok) return entry;
+            // Held for approval (PEO-077): the resource is the pending change.
+            return ok('held' in entry.value ? entry.value.held.changeId : entry.value.id);
           },
-          (id) => readEntry(asking, personId, id),
+          async (id) => {
+            const entry = await readEntry(asking, personId, id);
+            if (entry.status !== 404) return entry;
+            const change = await readChange(asking, id);
+            return change.status < 300
+              ? { ...change, body: { pendingChange: change.body } }
+              : entry;
+          },
         );
       },
     },

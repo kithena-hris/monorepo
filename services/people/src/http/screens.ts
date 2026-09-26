@@ -1,8 +1,10 @@
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
-import { failure, ok, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { RequirednessPredicate, VisibilityRule } from '@kithena/contracts';
 
+import { analyticsView } from '../application/screens/analytics.js';
 import {
-  analyticsView,
   commitImportView,
   completeImportUpload,
   createEndpoint,
@@ -14,6 +16,10 @@ import {
   replayDelivery,
   rotateEndpoint,
   updateEndpoint,
+  createScimConnection,
+  revokeScimConnection,
+  rotateScimToken,
+  setScimMapping,
   type ImportDeps,
   type IntegrationDeps,
 } from '../application/screens/operations.js';
@@ -22,15 +28,31 @@ import {
   checkSection,
   completenessView,
   directoryView,
+  historyView,
   identifierReviewsView,
+  approvalsView,
+  duplicatesView,
   onboardingView,
   pickerView,
   profileView,
   saveGrid,
   saveSection,
 } from '../application/screens/people.js';
+import { BULK_PAGE, bulkEdit, bulkEditView } from '../application/screens/bulk-edit.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
+import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
+import type { PayBandView } from '../application/analytics/pay.js';
+import {
+  createSchedule,
+  deleteSchedule,
+  listSchedules,
+  scheduleRuns,
+  setPaused,
+  updateSchedule,
+  type ScheduleAdminDeps,
+} from '../application/reports/scheduled.js';
+import { reportRunsView, reportSchedulesView } from '../application/screens/reports.js';
 import {
   addSection,
   adviseClassification,
@@ -50,6 +72,7 @@ import { sharing } from '../infrastructure/unit-of-work.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { NoBody } from './lifecycle.js';
 import {
+  AsOfQuery,
   filterIn,
   idempotent,
   json,
@@ -78,7 +101,12 @@ import {
  * PEO-090). The four POSTs that change nothing are `safe` and take no key.
  */
 
-export type ScreenRouteDeps = SchemaScreenDeps & IntegrationDeps & ImportDeps;
+export type ScreenRouteDeps = SchemaScreenDeps &
+  IntegrationDeps &
+  ImportDeps & {
+    /** Scheduled reports (PEO-069). Absent, their routes answer UNAVAILABLE. */
+    readonly schedules?: ScheduleAdminDeps;
+  };
 
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
@@ -96,13 +124,19 @@ export const Field = z.strictObject({
     description: z.string().max(2000).nullable(),
     dataType: z.string().max(40),
     options: z.array(z.string().max(200)).max(200),
-    requiredness: z.enum(['never', 'always']),
+    requiredness: z.enum(['never', 'always', 'conditional']),
+    // The contract's own schemas (PEO-065, PEO-066): the closed grammar is
+    // refused here, at the boundary, and again by the draft.
+    requiredWhen: RequirednessPredicate.nullable().default(null),
     ownership: z.array(z.string()).max(10),
     collectAt: z.string().max(20),
     visibility: z.array(z.string()).max(10),
+    visibilityRules: z.array(VisibilityRule).max(5).default([]),
     classification: z.string().max(20),
     piiKind: z.string().max(20),
     classificationSource: z.enum(['suggested', 'human', 'section_default']),
+    // Null keeps the default from the policy (PEO-077).
+    requiresApproval: z.boolean().nullable().default(null),
   }),
   editing: z.string().max(64).nullable(),
 });
@@ -119,6 +153,14 @@ export const Grid = z.strictObject({
     .array(z.object({ personId: z.uuid(), values: z.record(z.string(), z.string()) }))
     .max(500),
 });
+/** A page of a bulk edit (PEO-071): the same values for these people, from one date. */
+export const BulkEditBody = z.strictObject({
+  personIds: z.array(z.uuid()).min(1).max(BULK_PAGE),
+  values: z.record(z.string().max(64), z.unknown()),
+  effectiveFrom: z.iso.date(),
+  /** HR writes values that require approval without it (PEO-077). */
+  applySensitiveWithoutApproval: z.boolean().optional(),
+});
 export const EndpointBody = z.strictObject({
   url: z.string().max(2000),
   events: z.array(z.string().max(100)).max(50),
@@ -126,6 +168,14 @@ export const EndpointBody = z.strictObject({
   alertEmail: z.string().max(320),
 });
 export const EndpointPatch = EndpointBody.partial().extend({ enabled: z.boolean().optional() });
+/** A SCIM connection (PEO-072): what the tenant calls the upstream system. */
+export const ScimConnectionBody = z.strictObject({ system: z.string().max(80) });
+/** The approved mapping, whole (PEO-073): each SCIM path and the attribute it owns. */
+export const ScimMappingBody = z.strictObject({
+  mapping: z
+    .array(z.strictObject({ path: z.string().max(200), key: z.string().max(64) }))
+    .max(200),
+});
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
 export const UploadStart = z.strictObject({
   name: z.string().max(255),
@@ -135,6 +185,55 @@ export const UploadStart = z.strictObject({
 export const ImportStepBody = z.strictObject({
   uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
+  /** On commit only: HR writes values that require approval without it (PEO-077). */
+  applySensitiveWithoutApproval: z.boolean().optional(),
+});
+
+/** A pay band from a day (PEO-078): whole minor units, as digits. */
+export const PayBandBody = z.strictObject({
+  grade: z.string().max(64),
+  currency: z.string().length(3),
+  minimumMinor: z.string().max(15),
+  midpointMinor: z.string().max(15),
+  maximumMinor: z.string().max(15),
+  effectiveFrom: z.string().max(10),
+});
+
+/** A saved segment (PEO-068): a name and the directory's filter, never a list of people. */
+export const SegmentBody = z.strictObject({
+  name: z.string().max(80),
+  filter: z.record(z.string().max(64), z.string().max(200)),
+  shared: z.boolean(),
+});
+
+const hour = z.int().min(0).max(23);
+/** A scheduled report (PEO-069): who it is about, what, when, and to whom. */
+export const ScheduleBody = z.strictObject({
+  name: z.string().max(80),
+  audience: z.union([
+    z.strictObject({ segmentId: z.uuid() }),
+    z.strictObject({
+      filter: z
+        .record(z.string().max(64), z.string().max(200))
+        .describe('Attribute key → value; {} is everybody each recipient may list.'),
+    }),
+  ]),
+  report: z.discriminatedUnion('kind', [
+    z.strictObject({
+      kind: z.literal('export'),
+      format: z.enum(['xlsx', 'pdf']),
+      fields: z.array(z.string().max(64)).max(500).nullable().default(null),
+      reason: z.string().max(500).nullable().default(null),
+    }),
+    z.strictObject({ kind: z.literal('summary') }),
+  ]),
+  cadence: z.discriminatedUnion('every', [
+    z.strictObject({ every: z.literal('day'), hour }),
+    z.strictObject({ every: z.literal('week'), weekday: z.int().min(1).max(7), hour }),
+    z.strictObject({ every: z.literal('month'), day: z.int().min(1).max(28), hour }),
+  ]),
+  legalEntityId: z.uuid().nullable().default(null),
+  recipients: z.array(z.uuid()).min(1).max(25),
 });
 
 const answer = <T>(result: Result<T>, status = 200): RestResponse =>
@@ -147,6 +246,7 @@ function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
 
 const importStep = (input: z.infer<typeof ImportStepBody>) => ({
   uploadId: input.uploadId,
+  ...(input.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
   ...(input.mapping === undefined
     ? {}
     : {
@@ -157,11 +257,24 @@ const importStep = (input: z.infer<typeof ImportStepBody>) => ({
 });
 
 const KEY = '([a-z][a-z0-9_]{0,63})';
+const NoSchedule = failure('NOT_FOUND', 'There is no such scheduled report');
 
 export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStore): Route[] {
   const keys = { service: deps.service, idempotency };
   type Asking = Parameters<Route['handle']>[0];
   const done = (): Promise<RestResponse> => Promise.resolve({ status: 200, body: { ok: true } });
+  const bands = <T>(
+    asking: Asking,
+    fn: (
+      b: NonNullable<ScreenRouteDeps['service']['payBands']>,
+      tx: Parameters<Parameters<typeof run>[2]>[0],
+    ) => Promise<Result<T>>,
+  ): Promise<Result<T>> => {
+    const { payBands } = deps.service;
+    if (!payBands)
+      return Promise.resolve(err(failure('UNAVAILABLE', 'Pay bands are not configured')));
+    return run(deps.service, asking.tenantId, (tx) => fn(payBands, tx));
+  };
   /**
    * A retried section save, answered as the first was (PEO-125): the same
    * findings, from the same function the save and the form's check answer
@@ -236,6 +349,17 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     );
     return answer(current.ok ? ok({ version: current.value?.version ?? null }) : current);
   };
+  /** A scheduled-report use case in a tenant transaction, or UNAVAILABLE. */
+  const scheduled = <R>(
+    asking: Asking,
+    act: (d: ScheduleAdminDeps, tx: PostgresJsDatabase) => Promise<Result<R>>,
+  ): Promise<Result<R>> => {
+    const d = deps.schedules;
+    if (d === undefined) {
+      return Promise.resolve(err(failure('UNAVAILABLE', 'Scheduled reports are not configured')));
+    }
+    return run(deps.service, asking.tenantId, (tx) => act(d, tx));
+  };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
 
@@ -256,6 +380,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: new RegExp(`^/v1/views/profile/${UUID}$`),
       handle: async (asking, _r, params) =>
         answer(await profileView(deps, asking, params['id'] ?? '')),
+    },
+    // A record as of a date, and every change behind it (PEO-064).
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/history(?:/${UUID})?$`),
+      handle: async (asking, _r, params, query) => {
+        const q = parse(AsOfQuery, Object.fromEntries(query));
+        if (!q.ok) return refused(q.error);
+        return answer(await historyView(deps, asking, params['id'] ?? null, q.value.asOf ?? null));
+      },
     },
     {
       method: 'POST',
@@ -305,6 +439,26 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: /^\/v1\/views\/identifier-reviews$/,
       handle: async (asking) => answer(await identifierReviewsView(deps, asking)),
     },
+    // The approvals inbox (PEO-077).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/approvals$/,
+      handle: async (asking) => answer(await approvalsView(deps, asking)),
+    },
+    // Suspected duplicates, and one pair side by side when `a` and `b` name it (PEO-074).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/duplicates$/,
+      handle: async (asking, _r, _p, query) => {
+        const a = query.get('a');
+        const b = query.get('b');
+        const id = new RegExp(`^${UUID}$`);
+        if ((a === null) !== (b === null) || (a !== null && (!id.test(a) || !id.test(b ?? '')))) {
+          return refused(failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']));
+        }
+        return answer(await duplicatesView(deps, asking, a === null || b === null ? null : [a, b]));
+      },
+    },
     {
       method: 'POST',
       pattern: new RegExp(`^/v1/views/people/${UUID}/sections$`),
@@ -328,11 +482,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
           return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
         }
+        const segment = query.get('segment') ?? undefined;
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
         return answer(
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
             after: after ?? null,
+            ...(segment === undefined ? {} : { segmentId: segment }),
           }),
         );
       },
@@ -383,6 +542,35 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: /^\/v1\/views\/completeness\/identifier-check$/,
       safe: true,
       handle: compute(Grid, (asking, input) => checkGrid(deps, asking, input.changes)),
+    },
+
+    /* bulk edit (PEO-071): the screen, the preview that keeps nothing, the commit */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/bulk-edit$/,
+      handle: async (asking, _r, _p, query) => {
+        const ids = (query.get('people') ?? '').split(',').filter((id) => id !== '');
+        if (!ids.every((id) => new RegExp(`^${UUID}$`).test(id))) {
+          return refused(failure('BAD_REQUEST', 'people is person ids, comma-separated', ['people']));
+        }
+        return answer(await bulkEditView(deps, asking, ids));
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/bulk-edit\/preview$/,
+      safe: true,
+      handle: compute(BulkEditBody, (asking, input) => bulkEdit(deps, asking, input, 'preview')),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/bulk-edit$/,
+      handle: write(BulkEditBody, (asking, input) => bulkEdit(deps, asking, input, 'commit'), {
+        // A retry is answered from what stands now: what the first request
+        // wrote reads as unchanged, and nothing is written twice.
+        again: async (asking, _resource, input) =>
+          answer(await bulkEdit(deps, asking, input, 'preview')),
+      }),
     },
 
     /* roles (PEO-112): the view here, the writes at /v1/roles/* */
@@ -505,6 +693,38 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         again: endpoint,
       }),
     },
+    // SCIM connections (PEO-072, PEO-073): people_admin's, audited by event.
+    {
+      method: 'POST',
+      pattern: /^\/v1\/scim\/connections$/,
+      handle: write(ScimConnectionBody, (asking, input) => createScimConnection(deps, asking, input.system), {
+        status: 201,
+        resource: (_asking, _id, made) => made.id,
+        again: (_asking, id) => Promise.resolve({ status: 201, body: { id } }),
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/scim/connections/${UUID}/rotate$`),
+      handle: write(NoBody, (asking, _input, id) => rotateScimToken(deps, asking, id), {
+        resource: (_asking, id) => id,
+        again: endpoint,
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/scim/connections/${UUID}/revoke$`),
+      handle: write(NoBody, (asking, _input, id) => revokeScimConnection(deps, asking, id), {
+        resource: (_asking, id) => id,
+      }),
+    },
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/scim/connections/${UUID}/mapping$`),
+      handle: write(ScimMappingBody, (asking, input, id) => setScimMapping(deps, asking, id, input.mapping), {
+        resource: (_asking, id) => id,
+      }),
+    },
     {
       method: 'GET',
       pattern: new RegExp(`^/v1/webhooks/endpoints/${UUID}/deliveries$`),
@@ -579,7 +799,153 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/analytics$/,
-      handle: async (asking) => answer(await analyticsView(deps, asking)),
+      handle: async (asking, _r, _p, query) => {
+        const segment = query.get('segment') ?? undefined;
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
+        return answer(
+          await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
+        );
+      },
+    },
+
+    /* pay bands (PEO-078): HR or finance, decided by `payBands` */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/pay-bands$/,
+      handle: async (asking) => {
+        const listed = await bands(asking, (b, tx) => b.list(tx, asking));
+        return answer(listed.ok ? ok({ items: listed.value }) : listed);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/pay-bands$/,
+      handle: write(
+        PayBandBody,
+        (asking, input) => bands(asking, (b, tx) => b.set(tx, asking, input)),
+        {
+          status: 201,
+          resource: (_asking, _id, made: PayBandView) => made.id,
+          again: async (asking, id) => {
+            const listed = await bands(asking, (b, tx) => b.list(tx, asking));
+            const made = listed.ok ? listed.value.find((band) => band.id === id) : undefined;
+            return made === undefined
+              ? refused(failure('NOT_FOUND', 'There is no such pay band'))
+              : { status: 201, body: made };
+          },
+        },
+      ),
+    },
+
+    /* scheduled reports (PEO-069) */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/report-schedules$/,
+      handle: async (asking) => {
+        const listed = await scheduled(asking, (d, tx) => listSchedules(d, tx, asking));
+        return answer(listed.ok ? ok({ items: listed.value }) : listed);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/report-schedules$/,
+      handle: write(
+        ScheduleBody,
+        (asking, input) => scheduled(asking, (d, tx) => createSchedule(d, tx, asking, input)),
+        {
+          status: 201,
+          resource: (_asking, _id, made) => made.id,
+          again: async (asking, id) => {
+            const listed = await scheduled(asking, (d, tx) => listSchedules(d, tx, asking));
+            const made = listed.ok ? listed.value.find((s) => s.id === id) : undefined;
+            return made === undefined ? refused(NoSchedule) : { status: 201, body: made };
+          },
+        },
+      ),
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/report-schedules/${UUID}/runs$`),
+      handle: async (asking, _r, params) => {
+        const runs = await scheduled(asking, (d, tx) =>
+          scheduleRuns(d, tx, asking, params['id'] ?? ''),
+        );
+        return answer(runs.ok ? ok({ items: runs.value }) : runs);
+      },
+    },
+    ...(['pause', 'resume'] as const).map((action) => ({
+      method: 'POST',
+      pattern: new RegExp(`^/v1/report-schedules/${UUID}/${action}$`),
+      handle: write(
+        NoBody,
+        (asking, _input, id) =>
+          scheduled(asking, (d, tx) => setPaused(d, tx, asking, id, action === 'pause')),
+        { resource: (_asking, id) => id },
+      ),
+    })),
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/report-schedules/${UUID}$`),
+      handle: write(
+        ScheduleBody,
+        (asking, input, id) =>
+          scheduled(asking, (d, tx) => updateSchedule(d, tx, asking, id, input)),
+        { resource: (_asking, id) => id },
+      ),
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/report-schedules$/,
+      handle: async (asking) => answer(await reportSchedulesView(deps, asking)),
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/report-schedules/${UUID}$`),
+      handle: async (asking, _r, params) =>
+        answer(await reportRunsView(deps, asking, params['id'] ?? '')),
+    },
+    {
+      method: 'DELETE',
+      pattern: new RegExp(`^/v1/report-schedules/${UUID}$`),
+      handle: write(
+        NoBody,
+        (asking, _input, id) => scheduled(asking, (d, tx) => deleteSchedule(d, tx, asking, id)),
+        { resource: (_asking, id) => id },
+      ),
+    },
+
+    /* saved segments (PEO-068) */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/segments$/,
+      handle: async (asking) => {
+        const listed = await segmentsView(deps, asking);
+        return answer(listed.ok ? ok({ items: listed.value }) : listed);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/segments$/,
+      handle: write(SegmentBody, (asking, input) => saveSegment(deps, asking, input), {
+        status: 201,
+        resource: (_asking, _id, made) => made.id,
+        again: async (asking, id) => {
+          const listed = await segmentsView(deps, asking);
+          const made = listed.ok ? listed.value.find((s) => s.id === id) : undefined;
+          return made === undefined
+            ? refused(failure('NOT_FOUND', 'There is no such segment'))
+            : { status: 201, body: made };
+        },
+      }),
+    },
+    {
+      method: 'DELETE',
+      pattern: new RegExp(`^/v1/segments/${UUID}$`),
+      handle: write(NoBody, (asking, _input, id) => deleteSegment(deps, asking, id), {
+        resource: (_asking, id) => id,
+      }),
     },
   ];
 }

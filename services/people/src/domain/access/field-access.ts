@@ -1,6 +1,8 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition, ViewerScope, WriterRole } from '@kithena/contracts';
 
+import { evaluatePredicate, type PersonFacts } from '../schema/requiredness.js';
+
 /**
  * Field-level authorization, as a pure intersection.
  *
@@ -28,7 +30,39 @@ export interface ViewerRelations {
   readonly isFinance: boolean;
   /** `people_admin`: may edit the schema. Not a key to every value in it. */
   readonly isAdmin: boolean;
+  /**
+   * The person being looked at, when there is one, for custom visibility
+   * rules (PEO-066). Absent for a question about everybody — a filter, a
+   * search, a directory column — and then no rule holds: a rule is true of
+   * some records, and those questions answer for all of them.
+   */
+  readonly subject?: PersonFacts;
+  /**
+   * The attributes an external system is the source of record for on this
+   * person, and which system (PEO-073, PRD §13.6): every other writer is
+   * refused, naming it. Absent for a question about everybody, and for a
+   * record no external system mirrors.
+   */
+  readonly sources?: ReadonlyMap<string, ExternalSource>;
+  /**
+   * Set when the one asking is an integration, not a person: the SCIM
+   * connection's id. It holds no scope and no writer role; it reads and
+   * writes exactly the attributes `sources` says it owns.
+   */
+  readonly integrationId?: string;
 }
+
+/** The external system that owns an attribute on a mirrored record. */
+export interface ExternalSource {
+  readonly connectionId: string;
+  /** What the tenant calls it — "Okta", "Workday" — as a refusal names it. */
+  readonly system: string;
+}
+
+/** Whether this integration owns this attribute here. */
+const ownedByIntegration = (definition: AttributeDefinition, viewer: ViewerRelations): boolean =>
+  viewer.integrationId !== undefined &&
+  viewer.sources?.get(definition.key)?.connectionId === viewer.integrationId;
 
 /** Which scopes this viewer satisfies. `directory` is everyone in the tenant. */
 function scopesOf(viewer: ViewerRelations): ReadonlySet<ViewerScope> {
@@ -62,9 +96,43 @@ function rolesOf(viewer: ViewerRelations): ReadonlySet<WriterRole> {
  * fallback: editing the schema is not a key to every value in it.
  */
 export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelations): boolean {
-  if (definition.visibility.length === 0) return false;
+  // An integration reads back what it is the source of, and never a sealed
+  // or special-category value: those are never mapped, and if a field was
+  // tightened after it was, this is where that holds.
+  if (viewer.integrationId !== undefined) {
+    return (
+      ownedByIntegration(definition, viewer) &&
+      !definition.encrypted &&
+      definition.classification.classification !== 'special-category'
+    );
+  }
   const scopes = scopesOf(viewer);
-  return definition.visibility.some((scope) => scopes.has(scope));
+  if (definition.visibility.some((scope) => scopes.has(scope))) return true;
+
+  // A custom rule (PEO-066) grants one of the same scopes, on the records its
+  // predicate holds for. Never for special-category data, whatever a stored
+  // document says: the contract refuses it, and this is the read side of that.
+  const { subject } = viewer;
+  if (subject === undefined || definition.classification.classification === 'special-category') {
+    return false;
+  }
+  return (definition.visibilityRules ?? []).some(
+    (rule) =>
+      rule.scopes.some((scope) => scopes.has(scope)) && evaluatePredicate(rule.when, subject).holds,
+  );
+}
+
+/**
+ * Whether this viewer may read a person's employment status (§6.3).
+ *
+ * Status is a lifecycle state, not an attribute, so no visibility setting or
+ * rule reaches it. HR reads it, and the person reads their own; nobody else
+ * does. "On leave" or "on notice" shown to a manager or a peer is the
+ * disclosure §7 refuses a visibility rule for, and finance and `people_admin`
+ * need it for nothing they do. A withheld status is absent, like a field.
+ */
+export function statusVisibleTo(viewer: ViewerRelations): boolean {
+  return viewer.isHr || viewer.isSelf;
 }
 
 /**
@@ -93,6 +161,32 @@ export function readable(
 }
 
 /**
+ * A person's history as this viewer may read it (PEO-064, §8.5).
+ *
+ * Judged by today's rules, never the rules the row was written under: a row
+ * of a field the viewer cannot read now is absent, whoever could read it then,
+ * and so is a row of a field no longer in the schema. A field that is sealed
+ * now shows none of its past values — only that it changed — because a
+ * classification that tightened after the write must not be undone by
+ * scrolling back: a value written in plaintext before the field was
+ * encrypted is exactly the plaintext the seal exists to hide.
+ */
+export function readableHistory<
+  E extends { readonly attributeKey: string; readonly value: unknown },
+>(
+  definitions: readonly AttributeDefinition[],
+  entries: readonly E[],
+  viewer: ViewerRelations,
+): E[] {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  return entries.flatMap((e) => {
+    const definition = byKey.get(e.attributeKey);
+    if (definition === undefined || !visibleTo(definition, viewer)) return [];
+    return definition.encrypted ? [{ ...e, value: null }] : [e];
+  });
+}
+
+/**
  * Whether this viewer may write this attribute.
  *
  * Ownership, not visibility, and the two genuinely differ: an employee owns
@@ -103,6 +197,28 @@ export function canWrite(definition: AttributeDefinition, viewer: ViewerRelation
   if (definition.deprecatedAt !== null) {
     return err(
       failure('FIELD_DEPRECATED', `${definition.key} is no longer collected`, [definition.key]),
+    );
+  }
+
+  // One writer per fact at a time (§7 rule 1): where an external system is
+  // the source of record, it writes and nobody else does.
+  if (viewer.integrationId !== undefined) {
+    return ownedByIntegration(definition, viewer)
+      ? ok(undefined)
+      : err(
+          failure('FIELD_NOT_WRITABLE', `${definition.key} is not mapped to this integration`, [
+            definition.key,
+          ]),
+        );
+  }
+  const source = viewer.sources?.get(definition.key);
+  if (source !== undefined) {
+    return err(
+      failure(
+        'SOURCE_OF_RECORD_EXTERNAL',
+        `${definition.key} is kept in ${source.system}; change it there`,
+        [definition.key],
+      ),
     );
   }
 

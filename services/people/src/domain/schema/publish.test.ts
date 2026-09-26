@@ -175,8 +175,85 @@ describe('the diff a publish produces', () => {
       added: [],
       tightened: [],
       loosened: [],
+      changed: [],
       archived: [],
     });
+  });
+
+  it('names a field whose readers or conditions changed, which is neither tighter nor looser', () => {
+    // Who can see a field is the change an admin most needs to see before
+    // publishing, and requiredness's rank cannot say whether a new predicate
+    // asks more or less.
+    const before = published(draft());
+    const d = draft();
+    d.updateAttribute('employee_number', { visibility: ['self', 'hr', 'manager'] });
+    const after = publish(d, before, { clock: later, actor });
+    expect(after.ok && diff(before.document, after.value.document).changed).toEqual([
+      'employee_number',
+    ]);
+  });
+
+  it('names a field whose approval setting changed, and not one set to its default (PEO-077)', () => {
+    const before = published(draft());
+    const on = draft();
+    on.updateAttribute('employee_number', { requiresApproval: true });
+    const after = publish(on, before, { clock: later, actor });
+    expect(after.ok && diff(before.document, after.value.document).changed).toEqual([
+      'employee_number',
+    ]);
+
+    // Off is what an internal field defaults to: saying so changes nothing held.
+    const same = draft();
+    same.updateAttribute('employee_number', { requiresApproval: false });
+    const again = publish(same, before, { clock: later, actor });
+    expect(again.ok && diff(before.document, again.value.document).changed).toEqual([]);
+  });
+});
+
+describe('custom visibility rules at publish (PEO-066)', () => {
+  const grade: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'grade',
+    visibility: ['manager', 'hr'],
+  };
+  const band: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'bonus_band',
+    visibility: ['hr'],
+    visibilityRules: [
+      {
+        scopes: ['manager'],
+        when: {
+          combine: 'all',
+          clauses: [{ operand: 'attribute', key: 'grade', is: 'equals', equals: 'senior' }],
+        },
+      },
+    ],
+  };
+
+  it('publishes a rule whose dependency its scope can read', () => {
+    const d = draft();
+    d.addAttribute(grade);
+    expect(d.addAttribute(band).ok).toBe(true);
+    expect(publish(d, null, { clock, actor }).ok).toBe(true);
+  });
+
+  it('refuses once the dependency has been narrowed since the rule was saved', () => {
+    const d = draft();
+    d.addAttribute(grade);
+    d.addAttribute(band);
+    expect(d.updateAttribute('grade', { visibility: ['hr'] }).ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
+  it('refuses once the dependency has been archived', () => {
+    const d = draft();
+    d.addAttribute(grade);
+    d.addAttribute(band);
+    expect(d.archiveAttribute('grade', clock).ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 });
 
@@ -220,5 +297,35 @@ describe('rolling back', () => {
     expect(pointless.ok).toBe(false);
     if (pointless.ok) return;
     expect(pointless.error.code).toBe('ALREADY_IN_FORCE');
+  });
+});
+
+describe('publishing a requiredness predicate (PEO-065)', () => {
+  const disability: AttributeDefinitionInput = { ...attribute, key: 'disability' };
+  const adjustment: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'workplace_adjustment',
+    requiredness: {
+      mode: 'conditional',
+      when: { combine: 'all', clauses: [{ operand: 'attribute', key: 'disability', is: 'set' }] },
+    },
+  };
+
+  it('refuses once the field it names has become special-category since it was saved', () => {
+    const d = draft();
+    d.addAttribute(disability);
+    expect(d.addAttribute(adjustment).ok).toBe(true);
+    const reclassified = d.updateAttribute('disability', {
+      includeInEvents: false,
+      classification: {
+        classification: 'special-category',
+        piiKind: 'health',
+        exportable: true,
+        aiEligible: false,
+      },
+    });
+    expect(reclassified.ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
   });
 });

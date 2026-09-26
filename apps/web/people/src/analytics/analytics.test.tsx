@@ -1,7 +1,7 @@
 import { TooltipProvider } from '@reach/ui';
 import { render as mount, screen, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
@@ -150,6 +150,241 @@ describe('Analytics', () => {
   it('says when a date was replayed from history rather than a snapshot', () => {
     render(<Analytics load={{ status: 'ready', data: { ...workforce, source: 'history' } }} />);
     expect(screen.getByText(/replayed from history/)).toBeInTheDocument();
+  });
+
+  const remaining: AnalyticsState = {
+    ...workforce,
+    attrition: {
+      ...(workforce.attrition as NonNullable<AnalyticsState['attrition']>),
+      trend: [
+        { label: '2026-07', value: 10.2 },
+        { label: '2026-08', value: 11.4 },
+      ],
+    },
+    tenure: [
+      { label: 'Under 6 months', headcount: 120, leavers: 4 },
+      { label: '6 to 12 months', headcount: 90, leavers: 19 },
+    ],
+    span: [
+      { label: '1 report', value: 12 },
+      { label: '6 reports', value: 30 },
+    ],
+    joiners: {
+      months: ['2026-07', '2026-08'],
+      departments: ['Engineering', 'Sales'],
+      cells: [
+        { row: 'Engineering', column: '2026-07', value: 4 },
+        { row: 'Sales', column: '2026-08', value: 2 },
+      ],
+    },
+    composition: {
+      categories: ['Engineering', 'Sales'],
+      series: [
+        { label: 'Permanent', values: [300, 120] },
+        { label: 'Contractor', values: [40, 5] },
+      ],
+    },
+    selfId: [
+      {
+        key: 'ethnicity',
+        label: 'Ethnicity',
+        status: 'ok',
+        minimum: null,
+        publishedAsOf: '2026-09-01',
+        total: 910,
+        note: 'Counts are rounded to the nearest 5.',
+        cells: [
+          { label: 'A', value: 455 },
+          { label: 'Prefer not to say', value: 455 },
+        ],
+      },
+      {
+        key: 'disability',
+        label: 'Disability',
+        status: 'insufficient_data',
+        minimum: 10,
+        publishedAsOf: '2026-09-01',
+        total: null,
+        note: 'Counts are rounded to the nearest 5.',
+        cells: [],
+      },
+    ],
+  };
+
+  it('draws attrition, composition, tenure, span and joiners, each with its numbers (PEO-067)', async () => {
+    const user = fast();
+    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
+    for (const title of [
+      'Are people leaving faster',
+      'What we are made of',
+      'Who is at risk of leaving',
+      'Is the org shaped sensibly',
+      'When people join',
+    ]) {
+      const section = screen.getByRole('heading', { name: title }).closest('section');
+      if (section === null) throw new Error(`no section for ${title}`);
+      await user.click(within(section).getByRole('button', { name: 'Show the numbers' }));
+      expect(within(section).getByRole('table', { name: `${title}: the numbers` })).toBeVisible();
+    }
+    expect(
+      screen.getByRole('table', { name: 'Who is at risk of leaving: the numbers' }),
+    ).toHaveTextContent('6 to 12 months: left19');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows a withheld self-ID question as insufficient data, with no number to read (PEO-070)', async () => {
+    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
+    const withheld = screen.getByRole('heading', { name: 'Disability' }).closest('section');
+    if (withheld === null) throw new Error('no section for Disability');
+    expect(within(withheld).getByText('Insufficient data')).toBeInTheDocument();
+    expect(within(withheld).queryByRole('button', { name: 'Show the numbers' })).toBeNull();
+    // The minimum and the publication date are the only numbers in it.
+    expect(withheld.textContent.replace('2026-09-01', '').replace('Fewer than 10', '')).not.toMatch(
+      /\d/,
+    );
+    // A served one says its total was rounded on its own.
+    const served = screen.getByRole('heading', { name: 'Ethnicity' }).closest('section');
+    expect(served?.textContent).toContain('rounded to the nearest 5');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('applies a segment through the shell and says what it leaves out (PEO-068)', async () => {
+    const user = fast();
+    const onSegmentChange = vi.fn();
+    const { rerender } = render(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: { ...remaining, segments: [{ id: 'seg-1', name: 'Engineering' }] },
+        }}
+        onSegmentChange={onSegmentChange}
+      />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Segment' }));
+    await user.click(await screen.findByRole('option', { name: 'Segment: Engineering' }));
+    expect(onSegmentChange).toHaveBeenCalledWith('seg-1');
+
+    rerender(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: {
+            ...remaining,
+            span: null,
+            selfId: null,
+            expiries: null,
+            segment: { id: 'seg-1', name: 'Engineering' },
+            segments: [{ id: 'seg-1', name: 'Engineering' }],
+          },
+        }}
+        segmentId="seg-1"
+        onSegmentChange={onSegmentChange}
+      />,
+    );
+    expect(screen.getByText(/Showing the people you may see in Engineering/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Is the org shaped sensibly' })).toBeNull();
+  });
+
+  const band = { minimumMinor: '4000000', midpointMinor: '5000000', maximumMinor: '6000000' };
+  const withheld = {
+    status: 'insufficient_data' as const,
+    people: null,
+    p25: null,
+    median: null,
+    p75: null,
+    band: null,
+  };
+  const pay: NonNullable<AnalyticsState['pay']> = {
+    asOf: '2026-09-01',
+    minimum: 10,
+    grade: [
+      {
+        label: 'Level 3',
+        currency: 'EUR',
+        status: 'ok',
+        people: 12,
+        p25: '4775000',
+        median: '5050000',
+        p75: '5325000',
+        band,
+      },
+      { label: 'Level 4', currency: 'EUR', ...withheld },
+      {
+        label: 'Level 3',
+        currency: 'GBP',
+        status: 'ok',
+        people: 10,
+        p25: '3112500',
+        median: '3225000',
+        p75: '3337500',
+        band: null,
+      },
+    ],
+    tenure: [
+      { ...workforceTenure('Under 6 months', '3000000'), currency: 'EUR' },
+      { ...workforceTenure('2 to 5 years', '5000000'), currency: 'EUR' },
+      { label: '5 years or more', currency: 'EUR', ...withheld },
+    ],
+    compa: [
+      {
+        label: 'Level 3',
+        currency: 'EUR',
+        status: 'ok',
+        people: 12,
+        p25: '0.9550',
+        median: '1.0100',
+        p75: '1.0650',
+        band,
+      },
+    ],
+  };
+  function workforceTenure(label: string, median: string) {
+    return {
+      label,
+      status: 'ok' as const,
+      people: 20,
+      p25: String(Number(median) - 100000),
+      median,
+      p75: String(Number(median) + 100000),
+      band: null,
+    };
+  }
+
+  it('draws pay per currency, median inside the band, and a small group as words only (PEO-078)', async () => {
+    const user = fast();
+    const { container } = render(
+      <Analytics load={{ status: 'ready', data: { ...remaining, pay } }} />,
+    );
+    for (const title of [
+      'How pay sits in each band, EUR',
+      'How pay sits in each band, GBP',
+      'Pay against tenure, EUR',
+      'Compa-ratio by grade, EUR',
+    ]) {
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    }
+    const eur = screen
+      .getByRole('heading', { name: 'How pay sits in each band, EUR' })
+      .closest('section');
+    if (eur === null) throw new Error('no EUR section');
+    await user.click(within(eur).getByRole('button', { name: 'Show the numbers' }));
+    const table = within(eur).getByRole('table', {
+      name: 'How pay sits in each band, EUR: the numbers',
+    });
+    expect(table).toHaveTextContent('Level 4: 25th / median / 75thInsufficient data');
+    expect(eur.textContent).toContain('Insufficient data, fewer than 10 people: Level 4');
+    // GBP has no band: said in words, not drawn against a made-up range.
+    const gbp = screen
+      .getByRole('heading', { name: 'How pay sits in each band, GBP' })
+      .closest('section');
+    expect(gbp?.textContent).toContain('No band set: Level 3');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('draws no pay section for anybody People sent none (PEO-078)', () => {
+    render(<Analytics load={{ status: 'ready', data: { ...remaining, pay: null } }} />);
+    expect(screen.queryByRole('heading', { name: /How pay sits/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Compa-ratio/ })).toBeNull();
   });
 
   it('has loading and error states', async () => {

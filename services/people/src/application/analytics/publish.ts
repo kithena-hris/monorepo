@@ -243,7 +243,7 @@ export async function changesSince(
     tx,
     sql`SELECT count(*)::int AS n FROM people.person p
          WHERE p.tenant_id = ${tenantId}::uuid
-           AND p.status NOT IN ('provisional', 'discarded')
+           AND p.status NOT IN ('provisional', 'discarded', 'merged')
            AND p.hire_date IS NOT NULL
            AND (${present(today)} <> ${present(since.days)}
                 OR (${present(today)}

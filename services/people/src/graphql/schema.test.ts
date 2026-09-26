@@ -176,10 +176,12 @@ describe('every mutation (PEO-113)', () => {
     const profile = schema.getType('PeopleProfile');
     const fields = profile !== undefined && 'getFields' in profile ? profile.getFields() : {};
     // `calendar`, `employment` and `placement` are HR's (PEO-119, PEO-120, PEO-123), and
-    // `reviews` the doubted identifiers still open (PEO-125): none is an attribute.
+    // `reviews` the doubted identifiers still open (PEO-125), `pending` the
+    // changes waiting for approval (PEO-077): none is an attribute.
     expect(Object.keys(fields).toSorted()).toEqual([
       'calendar',
       'employment',
+      'pending',
       'person',
       'placement',
       'reviews',

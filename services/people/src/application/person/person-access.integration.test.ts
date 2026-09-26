@@ -128,8 +128,11 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20260926140000_people_visibility_rules.sql',
+    '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
@@ -138,6 +141,7 @@ beforeAll(async () => {
     '20260924320000_people_effective_through.sql',
     '20260924330000_people_identifier_review.sql',
     '20260924340000_people_person_key_lookup.sql',
+    '20260926200000_people_status_idx_skip_scan.sql',
     '20260924370000_people_directory_search.sql',
     '20260926120000_people_custom_filter.sql',
   ]) {
@@ -606,8 +610,14 @@ describe('the directory at 50,000 people', () => {
     const first = await timed('a directory search and its count', () => pageOf(null));
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    expect(first.value.all).toBe(50);
+    // Every seventh is terminated: a leaver is listed to HR alone, and outside
+    // HR "active" is everybody listed, so no status is read off a count (§6.3).
+    expect(first.value.all).toBe(43);
     expect(first.value.active).toBe(43);
+    const byHr = await inTenantResult(inTenant, PERF, (tx) =>
+      people.count(tx, { ...asking(hr, PERF), search: 'family204' }),
+    );
+    expect(byHr).toEqual(ok({ all: 50, active: 43 }));
 
     const seen = [...first.value.items];
     let next = first.value.next;
@@ -618,9 +628,10 @@ describe('the directory at 50,000 people', () => {
       seen.push(...page.value.items);
       next = page.value.next;
     }
-    expect(seen).toHaveLength(50);
-    expect(new Set(seen.map((p) => p.id)).size).toBe(50);
+    expect(seen).toHaveLength(43);
+    expect(new Set(seen.map((p) => p.id)).size).toBe(43);
     expect(new Set(seen.map((p) => p.attributes['family_name']))).toEqual(new Set(['Family204']));
+    expect(seen.every((p) => p.status === undefined)).toBe(true);
     // Somebody who is not HR does not read everybody's email, so it is not searched.
     expect(seen.every((p) => p.attributes['work_email'] === undefined)).toBe(true);
   });

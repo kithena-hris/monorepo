@@ -3,7 +3,14 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import type { Checked, IdentifierFinding, Outcome } from '../load';
 import { AttributeInput } from './attribute-input';
-import { isMissing, type AttributeValue, type RecordSection, type Values } from './model';
+import {
+  isMissing,
+  type AttributeValue,
+  type PendingValue,
+  type RecordSection,
+  type Values,
+} from './model';
+import { PendingNote } from './pending';
 
 /**
  * One section of a record, as a form that saves on its own.
@@ -25,6 +32,8 @@ export function SectionForm({
   onCheck,
   submitLabel = 'Save',
   footer,
+  pending = [],
+  onWithdraw,
 }: {
   readonly section: RecordSection;
   readonly values: Values;
@@ -34,6 +43,9 @@ export function SectionForm({
   readonly submitLabel?: string;
   /** Beside the save button: a skip, a note. */
   readonly footer?: ReactNode;
+  /** Values waiting for HR's approval, shown under their fields (PEO-077). */
+  readonly pending?: readonly PendingValue[];
+  readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
 }): JSX.Element {
   const [draft, setDraft] = useState<Values>(values);
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
@@ -46,6 +58,8 @@ export function SectionForm({
   } | null>(null);
   /** After a save: what went to HR's review. */
   const [reviewed, setReviewed] = useState<readonly IdentifierFinding[]>([]);
+  /** After a save: the fields sent for approval rather than saved (PEO-077). */
+  const [held, setHeld] = useState<readonly string[]>([]);
 
   const writable = section.fields.filter((f) => !f.readOnly);
   const identifiers = new Set(
@@ -82,6 +96,7 @@ export function SectionForm({
     setSaving(true);
     setRefused(null);
     setReviewed([]);
+    setHeld([]);
 
     if (onCheck !== undefined && Object.keys(asked).length > 0 && !stillWarned) {
       const checked = await onCheck(section.key, asked);
@@ -107,6 +122,7 @@ export function SectionForm({
     }
     setWarned(null);
     setReviewed((outcome.findings ?? []).filter((f) => f.review === 'pending'));
+    setHeld(outcome.held ?? []);
   };
 
   const shown = stillWarned ? warned.findings : [];
@@ -127,16 +143,22 @@ export function SectionForm({
     >
       <Stack gap={4}>
         {section.fields.map((field) => (
-          <AttributeInput
-            key={field.key}
-            field={field}
-            value={draft[field.key] ?? null}
-            problem={problems[field.key]}
-            warning={warningFor(field.key)}
-            onChange={(value: AttributeValue) => {
-              setDraft((d) => ({ ...d, [field.key]: value }));
-            }}
-          />
+          <div key={field.key} className="flex flex-col gap-1.5">
+            <AttributeInput
+              field={field}
+              value={draft[field.key] ?? null}
+              problem={problems[field.key]}
+              warning={warningFor(field.key)}
+              onChange={(value: AttributeValue) => {
+                setDraft((d) => ({ ...d, [field.key]: value }));
+              }}
+            />
+            {pending
+              .filter((p) => p.key === field.key)
+              .map((p) => (
+                <PendingNote key={p.id} field={field} pending={p} onWithdraw={onWithdraw} />
+              ))}
+          </div>
         ))}
         {shown.length === 0 ? null : (
           <Alert tone="warning" title="Our checks suggest this may be wrong">
@@ -148,6 +170,12 @@ export function SectionForm({
           <Alert tone="info" title="Saved, and sent to HR for review">
             Our checks doubted {[...new Set(reviewed.map((f) => f.label))].join(' and ')}. HR will
             look at it; you will see here if they ask you to correct it.
+          </Alert>
+        )}
+        {held.length === 0 ? null : (
+          <Alert tone="info" title="Sent to HR for approval">
+            {held.join(' and ')} {held.length === 1 ? 'is' : 'are'} not changed until HR approves;
+            until then the record keeps what it had. You can withdraw the change while it waits.
           </Alert>
         )}
         {refused === null ? null : (

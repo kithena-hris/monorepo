@@ -16,7 +16,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.integration.test.ts'],
-    // Pulling and starting postgres:17-alpine on a cold CI runner is slower
+    // Pulling and starting postgres:18-alpine on a cold CI runner is slower
     // than any unit test has a right to be.
     testTimeout: 120_000,
     hookTimeout: 180_000,

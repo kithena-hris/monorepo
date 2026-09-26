@@ -37,6 +37,7 @@ type AggregateColumns = {
   hireDate: string | null;
   lastWorkingDay: string | null;
   accessEndedAt: Date | null;
+  mergedInto: string | null;
 };
 
 export function drizzlePersonRepository(): PersonRepository {
@@ -193,6 +194,7 @@ function aggregateColumns(snapshot: PersonSnapshot): AggregateColumns {
     hireDate: snapshot.hireDate,
     lastWorkingDay: snapshot.lastWorkingDay,
     accessEndedAt: snapshot.accessEndedAt ? new Date(snapshot.accessEndedAt) : null,
+    mergedInto: snapshot.mergedInto ?? null,
   };
 }
 
@@ -285,5 +287,6 @@ function toSnapshot(
     lastWorkingDay: row.lastWorkingDay,
     accessEndedAt: row.accessEndedAt?.toISOString() ?? null,
     employment: toEmployment(row.employment),
+    mergedInto: row.mergedInto,
   };
 }

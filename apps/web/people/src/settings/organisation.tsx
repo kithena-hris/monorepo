@@ -88,8 +88,32 @@ export interface RetentionFloor {
   readonly reviewedOn: string | null;
 }
 
+/** A pay band for one grade and currency from a day, in minor units (PEO-078). */
+export interface PayBand {
+  readonly id: string;
+  readonly grade: string;
+  readonly currency: string;
+  readonly minimumMinor: string;
+  readonly midpointMinor: string;
+  readonly maximumMinor: string;
+  readonly effectiveFrom: string;
+  readonly recordedAt: string;
+  readonly supersedes: string | null;
+}
+
+export interface PayBandInput {
+  grade: string;
+  currency: string;
+  minimumMinor: string;
+  midpointMinor: string;
+  maximumMinor: string;
+  effectiveFrom: string;
+}
+
 export interface OrganisationState {
   readonly canManage: boolean;
+  /** HR's and finance's, who both edit them; null or absent for anybody else. */
+  readonly payBands?: readonly PayBand[] | null;
   readonly settings: {
     readonly defaultTimeZone: string;
     readonly cohortMinimum: number;
@@ -135,6 +159,7 @@ export interface OrganisationProps {
     legalEntityId: string,
     scheme: { prefix: string; digits: number; start: number },
   ) => Promise<Outcome>;
+  readonly onSetPayBand?: (band: PayBandInput) => Promise<Outcome>;
 }
 
 /** Today where a zone is: a location's zone change is in force once its day has begun there. */
@@ -186,6 +211,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="numbering">Employee numbering</TabsTrigger>
           <TabsTrigger value="company">Company</TabsTrigger>
+          {state.payBands == null ? null : <TabsTrigger value="pay">Pay bands</TabsTrigger>}
         </TabsList>
         <TabsContent value="entities">
           <Entities state={state} onEdit={setEditing} onUpdate={props.onUpdateEntity} />
@@ -202,6 +228,11 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
             <RetentionFloors floors={state.retentionFloors} />
           </Stack>
         </TabsContent>
+        {state.payBands == null ? null : (
+          <TabsContent value="pay">
+            <PayBands bands={state.payBands} onSet={props.onSetPayBand} />
+          </TabsContent>
+        )}
       </Tabs>
       {editing === null ? null : (
         <EditDialog editing={editing} state={state} props={props} onClose={close} />
@@ -595,7 +626,8 @@ function EditDialog({
 
   const renaming = editing.kind === 'location' && place !== null;
   const needsName = editing.kind === 'entity' || editing.kind === 'location';
-  const needsPlace = editing.kind === 'entity' ? entity === null : editing.kind === 'location' && !renaming;
+  const needsPlace =
+    editing.kind === 'entity' ? entity === null : editing.kind === 'location' && !renaming;
   const needsZone = editing.kind === 'entity' || editing.kind === 'zone' || needsPlace;
   const problems = {
     name: needsName && name.trim() === '',
@@ -603,7 +635,8 @@ function EditDialog({
     zone: needsZone && zone === '',
     prefix: editing.kind === 'numbering' && !/^[A-Za-z0-9-]{0,10}$/.test(prefix),
     digits: editing.kind === 'numbering' && (digits === null || digits < 1 || digits > 12),
-    start: editing.kind === 'numbering' && (start === null || start < 1 || !Number.isInteger(start)),
+    start:
+      editing.kind === 'numbering' && (start === null || start < 1 || !Number.isInteger(start)),
   };
   const invalid = Object.values(problems).some(Boolean);
   // A zone change is in force once its day has begun where the zone is.
@@ -769,10 +802,7 @@ function EditDialog({
       />,
       <p key="preview" className="text-sm">
         The next person hired here is{' '}
-        <span className="font-medium">
-          {numberOf(prefix, digits ?? 1, start ?? 1)}
-        </span>
-        .
+        <span className="font-medium">{numberOf(prefix, digits ?? 1, start ?? 1)}</span>.
       </p>,
     );
   }
@@ -811,6 +841,277 @@ function EditDialog({
               setBusy(true);
               setRefused(null);
               void submit().then((outcome) => {
+                setBusy(false);
+                if (outcome.ok) onClose();
+                else setRefused(outcome.message);
+              });
+            }}
+          >
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** A currency's minor unit, as Intl knows it: 2 for EUR, 0 for JPY. */
+const minorDigits = (currency: string): number | null => {
+  try {
+    return (
+      new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? null
+    );
+  } catch {
+    return null;
+  }
+};
+
+/** `"55000.5"` EUR → `"5500050"`, by moving digits: never through a float. Null for anything else. */
+export function toMinorDigits(amount: string, currency: string): string | null {
+  const places = minorDigits(currency);
+  if (places === null) return null;
+  const match = /^(\d{1,15})(?:\.(\d+))?$/.exec(amount.replaceAll(',', '').trim());
+  if (!match) return null;
+  const [, whole = '', fraction = ''] = match;
+  if (fraction.length > places) return null;
+  const digits = `${whole}${fraction.padEnd(places, '0')}`.replace(/^0+/, '');
+  return digits === '' ? null : digits;
+}
+
+/** `"5500050"` EUR → `"55,000.50 EUR"` for reading; the value itself stays digits. */
+function bandAmount(minor: string, currency: string): string {
+  const places = minorDigits(currency) ?? 2;
+  const padded = minor.padStart(places + 1, '0');
+  const whole = places === 0 ? padded : padded.slice(0, -places);
+  const fraction = places === 0 ? '' : `.${padded.slice(-places)}`;
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${fraction} ${currency}`;
+}
+
+/**
+ * Pay bands (PEO-078): minimum, midpoint and maximum per grade and currency,
+ * from a day. HR and finance see and edit them; People decides who may, and
+ * records who did. Saving a day already recorded corrects it.
+ */
+function PayBands({
+  bands,
+  onSet,
+}: {
+  readonly bands: readonly PayBand[];
+  readonly onSet: OrganisationProps['onSetPayBand'];
+}): JSX.Element {
+  const [editing, setEditing] = useState<PayBand | 'new' | null>(null);
+  return (
+    <Stack gap={4}>
+      <p className="text-sm text-fg-muted">
+        Compa-ratio on the analytics screen is salary over the midpoint of the band in force for
+        that grade and currency. A band change from a later day leaves the earlier one in history.
+      </p>
+      {onSet === undefined ? null : (
+        <div>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setEditing('new');
+            }}
+          >
+            Add pay band
+          </Button>
+        </div>
+      )}
+      {bands.length === 0 ? (
+        <EmptyState
+          title="No pay bands yet"
+          description="Add one per grade and currency to see compa-ratio."
+        />
+      ) : (
+        <Table aria-label="Pay bands">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Grade</TableHead>
+              <TableHead>From</TableHead>
+              <TableHead numeric>Minimum</TableHead>
+              <TableHead numeric>Midpoint</TableHead>
+              <TableHead numeric>Maximum</TableHead>
+              {onSet === undefined ? null : <TableHead>Change</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {bands.map((band) => (
+              <TableRow key={band.id}>
+                <TableCell>
+                  <span className="font-medium">{band.grade}</span>{' '}
+                  {band.supersedes === null ? null : <Badge tone="neutral">Corrected</Badge>}
+                </TableCell>
+                <TableCell>{band.effectiveFrom}</TableCell>
+                <TableCell numeric>{bandAmount(band.minimumMinor, band.currency)}</TableCell>
+                <TableCell numeric>{bandAmount(band.midpointMinor, band.currency)}</TableCell>
+                <TableCell numeric>{bandAmount(band.maximumMinor, band.currency)}</TableCell>
+                {onSet === undefined ? null : (
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      aria-label={`Correct ${band.grade} ${band.currency} from ${band.effectiveFrom}`}
+                      onClick={() => {
+                        setEditing(band);
+                      }}
+                    >
+                      Correct
+                    </Button>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {editing === null || onSet === undefined ? null : (
+        <PayBandDialog
+          band={editing === 'new' ? null : editing}
+          onSet={onSet}
+          onClose={() => {
+            setEditing(null);
+          }}
+        />
+      )}
+    </Stack>
+  );
+}
+
+function PayBandDialog({
+  band,
+  onSet,
+  onClose,
+}: {
+  readonly band: PayBand | null;
+  readonly onSet: NonNullable<OrganisationProps['onSetPayBand']>;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const major = (minor: string | undefined, currency: string) =>
+    minor === undefined
+      ? ''
+      : (bandAmount(minor, currency).split(' ')[0]?.replaceAll(',', '') ?? '');
+  const [grade, setGrade] = useState(band?.grade ?? '');
+  const [currency, setCurrency] = useState(band?.currency ?? '');
+  const [amounts, setAmounts] = useState({
+    minimum: major(band?.minimumMinor, band?.currency ?? 'EUR'),
+    midpoint: major(band?.midpointMinor, band?.currency ?? 'EUR'),
+    maximum: major(band?.maximumMinor, band?.currency ?? 'EUR'),
+  });
+  const [from, setFrom] = useState<IsoDate | null>(band?.effectiveFrom ?? null);
+  const [shown, setShown] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+
+  const minor = {
+    minimum: toMinorDigits(amounts.minimum, currency),
+    midpoint: toMinorDigits(amounts.midpoint, currency),
+    maximum: toMinorDigits(amounts.maximum, currency),
+  };
+  const problems = {
+    grade: grade.trim() === '',
+    currency: !/^[A-Z]{3}$/.test(currency) || minorDigits(currency) === null,
+    minimum: minor.minimum === null,
+    midpoint: minor.midpoint === null,
+    maximum: minor.maximum === null,
+    from: from === null,
+  };
+  const invalid = Object.values(problems).some(Boolean);
+  const amountField = (key: 'minimum' | 'midpoint' | 'maximum', label: string) => (
+    <Field key={key} required invalid={shown && problems[key]}>
+      <FieldLabel>{label}</FieldLabel>
+      <FieldControl>
+        <Input
+          inputMode="decimal"
+          value={amounts[key]}
+          onChange={(e) => {
+            setAmounts((a) => ({ ...a, [key]: e.target.value }));
+          }}
+        />
+      </FieldControl>
+      <FieldError>
+        An amount in {currency === '' ? 'the currency' : currency}, above zero.
+      </FieldError>
+    </Field>
+  );
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {band === null ? 'Add a pay band' : `Correct ${band.grade}, ${band.currency}`}
+          </DialogTitle>
+          <DialogDescription>
+            Kept with who changed it and when. The same grade, currency and day again corrects it.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap={4}>
+            <Field required invalid={shown && problems.grade}>
+              <FieldLabel>Grade</FieldLabel>
+              <FieldControl>
+                <Input
+                  value={grade}
+                  maxLength={64}
+                  readOnly={band !== null}
+                  onChange={(e) => {
+                    setGrade(e.target.value);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>As the grade field stores it on a profile.</FieldDescription>
+              <FieldError>A grade is needed.</FieldError>
+            </Field>
+            <Field required invalid={shown && problems.currency}>
+              <FieldLabel>Currency</FieldLabel>
+              <FieldControl>
+                <Input
+                  value={currency}
+                  maxLength={3}
+                  readOnly={band !== null}
+                  onChange={(e) => {
+                    setCurrency(e.target.value.toUpperCase());
+                  }}
+                />
+              </FieldControl>
+              <FieldError>A three-letter currency code, such as EUR.</FieldError>
+            </Field>
+            {amountField('minimum', 'Minimum')}
+            {amountField('midpoint', 'Midpoint')}
+            {amountField('maximum', 'Maximum')}
+            <DatePicker label="From" value={from} onChange={setFrom} />
+            {refused === null ? null : (
+              <Alert tone="danger" title="Not saved">
+                {refused}
+              </Alert>
+            )}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            loadingLabel="Saving"
+            onClick={() => {
+              setShown(true);
+              if (invalid || from === null) return;
+              setBusy(true);
+              setRefused(null);
+              void onSet({
+                grade: grade.trim(),
+                currency,
+                minimumMinor: minor.minimum ?? '',
+                midpointMinor: minor.midpoint ?? '',
+                maximumMinor: minor.maximum ?? '',
+                effectiveFrom: from,
+              }).then((outcome) => {
                 setBusy(false);
                 if (outcome.ok) onClose();
                 else setRefused(outcome.message);

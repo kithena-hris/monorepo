@@ -20,6 +20,9 @@ import { drizzleSecretStore } from '../../infrastructure/secret-store.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { exportDsar } from './export-dsar.js';
+import { drizzlePendingChangeStore } from '../person/pending-store.js';
+import type { PendingChange } from '../person/pending-changes.js';
+import { open, seal } from '../../infrastructure/envelope.js';
 import { utcCalendars } from '../org/org.js';
 
 /**
@@ -47,13 +50,23 @@ let serviceClient: ReturnType<typeof postgres> | undefined;
 let admin: PostgresJsDatabase;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
-const secrets = drizzleSecretStore(staticKeyRing([{ id: 'k1', key: randomBytes(32) }]));
+const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
+const secrets = drizzleSecretStore(ring);
+const pending = drizzlePendingChangeStore({
+  seal: (plaintext) => seal(plaintext, ring),
+  open: (sealed) => open(sealed, ring),
+});
 const dsar = exportDsar({
   source: drizzleDsarSource(),
   people: drizzlePersonRepository(),
   secrets,
   clock,
+  pending,
 });
+
+const ADA_ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
+const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
+const NEW_IBAN = 'DE89370400440532013000';
 
 let ids = 0;
 const publisher = publishSchema({ calendars: utcCalendars,
@@ -114,8 +127,11 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20260926140000_people_visibility_rules.sql',
+    '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260923110000_people_completeness.sql',
     '20260923140000_people_retention.sql',
@@ -218,6 +234,98 @@ describe('a subject access export', () => {
     expect(result.value.history.map((h) => h.attributeKey)).toEqual(['shoe_size']);
     expect(result.value.events).toEqual([{ eventName: 'people.person.hired' }]);
     expect(JSON.stringify(result.value)).not.toContain('difficult');
+  });
+
+  it('carries their changes held for approval, pending and decided, by role and never by name (PEO-077)', async () => {
+    await admin.execute(sql`UPDATE people.person SET identity_account_id = ${ADA_ACCOUNT}::uuid`);
+    const approval = (id: string): PendingChange['approval'] => ({
+      id,
+      requestedBy: ADA_ACCOUNT,
+      requestedAt: '2026-09-21T09:00:00.000Z',
+      reason: '',
+      expiresAt: '2026-09-28T09:00:00.000Z',
+      state: 'pending',
+      decidedBy: null,
+      decidedAt: null,
+      note: null,
+    });
+    const change = (id: string, over: Partial<PendingChange>): PendingChange => ({
+      tenantId: ACME,
+      personId: ADA,
+      attributeKey: 'bank_account',
+      kind: 'value',
+      approval: approval(id),
+      effectiveFrom: '2026-09-21',
+      supersedes: null,
+      sealed: true,
+      value: null,
+      last4: '3000',
+      ...over,
+    });
+    const REJECTED = '01890000-0000-7000-8000-0000000000d2';
+    await inTenant(ACME, async ({ tx }) => {
+      // Theirs, sealed, still waiting: in full, as a sealed attribute is.
+      await pending.insert(tx, change('01890000-0000-7000-8000-0000000000d1', {}), JSON.stringify(NEW_IBAN));
+      // HR's, rejected with a note.
+      const asked = change(REJECTED, {
+        attributeKey: 'shoe_size',
+        sealed: false,
+        value: 41,
+        last4: null,
+        approval: {
+          ...approval(REJECTED),
+          requestedBy: HR_ACCOUNT,
+          requestedAt: '2026-09-20T09:00:00.000Z',
+        },
+      });
+      await pending.insert(tx, asked, null);
+      await pending.close(tx, asked, {
+        ...asked,
+        approval: {
+          ...asked.approval,
+          state: 'rejected',
+          decidedBy: '00000000-0000-4000-8000-0000000000b3',
+          decidedAt: '2026-09-20T10:00:00.000Z',
+          note: 'Not what payroll has',
+        },
+      });
+      // On a field the policy does not export: left out, as the field is.
+      await pending.insert(
+        tx,
+        change('01890000-0000-7000-8000-0000000000d3', {
+          attributeKey: 'hr_judgement',
+          sealed: false,
+          value: 'very difficult',
+          last4: null,
+        }),
+        null,
+      );
+    });
+
+    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.changes).toEqual([
+      expect.objectContaining({
+        attributeKey: 'shoe_size',
+        value: 41,
+        state: 'rejected',
+        requestedBySubject: false,
+        decidedBy: 'hr',
+        note: 'Not what payroll has',
+      }),
+      expect.objectContaining({
+        attributeKey: 'bank_account',
+        value: NEW_IBAN,
+        state: 'pending',
+        requestedBySubject: true,
+        decidedBy: null,
+        effectiveFrom: '2026-09-21',
+      }),
+    ]);
+    const pack = JSON.stringify(result.value.changes);
+    expect(pack).not.toContain('very difficult');
+    expect(pack).not.toContain(HR_ACCOUNT);
+    expect(pack).not.toContain('0000000000b3');
   });
 
   it('is refused to anybody but the subject', async () => {

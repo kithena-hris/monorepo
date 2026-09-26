@@ -8,6 +8,7 @@ import {
   numberOf,
   Organisation,
   todayIn,
+  toMinorDigits,
   type OrganisationProps,
   type OrganisationState,
 } from './organisation';
@@ -181,5 +182,57 @@ describe('People home (PEO-119)', () => {
     render(<PeopleHome load={{ status: 'ready', data: { hr: false, admin: false, finance: false } }} />);
     expect(screen.queryByRole('link', { name: 'Integrations' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Directory' })).toHaveAttribute('href', '/people/directory');
+  });
+
+  it('turns an amount into minor units by moving digits, never through a float (PEO-078)', () => {
+    expect(toMinorDigits('55000.5', 'EUR')).toBe('5500050');
+    expect(toMinorDigits('55,000', 'EUR')).toBe('5500000');
+    expect(toMinorDigits('0.1', 'EUR')).toBe('10');
+    expect(toMinorDigits('1000', 'JPY')).toBe('1000');
+    expect(toMinorDigits('10.5', 'JPY')).toBeNull();
+    expect(toMinorDigits('1.005', 'EUR')).toBeNull();
+    expect(toMinorDigits('0', 'EUR')).toBeNull();
+    expect(toMinorDigits('4e6', 'EUR')).toBeNull();
+  });
+
+  it('shows pay bands only to whom People sent them, and corrects one in minor units (PEO-078)', async () => {
+    const { unmount } = render(<Organisation {...props()} />);
+    expect(screen.queryByRole('tab', { name: 'Pay bands' })).toBeNull();
+    unmount();
+
+    const band = {
+      id: '00000000-0000-4000-8000-0000000000b1',
+      grade: 'l3',
+      currency: 'EUR',
+      minimumMinor: '4000000',
+      midpointMinor: '5000000',
+      maximumMinor: '6000000',
+      effectiveFrom: '2026-01-01',
+      recordedAt: '2026-09-01T12:00:00.000Z',
+      supersedes: null,
+    };
+    const p = props({
+      load: { status: 'ready', data: state({ canManage: false, payBands: [band] }) },
+      onSetPayBand: vi.fn(done),
+    });
+    const { container } = render(<Organisation {...p} />);
+    const user = fast();
+    await user.click(screen.getByRole('tab', { name: 'Pay bands' }));
+    expect(screen.getByRole('cell', { name: '50,000.00 EUR' })).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Correct l3 EUR from 2026-01-01' }));
+    const dialog = screen.getByRole('dialog');
+    const maximum = within(dialog).getByRole('textbox', { name: /Maximum/ });
+    await user.clear(maximum);
+    await user.type(maximum, '65000.50');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(p.onSetPayBand).toHaveBeenCalledWith({
+      grade: 'l3',
+      currency: 'EUR',
+      minimumMinor: '4000000',
+      midpointMinor: '5000000',
+      maximumMinor: '6500050',
+      effectiveFrom: '2026-01-01',
+    });
   });
 });

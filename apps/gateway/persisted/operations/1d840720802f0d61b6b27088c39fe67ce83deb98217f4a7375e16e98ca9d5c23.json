@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ResumeReportSchedule($id: ID!, $key: String!) {\n    resumeReportSchedule(id: $id, idempotencyKey: $key) { id }\n  }"}

@@ -3,7 +3,12 @@ import {
   AutoGrid,
   Badge,
   Button,
+  Checkbox,
   DataTable,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
   FileUploader,
   PageHeader,
   Select,
@@ -66,6 +71,11 @@ export interface DryRunView {
    * HR's review. Named by cell, never by value.
    */
   readonly findings?: readonly CellFinding[];
+  /**
+   * Mapped fields a change to which waits for HR's approval (PEO-077), and how
+   * many values the rows carry for them.
+   */
+  readonly sensitive?: { readonly fields: readonly string[]; readonly values: number };
 }
 
 export interface CellFinding {
@@ -84,8 +94,15 @@ export type ImportStage =
       readonly step: 'map';
       readonly file: ImportFile;
       readonly columns: readonly ProposedColumn[];
-      /** What a column may be mapped to: the fields this importer may write. */
-      readonly fields: readonly { readonly key: string; readonly label: string }[];
+      /**
+       * What a column may be mapped to: the fields this importer may write.
+       * `sensitive`: a change to it waits for HR's approval (PEO-077).
+       */
+      readonly fields: readonly {
+        readonly key: string;
+        readonly label: string;
+        readonly sensitive?: boolean;
+      }[];
     }
   | { readonly step: 'review'; readonly file: ImportFile; readonly dryRun: DryRunView }
   | {
@@ -96,6 +113,10 @@ export type ImportStage =
       readonly blocked: number;
       /** Doubted identifiers that imported and went to HR's review (PEO-125). */
       readonly forReview?: number;
+      /** Values waiting for HR's approval rather than written (PEO-077). */
+      readonly held?: number;
+      /** HR chose to apply sensitive values without approval. */
+      readonly appliedWithoutApproval?: boolean;
     };
 
 /** PRD §14.5: 100 MB per file. The server holds it to that; this saves the wait. */
@@ -110,7 +131,12 @@ export interface ImportFlowProps {
   readonly onUpload: (file: File, progress: (percent: number) => void) => Promise<Outcome>;
   /** Column index → attribute key, or null to ignore it. */
   readonly onMap: (mapping: Readonly<Record<number, string | null>>) => Promise<Outcome>;
-  readonly onCommit: () => Promise<Outcome>;
+  /**
+   * Import. `applyWithoutApproval`: write values that need HR's approval
+   * straight through, recorded as such on each row's event (PEO-077); only
+   * HR may, and People refuses anybody else.
+   */
+  readonly onCommit: (options: { readonly applyWithoutApproval: boolean }) => Promise<Outcome>;
   /** The blocked rows as a file that imports once fixed: original cells plus `__reason`. */
   readonly onDownloadBlocked: () => void;
   readonly onBack: () => void;
@@ -162,6 +188,12 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
                 .
                 {(stage.forReview ?? 0) > 0
                   ? ` ${String(stage.forReview)} national identifiers our checks doubt went to HR's review.`
+                  : ''}
+                {(stage.held ?? 0) > 0
+                  ? ` ${String(stage.held)} sensitive ${stage.held === 1 ? 'value waits' : 'values wait'} for HR's approval and ${stage.held === 1 ? 'is' : 'are'} not applied until then.`
+                  : ''}
+                {stage.appliedWithoutApproval === true
+                  ? ' Sensitive values were applied without approval, and each change records that you chose to.'
                   : ''}
               </Alert>
             ) : null}
@@ -288,7 +320,7 @@ function Mapping({
               ) : null}
               {stage.fields.map((f) => (
                 <SelectItem key={f.key} value={f.key}>
-                  {f.label}
+                  {f.sensitive === true ? `${f.label} (sensitive: changes wait for approval)` : f.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -344,8 +376,10 @@ function Review({
   onBack,
 }: ImportFlowProps & { readonly stage: Extract<ImportStage, { step: 'review' }> }): JSX.Element {
   const [busy, refused, attempt] = useAttempt();
+  const [applyWithoutApproval, setApplyWithoutApproval] = useState(false);
   const { counts, incomplete, blocked, ignoredColumns } = stage.dryRun;
   const findings = stage.dryRun.findings ?? [];
+  const sensitive = stage.dryRun.sensitive ?? { fields: [], values: 0 };
   const importing = counts.create + counts.update;
 
   const findingColumns: DataColumn<CellFinding>[] = [
@@ -406,6 +440,39 @@ function Review({
         <Alert tone="info">Not imported: {ignoredColumns.join(', ')}.</Alert>
       ) : null}
 
+      {sensitive.values > 0 ? (
+        <div className="flex flex-col gap-3">
+          <Alert
+            tone="info"
+            title={`${String(sensitive.values)} sensitive ${sensitive.values === 1 ? 'value' : 'values'} will wait for approval`}
+          >
+            <span className="inline-flex flex-wrap items-center gap-2">
+              <Badge tone="sensitive" size="sm">
+                Sensitive
+              </Badge>
+              {sensitive.fields.join(', ')}
+            </span>{' '}
+            {applyWithoutApproval
+              ? 'will be applied now, without approval.'
+              : 'are not applied when the rows import: each goes to a second HR member, who has seven days to approve it.'}
+          </Alert>
+          <Field orientation="horizontal">
+            <FieldLabel>Apply sensitive values without approval</FieldLabel>
+            <FieldControl>
+              <Checkbox
+                checked={applyWithoutApproval}
+                onCheckedChange={(checked) => {
+                  setApplyWithoutApproval(checked === true);
+                }}
+              />
+            </FieldControl>
+            <FieldDescription>
+              HR only. Each change records that you applied it without approval.
+            </FieldDescription>
+          </Field>
+        </div>
+      ) : null}
+
       {findings.length > 0 ? (
         <div className="flex flex-col gap-3">
           <Alert
@@ -455,7 +522,7 @@ function Review({
           loading={busy}
           loadingLabel="Importing"
           onClick={() => {
-            void attempt(onCommit);
+            void attempt(() => onCommit({ applyWithoutApproval }));
           }}
         >
           Import {importing} rows

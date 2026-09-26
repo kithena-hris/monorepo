@@ -54,12 +54,16 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20260926140000_people_visibility_rules.sql',
+    '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924340000_people_person_key_lookup.sql',
+    '20260926200000_people_status_idx_skip_scan.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

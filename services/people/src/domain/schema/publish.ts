@@ -1,8 +1,15 @@
 import { createHash } from 'node:crypto';
 
+import { requiresApproval } from '@kithena/contracts';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
-import type { Attribute, SchemaDraft, Section } from './draft.js';
+import {
+  checkRequirednessPredicate,
+  checkVisibilityRules,
+  type Attribute,
+  type SchemaDraft,
+  type Section,
+} from './draft.js';
 
 /**
  * Publishing a draft, and what a published version is allowed to do afterwards.
@@ -51,6 +58,11 @@ export interface SchemaDiff {
   /** Became required, or was reclassified upward. Both make work for somebody. */
   readonly tightened: readonly string[];
   readonly loosened: readonly string[];
+  /**
+   * Who may read it, or when it is required, changed in a way no rank orders:
+   * a preset or custom visibility rule (PEO-066), or a new predicate (PEO-065).
+   */
+  readonly changed: readonly string[];
   readonly archived: readonly string[];
 }
 
@@ -137,6 +149,13 @@ export function publish(
     );
   }
 
+  for (const attribute of document.attributes) {
+    const discloses = checkVisibilityRules(attribute, document.attributes);
+    if (!discloses.ok) return discloses;
+    const predicate = checkRequirednessPredicate(attribute, document.attributes);
+    if (!predicate.ok) return predicate;
+  }
+
   return ok(
     deepFreeze({
       version: (previous?.version ?? 0) + 1,
@@ -164,6 +183,7 @@ export function diff(before: SchemaDocument, after: SchemaDocument): SchemaDiff 
   const added: string[] = [];
   const tightened: string[] = [];
   const loosened: string[] = [];
+  const changed: string[] = [];
 
   for (const [key, next] of is) {
     const current = was.get(key);
@@ -180,6 +200,26 @@ export function diff(before: SchemaDocument, after: SchemaDocument): SchemaDiff 
 
     if (requiredness > 0 || classification > 0) tightened.push(key);
     else if (requiredness < 0 || classification < 0) loosened.push(key);
+    else if (
+      JSON.stringify(
+        sortKeys([
+          next.visibility,
+          next.visibilityRules ?? [],
+          next.requiredness,
+          requiresApproval(next),
+        ]),
+      ) !==
+      JSON.stringify(
+        sortKeys([
+          current.visibility,
+          current.visibilityRules ?? [],
+          current.requiredness,
+          requiresApproval(current),
+        ]),
+      )
+    ) {
+      changed.push(key);
+    }
   }
 
   const archived = [...was.keys()].filter((key) => !is.has(key));
@@ -188,6 +228,7 @@ export function diff(before: SchemaDocument, after: SchemaDocument): SchemaDiff 
     added: added.toSorted(),
     tightened: tightened.toSorted(),
     loosened: loosened.toSorted(),
+    changed: changed.toSorted(),
     archived: archived.toSorted(),
   };
 }

@@ -8,6 +8,7 @@ import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry';
 
 import { publishBreakdowns } from '../application/analytics/publish.js';
+import { takePaySnapshot, type SealedValues } from '../application/analytics/pay.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
 import { recomputePerson } from '../application/completeness/recompute.js';
@@ -52,7 +53,9 @@ import { tenantTransaction } from './unit-of-work.js';
  *   second replica re-running it replaces the day rather than doubling it.
  *   The same transaction then publishes whichever special-category
  *   breakdowns are due (PEO-083): the monthly check lives here, and a month
- *   holds one publication per breakdown whoever runs it.
+ *   holds one publication per breakdown whoever runs it. Then pay in
+ *   aggregate (PEO-078): a sealed salary is decrypted in memory, only
+ *   quartiles per group are written, and the run is audited with a count.
  * - **Starting pre-hires** (§8.1) and **ending leavers' access** (PEO-109),
  *   hourly: each on their own start date or after their own last day, on
  *   their own calendar.
@@ -152,16 +155,23 @@ export async function startBackground(
     }
   };
 
+  // The unique claims, the dated values and the pay snapshot's sealed salaries.
+  const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
+  const secretStore =
+    keys.length === 0 ? undefined : drizzleSecretStore(staticKeyRing(keys), logger);
+  const sealed: SealedValues | undefined =
+    secretStore === undefined ? undefined : (tx, where) => secretStore.revealAll(tx, where);
+
   const jobs = [
     // The boot load, then hourly as a safety net for an event this process
     // missed. The consumer above is what makes a publish take effect promptly.
     every(HOUR, async () => wirePolicyRegistry(inTenant, await knownTenants(db), registry)),
 
     every(24 * HOUR, () =>
-      forEachTenant('snapshot', (tenantId) =>
-        inTenant(tenantId, async (scope) => {
+      forEachTenant('snapshot', async (tenantId) => {
+        const taken = await inTenant(tenantId, async (scope) => {
           const version = await schema.currentVersion(scope.tx, tenantId);
-          if (version === null) return;
+          if (version === null) return null;
           // Each legal entity counted on its own day (PRD §6.8, §16).
           const definitions = version.document.attributes;
           const result = await takeSnapshot(
@@ -171,7 +181,7 @@ export async function startBackground(
           );
           if (!result.ok) {
             logger.warn({ tenantId, code: result.error.code }, 'snapshot refused');
-            return;
+            return null;
           }
           // The tenant's own minimum, which is the change threshold too.
           const { cohortMinimum } = await org.settings(scope.tx, tenantId);
@@ -188,8 +198,24 @@ export async function startBackground(
               'breakdowns published',
             );
           }
-        }),
-      ),
+          return { run: result.value, definitions, cohortMinimum };
+        });
+        if (taken === null) return;
+        // Pay in its own transaction, on the run above: a sealed value that
+        // will not open must not take the headcount snapshot down with it.
+        // Counts only: no value, no person, no group ever reaches a log line.
+        const pay = await inTenant(tenantId, (scope) =>
+          takePaySnapshot(
+            { clock: systemClock, newId: uuidv7, ...(sealed === undefined ? {} : { sealed }) },
+            scope,
+            { ...taken, takenBy: 'system:people.snapshot' },
+          ),
+        );
+        if (pay.ok) logger.info({ tenantId, ...pay.value }, 'pay snapshot taken');
+        else if (pay.error.code !== 'NOT_CONFIGURED') {
+          logger.warn({ tenantId, code: pay.error.code }, 'pay snapshot not taken');
+        }
+      }),
     ),
   ];
 
@@ -228,7 +254,6 @@ export async function startBackground(
   // dated a pre-hire's first day lands on an active record. The access it
   // goes through renumbers a transfer, so it holds the unique-claim key ring;
   // without one there is no People to write anyway (the server refuses to boot).
-  const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
   const bringDue =
     keys.length === 0
       ? null
@@ -256,7 +281,8 @@ export async function startBackground(
         for (const f of [...started.failed, ...ended.failed, ...effective.failed]) {
           logger.error({ err: f.error, tenantId, personId: f.personId }, 'lifecycle move failed');
         }
-        if (started.started > 0) logger.info({ tenantId, started: started.started }, 'pre-hires started');
+        if (started.started > 0)
+          logger.info({ tenantId, started: started.started }, 'pre-hires started');
         if (ended.ended > 0) logger.info({ tenantId, ended: ended.ended }, 'leavers’ access ended');
         if (effective.applied > 0) {
           logger.info({ tenantId, applied: effective.applied }, 'dated values came into force');

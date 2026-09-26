@@ -26,6 +26,40 @@ describe('renderNotice: webhook_disabled', () => {
   });
 });
 
+describe('renderNotice: the approval of a change (PEO-077)', () => {
+  const INBOX = 'https://acme.app.kithena.com/people/approvals';
+
+  it('asks an approver to look, naming neither the person, the field nor the value', () => {
+    const result = renderNotice({ kind: 'approval_requested' }, INBOX, ACME);
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: a change is waiting for your approval');
+    expect(result.value.text).toContain(INBOX);
+    expect(result.value.text).toContain('seven days');
+  });
+
+  it('tells the requester whether it was approved or rejected', () => {
+    const approved = renderNotice({ kind: 'approval_decided', decision: 'approved' }, INBOX, ACME);
+    const rejected = renderNotice({ kind: 'approval_decided', decision: 'rejected' }, INBOX, ACME);
+    expect(approved.ok && approved.value.subject).toBe('Acme Corp: your change was approved');
+    expect(rejected.ok && rejected.value.subject).toBe('Acme Corp: your change was not approved');
+    expect(rejected.ok && rejected.value.text).toContain('was not applied');
+  });
+
+  it('tells the requester nobody decided in time', () => {
+    const expired = renderNotice({ kind: 'approval_expired' }, INBOX, ACME);
+    expect(expired.ok && expired.value.subject).toBe(
+      'Acme Corp: your change expired without a decision',
+    );
+    expect(expired.ok && expired.value.text).toContain('was not applied');
+  });
+
+  it('refuses a decision it has no words for', () => {
+    expect(
+      renderNotice({ kind: 'approval_decided', decision: 'maybe' as 'approved' }, INBOX, ACME).ok,
+    ).toBe(false);
+  });
+});
+
 describe('renderNotice: profile_reminder', () => {
   it('counts what is missing and links to the profile, in both bodies', () => {
     const result = renderNotice({ kind: 'profile_reminder', missing: 3 }, PROFILE, ACME);
@@ -57,6 +91,44 @@ describe('renderNotice: profile_reminder', () => {
     expect(
       renderNotice({ kind: 'profile_reminder', missing: 2 }, 'javascript:alert(1)', ACME).ok,
     ).toBe(false);
+  });
+});
+
+describe('renderNotice: scheduled_report', () => {
+  const EXPORT =
+    'https://acme.app.kithena.com/people/export?export=0190a0b2-0000-7000-8000-000000000001';
+
+  it('says how often and what format, links to the page that holds the file, and nothing more', () => {
+    const result = renderNotice(
+      { kind: 'scheduled_report', cadence: 'weekly', format: 'xlsx' },
+      EXPORT,
+      ACME,
+    );
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: your weekly People report is ready');
+    expect(result.value.text).toContain('weekly Excel report');
+    expect(result.value.text).toContain('24 hours');
+    expect(result.value.html).toContain(`href="${EXPORT.replaceAll('&', '&amp;')}"`);
+  });
+
+  it('sends a summary to the numbers rather than with them', () => {
+    const result = renderNotice(
+      { kind: 'scheduled_report', cadence: 'monthly', format: 'summary' },
+      'https://acme.app.kithena.com/people/analytics',
+      ACME,
+    );
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: your monthly People summary');
+    expect(result.value.text).toContain('Open the summary');
+  });
+
+  it('refuses a cadence or format it has no words for', () => {
+    for (const notice of [
+      { kind: 'scheduled_report', cadence: 'hourly', format: 'xlsx' },
+      { kind: 'scheduled_report', cadence: 'daily', format: '<b>csv</b>' },
+    ]) {
+      expect(renderNotice(notice as never, PROFILE, ACME).ok).toBe(false);
+    }
   });
 });
 

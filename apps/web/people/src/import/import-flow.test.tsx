@@ -255,6 +255,23 @@ describe('ImportFlow', () => {
     expect(onCommit).toHaveBeenCalledOnce();
   });
 
+  it('says which sensitive values will wait for approval, and lets HR apply them now (PEO-077)', async () => {
+    const onCommit = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const sensitive: ImportStage = {
+      ...review,
+      dryRun: { ...review.dryRun, sensitive: { fields: ['IBAN'], values: 12 } },
+    };
+    const { container } = render(
+      <ImportFlow {...props({ status: 'ready', data: sensitive }, { onCommit })} />,
+    );
+    expect(screen.getByText('12 sensitive values will wait for approval')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    const user = fast();
+    await user.click(screen.getByLabelText('Apply sensitive values without approval'));
+    await user.click(screen.getByRole('button', { name: 'Import 389 rows' }));
+    expect(onCommit).toHaveBeenCalledWith({ applyWithoutApproval: true });
+  });
+
   it('has loading and error states, and says why a step was refused', async () => {
     const user = fast();
     const { container, rerender } = render(<ImportFlow {...props({ status: 'loading' })} />);

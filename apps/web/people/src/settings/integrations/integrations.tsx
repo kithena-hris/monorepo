@@ -26,6 +26,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../../load';
+import { Provisioning, type ProvisioningProps, type ScimState } from './provisioning';
 
 /** A field in the published schema, and whether an allowlist may name it. */
 export interface AllowableField {
@@ -56,6 +57,8 @@ export interface IntegrationsState {
   readonly events: readonly string[];
   readonly fields: readonly AllowableField[];
   readonly endpoints: readonly Endpoint[];
+  /** SCIM provisioning and what it keeps upstream (PEO-072, PEO-073); absent where not served. */
+  readonly scim?: ScimState;
 }
 
 export interface EndpointInput {
@@ -80,6 +83,8 @@ export interface IntegrationsProps {
   readonly onRotate: (id: string) => Promise<WithSecret>;
   /** Open an endpoint's delivery log (PEO-121). */
   readonly onOpenLog?: (id: string) => void;
+  /** SCIM connections (PEO-072); absent, the section is not drawn. */
+  readonly scim?: Omit<ProvisioningProps, 'scim'>;
 }
 
 const REASON = {
@@ -120,6 +125,7 @@ function Endpoints({
   onUpdate,
   onRotate,
   onOpenLog,
+  scim,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
@@ -179,6 +185,9 @@ function Endpoints({
             }}
           />
         ))
+      )}
+      {state.scim === undefined || scim === undefined ? null : (
+        <Provisioning scim={state.scim} {...scim} />
       )}
       <AddEndpoint
         open={adding}

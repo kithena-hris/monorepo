@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 
+import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import type { IsoDate } from '../calendar/calendar';
 import { Checkbox } from '../checkbox/checkbox';
@@ -71,6 +72,16 @@ const meta = {
         category: 'State',
       },
     },
+    sensitive: {
+      description:
+        'Marks a field handled with more care than most, a value whose change waits for somebody else: a `Sensitive` badge beside the label, in its accessible name too.',
+      control: 'boolean',
+      table: {
+        type: { summary: 'boolean' },
+        defaultValue: { summary: 'false' },
+        category: 'State',
+      },
+    },
     orientation: {
       description:
         'Label above the control, or beside it. Use `horizontal` for switches and single checkboxes.',
@@ -87,7 +98,13 @@ const meta = {
       table: { type: { summary: 'string' }, category: 'Escape hatches' },
     },
   },
-  args: { invalid: false, required: false, disabled: false, orientation: 'vertical' },
+  args: {
+    invalid: false,
+    required: false,
+    disabled: false,
+    sensitive: false,
+    orientation: 'vertical',
+  },
 } satisfies Meta<typeof Field>;
 
 export default meta;
@@ -158,6 +175,34 @@ export const Caution: Story = {
         </FieldControl>
         <FieldDescription tone="warning">
           This may be mistyped: its last character does not match the rest. You can still save it.
+        </FieldDescription>
+      </Field>
+    </div>
+  ),
+};
+
+export const Sensitive: Story = {
+  args: { sensitive: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A field whose change is not applied until somebody else approves it. The badge is an outline and a glyph, not a wash, so it never reads as a status; and it is words, so it is heard as well as seen. What happens to a change is the screen\'s to say — here, a value already waiting.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="max-w-sm">
+      <Field {...args}>
+        <FieldLabel>Bank account</FieldLabel>
+        <FieldControl>
+          <Input defaultValue="•••• 3000" readOnly />
+        </FieldControl>
+        <FieldDescription>
+          <Badge tone="warning" size="sm">
+            Pending approval
+          </Badge>{' '}
+          A new value ending 1332 waits for a second person.
         </FieldDescription>
       </Field>
     </div>

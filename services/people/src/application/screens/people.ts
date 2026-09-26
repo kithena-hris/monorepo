@@ -1,17 +1,22 @@
-import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition } from '@kithena/contracts';
+import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
+import { requiresApproval, type Actor, type AttributeDefinition } from '@kithena/contracts';
 
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
+import { LEAVERS } from '../person/ports.js';
+import { segmentFor, segmentsFor } from './segments.js';
 import type {
+  FormValue,
   FormValues,
   IdentifierFindingView,
   IdentifierReviewEntry,
+  PendingFieldView,
   RecordSection,
 } from './model.js';
+import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
 import {
   formValues,
   nameOf,
@@ -189,7 +194,9 @@ async function ownRecord(
   const sections = recordSections(version, relations, include, missing, people);
   // The person's doubted identifiers still open, on fields this viewer reads (PEO-125).
   const open = await deps.service.access.personReviews(tx, { ...asking, personId });
-  const labels = new Map(version.document.attributes.map((d) => [d.key as string, d.label.default]));
+  const labels = new Map(
+    version.document.attributes.map((d) => [d.key as string, d.label.default]),
+  );
   const reviews: IdentifierReviewEntry[] = (open.ok ? open.value : []).flatMap((r) =>
     r.state === 'pending' || r.state === 'sent_back'
       ? [
@@ -238,6 +245,11 @@ export interface ProfileView {
   readonly placement: PlacementView | null;
   /** Their doubted identifiers still open, on fields this viewer reads (PEO-125). */
   readonly reviews: readonly IdentifierReviewEntry[];
+  /**
+   * Changes to them waiting for HR's approval (PEO-077), on fields this viewer
+   * reads. Never in `values`: those are what is in force.
+   */
+  readonly pending: readonly PendingFieldView[];
 }
 
 export interface PlacementView {
@@ -292,9 +304,12 @@ export async function profileView(
       .filter((l) => l.archived !== true || l.id === at('location_id'))
       .map((l) => ({ value: l.id, label: l.name, legalEntityId: l.legalEntityId }));
     const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
+    // HR reads the status, so `status` is here whenever `isHr` is (§6.3).
+    const status = view.status ?? null;
     const placeable =
       relations.isHr &&
-      !['terminated', 'discarded'].includes(view.status) &&
+      status !== null &&
+      !(LEAVERS as readonly string[]).includes(status) &&
       sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
     const named = sections.map((s) => ({
       ...s,
@@ -306,7 +321,9 @@ export async function profileView(
               ? locations.map(({ value, label }) => ({ value, label }))
               : f.options;
         // Moved through the placement control, where the date and the transfer are.
-        return PLACED.has(f.key) && placeable ? { ...f, options, readOnly: true } : { ...f, options };
+        return PLACED.has(f.key) && placeable
+          ? { ...f, options, readOnly: true }
+          : { ...f, options };
       }),
     }));
 
@@ -319,7 +336,7 @@ export async function profileView(
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,
-      employment: periods?.ok ? { status: view.status, periods: periods.value } : null,
+      employment: periods?.ok && status !== null ? { status, periods: periods.value } : null,
       sections: named.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, named),
       placement: placeable
@@ -331,11 +348,290 @@ export async function profileView(
           }
         : null,
       reviews: record.value.reviews,
+      pending: await pendingOnRecord(deps, tx, asking, id.value),
     });
   });
 }
 
+/** A person's changes waiting for HR, as this viewer may see them (PEO-077). */
+async function pendingOnRecord(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personId: string,
+): Promise<PendingFieldView[]> {
+  const pending = deps.service.pending;
+  if (!pending) return [];
+  const version = await deps.service.schemas.current(tx, asking.tenantId);
+  const labels = new Map(
+    (version?.document.attributes ?? []).map((d) => [d.key as string, d.label.default]),
+  );
+  const found = await pendingFor(tx, pending, { ...asking, personId });
+  if (!found.ok) return [];
+  const by = await actors(
+    deps,
+    tx,
+    asking,
+    found.value.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+  );
+  return found.value.map((c) => ({
+    id: c.id,
+    key: c.attributeKey,
+    label: labels.get(c.attributeKey) ?? c.attributeKey,
+    kind: c.kind,
+    value: toForm(c.value),
+    effectiveFrom: c.effectiveFrom,
+    requestedAt: c.requestedAt,
+    expiresAt: c.expiresAt,
+    requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+    reason: c.reason,
+    mine: c.mine,
+    canDecide: c.canDecide,
+  }));
+}
+
+/* ------------------------------------------------------------ approvals -- */
+
+/** One change in the approvals inbox (PEO-077). */
+export interface ApprovalItem extends PendingFieldView {
+  readonly personId: string;
+  /** The person, as the viewer may name them. */
+  readonly name: string;
+  /** Null where the viewer may not read the field: they decide on who, when and why. */
+  readonly value: FormValue;
+  readonly readable: boolean;
+  /** What is in force now, masked the same way; null when unreadable or empty. */
+  readonly current: FormValue;
+}
+
+export interface ApprovalsView {
+  /** HR sees every change waiting in the tenant; anybody else, their own. */
+  readonly isHr: boolean;
+  readonly items: readonly ApprovalItem[];
+}
+
+/**
+ * The approvals inbox (PEO-077): oldest first, each with who it is about, the
+ * field, the value asked for and the value in force, who asked and when it
+ * lapses. HR decides here; a requester withdraws here.
+ */
+export async function approvalsView(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<Result<ApprovalsView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const pending = deps.service.pending;
+    if (!pending) return ok({ isHr: false, items: [] });
+    const inbox = await approvalsInbox(tx, pending, asking);
+    if (!inbox.ok) return inbox;
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    const labels = new Map(
+      (version?.document.attributes ?? []).map((d) => [d.key as string, d.label.default]),
+    );
+    const by = await actors(
+      deps,
+      tx,
+      asking,
+      inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+    );
+    const items: ApprovalItem[] = [];
+    for (const c of inbox.value.items) {
+      const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
+      const attributes = person.ok ? person.value.attributes : {};
+      items.push({
+        id: c.id,
+        personId: c.personId,
+        name: nameOf(attributes) ?? 'Unnamed',
+        key: c.attributeKey,
+        label: labels.get(c.attributeKey) ?? c.attributeKey,
+        kind: c.kind,
+        value: c.readable ? toForm(c.value) : null,
+        readable: c.readable,
+        current: c.readable ? toForm(attributes[c.attributeKey]) : null,
+        effectiveFrom: c.effectiveFrom,
+        requestedAt: c.requestedAt,
+        expiresAt: c.expiresAt,
+        requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+        reason: c.reason,
+        mine: c.mine,
+        canDecide: c.canDecide,
+      });
+    }
+    return ok({ isHr: inbox.value.isHr, items });
+  });
+}
+
 export { checkSection, saveSection };
+
+/* ------------------------------------------------------------ history -- */
+
+/** One recorded change, as the history screen draws it (PEO-064). */
+export interface HistoryChange {
+  readonly id: string;
+  readonly key: string;
+  /** A sealed field's change reads `{ last4: null }`: that it changed, never what to. */
+  readonly value: FormValue;
+  /** When it takes effect in the domain. */
+  readonly effectiveFrom: string;
+  /** When we recorded it. */
+  readonly recordedAt: string;
+  /** Who recorded it, in words: "You", a name the viewer may read, an integration. */
+  readonly by: string;
+  /** The change this one corrects. */
+  readonly supersedes: string | null;
+  /** The correction that replaced this one; it no longer stands. */
+  readonly supersededBy: string | null;
+}
+
+export interface HistoryView {
+  readonly person: { readonly id: string; readonly name: string };
+  /** The date the values are read as of; null is today, on the person's own calendar. */
+  readonly asOf: string | null;
+  readonly sections: readonly RecordSection[];
+  /**
+   * Keys with an "as of" (§8.5). A field kept without dates — a phone number —
+   * has its changes and no value on a past date, so with `asOf` set it is not
+   * in `values`.
+   */
+  readonly dated: readonly string[];
+  readonly values: FormValues;
+  /** Every change to a field in `sections`, newest in effect first. */
+  readonly changes: readonly HistoryChange[];
+}
+
+/**
+ * One person's record as it stood on a date, and every change behind it
+ * (PEO-064, §8.5): "what did this look like in March".
+ *
+ * Both halves read through `PersonAccess` — `read` with `asOf`, and
+ * `history`, which drops a field the viewer cannot read now and a sealed
+ * field's values (`readableHistory`) — so the screen cannot show a past value
+ * of anything the profile would not show today.
+ */
+export async function historyView(
+  deps: ScreenDeps,
+  asking: Asking,
+  personId: string | null,
+  asOf: string | null,
+): Promise<Result<HistoryView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const id = personId === null ? await personOfViewer(deps, tx, asking) : ok(personId);
+    if (!id.ok) return id;
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+    const view = await deps.service.access.read(tx, {
+      ...asking,
+      personId: id.value,
+      ...(asOf === null ? {} : { asOf }),
+    });
+    if (!view.ok) return view;
+    const history = await deps.service.access.history(tx, { ...asking, personId: id.value });
+    if (!history.ok) return history;
+    // The name as it is now, whatever date the record is read as of.
+    const now =
+      asOf === null ? view : await deps.service.access.read(tx, { ...asking, personId: id.value });
+
+    const definitions = version.document.attributes;
+    const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+    const people = await named(deps, tx, asking, [
+      ...referenced(definitions, view.value.attributes),
+      ...history.value.flatMap((e) =>
+        byKey.get(e.attributeKey)?.typeConfig.kind === 'person_ref' && typeof e.value === 'string'
+          ? [e.value]
+          : [],
+      ),
+    ]);
+    const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
+    // Entities and locations by name, archived ones too: history names them.
+    const org = await deps.calendars.load(tx, asking.tenantId);
+    const places: Record<string, { value: string; label: string }[]> = {
+      legal_entity_id: [...org.entities.values()].map((e) => ({ value: e.id, label: e.name })),
+      location_id: [...org.locations.values()].map((l) => ({ value: l.id, label: l.name })),
+    };
+    const sections = recordSections(version, relations, () => true, new Set(), people).map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => ({ ...f, options: places[f.key] ?? f.options, readOnly: true })),
+    }));
+    const shown = new Set(sections.flatMap((s) => s.fields.map((f) => f.key)));
+    const dated = definitions
+      .filter((d) => d.effectiveDated && shown.has(d.key))
+      .map((d) => d.key as string);
+    const undated = new Set([...shown].filter((k) => !dated.includes(k)));
+
+    const values = formValues(view.value, sections);
+    const supersededBy = new Map(
+      history.value.flatMap((e) => (e.supersedes === null ? [] : [[e.supersedes, e.id] as const])),
+    );
+    const by = await actors(
+      deps,
+      tx,
+      asking,
+      history.value.map((e) => e.actor),
+    );
+    const changes = history.value
+      .filter((e) => shown.has(e.attributeKey))
+      .toSorted(
+        (a, b) =>
+          b.effectiveFrom.localeCompare(a.effectiveFrom) ||
+          b.recordedAt.localeCompare(a.recordedAt),
+      )
+      .map((e) => ({
+        id: e.id,
+        key: e.attributeKey,
+        value: byKey.get(e.attributeKey)?.encrypted === true ? { last4: null } : toForm(e.value),
+        effectiveFrom: e.effectiveFrom,
+        recordedAt: e.recordedAt,
+        by: by(e.actor),
+        supersedes: e.supersedes,
+        supersededBy: supersededBy.get(e.id) ?? null,
+      }));
+
+    return ok({
+      person: { id: id.value, name: (now.ok ? nameOf(now.value.attributes) : null) ?? 'Unnamed' },
+      asOf,
+      sections,
+      dated,
+      values:
+        asOf === null
+          ? values
+          : Object.fromEntries(Object.entries(values).filter(([k]) => !undated.has(k))),
+      changes,
+    });
+  });
+}
+
+/**
+ * Who made each change, in words the viewer may read. A person is named only
+ * if this viewer can read their name; otherwise "A colleague".
+ */
+async function actors(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  all: readonly Actor[],
+): Promise<(actor: Actor) => string> {
+  const names = new Map<string, string>();
+  for (const actor of all) {
+    if (actor.kind !== 'user' || names.has(actor.userId)) continue;
+    if (actor.userId === asking.viewer.accountId) {
+      names.set(actor.userId, 'You');
+      continue;
+    }
+    const personId = await deps.personOf(tx, asking.tenantId, actor.userId);
+    const read =
+      personId === null ? null : await deps.service.access.read(tx, { ...asking, personId });
+    names.set(
+      actor.userId,
+      (read?.ok === true ? nameOf(read.value.attributes) : null) ?? 'A colleague',
+    );
+  }
+  return (actor) =>
+    actor.kind === 'user'
+      ? (names.get(actor.userId) ?? 'A colleague')
+      : actor.kind === 'integration'
+        ? `An integration (${actor.provider})`
+        : 'Automatically';
+}
 
 /* ------------------------------------------------- identifier reviews -- */
 
@@ -346,7 +642,11 @@ export interface IdentifierReviewItem {
   readonly attributeKey: string;
   readonly label: string;
   readonly last4: string | null;
-  readonly findings: readonly { readonly level: string; readonly code: string; readonly message: string }[];
+  readonly findings: readonly {
+    readonly level: string;
+    readonly code: string;
+    readonly message: string;
+  }[];
   readonly enteredAt: string;
 }
 
@@ -383,6 +683,161 @@ export async function identifierReviewsView(
   });
 }
 
+/* ---------------------------------------------------------- duplicates -- */
+
+/** One side of a comparison: who, and whether they may absorb the other. */
+export interface ComparedPerson {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  /** Why this record may not absorb the other; null when it may. */
+  readonly refusal: string | null;
+}
+
+/** One attribute, side by side, as this viewer may read it. Never a value they may not. */
+export interface ComparedRow {
+  readonly key: string;
+  readonly label: string;
+  readonly values: readonly [string | null, string | null];
+  /** Equal, or both sealed and holding the same keyed hash. */
+  readonly same: boolean;
+  /** Whether each side's value could be copied onto the other if the other survived. */
+  readonly takeable: readonly [boolean, boolean];
+}
+
+export interface DuplicatesView {
+  readonly items: readonly {
+    readonly personIds: readonly [string, string];
+    readonly names: readonly [string, string];
+    readonly reasons: readonly string[];
+  }[];
+  /** The pair asked about, side by side; null when none was. */
+  readonly comparison: {
+    readonly people: readonly [ComparedPerson, ComparedPerson];
+    readonly rows: readonly ComparedRow[];
+  } | null;
+}
+
+const SIGNAL_WORDS = {
+  work_email: 'Same work email',
+  name_and_birth_date: 'Same name and date of birth',
+} as const;
+
+/** A value as the comparison shows it: text, or a sealed value's last four. */
+function shown(
+  value: unknown,
+  options: readonly { value: string; label: string }[],
+): string | null {
+  const form = toForm(value);
+  if (form === null || form === '') return null;
+  if (typeof form === 'string') return options.find((o) => o.value === form)?.label ?? form;
+  if (typeof form === 'boolean') return form ? 'Yes' : 'No';
+  if (Array.isArray(form)) return (form as readonly string[]).join(', ');
+  if ('last4' in form) return form.last4 === null ? '••••' : `•••• ${form.last4}`;
+  if (!('amountMinor' in form)) return null;
+  return `${form.amountMinor} ${form.currency}`;
+}
+
+/**
+ * HR's duplicate review (PEO-074; PRD §12.4): the queue, and one pair side
+ * by side when asked. Every value is read through `PersonAccess.read`, so
+ * what HR may not read is absent here too; what may be copied, and which way
+ * a merge may go, are `mergeOptions`', the same rules `merge` applies.
+ */
+export async function duplicatesView(
+  deps: ScreenDeps,
+  asking: Asking,
+  pair: readonly [string, string] | null,
+): Promise<Result<DuplicatesView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const access = deps.service.access;
+    const queue = await access.duplicates(tx, asking);
+    if (!queue.ok) return queue;
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+    const labelOf = (key: string) =>
+      version.document.attributes.find((d) => d.key === key)?.label.default ?? key;
+    const nameFor = async (personId: string) => {
+      const read = await access.read(tx, { ...asking, personId });
+      return (read.ok ? nameOf(read.value.attributes) : null) ?? 'Unnamed';
+    };
+
+    const items: DuplicatesView['items'][number][] = [];
+    for (const c of queue.value) {
+      items.push({
+        personIds: c.personIds,
+        names: [await nameFor(c.personIds[0]), await nameFor(c.personIds[1])],
+        reasons: c.signals.map((s) =>
+          s.signal === 'unique_value'
+            ? `Same ${labelOf(s.attributeKey ?? '')}`
+            : SIGNAL_WORDS[s.signal],
+        ),
+      });
+    }
+    if (pair === null) return ok<DuplicatesView>({ items, comparison: null });
+
+    const [a, b] = pair;
+    const readA = await access.read(tx, { ...asking, personId: a });
+    if (!readA.ok) return readA;
+    const readB = await access.read(tx, { ...asking, personId: b });
+    if (!readB.ok) return readB;
+    // Each side as the survivor: which way a merge may go, and what it could take.
+    const intoA = await access.mergeOptions(tx, { ...asking, personId: a, absorbedPersonId: b });
+    if (!intoA.ok) return intoA;
+    const intoB = await access.mergeOptions(tx, { ...asking, personId: b, absorbedPersonId: a });
+    if (!intoB.ok) return intoB;
+
+    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+    const sections = recordSections(version, everyone, () => true, new Set());
+    const sealedSame = new Set(intoA.value.sameSealed);
+    const rows: ComparedRow[] = sections.flatMap((s) =>
+      s.fields.flatMap((f) => {
+        const values = [
+          shown(readA.value.attributes[f.key], f.options),
+          shown(readB.value.attributes[f.key], f.options),
+        ] as const;
+        if (values[0] === null && values[1] === null) return [];
+        const same = sealedSame.has(f.key) || (values[0] !== null && values[0] === values[1]);
+        return [
+          {
+            key: f.key,
+            label: f.label,
+            values,
+            same,
+            takeable: [
+              !same &&
+                values[0] !== null &&
+                intoB.value.refusal === null &&
+                intoB.value.takeable.includes(f.key),
+              !same &&
+                values[1] !== null &&
+                intoA.value.refusal === null &&
+                intoA.value.takeable.includes(f.key),
+            ] as const,
+          },
+        ];
+      }),
+    );
+    const person = (view: PersonView, refusal: DomainFailure | null): ComparedPerson => ({
+      id: view.id,
+      name: nameOf(view.attributes) ?? 'Unnamed',
+      // The queue is HR's alone (`duplicates`), and HR reads every status.
+      status: view.status ?? '',
+      refusal: refusal?.message ?? null,
+    });
+    return ok({
+      items,
+      comparison: {
+        people: [
+          person(readA.value, intoA.value.refusal),
+          person(readB.value, intoB.value.refusal),
+        ],
+        rows,
+      },
+    });
+  });
+}
+
 /* ---------------------------------------------------------- directory -- */
 
 export interface DirectoryView {
@@ -405,8 +860,11 @@ export interface DirectoryView {
   }[];
   /** The cursor for the page after this one; null on the last page. */
   readonly next: string | null;
-  /** Which of the screen's two buttons this viewer gets (§13.1). */
-  readonly can: { readonly import: boolean; readonly export: boolean };
+  /** Which of the screen's actions this viewer gets (§13.1, §8.4). */
+  readonly can: { readonly import: boolean; readonly export: boolean; readonly bulkEdit: boolean };
+  /** The saved segment applied (PEO-068), and those this viewer could apply here. */
+  readonly segment: { readonly id: string; readonly name: string } | null;
+  readonly segments: readonly { readonly id: string; readonly name: string }[];
 }
 
 /** Shown as columns: in the directory, and readable on everybody. */
@@ -430,6 +888,8 @@ export async function directoryView(
     readonly search: string;
     readonly filters: Readonly<Record<string, string>>;
     readonly after?: string | null;
+    /** A saved segment's filter, under any typed alongside it (PEO-068). */
+    readonly segmentId?: string;
   },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
@@ -438,9 +898,14 @@ export async function directoryView(
     const definitions = version.document.attributes.filter((d) => d.deprecatedAt === null);
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
 
+    // The segment's filter is authorized below exactly as a typed one is:
+    // `list` refuses a key this viewer cannot filter by, over their people.
+    const segment =
+      query.segmentId === undefined ? null : await segmentFor(deps, tx, asking, query.segmentId);
+    if (segment !== null && !segment.ok) return segment;
     const narrowed = {
       ...asking,
-      where: query.filters,
+      where: { ...segment?.value.filter, ...query.filters },
       ...(query.search.trim() === '' ? {} : { search: query.search }),
     };
     const listed = await deps.service.access.list(tx, {
@@ -514,7 +979,11 @@ export async function directoryView(
       }),
       next: listed.value.next,
       // An export is a read, so everybody may build one of what they can see.
-      can: { import: everyone.isHr, export: true },
+      can: { import: everyone.isHr, export: true, bulkEdit: everyone.isHr },
+      segment: segment === null ? null : { id: segment.value.id, name: segment.value.name },
+      segments: (await segmentsFor(deps, tx, asking))
+        .filter((s) => s.usableIn.directory)
+        .map((s) => ({ id: s.id, name: s.name })),
     });
   });
 }
@@ -533,6 +1002,8 @@ export interface CompletenessView {
     readonly options: readonly { readonly value: string; readonly label: string }[];
     /** A person reference: picked by searching people (`pickerView`), not from `options`. */
     readonly person: boolean;
+    /** A change to it waits for HR's approval (PEO-077). */
+    readonly sensitive: boolean;
   }[];
   readonly rows: readonly {
     readonly personId: string;
@@ -631,6 +1102,7 @@ export async function completenessView(
                     .map((o) => ({ value: o.value, label: o.label.default }))
                 : [],
             person: d.typeConfig.kind === 'person_ref',
+            sensitive: requiresApproval(d),
           },
         ];
       }),
@@ -658,14 +1130,19 @@ export async function saveGrid(
   deps: ScreenDeps,
   asking: Asking,
   changes: GridChanges,
-): Promise<Result<{ readonly ok: true; readonly findings: readonly GridFinding[] }>> {
+): Promise<
+  Result<{ readonly ok: true; readonly findings: readonly GridFinding[]; readonly held?: number }>
+> {
   const findings: GridFinding[] = [];
+  let held = 0;
   for (const change of changes) {
     const saved = await saveSection(deps, asking, change.personId, change.values);
     if (!saved.ok) return saved;
     findings.push(...saved.value.findings.map((f) => ({ ...f, personId: change.personId })));
+    held += saved.value.held?.length ?? 0;
   }
-  return ok({ ok: true as const, findings });
+  // Only when something was held, so a retry answers as the first did otherwise.
+  return ok({ ok: true as const, findings, ...(held === 0 ? {} : { held }) });
 }
 
 /**

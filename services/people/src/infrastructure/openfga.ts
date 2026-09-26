@@ -96,7 +96,7 @@ const TENANT_ROLES = ['hr', 'finance', 'people_admin'] as const;
 const LIST_OBJECTS_CAP = 1000;
 
 /** A person in these states signs in as nobody: their account is ended or never was. */
-const GONE = new Set(['terminated', 'discarded']);
+const GONE = new Set(['terminated', 'discarded', 'merged']);
 
 export interface OpenFga {
   readonly relations: RelationsResolver;

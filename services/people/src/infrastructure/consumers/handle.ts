@@ -3,9 +3,13 @@ import {
   AccountProfileCaptured,
   AccountProvisioned,
   PersonAnonymised,
+  PersonChangeDecided,
+  PersonChangeRequested,
+  PersonChangeWithdrawn,
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
+  PersonMerged,
   PersonOrgChanged,
   PersonProvisioned,
   PersonStatusChanged,
@@ -60,6 +64,15 @@ export interface ConsumerDeps {
   readonly roles?: TenantRoles;
   /** Legal entities and settings, for the company the back office created (PEO-099). */
   readonly org?: OrgAdmin;
+  /**
+   * The approval workflow of a held change (PEO-077): started from People's
+   * own `change_requested`, woken by `change_decided` or `change_withdrawn`.
+   * Absent, nothing is started and an undecided change expires lazily.
+   */
+  readonly approvals?: {
+    started(tenantId: string, changeId: string, correlationId: string): Promise<void>;
+    closed(tenantId: string, changeId: string, correlationId: string): Promise<void>;
+  };
 }
 
 /**
@@ -72,6 +85,7 @@ const RELATIONAL: readonly { readonly name: string; readonly schema: z.ZodType }
   PersonIdentityLinked,
   PersonHired,
   PersonManagerChanged,
+  PersonMerged,
   PersonOrgChanged,
   PersonStatusChanged,
   PersonTerminated,
@@ -225,6 +239,29 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         });
       }
 
+      /*
+       * A change held for approval (PEO-077): its workflow, started once the
+       * write that held it committed, whichever transport made it.
+       */
+      case PersonChangeRequested.name: {
+        const event = parse(PersonChangeRequested, raw);
+        if (!event) return 'rejected';
+        if (!deps.approvals) return 'ignored';
+        await deps.approvals.started(event.tenantId, event.payload.changeId, event.correlationId);
+        return 'applied';
+      }
+      case PersonChangeDecided.name:
+      case PersonChangeWithdrawn.name: {
+        const event = parse(
+          name === PersonChangeDecided.name ? PersonChangeDecided : PersonChangeWithdrawn,
+          raw,
+        );
+        if (!event) return 'rejected';
+        if (!deps.approvals) return 'ignored';
+        await deps.approvals.closed(event.tenantId, event.payload.changeId, event.correlationId);
+        return 'applied';
+      }
+
       /* A role granted or revoked: that account's tuples follow the rows. */
       case RoleGranted.name:
       case RoleRevoked.name: {
@@ -235,6 +272,21 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         return deps.inTenant(event.tenantId, ({ tx }) =>
           authz.syncRoles(tx, event.tenantId, event.payload.accountId),
         );
+      }
+
+      /*
+       * A merge (PEO-074): the absorbed record's `status_changed` already
+       * dropped its tuples; the survivor may have gained its account.
+       */
+      case PersonMerged.name: {
+        const event = parse(PersonMerged, raw);
+        if (!event) return 'rejected';
+        const { authz } = deps;
+        if (!authz) return 'ignored';
+        return deps.inTenant(event.tenantId, async ({ tx }) => {
+          await authz.sync(tx, event.tenantId, event.payload.absorbedPersonId);
+          return authz.sync(tx, event.tenantId, event.payload.survivingPersonId);
+        });
       }
 
       default: {

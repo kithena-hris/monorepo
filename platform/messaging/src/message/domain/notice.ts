@@ -19,7 +19,12 @@ import { Unrenderable, type RenderedMessage } from './invitation.js';
  * a value is personal data, and the person reads the list on the page the
  * button opens, signed in. A webhook alert names the receiver's host and
  * nothing after it, because a path or query can carry the receiver's own
- * token. The link carries no token and no record id.
+ * token. A scheduled report says how often and in what format, and never the
+ * schedule's name, who it is about, or a number from it: the name is typed by
+ * whoever made it and can say anything, and the report is read signed in,
+ * built as the recipient, on the page the button opens.
+ *
+ * The link carries no token and no person's id.
  *
  * ### Who it is from, and where it points
  *
@@ -30,7 +35,30 @@ import { Unrenderable, type RenderedMessage } from './invitation.js';
  */
 export type Notice =
   | { readonly kind: 'profile_reminder'; readonly missing: number }
-  | { readonly kind: 'webhook_disabled'; readonly host: string };
+  | { readonly kind: 'webhook_disabled'; readonly host: string }
+  /*
+   * A change held for approval (PEO-077): to an approver, then to whoever
+   * asked. None names the person, the field or the value — a forwarded
+   * "your change to Ana's IBAN" is the disclosure — only that there is one,
+   * and a link to the inbox, signed in.
+   */
+  | { readonly kind: 'approval_requested' }
+  | { readonly kind: 'approval_decided'; readonly decision: ApprovalDecision }
+  | { readonly kind: 'approval_expired' }
+  | {
+      readonly kind: 'scheduled_report';
+      readonly cadence: ReportCadence;
+      readonly format: ReportFormat;
+    };
+
+export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
+export type ReportCadence = (typeof REPORT_CADENCES)[number];
+/** A file (`xlsx`, `pdf`) waits on the export page; a `summary` is the analytics screen. */
+export const REPORT_FORMATS = ['xlsx', 'pdf', 'summary'] as const;
+export type ReportFormat = (typeof REPORT_FORMATS)[number];
+
+export const APPROVAL_DECISIONS = ['approved', 'rejected'] as const;
+export type ApprovalDecision = (typeof APPROVAL_DECISIONS)[number];
 
 export type NoticeKind = Notice['kind'];
 
@@ -99,6 +127,33 @@ const COPY: {
       footer: `Sent by Kithena on behalf of ${company}. You will get at most one of these a week, and none once your profile is complete.`,
     };
   },
+  approval_requested: (_notice, company) => ({
+    subject: `${company}: a change is waiting for your approval`,
+    heading: 'A change needs your approval',
+    lede: `Somebody changed a detail in ${company}'s People that needs a second person to approve it before it takes effect. It waits for up to seven days; after that it lapses and is not applied.`,
+    action: 'Review changes',
+    footer: `Sent by Kithena on behalf of ${company} because you approve changes in People.`,
+  }),
+  approval_decided: ({ decision }, company) => {
+    if (!APPROVAL_DECISIONS.includes(decision)) return null;
+    const approved = decision === 'approved';
+    return {
+      subject: `${company}: your change was ${approved ? 'approved' : 'not approved'}`,
+      heading: approved ? 'Your change was approved' : 'Your change was not approved',
+      lede: approved
+        ? `A change you made in ${company}'s People was approved, and takes effect from the date you gave.`
+        : `A change you made in ${company}'s People was not approved, so it was not applied. Open People to see what is recorded and, if it is still needed, make it again.`,
+      action: 'Open People',
+      footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
+    };
+  },
+  approval_expired: (_notice, company) => ({
+    subject: `${company}: your change expired without a decision`,
+    heading: 'Your change expired',
+    lede: `Nobody decided a change you made in ${company}'s People within seven days, so it was not applied. If it is still needed, make it again.`,
+    action: 'Open People',
+    footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
+  }),
   webhook_disabled: ({ host }, company) => {
     if (!HOST.test(host)) return null;
     return {
@@ -107,6 +162,27 @@ const COPY: {
       lede: `Nothing sent to ${host} has succeeded for 24 hours, so Kithena turned that endpoint off. Events raised while it is off are not sent to it. Once the receiver is fixed, turn the endpoint back on and replay the delivery that failed.`,
       action: 'Open People',
       footer: `Sent by Kithena because this address is the alert contact for a webhook endpoint in ${company}'s People.`,
+    };
+  },
+  scheduled_report: ({ cadence, format }, company) => {
+    if (!REPORT_CADENCES.includes(cadence) || !REPORT_FORMATS.includes(format)) return null;
+    const footer = `Sent by Kithena on behalf of ${company}, because you are a recipient of a scheduled People report. Whoever manages People at ${company} can stop it.`;
+    if (format === 'summary') {
+      return {
+        subject: `${company}: your ${cadence} People summary`,
+        heading: `Your ${cadence} People summary`,
+        lede: `The numbers ${company} scheduled for you are up to date: headcount, movement and how complete the records are. They are shown only once you are signed in, and only what you are allowed to see.`,
+        action: 'Open the summary',
+        footer,
+      };
+    }
+    const file = format === 'xlsx' ? 'Excel' : 'PDF';
+    return {
+      subject: `${company}: your ${cadence} People report is ready`,
+      heading: 'Your People report is ready',
+      lede: `The ${cadence} ${file} report ${company} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.`,
+      action: 'Download the report',
+      footer,
     };
   },
 };

@@ -12,10 +12,11 @@ name: vercel-staging
 # `deployed/staging/<target>` tags — rather than against the branch's base,
 # since the last pull request staged may be on another branch entirely.
 # `vercel-production.yml` and docs/environments.md, "What a deploy ships".
+#
+# Manual only while the Vercel projects are on the Hobby plan: staging every
+# pull request after `ci` spent the 100 deployments a day that production
+# needs. Restore the `workflow_run` trigger on `ci` when they move off Hobby.
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
   # For what git cannot see: a secret or a variable changed, or a deploy
   # needs repeating. Stages the branch it is run on:
   # `gh workflow run vercel-staging.yml --ref <branch> -f targets=all`.

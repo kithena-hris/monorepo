@@ -151,7 +151,7 @@ facts AS (
     ${replay('work_location')}
     ${replay('employment_type')}
    WHERE p.tenant_id = ${tenantId}::uuid
-     AND p.status NOT IN ('provisional', 'discarded')
+     AND p.status NOT IN ('provisional', 'discarded', 'merged')
      AND p.hire_date IS NOT NULL
 ),
 scoped AS (
@@ -159,6 +159,16 @@ scoped AS (
   UNION ALL
   SELECT c.ancestor, f.* FROM facts f JOIN chain c ON c.person_id = f.id
 )`;
+}
+
+/** Whole months of tenure as the snapshot's band; shared with pay (PEO-078). */
+export function tenureBand(months: SQL): SQL {
+  return sql`CASE WHEN ${months} < 6  THEN '0_6m'
+            WHEN ${months} < 12 THEN '6_12m'
+            WHEN ${months} < 18 THEN '12_18m'
+            WHEN ${months} < 24 THEN '18_24m'
+            WHEN ${months} < 60 THEN '2_5y'
+            ELSE '5y_plus' END`;
 }
 
 /**
@@ -182,12 +192,7 @@ SELECT scope_id, department, location,
             -- a day in the past, or a transition the scheduler has not run.
             ELSE 'active' END AS status,
        employment_type,
-       CASE WHEN tenure_months < 6  THEN '0_6m'
-            WHEN tenure_months < 12 THEN '6_12m'
-            WHEN tenure_months < 18 THEN '12_18m'
-            WHEN tenure_months < 24 THEN '18_24m'
-            WHEN tenure_months < 60 THEN '2_5y'
-            ELSE '5y_plus' END AS tenure_band,
+       ${tenureBand(sql`tenure_months`)} AS tenure_band,
        completeness,
        (count(*) FILTER (WHERE present))::int AS headcount,
        (count(*) FILTER (WHERE joined))::int  AS joiners,
@@ -302,7 +307,7 @@ SELECT DISTINCT p.id::text AS person_id, e.kind, e.on_day AS day,
                FROM jsonb_path_query(p.custom, 'lax $.*[*].certification_expiry') AS x
        ) AS e
  WHERE p.tenant_id = ${tenantId}::uuid
-   AND p.status NOT IN ('provisional', 'discarded')
+   AND p.status NOT IN ('provisional', 'discarded', 'merged')
    AND p.hire_date <= d.day
    AND (p.last_working_day IS NULL OR p.last_working_day >= d.day)
    AND ${inChain}

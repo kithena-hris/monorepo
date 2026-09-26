@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
-import { canWrite, readable, visibleTo, type ViewerRelations } from './field-access.js';
+import {
+  canWrite,
+  readable,
+  readableHistory,
+  statusVisibleTo,
+  visibleTo,
+  type ViewerRelations,
+} from './field-access.js';
 
 /**
  * Who may read a field, and who may write it.
@@ -109,6 +116,23 @@ describe('who may read what', () => {
   });
 });
 
+describe('who may read employment status', () => {
+  // Status is not an attribute and no visibility setting reaches it: HR's, and
+  // the person's own (§6.3). "On leave" or "on notice" told to a manager or a
+  // peer is the disclosure §7 refuses a visibility rule for.
+  it.each([
+    ['HR', relations({ isHr: true }), true],
+    ['the person', relations({ isSelf: true }), true],
+    ['their manager', relations({ isManager: true, isInManagerChain: true }), false],
+    ['the chain above', relations({ isInManagerChain: true }), false],
+    ['finance', relations({ isFinance: true }), false],
+    ['an administrator', relations({ isAdmin: true }), false],
+    ['a peer', relations(), false],
+  ])('%s', (_who, viewer, sees) => {
+    expect(statusVisibleTo(viewer)).toBe(sees);
+  });
+});
+
 describe('a redaction', () => {
   const values = { base_salary: 55_000_00, job_title: 'Staff Engineer', ethnicity: 'declined' };
   const definitions = [salary, title, ethnicity];
@@ -180,6 +204,180 @@ describe('the decision both paths share', () => {
     // the four would drift and the one that drifted would be discovered by a
     // customer.
     const seen = readable([salary], { base_salary: 1 }, relations({ isFinance: true }));
-    expect(Object.hasOwn(seen, 'base_salary')).toBe(visibleTo(salary, relations({ isFinance: true })));
+    expect(Object.hasOwn(seen, 'base_salary')).toBe(
+      visibleTo(salary, relations({ isFinance: true })),
+    );
+  });
+});
+
+describe('what history shows (PEO-064)', () => {
+  const row = (attributeKey: string, value: unknown) => ({ id: attributeKey, attributeKey, value });
+  // Written in plaintext before the field was sealed: a classification that
+  // tightened later does not unseal what was written under the looser one.
+  const iban = define({
+    key: 'iban',
+    encrypted: true,
+    includeInEvents: false,
+    includeInDirectory: false,
+    visibility: ['self', 'hr'],
+  });
+  const rows = [
+    row('job_title', 'Engineer'),
+    row('base_salary', { amountMinor: 1, currency: 'EUR' }),
+    row('ethnicity', 'answered'),
+    row('iban', 'ES9121000418450200051332'),
+    row('retired_key', 'from a field no longer in the schema'),
+  ];
+
+  it('drops every row of a field the viewer cannot read now', () => {
+    const seen = readableHistory(
+      [salary, title, ethnicity, iban],
+      rows,
+      relations({ isManager: true }),
+    );
+    expect(seen.map((r) => r.attributeKey)).toEqual(['job_title']);
+  });
+
+  it('never shows a sealed field its past plaintext, only that it changed', () => {
+    const seen = readableHistory([iban], rows, relations({ isHr: true }));
+    expect(seen).toEqual([{ id: 'iban', attributeKey: 'iban', value: null }]);
+  });
+
+  it('keeps a self-ID answer out of its own history, as out of the record', () => {
+    expect(readableHistory([ethnicity], rows, relations({ isSelf: true, isHr: true }))).toEqual([]);
+  });
+});
+
+describe('custom visibility rules (PEO-066)', () => {
+  const inSpain = {
+    legalEntityId: null,
+    country: 'ES',
+    employmentType: 'permanent' as const,
+    workModel: null,
+    status: 'active' as const,
+    values: {},
+    knownAttributes: new Set<string>(),
+  };
+  const inGermany = { ...inSpain, country: 'DE' };
+  const permit = define({
+    key: 'work_permit_expiry',
+    visibility: ['hr'],
+    visibilityRules: [
+      {
+        scopes: ['manager'],
+        when: { combine: 'all', clauses: [{ operand: 'country', in: ['ES'] }] },
+      },
+    ],
+  });
+
+  it('show the field to the scope on the records the predicate holds for', () => {
+    expect(visibleTo(permit, relations({ isManager: true, subject: inSpain }))).toBe(true);
+  });
+
+  it('and not on the others', () => {
+    expect(visibleTo(permit, relations({ isManager: true, subject: inGermany }))).toBe(false);
+  });
+
+  it('grant nothing to a scope the rule does not name', () => {
+    expect(visibleTo(permit, relations({ isFinance: true, subject: inSpain }))).toBe(false);
+  });
+
+  it('grant nothing when the record is not known: a question about everybody', () => {
+    // A filter or a search over this field would answer for the people the
+    // rule does not hold for, so without a subject no rule applies.
+    expect(visibleTo(permit, relations({ isManager: true }))).toBe(false);
+  });
+
+  it('grant nothing when the predicate cannot be evaluated', () => {
+    const onArchived = define({
+      key: 'notes',
+      visibility: ['hr'],
+      visibilityRules: [
+        {
+          scopes: ['manager'],
+          when: {
+            combine: 'any',
+            clauses: [
+              { operand: 'country', in: ['ES'] },
+              { operand: 'attribute', key: 'archived_thing', is: 'set' },
+            ],
+          },
+        },
+      ],
+    });
+    expect(visibleTo(onArchived, relations({ isManager: true, subject: inSpain }))).toBe(false);
+  });
+
+  it('are what the read path filters by, absent rather than null', () => {
+    const values = { work_permit_expiry: '2027-01-01' };
+    expect(readable([permit], values, relations({ isManager: true, subject: inGermany }))).toEqual(
+      {},
+    );
+    expect(readable([permit], values, relations({ isManager: true, subject: inSpain }))).toEqual(
+      values,
+    );
+  });
+
+  it('never show special-category data, even from a document that slipped past the contract', () => {
+    const smuggled: AttributeDefinition = {
+      ...ethnicity,
+      visibilityRules: permit.visibilityRules ?? [],
+    };
+    expect(visibleTo(smuggled, relations({ isManager: true, subject: inSpain }))).toBe(false);
+  });
+});
+
+describe('an external source of record (PEO-073, PRD §13.6)', () => {
+  const OKTA = '00000000-0000-4000-8000-0000000000c5';
+  const WORKDAY = '00000000-0000-4000-8000-0000000000c6';
+  const given = define({ key: 'given_name', ownership: ['employee', 'hr'] });
+  const contact = define({ key: 'emergency_contact', ownership: ['employee'] });
+  const sources = new Map([['given_name', { connectionId: OKTA, system: 'Okta' }]]);
+
+  it('refuses every other writer, naming the system that owns it', () => {
+    for (const viewer of [relations({ isHr: true, sources }), relations({ isSelf: true, sources })]) {
+      const refused = canWrite(given, viewer);
+      expect(refused.ok).toBe(false);
+      if (refused.ok) continue;
+      expect(refused.error.code).toBe('SOURCE_OF_RECORD_EXTERNAL');
+      expect(refused.error.message).toContain('Okta');
+      expect(refused.error.path).toEqual(['given_name']);
+    }
+  });
+
+  it('leaves what Kithena owns to its own writers', () => {
+    expect(canWrite(contact, relations({ isSelf: true, sources })).ok).toBe(true);
+  });
+
+  it('lets the owning integration write exactly what it owns', () => {
+    const okta = relations({ integrationId: OKTA, sources });
+    expect(canWrite(given, okta).ok).toBe(true);
+    expect(canWrite(contact, okta).ok).toBe(false);
+    // Another integration is just another writer.
+    expect(canWrite(given, relations({ integrationId: WORKDAY, sources })).ok).toBe(false);
+  });
+
+  it('still refuses a deprecated field to its integration', () => {
+    const gone = define({ key: 'given_name', deprecatedAt: '2026-01-01T00:00:00.000Z' });
+    expect(canWrite(gone, relations({ integrationId: OKTA, sources })).ok).toBe(false);
+  });
+
+  it('shows an integration only what it owns, and never a sealed or special-category value', () => {
+    const okta = relations({ integrationId: OKTA, sources });
+    expect(visibleTo(given, okta)).toBe(true);
+    // `directory` is everybody in the tenant; an integration is nobody in it.
+    expect(visibleTo(title, okta)).toBe(false);
+    const mapped = (key: string) => new Map([[key, { connectionId: OKTA, system: 'Okta' }]]);
+    expect(
+      visibleTo(ethnicity, relations({ integrationId: OKTA, sources: mapped('ethnicity') })),
+    ).toBe(false);
+    const sealed = define({ key: 'national_id', encrypted: true, includeInEvents: false });
+    expect(
+      visibleTo(sealed, relations({ integrationId: OKTA, sources: mapped('national_id') })),
+    ).toBe(false);
+  });
+
+  it('changes nothing about who may read it', () => {
+    expect(visibleTo(given, relations({ isHr: true, sources }))).toBe(true);
   });
 });

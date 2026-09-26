@@ -64,6 +64,10 @@ export const attributeDefinition = people.table(
     requiredness: jsonb('requiredness').notNull(),
     ownership: text('ownership').array().notNull(),
     visibility: text('visibility').array().notNull(),
+    /** Custom visibility rules (PEO-066); null for none. */
+    visibilityRules: jsonb('visibility_rules'),
+    /** The tenant's choice (PEO-077); null for the default from the policy. */
+    requiresApproval: boolean('requires_approval'),
     collectAt: text('collect_at').notNull(),
     classification: jsonb('classification').notNull(),
     classificationSource: text('classification_source').notNull(),
@@ -159,9 +163,25 @@ export const person = people.table('person', {
   schemaVersion: integer('schema_version'),
   completeness: text('completeness').notNull().default('not_applicable'),
   sourceOfRecord: text('source_of_record').notNull().default('own'),
+  /** The survivor a `merged` record points at (PEO-074, 20260926143000). */
+  mergedInto: uuid('merged_into'),
 
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* 20260926143000: every duplicate pair a reviewer decided (PEO-074). Append-only. */
+export const duplicateDecision = people.table('duplicate_decision', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  personA: uuid('person_a').notNull(),
+  personB: uuid('person_b').notNull(),
+  decision: text('decision').notNull(),
+  survivorId: uuid('survivor_id'),
+  absorbedId: uuid('absorbed_id'),
+  attributesTaken: text('attributes_taken').array().notNull(),
+  decidedBy: uuid('decided_by').notNull(),
+  decidedAt: timestamp('decided_at', { withTimezone: true }).notNull(),
 });
 
 export const personAttributeHistory = people.table(

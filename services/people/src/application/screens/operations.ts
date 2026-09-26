@@ -13,18 +13,13 @@ import {
   PersonStatusChanged,
   PersonTerminated,
   SchemaPublished,
+  requiresApproval,
+  type AttributeDefinition,
 } from '@kithena/contracts';
 
 import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhooks/list.js';
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
-import {
-  attritionTrend,
-  completeness,
-  expiryTimeline,
-  headcountTrend,
-  movementWaterfall,
-} from '../analytics/queries.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
@@ -46,13 +41,23 @@ import {
 } from '../import/upload.js';
 import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
-import { relationsToMany, type Asking } from '../person/person-access.js';
+import { holds } from '../person/pending-changes.js';
+import { type Asking } from '../person/person-access.js';
+import {
+  unmappable,
+  type ConnectionView,
+  type IssuedToken,
+  type ScimConnections,
+} from '../scim/connections.js';
+import { KITHENA_USER, USER_PATHS } from '../../domain/scim/resource.js';
 import { run } from '../person/service.js';
-import { NOBODY, personOfViewer, tenantToday, type ScreenDeps, type Tx } from './record.js';
+import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
+import { segmentsFor } from './segments.js';
 
 /**
  * The screens that act on many people at once: integrations, import, the
- * export builder and analytics (PRD §13.3, §14, §15.1, §16; screens 9 to 12).
+ * and the export builder (PRD §13.3, §14, §15.1; screens 9 to 11). Analytics
+ * is `analytics.ts`.
  */
 
 /* -------------------------------------------------------- integrations -- */
@@ -90,6 +95,10 @@ export interface IntegrationDeps extends ScreenDeps {
     endpointId: string,
     after: string | null,
   ) => Promise<{ deliveries: readonly ListedDelivery[]; next: string | null }>;
+  /** SCIM connections (PEO-072, PEO-073). Absent, the screen shows none and they cannot be made. */
+  readonly scim?: ScimConnections;
+  /** Where SCIM is served publicly: what an administrator pastes into their provider. */
+  readonly scimUrl?: string;
 }
 
 async function admin(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Result<void>> {
@@ -109,12 +118,24 @@ export interface IntegrationsView {
     readonly refused: 'special-category' | 'encrypted' | null;
   }[];
   readonly endpoints: readonly ListedEndpoint[];
+  /** Provisioning from an upstream system (PEO-072) and what it owns (PEO-073). */
+  readonly scim: {
+    readonly url: string;
+    /** The core SCIM paths a mapping may name; a tenant attribute is `<extension>:<key>`. */
+    readonly paths: readonly string[];
+    readonly extension: string;
+    /** The attributes an upstream system may be the source of record for. */
+    readonly mappable: readonly { readonly key: string; readonly label: string }[];
+    readonly connections: readonly ConnectionView[];
+  };
 }
 
 export async function integrationsView(
   deps: IntegrationDeps,
   asking: Asking,
 ): Promise<Result<IntegrationsView>> {
+  const connections = deps.scim === undefined ? ok([]) : await deps.scim.list(asking);
+  if (!connections.ok) return connections;
   return run(deps.service, asking.tenantId, async (tx) => {
     const allowed = await admin(deps, tx, asking);
     if (!allowed.ok) return allowed;
@@ -139,9 +160,52 @@ export async function integrationsView(
                 : null,
         })),
       endpoints: listed.endpoints,
+      scim: {
+        url: deps.scimUrl ?? '',
+        paths: USER_PATHS,
+        extension: KITHENA_USER,
+        mappable: version.document.attributes
+          .filter((d) => unmappable(d) === null)
+          .map((d) => ({ key: d.key, label: d.label.default })),
+        connections: connections.value,
+      },
     });
   });
 }
+
+/* --------------------------------------------------------------- SCIM -- */
+
+const noScim = () =>
+  Promise.resolve(err(failure('UNAVAILABLE', 'Provisioning is not configured here')));
+
+export const createScimConnection = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  system: string,
+): Promise<Result<IssuedToken>> =>
+  deps.scim === undefined ? noScim() : deps.scim.create(asking, { system });
+
+export const rotateScimToken = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+): Promise<Result<IssuedToken>> =>
+  deps.scim === undefined ? noScim() : deps.scim.rotate(asking, id);
+
+export const revokeScimConnection = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+): Promise<Result<{ ok: true }>> =>
+  deps.scim === undefined ? noScim() : deps.scim.revoke(asking, id);
+
+export const setScimMapping = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+  mapping: readonly { readonly path: string; readonly key: string }[],
+): Promise<Result<{ ok: true }>> =>
+  deps.scim === undefined ? noScim() : deps.scim.setMapping(asking, id, mapping);
 
 export interface DeliveriesView {
   readonly endpoint: { readonly id: string; readonly url: string; readonly enabled: boolean };
@@ -232,7 +296,12 @@ export type ImportStageView =
       readonly step: 'map';
       readonly file: ImportFileView;
       readonly columns: readonly ColumnMapping[];
-      readonly fields: readonly { readonly key: string; readonly label: string }[];
+      /** `sensitive`: a change to it waits for HR's approval (PEO-077). */
+      readonly fields: readonly {
+        readonly key: string;
+        readonly label: string;
+        readonly sensitive: boolean;
+      }[];
     }
   | {
       readonly step: 'review';
@@ -276,6 +345,14 @@ export type ImportStageView =
           readonly level: 'attention' | 'mismatch';
           readonly message: string;
         }[];
+        /**
+         * Mapped fields a change to which waits for HR's approval (PEO-077),
+         * and how many values the rows to be written carry for them.
+         */
+        readonly sensitive: {
+          readonly fields: readonly string[];
+          readonly values: number;
+        };
       };
       /**
        * The blocked rows as a file that imports once fixed: a signed link
@@ -294,6 +371,10 @@ export type ImportStageView =
       readonly reportUrl: string;
       /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
       readonly forReview: number;
+      /** Values waiting for HR's approval rather than written (PEO-077). */
+      readonly held: number;
+      /** HR chose to apply values that need approval without it. */
+      readonly appliedWithoutApproval: boolean;
     };
 
 /** A step after the upload: which upload, and the mapping once there is one. */
@@ -301,6 +382,8 @@ export interface ImportStep {
   readonly uploadId: string;
   /** Column index → attribute key, or null to ignore it. Absent before mapping. */
   readonly mapping?: Readonly<Record<number, string | null>>;
+  /** On commit: HR's "apply sensitive values without approval" (PEO-077). */
+  readonly applySensitiveWithoutApproval?: boolean;
 }
 
 /** Where the browser puts the file, and how (§14.2). */
@@ -309,6 +392,31 @@ export type ImportUploadView = PresignedPut & {
   /** When the PUT stops working. */
   readonly expiresAt: string;
 };
+
+/** Mapped fields that require approval, and the values written rows carry for them (PEO-077). */
+function sensitiveOf(
+  rows: readonly {
+    readonly outcome: string;
+    readonly changes: Readonly<Record<string, unknown>>;
+  }[],
+  byKey: ReadonlyMap<string, AttributeDefinition>,
+): { fields: string[]; values: number } {
+  const keys = new Set<string>();
+  let values = 0;
+  for (const row of rows) {
+    if (row.outcome !== 'create' && row.outcome !== 'update') continue;
+    for (const key of Object.keys(row.changes)) {
+      const d = byKey.get(key);
+      if (d === undefined || !holds(d)) continue;
+      keys.add(key);
+      values += 1;
+    }
+  }
+  return {
+    fields: [...keys].map((k) => byKey.get(k)?.label.default ?? k),
+    values,
+  };
+}
 
 const column = (index: number): string => {
   let n = index + 1;
@@ -423,10 +531,10 @@ export async function completeImportUpload(
       fields: [
         ...Object.keys(SYSTEM_COLUMNS)
           .filter((k) => !k.startsWith('_'))
-          .map((key) => ({ key, label: key.replaceAll('_', ' ') })),
+          .map((key) => ({ key, label: key.replaceAll('_', ' '), sensitive: false })),
         ...version.document.attributes
           .filter((d) => d.deprecatedAt === null && visibleTo(d, everyone))
-          .map((d) => ({ key: d.key, label: d.label.default })),
+          .map((d) => ({ key: d.key, label: d.label.default, sensitive: requiresApproval(d) })),
       ],
     });
   });
@@ -496,20 +604,20 @@ export async function dryRunImport(
         // list of forty thousand is a response no browser or function needs.
         blocked: [
           ...blocked.slice(0, SHOWN).map((r) => {
-          const problem = r.problems[0];
-          const at = problem === undefined ? -1 : (indexOf.get(problem.column) ?? -1);
-          const value = at < 0 ? '' : (r.cells[at] ?? '');
-          return {
-            row: r.row,
-            person: null,
-            problem:
-              problem?.reason ??
-              (r.outcome === 'duplicate' ? 'A duplicate of an earlier row' : 'Blocked'),
-            cell:
-              at < 0
-                ? `row ${String(r.row)}`
-                : `${column(at)}${String(r.row)} — ${value === '' ? 'empty' : `“${value}”`}`,
-          };
+            const problem = r.problems[0];
+            const at = problem === undefined ? -1 : (indexOf.get(problem.column) ?? -1);
+            const value = at < 0 ? '' : (r.cells[at] ?? '');
+            return {
+              row: r.row,
+              person: null,
+              problem:
+                problem?.reason ??
+                (r.outcome === 'duplicate' ? 'A duplicate of an earlier row' : 'Blocked'),
+              cell:
+                at < 0
+                  ? `row ${String(r.row)}`
+                  : `${column(at)}${String(r.row)} — ${value === '' ? 'empty' : `“${value}”`}`,
+            };
           }),
           ...plan.blockedItems.slice(0, SHOWN).map((item) => ({
             row: item.row,
@@ -528,6 +636,7 @@ export async function dryRunImport(
             message: f.message,
           };
         }),
+        sensitive: sensitiveOf(plan.rows, byKey),
       },
       report:
         blocked.length + plan.blockedItems.length === 0
@@ -591,10 +700,12 @@ export async function commitImportView(
     return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
   });
   if (!planned.ok) return planned;
+  const bypass = step.applySensitiveWithoutApproval === true;
   const committed = await commitImportRetrying(deps.service.inTenant, importDeps(deps), {
     ...asking,
     file: planned.value.file,
     mapping: planned.value.mapping,
+    ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
   });
   if (!committed.ok) return committed;
   // Imported, or found imported already: either way the upload has done its
@@ -623,6 +734,8 @@ export async function commitImportView(
     blocked: counts.blocked + counts.duplicate,
     reportUrl,
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
+    held: bypass ? 0 : committed.value.held,
+    appliedWithoutApproval: bypass,
   });
 }
 
@@ -681,6 +794,18 @@ export async function exportBuilderView(
         .map((d) => d.key as string),
     );
     const columns = exportableColumns(version).filter((d) => readable.has(d.key));
+    // A saved segment is an audience too (PEO-068): its people as this
+    // requester may list them, counted the way the export will read them.
+    const segments: { value: string; label: string; count: number }[] = [];
+    for (const s of await segmentsFor(deps, tx, asking)) {
+      if (!s.usableIn.directory) continue;
+      const where = Object.fromEntries(s.filter.map((c) => [c.key, c.value]));
+      // eslint-disable-next-line no-await-in-loop -- a handful of segments, one transaction
+      const inSegment = await deps.service.access.count(tx, { ...asking, where });
+      if (inSegment.ok) {
+        segments.push({ value: `segment:${s.id}`, label: s.name, count: inSegment.value.all });
+      }
+    }
     return ok({
       today: await tenantToday(deps, tx, asking.tenantId),
       who: [
@@ -689,6 +814,7 @@ export async function exportBuilderView(
           label: 'Everybody you can see',
           count: counted.value.all,
         },
+        ...segments,
       ],
       sections: version.document.sections
         .toSorted((a, b) => a.order - b.order)
@@ -698,164 +824,6 @@ export async function exportBuilderView(
             .map((d) => ({ key: d.key, label: d.label.default }));
           return fields.length === 0 ? [] : [{ key: s.key, label: s.label.default, fields }];
         }),
-    });
-  });
-}
-
-/* ---------------------------------------------------------- analytics -- */
-
-export interface AnalyticsView {
-  readonly asOf: string;
-  readonly source: 'snapshot' | 'history';
-  readonly sourceNote: string;
-  readonly headcount: {
-    readonly value: number;
-    readonly change: number | null;
-    readonly trend: readonly { readonly label: string; readonly value: number }[];
-  };
-  readonly attrition: {
-    readonly percent: number;
-    readonly leavers: number;
-    readonly formula: string;
-  } | null;
-  readonly complete: { readonly percent: number; readonly incomplete: number } | null;
-  readonly expiringIn90Days: number | null;
-  readonly movement: {
-    readonly period: string;
-    readonly opening: number;
-    readonly joiners: number;
-    readonly moves: number;
-    readonly leavers: number;
-    readonly closing: number;
-  } | null;
-  readonly completenessBySection:
-    readonly { readonly label: string; readonly value: number }[] | null;
-  /** The timeline's items (PEO-122); null when the viewer may see no kind of expiry. */
-  readonly expiries: {
-    readonly today: string;
-    readonly items: readonly {
-      readonly kind: string;
-      readonly personId: string;
-      readonly name: string | null;
-      readonly day: string;
-    }[];
-  } | null;
-  readonly funnel: null;
-}
-
-const minusMonths = (day: string, n: number): string => {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCMonth(d.getUTCMonth() - n);
-  return d.toISOString().slice(0, 10);
-};
-
-/**
- * The analytics landing (§16.2): headcount, attrition, completeness,
- * the movement of the last month, from the snapshots; the expiries live,
- * item by item (PEO-122).
- *
- * HR sees the tenant; a manager sees their chain; anybody else is refused.
- * The cohort minimum and field authorization are the queries' own.
- */
-export async function analyticsView(
-  deps: ScreenDeps,
-  asking: Asking,
-): Promise<Result<AnalyticsView>> {
-  return run(deps.service, asking.tenantId, async (tx) => {
-    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-    let viewer: { kind: 'hr' } | { kind: 'manager'; personId: string };
-    if (everyone.isHr) viewer = { kind: 'hr' };
-    else {
-      const own = await personOfViewer(deps, tx, asking);
-      if (!own.ok) return err(failure('FORBIDDEN', 'Analytics is for HR and managers'));
-      viewer = { kind: 'manager', personId: own.value };
-    }
-    const version = await deps.service.schemas.current(tx, asking.tenantId);
-    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
-    const ctx = { tx, tenantId: asking.tenantId, viewer, definitions: version.document.attributes };
-    const today = await tenantToday(deps, tx, asking.tenantId);
-
-    const trend = await headcountTrend(ctx, { from: minusMonths(today, 12), to: today });
-    if (!trend.ok) return trend;
-    const points = trend.value.points;
-    const last = points.at(-1);
-    const before = points.at(-2);
-    const attrition = await attritionTrend(ctx, { from: minusMonths(today, 1), to: today });
-    const latest = attrition.ok ? attrition.value.points.at(-1) : undefined;
-    const states = await completeness(ctx, { asOf: today });
-    const expiring = await expiryTimeline(ctx, {
-      calendar: await deps.calendars.load(tx, asking.tenantId),
-      at: deps.clock.instant(),
-      everyone,
-      relations: (personIds) =>
-        relationsToMany(deps.relations, tx, asking.tenantId, asking.viewer, personIds),
-    });
-    const expiries =
-      expiring.ok && expiring.value.kinds.length > 0
-        ? { today: expiring.value.today, items: expiring.value.items }
-        : null;
-    const moved = await movementWaterfall(ctx, { from: minusMonths(today, 1), to: today });
-
-    const total = states.ok ? states.value.states.complete + states.value.states.incomplete : 0;
-    const bySection = new Map<string, number>();
-    if (states.ok && states.value.byField !== null) {
-      for (const f of states.value.byField) {
-        bySection.set(f.sectionKey, (bySection.get(f.sectionKey) ?? 0) + f.missing);
-      }
-    }
-    const sectionLabel = new Map(
-      version.document.sections.map((s) => [s.key as string, s.label.default]),
-    );
-    const source = states.ok ? states.value.source : 'snapshot';
-
-    return ok({
-      asOf: today,
-      source,
-      sourceNote:
-        source === 'snapshot'
-          ? 'From the daily snapshot.'
-          : 'Computed from history for this date, which is slower.',
-      headcount: {
-        value: last?.headcount ?? 0,
-        change:
-          last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
-        trend: points.map((p) => ({ label: p.month, value: p.headcount })),
-      },
-      attrition:
-        latest?.rate === null || latest === undefined
-          ? null
-          : {
-              percent: Math.round(latest.rate * 1000) / 10,
-              leavers: latest.leavers,
-              formula: attrition.ok ? attrition.value.formula : '',
-            },
-      complete:
-        states.ok && total > 0
-          ? {
-              percent: Math.round((states.value.states.complete / total) * 100),
-              incomplete: states.value.states.incomplete,
-            }
-          : null,
-      // The items drawn, so the tile and the chart cannot disagree by a hidden one.
-      expiringIn90Days: expiries === null ? null : expiries.items.length,
-      movement: moved.ok
-        ? {
-            period: `${minusMonths(today, 1)} to ${today}`,
-            opening: moved.value.opening,
-            joiners: moved.value.joiners,
-            moves: moved.value.internalMoves,
-            leavers: moved.value.leavers,
-            closing: moved.value.closing,
-          }
-        : null,
-      completenessBySection:
-        bySection.size === 0
-          ? null
-          : [...bySection].map(([key, value]) => ({ label: sectionLabel.get(key) ?? key, value })),
-      expiries,
-      // ponytail: the onboarding funnel is drawn by the screen but has no
-      // query shaped for it yet; absent, not empty.
-      funnel: null,
     });
   });
 }

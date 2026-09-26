@@ -1,7 +1,10 @@
 import {
   Alert,
   Button,
+  Card,
+  CardContent,
   Checkbox,
+  Combobox,
   Field,
   FieldControl,
   FieldDescription,
@@ -25,7 +28,6 @@ import {
   Spinner,
   Stack,
   Stepper,
-  Switch,
   TagsInput,
   Textarea,
   useBreakpoint,
@@ -43,16 +45,27 @@ import {
   type DataType,
   type FieldDescription as Described,
   type FieldInput,
+  type Predicate,
+  type RegistryDraft,
   type RegistryField,
   type RegistrySection,
+  type RequirednessMode,
   type ViewerScope,
+  type VisibilityRule,
   type WriterRole,
 } from './model';
+import {
+  EMPTY_PREDICATE,
+  PredicateEditor,
+  predicateProblem,
+  type PredicateField,
+} from './predicate-editor';
 import { readBack } from './read-back';
 import {
   CLASSIFICATION_LABEL,
   COLLECT_LABEL,
   DATA_TYPE_LABEL,
+  REQUIREDNESS_LABEL,
   SCOPE_LABEL,
   WRITER_LABEL,
   keyFromLabel,
@@ -76,6 +89,8 @@ const SCOPES: readonly ViewerScope[] = [
   'finance',
   'directory',
 ];
+/** The contract's bound on custom visibility rules. */
+const MOST_RULES = 5;
 const COLLECT: readonly CollectAt[] = ['onboarding', 'anytime', 'hr_only', 'enrolment', 'signup'];
 const WITH_OPTIONS: ReadonlySet<DataType> = new Set(['select', 'multi_select']);
 const KEY = /^[a-z][a-z0-9_]{0,62}$/;
@@ -86,12 +101,17 @@ interface Draft {
   description: string;
   dataType: DataType;
   options: readonly string[];
-  required: boolean;
+  requiredness: RequirednessMode;
+  /** Kept while the admin flips between modes, and sent only when conditional. */
+  requiredWhen: Predicate;
   ownership: readonly WriterRole[];
   collectAt: CollectAt;
   visibility: readonly ViewerScope[];
+  visibilityRules: readonly VisibilityRule[];
   classification: Classification | null;
   confirmedSpecial: boolean;
+  /** Whether a change waits for HR's approval (PEO-077); null until the admin says. */
+  requiresApproval: boolean | null;
 }
 
 function draftFrom(section: RegistrySection, field: RegistryField | null): Draft {
@@ -102,12 +122,15 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
       description: field.description ?? '',
       dataType: field.dataType,
       options: field.options,
-      required: field.requiredness === 'always',
+      requiredness: field.requiredness,
+      requiredWhen: field.requiredWhen ?? EMPTY_PREDICATE,
       ownership: field.ownership,
       collectAt: field.collectAt,
       visibility: field.visibility,
+      visibilityRules: field.visibilityRules,
       classification: field.classification,
       confirmedSpecial: field.classification === 'special-category',
+      requiresApproval: field.requiresApproval ?? null,
     };
   }
   return {
@@ -116,21 +139,59 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     description: '',
     dataType: 'text',
     options: [],
-    required: false,
+    requiredness: 'never',
+    requiredWhen: EMPTY_PREDICATE,
     ownership: section.ownership,
     collectAt: 'anytime',
     // Defaulted from the section, which is what §9.2 asks: most fields are
     // seen by whoever sees the rest of their section.
     visibility: section.visibility,
+    visibilityRules: [],
     classification: null,
     confirmedSpecial: false,
+    requiresApproval: null,
   };
 }
 
+/**
+ * What a field defaults to when nobody chose (PEO-077), as People computes
+ * it: on for financial data and for anything stored encrypted.
+ */
+export function approvalByDefault(dataType: DataType, piiKind: string): boolean {
+  return piiKind === 'financial' || dataType === 'bank_account' || dataType === 'national_id';
+}
+
 /** What stops each step from moving on, or null when it may. */
-function problemsIn(step: number, draft: Draft, keyTaken: (key: string) => boolean) {
+/**
+ * A condition on special-category data leaks through completeness: "missing"
+ * tells whoever sees the gap that the condition held. People refuses it
+ * (`PREDICATE_DISCLOSES`); saying so here puts the sentence beside the row.
+ */
+function specialCategoryProblem(
+  predicate: Draft['requiredWhen'],
+  others: readonly PredicateField[],
+): string | null {
+  for (const clause of predicate.clauses) {
+    if (clause.operand !== 'attribute') continue;
+    const named = others.find((f) => f.key === clause.key);
+    if (named?.classification === 'special-category') {
+      return `${named.label} is special-category data, so it cannot decide whether a field is required: a missing value would tell whoever sees it that the condition held.`;
+    }
+  }
+  return null;
+}
+
+function problemsIn(
+  step: number,
+  draft: Draft,
+  keyTaken: (key: string) => boolean,
+  others: readonly PredicateField[],
+) {
   const problems: Partial<
-    Record<'label' | 'key' | 'options' | 'ownership' | 'visibility' | 'kind', string>
+    Record<
+      'label' | 'key' | 'options' | 'ownership' | 'requiredWhen' | 'visibility' | 'rules' | 'kind',
+      string
+    >
   > = {};
   if (step === 0) {
     if (draft.label.trim() === '') problems.label = 'Give the field a name.';
@@ -146,13 +207,35 @@ function problemsIn(step: number, draft: Draft, keyTaken: (key: string) => boole
   if (step === 1 && draft.ownership.length === 0) {
     problems.ownership = 'Somebody has to be able to fill it in.';
   }
-  if (step === 2 && draft.visibility.length === 0) {
-    problems.visibility = 'Nobody could ever read it. Choose at least one.';
+  if (step === 1 && draft.requiredness === 'conditional') {
+    const problem =
+      predicateProblem(draft.requiredWhen) ?? specialCategoryProblem(draft.requiredWhen, others);
+    if (problem !== null) problems.requiredWhen = problem;
+  }
+  if (step === 2) {
+    // A rule holds of some records, so it is no answer for a required field:
+    // the contract asks for a preset reader then, and so does this.
+    if (
+      draft.visibility.length === 0 &&
+      (draft.visibilityRules.length === 0 || draft.requiredness !== 'never')
+    ) {
+      problems.visibility = 'Nobody could ever read it. Choose at least one.';
+    }
+    for (const rule of draft.visibilityRules) {
+      const problem =
+        rule.scopes.length === 0
+          ? 'Every rule shows the field to somebody.'
+          : predicateProblem(rule.when);
+      if (problem !== null) problems.rules = problem;
+    }
   }
   if (step === 3) {
     if (draft.classification === null) problems.kind = 'Choose what kind of data this is.';
     else if (draft.classification === 'special-category' && !draft.confirmedSpecial) {
       problems.kind = 'Special-category data needs your explicit confirmation.';
+    } else if (draft.classification === 'special-category' && draft.visibilityRules.length > 0) {
+      problems.kind =
+        'Special-category data is never shown by a rule. Remove the rules under Who can see it.';
     }
   }
   return problems;
@@ -170,6 +253,10 @@ export interface FieldEditorProps {
   readonly field: RegistryField | null;
   /** Keys already in use in this draft, so a clash is caught before saving. */
   readonly takenKeys: readonly string[];
+  /** What a condition's legal entity and country may name (PEO-065). */
+  readonly choices: RegistryDraft['choices'];
+  /** The fields a condition may name. The one being edited is left out here. */
+  readonly fields: readonly PredicateField[];
   /** The classification judgment, from metadata only. Never a value (§12.3). */
   readonly advise: (field: Described) => Promise<ClassificationAdvice>;
   readonly onSave: (input: FieldInput) => Promise<Outcome>;
@@ -189,6 +276,8 @@ export function FieldEditor({
   section,
   field,
   takenKeys,
+  choices,
+  fields,
   advise,
   onSave,
 }: FieldEditorProps): JSX.Element {
@@ -215,7 +304,13 @@ export function FieldEditor({
   }, [open, section, field]);
 
   const editing = field !== null;
-  const problems = problemsIn(step, draft, (key) => !editing && takenKeys.includes(key));
+  const others = fields.filter((f) => f.key !== draft.key);
+  const problems = problemsIn(
+    step,
+    draft,
+    (key) => !editing && takenKeys.includes(key),
+    others,
+  );
   const blocked = Object.keys(problems).length > 0;
   const set = (patch: Partial<Draft>): void => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -285,13 +380,16 @@ export function FieldEditor({
       description: draft.description.trim() === '' ? null : draft.description.trim(),
       dataType: draft.dataType,
       options: draft.options,
-      requiredness: draft.required ? 'always' : 'never',
+      requiredness: draft.requiredness,
+      requiredWhen: draft.requiredness === 'conditional' ? draft.requiredWhen : null,
       ownership: draft.ownership,
       collectAt: draft.collectAt,
       visibility: draft.visibility,
+      visibilityRules: draft.visibilityRules,
       classification: draft.classification,
       piiKind: judged?.piiKind ?? 'none',
       classificationSource: suggested === draft.classification ? 'suggested' : 'human',
+      requiresApproval: draft.requiresApproval,
     });
     setSaving(false);
     if (outcome.ok) onOpenChange(false);
@@ -425,17 +523,44 @@ export function FieldEditor({
                     <Alert tone="danger">{show.ownership}</Alert>
                   )}
                 </fieldset>
-                <Field orientation="horizontal">
-                  <FieldLabel>Required for everyone</FieldLabel>
-                  <FieldControl>
-                    <Switch
-                      checked={draft.required}
-                      onCheckedChange={(required) => {
-                        set({ required });
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-2 text-sm font-medium">Required</legend>
+                  <RadioGroup
+                    value={draft.requiredness}
+                    onValueChange={(requiredness) => {
+                      set({ requiredness: requiredness as RequirednessMode });
+                    }}
+                  >
+                    <RadioCard value="never" description="Nobody is chased for it.">
+                      {REQUIREDNESS_LABEL.never}
+                    </RadioCard>
+                    <RadioCard value="always" description="Every record is incomplete without it.">
+                      Required for everyone
+                    </RadioCard>
+                    <RadioCard
+                      value="conditional"
+                      description="Only where the conditions below hold: a country, a legal entity, a contract type, another field."
+                    >
+                      Required when…
+                    </RadioCard>
+                  </RadioGroup>
+                </fieldset>
+                {draft.requiredness === 'conditional' ? (
+                  <Stack gap={2}>
+                    <PredicateEditor
+                      legend="Required when"
+                      value={draft.requiredWhen}
+                      onChange={(requiredWhen) => {
+                        set({ requiredWhen });
                       }}
+                      choices={choices}
+                      fields={others}
                     />
-                  </FieldControl>
-                </Field>
+                    {show.requiredWhen === undefined ? null : (
+                      <Alert tone="danger">{show.requiredWhen}</Alert>
+                    )}
+                  </Stack>
+                ) : null}
                 <Field>
                   <FieldLabel>Asked for</FieldLabel>
                   <Select
@@ -485,9 +610,129 @@ export function FieldEditor({
                 ) : (
                   <Alert tone="danger">{show.visibility}</Alert>
                 )}
+
+                {/* Custom rules (PEO-066): a preset scope, on some records only. */}
+                <fieldset className="flex flex-col gap-3">
+                  <legend className="mb-1 text-sm font-medium">
+                    Also visible, on some records
+                  </legend>
+                  {draft.visibilityRules.map((rule, index) => {
+                    const name = `Rule ${String(index + 1)}`;
+                    const change = (changed: VisibilityRule): void => {
+                      set({
+                        visibilityRules: draft.visibilityRules.map((r, i) =>
+                          i === index ? changed : r,
+                        ),
+                      });
+                    };
+                    return (
+                      // Positional: a rule has no identity beyond its place.
+                      <Card key={index}>
+                        <CardContent>
+                          <Stack gap={3}>
+                            <Field>
+                              <FieldLabel>{name}: who else can see it</FieldLabel>
+                              <FieldControl>
+                                <Combobox
+                                  label={`${name}: who else can see it`}
+                                  multiple
+                                  placeholder="Choose who"
+                                  options={SCOPES.map((scope) => ({
+                                    value: scope,
+                                    label: SCOPE_LABEL[scope],
+                                  }))}
+                                  value={rule.scopes}
+                                  onChange={(scopes) => {
+                                    change({
+                                      ...rule,
+                                      scopes: (Array.isArray(scopes)
+                                        ? scopes
+                                        : []) as ViewerScope[],
+                                    });
+                                  }}
+                                />
+                              </FieldControl>
+                            </Field>
+                            <PredicateEditor
+                              legend={`${name}: when`}
+                              value={rule.when}
+                              onChange={(when) => {
+                                change({ ...rule, when });
+                              }}
+                              choices={choices}
+                              fields={others}
+                            />
+                            <div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  set({
+                                    visibilityRules: draft.visibilityRules.filter(
+                                      (_, i) => i !== index,
+                                    ),
+                                  });
+                                }}
+                              >
+                                Remove {name.toLowerCase()}
+                              </Button>
+                            </div>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {show.rules === undefined ? null : <Alert tone="danger">{show.rules}</Alert>}
+                  {draft.visibilityRules.length < MOST_RULES ? (
+                    <div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          set({
+                            visibilityRules: [
+                              ...draft.visibilityRules,
+                              { scopes: ['manager'], when: EMPTY_PREDICATE },
+                            ],
+                          });
+                        }}
+                      >
+                        Add a rule
+                      </Button>
+                    </div>
+                  ) : null}
+                  <p className="text-sm text-fg-muted">
+                    A rule shows the field to somebody only on the records its conditions hold for,
+                    and only if they can already see every field a condition reads. Never for
+                    special-category data.
+                  </p>
+                </fieldset>
               </Stack>
             ) : null}
 
+            {step === 3 ? (
+              <Field orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Checkbox
+                    checked={
+                      draft.requiresApproval ??
+                      approvalByDefault(
+                        draft.dataType,
+                        typeof advice === 'object' && advice !== null ? advice.piiKind : 'none',
+                      )
+                    }
+                    onCheckedChange={(on) => {
+                      set({ requiresApproval: on === true });
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>Changes need a second person to approve them</FieldLabel>
+                <FieldDescription>
+                  Sensitive: a new value is held until another HR member approves it, within seven
+                  days, and is marked Sensitive wherever it is shown. On by default for financial
+                  and encrypted data.
+                </FieldDescription>
+              </Field>
+            ) : null}
             {step === 3 ? (
               <Classify
                 advice={advice}

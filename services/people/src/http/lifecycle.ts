@@ -53,6 +53,18 @@ export const RehireBody = z.strictObject({
     .describe('Required to rehire somebody marked not eligible for rehire; kept on the new period.'),
 });
 
+/** A merge (PEO-074): the person in the path survives. */
+export const MergeBody = z.strictObject({
+  absorbedPersonId: z
+    .uuid()
+    .describe('The duplicate, never hired. It becomes a tombstone pointing at this person.'),
+  take: z
+    .array(z.string().max(64))
+    .max(200)
+    .optional()
+    .describe('Attribute keys whose value comes from the duplicate. Sealed and placement keys never do.'),
+});
+
 const nullableId = z.uuid().nullable().optional();
 
 /** Where a person sits (PEO-123). An absent field is not changed; null clears it. */
@@ -211,5 +223,14 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
     summary: 'Withdraw a provisional record that was never a person; HR only',
     body: NoBody,
     run: (access, tx, on) => access.discard(tx, on),
+  }),
+  action({
+    path: 'merge',
+    name: 'mergePerson',
+    summary:
+      'Absorb a duplicate that was never hired into this person: it becomes a tombstone pointing here, its account moves here, and the chosen values are copied; HR only',
+    body: MergeBody,
+    run: (access, tx, on, input) =>
+      access.merge(tx, { ...on, absorbedPersonId: input.absorbedPersonId, take: input.take ?? [] }),
   }),
 ];
