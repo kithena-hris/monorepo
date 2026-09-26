@@ -935,9 +935,38 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-073** Mirror mode — `sourceOfRecord: external`, per-attribute
       ownership, every other writer refused with the owning system named.
       _(PRD §13.6)_
-- [ ] **PEO-074** Duplicate detection and merge. A merge is **always** a human
+- [x] **PEO-074** Duplicate detection and merge. A merge is **always** a human
       decision, and it is additive — both histories survive, the absorbed
       record becomes a tombstone pointing at the survivor. _(PRD §12.4)_
+      _Landed as migration 20260926143000 (`person.merged_into`, status
+      `merged`, append-only `people.duplicate_decision`). Detection blocks
+      on work email, name with `date_of_birth`, and unique claims the
+      rotation found held twice; nothing is decrypted, and a signal is
+      shown only to a viewer who may read what it is read from. HR only;
+      nobody merges their own record. **Only a record never hired is
+      absorbed** — the employed one survives, and two employed records are
+      refused (see below). A merge releases the tombstone's unique claims,
+      moves its account to the survivor, copies the values HR ticked
+      through the ordinary write path (never a sealed, lifecycle,
+      placement, manager or employee-number key), raises `status_changed`
+      (`merged`) and `merged` on the tombstone, `profile_updated` and
+      `identity_facts_changed` on the survivor, and records the decision.
+      `GET /v1/duplicates`, `POST /v1/duplicates/dismissals`, `POST
+      /v1/people/{id}/merge` (`mergePerson`), `peopleDuplicates`; screen
+      `/people/duplicates`. The TypeSafe `Noul` ranking is not wired: code
+      ranks by signal strength, and sending names and birth dates to a
+      third party is a data decision this ticket did not take._
+- [ ] Merging two **employed** records. Refused today
+      (`MERGE_ABSORBS_EMPLOYMENT`): two employment periods on one human need
+      somebody to decide which start, number and pay line are true, which is
+      payroll's call. Found in PEO-074. _(PRD §12.4)_
+- [ ] A merge's undo. Nothing is destroyed — the tombstone keeps its
+      history, values and prior state, the decision row names what moved —
+      but there is no `unmerge` use case; today a wrong merge is corrected
+      value by value on the survivor. Found in PEO-074.
+- [ ] DSAR and retention follow `merged_into`. A tombstone's history is the
+      survivor's human, and neither the DSAR export nor the retention clock
+      reads it yet. Found in PEO-074. _(PRD §12)_
 - [ ] **PEO-075** Automated anonymisation on retention expiry. **Blocked until
       counsel reviews the floors** (PEO-126): `mayErase` refuses automated
       erasure under an unreviewed floor. _(PRD §8.1, §12)_
