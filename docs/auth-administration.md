@@ -272,14 +272,45 @@ tab (`PUT /api/internal/admin/tenants/<id>/entitlements`, the whole list).
   `administrators: { module: [accountId, …] }` as each module's whole list and
   raises `identity.tenant.administrator_named { entitlement, accountId, namedBy }`
   for each added and `identity.tenant.administrator_removed { entitlement,
-  accountId, removedBy }` for each removed, the operator in both. A module
-  never loses its last named administrator (`LAST_ADMINISTRATOR`). People grants
-  `people_admin` and `hr` on naming and revokes them on removal — never the
-  last `people_admin`, which it leaves to the company. Time off ignores both
-  until it has roles to grant. `POST /api/internal/admin/tenants/<id>/administrators`
-  names one again — the recovery path when a company has lost every
-  administrator. Nobody is an administrator for having been invited first, and
-  every other role is the company's own to grant.
+  accountId, removedBy, confirmedLast }` for each removed, the operator in both.
+  A module never loses its last named administrator (`LAST_ADMINISTRATOR`).
+  People grants `people_admin` and `hr` on naming and revokes both on removal.
+  Time off ignores both until it has roles to grant.
+  `POST /api/internal/admin/tenants/<id>/administrators` names one again — the
+  recovery path when a company has lost every administrator, and the company
+  page's **Grant again**. Nobody is an administrator for having been invited
+  first, and every other role is the company's own to grant.
+- **What was set here, and what the module has, are two lists and stay two.**
+  The company grants and revokes its own roles inside People, so who the back
+  office named and who holds `people_admin` or `hr` drift apart, deliberately
+  or not. Nothing syncs them. People reports its holders to identity —
+  `PUT /api/internal/tenants/<id>/module-roles/module.people`, a
+  `ModuleRoleReport` (the whole list, ordered by `asOf`), with
+  `PEOPLE_IDENTITY_TOKEN` — after every committed `people.role.*` event and for
+  every tenant at boot and daily. Identity keeps the newest per module in
+  `platform.module_role_report` and the company detail carries it as
+  `moduleRoles`. People without `IDENTITY_URL` reports nothing and grants
+  exactly as before; a failed report is logged and overtaken by the next.
+
+  The **Modules** tab shows both per module and names each difference: *set
+  here, not in People* or *set here, only HR* (with **Grant again**, which
+  names them again; People grants only what is missing) and *HR in People, not
+  set here* (shown, never acted on). Chosen over the back office asking People
+  directly: identity is already the back office's one data source and People
+  already calls it, so no new route into People and no People URL in the back
+  office; the cost is a report that can lag a change by a consumer hop.
+- **Removing the last holder of a role asks first.** When removing
+  administrators would leave People with nobody holding `hr` or `people_admin`,
+  per People's last report, the save opens a dialog saying so, and proceeds
+  only on **Remove anyway**; `PUT …/entitlements` then carries
+  `confirmLast: true` and each `administrator_removed` `confirmedLast: true`.
+  People applies it through the same rule (`backOfficeRemoval`): confirmed, it
+  revokes both roles — the last `people_admin` too, which the
+  `role_grant_keep_an_admin` trigger lets through only for a transaction that
+  set `people.release_last_admin`; not confirmed (an older caller, or a report
+  that lagged), it revokes nothing when either would be the last, and the
+  difference then shows as *not set here*. A company left with nobody is
+  recovered as it always was: name somebody again.
 
 ### Separation of duties at tenant creation
 

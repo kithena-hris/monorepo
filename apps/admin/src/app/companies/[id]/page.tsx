@@ -32,6 +32,8 @@ import type { EmployeeActionResult } from '../../../components/employee-actions'
 import { AddressCard } from '../../../components/address-card';
 import { CompanyModules, type SaveModulesResult } from '../../../components/company-modules';
 import { CompanySummaryTile } from '../../../components/company-summary-tile';
+import type { GrantAgainResult } from '../../../components/module-roles-drift';
+import type { ModuleRoles } from '../../../lib/modules';
 import type { Invitation, InviteResult } from '../../../components/invite-employee-form';
 
 /**
@@ -65,6 +67,8 @@ interface Detail {
   effectiveEntitlements: string[];
   /** Module → the accounts named to administer it (PEO-112); absent from an older identity. */
   administrators?: Record<string, string[]>;
+  /** Module → who holds its administrator roles, as the module reported it; never synced. */
+  moduleRoles?: Record<string, ModuleRoles>;
 }
 
 export default async function Company({
@@ -278,6 +282,7 @@ export default async function Company({
   async function saveModules(
     entitlements: string[],
     administrators: Record<string, string[]>,
+    options?: { confirmLast: true },
   ): Promise<SaveModulesResult> {
     'use server';
 
@@ -285,7 +290,13 @@ export default async function Company({
     if (!operator) return { ok: false, message: 'Your session has expired.' };
     const { status, body } = await callIdentity(`/api/internal/admin/tenants/${id}/entitlements`, {
       method: 'PUT',
-      body: { entitlements, administrators, operatorId: operator.operatorId },
+      body: {
+        entitlements,
+        administrators,
+        operatorId: operator.operatorId,
+        // The operator saw that a removal leaves a module with nobody in a role.
+        confirmLast: options?.confirmLast === true,
+      },
     });
     if (status === 200) {
       revalidatePath(`/companies/${id}`);
@@ -296,6 +307,30 @@ export default async function Company({
       ok: false,
       message:
         typeof failed.message === 'string' ? failed.message : 'The modules could not be saved.',
+    };
+  }
+
+  /**
+   * "Grant again": name somebody the back office set, so the module grants
+   * what naming gives. Idempotent — a module grants nothing already held.
+   */
+  async function grantAgain(entitlement: string, accountId: string): Promise<GrantAgainResult> {
+    'use server';
+
+    const operator = await currentOperator();
+    if (!operator) return { ok: false, message: 'Your session has expired.' };
+    const { status, body } = await callIdentity(
+      `/api/internal/admin/tenants/${id}/administrators`,
+      { method: 'POST', body: { entitlement, accountId, operatorId: operator.operatorId } },
+    );
+    if (status === 201) {
+      revalidatePath(`/companies/${id}`);
+      return { ok: true };
+    }
+    const failed = (body ?? {}) as { message?: unknown };
+    return {
+      ok: false,
+      message: typeof failed.message === 'string' ? failed.message : 'That could not be asked.',
     };
   }
 
@@ -549,6 +584,8 @@ export default async function Company({
               recorded={company.entitlements}
               effective={company.effectiveEntitlements}
               administrators={company.administrators ?? {}}
+              moduleRoles={company.moduleRoles ?? {}}
+              grantAgain={grantAgain}
               // Anybody who can still sign in, or will once they enrol.
               accounts={company.people
                 .filter((p) => ['provisioned', 'invited', 'active'].includes(p.status))
