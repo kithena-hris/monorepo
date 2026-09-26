@@ -161,6 +161,16 @@ scoped AS (
 )`;
 }
 
+/** Whole months of tenure as the snapshot's band; shared with pay (PEO-078). */
+export function tenureBand(months: SQL): SQL {
+  return sql`CASE WHEN ${months} < 6  THEN '0_6m'
+            WHEN ${months} < 12 THEN '6_12m'
+            WHEN ${months} < 18 THEN '12_18m'
+            WHEN ${months} < 24 THEN '18_24m'
+            WHEN ${months} < 60 THEN '2_5y'
+            ELSE '5y_plus' END`;
+}
+
 /**
  * The cube for D, with flows over (flowsFrom, D]. Columns match
  * `people.headcount_snapshot` from `scope_id` on.
@@ -182,12 +192,7 @@ SELECT scope_id, department, location,
             -- a day in the past, or a transition the scheduler has not run.
             ELSE 'active' END AS status,
        employment_type,
-       CASE WHEN tenure_months < 6  THEN '0_6m'
-            WHEN tenure_months < 12 THEN '6_12m'
-            WHEN tenure_months < 18 THEN '12_18m'
-            WHEN tenure_months < 24 THEN '18_24m'
-            WHEN tenure_months < 60 THEN '2_5y'
-            ELSE '5y_plus' END AS tenure_band,
+       ${tenureBand(sql`tenure_months`)} AS tenure_band,
        completeness,
        (count(*) FILTER (WHERE present))::int AS headcount,
        (count(*) FILTER (WHERE joined))::int  AS joiners,

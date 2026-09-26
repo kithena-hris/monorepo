@@ -53,6 +53,7 @@ import {
   SetupChoice,
   ImportStepBody,
   SegmentBody,
+  PayBandBody,
   UploadStart,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
@@ -121,6 +122,7 @@ const components = {
   ImportUploadStart: UploadStart,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
+  PayBand: PayBandBody,
   RoleHolder: RoleHolderBody,
   RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
   RoleChange: RoleChangeBody,
@@ -305,6 +307,19 @@ function screenPaths(): Record<string, unknown> {
         'Segment',
         201,
         'The segment, and where you could use it',
+      ),
+    },
+    '/v1/pay-bands': {
+      get: {
+        summary:
+          'Every pay band as it now stands, per grade, currency and day; HR or finance (PEO-078)',
+        responses: { 200: { description: '{ items }, amounts in minor units' }, ...failure },
+      },
+      post: screenWrite(
+        'Set a pay band from a day, or correct the one recorded for that day; HR or finance (PEO-078)',
+        'PayBand',
+        201,
+        'The band as recorded, and the row it supersedes if any',
       ),
     },
     '/v1/segments/{id}': {

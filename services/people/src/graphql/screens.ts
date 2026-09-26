@@ -991,6 +991,47 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       items: t.field({ type: [Expiry], resolve: (e) => list(e.items) }),
     }),
   });
+  type Pay = NonNullable<A['pay']>;
+  const PayBandFigures = builder
+    .objectRef<NonNullable<Pay['grade'][number]['band']>>('AnalyticsPayBand')
+    .implement({
+      description: 'The band in force for a grade and currency, in minor units.',
+      fields: (t) => ({
+        minimumMinor: t.exposeString('minimumMinor'),
+        midpointMinor: t.exposeString('midpointMinor'),
+        maximumMinor: t.exposeString('maximumMinor'),
+      }),
+    });
+  const PayGroup = builder.objectRef<Pay['grade'][number]>('AnalyticsPayGroup').implement({
+    description:
+      'Quartiles for one group in one currency, or insufficient_data with no count and no figure (PEO-078).',
+    fields: (t) => ({
+      label: t.exposeString('label'),
+      currency: t.exposeString('currency'),
+      status: t.exposeString('status', {
+        description: 'ok, or insufficient_data below the cohort minimum',
+      }),
+      people: t.exposeInt('people', { nullable: true }),
+      p25: t.exposeString('p25', {
+        nullable: true,
+        description: 'Minor units for salary; a ratio to four places for compa-ratio',
+      }),
+      median: t.exposeString('median', { nullable: true }),
+      p75: t.exposeString('p75', { nullable: true }),
+      band: t.field({ type: PayBandFigures, nullable: true, resolve: (g) => g.band }),
+    }),
+  });
+  const PayRef = builder.objectRef<Pay>('AnalyticsPay').implement({
+    description:
+      'Pay in aggregate, finance only: quartiles per group, never a minimum, a maximum or a person (PEO-078).',
+    fields: (t) => ({
+      asOf: t.exposeString('asOf', { nullable: true }),
+      minimum: t.exposeInt('minimum', { description: 'The cohort minimum in force' }),
+      grade: t.field({ type: [PayGroup], resolve: (p) => list(p.grade) }),
+      tenure: t.field({ type: [PayGroup], resolve: (p) => list(p.tenure) }),
+      compa: t.field({ type: [PayGroup], resolve: (p) => list(p.compa) }),
+    }),
+  });
   const Analytics = builder.objectRef<A>('PeopleAnalytics').implement({
     description:
       'A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).',
@@ -1033,6 +1074,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: "HR's only; never under a segment",
         resolve: (v) => (v.selfId === null ? null : list(v.selfId)),
+      }),
+      pay: t.field({
+        type: PayRef,
+        nullable: true,
+        description: "Finance's only; never under a segment",
+        resolve: (v) => v.pay,
       }),
     }),
   });

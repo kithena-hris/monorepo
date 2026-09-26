@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { failure, ok, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { RequirednessPredicate, VisibilityRule } from '@kithena/contracts';
 
 import { analyticsView } from '../application/screens/analytics.js';
@@ -35,6 +35,7 @@ import {
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
+import type { PayBandView } from '../application/analytics/pay.js';
 import {
   addSection,
   adviseClassification,
@@ -146,6 +147,16 @@ export const ImportStepBody = z.strictObject({
   mapping: z.record(z.string(), z.string().nullable()).optional(),
 });
 
+/** A pay band from a day (PEO-078): whole minor units, as digits. */
+export const PayBandBody = z.strictObject({
+  grade: z.string().max(64),
+  currency: z.string().length(3),
+  minimumMinor: z.string().max(15),
+  midpointMinor: z.string().max(15),
+  maximumMinor: z.string().max(15),
+  effectiveFrom: z.string().max(10),
+});
+
 /** A saved segment (PEO-068): a name and the directory's filter, never a list of people. */
 export const SegmentBody = z.strictObject({
   name: z.string().max(80),
@@ -178,6 +189,18 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   const keys = { service: deps.service, idempotency };
   type Asking = Parameters<Route['handle']>[0];
   const done = (): Promise<RestResponse> => Promise.resolve({ status: 200, body: { ok: true } });
+  const bands = <T>(
+    asking: Asking,
+    fn: (
+      b: NonNullable<ScreenRouteDeps['service']['payBands']>,
+      tx: Parameters<Parameters<typeof run>[2]>[0],
+    ) => Promise<Result<T>>,
+  ): Promise<Result<T>> => {
+    const { payBands } = deps.service;
+    if (!payBands)
+      return Promise.resolve(err(failure('UNAVAILABLE', 'Pay bands are not configured')));
+    return run(deps.service, asking.tenantId, (tx) => fn(payBands, tx));
+  };
   /**
    * A retried section save, answered as the first was (PEO-125): the same
    * findings, from the same function the save and the form's check answer
@@ -633,6 +656,35 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
         );
       },
+    },
+
+    /* pay bands (PEO-078): HR or finance, decided by `payBands` */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/pay-bands$/,
+      handle: async (asking) => {
+        const listed = await bands(asking, (b, tx) => b.list(tx, asking));
+        return answer(listed.ok ? ok({ items: listed.value }) : listed);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/pay-bands$/,
+      handle: write(
+        PayBandBody,
+        (asking, input) => bands(asking, (b, tx) => b.set(tx, asking, input)),
+        {
+          status: 201,
+          resource: (_asking, _id, made: PayBandView) => made.id,
+          again: async (asking, id) => {
+            const listed = await bands(asking, (b, tx) => b.list(tx, asking));
+            const made = listed.ok ? listed.value.find((band) => band.id === id) : undefined;
+            return made === undefined
+              ? refused(failure('NOT_FOUND', 'There is no such pay band'))
+              : { status: 201, body: made };
+          },
+        },
+      ),
     },
 
     /* saved segments (PEO-068) */

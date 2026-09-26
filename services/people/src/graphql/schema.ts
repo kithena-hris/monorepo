@@ -24,6 +24,7 @@ import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/pers
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
 import { defineScreens } from './screens.js';
+import type { PayBandView } from '../application/analytics/pay.js';
 
 export type { RequestContext } from './builder.js';
 
@@ -790,6 +791,8 @@ builder.mutationFields((t) => ({
  */
 interface OrganisationShape {
   readonly canManage: boolean;
+  /** HR's and finance's, who both edit them; null for anybody else (PEO-078). */
+  readonly payBands: readonly PayBandView[] | null;
   readonly settings: TenantSettings;
   readonly legalEntities: readonly LegalEntityView[];
   readonly locations: readonly LocationView[];
@@ -828,9 +831,31 @@ const RetentionFloorRef = builder.objectRef<FloorView>('RetentionFloor').impleme
   }),
 });
 
+const PayBandRef = builder.objectRef<PayBandView>('PayBand').implement({
+  description:
+    'A pay band for one grade and currency from a day, in minor units (PEO-078). The latest recording for that day.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    grade: t.exposeString('grade'),
+    currency: t.exposeString('currency'),
+    minimumMinor: t.exposeString('minimumMinor'),
+    midpointMinor: t.exposeString('midpointMinor'),
+    maximumMinor: t.exposeString('maximumMinor'),
+    effectiveFrom: t.exposeString('effectiveFrom'),
+    recordedAt: t.exposeString('recordedAt'),
+    supersedes: t.exposeID('supersedes', { nullable: true }),
+  }),
+});
+
 const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation').implement({
   fields: (t) => ({
     canManage: t.exposeBoolean('canManage'),
+    payBands: t.field({
+      type: [PayBandRef],
+      nullable: true,
+      description: 'Pay bands as they now stand; HR and finance see and edit them, nobody else.',
+      resolve: (o) => (o.payBands === null ? null : [...o.payBands]),
+    }),
     settings: t.field({ type: PeopleSettingsRef, resolve: (o) => o.settings }),
     legalEntities: t.field({ type: [LegalEntityRef], resolve: (o) => [...o.legalEntities] }),
     locations: t.field({ type: [LocationRef], resolve: (o) => [...o.locations] }),
@@ -863,8 +888,9 @@ const PeopleHomeRef = builder
 builder.queryFields((t) => ({
   peopleOrganisation: t.field({
     type: OrganisationRef,
-    resolve: (_root, _args, ctx) =>
-      inOrg(ctx, async (org, tx, asking) => {
+    resolve: async (_root, _args, ctx) => {
+      const { service } = await caller(ctx);
+      return inOrg(ctx, async (org, tx, asking) => {
         const settings = await org.settings(tx, asking);
         if (!settings.ok) return settings;
         const legalEntities = await org.legalEntities(tx, asking);
@@ -873,14 +899,18 @@ builder.queryFields((t) => ({
         if (!locations.ok) return locations;
         const numberings = await org.numberings(tx, asking);
         if (!numberings.ok) return numberings;
+        // `payBands` decides who may see them; a refusal is null here, not an error.
+        const bands = await service.payBands?.list(tx, asking);
         return ok({
           canManage: asking.viewer.roles.has('people_admin'),
+          payBands: bands?.ok === true ? bands.value : null,
           settings: settings.value,
           legalEntities: legalEntities.value,
           locations: locations.value,
           numberings: numberings.value,
         });
-      }),
+      });
+    },
   }),
   peopleHome: t.field({
     type: PeopleHomeRef,
@@ -888,6 +918,25 @@ builder.queryFields((t) => ({
       const { roles } = (await caller(ctx)).asking.viewer;
       return { hr: roles.has('hr'), admin: roles.has('people_admin'), finance: roles.has('finance') };
     },
+  }),
+}));
+
+builder.mutationFields((t) => ({
+  setPayBand: t.field({
+    type: PayBandRef,
+    description:
+      'Set a pay band from a day, or correct the one recorded for that day; HR or finance (PEO-078).',
+    args: {
+      grade: t.arg.string({ required: true }),
+      currency: t.arg.string({ required: true }),
+      minimumMinor: t.arg.string({ required: true }),
+      midpointMinor: t.arg.string({ required: true }),
+      maximumMinor: t.arg.string({ required: true }),
+      effectiveFrom: t.arg.string({ required: true }),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { idempotencyKey: key, ...band }, ctx) =>
+      viaRest<PayBandView>(ctx, 'POST', '/v1/pay-bands', { body: band, key }),
   }),
 }));
 
