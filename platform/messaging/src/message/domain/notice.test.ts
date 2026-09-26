@@ -53,6 +53,12 @@ describe('renderNotice: the approval of a change (PEO-077)', () => {
     expect(expired.ok && expired.value.text).toContain('was not applied');
   });
 
+  it('asks the employee to correct a detail, never saying which or why (PEO-125)', () => {
+    const asked = renderNotice({ kind: 'correction_requested' }, INBOX, ACME);
+    expect(asked.ok && asked.value.subject).toBe('Acme Corp: HR asked you to correct a detail');
+    expect(asked.ok && asked.value.text).toContain('Open your profile');
+  });
+
   it('refuses a decision it has no words for', () => {
     expect(
       renderNotice({ kind: 'approval_decided', decision: 'maybe' as 'approved' }, INBOX, ACME).ok,
