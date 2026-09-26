@@ -75,8 +75,8 @@ services:
     ports: ['8108:8108']
     volumes: [typesense:/data]
 
-  # The local S3: SeaweedFS in its single-process mode. Production is Oracle
-  # Object Storage and R2; this stands in for both. MinIO was here until its
+  # The local S3: SeaweedFS in its single-process mode. Production is Amazon
+  # S3; this stands in for it. MinIO was here until its
   # images stopped being publicly pullable. `docs/environments.md` has why this
   # one, and `packages/testing` starts the same image for the tests.
   #

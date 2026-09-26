@@ -323,35 +323,37 @@ Schema, then service, then client, one layer further out each time. Production
 rolls all of them back when a smoke test fails — clients first, then the
 router, then People — and never the database.
 
-**People and the router run on one 4 GB Ubuntu 24.04 VM, x86_64 or arm64,
-under Docker Compose, for about €5 a month.** People holds three things a function-per-request runtime
-takes away: Kafka consumer groups, the hourly and daily jobs in
-`infrastructure/background.ts`, and the SIGTERM drain that lets a message in
-hand and a job in flight finish (PEO-118). The Cosmo Router is a Go binary with
-no serverless build at all. So they need a process, and the process lives on a
-VM that also runs what they lean on. The frontends stay on Vercel Hobby, and
-identity and messaging stay Vercel functions.
+**AWS is the only backend host.** People and the router run on one EC2
+`c7i-flex.large` (2 vCPU, 4 GB, amd64, Ubuntu 24.04) in `us-east-1`, under
+Docker Compose, stopped whenever nobody is using it ("The AWS host" below).
+People holds three things a function-per-request runtime takes away: Kafka
+consumer groups, the hourly and daily jobs in `infrastructure/background.ts`,
+and the SIGTERM drain that lets a message in hand and a job in flight finish
+(PEO-118). The Cosmo Router is a Go binary with no serverless build at all. So
+they need a process, and the process lives on an instance that also runs what
+they lean on. The frontends stay on Vercel Hobby, and identity and messaging
+stay Vercel functions. Every object People stores — browser uploads, export
+files, reports — and the nightly backups are in Amazon S3.
 
 ```
                          Cloudflare edge (TLS, DNS)
     browser / shell ──▶  api.kithena.com
-                              │  Cloudflare Tunnel (outbound from the VM; no inbound port)
-┌─ one 4 GB VM, amd64/arm64 ──┼──────────────────────────────────────────────┐
-│  compose project kithena-production                                        │
-│   cloudflared ──▶ router :4000 ──▶ people :4001 ──┬─▶ redpanda :9092       │
-│        └──── /v1/exports/files/* ─────────▶┘      ├─▶ temporal :7233 ─┐    │
-│                                                    ├─▶ openfga  :8080 ─┤    │
-│                                                    ├─▶ valkey   :6379  │    │
-│                                                    └─▶ postgres :5432 ◀┘    │
-│                                   (People's data as svc_people; Temporal;   │
-│                                    OpenFGA — one server, three databases)   │
-│  (kithena-staging: the same again, opt-in, needs an 8 GB VM)                │
-│  tailscaled ◀── GitHub Actions deploys, founder SSH (tailnet only)         │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                        ├─▶ Oracle Object Storage (exports, backups)
-                                        └─▶ Cloudflare R2 (browser uploads)
+       │                      │  Cloudflare Tunnel (outbound from the VM; no inbound port)
+       │  presigned PUT  ┌─ EC2 c7i-flex.large, us-east-1 (sleeps when idle) ───────────┐
+       │                 │  compose project kithena-production                          │
+       │                 │   cloudflared ──▶ router :4000 ──▶ people :4001 ──┬─▶ redpanda │
+       │                 │        └──── /v1/exports/files/* ─────────▶┘      ├─▶ temporal │
+       │                 │                                                    ├─▶ openfga  │
+       │                 │                                                    ├─▶ valkey   │
+       │                 │                                                    └─▶ postgres │
+       │                 │  tailscaled ◀── GitHub Actions deploys, founder SSH (tailnet)  │
+       │                 │  instance role kithena-vm (IMDSv2, hop limit 2)               │
+       │                 └───────────────────────────────┬──────────────────────────────┘
+       ▼                                                 ▼
+    S3 kithena-<account>-uploads     S3 kithena-<account>-exports, -backups
 
-    identity (Vercel function) ──▶ Neon Postgres (platform schema, svc_identity)
+    shell, back-office, auth origin, identity, messaging (Vercel, always on)
+    identity ──▶ Neon Postgres (platform schema, svc_identity)
 ```
 
 **People's data lives in the VM's Postgres; identity's stays on Neon.** Identity
@@ -374,9 +376,10 @@ change's job.
 #### What ships, and how
 
 - **Images** — a job on a native runner of the VM's architecture, chosen by the
-  `VM_PLATFORM` repository variable (`linux/amd64`, the default, on
-  `ubuntu-24.04`; `linux/arm64` on `ubuntu-24.04-arm`; both free for a public
-  repository, and no QEMU) builds both images and proves them before anything is
+  `VM_PLATFORM` repository variable (`linux/amd64`, the default and what the
+  EC2 `c7i-flex.large` is, on `ubuntu-24.04`; `linux/arm64` on
+  `ubuntu-24.04-arm` stays an option for a Graviton instance; both runners
+  free for a public repository, and no QEMU) builds both images and proves them before anything is
   pushed. The router image is `apps/gateway/Dockerfile` with the supergraph
   composed against `http://people:4001` — People's name on the Compose
   network, the same in every environment, so one router image serves both —
@@ -440,8 +443,8 @@ before any of this exists.
 (`kithena-staging`, `compose.staging.yaml`, its own tunnel and volumes) and it
 only deploys once `ROUTER_URL_STAGING` is set. On a 4 GB VM leave it unset:
 staging runs at production's limits, and the two together are 5.3 GB of
-limits. It needs an 8 GB VM for both (Hetzner CX32/CAX21), or a second 4 GB
-VM of its own.
+limits. It needs an 8 GB instance for both (`m7i-flex.large`), or a second
+instance of its own.
 
 #### Memory budget
 
@@ -481,29 +484,25 @@ on their own. CPU limits are caps on 2 vCPUs, deliberately oversubscribed.
 Staging (`compose.staging.yaml`) overrides nothing: it runs at these sizes,
 so it wants a VM of its own or an 8 GB one shared.
 
-#### The host
-
-Any 4 GB Ubuntu 24.04 VM with a public IPv4 address, x86_64 or arm64. Every
-image in `compose.yaml` is pinned by its multi-arch index digest (each lists
-`linux/amd64` and `linux/arm64`), the kithena images are built natively for
-whichever `VM_PLATFORM` says, and `bootstrap.sh` does not care which it is on.
-IPv4 is not optional: GitHub and GHCR are not reachable over IPv6.
-
-| Host | Shape | About | Notes |
-| --- | --- | --- | --- |
-| **AWS EC2 `c7i-flex.large`** (in use) | 2 vCPU (x86), 4 GB, 30 GB gp3 | ~$10 a month stopped when idle, ~$68 always on; paid from Free-plan credits | `VM_PLATFORM=linux/amd64`. Sleeps when idle and wakes when the People pages are opened: "The AWS host" below. |
-| **Hetzner CX22 / CX23** | 2 vCPU (x86), 4 GB, 40 GB SSD | €4–5 a month with the IPv4 address | `VM_PLATFORM=linux/amd64`. Falkenstein, Nuremberg or Helsinki. Hetzner's backups are +20% of the server price and optional: the nightly `backup.sh` to Oracle is the one relied on. |
-| Hetzner CAX11 | 2 vCPU (Ampere, arm64), 4 GB, 40 GB | ~€4 + €0.50 IPv4 | `VM_PLATFORM=linux/arm64`. Often out of stock; the same scripts when it is not. |
-| DigitalOcean Basic, 4 GB | 2 vCPU (x86), 4 GB, 80 GB | $24 a month | `VM_PLATFORM=linux/amd64`. The fallback where Hetzner has no capacity. |
-| Oracle Always Free, `VM.Standard.A1.Flex` | 1 OCPU / 6 GB or more (arm64), up to the grant's 2 OCPU / 12 GB | $0 | `VM_PLATFORM=linux/arm64`. When A1 capacity exists, which in popular regions it often does not. An instance idle under 20% CPU, network *and* memory for 7 days may be reclaimed unless the account is Pay As You Go. |
-
 #### The AWS host
 
-**Production runs on one EC2 `c7i-flex.large` in an account on AWS's Free
-plan, and the instance is stopped whenever nobody is using it.** A stopped
-instance bills no compute and no public IPv4 address; only its 30 GB volume is
-charged. The VM stops itself when idle and the People pages start it again, so
-the credits pay for the hours somebody works rather than for every hour.
+**Production runs on one EC2 `c7i-flex.large` in `us-east-1`, in an account on
+AWS's Free plan, and the instance is stopped whenever nobody is using it.** A
+stopped instance bills no compute and no public IPv4 address; only its 30 GB
+volume is charged. The VM stops itself when idle and the People pages start it
+again, so the credits pay for the hours somebody works rather than for every
+hour. `deploy/aws/provision.sh` makes all of it — the instance, its role, the
+three buckets, the wake roles and the budget — and prints every change before
+it makes one.
+
+**Architecture.** Four places, each doing the one thing it is cheapest at:
+
+| Piece | Where | Always on? |
+| --- | --- | --- |
+| Tenant app (shell), People remote, back-office, auth origin, Reach docs | Vercel Hobby | Yes |
+| Identity and messaging | Vercel functions; identity's data on Neon Free | Yes (Neon's compute sleeps between requests) |
+| People, the router, Redpanda, Temporal, OpenFGA, Valkey, People's Postgres | One EC2 `c7i-flex.large`, reached only through Cloudflare Tunnel (public) and Tailscale (deploys, SSH) | No: sleeps when idle, wakes on demand |
+| Uploads, exports, reports, backups | Amazon S3, three private buckets in the same region | Yes |
 
 **The Free plan** (accounts opened since July 2025): up to $200 of credits —
 $100 at sign-up and up to $100 more for trying services — spent against normal
@@ -515,18 +514,50 @@ memory budget above was measured for; the `t3`/`t4g` types are 1–2 GB and
 cannot hold the stack. `m7i-flex.large` (8 GB, ~13% more an hour) is the step
 up when staging should share the VM.
 
-**What it costs** (us-east-1 on-demand; other regions a little more):
+**What it costs a month** (us-east-1 on-demand):
 
 | | Always on (730 h) | Stopped when idle (~4 h each weekday, ~90 h) |
 | --- | --- | --- |
 | `c7i-flex.large`, ~$0.085/h | ~$62 | ~$7.60 |
 | Public IPv4, $0.005/h while running | ~$3.65 | ~$0.45 |
 | 30 GB gp3, $0.08/GB-month, running or not | $2.40 | $2.40 |
-| **A month** | **~$68** | **~$10.50** |
+| S3: a few GB at $0.023/GB-month, a few thousand requests | < $0.25 | < $0.25 |
+| Data out: inside AWS's 100 GB a month free | $0 | $0 |
+| EventBridge Scheduler, Budgets, IAM | $0 | $0 |
+| **AWS, a month** | **~$68** | **~$11** |
+| Vercel Hobby, Neon Free, Cloudflare (DNS, Tunnel), Tailscale Personal, Resend Free, GHCR, GitHub Actions | $0 | $0 |
 
 Always on, $200 of credits last under three months; stopped when idle, they
-cover the whole six. Egress is inside AWS's 100 GB a month free, and EventBridge
-Scheduler and Budgets cost nothing at this size.
+cover the whole six. S3's transfer from the instance is free in the same
+region, and People's buckets hold little: an upload lives a day, an export
+file two, a report eight, and backups thirty.
+
+**Storage and credentials.** People writes to `kithena-<account>-uploads` and
+`-exports`, and `backup.sh` to `-backups`, all as the instance role
+`kithena-vm` through the SDK's (or the CLI's) default credential chain: no
+access key exists anywhere. IMDSv2 is required, and its hop limit is 2, because
+People runs in a container one network hop further from the metadata service
+than the host; at 1, the container's token request dies on the way back and
+the SDK finds no credentials. The role's whole policy:
+
+```json
+{ "Statement": [
+  { "Sid": "ListTheThreeBuckets", "Effect": "Allow", "Action": "s3:ListBucket",
+    "Resource": ["arn:aws:s3:::kithena-<account>-uploads",
+                 "arn:aws:s3:::kithena-<account>-exports",
+                 "arn:aws:s3:::kithena-<account>-backups"] },
+  { "Sid": "UploadsAndExports", "Effect": "Allow",
+    "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+    "Resource": ["arn:aws:s3:::kithena-<account>-uploads/*",
+                 "arn:aws:s3:::kithena-<account>-exports/*"] },
+  { "Sid": "BackupsWithoutDelete", "Effect": "Allow",
+    "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"],
+    "Resource": "arn:aws:s3:::kithena-<account>-backups/*" } ] }
+```
+
+The backups bucket has no delete: a compromised VM can add a backup but cannot
+remove the good ones; its lifecycle rule deletes after 30 days. "Object
+storage" below has the buckets' rules.
 
 **While it is stopped:**
 
@@ -540,6 +571,9 @@ Scheduler and Budgets cost nothing at this size.
   router answers `/health/ready` through the tunnel, then reloads the view.
   Both routes want a signed-in person at a company that bought People; start
   is idempotent and sent at most once a minute per function instance.
+- **S3 is untouched.** The buckets do not sleep; their lifecycle rules keep
+  deleting on time, and an upload URL signed before the stop still works for
+  its five minutes.
 - **Jobs catch up.** Nothing is lost by stopping: Kafka offsets, BullMQ's
   queue (Valkey's append-only file) and Temporal's timers are on the volume.
   Hourly and daily jobs run at their next tick after boot, the nightly backup
@@ -547,8 +581,7 @@ Scheduler and Budgets cost nothing at this size.
   whose week ran out while asleep expires when Temporal next runs.
 - **A backup is taken before every stop.** `idle-stop.sh` runs `backup.sh`,
   retries once, and refuses to stop after two failures unless the last good
-  backup is under 24 hours old — so `backup.env` must exist for the VM to
-  sleep at all.
+  backup (`/etc/kithena/.last-backup`) is under 24 hours old.
 - **A deploy wakes it.** The production workflow assumes `kithena-deploy-wake`
   through GitHub's OIDC token, starts the instance, and waits for its tailnet
   node before copying anything. A deploy counts as activity.
@@ -586,63 +619,113 @@ nothing else. No stop permission: only the VM stops itself. The volume is
 encrypted with the account's `aws/ebs` key, whose key policy already lets EC2
 use it on behalf of any principal in the account, so starting needs no KMS
 grant. With `WORKSPACE_INSTANCE_ID`, `AWS_ROLE_ARN` or `AWS_REGION` unset the
-routes answer 404 and the page shows People's error as before — local dev and
-any other host are unchanged.
+routes answer 404 and the page shows People's error as before, which is how
+local dev runs.
 
-**The checklist:**
+#### The checklist: from an empty account to the first deploy
 
-1. Open the AWS account on the **Free plan**, and turn on **IAM Identity
-   Center** for the operator (one user, `AdministratorAccess` permission set)
-   so the CLI signs in with `aws sso login` and no access key exists. Leave the
-   root user with MFA and no keys.
-2. Run `deploy/aws/provision.sh --region <r> --vercel-team <team slug>
-   --budget-email <you> --operator-ip <your IP>` and read what it prints; then
-   again with `--apply`. It creates the instance (Canonical's Ubuntu 24.04
-   amd64 AMI through the SSM parameter, 30 GB gp3 encrypted, IMDSv2 only,
-   termination protection, `InstanceInitiatedShutdownBehavior=stop`, a public
-   IPv4 released while stopped), a security group with no inbound rule but SSH
-   from that IP, the two OIDC providers and wake roles, and a $50 monthly
-   budget alerting at $1, $10 and $50 of usage before credits. Add
-   `--start-hour 8 --stop-hour 20 --timezone <tz>` for an EventBridge Scheduler
-   pair that starts it on weekday mornings and stops it nightly, through a role
-   that may do only that. Pass `--key-name` for an existing key pair, or use EC2
-   Instance Connect for the one SSH that follows.
-3. Bootstrap it: `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=… IDLE_STOP_MINUTES=30
-   bash -s' < deploy/vm/bootstrap.sh`, write `/etc/kithena/backup.env`, then
-   close SSH: `provision.sh … --close-ssh --apply`.
-4. Enable OIDC on the Vercel project (Settings → Security → Secure backend
-   access, team issuer mode), and set the repository variables below:
+In order. Every step is once; rerunning a script is how a later change to it
+lands.
+
+1. **AWS account.** Sign up on the **Free plan**. Give the root user MFA and
+   no access keys. Turn on **IAM Identity Center** in `us-east-1` with one
+   user and the `AdministratorAccess` permission set, then on the laptop
+   `aws configure sso` and `aws sso login`: the CLI signs in with short-lived
+   credentials and no access key is ever created.
+2. **Provision.** `deploy/aws/provision.sh --vercel-team <team slug>
+   --budget-email <you> --operator-ip "$(curl -4s ifconfig.me)"` and read the
+   plan it prints; then the same with `--apply`. It makes, in this order: the
+   security group (no inbound rule but SSH from that IP); the three buckets;
+   the `kithena-vm` role and instance profile; the instance (Canonical's
+   Ubuntu 24.04 amd64 AMI through the SSM parameter, 30 GB gp3 encrypted,
+   IMDSv2 only with hop limit 2, the instance profile, termination
+   protection, `InstanceInitiatedShutdownBehavior=stop`, a public IPv4
+   released while stopped); the Vercel and GitHub OIDC providers with the two
+   wake roles; and a $50 monthly budget alerting at $1, $10 and $50 of usage
+   before credits. Add `--start-hour 8 --stop-hour 20 --timezone <tz>` for an
+   EventBridge Scheduler pair that starts it on weekday mornings and stops it
+   nightly. Pass `--key-name` for an existing key pair, or use EC2 Instance
+   Connect for the one SSH that follows. Keep what it prints under
+   "settings".
+3. **Tailscale.** Create a tailnet. In the access policy add tags and rules:
+   ```json
+   "tagOwners": { "tag:vm": ["autogroup:admin"], "tag:ci": ["autogroup:admin"] },
+   "grants": [ { "src": ["tag:ci"], "dst": ["tag:vm"], "ip": ["22"] } ],
+   "ssh": [
+     { "action": "accept", "src": ["tag:ci"], "dst": ["tag:vm"], "users": ["deploy"] },
+     { "action": "check",  "src": ["autogroup:admin"], "dst": ["tag:vm"], "users": ["deploy"] }
+   ]
+   ```
+   Generate an auth key tagged `tag:vm` (one-off), and an **OAuth client** with
+   the `auth_keys` write scope and tag `tag:ci` for the workflows.
+4. **Bootstrap.** `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-…
+   IDLE_STOP_MINUTES=30 bash -s' < deploy/vm/bootstrap.sh`. It installs Docker
+   and Compose, unattended upgrades with a 04:30 reboot, 4 GB swap
+   (swappiness 10), Tailscale (hostname `kithena-vm`), then SSH key-only with
+   root login off, ufw (nothing in but the tailnet), the `deploy` user, the
+   backup timer and the idle stop. Check `tailscale ssh deploy@kithena-vm`
+   works, then close SSH for good: `provision.sh … --close-ssh --apply`. From
+   here on nothing reaches the VM except through Tailscale (which dials out)
+   and nothing is served except through the tunnel. Backups need nothing
+   more: `backup.sh` finds its bucket from the instance and writes with its
+   role.
+5. **Cloudflare Tunnel.** Zero Trust → Networks → Tunnels → Create
+   (`cloudflared`), one per environment (`kithena-production`, and
+   `kithena-staging` if wanted). Copy the token. Public hostnames, in this
+   order:
+   - `api.kithena.com`, path `^/v1/exports/files/` → `http://people:4001`
+   - `api.kithena.com` (no path) → `http://router:4000`
+
+   (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.
+6. **Vercel project for the People remote**, staging and production: Framework
+   **Other**, Root Directory **empty**, no build command. **Do not connect the
+   Git repository**: a Git build is unsigned. Add a custom domain to each. Ids
+   go in `VERCEL_PROJECT_ID_PEOPLE_REMOTE_*`.
+7. **Waking.** On the tenant app's Vercel project, enable OIDC (Settings →
+   Security → Secure backend access, team issuer mode).
+8. **An Ed25519 key pair per environment**, private half to the environment
+   secret, public half to the repository variable:
+   ```bash
+   node -e "const k=require('node:crypto').generateKeyPairSync('ed25519');
+   console.log('private', k.privateKey.export({format:'der',type:'pkcs8'}).toString('base64'));
+   console.log('public ', k.publicKey.export({format:'der',type:'spki'}).toString('base64'))"
+   ```
+9. **GitHub.** The environment secrets and repository variables below —
+   `PEOPLE_ENV` with the bucket names `provision.sh` printed, and
    `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`,
-   `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION`, `VM_PLATFORM=linux/amd64`. The
-   production deploy passes the first two and the region to the shell as
+   `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION=us-east-1`, `VM_PLATFORM=linux/amd64`.
+   The production deploy passes the first two and the region to the shell as
    `WORKSPACE_INSTANCE_ID`, `AWS_ROLE_ARN` and `AWS_REGION`.
-5. Deploy. Then leave it alone for 45 minutes and check
-   `journalctl -u kithena-idle-stop` said `stop:` and the console says stopped;
-   open `/people` and watch it wake.
+10. **GHCR** — nothing to create: the first run publishes both packages and
+    links them to the repository. Optionally set each package public
+    (Package settings → Change visibility).
+11. **Deploy.** Run the production workflow. Then open an import and an export
+    on the People pages (the upload proves CORS and the role's `PutObject`;
+    the export proves the exports bucket), leave it alone for 45 minutes,
+    check `journalctl -u kithena-idle-stop` said `stop:`, the console says
+    stopped and `aws s3 ls s3://kithena-<account>-backups/production/` has
+    today's dump; open `/people` and watch it wake.
 
-**Leaving the Free plan.** Before the six months or the credits end, either
-upgrade the account to the Paid plan in the billing console — nothing is
-recreated, the same instance keeps running and the budget alerts start meaning
-real money — or move hosts: any 4 GB VM in the table above, `bootstrap.sh`
-without `IDLE_STOP_MINUTES`, the backup restored, `VM_TAILSCALE_HOST`
-unchanged, and the three wake variables unset, which turns waking off. A Free
-plan account that is not upgraded is closed when the plan ends, and its
-resources go with it: take a last backup first.
+**Leaving the Free plan.** Before the six months or the credits end, upgrade
+the account to the Paid plan in the billing console: nothing is recreated, the
+same instance keeps running, the buckets stay, and the budget alerts start
+meaning real money. A Free plan account that is not upgraded is closed when
+the plan ends, and its resources — the buckets and the backups in them
+included — go with it.
 
 #### The bill of materials
 
 | Piece | Service, plan | Limits that matter here |
 | --- | --- | --- |
-| People, router, Redpanda, Temporal, OpenFGA, Valkey | **One 4 GB VM** (above; Hetzner CX22 / CX23 recommended) | ~€5 a month: the server, plus €0.50 for its IPv4 address on Hetzner. 40 GB of disk holds the images, the volumes and the swapfile; People's image is ~520 MB. Staging does not fit beside production (see "Memory budget"). |
+| People, router, Redpanda, Temporal, OpenFGA, Valkey | **One EC2 `c7i-flex.large`**, `us-east-1` (above) | ~$11 a month stopped when idle, paid from Free-plan credits. 30 GB of disk holds the images, the volumes and the swapfile; People's image is ~520 MB. Staging does not fit beside production (see "Memory budget"). |
+| Uploads, exports, reports, backups | **Amazon S3**, three buckets | Cents a month; SSE-S3, private, lifecycle rules as below. |
 | Public HTTPS for the router | **Cloudflare Tunnel** (Zero Trust Free) | Free, no bandwidth charge; the VM opens no inbound port. |
-| People's database | **The VM's Postgres** | Inside the VM's disk and memory above; no separate bill. No point-in-time restore — see "Backups". |
+| People's database | **The VM's Postgres** | Inside the instance's disk and memory; no separate bill. No point-in-time restore — see "Backups". |
 | Identity's database | **Neon Free** (unchanged) | 100 CU-hours per project a month, 0.5 GB storage, 5 GB egress; scale-to-zero after 5 minutes. Identity is request-driven and sleeps, so it sits well inside the hours. |
-| Export files, nightly backups | **Oracle Object Storage** (Always Free; the account needs no VM) via its S3 Compatibility API | 20 GB across tiers (10 GB Standard on a PAYG account), 50,000 API requests a month, egress inside the 10 TB. |
-| Browser uploads (imports, up to 100 MB) | **Cloudflare R2** Free | 10 GB-month storage, 1M Class A and 10M Class B operations a month, no egress fees. |
 | Frontends, identity, messaging | **Vercel Hobby** | 100 deployments a day — every PR run spends several, one per project. **No deployment protection on production or a custom domain** (the API refuses `ssoProtection` there), which is why the back-office's own check is its only door. Hobby is non-commercial use only: the first paying customer is the trigger for Pro. |
 | Email | **Resend Free** | 3,000 emails a month, 100 a day, one domain. |
 | Images | **GHCR** | Container registry storage and bandwidth are currently free; the published Packages allowance on GitHub Free is 500 MB storage and 1 GB/month transfer for private packages, if that ever applies. Measured: People's image is ~520 MB uncompressed, most of it one layer that changes every commit; the router's per-commit layers are under 1 MB. Five versions of each are kept (`delete-package-versions`). Pulls by Actions are free. **Making both packages public** (the repository is public and the images hold no secret) takes them out of any quota for good. |
-| CI | **GitHub Actions**, public repository | Standard runners, including `ubuntu-24.04-arm`, free. |
+| CI | **GitHub Actions**, public repository | Standard runners free. |
 | Private access | **Tailscale Personal** | 3 users, 100 devices; CI joins as an ephemeral node per run. |
 
 #### Why Tailscale for deploys
@@ -654,117 +737,6 @@ store and no public SSH hostname. The alternative, SSH through Cloudflare
 Access, would route deploys through the `cloudflared` container that the
 deploy itself manages — a broken stack would lock out the fix. Tailscale runs
 on the host, beside Docker rather than inside it.
-
-#### Created by hand, once
-
-**Accounts**: the VM's provider (Hetzner, recommended, is the only paid one),
-Oracle Cloud (for the two buckets), Cloudflare (already has the DNS),
-Tailscale, Neon (exists), Vercel (exists), Resend (exists).
-
-1. **VM.** Nearest the Neon project's region (Neon console → project
-   settings; `aws-eu-central-1` is Frankfurt).
-   - **Hetzner** (recommended): Hetzner account → Cloud Console → a new
-     project (`kithena`). Security → SSH keys → add your public key. Firewalls
-     → create `kithena-vm`: one inbound rule, **TCP 22 from your own IP only**
-     (`curl -4 ifconfig.me`), nothing else. Servers → Add server: location
-     Falkenstein, Nuremberg or Helsinki; image **Ubuntu 24.04**; type **CX22**
-     (or CX23; **CAX11** if the arm64 one is in stock); networking **public
-     IPv4 on** (IPv6 too, harmless); the SSH key; the firewall. Backups off.
-     An API token (Security → API tokens, read & write) is only needed to
-     script this; the console does it by hand.
-   - **DigitalOcean**: Create → Droplet, Ubuntu 24.04 (x64), Basic, 4 GB /
-     2 vCPU, your SSH key. Networking → Firewalls → create one with a single
-     inbound rule, SSH from your IP, applied to the droplet.
-   - **Oracle Always Free**: Compute → Create instance, Ubuntu 24.04
-     (aarch64), `VM.Standard.A1.Flex`, 1–2 OCPU and 6–12 GB, in the home
-     region; the SSH key. Upgrade the account to Pay As You Go. Oracle's
-     firewall is the subnet's security list.
-
-   Then set the repository variable `VM_PLATFORM` to the VM's platform
-   (`linux/amd64` for CX22/CX23 and DigitalOcean, `linux/arm64` for CAX11 and
-   Oracle; `bootstrap.sh` prints it). **Oracle account** either way, for the
-   buckets in step 5: in the region nearest Neon's, upgraded to **Pay As You
-   Go** (Billing → Upgrade; still $0 inside the Always Free limits) with a
-   $1 budget alert.
-2. **Tailscale.** Create a tailnet. In the access policy add tags and rules:
-   ```json
-   "tagOwners": { "tag:vm": ["autogroup:admin"], "tag:ci": ["autogroup:admin"] },
-   "grants": [ { "src": ["tag:ci"], "dst": ["tag:vm"], "ip": ["22"] } ],
-   "ssh": [
-     { "action": "accept", "src": ["tag:ci"], "dst": ["tag:vm"], "users": ["deploy"] },
-     { "action": "check",  "src": ["autogroup:admin"], "dst": ["tag:vm"], "users": ["deploy"] }
-   ]
-   ```
-   Generate an auth key tagged `tag:vm` (one-off), and an **OAuth client** with
-   the `auth_keys` write scope and tag `tag:ci` for the workflows.
-3. **Bootstrap.** From a checkout, as root (Hetzner, DigitalOcean):
-   `ssh root@<public ip> 'TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh`
-   — on Oracle, whose image logs in as `ubuntu`:
-   `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh`.
-   It installs Docker and Compose, unattended upgrades with a 04:30 reboot,
-   4 GB swap (swappiness 10), Tailscale (hostname `kithena-vm`), then SSH
-   key-only with root login off, ufw (reset, then nothing in but the tailnet),
-   the `deploy` user and the backup timer, and prints the `VM_PLATFORM` to
-   set. Check `tailscale ssh deploy@kithena-vm` works, then **remove the SSH
-   rule** from the provider's firewall — Hetzner: Firewalls → `kithena-vm` →
-   delete the inbound rule, leaving a firewall with no inbound rules, which
-   drops everything; DigitalOcean: the same on its Cloud Firewall; Oracle: the
-   subnet security list's port 22 ingress rule. From here on nothing reaches
-   the VM except through Tailscale (which dials out) and nothing is served
-   except through the tunnel. Rerunning the script, now over
-   `ssh deploy@kithena-vm 'sudo TS_AUTHKEY=… bash -s' < …`, is how a change to
-   it reaches the VM.
-4. **Tunnel.** Cloudflare Zero Trust → Networks → Tunnels → Create
-   (`cloudflared`), one per environment (`kithena-production`, and
-   `kithena-staging` if wanted). Copy the token. Public hostnames, in this
-   order:
-   - `api.kithena.com`, path `^/v1/exports/files/` → `http://people:4001`
-   - `api.kithena.com` (no path) → `http://router:4000`
-
-   (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.
-5. **Buckets, Oracle** (Object Storage, the home region, both **private**, no
-   pre-authenticated requests):
-   - `kithena-exports` — lifecycle rules: delete objects matching `*/exports/*`
-     after **2 days** (a link lives 24 hours) and `*/imports/*` after **8 days**
-     (a report lives 7). People sweeps by age too; the rules are the backstop.
-   - `kithena-backups` — lifecycle rule: delete after **30 days**.
-   - Identity → your user → **Customer Secret Keys** → generate. Two, if you
-     want the backup key separate from People's. The S3 endpoint is
-     `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com`
-     (the older `…oraclecloud.com` form also works); the namespace is on the
-     tenancy page. Region is the buckets' region identifier, e.g. `eu-frankfurt-1`.
-6. **Bucket, Cloudflare R2** — `kithena-uploads`, private. CORS: `PUT` (and
-   `GET`, `HEAD`) from `https://*.app.kithena.com` (staging:
-   `https://*.staging.app.kithena.com`), header `content-type`, max age 3600.
-   Lifecycle: delete objects after **1 day** (an upload is consumed by its
-   import or abandoned). An R2 API token scoped to that bucket with Object
-   Read & Write. Endpoint `https://<account id>.r2.cloudflarestorage.com`,
-   region `auto`. Oracle's S3 API cannot hold a CORS rule at all, which is why
-   uploads live here.
-7. **Backups' credentials** — on the VM, once, as root:
-   ```bash
-   sudo install -m 600 /dev/stdin /etc/kithena/backup.env <<'EOF'
-   BACKUP_S3_ENDPOINT=https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
-   BACKUP_S3_REGION=<region>
-   BACKUP_S3_BUCKET=kithena-backups
-   AWS_ACCESS_KEY_ID=<customer secret key id>
-   AWS_SECRET_ACCESS_KEY=<customer secret key>
-   EOF
-   ```
-8. **Vercel project for the People remote**, staging and production: Framework
-   **Other**, Root Directory **empty**, no build command. **Do not connect the
-   Git repository**: a Git build is unsigned. Add a custom domain to each. Ids
-   go in `VERCEL_PROJECT_ID_PEOPLE_REMOTE_*`.
-9. **An Ed25519 key pair per environment**, private half to the environment
-   secret, public half to the repository variable:
-   ```bash
-   node -e "const k=require('node:crypto').generateKeyPairSync('ed25519');
-   console.log('private', k.privateKey.export({format:'der',type:'pkcs8'}).toString('base64'));
-   console.log('public ', k.publicKey.export({format:'der',type:'spki'}).toString('base64'))"
-   ```
-10. **GHCR** — nothing to create: the first run publishes both packages and
-    links them to the repository. Optionally set each package public
-    (Package settings → Change visibility).
 
 #### GitHub: environment secrets (Settings → Environments → `staging` / `production`)
 
@@ -794,44 +766,36 @@ MESSAGING_URL=https://messaging.kithena.com
 MESSAGING_PEOPLE_TOKEN=…
 TENANT_APP_BASE=https://{slug}.app.kithena.com
 PEOPLE_PUBLIC_URL=https://api.kithena.com
-# Exports: Oracle Object Storage
-PEOPLE_EXPORT_BUCKET=kithena-exports
+# Exports: S3, through the instance role. No endpoint, no keys.
+PEOPLE_EXPORT_BUCKET=kithena-<account>-exports
+PEOPLE_EXPORT_S3_REGION=us-east-1
 PEOPLE_EXPORT_LINK_BASE=https://api.kithena.com/v1/exports/files
 PEOPLE_EXPORT_ENCRYPTION_KEY=<base64 32 bytes>
 PEOPLE_EXPORT_SIGNING_KEY=<base64 32 bytes>
-PEOPLE_EXPORT_S3_ENDPOINT=https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
-PEOPLE_EXPORT_S3_REGION=<region>
-PEOPLE_EXPORT_S3_ACCESS_KEY_ID=<customer secret key id>
-PEOPLE_EXPORT_S3_SECRET_ACCESS_KEY=<customer secret key>
-# Oracle's S3 API takes SSE-C only; Oracle encrypts every object at rest anyway.
-PEOPLE_EXPORT_SSE=none
-# Uploads: Cloudflare R2, written by the browser with a presigned PUT
-PEOPLE_UPLOAD_BUCKET=kithena-uploads
-PEOPLE_UPLOAD_S3_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
-PEOPLE_UPLOAD_S3_REGION=auto
-PEOPLE_UPLOAD_S3_ACCESS_KEY_ID=…
-PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY=…
-# R2 does not implement x-amz-server-side-encryption on PutObject; it
-# encrypts every object at rest anyway.
-PEOPLE_UPLOAD_SSE=none
-PEOPLE_UPLOAD_CORS_ORIGINS=https://*.app.kithena.com
+# Uploads: S3, written by the browser with a presigned PUT People signs as the
+# instance role.
+PEOPLE_UPLOAD_BUCKET=kithena-<account>-uploads
+PEOPLE_UPLOAD_S3_REGION=us-east-1
 ```
 
-The two stores' settings are separate on purpose (`PEOPLE_UPLOAD_*` for R2,
-`PEOPLE_EXPORT_*` for Oracle); neither falls back to a plain `S3_*` here, so
-leave `S3_*` out.
+`PEOPLE_EXPORT_SSE` and `PEOPLE_UPLOAD_SSE` are left at their default,
+`AES256`, which S3 honours. There is no `_S3_ENDPOINT` and no
+`_ACCESS_KEY_ID`: unset, People talks to Amazon S3 and takes the instance
+role from the default credential chain. `PEOPLE_UPLOAD_CORS_ORIGINS` is only
+for `pnpm --filter @kithena/people upload-bucket`, which production does not
+need — `provision.sh` sets the CORS. Leave the plain `S3_*` out.
 
 Export links are People's own signed URLs, never the bucket's: People reads
 the object and decrypts it on `GET /v1/exports/files/…`, which is why that one
 path is routed through the tunnel and the bucket stays private. Nothing
-presigns against Oracle.
+presigns a GET.
 
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 
 | Variable | Holds |
 | --- | --- |
 | `VM_TAILSCALE_HOST` | The VM's tailnet name, `kithena-vm`. |
-| `VM_PLATFORM` | The VM's platform, `linux/amd64` (unset means this) or `linux/arm64`. Picks the native runner the images are built on; anything else fails the images job. |
+| `VM_PLATFORM` | The VM's platform: `linux/amd64` (unset means this), which the EC2 `c7i-flex.large` is; `linux/arm64` only for a Graviton instance. Picks the native runner the images are built on; anything else fails the images job. |
 | `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION` | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off. |
 | `AWS_DEPLOY_ROLE_ARN` | `kithena-deploy-wake`, which the production deploy assumes to start the VM before deploying to it. Unset: the deploy assumes the VM is up. |
 | `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION` | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`. |
@@ -857,15 +821,17 @@ the VM:
 - `<env>/<date>/topics.txt.gz` — every `kithena.*` topic, one record per line
   (`topic key value`, key and value base64; headers are not kept).
 
-Retention is the bucket's 30-day rule. `journalctl -u kithena-backup` has the
+They go to `kithena-<account>-backups` through the instance role; no key is
+stored on the VM. Retention is the bucket's 30-day lifecycle rule, and the
+role cannot delete. `journalctl -u kithena-backup` has the
 last run. Identity's data is not in it: it is Neon's, which keeps its own
 history.
 
 **There is no point-in-time restore for People's data.** The recovery point is
 the last nightly dump: a disk lost at 03:00 loses almost a day of HR changes.
-That is the price of $0 and is acceptable while the founder is the only user.
-It stops being acceptable with the first customer, and the fix is the move in
-"Scaling later": Neon (paid) or RDS, both of which have point-in-time restore.
+That is the price of one small instance and is acceptable while the founder
+is the only user. It stops being acceptable with the first customer, and the
+fix is the move in "Scaling later": RDS, which has point-in-time restore.
 The move is a `pg_dump` from here and a `pg_restore` there, then
 `PEOPLE_DATABASE_URL` pointed at the new host (as `svc_people`, the direct
 endpoint rather than a pooler — People keeps a pool of its own and prepares
@@ -875,24 +841,25 @@ Restore, on the VM, as root. First the helper:
 
 ```bash
 env=production; day=2026-09-24; p=kithena-$env
-aws() { docker run --rm -i --env-file /etc/kithena/backup.env amazon/aws-cli:2.31.0 \
-  --endpoint-url "$(sed -n 's/^BACKUP_S3_ENDPOINT=//p' /etc/kithena/backup.env)" "$@"; }
+# The instance role, through IMDSv2; the bucket is provision.sh's name for it.
+aws() { docker run --rm -i -e AWS_REGION=us-east-1 amazon/aws-cli:2.31.0 "$@"; }
+bucket=kithena-<account>-backups
 
 # People's database. Roles must exist: on a fresh volume, restore
 # postgres.sql.gz (below) first, or run `deploy.sh $env migrate` once.
 docker compose -p $p stop people
 docker exec $p-postgres-1 psql -q -U kithena -d postgres \
   -c 'DROP DATABASE IF EXISTS kithena WITH (FORCE)' -c 'CREATE DATABASE kithena OWNER migrator'
-aws s3 cp "s3://kithena-backups/$env/$day/people.dump" - \
+aws s3 cp "s3://$bucket/$env/$day/people.dump" - \
   | docker exec -i $p-postgres-1 pg_restore -U kithena -d kithena --exit-on-error
 docker compose -p $p start people
 
 # The rest of the VM Postgres: roles, Temporal and OpenFGA.
 docker compose -p $p stop people temporal openfga
-aws s3 cp "s3://kithena-backups/$env/$day/postgres.sql.gz" - \
+aws s3 cp "s3://$bucket/$env/$day/postgres.sql.gz" - \
   | gunzip | docker exec -i $p-postgres-1 psql -q -U kithena -d postgres
 # The topics: create them, then produce every record back.
-aws s3 cp "s3://kithena-backups/$env/$day/topics.txt.gz" - | gunzip > /tmp/topics.txt
+aws s3 cp "s3://$bucket/$env/$day/topics.txt.gz" - | gunzip > /tmp/topics.txt
 cut -d' ' -f1 /tmp/topics.txt | sort -u | xargs docker exec $p-redpanda-1 rpk topic create
 docker exec -i $p-redpanda-1 rpk topic produce -f '%t %k{base64} %v{base64}\n' < /tmp/topics.txt
 ```
@@ -907,20 +874,20 @@ through the line format.
 
 #### Scaling later
 
-Everything above is a set of containers and S3 endpoints, so each move is a
-host or a URL, not a rewrite.
+Everything above is a set of containers, S3 buckets and URLs, so each move is a
+host or a setting, not a rewrite.
 
 | Move | When | What changes |
 | --- | --- | --- |
-| 4 GB VM → 8 GB (Hetzner CX32 or CAX21, then CX42/CAX31) | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production | Rescale the server (Hetzner keeps the disk and IP; a few minutes down), then raise the limits in `compose.yaml`. Same scripts. |
-| People and router → ECS/Fargate or Kubernetes | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA | Same images from GHCR (or pushed to ECR); `compose.yaml`'s environment becomes the task definition; the tunnel becomes a load balancer. |
-| Redpanda → Redpanda Cloud (or MSK) | Real event volume, or People running more than one replica | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted. |
+| `c7i-flex.large` → `m7i-flex.large` (8 GB), then `m7i.xlarge` | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production | Stop, change the instance type, start (the volume, role and tailnet name stay), then raise the limits in `compose.yaml`. |
+| People and router → ECS on Fargate | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA | Same images (from GHCR, or pushed to ECR); `compose.yaml`'s environment becomes the task definition, the `kithena-vm` policy becomes the task role, the tunnel becomes an ALB. The buckets do not move. Waking and idle-stop go away. |
+| Redpanda → Amazon MSK or Redpanda Cloud | Real event volume, or People running more than one replica | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted. |
 | Temporal → Temporal Cloud | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted. |
-| OpenFGA → Okta FGA or a managed OpenFGA | Tuple volume or availability outgrows one container | `OPENFGA_URL`, `OPENFGA_STORE_ID` and credentials. |
-| Valkey → managed (Upstash, ElastiCache, Aiven) | Export queue durability matters beyond one disk | `VALKEY_URL`. |
-| People's database: VM Postgres → Neon (paid) or RDS | The first customer (for point-in-time restore), or data or load the VM's disk and memory cannot carry | `pg_dump` here, `pg_restore` there; `PEOPLE_DATABASE_URL` in `PEOPLE_ENV` (and out of `compose.yaml`); the migrate step pointed at the new host. Not Neon Free: People's polling would exhaust its hours. |
+| People's database: VM Postgres → Amazon RDS for PostgreSQL | The first customer (for point-in-time restore), or data or load the VM's disk and memory cannot carry | `pg_dump` here, `pg_restore` there; `PEOPLE_DATABASE_URL` in `PEOPLE_ENV` (and out of `compose.yaml`); the migrate step pointed at the new host. |
+| Valkey → ElastiCache | Export queue durability matters beyond one disk | `VALKEY_URL`. |
+| OpenFGA → a managed OpenFGA | Tuple volume or availability outgrows one container | `OPENFGA_URL`, `OPENFGA_STORE_ID` and credentials. |
+| `us-east-1` → an EU region (`eu-central-1` or `eu-west-1`) | **Before the first real customer's data.** Employee records of EU staff belong in the EU for GDPR, and moving is cheap only while nothing real is stored | `provision.sh --region eu-…` makes a new instance and new buckets beside the old; restore the last backup there, point `PEOPLE_ENV`'s regions and bucket names and the wake variables at the new ones, deploy, then delete the old. Move Neon's project to the matching region at the same time. |
 | Identity's database: Neon Free → Launch/Scale | 0.5 GB of data, the CU-hour ceiling, or the first customer | The plan. Same connection string. |
-| Oracle Object Storage and R2 → AWS S3 | Egress to AWS workloads, a customer's region or compliance requirement, or one provider for both | The two sets of S3 settings: endpoint unset, AWS region, keys. Bucket CORS and lifecycle rules recreated on S3. |
 | Vercel Hobby → Pro | The first paying customer (Hobby is non-commercial), or production needs deployment protection | The plan. |
 
 #### Kafka: SASL and TLS
@@ -950,113 +917,94 @@ well. The error names the setting, never its value.
 - **The outbox relay.** Debezium is not deployed anywhere yet, so People's
   outbox rows are written and nothing publishes them. It would be one more
   container on this VM.
-- **Server-side encryption headers.** Neither provider takes the SSE-S3
-  header People sends by default — Oracle's S3 API supports SSE-C only, R2
-  lists it as not implemented on PutObject — and both encrypt at rest on their
-  own, so the template sets `PEOPLE_EXPORT_SSE=none` and `PEOPLE_UPLOAD_SSE=none`.
-  Worth confirming on the first staging export and upload.
 
 ### Object storage
 
-People keeps two S3-compatible stores, each its own endpoint, bucket and
-credentials, because they are different trust boundaries:
+Everything People stores, and the VM's backups, is in Amazon S3: three
+private buckets in the instance's region, made by `deploy/aws/provision.sh`.
+People keeps two stores, each its own bucket and settings, because they are
+different trust boundaries:
 
-| Store | Provider | Written by | Holds | Variables |
-| --- | --- | --- | --- | --- |
-| **uploads** | Cloudflare R2 | the browser, with a presigned PUT | an import's file, for its import (≤ 24 h) | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` |
-| **exports** | Oracle Object Storage (S3 Compatibility API) | People only | export files (a day), import reports (a week), dry-run reports (a day), all sealed by People | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*` |
+| Bucket | Written by | Holds | Variables |
+| --- | --- | --- | --- |
+| `kithena-<account>-uploads` | the browser, with a presigned PUT People signs | an import's file, for its import (≤ 24 h) | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_*`, `PEOPLE_UPLOAD_SSE` |
+| `kithena-<account>-exports` | People only | export files, import reports and dry-run reports, all sealed by People (AES-256-GCM) | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*`, `PEOPLE_EXPORT_SSE` |
+| `kithena-<account>-backups` | `backup.sh` only | `<env>/<date>/…` dumps | none: derived on the instance |
 
-Each `PEOPLE_<STORE>_S3_*` falls back to the plain `S3_*`, which is how one
-local object store serves both on a laptop.
+`PEOPLE_<STORE>_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID` and
+`_SECRET_ACCESS_KEY` each fall back to the plain `S3_*`, which is how one local
+object store serves both on a laptop. **In production only the region is
+set**: no endpoint means Amazon S3 (virtual-hosted URLs), and no keys means the
+SDK's default credential chain, which on the instance is the `kithena-vm` role
+through IMDSv2. The two keys go together or not at all; half a pair stops
+People at boot. Keys remain for a store that is not on this instance, such as
+a laptop's SeaweedFS.
+
+**Every bucket:** Block Public Access (all four settings), default encryption
+SSE-S3 (`AES256`), Object Ownership `BucketOwnerEnforced` (ACLs off),
+versioning off, a policy that denies any request not over TLS, and a
+lifecycle rule that also aborts a multipart upload left unfinished for a day.
 
 **Server-side encryption, per store: `PEOPLE_UPLOAD_SSE`, `PEOPLE_EXPORT_SSE`**
 — `AES256` (the default) or `none`. `AES256` asks for SSE-S3 on every write
 (`x-amz-server-side-encryption: AES256`; for uploads it is signed into the
-presigned PUT, so the browser sends it). `none` sends no such header, for a
-provider that encrypts at rest on its own and refuses it:
+presigned PUT, so the browser must send it). S3 honours it, and the bucket's
+default encryption would apply it anyway; asking makes an unencrypted write
+impossible to sign. `none` sends no header, for a store that refuses it.
 
-| Store | Setting | Why |
-| --- | --- | --- |
-| exports on Oracle | `PEOPLE_EXPORT_SSE=none` | Oracle Object Storage encrypts every object at rest by default (AES-256, Oracle-managed keys, or a Vault key set on the bucket), and its S3 Compatibility API supports SSE-C only, not `x-amz-server-side-encryption: AES256`. Export files are sealed by People (AES-256-GCM) before they leave the process either way. |
-| uploads on R2 | `AES256` by default | R2 encrypts every object at rest. Its S3 compatibility table lists `x-amz-server-side-encryption` on PutObject as not implemented; if R2 refuses the header, set `PEOPLE_UPLOAD_SSE=none` — nothing is lost, since R2's own encryption is always on. Check this on the first staging upload. |
-| local, AWS S3 | `AES256` | Both honour SSE-S3. |
+**Object keys, and the lifecycle rules that match them.** S3 lifecycle filters
+are prefixes, not globs, so each key starts with how long it lives:
 
-**Why uploads are not on Oracle.** A browser can only PUT to a bucket whose
-CORS answers the tenant app's preflight, and Oracle Object Storage returns
-fixed CORS headers that cannot be configured (Oracle's Object Storage FAQ:
-"the returned headers are fixed and cannot be edited"). R2 takes a bucket CORS
-policy. Exports never meet a browser — their links point at People
-(`/v1/exports/files/…`) — so Oracle serves them.
+| Bucket | Key | Written by | People deletes it | Lifecycle rule (backstop) |
+| --- | --- | --- | --- | --- |
+| uploads | `<tenant>/import/<upload id>` | the browser | on commit, on the next upload, on a failed check, or after 24 h (hourly sweep) | whole bucket: 1 day |
+| exports | `exports/<tenant>/<export id>/<file>` | an export | after its link's 24 h (hourly sweep) | prefix `exports/`: 2 days |
+| exports | `dry-runs/<tenant>/<upload id>/blocked-rows.csv` | a dry run | after 24 h | prefix `dry-runs/`: 2 days |
+| exports | `imports/<tenant>/<checksum>/blocked-rows.csv` | a commit | after 7 days, or at once on an erasure | prefix `imports/`: 8 days |
+| backups | `<env>/<date>/{people.dump,postgres.sql.gz,topics.txt.gz}` | `backup.sh` | never (the role cannot delete) | whole bucket: 30 days |
 
-#### Uploads on R2
+The sweep's own rule is `lifetimeOf` in
+`services/people/src/application/export/object-store.ts`; the key builders are
+`keyFor` (`export/job.ts`), `dryRunReportKey` (`screens/operations.ts`) and
+`reportKey` (`import/commit.ts`).
 
-- **Endpoint**: `https://<account id>.r2.cloudflarestorage.com`, region
-  `auto` (`us-east-1` aliases to it). Path-style, which People uses.
-- **Credentials**: an R2 API token with *Object Read & Write* on the one
-  bucket, nothing else.
-- **CORS** — only the tenant app may PUT, only the headers the URL signs, and
-  nothing is exposed (People reads the object itself; the browser needs no
-  ETag). R2 allows one `*` per origin and lets it span labels, so
-  `https://*.app.kithena.com` is every tenant and `https://*.staging.app.kithena.com`
-  every staging tenant. A port cannot be a wildcard, so each local port is
-  listed.
+**CORS, uploads only** — only the tenant app may PUT, only the headers the URL
+signs, and nothing is exposed (People reads the object itself; the browser
+needs no ETag). S3 allows one `*` in an origin and matches it as text, so
+`https://*.app.kithena.com` is every tenant (and, since `*` spans dots, every
+staging tenant too). A port cannot be a wildcard, so each local port is listed.
 
-  ```json
-  [
-    {
-      "AllowedOrigins": [
-        "https://*.app.kithena.com",
-        "https://*.staging.app.kithena.com"
-      ],
-      "AllowedMethods": ["PUT"],
-      "AllowedHeaders": ["content-type", "if-none-match", "x-amz-server-side-encryption"],
-      "MaxAgeSeconds": 3600
-    }
-  ]
-  ```
+```json
+[
+  {
+    "AllowedOrigins": ["https://*.app.kithena.com", "https://*.staging.app.kithena.com"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type", "if-none-match", "x-amz-server-side-encryption"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
 
-  Production and staging are separate buckets, each listing its own origin
-  only. Note that `*.app.kithena.com` also matches `x.staging.app.kithena.com`
-  (the wildcard spans labels), which is why the production bucket must not be
-  shared with staging.
-- **Lifecycle**: delete every object one day after it was written — the
-  backstop for People's hourly sweep. R2 also aborts unfinished multipart
-  uploads after seven days by default; People never starts one.
-- **Setting both**, over the S3 API, from the same variables People reads:
-
-  ```bash
-  PEOPLE_UPLOAD_BUCKET=… PEOPLE_UPLOAD_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com \
-  PEOPLE_UPLOAD_S3_REGION=auto PEOPLE_UPLOAD_S3_ACCESS_KEY_ID=… PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY=… \
-  PEOPLE_UPLOAD_CORS_ORIGINS='https://*.app.kithena.com' \
-    pnpm --filter @kithena/people upload-bucket
-  ```
-
-  It creates the bucket if it is missing and sets the CORS and lifecycle
-  above (`services/people/src/infrastructure/upload-bucket.ts`). The same
-  JSON can be pasted into the R2 dashboard instead. AWS S3 later takes the
-  same call unchanged.
+`pnpm --filter @kithena/people upload-bucket` sets the same CORS and the
+one-day rule over the S3 API from People's own variables
+(`PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_*`, `PEOPLE_UPLOAD_CORS_ORIGINS`);
+`just dev` runs it against SeaweedFS, and it works against S3 with an
+administrator's credentials. `services/people/src/infrastructure/upload-bucket.ts`
+holds the rules.
 
 **What the bucket enforces, and what People checks.** The presigned PUT signs
 the key (chosen by People, under the tenant), `content-length` (exactly the
 declared size, at most 100 MB), `content-type: application/octet-stream`,
 `if-none-match: *` (written once) and, unless `PEOPLE_UPLOAD_SSE=none`,
-`x-amz-server-side-encryption: AES256`, for five minutes. It carries no
-checksum: AWS SDK v3 would otherwise presign a CRC32 of an empty body, which
-every real store refuses (`BadDigest`); the client is built with
-`requestChecksumCalculation` and `responseChecksumValidation` at
-`WHEN_REQUIRED`, and a unit test holds it. People then reads the
-object back and checks its size and SHA-256 before anything is parsed, and
-again at the dry run and the commit. PRD §14.2 has the table.
-
-#### Exports on Oracle
-
-- **Endpoint**: `https://<namespace>.compat.objectstorage.<region>.oraclecloud.com`,
-  path-style, with a Customer Secret Key as the access key pair.
-- **`PEOPLE_EXPORT_SSE=none`**: Oracle encrypts at rest by default and does not
-  take the SSE-S3 header (see the table above).
-- **Lifecycle**: none required — People's hourly sweep deletes by age — but an
-  Object Lifecycle policy deleting after 8 days is a sensible backstop (the
-  longest-lived object, an import report, is 7).
+`x-amz-server-side-encryption: AES256`, for five minutes. Signed with the
+instance role's temporary credentials, the URL carries their session token
+and stops working when either expires. It carries no checksum: AWS SDK v3
+would otherwise presign a CRC32 of an empty body, which S3 refuses
+(`BadDigest`); the client is built with `requestChecksumCalculation` and
+`responseChecksumValidation` at `WHEN_REQUIRED`, and a unit test holds it.
+People then reads the object back and checks its size and SHA-256 before
+anything is parsed, and again at the dry run and the commit. PRD §14.2 has the
+table.
 
 #### Locally
 
@@ -1064,119 +1012,7 @@ again at the dry run and the commit. PRD §14.2 has the table.
 `.env.example` point both stores at it, and `just dev` runs `upload-bucket`
 for `PEOPLE_UPLOAD_BUCKET`, which creates it and sets its CORS
 (`PEOPLE_UPLOAD_CORS_ORIGINS`) and lifecycle. SeaweedFS implements bucket CORS
-and answers the preflight as R2 does — the allowed origin passes, another is
-refused — so the local browser upload is held to the same rule as
-production. Only the S3 API is used.
-
-### Object storage
-
-People keeps two S3-compatible stores, each its own endpoint, bucket and
-credentials, because they are different trust boundaries:
-
-| Store | Provider | Written by | Holds | Variables |
-| --- | --- | --- | --- | --- |
-| **uploads** | Cloudflare R2 | the browser, with a presigned PUT | an import's file, for its import (≤ 24 h) | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` |
-| **exports** | Oracle Object Storage (S3 Compatibility API) | People only | export files (a day), import reports (a week), dry-run reports (a day), all sealed by People | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*` |
-
-Each `PEOPLE_<STORE>_S3_*` falls back to the plain `S3_*`, which is how one
-local object store serves both on a laptop.
-
-**Server-side encryption, per store: `PEOPLE_UPLOAD_SSE`, `PEOPLE_EXPORT_SSE`**
-— `AES256` (the default) or `none`. `AES256` asks for SSE-S3 on every write
-(`x-amz-server-side-encryption: AES256`; for uploads it is signed into the
-presigned PUT, so the browser sends it). `none` sends no such header, for a
-provider that encrypts at rest on its own and refuses it:
-
-| Store | Setting | Why |
-| --- | --- | --- |
-| exports on Oracle | `PEOPLE_EXPORT_SSE=none` | Oracle Object Storage encrypts every object at rest by default (AES-256, Oracle-managed keys, or a Vault key set on the bucket), and its S3 Compatibility API supports SSE-C only, not `x-amz-server-side-encryption: AES256`. Export files are sealed by People (AES-256-GCM) before they leave the process either way. |
-| uploads on R2 | `AES256` by default | R2 encrypts every object at rest. Its S3 compatibility table lists `x-amz-server-side-encryption` on PutObject as not implemented; if R2 refuses the header, set `PEOPLE_UPLOAD_SSE=none` — nothing is lost, since R2's own encryption is always on. Check this on the first staging upload. |
-| local, AWS S3 | `AES256` | Both honour SSE-S3. |
-
-**Why uploads are not on Oracle.** A browser can only PUT to a bucket whose
-CORS answers the tenant app's preflight, and Oracle Object Storage returns
-fixed CORS headers that cannot be configured (Oracle's Object Storage FAQ:
-"the returned headers are fixed and cannot be edited"). R2 takes a bucket CORS
-policy. Exports never meet a browser — their links point at People
-(`/v1/exports/files/…`) — so Oracle serves them.
-
-#### Uploads on R2
-
-- **Endpoint**: `https://<account id>.r2.cloudflarestorage.com`, region
-  `auto` (`us-east-1` aliases to it). Path-style, which People uses.
-- **Credentials**: an R2 API token with *Object Read & Write* on the one
-  bucket, nothing else.
-- **CORS** — only the tenant app may PUT, only the headers the URL signs, and
-  nothing is exposed (People reads the object itself; the browser needs no
-  ETag). R2 allows one `*` per origin and lets it span labels, so
-  `https://*.app.kithena.com` is every tenant and `https://*.staging.app.kithena.com`
-  every staging tenant. A port cannot be a wildcard, so each local port is
-  listed.
-
-  ```json
-  [
-    {
-      "AllowedOrigins": [
-        "https://*.app.kithena.com",
-        "https://*.staging.app.kithena.com"
-      ],
-      "AllowedMethods": ["PUT"],
-      "AllowedHeaders": ["content-type", "if-none-match", "x-amz-server-side-encryption"],
-      "MaxAgeSeconds": 3600
-    }
-  ]
-  ```
-
-  Production and staging are separate buckets, each listing its own origin
-  only. Note that `*.app.kithena.com` also matches `x.staging.app.kithena.com`
-  (the wildcard spans labels), which is why the production bucket must not be
-  shared with staging.
-- **Lifecycle**: delete every object one day after it was written — the
-  backstop for People's hourly sweep. R2 also aborts unfinished multipart
-  uploads after seven days by default; People never starts one.
-- **Setting both**, over the S3 API, from the same variables People reads:
-
-  ```bash
-  PEOPLE_UPLOAD_BUCKET=… PEOPLE_UPLOAD_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com \
-  PEOPLE_UPLOAD_S3_REGION=auto PEOPLE_UPLOAD_S3_ACCESS_KEY_ID=… PEOPLE_UPLOAD_S3_SECRET_ACCESS_KEY=… \
-  PEOPLE_UPLOAD_CORS_ORIGINS='https://*.app.kithena.com' \
-    pnpm --filter @kithena/people upload-bucket
-  ```
-
-  It creates the bucket if it is missing and sets the CORS and lifecycle
-  above (`services/people/src/infrastructure/upload-bucket.ts`). The same
-  JSON can be pasted into the R2 dashboard instead. AWS S3 later takes the
-  same call unchanged.
-
-**What the bucket enforces, and what People checks.** The presigned PUT signs
-the key (chosen by People, under the tenant), `content-length` (exactly the
-declared size, at most 100 MB), `content-type: application/octet-stream`,
-`if-none-match: *` (written once) and, unless `PEOPLE_UPLOAD_SSE=none`,
-`x-amz-server-side-encryption: AES256`, for five minutes. It carries no
-checksum: AWS SDK v3 would otherwise presign a CRC32 of an empty body, which
-every real store refuses (`BadDigest`); the client is built with
-`requestChecksumCalculation` and `responseChecksumValidation` at
-`WHEN_REQUIRED`, and a unit test holds it. People then reads the
-object back and checks its size and SHA-256 before anything is parsed, and
-again at the dry run and the commit. PRD §14.2 has the table.
-
-#### Exports on Oracle
-
-- **Endpoint**: `https://<namespace>.compat.objectstorage.<region>.oraclecloud.com`,
-  path-style, with a Customer Secret Key as the access key pair.
-- **`PEOPLE_EXPORT_SSE=none`**: Oracle encrypts at rest by default and does not
-  take the SSE-S3 header (see the table above).
-- **Lifecycle**: none required — People's hourly sweep deletes by age — but an
-  Object Lifecycle policy deleting after 8 days is a sensible backstop (the
-  longest-lived object, an import report, is 7).
-
-#### Locally
-
-`docker compose` runs one SeaweedFS at `http://localhost:9000`; `S3_*` in
-`.env.example` point both stores at it, and `just dev` runs `upload-bucket`
-for `PEOPLE_UPLOAD_BUCKET`, which creates it and sets its CORS
-(`PEOPLE_UPLOAD_CORS_ORIGINS`) and lifecycle. SeaweedFS implements bucket CORS
-and answers the preflight as R2 does — the allowed origin passes, another is
+and answers the preflight as S3 does — the allowed origin passes, another is
 refused — so the local browser upload is held to the same rule as
 production. Only the S3 API is used.
 
@@ -1188,8 +1024,8 @@ hosts entry. `TENANT_HOST_SUFFIX` in `.env.example` is already set to match.
 
 ### The local S3
 
-Production stores objects in Oracle Object Storage (exports, backups) and
-Cloudflare R2 (browser uploads), both through the S3 API. Locally and in the
+Production stores objects in Amazon S3 (uploads, exports, backups). Locally
+and in the
 integration tests that is SeaweedFS, `weed mini`, pinned by digest in
 `docker-compose.yml` and `packages/testing/src/containers.ts` — keep the two
 the same. S3 is on `:9000` (`S3_ENDPOINT`), the admin UI on `:9001`, and the

@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
-# One 4 GB Ubuntu 24.04 VM, x86_64 or arm64, made ready for `deploy.sh`.
+# The EC2 instance `deploy/aws/provision.sh` made (Ubuntu 24.04, amd64; arm64
+# works the same), made ready for `deploy.sh`.
 #
-#   ssh root@<public ip> 'TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh
+#   ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-… IDLE_STOP_MINUTES=30 bash -s' \
+#     < deploy/vm/bootstrap.sh
 #
-# As root on Hetzner and DigitalOcean; on Oracle and AWS, where the image's user
-# is `ubuntu`, `ssh ubuntu@<ip> 'sudo TS_AUTHKEY=… bash -s' < …` instead.
-#
-# `IDLE_STOP_MINUTES=30` beside `TS_AUTHKEY` makes the VM stop itself after
-# that long unused (`idle-stop.sh`): the AWS host wants it, a VM billed flat
-# does not. Left unset on a later run, it is removed again.
+# `IDLE_STOP_MINUTES` makes the VM stop itself after that long unused
+# (`idle-stop.sh`). Left unset on a later run, it is removed again, and the VM
+# stays up.
 #
 # Idempotent: every step checks or overwrites, so running it again is how a
 # setting here reaches a VM that already exists. After the first run the VM
 # takes no inbound traffic at all — Tailscale for SSH, Cloudflare Tunnel for
-# the router, both dialling out — so remove the provider firewall's SSH rule
-# (Hetzner and DigitalOcean: the Cloud Firewall; Oracle: the security list;
-# AWS: the security group, `deploy/aws/provision.sh --close-ssh`).
-# `docs/environments.md` "Hosting" has the whole checklist.
+# the router, both dialling out — so close the security group's SSH rule:
+# `deploy/aws/provision.sh --close-ssh --apply`.
+# `docs/environments.md` "The AWS host" has the whole checklist.
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
@@ -46,7 +44,7 @@ EOF
 
 # 4 GB of swap on a 4 GB box: headroom for a spike, not capacity, and rarely
 # touched (swappiness 10). The limits in `compose.yaml` are what keep the
-# stack inside the RAM; neither Hetzner's nor DigitalOcean's image has swap.
+# stack inside the RAM; Ubuntu's EC2 image has no swap.
 if ! swapon --show | grep -q /swapfile; then
   [ -f /swapfile ] || { fallocate -l 4G /swapfile; chmod 600 /swapfile; mkswap /swapfile; }
   swapon /swapfile
@@ -73,18 +71,9 @@ PermitRootLogin no
 EOF
 systemctl reload ssh
 
-# Oracle's Ubuntu image ships its own iptables rules (open 22, reject the
-# rest), loaded by netfilter-persistent. Two firewalls is one too many; ufw is
-# the one kept. Only on the first run, before Docker has chains worth keeping.
-if dpkg -s netfilter-persistent >/dev/null 2>&1; then
-  apt-get purge -y -q iptables-persistent netfilter-persistent
-  iptables -P INPUT ACCEPT
-  iptables -F INPUT
-  systemctl restart docker
-fi
-# Nothing inbound except on the tailnet. Published Docker ports would bypass
-# this; `compose.yaml` publishes none. Reset first, so a rule the image or an
-# earlier hand added (DigitalOcean's 1-click images allow 22) does not survive.
+# Nothing inbound except on the tailnet, behind a security group that allows
+# nothing either. Published Docker ports would bypass this; `compose.yaml`
+# publishes none. Reset first, so a rule an earlier hand added does not survive.
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
@@ -99,12 +88,11 @@ echo 'deploy ALL=(root) NOPASSWD:ALL' > /etc/sudoers.d/90-deploy
 chmod 440 /etc/sudoers.d/90-deploy
 install -d -m 700 -o root -g root /etc/kithena
 
-# Nightly backups, once `/etc/kithena/backup.env` exists. `backup.sh` is the
-# copy the deploy workflow keeps current in `~deploy/kithena`.
+# Nightly backups to S3, through the instance role. `backup.sh` is the copy
+# the deploy workflow keeps current in `~deploy/kithena`.
 cat > /etc/systemd/system/kithena-backup.service <<'EOF'
 [Unit]
 Description=Back up the VM Postgres and the kithena topics
-ConditionPathExists=/etc/kithena/backup.env
 ConditionPathExists=/home/deploy/kithena/backup.sh
 After=kithena-start.service
 [Service]

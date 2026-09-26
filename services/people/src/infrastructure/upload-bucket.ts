@@ -10,19 +10,22 @@ import {
 
 /**
  * The upload bucket's own configuration, over the S3 API alone so it is the
- * same call for R2, S3 or whatever serves S3 on a laptop
- * (`pnpm --filter @kithena/people upload-bucket`; docs/environments.md).
+ * same call for S3 or whatever serves S3 on a laptop
+ * (`pnpm --filter @kithena/people upload-bucket`; docs/environments.md). In
+ * production `deploy/aws/provision.sh` sets the same rules on S3.
  *
  * **CORS.** The browser PUTs straight to the bucket (PRD §14.2), so the
  * bucket has to answer the tenant app's preflight — and only the tenant
  * app's: `PUT` from the app origins, the headers the presigned URL
  * signs, nothing exposed (People reads the object itself; the browser needs
- * no ETag). R2 takes one `*` per origin and lets it span labels, so
+ * no ETag). S3 takes one `*` per origin, matched as plain text, so
  * `https://*.app.kithena.com` covers every tenant.
  *
  * **Lifecycle.** Everything in the bucket is deleted a day after it was
  * written. People deletes an upload on commit and sweeps hourly; this is the
  * backstop for a sweep that never ran. A day is the shortest rule S3 offers.
+ * An upload is a single PUT, but a multipart upload somebody started with the
+ * bucket's credentials is aborted after a day as well.
  */
 
 /** What the presigned PUT signs, and so what the browser sends. */
@@ -43,9 +46,14 @@ export function uploadCors(origins: readonly string[]): CORSRule[] {
   ];
 }
 
-/** One rule: an upload is a single PUT, so there is no multipart upload to abort. */
 export const UPLOAD_LIFECYCLE: LifecycleRule[] = [
-  { ID: 'uploads-expire-after-a-day', Status: 'Enabled', Filter: { Prefix: '' }, Expiration: { Days: 1 } },
+  {
+    ID: 'uploads-expire-after-a-day',
+    Status: 'Enabled',
+    Filter: { Prefix: '' },
+    Expiration: { Days: 1 },
+    AbortIncompleteMultipartUpload: { DaysAfterInitiation: 1 },
+  },
 ];
 
 /**

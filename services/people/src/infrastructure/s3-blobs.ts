@@ -6,13 +6,13 @@ import {
   NoSuchKey,
   PutObjectCommand,
   S3Client,
+  type S3ClientConfig,
 } from '@aws-sdk/client-s3';
 
 import type { Blobs } from '../application/export/object-store.js';
 
 /**
- * Export files in an S3-compatible bucket: Oracle Object Storage, R2, or
- * SeaweedFS locally.
+ * Export files in an S3 bucket: Amazon S3 in production, SeaweedFS locally.
  *
  * What arrives here is already AES-256-GCM ciphertext (`sealedObjectStore`);
  * the bucket encrypts it again with SSE-S3. Two layers because they fail
@@ -23,25 +23,31 @@ import type { Blobs } from '../application/export/object-store.js';
  *
  * The bucket holds export files and imports' blocked-row reports; the sweep
  * deletes each by age against its own lifetime (`lifetimeOf`): a day for an
- * export file, a week for a report.
+ * export file, a week for a report. The key's first segment is that lifetime
+ * (`exports/`, `dry-runs/`, `imports/`), because an S3 lifecycle rule filters
+ * by prefix and is the backstop for a sweep that never ran.
  *
  * The bucket is never linked to directly (see `object-store.ts`), so nothing
  * here presigns.
  */
 
 export interface S3Config {
+  /** Unset means Amazon S3 itself. */
   readonly endpoint?: string;
   readonly region: string;
   readonly bucket: string;
-  readonly accessKeyId: string;
-  readonly secretAccessKey: string;
-  /** A local store wants path-style; AWS accepts it. */
+  /**
+   * Both or neither. Neither: the SDK's default chain, which on the EC2 host
+   * is the instance role through IMDSv2, so no key exists to leak.
+   */
+  readonly accessKeyId?: string;
+  readonly secretAccessKey?: string;
+  /** Path-style by default where an endpoint is set (a local store wants it); virtual-hosted on S3. */
   readonly forcePathStyle?: boolean;
   /**
    * Whether to ask for SSE-S3 (`x-amz-server-side-encryption: AES256`) on
-   * each write. `AES256` by default; `none` for a provider that encrypts at
-   * rest on its own and refuses the header — Oracle Object Storage, whose S3
-   * API takes only SSE-C (docs/environments.md).
+   * each write. `AES256` by default, which S3 honours; `none` leaves the
+   * header out, for a store that refuses it.
    */
   readonly sse?: Sse;
 }
@@ -62,8 +68,8 @@ const MAX_PAGES = 10;
 /**
  * One store's endpoint and credentials: `<prefix>_S3_ENDPOINT`, `_REGION`,
  * `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`, each falling back to the plain
- * `S3_*` — so a laptop's one local store serves both stores from one set, and
- * production gives each its own provider (uploads on R2, exports on Oracle).
+ * `S3_*` — so a laptop's one local store serves both stores from one set. In
+ * production only the region is set: Amazon S3, the instance role.
  */
 export function s3ConfigFrom(env: NodeJS.ProcessEnv, prefix: string, bucket: string): S3Config {
   const get = (name: string) => env[`${prefix}_S3_${name}`] ?? env[`S3_${name}`];
@@ -72,19 +78,33 @@ export function s3ConfigFrom(env: NodeJS.ProcessEnv, prefix: string, bucket: str
     bucket,
     region: get('REGION') ?? 'us-east-1',
     ...(endpoint ? { endpoint } : {}),
-    accessKeyId: get('ACCESS_KEY_ID') ?? '',
-    secretAccessKey: get('SECRET_ACCESS_KEY') ?? '',
+    ...keysFrom(get('ACCESS_KEY_ID'), get('SECRET_ACCESS_KEY'), prefix),
     sse: sseFrom(env, prefix),
   };
 }
 
-export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client } {
-  const client = new S3Client({
+function keysFrom(accessKeyId: string | undefined, secretAccessKey: string | undefined, prefix: string) {
+  if (!accessKeyId && !secretAccessKey) return {};
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error(`${prefix}_S3_ACCESS_KEY_ID and _SECRET_ACCESS_KEY go together, or neither`);
+  }
+  return { accessKeyId, secretAccessKey };
+}
+
+/** The client settings both stores share. */
+export function clientConfig(config: S3Config): S3ClientConfig {
+  return {
     region: config.region,
     ...(config.endpoint ? { endpoint: config.endpoint } : {}),
-    forcePathStyle: config.forcePathStyle ?? true,
-    credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
-  });
+    forcePathStyle: config.forcePathStyle ?? config.endpoint !== undefined,
+    ...(config.accessKeyId && config.secretAccessKey
+      ? { credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } }
+      : {}),
+  };
+}
+
+export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client } {
+  const client = new S3Client(clientConfig(config));
   const Bucket = config.bucket;
 
   return {
@@ -125,8 +145,8 @@ export function s3Blobs(config: S3Config): Blobs & { readonly client: S3Client }
      *
      * ponytail: S3 lists by key, not by age, so a bucket with more than
      * `MAX_PAGES` thousand live files could hide a stale one past the last
-     * page until the live ones are swept. A bucket lifecycle rule is the
-     * backstop worth adding in production.
+     * page until the live ones are swept. The bucket's lifecycle rules
+     * (`deploy/aws/provision.sh`) are the backstop.
      */
     async deleteExpired(expired, limit) {
       let deleted = 0;

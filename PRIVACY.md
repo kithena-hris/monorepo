@@ -153,9 +153,9 @@ and row, whatever its age. A DSAR erasure is to call the same
 not yet a person has no id to find it by, and goes with the week.
 
 An import's file itself is held while its import is under way, and no longer
-(PRD §14.2). The browser uploads it straight to a bucket of its own (Cloudflare
-R2 in production), encrypted at rest by the provider, which only People reads,
-with its own credentials. It is deleted when the import is committed, when the
+(PRD §14.2). The browser uploads it straight to a bucket of its own (Amazon S3
+in production, private, encrypted at rest with SSE-S3), which only People
+reads, with its own credentials. It is deleted when the import is committed, when the
 same person starts another upload, when the upload fails its checks, and
 otherwise **24 hours** after it began — by People's hourly sweep, with a
 one-day lifecycle rule on the bucket as the backstop. `people.import_upload`

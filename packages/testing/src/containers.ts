@@ -49,7 +49,7 @@ const OBJECT_STORE_IMAGE =
 
 /**
  * An S3-compatible object store: SeaweedFS, the image `docker-compose.yml`
- * runs. Production is Oracle Object Storage and R2; this stands in for both.
+ * runs. Production is Amazon S3; this stands in for it.
  *
  * `weed mini` is the single-process mode, and it takes its one identity from
  * `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, so SigV4 is really checked.

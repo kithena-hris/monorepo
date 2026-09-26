@@ -119,11 +119,12 @@ export const REPORT_LINK_MS = 24 * 60 * 60 * 1000;
 /**
  * Where an import's report lives. Keyed by the checksum, which is the import
  * key: a retried commit overwrites rather than orphans, and a re-upload finds
- * it. `/imports/` is what gives it a report's 7 days in the export sweep
- * rather than an export file's one (`lifetimeOf` in `object-store.ts`).
+ * it. The `imports/` prefix is what gives it a report's 7 days in the export
+ * sweep and the bucket's lifecycle rule, rather than an export file's one
+ * (`lifetimeOf` in `object-store.ts`).
  */
 export const reportKey = (tenantId: string, checksum: string): string =>
-  `${tenantId}/imports/${checksum}/blocked-rows.csv`;
+  `imports/${tenantId}/${checksum}/blocked-rows.csv`;
 
 /** A link to the stored report, or null once it has expired or been erased. */
 async function reportLink(

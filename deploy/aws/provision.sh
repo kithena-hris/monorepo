@@ -1,16 +1,29 @@
 #!/usr/bin/env bash
-# The AWS half of the VM host: one EC2 instance and what it takes to sleep and
-# wake it. The AWS CLI and nothing else; run by hand, never by CI.
+# The AWS half of the backend host: one EC2 instance, what it takes to sleep
+# and wake it, and the S3 buckets it writes to. The AWS CLI and nothing else;
+# run by hand, never by CI.
 #
-#   deploy/aws/provision.sh --region eu-west-2 --vercel-team kithena \
+#   deploy/aws/provision.sh --vercel-team kithena \
 #     --budget-email ops@example.com --operator-ip 203.0.113.7 [--apply]
 #
 # Prints every change it would make and makes none until `--apply`. Idempotent:
 # each resource is looked up first and created only when missing; the policies
 # are re-put every run, so running it again is how a change here reaches AWS.
 #
+#   buckets          kithena-<account>-uploads, -exports and -backups: Block
+#                    Public Access, SSE-S3 by default, BucketOwnerEnforced,
+#                    unversioned, TLS only, and lifecycle rules matching
+#                    People's key layout (uploads: a day; exports/ and
+#                    dry-runs/: 2 days, imports/: 8; backups: 30). The uploads
+#                    bucket takes a browser PUT from the tenant app (CORS).
+#   instance role    kithena-vm, the instance profile: Get/Put/Delete/List on
+#                    uploads and exports, Get/Put/List on backups (no delete:
+#                    the lifecycle rule deletes). People and `backup.sh` reach
+#                    it through IMDSv2, so no access key exists.
 #   instance         c7i-flex.large, Ubuntu 24.04 amd64 (Canonical's SSM
-#                    parameter), 30 GB gp3 encrypted, IMDSv2 only, a public
+#                    parameter), 30 GB gp3 encrypted, IMDSv2 only with a hop
+#                    limit of 2 (People runs in a container, one hop further
+#                    from IMDS than the host), a public
 #                    IPv4 that is released while stopped, termination
 #                    protection, and InstanceInitiatedShutdownBehavior=stop:
 #                    `idle-stop.sh` ends in `shutdown -h now`, and that must stop
@@ -34,9 +47,9 @@
 set -euo pipefail
 
 usage() {
-  sed -n '3,6p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '6,7p' "$0" | sed 's/^# \{0,1\}//'
   cat <<'EOF'
-  --region R            AWS region (required)
+  --region R            AWS region, default us-east-1
   --vercel-team SLUG    Vercel team slug, the OIDC issuer's path (required)
   --budget-email ADDR   where the budget alerts go (required)
   --operator-ip IP      allow SSH from this address only, for the bootstrap
@@ -52,7 +65,7 @@ usage() {
 EOF
 }
 
-region='' team='' email='' operator_ip='' key_name='' close_ssh='' apply=''
+region=us-east-1 team='' email='' operator_ip='' key_name='' close_ssh='' apply=''
 project=kithena-web-production vercel_env=production repo=kithena-hris/monorepo
 start_hour='' stop_hour='' tz=UTC
 while [ $# -gt 0 ]; do
@@ -74,7 +87,7 @@ while [ $# -gt 0 ]; do
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
-[ -n "$region" ] && [ -n "$team" ] && [ -n "$email" ] || { usage >&2; exit 2; }
+[ -n "$team" ] && [ -n "$email" ] || { usage >&2; exit 2; }
 if [ -n "$start_hour$stop_hour" ] && ! [[ "$start_hour" =~ ^[0-9]+$ && "$stop_hour" =~ ^[0-9]+$ ]]; then
   echo "--start-hour and --stop-hour go together, as hours" >&2
   exit 2
@@ -86,6 +99,8 @@ TYPE=c7i-flex.large
 AMI_PARAM=/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
 VERCEL_ISSUER="oidc.vercel.com/$team"
 GITHUB_ISSUER=token.actions.githubusercontent.com
+# The tenant app, production and staging. S3 takes one `*` per origin.
+CORS_ORIGINS='"https://*.app.kithena.com","https://*.staging.app.kithena.com"'
 
 # Reads always run: they are how the plan knows what exists. In a dry run
 # without credentials they come back empty, and the plan says "create".
@@ -144,6 +159,85 @@ elif [ -n "$operator_ip" ]; then
   fi
 fi
 
+role() { # <name> <trust policy> <inline policy>
+  if [ -n "$(read_ iam get-role --role-name "$1" --query Role.Arn --output text)" ]; then
+    echo "exists: $1"
+    act iam update-assume-role-policy --role-name "$1" --policy-document "$2"
+  else
+    act iam create-role --role-name "$1" --assume-role-policy-document "$2" \
+      --max-session-duration 3600 --tags Key=app,Value=kithena
+  fi
+  act iam put-role-policy --role-name "$1" --policy-name "$1" --policy-document "$3"
+}
+
+# Bucket names are global, so the account id is in them.
+UPLOADS="kithena-$account-uploads" EXPORTS="kithena-$account-exports" BACKUPS="kithena-$account-backups"
+# `bucket <name> <lifecycle rules, a JSON array>`: private, SSE-S3,
+# owner-enforced, unversioned, TLS only. Created once; the rest is re-put.
+bucket() {
+  say "bucket $1"
+  if aws s3api head-bucket --bucket "$1" >/dev/null 2>&1; then
+    echo "exists: $1"
+  elif [ "$region" = us-east-1 ]; then
+    act s3api create-bucket --bucket "$1" --object-ownership BucketOwnerEnforced
+  else
+    act s3api create-bucket --bucket "$1" --object-ownership BucketOwnerEnforced \
+      --create-bucket-configuration "LocationConstraint=$region"
+  fi
+  act s3api put-public-access-block --bucket "$1" --public-access-block-configuration \
+    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+  act s3api put-bucket-ownership-controls --bucket "$1" \
+    --ownership-controls 'Rules=[{ObjectOwnership=BucketOwnerEnforced}]'
+  act s3api put-bucket-encryption --bucket "$1" --server-side-encryption-configuration \
+    '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+  # A new bucket is unversioned; one that was versioned can only be suspended.
+  if [ "$(read_ s3api get-bucket-versioning --bucket "$1" --query Status --output text)" = Enabled ]; then
+    act s3api put-bucket-versioning --bucket "$1" --versioning-configuration Status=Suspended
+  fi
+  act s3api put-bucket-policy --bucket "$1" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"TlsOnly\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"s3:*\",\"Resource\":[\"arn:aws:s3:::$1\",\"arn:aws:s3:::$1/*\"],\"Condition\":{\"Bool\":{\"aws:SecureTransport\":\"false\"}}}]}"
+  act s3api put-bucket-lifecycle-configuration --bucket "$1" --lifecycle-configuration "{\"Rules\":$2}"
+}
+# `rule <id> <prefix> <days>`: expire after that many days, and abort a
+# multipart upload left unfinished for a day.
+rule() {
+  printf '{"ID":"%s","Status":"Enabled","Filter":{"Prefix":"%s"},"Expiration":{"Days":%s},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1}}' "$1" "$2" "$3"
+}
+# Lifecycle filters are prefixes, not globs, so every People key starts with
+# its lifetime: exports/<tenant>/… and dry-runs/<tenant>/… (a day's link, kept
+# 2), imports/<tenant>/… (a week's report, kept 8). People's own sweep deletes
+# on time; these rules are the backstop for a sweep that never ran.
+bucket "$UPLOADS" "[$(rule uploads-1-day '' 1)]"
+# The browser PUTs here with People's presigned URL: only PUT, only the tenant
+# app's origins, only the headers the URL signs, nothing exposed.
+act s3api put-bucket-cors --bucket "$UPLOADS" --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[$CORS_ORIGINS],\"AllowedMethods\":[\"PUT\"],\"AllowedHeaders\":[\"content-type\",\"if-none-match\",\"x-amz-server-side-encryption\"],\"MaxAgeSeconds\":3600}]}"
+bucket "$EXPORTS" "[$(rule exports-2-days exports/ 2),$(rule dry-runs-2-days dry-runs/ 2),$(rule imports-8-days imports/ 8)]"
+bucket "$BACKUPS" "[$(rule backups-30-days '' 30)]"
+
+say "instance role kithena-vm"
+role kithena-vm \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}' \
+  "$(cat <<EOF
+{"Version":"2012-10-17","Statement":[
+ {"Sid":"ListTheThreeBuckets","Effect":"Allow","Action":"s3:ListBucket",
+  "Resource":["arn:aws:s3:::$UPLOADS","arn:aws:s3:::$EXPORTS","arn:aws:s3:::$BACKUPS"]},
+ {"Sid":"UploadsAndExports","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
+  "Resource":["arn:aws:s3:::$UPLOADS/*","arn:aws:s3:::$EXPORTS/*"]},
+ {"Sid":"BackupsWithoutDelete","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:AbortMultipartUpload"],
+  "Resource":"arn:aws:s3:::$BACKUPS/*"}]}
+EOF
+)"
+if [ -n "$(read_ iam get-instance-profile --instance-profile-name kithena-vm --query InstanceProfile.Arn --output text)" ]; then
+  echo "exists: instance profile kithena-vm"
+else
+  act iam create-instance-profile --instance-profile-name kithena-vm --tags Key=app,Value=kithena
+  act iam add-role-to-instance-profile --instance-profile-name kithena-vm --role-name kithena-vm
+  # EC2 refuses a profile for a few seconds after IAM has made it.
+  if [ -n "$apply" ]; then
+    aws iam wait instance-profile-exists --instance-profile-name kithena-vm
+    sleep 15
+  fi
+fi
+
 say "instance"
 instance="$(read_ ec2 describe-instances --filters "Name=tag:Name,Values=$NAME" \
   "Name=instance-state-name,Values=pending,running,stopping,stopped" \
@@ -157,7 +251,8 @@ if [ -z "$instance" ]; then
   act ec2 run-instances --image-id "$ami" --instance-type "$TYPE" --count 1 ${key[@]+"${key[@]}"} \
     --network-interfaces "DeviceIndex=0,AssociatePublicIpAddress=true,Groups=$sg" \
     --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=30,VolumeType=gp3,Encrypted=true,DeleteOnTermination=true}' \
-    --metadata-options HttpTokens=required,HttpEndpoint=enabled,HttpPutResponseHopLimit=1 \
+    --metadata-options HttpTokens=required,HttpEndpoint=enabled,HttpPutResponseHopLimit=2 \
+    --iam-instance-profile Name=kithena-vm \
     --instance-initiated-shutdown-behavior stop \
     --disable-api-termination \
     --tag-specifications \
@@ -169,9 +264,19 @@ if [ -z "$instance" ]; then
   [ -n "$instance" ] || instance='<new instance>'
 else
   echo "exists: $instance"
-  # Re-asserted: the one attribute everything here depends on.
+  # Re-asserted: the attributes everything here depends on.
   act ec2 modify-instance-attribute --instance-id "$instance" \
     --instance-initiated-shutdown-behavior Value=stop
+  act ec2 modify-instance-metadata-options --instance-id "$instance" \
+    --http-tokens required --http-endpoint enabled --http-put-response-hop-limit 2
+  association="$(read_ ec2 describe-iam-instance-profile-associations \
+    --filters "Name=instance-id,Values=$instance" Name=state,Values=associated \
+    --query 'IamInstanceProfileAssociations[0].AssociationId' --output text)"
+  if [ -z "$association" ] || [ "$association" = None ]; then
+    act ec2 associate-iam-instance-profile --instance-id "$instance" --iam-instance-profile Name=kithena-vm
+  else
+    echo "instance profile attached: $association"
+  fi
 fi
 instance_arn="arn:aws:ec2:$region:$account:instance/$instance"
 
@@ -184,16 +289,6 @@ wake_policy="$(cat <<EOF
   "Action":["ec2:DescribeInstances","ec2:DescribeInstanceStatus"],"Resource":"*"}]}
 EOF
 )"
-role() { # <name> <trust policy> <inline policy>
-  if [ -n "$(read_ iam get-role --role-name "$1" --query Role.Arn --output text)" ]; then
-    echo "exists: $1"
-    act iam update-assume-role-policy --role-name "$1" --policy-document "$2"
-  else
-    act iam create-role --role-name "$1" --assume-role-policy-document "$2" \
-      --max-session-duration 3600 --tags Key=app,Value=kithena
-  fi
-  act iam put-role-policy --role-name "$1" --policy-name "$1" --policy-document "$3"
-}
 oidc_provider() { # <issuer host/path> <audience>
   local arn="arn:aws:iam::$account:oidc-provider/$1"
   if [ -n "$(read_ iam get-open-id-connect-provider --open-id-connect-provider-arn "$arn" --query Url --output text)" ]; then
@@ -271,6 +366,13 @@ production workflow passes to it:
   WORKSPACE_INSTANCE_ID=$instance
   AWS_ROLE_ARN=arn:aws:iam::$account:role/kithena-workspace-wake
   AWS_REGION=$region
+PEOPLE_ENV, the production environment secret: the two stores, with no
+endpoint and no keys, so People uses S3 through the instance role:
+  PEOPLE_UPLOAD_BUCKET=$UPLOADS
+  PEOPLE_UPLOAD_S3_REGION=$region
+  PEOPLE_EXPORT_BUCKET=$EXPORTS
+  PEOPLE_EXPORT_S3_REGION=$region
+Backups go to $BACKUPS; backup.sh works that out on the instance.
 GitHub repository variables, for the deploy workflow's wake step:
   WORKSPACE_INSTANCE_ID_PRODUCTION=$instance
   AWS_ROLE_ARN_PRODUCTION=arn:aws:iam::$account:role/kithena-workspace-wake
