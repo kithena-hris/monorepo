@@ -931,6 +931,9 @@ Ordered, but none of it blocks Phase 1 shipping.
       object storage §6.4 falls back to and who owns its retention and
       erasure. The upload, zip safety and dry-run shape can then reuse §14.2's
       presigned flow as it stands._
+      **Decided 2026-09-26: waits for the Documents module**, to be built
+      separately later. No fallback bucket; PEO-063 and PEO-076 land together
+      once it exists.
 - [x] **PEO-064** Effective-dated history UI — "what did this look like in
       March", per attribute. _(PRD §8.5)_
       _Built as `/people/:id/history` (and `/people/me/history`) over
