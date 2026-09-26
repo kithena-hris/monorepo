@@ -12,6 +12,7 @@ import { TenantId, type Actor, type ChangedAttribute } from '@kithena/contracts'
 
 import { dayEnd } from '../org/calendar.js';
 import { record, type HistoryEntry } from './history.js';
+import { mergeRefusal } from './merge.js';
 
 /**
  * One employment record, and the states it may be in.
@@ -36,7 +37,9 @@ export type PersonState =
   | 'on_leave'
   | 'notice'
   | 'terminated'
-  | 'discarded';
+  | 'discarded'
+  /** A duplicate absorbed into another record (PEO-074): a tombstone, never deleted. */
+  | 'merged';
 
 export interface PersonSnapshot {
   readonly id: string;
@@ -57,6 +60,8 @@ export interface PersonSnapshot {
    * record, none for one never hired — a record from before periods existed.
    */
   readonly employment?: CurrentEmployment | null;
+  /** The survivor a `merged` record points at (PEO-074); absent reads as null. */
+  readonly mergedInto?: string | null;
 }
 
 /**
@@ -116,7 +121,8 @@ type StatusReason =
   | 'discarded'
   | 'corrected'
   | 'rehired'
-  | 'notice_withdrawn';
+  | 'notice_withdrawn'
+  | 'merged';
 
 /** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
 export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
@@ -234,7 +240,8 @@ export class Person extends AggregateRoot<string> {
   /** The period a transfer closed (PEO-123), until the repository writes it. */
   #closedPeriod: EmploymentPeriodRow | null = null;
   readonly #tenantId: TenantId;
-  readonly #identityAccountId: string | null;
+  #identityAccountId: string | null;
+  #mergedInto: string | null;
   /** Lifecycle dates as history rows, drained by the repository with the events. */
   #history: readonly HistoryEntry[] = [];
   #lastEventId: string | null = null;
@@ -262,6 +269,12 @@ export class Person extends AggregateRoot<string> {
     // bug — which is the one thing worth throwing for.
     this.#tenantId = TenantId.parse(snapshot.tenantId);
     this.#identityAccountId = snapshot.identityAccountId;
+    this.#mergedInto = snapshot.mergedInto ?? null;
+  }
+
+  /** Withdrawn or absorbed: nothing about the record changes again. */
+  get #gone(): boolean {
+    return this.#status === 'discarded' || this.#status === 'merged';
   }
 
   static rehydrate(snapshot: PersonSnapshot): Person {
@@ -289,6 +302,7 @@ export class Person extends AggregateRoot<string> {
       lastWorkingDay: this.#lastWorkingDay,
       accessEndedAt: this.#accessEndedAt,
       employment: this.#employment,
+      mergedInto: this.#mergedInto,
     };
   }
 
@@ -694,6 +708,50 @@ export class Person extends AggregateRoot<string> {
   }
 
   /**
+   * This record is a duplicate of `survivor`, and a reviewer said so
+   * (PEO-074; PRD §12.4). It becomes a tombstone pointing at the survivor:
+   * its history stays where it was written and nothing is deleted. Its
+   * account, if it has one, moves to the survivor, and is returned for the
+   * survivor to `adoptAccount`.
+   *
+   * `taken` names the values the reviewer copied onto the survivor, which
+   * the survivor's own `profile_updated` carries; this event names them so a
+   * consumer can tell a merged value from an edited one.
+   */
+  absorbInto(
+    survivor: PersonSnapshot,
+    taken: readonly string[],
+    ctx: EventContext,
+  ): Result<string | null> {
+    const refused = mergeRefusal(survivor, this.snapshot);
+    if (refused !== null) return err(refused);
+    const account = this.#identityAccountId;
+    this.#identityAccountId = null;
+    this.#mergedInto = survivor.id;
+    this.#moveTo('merged', 'merged', ctx);
+    this.#raise(
+      'people.person.merged',
+      {
+        survivingPersonId: survivor.id,
+        absorbedPersonId: this.id,
+        attributesTaken: [...taken],
+        identityAccountId: account,
+      },
+      ctx,
+    );
+    return ok(account);
+  }
+
+  /** The account a record absorbed into this one signed in with (PEO-074). One per person. */
+  adoptAccount(accountId: string): Result<void> {
+    if (this.#identityAccountId !== null && this.#identityAccountId !== accountId) {
+      return err(failure('MERGE_TWO_ACCOUNTS', 'This record already signs in with an account'));
+    }
+    this.#identityAccountId = accountId;
+    return ok(undefined);
+  }
+
+  /**
    * Access ends with employment (PEO-109): raise `access_ended`, once per
    * leaving, for identity to suspend the account on.
    *
@@ -769,7 +827,7 @@ export class Person extends AggregateRoot<string> {
     ctx: EventContext,
     effectiveFrom: string | null,
   ): Result<void> {
-    if (this.#status === 'terminated' || this.#status === 'discarded') {
+    if (this.#status === 'terminated' || this.#gone) {
       return err(InvalidTransition(this.#status, 'edited'));
     }
     if (changed.length === 0) {
@@ -800,7 +858,7 @@ export class Person extends AggregateRoot<string> {
     ctx: EventContext,
     effectiveFrom: string,
   ): Result<void> {
-    if (this.#status === 'terminated' || this.#status === 'discarded') {
+    if (this.#status === 'terminated' || this.#gone) {
       return err(InvalidTransition(this.#status, 'changed'));
     }
     if (changed.length === 0) {
@@ -852,7 +910,7 @@ export class Person extends AggregateRoot<string> {
     ctx: EventContext,
     effectiveFrom: string,
   ): Result<void> {
-    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
+    if (this.#gone) return err(InvalidTransition(this.#status, 'corrected'));
 
     this.#raise(
       'people.person.attribute_corrected',
@@ -885,7 +943,7 @@ export class Person extends AggregateRoot<string> {
    * re-run the hire.
    */
   correctHireDate(hireDate: string, ctx: EventContext, timeZone: string): Result<void> {
-    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
+    if (this.#gone) return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay !== null && this.#lastWorkingDay < hireDate) {
       return err(
         failure(
@@ -936,7 +994,7 @@ export class Person extends AggregateRoot<string> {
     ctx?: EventContext,
     timeZone?: string,
   ): Result<void> {
-    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
+    if (this.#gone) return err(InvalidTransition(this.#status, 'corrected'));
     if (this.#lastWorkingDay === null) {
       return err(
         failure(
@@ -1039,7 +1097,7 @@ export class Person extends AggregateRoot<string> {
     effectiveFrom: string,
     previous: string | null = null,
   ): Result<'transferred' | 'placed' | 'unchanged'> {
-    if (this.#status === 'terminated' || this.#status === 'discarded') {
+    if (this.#status === 'terminated' || this.#gone) {
       return err(InvalidTransition(this.#status, 'placed'));
     }
     const period = this.#employment;

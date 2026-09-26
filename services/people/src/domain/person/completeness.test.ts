@@ -64,15 +64,18 @@ describe('a provisional record', () => {
     expect(verdict.missing).toEqual([]);
   });
 
-  it('is not applicable once discarded', () => {
-    expect(
-      assessCompleteness(
-        [define({ key: 'cost_centre' })],
-        facts({ status: 'discarded' }),
-        clock,
-        'Etc/UTC',
-      ).state,
-    ).toBe('not_applicable');
+  it('is not applicable once discarded, or merged into a survivor', () => {
+    for (const status of ['discarded', 'merged']) {
+      expect(
+        assessCompleteness(
+          [define({ key: 'cost_centre' })],
+          facts({ status }),
+          clock,
+          'Etc/UTC',
+        ).state,
+        status,
+      ).toBe('not_applicable');
+    }
   });
 });
 

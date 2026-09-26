@@ -1283,3 +1283,61 @@ describe('placement and transfer (PEO-123)', () => {
     expect(first.drainPeriod()).toMatchObject({ period: 1, startedOn: '2024-01-15' });
   });
 });
+
+describe('being absorbed by a duplicate (PEO-074)', () => {
+  const SURVIVOR = '00000000-0000-4000-8000-0000000000a9';
+  const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
+  const survivor = () =>
+    person({ id: SURVIVOR, status: 'active', hireDate: '2026-01-05', identityAccountId: null });
+
+  it('leaves a tombstone pointing at the survivor, and hands over its account', () => {
+    const absorbed = person();
+    const moved = absorbed.absorbInto(survivor().snapshot, ['date_of_birth'], ctx);
+    expect(moved).toEqual({ ok: true, value: ACCOUNT });
+    expect(absorbed.status).toBe('merged');
+    expect(absorbed.snapshot).toMatchObject({ mergedInto: SURVIVOR, identityAccountId: null });
+    expect(absorbed.deletable).toBe(false);
+    expect(absorbed.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
+      [
+        'people.person.status_changed',
+        { personId: PERSON, previous: 'provisional', next: 'merged', reason: 'merged' },
+      ],
+      [
+        'people.person.merged',
+        {
+          survivingPersonId: SURVIVOR,
+          absorbedPersonId: PERSON,
+          attributesTaken: ['date_of_birth'],
+          identityAccountId: ACCOUNT,
+        },
+      ],
+    ]);
+  });
+
+  it('is refused for a record that holds an employment', () => {
+    const absorbed = person({ status: 'active', hireDate: '2026-01-05' });
+    const moved = absorbed.absorbInto(survivor().snapshot, [], ctx);
+    expect(moved.ok).toBe(false);
+    if (moved.ok) return;
+    expect(moved.error.code).toBe('MERGE_ABSORBS_EMPLOYMENT');
+    expect(absorbed.drainEvents()).toEqual([]);
+  });
+
+  it('cannot be edited, hired, discarded or corrected afterwards', () => {
+    const absorbed = person({ status: 'merged', mergedInto: SURVIVOR, identityAccountId: null });
+    expect(absorbed.updateProfile([], 3, ctx, null).ok).toBe(false);
+    expect(absorbed.hire('2026-10-01', HIRED, ctx, UTC).ok).toBe(false);
+    expect(absorbed.discard(ctx).ok).toBe(false);
+    expect(absorbed.correctHireDate('2026-10-01', ctx, UTC).ok).toBe(false);
+  });
+
+  it('gives the survivor the account, once', () => {
+    const s = survivor();
+    expect(s.adoptAccount(ACCOUNT).ok).toBe(true);
+    expect(s.identityAccountId).toBe(ACCOUNT);
+    const again = s.adoptAccount('00000000-0000-4000-8000-0000000000b2');
+    expect(again.ok).toBe(false);
+    if (again.ok) return;
+    expect(again.error.code).toBe('MERGE_TWO_ACCOUNTS');
+  });
+});
