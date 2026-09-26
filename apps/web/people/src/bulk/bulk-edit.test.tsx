@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -147,6 +147,12 @@ describe('BulkEdit', () => {
   });
 });
 
+/** A row's line saying where the hire places somebody. */
+const placedIn =
+  (location: string) =>
+  (_: string, element: Element | null): boolean =>
+    element?.tagName === 'LI' && new RegExp(`^Work location: .*→ ${location}$`).test(element.textContent);
+
 describe('BulkEdit: hire', () => {
   const hired = (personId: string, name: string, status: string): BulkRow =>
     row(personId, name, {
@@ -213,12 +219,66 @@ describe('BulkEdit: hire', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('takes a start date per person when asked', async () => {
+  it('recomputes the preview when a start date changes in it, and hires what was shown', async () => {
     const user = fast();
     const onPreviewHire = hires(false);
-    render(
+    const onCommitHire = hires(true);
+    const { container } = render(
       <BulkEdit
         load={{ status: 'ready', data: state }}
+        onPreview={vi.fn()}
+        onCommit={vi.fn()}
+        onPreviewHire={onPreviewHire}
+        onCommitHire={onCommitHire}
+      />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Hire' }));
+    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
+    const table = await screen.findByRole('table', { name: 'Per person' });
+    expect(await axeViolations(container)).toEqual([]);
+
+    await user.click(within(table).getByRole('button', { name: 'Start date for Lena Moreau' }));
+    await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
+    // The preview on screen is no longer what would be hired: not offered until recomputed.
+    expect(screen.getByRole('button', { name: 'Hire 2 people' })).toBeDisabled();
+    expect(screen.getByText('Updating the preview…')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Hire 2 people' })).toBeEnabled();
+    });
+    const recomputed = [
+      [
+        { personId: 'a', hireDate: '2026-09-26' },
+        { personId: 'l', hireDate: '2026-09-30' },
+      ],
+      [{ personId: 'j', hireDate: '2026-09-26' }],
+    ];
+    expect(onPreviewHire.mock.calls.slice(2).map(([page]) => page)).toEqual(recomputed);
+
+    await user.click(screen.getByRole('button', { name: 'Hire 2 people' }));
+    await screen.findByText(/Hired 2 people/);
+    expect(onCommitHire.mock.calls.map(([page]) => page)).toEqual(recomputed);
+    // What was hired is not edited any more.
+    expect(screen.queryByRole('button', { name: /^Start date for/ })).toBeNull();
+  });
+
+  it('draws only the latest preview when an older one answers last', async () => {
+    const user = fast();
+    const slow: ((answer: BulkOutcome) => void)[] = [];
+    const onPreviewHire = vi.fn(
+      (page: BulkHirePage): Promise<BulkOutcome> =>
+        page.some((h) => h.hireDate === '2026-09-30')
+          ? Promise.resolve({
+              ok: true,
+              committed: false,
+              rows: page.map((h) => hired(h.personId, h.personId, 'Starting soon')),
+            })
+          : onPreviewHire.mock.calls.length <= 1
+            ? hires(false)(page)
+            : new Promise((resolve) => slow.push(resolve)),
+    );
+    render(
+      <BulkEdit
+        load={{ status: 'ready', data: { ...state, limit: 3 } }}
         onPreview={vi.fn()}
         onCommit={vi.fn()}
         onPreviewHire={onPreviewHire}
@@ -226,16 +286,125 @@ describe('BulkEdit: hire', () => {
       />,
     );
     await user.click(screen.getByRole('tab', { name: 'Hire' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Set a start date per person' }));
-    const each = screen.getByRole('list', { name: 'Start date per person' });
-    await user.click(within(each).getByRole('button', { name: /Lena Moreau/ }));
-    await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
     await user.click(screen.getByRole('button', { name: 'Preview hire' }));
-    await screen.findByText('Nobody is hired yet');
-    expect(onPreviewHire.mock.calls[0]?.[0]).toEqual([
-      { personId: 'a', hireDate: '2026-09-26' },
-      { personId: 'l', hireDate: '2026-09-30' },
+    const table = await screen.findByRole('table', { name: 'Per person' });
+    expect(within(table).getAllByText('Skipped')).toHaveLength(1);
+
+    // A first change is recomputed, and hangs; a second one overtakes it.
+    await user.click(within(table).getByRole('button', { name: 'Start date for Adam Reyes' }));
+    await user.click(await screen.findByRole('button', { name: /29 September|September 29/ }));
+    await waitFor(() => {
+      expect(slow).toHaveLength(1);
+    });
+    await user.click(within(table).getByRole('button', { name: 'Start date for Adam Reyes' }));
+    await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Hire 3 people' })).toBeEnabled();
+    });
+    // The older answer arrives last, and is not drawn over the newer one.
+    await act(async () => {
+      slow[0]?.({ ok: true, committed: false, rows: [] });
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('button', { name: 'Hire 3 people' })).toBeEnabled();
+    expect(within(table).getAllByText(/→ Starting soon$/)).toHaveLength(3);
+  });
+
+  it('places everybody placed nowhere where HR says, changed for one person in the preview', async () => {
+    const user = fast();
+    const placement = {
+      entities: [
+        { value: 'es', label: 'Acme Spain' },
+        { value: 'de', label: 'Acme GmbH' },
+      ],
+      locations: [
+        { value: 'mad', label: 'Madrid', legalEntityId: 'es' },
+        { value: 'ber', label: 'Berlin', legalEntityId: 'de' },
+      ],
+    };
+    const named = { a: 'Adam Reyes', l: 'Lena Moreau', j: 'Joan Bosch' } as Record<string, string>;
+    const where = { mad: ['Acme Spain', 'Madrid'], ber: ['Acme GmbH', 'Berlin'] } as Record<
+      string,
+      [string, string]
+    >;
+    // Adam is placed already; Lena and Joan are placed nowhere.
+    const onPreviewHire = vi.fn(
+      (page: BulkHirePage): Promise<BulkOutcome> =>
+        Promise.resolve({
+          ok: true,
+          committed: false,
+          rows: page.map(({ personId, locationId }) => {
+            const name = named[personId] ?? personId;
+            if (personId === 'a') return hired(personId, name, 'Active');
+            const at = locationId === undefined ? undefined : where[locationId];
+            if (at === undefined) {
+              return row(personId, name, {
+                outcome: 'refused',
+                changes: [],
+                refusal: {
+                  code: 'PLACEMENT_REQUIRED',
+                  message: 'Choose a legal entity and work location first',
+                },
+              });
+            }
+            const base = hired(personId, name, 'Active');
+            return {
+              ...base,
+              changes: [
+                ...base.changes,
+                { key: 'legal_entity_id', label: 'Legal entity', dated: true, before: null, after: at[0] },
+                { key: 'location_id', label: 'Work location', dated: true, before: null, after: at[1] },
+              ],
+            };
+          }),
+        }),
+    );
+    const { container } = render(
+      <BulkEdit
+        load={{ status: 'ready', data: { ...state, limit: 3, placement } }}
+        onPreview={vi.fn()}
+        onCommit={vi.fn()}
+        onPreviewHire={onPreviewHire}
+        onCommitHire={hires(true)}
+      />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Hire' }));
+    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
+    const table = await screen.findByRole('table', { name: 'Per person' });
+    // Nowhere chosen: those placed nowhere are skipped, and why, with somewhere to choose.
+    expect(within(table).getAllByText('Choose a legal entity and work location first')).toHaveLength(2);
+    expect(within(table).getByRole('combobox', { name: 'Work location for Lena Moreau' })).toBeInTheDocument();
+    expect(within(table).queryByRole('combobox', { name: 'Work location for Adam Reyes' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+
+    // One choice for everybody.
+    await user.click(screen.getByRole('combobox', { name: 'Work location' }));
+    await user.click(screen.getByRole('option', { name: 'Madrid' }));
+    await waitFor(() => {
+      expect(within(table).getAllByText(placedIn('Madrid'))).toHaveLength(2);
+    });
+    expect(onPreviewHire.mock.calls.at(-1)?.[0]).toEqual([
+      { personId: 'a', hireDate: '2026-09-26', legalEntityId: 'es', locationId: 'mad' },
+      { personId: 'l', hireDate: '2026-09-26', legalEntityId: 'es', locationId: 'mad' },
+      { personId: 'j', hireDate: '2026-09-26', legalEntityId: 'es', locationId: 'mad' },
     ]);
+
+    // And Lena somewhere else.
+    await user.click(within(table).getByRole('combobox', { name: 'Legal entity for Lena Moreau' }));
+    await user.click(screen.getByRole('option', { name: 'Acme GmbH' }));
+    await user.click(within(table).getByRole('combobox', { name: 'Work location for Lena Moreau' }));
+    await user.click(screen.getByRole('option', { name: 'Berlin' }));
+    await waitFor(() => {
+      expect(within(table).getByText(placedIn('Berlin'))).toBeInTheDocument();
+    });
+    expect(onPreviewHire.mock.calls.at(-1)?.[0]?.[1]).toEqual({
+      personId: 'l',
+      hireDate: '2026-09-26',
+      legalEntityId: 'de',
+      locationId: 'ber',
+    });
+    expect(screen.getByRole('button', { name: 'Hire 3 people' })).toBeEnabled();
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('offers no hire where the host gives none', () => {

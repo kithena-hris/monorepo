@@ -231,8 +231,16 @@ export async function commitBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
   return bulk(people('BulkEditPeople', bulkVariables(page)));
 }
 
-/** A page of a bulk hire: each person from their start date (not started yet). */
-export type BulkHirePage = readonly { readonly personId: string; readonly hireDate: string }[];
+/**
+ * A page of a bulk hire: each person from their start date (not started yet),
+ * and where to place them should they be placed nowhere that day.
+ */
+export type BulkHirePage = readonly {
+  readonly personId: string;
+  readonly hireDate: string;
+  readonly legalEntityId?: string;
+  readonly locationId?: string;
+}[];
 
 /** Who this page would hire and skip, and why; nothing is kept. */
 export async function previewBulkHire(hires: BulkHirePage): Promise<BulkEdited> {

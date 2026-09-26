@@ -557,8 +557,9 @@ export function PlacementPickers({
   required = false,
   invalid = false,
   locationHint,
+  who,
 }: {
-  readonly placement: PlacementState;
+  readonly placement: Pick<PlacementState, 'entities' | 'locations'>;
   readonly entity: string;
   readonly location: string;
   readonly onEntity: (entity: string) => void;
@@ -566,12 +567,20 @@ export function PlacementPickers({
   readonly required?: boolean;
   readonly invalid?: boolean;
   readonly locationHint?: string;
+  /** Whose placement, in a list of people: the labels name them, and are read rather than shown. */
+  readonly who?: string;
 }): JSX.Element {
+  const label = (what: string) =>
+    who === undefined ? (
+      <FieldLabel>{what}</FieldLabel>
+    ) : (
+      <FieldLabel className="sr-only">{`${what} for ${who}`}</FieldLabel>
+    );
   const offices = placement.locations.filter((l) => entity === '' || l.legalEntityId === entity);
   return (
     <>
       <Field required={required} invalid={invalid}>
-        <FieldLabel>Legal entity</FieldLabel>
+        {label('Legal entity')}
         <Select
           value={entity}
           onValueChange={(next) => {
@@ -597,7 +606,7 @@ export function PlacementPickers({
         <FieldError>Choose where they are employed.</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Work location</FieldLabel>
+        {label('Work location')}
         <Select
           value={location}
           onValueChange={(next) => {

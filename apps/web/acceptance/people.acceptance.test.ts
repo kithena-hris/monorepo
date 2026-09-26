@@ -712,9 +712,10 @@ describe('Hiring somebody added without a start date', () => {
     await context.close();
   });
 
-  it('HR chooses two people not started in the directory and hires them together', async () => {
+  it('HR hires two people not started together, placing the one placed nowhere and moving one start date', async () => {
     const [entity] = await stack.sql<{ id: string }[]>`
       SELECT id::text FROM people.legal_entity WHERE tenant_id = ${TENANT} ORDER BY name LIMIT 1`;
+    // Alan is placed; Joan is placed nowhere, and is placed by the bulk hire.
     for (const [given, email] of [
       ['Alan', 'alan@acme.example'],
       ['Joan', 'joan@acme.example'],
@@ -724,10 +725,12 @@ describe('Hiring somebody added without a start date', () => {
       });
       expect(made.status).toBe(201);
       const id = (made.body as { id: string }).id;
-      const placed = await stack.writeAsPeople(ADMIN.account, `/v1/people/${id}/placement`, {
-        legalEntityId: entity?.id,
-      });
-      expect(placed.status).toBe(200);
+      if (given === 'Alan') {
+        const placed = await stack.writeAsPeople(ADMIN.account, `/v1/people/${id}/placement`, {
+          legalEntityId: entity?.id,
+        });
+        expect(placed.status).toBe(200);
+      }
       expect(await statusOf(email)).toBe('provisional');
     }
 
@@ -744,15 +747,40 @@ describe('Hiring somebody added without a start date', () => {
     await page.waitForLoadState('networkidle');
 
     await page.getByRole('tab', { name: 'Hire' }).click();
+    // One placement for everybody placed nowhere.
+    await page.getByRole('combobox', { name: 'Legal entity', exact: true }).click();
+    await page.getByRole('option').first().click();
     await page.getByRole('button', { name: 'Preview hire' }).click();
     await page.getByText('Nobody is hired yet').waitFor({ timeout: 30_000 });
+    const rows = page.getByRole('table', { name: 'Per person' });
+    await rows.getByText(/Legal entity: .*→/).waitFor();
     expect(await statusOf('alan@acme.example')).toBe('provisional');
+
+    // Joan from the first of last month, changed in her row: the preview follows.
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const firstIso = first.toISOString().slice(0, 10);
+    const day = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(first);
+    await rows.getByRole('button', { name: 'Start date for Joan Bulkhire' }).click();
+    await page.getByRole('button', { name: 'Previous month' }).click();
+    await page.getByRole('button', { name: day, exact: true }).click();
+    await rows.getByText(new RegExp(`Start date: .*→ ${firstIso}`)).waitFor({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Hire 2 people' }).click();
     await page.getByText('Hired 2 people.').waitFor({ timeout: 30_000 });
     expect([await statusOf('alan@acme.example'), await statusOf('joan@acme.example')]).toEqual([
       'active',
       'active',
     ]);
+    const [joan] = await stack.sql<{ hire_date: string; legal_entity_id: string | null }[]>`
+      SELECT hire_date::text, legal_entity_id::text FROM people.person
+       WHERE tenant_id = ${TENANT} AND work_email = 'joan@acme.example'`;
+    expect(joan).toEqual({ hire_date: firstIso, legal_entity_id: entity?.id });
     await context.close();
   });
 });

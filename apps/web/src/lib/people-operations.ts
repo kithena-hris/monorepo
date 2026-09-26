@@ -161,6 +161,7 @@ export const OPERATIONS = {
       people { id name }
       sections { key label visibility fields { ...RecordFieldParts } }
       today limit
+      placement { entities { value label } locations { value label legalEntityId } }
     }
   }${RECORD_FIELD}`,
 
