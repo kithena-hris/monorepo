@@ -1,9 +1,13 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, Forbidden, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
 
-import { nextErasure, STATUTORY_FLOOR_MONTHS, type StatutoryFloor } from '../../domain/retention/floors.js';
+import {
+  nextErasure,
+  STATUTORY_FLOOR_MONTHS,
+  type StatutoryFloor,
+} from '../../domain/retention/floors.js';
 import { inTenantResult } from '../person/person-access.js';
-import type { InTenant } from '../person/service.js';
+import type { InTenant } from '../person/ports.js';
 import type { anonymiseDue, RetentionAttribute, RetentionStore } from './anonymise.js';
 import { addMonths, dueForAnonymisation } from './schedule.js';
 
@@ -57,7 +61,12 @@ export interface SweepResult {
 function shortestMonths(attributes: readonly RetentionAttribute[]): number | null {
   const months = attributes.flatMap(({ policy: { retention } }) =>
     retention
-      ? [Math.max(retention.monthsAfterTermination, retention.statutoryFloor ? STATUTORY_FLOOR_MONTHS[retention.statutoryFloor] : 0)]
+      ? [
+          Math.max(
+            retention.monthsAfterTermination,
+            retention.statutoryFloor ? STATUTORY_FLOOR_MONTHS[retention.statutoryFloor] : 0,
+          ),
+        ]
       : [],
   );
   return months.length === 0 ? null : Math.min(...months);
@@ -66,7 +75,9 @@ function shortestMonths(attributes: readonly RetentionAttribute[]): number | nul
 const retained = (attributes: readonly RetentionAttribute[]) =>
   attributes.filter((a) => a.policy.retention !== undefined).map((a) => a.key);
 
-export function sweepRetention(deps: SweepDeps): (tenantId: string, after: string | null) => Promise<SweepResult> {
+export function sweepRetention(
+  deps: SweepDeps,
+): (tenantId: string, after: string | null) => Promise<SweepResult> {
   const limit = deps.batch ?? 100;
   return async (tenantId, after) => {
     const candidates = await deps.inTenant(tenantId, async ({ tx }) => {
@@ -109,7 +120,12 @@ export function sweepRetention(deps: SweepDeps): (tenantId: string, after: strin
       }
     }
     const last = candidates.at(-1);
-    return { erased, waiting, failed, next: candidates.length < limit || !last ? null : last.personId };
+    return {
+      erased,
+      waiting,
+      failed,
+      next: candidates.length < limit || !last ? null : last.personId,
+    };
   };
 }
 
@@ -163,7 +179,9 @@ export function upcomingErasures(deps: {
         // eslint-disable-next-line no-await-in-loop -- bounded above
         for (const k of (await deps.store.leaver(tx, tenantId, id, false))?.held ?? []) held.add(k);
       }
-      const decisions = dueForAnonymisation(attributes, c.lastWorkingDay, horizon).filter((d) => held.has(d.key));
+      const decisions = dueForAnonymisation(attributes, c.lastWorkingDay, horizon).filter((d) =>
+        held.has(d.key),
+      );
       const next = nextErasure(decisions, today, deps.reviews);
       if (next) upcoming.push({ personId: c.personId, name: c.name, ...next });
     }

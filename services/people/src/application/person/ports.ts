@@ -230,3 +230,9 @@ export interface PersonCount {
   readonly active: number;
   readonly notStarted: number;
 }
+
+/** One tenant transaction, as `tenantTransaction` in infrastructure provides it. */
+export type InTenant = <R>(
+  tenantId: string,
+  fn: (scope: { tx: PostgresJsDatabase }) => Promise<R>,
+) => Promise<R>;
