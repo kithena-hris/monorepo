@@ -103,8 +103,15 @@ describe('a profile update', () => {
 
 describe('a value coming into force on its day (PEO-124)', () => {
   it('carries what a profile update carries, and refuses a special-category value alike', () => {
+    // Every key but `appliedWithoutApproval` (PEO-077). Whether a value skipped
+    // approval is a fact about the write that recorded it, and that write's
+    // `profile_updated` says so; the history row it left does not record it,
+    // so coming into force could only repeat it by guessing. The audit is the
+    // write's event, which the history row names.
     expect(payloadKeys('people.person.attribute_effective').toSorted()).toEqual(
-      payloadKeys('people.person.profile_updated').toSorted(),
+      payloadKeys('people.person.profile_updated')
+        .filter((k) => k !== 'appliedWithoutApproval')
+        .toSorted(),
     );
     const effective = peopleEvents.find((e) => e.name === 'people.person.attribute_effective');
     const refused = effective?.payload.safeParse({
