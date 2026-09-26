@@ -192,6 +192,22 @@ describe('the diff a publish produces', () => {
       'employee_number',
     ]);
   });
+
+  it('names a field whose approval setting changed, and not one set to its default (PEO-077)', () => {
+    const before = published(draft());
+    const on = draft();
+    on.updateAttribute('employee_number', { requiresApproval: true });
+    const after = publish(on, before, { clock: later, actor });
+    expect(after.ok && diff(before.document, after.value.document).changed).toEqual([
+      'employee_number',
+    ]);
+
+    // Off is what an internal field defaults to: saying so changes nothing held.
+    const same = draft();
+    same.updateAttribute('employee_number', { requiresApproval: false });
+    const again = publish(same, before, { clock: later, actor });
+    expect(again.ok && diff(before.document, again.value.document).changed).toEqual([]);
+  });
 });
 
 describe('custom visibility rules at publish (PEO-066)', () => {

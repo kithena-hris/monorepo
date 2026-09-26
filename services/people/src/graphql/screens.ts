@@ -586,6 +586,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         collectAt: t.exposeString('collectAt'),
         classification: t.exposeString('classification'),
         piiKind: t.exposeString('piiKind'),
+        requiresApproval: t.exposeBoolean('requiresApproval', {
+          description: 'Whether a change waits for HR approval: the tenant’s choice, else the default.',
+        }),
         origin: t.exposeString('origin'),
         pending: t.exposeString('pending', {
           nullable: true,
@@ -1323,6 +1326,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       classification: t.string({ required: true }),
       piiKind: t.string({ required: true }),
       classificationSource: t.string({ required: true }),
+      requiresApproval: t.boolean({
+        description: 'Whether a change waits for HR approval; null keeps the default.',
+      }),
     }),
   });
   const ColumnInput = builder.inputType('ImportColumnInput', {
