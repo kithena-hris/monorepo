@@ -30,7 +30,16 @@ import { Unrenderable, type RenderedMessage } from './invitation.js';
  */
 export type Notice =
   | { readonly kind: 'profile_reminder'; readonly missing: number }
-  | { readonly kind: 'webhook_disabled'; readonly host: string };
+  | { readonly kind: 'webhook_disabled'; readonly host: string }
+  /*
+   * A change held for approval (PEO-077): to an approver, then to whoever
+   * asked. None names the person, the field or the value — a forwarded
+   * "your change to Ana's IBAN" is the disclosure — only that there is one,
+   * and a link to the inbox, signed in.
+   */
+  | { readonly kind: 'approval_requested' }
+  | { readonly kind: 'approval_decided'; readonly decision: 'approved' | 'rejected' }
+  | { readonly kind: 'approval_expired' };
 
 export type NoticeKind = Notice['kind'];
 
@@ -99,6 +108,33 @@ const COPY: {
       footer: `Sent by Kithena on behalf of ${company}. You will get at most one of these a week, and none once your profile is complete.`,
     };
   },
+  approval_requested: (_notice, company) => ({
+    subject: `${company}: a change is waiting for your approval`,
+    heading: 'A change needs your approval',
+    lede: `Somebody changed a detail in ${company}'s People that needs a second person to approve it before it takes effect. It waits for up to seven days; after that it lapses and is not applied.`,
+    action: 'Review changes',
+    footer: `Sent by Kithena on behalf of ${company} because you approve changes in People.`,
+  }),
+  approval_decided: ({ decision }, company) => {
+    if (decision !== 'approved' && decision !== 'rejected') return null;
+    const approved = decision === 'approved';
+    return {
+      subject: `${company}: your change was ${approved ? 'approved' : 'not approved'}`,
+      heading: approved ? 'Your change was approved' : 'Your change was not approved',
+      lede: approved
+        ? `A change you made in ${company}'s People was approved, and takes effect from the date you gave.`
+        : `A change you made in ${company}'s People was not approved, so it was not applied. Open People to see what is recorded and, if it is still needed, make it again.`,
+      action: 'Open People',
+      footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
+    };
+  },
+  approval_expired: (_notice, company) => ({
+    subject: `${company}: your change expired without a decision`,
+    heading: 'Your change expired',
+    lede: `Nobody decided a change you made in ${company}'s People within seven days, so it was not applied. If it is still needed, make it again.`,
+    action: 'Open People',
+    footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
+  }),
   webhook_disabled: ({ host }, company) => {
     if (!HOST.test(host)) return null;
     return {

@@ -26,6 +26,40 @@ describe('renderNotice: webhook_disabled', () => {
   });
 });
 
+describe('renderNotice: the approval of a change (PEO-077)', () => {
+  const INBOX = 'https://acme.app.kithena.com/people/approvals';
+
+  it('asks an approver to look, naming neither the person, the field nor the value', () => {
+    const result = renderNotice({ kind: 'approval_requested' }, INBOX, ACME);
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: a change is waiting for your approval');
+    expect(result.value.text).toContain(INBOX);
+    expect(result.value.text).toContain('seven days');
+  });
+
+  it('tells the requester whether it was approved or rejected', () => {
+    const approved = renderNotice({ kind: 'approval_decided', decision: 'approved' }, INBOX, ACME);
+    const rejected = renderNotice({ kind: 'approval_decided', decision: 'rejected' }, INBOX, ACME);
+    expect(approved.ok && approved.value.subject).toBe('Acme Corp: your change was approved');
+    expect(rejected.ok && rejected.value.subject).toBe('Acme Corp: your change was not approved');
+    expect(rejected.ok && rejected.value.text).toContain('was not applied');
+  });
+
+  it('tells the requester nobody decided in time', () => {
+    const expired = renderNotice({ kind: 'approval_expired' }, INBOX, ACME);
+    expect(expired.ok && expired.value.subject).toBe(
+      'Acme Corp: your change expired without a decision',
+    );
+    expect(expired.ok && expired.value.text).toContain('was not applied');
+  });
+
+  it('refuses a decision it has no words for', () => {
+    expect(
+      renderNotice({ kind: 'approval_decided', decision: 'maybe' as 'approved' }, INBOX, ACME).ok,
+    ).toBe(false);
+  });
+});
+
 describe('renderNotice: profile_reminder', () => {
   it('counts what is missing and links to the profile, in both bodies', () => {
     const result = renderNotice({ kind: 'profile_reminder', missing: 3 }, PROFILE, ACME);
