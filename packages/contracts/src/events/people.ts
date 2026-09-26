@@ -1050,8 +1050,9 @@ export const PersonChangeRequested = defineEvent(
 
 /**
  * `decidedAs` says how, when it was not another HR member's approval or
- * rejection: `sole_hr`, the requester approving alone as the tenant's only
- * HR member after confirming it; `identifier_review`, declined because the
+ * rejection: `sole_hr`, the requester approving alone after confirming it,
+ * no other HR member being able to (they are the only one, or the only other
+ * is the change's subject); `identifier_review`, declined because the
  * review of the doubted identifier it held found errors (the note is the
  * reviewer's reason). Absent for an ordinary decision.
  */

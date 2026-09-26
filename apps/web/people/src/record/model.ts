@@ -63,7 +63,7 @@ export interface PendingValue {
   readonly mine: boolean;
   /** The viewer may approve or reject it. */
   readonly canDecide: boolean;
-  /** The viewer asked and is the only HR member: they approve it alone, once they confirm. */
+  /** The viewer asked and no other HR member may approve it: they approve it alone, once they confirm. */
   readonly canSelfApprove?: boolean;
   /** A national identifier the checks doubt: not approvable until HR accepts its review. */
   readonly awaitingReview?: boolean;

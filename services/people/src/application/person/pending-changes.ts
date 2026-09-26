@@ -44,9 +44,10 @@ import type {
  *
  * - **HR decides**, within seven days, and never the requester nor the person
  *   the change is about (`domain/approval/pending-change.ts`). HR's own change
- *   needs a second HR member — unless there is none: the tenant's only HR
- *   member approves their own change alone, once they confirm it
- *   (`soleApprover`), and the decision says `sole_hr`.
+ *   needs a second HR member — unless no HR member but the requester may
+ *   decide (the only one, or one of two changing the other's record): then
+ *   the requester approves it alone, once they confirm it (`soleApprover`),
+ *   and the decision says `sole_hr`.
  * - **A doubted national identifier is reviewed first** (PEO-125): holding it
  *   opens its review against the held value, nobody approves it until the
  *   review is accepted, and a review that finds errors declines it with the
@@ -157,8 +158,8 @@ export interface PendingChangeDeps extends Holding {
   readonly reader: PersonReader;
   readonly relations: RelationsResolver;
   /**
-   * Who holds `hr`, as the role rows say (PEO-112): whether a requester is the
-   * only HR member. Absent, nobody is — and nobody approves alone.
+   * Who holds `hr`, as the role rows say (PEO-112): whether anybody but the
+   * requester may approve. Absent, nobody approves alone.
    */
   readonly roles?: Pick<RoleReads, 'holdings'>;
   /** A held identifier's review (PEO-125). Absent, no change waits on one. */
@@ -346,9 +347,9 @@ async function closeReviewOf(
  * took meanwhile, a field since archived — refuses the approval with the
  * write's own reason, and the change stays pending for HR to reject.
  *
- * The tenant's only HR member approves their own change with `soleApprover`,
- * asked of who holds `hr` now, in this transaction: a second member granted
- * a moment ago is the approver instead.
+ * A requester whom no other HR member may approve for approves their own
+ * change with `soleApprover`, asked of who holds `hr` now, in this
+ * transaction: an eligible member granted a moment ago is the approver instead.
  */
 export async function decidePendingChange(
   tx: Tx,
@@ -357,7 +358,7 @@ export async function decidePendingChange(
     readonly changeId: string;
     readonly approve: boolean;
     readonly note?: string | null;
-    /** The requester confirmed they approve it alone, as the only HR member. */
+    /** The requester confirmed they approve it alone: no other HR member may. */
     readonly soleApprover?: boolean;
   },
 ): Promise<Result<PendingChange>> {
@@ -618,8 +619,8 @@ export interface PendingValue {
   /** The viewer holds HR and is neither the requester nor the subject. */
   readonly canDecide: boolean;
   /**
-   * The viewer asked, and is the tenant's only HR member: they may approve it
-   * alone, once they confirm it (PEO-077).
+   * The viewer asked, holds HR, and no other HR member may decide it: they may
+   * approve it alone, once they confirm it (PEO-077).
    */
   readonly canSelfApprove: boolean;
   /** A doubted identifier whose review is not accepted yet: nobody approves it (PEO-125). */
@@ -647,7 +648,13 @@ async function standing(
   return {
     mine: requester === may.me,
     canDecide: may.isHr && requester !== may.me && may.subject !== may.me,
-    canSelfApprove: may.isHr && mayApproveAlone(may.hr, change.approval, may.me),
+    canSelfApprove:
+      may.isHr &&
+      mayApproveAlone(
+        may.hr,
+        { requestedBy: change.approval.requestedBy, subjectAccountId: may.subject },
+        may.me,
+      ),
     awaitingReview: review !== null,
     findings: review === null ? [] : review.findings.filter((f) => f.level !== 'ok'),
   };

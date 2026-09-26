@@ -1441,16 +1441,19 @@ either way on any field.
   person the change is about: HR's own change needs a second HR member, and
   nobody approves a change to their own record, whoever asked. The database
   refuses a requester's decision as well as the domain.
-- **The only HR member approves alone.** When the requester is the tenant's
-  only `hr` holder — the first administrator entering their own NIF in the
-  setup wizard, or a one-person HR team — nobody else can approve, so they
-  may, after a dialog that says there is no other approver and that the
-  audit trail records it as theirs alone. The request carries `soleApprover`;
-  without it, or while anybody else holds `hr`, it is refused as before. Who
-  holds `hr` is read from the role rows at decision time, in the decision's
-  transaction, so a second member granted meanwhile decides instead. It is
-  never a rejection (the requester withdraws) and never somebody else's
-  change about them. Recorded as `sole_hr` on the change and on
+- **With no other eligible approver, the requester approves alone.** When
+  no `hr` holder but the requester may decide — they are the tenant's only
+  one (the first administrator entering their own NIF in the setup wizard,
+  a one-person HR team), or the only other is the person the change is about
+  (one of two HR members changing the other's record) — the requester may
+  approve it, after a dialog that says there is no other HR member who can
+  and that the audit trail records it as theirs alone. The request carries
+  `soleApprover`; without it, or while an eligible approver holds `hr`, it is
+  refused as before. Who holds `hr` is read from the role rows at decision
+  time, in the decision's transaction, so an approver granted meanwhile
+  decides instead. It is never a rejection (the requester withdraws) and
+  never somebody else's change about them. Recorded as `sole_hr` — the
+  requester was the sole HR member able to decide — on the change and on
   `change_decided`; the database allows a requester's decision only when it
   is recorded so.
 - **A doubted national identifier is reviewed first** (§8.4). Holding a

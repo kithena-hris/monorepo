@@ -2,9 +2,10 @@
 -- PEO-125; PRD §8.6).
 --
 -- `decided_as`:
---   * `sole_hr`: the requester approved it alone, as the tenant's only HR
---     member, after confirming it. The domain allows it only while nobody
---     else holds `hr`; this allows it only when it is recorded as such.
+--   * `sole_hr`: the requester approved it alone, after confirming it, as
+--     the sole HR member able to decide (the only one, or the only other is
+--     the subject). The domain allows it only while no other holder of `hr`
+--     may decide; this allows it only when it is recorded as such.
 --   * `identifier_review`: declined because the review of the doubted
 --     national identifier it held found errors. The reviewer may be the
 --     requester — declining is not approving.

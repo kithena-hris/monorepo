@@ -407,7 +407,7 @@ export async function requestFullValues(fields: readonly string[], reason: strin
 
 /**
  * HR approves or rejects a change held for approval; People decides who may.
- * `soleApprover`: the only HR member approving their own, having confirmed it.
+ * `soleApprover`: the requester approving their own, no other HR member being able to, having confirmed it.
  */
 export async function decidePendingChange(
   id: string,
@@ -425,7 +425,7 @@ export async function decidePendingChange(
   );
 }
 
-/** The only HR member approves their own held change, having confirmed it (PEO-077). */
+/** The requester approves their own held change when no other HR member can, having confirmed it (PEO-077). */
 export async function approveAlone(id: string): Promise<Outcome> {
   return decidePendingChange(id, true, null, true);
 }

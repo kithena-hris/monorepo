@@ -83,11 +83,12 @@ export function PendingBadge({ pending }: { readonly pending: PendingValue }): J
 }
 
 /**
- * The only HR member approving their own change (PEO-077). Nobody else can,
- * so it is allowed — but never by one click: the dialog says there is no
+ * A requester approving their own change when no other HR member can
+ * (PEO-077): they are the only one, or the only other is its subject. It is
+ * allowed — but never by one click: the dialog says there is no
  * other approver and that the audit trail records it as theirs alone, and
  * only the confirmation approves. People checks again when it arrives: if
- * somebody else holds HR by then, they decide instead.
+ * an eligible approver holds HR by then, they decide instead.
  */
 export function ApproveAlone({
   label,
@@ -117,14 +118,15 @@ export function ApproveAlone({
           <DialogHeader>
             <DialogTitle>Approve your own change to {label}?</DialogTitle>
             <DialogDescription>
-              Nobody else in your company holds HR, so there is no other member to approve it.
+              There is no other HR member who can approve it: nobody else holds HR, or the
+              only other HR member is the person it is about, who never approves their own.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>
               <Alert tone="warning" title="Recorded as approved by you alone">
-                The audit trail will show that you approved your own change as the only member of
-                HR. If somebody else joins HR first, they approve it instead.
+                The audit trail will show that you approved your own change because no other HR
+                member could. If somebody who can joins HR first, they approve it instead.
               </Alert>
               {refused === null ? null : (
                 <Alert tone="danger" title="Not approved">

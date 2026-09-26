@@ -167,7 +167,7 @@ export const PendingChangeBody = z.object({
   canSelfApprove: z
     .boolean()
     .describe(
-      'The caller asked for it and is the only member of HR: they may approve it with `soleApprover`.',
+      'The caller asked for it and no other member of HR may approve it: they may, with `soleApprover`.',
     ),
   awaitingReview: z
     .boolean()
@@ -199,7 +199,7 @@ export const PendingChangeDecisionBody = z.strictObject({
     .boolean()
     .optional()
     .describe(
-      'The requester confirms they approve their own change alone, as the only member of HR. Refused while anybody else holds hr; recorded as `sole_hr`.',
+      'The requester confirms they approve their own change alone, no other member of HR being able to (the only other may be its subject). Refused while an eligible approver holds hr; recorded as `sole_hr`.',
     ),
 });
 

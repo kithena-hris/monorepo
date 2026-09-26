@@ -47,7 +47,7 @@ export function SectionForm({
   /** Values waiting for HR's approval, shown under their fields (PEO-077). */
   readonly pending?: readonly PendingValue[];
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
-  /** The only HR member approving their own held change, once they confirm (PEO-077). */
+  /** A requester no other HR member can approve for, approving their own held change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
 }): JSX.Element {
   const [draft, setDraft] = useState<Values>(values);

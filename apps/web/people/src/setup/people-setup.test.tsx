@@ -231,7 +231,7 @@ describe('PeopleSetup', () => {
 });
 
 describe('the first administrator’s held NIF (PEO-077)', () => {
-  it('is theirs to approve alone, as the only HR member, after the dialog', async () => {
+  it('is theirs to approve alone, with no other HR member who can, after the dialog', async () => {
     const onSelfApprove = vi.fn(() => Promise.resolve({ ok: true as const }));
     const { container } = render(
       <PeopleSetup
@@ -277,7 +277,7 @@ describe('the first administrator’s held NIF (PEO-077)', () => {
       screen.getByRole('button', { name: 'Approve the change to Legal name yourself' }),
     );
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/no other member to approve it/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/no other HR member who can approve it/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Approve it myself' }));
     expect(onSelfApprove).toHaveBeenCalledWith('c1');
     await waitFor(() => {

@@ -10,6 +10,7 @@ import { startPostgres } from '@kithena/testing';
 import { inTenantResult, personAccess, type Asking } from './person-access.js';
 import { decidePendingChange, type Holding, type PendingChangeDeps } from './pending-changes.js';
 import { drizzlePendingChangeStore, outboxPendingChanges } from './pending-store.js';
+import { drizzleRoleStore } from '../../infrastructure/drizzle-role-store.js';
 import { open, seal } from '../../infrastructure/envelope.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { utcCalendars } from '../org/org.js';
@@ -131,6 +132,7 @@ beforeAll(async () => {
     '20260924320000_people_effective_through.sql',
     '20260924330000_people_identifier_review.sql',
     '20260926230100_people_identifier_review_held.sql',
+    '20260924270200_people_role_grant.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -444,6 +446,7 @@ describe('a doubted NIF held for approval: reviewed first, then approved (PEO-07
     reader: drizzlePersonReader(),
     relations: drizzleRelations(),
     reviews: drizzleIdentifierReviews(ring, secrets),
+    roles: drizzleRoleStore(),
   };
   const submit = async (value: string) => {
     const written = await inTenantResult(inTenant, ACME, (tx) =>
@@ -556,5 +559,38 @@ describe('a doubted NIF held for approval: reviewed first, then approved (PEO-07
     expect(JSON.stringify(await events('people.person.change_requested'))).not.toContain(
       '12345678',
     );
+  });
+
+  it('lets HR approve alone when the only other HR member is the subject, asked at decision time', async () => {
+    // Two HR members by the role rows: the requester, and Nur, whose record it is.
+    await admin.execute(sql`
+      INSERT INTO people.role_grant (tenant_id, account_id, role)
+      VALUES (${ACME}::uuid, ${hr.accountId}::uuid, 'hr'), (${ACME}::uuid, ${nur.accountId}::uuid, 'hr')
+      ON CONFLICT DO NOTHING`);
+    const written = await inTenantResult(inTenant, ACME, (tx) =>
+      held.update(tx, { ...as(hr), personId: NUR, changes: { es_nif: '87654321X' } }),
+    );
+    const changeId = written.ok ? (written.value.held?.[0]?.changeId ?? '') : '';
+    const alone = () =>
+      inTenantResult(inTenant, ACME, (tx) =>
+        decidePendingChange(tx, pending, { ...as(hr), changeId, approve: true, soleApprover: true }),
+      );
+
+    // A third HR member is an eligible approver: refused while they hold it.
+    await admin.execute(sql`
+      INSERT INTO people.role_grant (tenant_id, account_id, role)
+      VALUES (${ACME}::uuid, ${LUCIA_ACCOUNT}::uuid, 'hr')`);
+    const refused = await alone();
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+    await admin.execute(sql`
+      DELETE FROM people.role_grant WHERE account_id = ${LUCIA_ACCOUNT}::uuid AND role = 'hr'`);
+
+    expect((await alone()).ok).toBe(true);
+    const [change] = [
+      ...(await admin.execute(sql`
+        SELECT state, decided_by::text, decided_as FROM people.pending_change
+         WHERE id = ${changeId}::uuid`)),
+    ];
+    expect(change).toEqual({ state: 'approved', decided_by: hr.accountId, decided_as: 'sole_hr' });
   });
 });

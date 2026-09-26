@@ -12,6 +12,7 @@ import {
 const EMPLOYEE = '00000000-0000-4000-8000-000000000001';
 const HR = '00000000-0000-4000-8000-0000000000ff';
 const OTHER_HR = '00000000-0000-4000-8000-0000000000fe';
+const THIRD_HR = '00000000-0000-4000-8000-0000000000fd';
 const AT = '2026-09-22T09:00:00.000Z';
 const WEEK_LATER = '2026-09-29T09:00:00.000Z';
 
@@ -103,7 +104,7 @@ describe('deciding a pending change (PEO-077)', () => {
   });
 });
 
-describe('the only HR member approving their own change (PEO-077)', () => {
+describe('a requester with no other eligible approver approving alone (PEO-077)', () => {
   const alone = (over: Partial<Parameters<typeof decideChange>[1]> = {}) =>
     decideChange(asked(HR), {
       by: HR,
@@ -132,12 +133,33 @@ describe('the only HR member approving their own change (PEO-077)', () => {
     expect(!unconfirmed.ok && unconfirmed.error.code).toBe('FORBIDDEN');
   });
 
-  it('is refused the moment a second HR member exists: they decide', () => {
+  it('is refused the moment another HR member could approve: they decide', () => {
     const second = alone({ hr: [HR, OTHER_HR] });
     expect(!second.ok && second.error.code).toBe('FORBIDDEN');
-    // Even when that member is the person the change is about.
-    const aboutThem = decideChange(asked(HR), {
-      by: HR,
+  });
+
+  it('is allowed when the only other HR member is the person it is about, who never may', () => {
+    const aboutThem = (hr: readonly string[]) =>
+      decideChange(asked(HR), {
+        by: HR,
+        isHr: true,
+        subjectAccountId: OTHER_HR,
+        approve: true,
+        at: AT,
+        hr,
+        soleApprover: true,
+      });
+    const two = aboutThem([HR, OTHER_HR]);
+    expect(two.ok && two.value).toMatchObject({
+      approval: { state: 'approved', decidedBy: HR },
+      decidedAs: 'sole_hr',
+    });
+    // A third HR member is an eligible approver: refused.
+    const three = aboutThem([HR, OTHER_HR, THIRD_HR]);
+    expect(!three.ok && three.error.code).toBe('FORBIDDEN');
+    // And never the subject, who is HR, asked or not.
+    const subject = decideChange(asked(HR), {
+      by: OTHER_HR,
       isHr: true,
       subjectAccountId: OTHER_HR,
       approve: true,
@@ -145,7 +167,7 @@ describe('the only HR member approving their own change (PEO-077)', () => {
       hr: [HR, OTHER_HR],
       soleApprover: true,
     });
-    expect(!aboutThem.ok && aboutThem.error.code).toBe('FORBIDDEN');
+    expect(!subject.ok && subject.error.code).toBe('FORBIDDEN');
   });
 
   it('is never let in by a missing list of who holds HR', () => {
@@ -172,10 +194,21 @@ describe('the only HR member approving their own change (PEO-077)', () => {
   });
 
   it('says whether the requester may, before they ask', () => {
-    expect(mayApproveAlone([HR], { requestedBy: HR }, HR)).toBe(true);
-    expect(mayApproveAlone([HR, OTHER_HR], { requestedBy: HR }, HR)).toBe(false);
-    expect(mayApproveAlone([HR], { requestedBy: EMPLOYEE }, HR)).toBe(false);
-    expect(mayApproveAlone([], { requestedBy: HR }, HR)).toBe(false);
+    const own = { requestedBy: HR, subjectAccountId: HR };
+    expect(mayApproveAlone([HR], own, HR)).toBe(true);
+    expect(mayApproveAlone([HR, OTHER_HR], own, HR)).toBe(false);
+    expect(mayApproveAlone([HR, OTHER_HR], { requestedBy: HR, subjectAccountId: OTHER_HR }, HR)).toBe(
+      true,
+    );
+    expect(
+      mayApproveAlone([HR, OTHER_HR, THIRD_HR], { requestedBy: HR, subjectAccountId: OTHER_HR }, HR),
+    ).toBe(false);
+    expect(mayApproveAlone([HR], { requestedBy: EMPLOYEE, subjectAccountId: HR }, HR)).toBe(false);
+    expect(mayApproveAlone([], own, HR)).toBe(false);
+    // Not HR themselves: nobody is let in by an empty approver list.
+    expect(mayApproveAlone([OTHER_HR], { requestedBy: HR, subjectAccountId: OTHER_HR }, HR)).toBe(
+      false,
+    );
   });
 });
 
