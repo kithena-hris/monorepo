@@ -28,11 +28,18 @@ type AnalyticsAttrition {
   formula: String
   leavers: Int
   percent: Float
+  """Rolling 12-month attrition, in percent, by month"""
+  trend: [AnalyticsPoint!]
 }
 
 type AnalyticsComplete {
   incomplete: Int
   percent: Float
+}
+
+type AnalyticsComposition {
+  categories: [String!]
+  series: [AnalyticsSeries!]
 }
 
 type AnalyticsExpiries {
@@ -58,6 +65,18 @@ type AnalyticsHeadcount {
   value: Int
 }
 
+type AnalyticsHeatCell {
+  column: String
+  row: String
+  value: Int
+}
+
+type AnalyticsJoiners {
+  cells: [AnalyticsHeatCell!]
+  departments: [String!]
+  months: [String!]
+}
+
 type AnalyticsMovement {
   closing: Int
   joiners: Int
@@ -70,6 +89,34 @@ type AnalyticsMovement {
 type AnalyticsPoint {
   label: String
   value: Float
+}
+
+"""
+One self-identification question in aggregate, from its monthly publication (§6.7, §16.1).
+"""
+type AnalyticsSelfId {
+  cells: [AnalyticsPoint!]
+  key: String
+  label: String
+  minimum: Int
+  note: String
+  publishedAsOf: String
+  """ok, or insufficient_data below the cohort minimum"""
+  status: String
+  """Rounded to 5 on its own; not the sum of the rounded counts"""
+  total: Int
+}
+
+type AnalyticsSeries {
+  label: String
+  values: [Int!]
+}
+
+type AnalyticsTenureBand {
+  headcount: Int
+  label: String
+  """Left in the 12 months before, by tenure at leaving"""
+  leavers: Int
 }
 
 """
@@ -692,6 +739,8 @@ type Mutation {
   createWebhookEndpoint(alertEmail: String!, allowlist: [String!]!, events: [String!]!, idempotencyKey: String!, url: String!): WebhookEndpointSecret
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
+  """Delete a segment you saved."""
+  deletePeopleSegment(id: ID!, idempotencyKey: String!): WriteOutcome
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
   """HR says a pair are two people; the queue stops offering it."""
@@ -750,6 +799,7 @@ type Mutation {
     reason: String
     """With pdf: this person’s employee record instead of a roster."""
     recordOf: ID
+    segmentId: ID
   ): PeopleExport
   """Finance asks for sealed fields in full, with a reason; HR decides."""
   requestFullValues(asOf: String, fields: [String!]!, filter: String, idempotencyKey: String!, personIds: [ID!], reason: String!): FullValuesRequest
@@ -766,6 +816,10 @@ type Mutation {
   """Add or change a field in the draft; the draft decides whether it may."""
   saveDraftField(editing: String, idempotencyKey: String!, input: DraftFieldInput!): WriteOutcome
   saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): SectionSaved
+  """
+  Save a named filter, for yourself or shared within the tenant (PEO-068).
+  """
+  savePeopleSegment(filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
   """
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
@@ -830,12 +884,21 @@ type PeopleAnalytics {
   attrition: AnalyticsAttrition
   complete: AnalyticsComplete
   completenessBySection: [AnalyticsPoint!]
+  composition: AnalyticsComposition
   expiries: AnalyticsExpiries
   expiringIn90Days: Int
   headcount: AnalyticsHeadcount
+  joiners: AnalyticsJoiners
   movement: AnalyticsMovement
+  segment: PeopleSegmentRef
+  segments: [PeopleSegmentRef!]
+  """HR's only; never under a segment"""
+  selfId: [AnalyticsSelfId!]
   source: String
   sourceNote: String
+  """Managers by number of direct reports"""
+  span: [AnalyticsPoint!]
+  tenure: [AnalyticsTenureBand!]
 }
 
 type PeopleCompleteness {
@@ -857,6 +920,9 @@ type PeopleDirectory {
   incomplete: Int
   next: String
   people: [DirectoryPerson!]
+  segment: PeopleSegmentRef
+  """The saved segments this viewer could apply here."""
+  segments: [PeopleSegmentRef!]
 }
 
 """
@@ -989,6 +1055,39 @@ type PeopleSchema {
   checksum: String
   publishedAt: String
   version: Int
+}
+
+"""
+A saved segment (PEO-068): a filter, never a list of people. Using it shows you only the people you may see.
+"""
+type PeopleSegment {
+  filter: [PeopleSegmentCondition!]
+  id: ID
+  mine: Boolean
+  name: String
+  shared: Boolean
+  usableIn: PeopleSegmentUse
+}
+
+type PeopleSegmentCondition {
+  key: String
+  value: String
+}
+
+input PeopleSegmentConditionInput {
+  key: String!
+  value: String!
+}
+
+"""A saved segment, by name (PEO-068)."""
+type PeopleSegmentRef {
+  id: ID
+  name: String
+}
+
+type PeopleSegmentUse {
+  analytics: Boolean
+  directory: Boolean
 }
 
 type PeopleSettings {
@@ -1138,10 +1237,10 @@ type Query {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage
-  peopleAnalytics: PeopleAnalytics
+  peopleAnalytics(segment: ID): PeopleAnalytics
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
-  peopleDirectory(after: ID, filter: String, search: String): PeopleDirectory
+  peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
@@ -1179,6 +1278,8 @@ type Query {
   """Who holds a tenant role; HR and people_admin only."""
   peopleRoles: [RoleHolder!]
   peopleSchema(version: Int): PeopleSchema
+  """The saved segments you see and could use somewhere (PEO-068)."""
+  peopleSegments: [PeopleSegment!]
   peopleSettings: PeopleSettings
   peopleSetup: PeopleSetup
   """

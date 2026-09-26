@@ -114,4 +114,42 @@ describe('Directory', () => {
     rerender(<Directory {...props({ onFirstPage })} />);
     expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
   });
+
+  it('applies a saved segment through the shell, and saves the filters as one (PEO-068)', async () => {
+    const user = fast();
+    const onSegmentChange = vi.fn();
+    const onSaveSegment = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const withSegments = { ...state, segments: [{ id: 'seg-1', name: 'Madrid engineering' }] };
+    const { container, rerender } = render(
+      <Directory
+        {...props({
+          load: { status: 'ready', data: withSegments },
+          onSegmentChange,
+          onSaveSegment,
+        })}
+      />,
+    );
+    // Nothing to save until a filter is set.
+    expect(screen.queryByRole('button', { name: 'Save as segment' })).toBeNull();
+    await user.click(screen.getByRole('combobox', { name: 'Segment' }));
+    await user.click(await screen.findByRole('option', { name: 'Segment: Madrid engineering' }));
+    expect(onSegmentChange).toHaveBeenCalledWith('seg-1');
+
+    rerender(
+      <Directory
+        {...props({
+          load: { status: 'ready', data: withSegments },
+          filters: { cost_centre: 'ENG-204' },
+          onSegmentChange,
+          onSaveSegment,
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Save as segment' }));
+    await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'ENG-204');
+    await user.click(screen.getByRole('switch', { name: 'Share with everybody in the company' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSaveSegment).toHaveBeenCalledWith({ name: 'ENG-204', shared: true });
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });

@@ -196,15 +196,18 @@ export function PeopleScreen({
           search?: string;
           filters?: Record<string, string>;
           after?: string;
+          segment?: string | null;
         }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
           const f = next.filters ?? filters;
+          const segment = next.segment === undefined ? (search['segment'] ?? null) : next.segment;
           if (text !== '') q.set('search', text);
           const joined = Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
           if (joined !== '') q.set('filter', joined);
+          if (segment !== null && segment !== '') q.set('segment', segment);
           if (next.after !== undefined) q.set('after', next.after);
           const qs = q.toString();
           const to = `/people/directory${qs === '' ? '' : `?${qs}`}` as Route;
@@ -230,6 +233,13 @@ export function PeopleScreen({
           onFiltersChange: (next: Record<string, string>) => {
             query({ filters: next });
           },
+          segmentId: search['segment'] ?? null,
+          onSegmentChange: (segment: string | null) => {
+            query({ segment });
+          },
+          onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
+            actions.saveSegment({ ...segment, filter: filters }),
+          ),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
@@ -456,7 +466,17 @@ export function PeopleScreen({
         };
       }
       case 'Analytics':
-        return { load: loadable };
+        return {
+          load: loadable,
+          segmentId: search['segment'] ?? null,
+          onSegmentChange: (segment: string | null) => {
+            router.replace(
+              (segment === null
+                ? '/people/analytics'
+                : `/people/analytics?segment=${encodeURIComponent(segment)}`) as Route,
+            );
+          },
+        };
       default:
         return {};
     }

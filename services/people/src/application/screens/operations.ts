@@ -18,13 +18,6 @@ import {
 import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhooks/list.js';
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
-import {
-  attritionTrend,
-  completeness,
-  expiryTimeline,
-  headcountTrend,
-  movementWaterfall,
-} from '../analytics/queries.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
@@ -46,13 +39,15 @@ import {
 } from '../import/upload.js';
 import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
-import { relationsToMany, type Asking } from '../person/person-access.js';
+import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { NOBODY, personOfViewer, tenantToday, type ScreenDeps, type Tx } from './record.js';
+import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
+import { segmentsFor } from './segments.js';
 
 /**
  * The screens that act on many people at once: integrations, import, the
- * export builder and analytics (PRD §13.3, §14, §15.1, §16; screens 9 to 12).
+ * and the export builder (PRD §13.3, §14, §15.1; screens 9 to 11). Analytics
+ * is `analytics.ts`.
  */
 
 /* -------------------------------------------------------- integrations -- */
@@ -681,6 +676,18 @@ export async function exportBuilderView(
         .map((d) => d.key as string),
     );
     const columns = exportableColumns(version).filter((d) => readable.has(d.key));
+    // A saved segment is an audience too (PEO-068): its people as this
+    // requester may list them, counted the way the export will read them.
+    const segments: { value: string; label: string; count: number }[] = [];
+    for (const s of await segmentsFor(deps, tx, asking)) {
+      if (!s.usableIn.directory) continue;
+      const where = Object.fromEntries(s.filter.map((c) => [c.key, c.value]));
+      // eslint-disable-next-line no-await-in-loop -- a handful of segments, one transaction
+      const inSegment = await deps.service.access.count(tx, { ...asking, where });
+      if (inSegment.ok) {
+        segments.push({ value: `segment:${s.id}`, label: s.name, count: inSegment.value.all });
+      }
+    }
     return ok({
       today: await tenantToday(deps, tx, asking.tenantId),
       who: [
@@ -689,6 +696,7 @@ export async function exportBuilderView(
           label: 'Everybody you can see',
           count: counted.value.all,
         },
+        ...segments,
       ],
       sections: version.document.sections
         .toSorted((a, b) => a.order - b.order)
@@ -698,164 +706,6 @@ export async function exportBuilderView(
             .map((d) => ({ key: d.key, label: d.label.default }));
           return fields.length === 0 ? [] : [{ key: s.key, label: s.label.default, fields }];
         }),
-    });
-  });
-}
-
-/* ---------------------------------------------------------- analytics -- */
-
-export interface AnalyticsView {
-  readonly asOf: string;
-  readonly source: 'snapshot' | 'history';
-  readonly sourceNote: string;
-  readonly headcount: {
-    readonly value: number;
-    readonly change: number | null;
-    readonly trend: readonly { readonly label: string; readonly value: number }[];
-  };
-  readonly attrition: {
-    readonly percent: number;
-    readonly leavers: number;
-    readonly formula: string;
-  } | null;
-  readonly complete: { readonly percent: number; readonly incomplete: number } | null;
-  readonly expiringIn90Days: number | null;
-  readonly movement: {
-    readonly period: string;
-    readonly opening: number;
-    readonly joiners: number;
-    readonly moves: number;
-    readonly leavers: number;
-    readonly closing: number;
-  } | null;
-  readonly completenessBySection:
-    readonly { readonly label: string; readonly value: number }[] | null;
-  /** The timeline's items (PEO-122); null when the viewer may see no kind of expiry. */
-  readonly expiries: {
-    readonly today: string;
-    readonly items: readonly {
-      readonly kind: string;
-      readonly personId: string;
-      readonly name: string | null;
-      readonly day: string;
-    }[];
-  } | null;
-  readonly funnel: null;
-}
-
-const minusMonths = (day: string, n: number): string => {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCMonth(d.getUTCMonth() - n);
-  return d.toISOString().slice(0, 10);
-};
-
-/**
- * The analytics landing (§16.2): headcount, attrition, completeness,
- * the movement of the last month, from the snapshots; the expiries live,
- * item by item (PEO-122).
- *
- * HR sees the tenant; a manager sees their chain; anybody else is refused.
- * The cohort minimum and field authorization are the queries' own.
- */
-export async function analyticsView(
-  deps: ScreenDeps,
-  asking: Asking,
-): Promise<Result<AnalyticsView>> {
-  return run(deps.service, asking.tenantId, async (tx) => {
-    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-    let viewer: { kind: 'hr' } | { kind: 'manager'; personId: string };
-    if (everyone.isHr) viewer = { kind: 'hr' };
-    else {
-      const own = await personOfViewer(deps, tx, asking);
-      if (!own.ok) return err(failure('FORBIDDEN', 'Analytics is for HR and managers'));
-      viewer = { kind: 'manager', personId: own.value };
-    }
-    const version = await deps.service.schemas.current(tx, asking.tenantId);
-    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
-    const ctx = { tx, tenantId: asking.tenantId, viewer, definitions: version.document.attributes };
-    const today = await tenantToday(deps, tx, asking.tenantId);
-
-    const trend = await headcountTrend(ctx, { from: minusMonths(today, 12), to: today });
-    if (!trend.ok) return trend;
-    const points = trend.value.points;
-    const last = points.at(-1);
-    const before = points.at(-2);
-    const attrition = await attritionTrend(ctx, { from: minusMonths(today, 1), to: today });
-    const latest = attrition.ok ? attrition.value.points.at(-1) : undefined;
-    const states = await completeness(ctx, { asOf: today });
-    const expiring = await expiryTimeline(ctx, {
-      calendar: await deps.calendars.load(tx, asking.tenantId),
-      at: deps.clock.instant(),
-      everyone,
-      relations: (personIds) =>
-        relationsToMany(deps.relations, tx, asking.tenantId, asking.viewer, personIds),
-    });
-    const expiries =
-      expiring.ok && expiring.value.kinds.length > 0
-        ? { today: expiring.value.today, items: expiring.value.items }
-        : null;
-    const moved = await movementWaterfall(ctx, { from: minusMonths(today, 1), to: today });
-
-    const total = states.ok ? states.value.states.complete + states.value.states.incomplete : 0;
-    const bySection = new Map<string, number>();
-    if (states.ok && states.value.byField !== null) {
-      for (const f of states.value.byField) {
-        bySection.set(f.sectionKey, (bySection.get(f.sectionKey) ?? 0) + f.missing);
-      }
-    }
-    const sectionLabel = new Map(
-      version.document.sections.map((s) => [s.key as string, s.label.default]),
-    );
-    const source = states.ok ? states.value.source : 'snapshot';
-
-    return ok({
-      asOf: today,
-      source,
-      sourceNote:
-        source === 'snapshot'
-          ? 'From the daily snapshot.'
-          : 'Computed from history for this date, which is slower.',
-      headcount: {
-        value: last?.headcount ?? 0,
-        change:
-          last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
-        trend: points.map((p) => ({ label: p.month, value: p.headcount })),
-      },
-      attrition:
-        latest?.rate === null || latest === undefined
-          ? null
-          : {
-              percent: Math.round(latest.rate * 1000) / 10,
-              leavers: latest.leavers,
-              formula: attrition.ok ? attrition.value.formula : '',
-            },
-      complete:
-        states.ok && total > 0
-          ? {
-              percent: Math.round((states.value.states.complete / total) * 100),
-              incomplete: states.value.states.incomplete,
-            }
-          : null,
-      // The items drawn, so the tile and the chart cannot disagree by a hidden one.
-      expiringIn90Days: expiries === null ? null : expiries.items.length,
-      movement: moved.ok
-        ? {
-            period: `${minusMonths(today, 1)} to ${today}`,
-            opening: moved.value.opening,
-            joiners: moved.value.joiners,
-            moves: moved.value.internalMoves,
-            leavers: moved.value.leavers,
-            closing: moved.value.closing,
-          }
-        : null,
-      completenessBySection:
-        bySection.size === 0
-          ? null
-          : [...bySection].map(([key, value]) => ({ label: sectionLabel.get(key) ?? key, value })),
-      expiries,
-      // ponytail: the onboarding funnel is drawn by the screen but has no
-      // query shaped for it yet; absent, not empty.
-      funnel: null,
     });
   });
 }

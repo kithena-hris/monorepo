@@ -63,6 +63,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           search: given(query.search['search']),
           filter: given(query.search['filter']),
           after: given(query.search['after']),
+          segment: given(query.search['segment']),
         },
         VIEWS.Directory,
       );
@@ -102,7 +103,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ExportBuilder':
       return read('ExportBuilder');
     case 'Analytics':
-      return read('Analytics', {}, VIEWS.Analytics);
+      return read('Analytics', { segment: given(query.search['segment']) }, VIEWS.Analytics);
     case 'PeopleSetup': {
       const loaded = await read('Setup', {}, VIEWS.PeopleSetup);
       if (loaded.status !== 'ready') return loaded;

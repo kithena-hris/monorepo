@@ -496,10 +496,29 @@ export async function requestExport(choice: {
   asOf: string;
   format: 'xlsx' | 'csv' | 'pdf';
 }): Promise<Exported> {
-  return exported({ format: choice.format, fields: [...choice.fields], asOf: choice.asOf });
+  // A saved segment is an audience (PEO-068): People applies it as this person.
+  const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
+  return exported({ format: choice.format, fields: [...choice.fields], asOf: choice.asOf, segmentId });
 }
 
 /** One person's employee record as a PDF (PEO-061): what this viewer may read of them. */
 export async function exportRecord(personId: string, reason: string): Promise<Exported> {
   return exported({ format: 'pdf', recordOf: personId, ...(reason === '' ? {} : { reason }) });
+}
+
+/* ------------------------------------------------------------ segments -- */
+
+/** Save the directory's filters as a named segment (PEO-068). */
+export async function saveSegment(segment: {
+  name: string;
+  shared: boolean;
+  filter: Readonly<Record<string, string>>;
+}): Promise<Outcome> {
+  return outcome(
+    people('SaveSegment', {
+      name: segment.name,
+      shared: segment.shared,
+      filter: Object.entries(segment.filter).map(([key, value]) => ({ key, value })),
+    }),
+  );
 }

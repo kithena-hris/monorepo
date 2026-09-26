@@ -22,6 +22,8 @@ import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
 import { RoleChangeBody } from './roles.js';
 import { schemaArtifact } from './schema-artifact.js';
+import { seenBy } from '../domain/segment/segment.js';
+import type { SegmentStore } from '../infrastructure/drizzle-segments.js';
 
 /**
  * REST v1, per §13.2. The same application layer as GraphQL, so the same
@@ -243,6 +245,8 @@ export const CreateExportBody = z.strictObject({
   includeArchived: z.boolean().optional(),
   personIds: z.array(z.uuid()).max(50_000).optional(),
   filter: z.string().max(500).optional(),
+  /** Only the people a saved segment matches, of those you may list (PEO-068). */
+  segmentId: z.uuid().optional(),
   /** Required when a financial field is in the file; recorded with the export. */
   reason: z.string().max(500).optional(),
 });
@@ -537,6 +541,8 @@ export interface RestDeps {
   };
   /** The routes the tenant app's screens read and act through (PEO-098, `screens.ts`). */
   readonly screens?: readonly Route[];
+  /** Saved segments, for an export of one (PEO-068). */
+  readonly segments?: SegmentStore;
 }
 
 export type Handler = (
@@ -866,7 +872,18 @@ export function restRoutes(deps: RestDeps): Route[] {
           request,
           201,
           async (tx) => {
-            const requested = await requestExport(tx, exports.deps, asked);
+            let request = asked;
+            if (v.segmentId !== undefined) {
+              const all = (await deps.segments?.all(tx, asking.tenantId)) ?? [];
+              const segment = all.find(
+                (s) => s.id === v.segmentId && seenBy(s, asking.viewer.accountId),
+              );
+              if (segment === undefined) {
+                return err(failure('NOT_FOUND', 'There is no such segment', ['segmentId']));
+              }
+              request = { ...asked, where: segment.filter, filter: v.filter ?? segment.name };
+            }
+            const requested = await requestExport(tx, exports.deps, request);
             if (!requested.ok) return requested;
             if (requested.value.status === 'queued') pending.job = requested.value.job;
             return ok(requested.value.exportId);

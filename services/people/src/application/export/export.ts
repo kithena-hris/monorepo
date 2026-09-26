@@ -55,6 +55,12 @@ export interface ExportRequest extends Asking {
   readonly includeArchived?: boolean;
   /** A selection. Absent is everybody the viewer may list. */
   readonly personIds?: readonly string[];
+  /**
+   * Only people whose attributes equal these: a saved segment's filter
+   * (PEO-068). Authorized by the list as any directory filter is, as the
+   * requester and when the file is built.
+   */
+  readonly where?: Readonly<Record<string, string>>;
   /** How the requester described who, for the provenance sheet. */
   readonly filter?: string;
   /** With `pdf`: this one person's employee record instead of a roster (§15.5). */

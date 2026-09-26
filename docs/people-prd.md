@@ -3035,12 +3035,48 @@ by the snapshot's counts (`expiries`). `peopleAnalytics.expiries` over
 GraphQL; the screen draws it with `TimelineChart`, its own screen-reader
 table and the visible table one tap away.
 
+**The remaining charts, as built (PEO-067).** Attrition is a `TrendChart` of
+the rolling 12-month rate by month, its formula on the card. Tenure is a
+`StackedBarChart` of the bands with last year's leavers (by tenure at
+leaving) as the bottom segment, so the cliff is the shape of the one
+segment that shares a baseline. Span of control is a `BarChart` of managers
+by number of direct reports; the joiner heatmap is department against month
+over the last 12 months; composition is department by employment type.
+All read the snapshot, all count a manager's chain for a manager, and a
+chart over a field the viewer cannot read is absent. Department and
+employment type are labelled by their field's options where it has them.
+
+**Self-identification on the screen, as built (PEO-070).** HR sees one
+chart per self-ID question, each from its latest monthly publication with
+the tenant's cohort minimum. A question withheld below the minimum is shown
+as "insufficient data" with the minimum and no number at all — no bar, no
+table, no total. A served one states its publication date and that the
+total was rounded on its own. Nobody else sees the section, and it is not
+drawn under a segment.
+
 ### 16.3 Segments, saved views and delivery
 
 Filters are the directory's filters — one filter model across the directory,
 the export builder and analytics, so a segment defined once is usable
 everywhere. A saved segment is a named filter, shareable within the tenant,
 and it is what a scheduled report points at.
+
+**As built (PEO-068).** A segment is `people.segment`: a name (unique per
+owner), the directory's `key → value` filter, its owner and whether it is
+shared with the tenant. It holds no person, so there is nothing in it to
+go stale, retain or erase. **It is authorized when it is used, as whoever
+uses it**: the directory and an export apply its filter through the same
+check a typed filter meets over the people that person may list, and
+analytics applies it through the chart's own check over their scope. A
+segment HR shared over a field a manager cannot read is refused to them,
+and not listed for them either, because a filter's name and values say
+something about the field. A segment is offered only where its user could
+use it: analytics can filter only by what the snapshot holds as a
+dimension (department, location, status, employment type), so a segment
+over any other key is the directory's and the export's. Under a segment,
+a chart that cannot be filtered by it — span of control, the live expiry
+timeline, self-identification — is not drawn, rather than drawn unfiltered
+beside charts that are. Only the owner deletes a segment.
 
 Scheduled reports go out through `platform/messaging` on a tenant-set cadence:
 a PDF roster, an XLSX export, or a digest of the completeness numbers. The
