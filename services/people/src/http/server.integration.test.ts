@@ -72,6 +72,7 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20260926140000_people_visibility_rules.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
     '20260924220200_people_employment_period.sql',
@@ -95,7 +96,12 @@ beforeAll(async () => {
   clients.push(serviceClient);
   const inTenant = tenantTransaction(drizzle(serviceClient));
   const repo = drizzlePersonRepository();
-  const seed = (id: string, account: string | null, managerId: string | null) =>
+  const seed = (
+    id: string,
+    account: string | null,
+    managerId: string | null,
+    employmentType: string | null = null,
+  ) =>
     inTenant(ACME, ({ tx }) =>
       repo.create(
         tx,
@@ -107,11 +113,11 @@ beforeAll(async () => {
           hireDate: '2026-01-01',
           lastWorkingDay: null,
         }),
-        { managerId },
+        { managerId, employmentType },
       ),
     );
   await seed(MARCO, MARCO_ACCOUNT, null);
-  await seed(ADA, null, MARCO);
+  await seed(ADA, null, MARCO, 'contractor');
   await inTenant(ACME, ({ tx }) =>
     drizzleSchemaRepository().appendVersion(
       tx,
@@ -131,6 +137,28 @@ beforeAll(async () => {
           },
         }),
         define({ key: 'job_title', visibility: ['manager', 'hr'] }),
+        // PEO-066: a manager reads a contractor's end date, and a note that
+        // only an intern's manager would.
+        ...(['contract_end', 'intern_note'] as const).map((key) =>
+          define({
+            key,
+            visibility: ['hr'],
+            visibilityRules: [
+              {
+                scopes: ['manager'],
+                when: {
+                  combine: 'all',
+                  clauses: [
+                    {
+                      operand: 'employmentType',
+                      in: [key === 'contract_end' ? 'contractor' : 'intern'],
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        ),
       ]),
       [],
       '2026-09-01',
@@ -342,6 +370,110 @@ describe('the screens over GraphQL', () => {
       amountMinor: '5500000',
       currency: 'EUR',
     });
+  });
+
+  it('shows a field by a custom rule on the records it holds for, over REST and GraphQL (PEO-066)', async () => {
+    const written = await fetch(`${base}/v1/people/${ADA}`, {
+      method: 'PATCH',
+      headers: { ...headers(HR_ACCOUNT, ['hr']), 'idempotency-key': 'rules-seed' },
+      body: JSON.stringify({ attributes: { contract_end: '2027-03-31', intern_note: 'n/a' } }),
+    });
+    expect(written.status).toBe(200);
+
+    const manager = await graph(headers(MARCO_ACCOUNT), PROFILE, { id: ADA });
+    expect(manager.errors).toBeUndefined();
+    const keys = (manager.data?.['peopleProfile'] as Profile).values.map((v) => v.key);
+    expect(keys).toContain('contract_end');
+    expect(keys).not.toContain('intern_note');
+
+    const rest = await fetch(`${base}/v1/people/${ADA}`, { headers: headers(MARCO_ACCOUNT) });
+    const body = (await rest.json()) as { attributes: Record<string, unknown> };
+    expect(body.attributes['contract_end']).toBe('2027-03-31');
+    expect(Object.hasOwn(body.attributes, 'intern_note')).toBe(false);
+
+    // A filter answers for everybody, so no rule makes a field filterable.
+    const filtered = await fetch(`${base}/v1/people?filter=contract_end:2027-03-31`, {
+      headers: headers(MARCO_ACCOUNT),
+    });
+    expect(filtered.status).toBe(403);
+  });
+
+  it('saves a predicate and a custom rule through GraphQL, and refuses a rule that discloses (PEO-065, PEO-066)', async () => {
+    const admin = headers(HR_ACCOUNT, ['people_admin']);
+    const section = await graph(
+      admin,
+      `mutation { addDraftSection(label: "Contracts", idempotencyKey: "rules-section") { ok } }`,
+    );
+    expect(section.errors).toBeUndefined();
+    const SAVE = `mutation ($input: DraftFieldInput!, $key: String!) {
+      saveDraftField(input: $input, idempotencyKey: $key) { ok }
+    }`;
+    const when = {
+      combine: 'all',
+      clauses: [{ operand: 'employmentType', in: ['contractor'] }],
+    };
+    const input = (key: string, over: Record<string, unknown> = {}) => ({
+      key,
+      sectionKey: 'contracts',
+      label: key,
+      dataType: 'text',
+      options: [],
+      requiredness: 'never',
+      ownership: ['hr'],
+      collectAt: 'hr_only',
+      visibility: ['hr'],
+      classification: 'internal',
+      piiKind: 'none',
+      classificationSource: 'human',
+      ...over,
+    });
+    expect(
+      (
+        await graph(admin, SAVE, {
+          key: 'rules-1',
+          input: input('agency', {
+            requiredness: 'conditional',
+            requiredWhen: when,
+            visibilityRules: [{ scopes: ['manager'], when }],
+          }),
+        })
+      ).errors,
+    ).toBeUndefined();
+
+    const REGISTRY = `{ peopleRegistry {
+      fields { key requiredness requiredWhen { combine clauses { operand in } }
+               visibilityRules { scopes when { clauses { operand in } } } }
+      choices { countries { value } }
+    } }`;
+    const registry = await graph(admin, REGISTRY);
+    const registered = registry.data?.['peopleRegistry'] as {
+      fields: { key: string }[];
+      choices: { countries: { value: string }[] };
+    };
+    expect(registered.fields.find((f) => f.key === 'agency')).toEqual({
+      key: 'agency',
+      requiredness: 'conditional',
+      requiredWhen: { combine: 'all', clauses: [{ operand: 'employmentType', in: ['contractor'] }] },
+      visibilityRules: [
+        { scopes: ['manager'], when: { clauses: [{ operand: 'employmentType', in: ['contractor'] }] } },
+      ],
+    });
+    expect(registered.choices.countries.map((c) => c.value)).toContain('ES');
+
+    // "Managers see this when `agency` is Acme" would tell them every
+    // contractor's agency: `agency` is HR's.
+    const discloses = await graph(admin, SAVE, {
+      key: 'rules-2',
+      input: input('agency_notes', {
+        visibilityRules: [
+          {
+            scopes: ['manager'],
+            when: { combine: 'all', clauses: [{ operand: 'attribute', key: 'agency', is: 'set' }] },
+          },
+        ],
+      }),
+    });
+    expect(discloses.errors?.[0]?.extensions.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 
   it('writes a section with a key, and answers a retry of that key without writing again', async () => {

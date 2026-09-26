@@ -17,6 +17,7 @@ import type { PersonRecord, PersonSearch } from './ports.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import type { IdentifierReview } from '../../domain/person/identifier-review.js';
 import { utcCalendars } from '../org/org.js';
+import { factsOf } from './subject.js';
 
 /**
  * The person ports, in memory, for tests that are about a rule rather than
@@ -251,6 +252,8 @@ export function inMemoryPeople(
           isHr: viewer.roles.has('hr'),
           isFinance: viewer.roles.has('finance'),
           isAdmin: viewer.roles.has('people_admin'),
+          // As `withSubjects` does at the wiring (PEO-066).
+          ...(target === undefined ? {} : { subject: factsOf(toRecord(target)) }),
         });
       },
     },

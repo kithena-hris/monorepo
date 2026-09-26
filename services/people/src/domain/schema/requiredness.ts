@@ -4,6 +4,7 @@ import type {
   PersonStatus,
   PredicateClause,
   Requiredness,
+  RequirednessPredicate,
   WorkModel,
 } from '@kithena/contracts';
 
@@ -75,16 +76,32 @@ export function evaluateRequiredness(
 
   if (rule.mode === 'always') return { required: true, unevaluable: [] };
 
+  const verdict = evaluatePredicate(rule.when, facts);
+  return { required: verdict.holds, unevaluable: verdict.unevaluable };
+}
+
+/**
+ * Whether a predicate holds of this person — the one evaluator for the closed
+ * grammar, whether it decides requiredness or a custom visibility rule
+ * (PEO-066). A predicate that cannot be evaluated does not hold, which is
+ * "not required" for one and "not shown" for the other: both the safe answer.
+ */
+export function evaluatePredicate(
+  predicate: RequirednessPredicate,
+  facts: PersonFacts,
+): { readonly holds: boolean; readonly unevaluable: readonly string[] } {
   const unevaluable: string[] = [];
-  const results = rule.when.clauses.map((clause) => holds(clause, facts, unevaluable));
+  const results = predicate.clauses.map((clause) => holds(clause, facts, unevaluable));
 
   // A half-evaluable predicate is not a predicate. Reporting `any` as true
   // because the clause that *did* resolve happened to hold would make the
   // answer depend on which half of a broken rule ran first.
-  if (unevaluable.length > 0) return { required: false, unevaluable };
+  if (unevaluable.length > 0) return { holds: false, unevaluable };
 
-  const required = rule.when.combine === 'all' ? results.every(Boolean) : results.some(Boolean);
-  return { required, unevaluable: [] };
+  return {
+    holds: predicate.combine === 'all' ? results.every(Boolean) : results.some(Boolean),
+    unevaluable: [],
+  };
 }
 
 function holds(clause: PredicateClause, facts: PersonFacts, unevaluable: string[]): boolean {

@@ -22,6 +22,7 @@ import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { RelationsResolver } from '../application/person/ports.js';
+import { withSubjects } from '../application/person/subject.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
@@ -92,7 +93,9 @@ const POLL_MS = 60_000;
  * what `just standalone people` runs.
  */
 export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
-  return openFgaFrom(env)?.relations ?? drizzleRelations();
+  // Each answer about one person carries that person's facts, for custom
+  // visibility rules (PEO-066) on every path that reads through it.
+  return withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), drizzlePersonReader());
 }
 
 export function peopleService(

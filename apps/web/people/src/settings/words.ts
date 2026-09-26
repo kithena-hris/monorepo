@@ -1,7 +1,9 @@
 import type {
+  Choice,
   Classification,
   CollectAt,
   DataType,
+  ListOperand,
   PiiKind,
   RequirednessMode,
   ViewerScope,
@@ -112,6 +114,42 @@ export const REQUIREDNESS_LABEL: Record<RequirednessMode, string> = {
   always: 'Required',
   conditional: 'Required sometimes',
   never: 'Optional',
+};
+
+/** A predicate's facts, as a condition reads them (PEO-065). */
+export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
+  legalEntity: 'Legal entity',
+  country: 'Country',
+  employmentType: 'Employment type',
+  workModel: 'Work model',
+  status: 'Status',
+  attribute: 'Another field',
+};
+
+/** The values the three enumerated facts can hold, mirrored from the contract. */
+export const FACT_VALUES: Record<'employmentType' | 'workModel' | 'status', readonly Choice[]> = {
+  employmentType: [
+    { value: 'permanent', label: 'Permanent' },
+    { value: 'fixed_term', label: 'Fixed term' },
+    { value: 'contractor', label: 'Contractor' },
+    { value: 'intern', label: 'Intern' },
+    { value: 'apprentice', label: 'Apprentice' },
+    { value: 'seasonal', label: 'Seasonal' },
+  ],
+  workModel: [
+    { value: 'onsite', label: 'On site' },
+    { value: 'hybrid', label: 'Hybrid' },
+    { value: 'remote', label: 'Remote' },
+  ],
+  status: [
+    { value: 'provisional', label: 'Provisional' },
+    { value: 'pre_hire', label: 'Pre-hire' },
+    { value: 'active', label: 'Active' },
+    { value: 'on_leave', label: 'On leave' },
+    { value: 'notice', label: 'On notice' },
+    { value: 'terminated', label: 'Left' },
+    { value: 'discarded', label: 'Discarded' },
+  ],
 };
 
 /** `hire_date` from "Hire date". Chosen once; the admin can edit it before saving. */

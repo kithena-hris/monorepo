@@ -165,7 +165,9 @@ describe("a tenant's own attribute", () => {
   it('may be loosened, archived and relaxed freely', () => {
     const d = draft();
     expect(d.addAttribute(own).ok).toBe(true);
-    expect(d.updateAttribute('works_council_id', { requiredness: { mode: 'never' } }).ok).toBe(true);
+    expect(d.updateAttribute('works_council_id', { requiredness: { mode: 'never' } }).ok).toBe(
+      true,
+    );
     expect(d.archiveAttribute('works_council_id', clock).ok).toBe(true);
   });
 
@@ -197,7 +199,8 @@ describe('a required attribute', () => {
   it('is fine when at least one owner can read it', () => {
     const d = draft();
     expect(
-      d.updateAttribute('employee_number', { ownership: ['employee', 'hr'], visibility: ['hr'] }).ok,
+      d.updateAttribute('employee_number', { ownership: ['employee', 'hr'], visibility: ['hr'] })
+        .ok,
     ).toBe(true);
   });
 
@@ -289,10 +292,106 @@ describe('the draft itself', () => {
   it('orders sections and their attributes for rendering', () => {
     const d = draft();
     d.addSection({ ...section, key: 'public_profile', order: 1 });
-    d.addAttribute({ ...attribute, key: 'bio', sectionKey: 'public_profile', origin: 'tenant', order: 2 });
-    d.addAttribute({ ...attribute, key: 'skills', sectionKey: 'public_profile', origin: 'tenant', order: 1 });
+    d.addAttribute({
+      ...attribute,
+      key: 'bio',
+      sectionKey: 'public_profile',
+      origin: 'tenant',
+      order: 2,
+    });
+    d.addAttribute({
+      ...attribute,
+      key: 'skills',
+      sectionKey: 'public_profile',
+      origin: 'tenant',
+      order: 1,
+    });
 
     expect(d.liveSections().map((s) => s.key)).toEqual(['hr_information', 'public_profile']);
     expect(d.attributesIn('public_profile').map((a) => a.key)).toEqual(['skills', 'bio']);
+  });
+});
+
+/** A tenant field managers may see for people on a given grade. */
+const onGrade = (key: string, scopes: string[] = ['manager']): AttributeDefinitionInput => ({
+  ...attribute,
+  key: 'bonus_band',
+  origin: 'tenant',
+  requiredness: { mode: 'never' },
+  visibility: ['hr'],
+  visibilityRules: [
+    {
+      scopes: scopes as never,
+      when: {
+        combine: 'all',
+        clauses: [{ operand: 'attribute', key, is: 'equals', equals: 'senior' }],
+      },
+    },
+  ],
+});
+const grade = (visibility: string[], over: Partial<AttributeDefinitionInput> = {}) => ({
+  ...attribute,
+  key: 'grade',
+  origin: 'tenant' as const,
+  requiredness: { mode: 'never' as const },
+  visibility: visibility as never,
+  ...over,
+});
+
+describe('a custom visibility rule (PEO-066)', () => {
+  it('may depend on a field everybody it shows to can already read', () => {
+    const d = draft();
+    expect(d.addAttribute(grade(['manager', 'hr'])).ok).toBe(true);
+    expect(d.addAttribute(onGrade('grade')).ok).toBe(true);
+  });
+
+  it("counts a manager as in their own report's chain, and everybody as the directory", () => {
+    const d = draft();
+    expect(d.addAttribute(grade(['manager_chain'])).ok).toBe(true);
+    expect(d.addAttribute(onGrade('grade')).ok).toBe(true);
+
+    const e = draft();
+    expect(e.addAttribute(grade(['directory'])).ok).toBe(true);
+    expect(e.addAttribute(onGrade('grade', ['finance', 'self'])).ok).toBe(true);
+  });
+
+  it('may not depend on a field the scope cannot read: showing it would disclose that value', () => {
+    // "Managers see bonus band when grade is senior" tells a manager every
+    // report's grade, one field at a time.
+    const d = draft();
+    expect(d.addAttribute(grade(['hr'])).ok).toBe(true);
+    const refused = d.addAttribute(onGrade('grade'));
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+    expect(!refused.ok && refused.error.path).toEqual(['visibilityRules']);
+  });
+
+  it('may not depend on a field that does not exist', () => {
+    const refused = draft().addAttribute(onGrade('grade'));
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
+  it('may not depend on special-category data, even for a scope that reads it', () => {
+    const d = draft();
+    const health = grade(['manager', 'hr'], {
+      classification: {
+        classification: 'special-category',
+        piiKind: 'health',
+        exportable: true,
+        aiEligible: false,
+      },
+    });
+    expect(d.addAttribute(health).ok).toBe(true);
+    const refused = d.addAttribute(onGrade('grade'));
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
+  it('is checked again when an edit changes it', () => {
+    const d = draft();
+    expect(d.addAttribute(grade(['manager', 'hr'])).ok).toBe(true);
+    expect(d.addAttribute({ ...onGrade('grade'), visibilityRules: undefined }).ok).toBe(true);
+    const refused = d.updateAttribute('bonus_band', {
+      visibilityRules: onGrade('grade', ['finance']).visibilityRules,
+    });
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 });

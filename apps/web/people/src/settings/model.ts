@@ -18,6 +18,38 @@ export type PiiKind = 'identity' | 'financial' | 'contact' | 'health' | 'biometr
 export type RequirednessMode = 'never' | 'always' | 'conditional';
 export type Origin = 'core' | 'country_pack' | 'tenant';
 
+/**
+ * The closed predicate requiredness and custom visibility rules share
+ * (PEO-065, PEO-066; the contract's `RequirednessPredicate`). Five facts that
+ * list values, and another field being set or equal to one. Nothing else can
+ * be said, which is the point of it.
+ */
+export type ListOperand = 'legalEntity' | 'country' | 'employmentType' | 'workModel' | 'status';
+export type PredicateClause =
+  | { readonly operand: ListOperand; readonly in: readonly string[] }
+  | {
+      readonly operand: 'attribute';
+      readonly key: string;
+      readonly is: 'set' | 'equals';
+      readonly equals: string | null;
+    };
+export interface Predicate {
+  readonly combine: 'all' | 'any';
+  readonly clauses: readonly PredicateClause[];
+}
+
+/** These scopes may also read the field, on the records the predicate holds for. */
+export interface VisibilityRule {
+  readonly scopes: readonly ViewerScope[];
+  readonly when: Predicate;
+}
+
+/** A value a predicate's list may hold, and what to call it. */
+export interface Choice {
+  readonly value: string;
+  readonly label: string;
+}
+
 /** The data types an admin may pick for a new field. The contract's full list. */
 export const DATA_TYPES = [
   'text',
@@ -74,8 +106,11 @@ export interface RegistryField {
   readonly dataType: DataType;
   readonly options: readonly string[];
   readonly requiredness: RequirednessMode;
+  /** When a `conditional` field is required; null otherwise. */
+  readonly requiredWhen: Predicate | null;
   readonly ownership: readonly WriterRole[];
   readonly visibility: readonly ViewerScope[];
+  readonly visibilityRules: readonly VisibilityRule[];
   readonly collectAt: CollectAt;
   readonly classification: Classification;
   readonly piiKind: PiiKind;
@@ -89,6 +124,11 @@ export interface RegistryDraft {
   readonly unpublishedChanges: number;
   readonly sections: readonly RegistrySection[];
   readonly fields: readonly RegistryField[];
+  /** What a predicate's legal-entity and country clauses may name. */
+  readonly choices: {
+    readonly legalEntities: readonly Choice[];
+    readonly countries: readonly Choice[];
+  };
 }
 
 /** What the field editor hands back. The application layer validates it again. */
@@ -99,10 +139,13 @@ export interface FieldInput {
   readonly description: string | null;
   readonly dataType: DataType;
   readonly options: readonly string[];
-  readonly requiredness: 'never' | 'always';
+  readonly requiredness: RequirednessMode;
+  /** Only read when `conditional`. */
+  readonly requiredWhen: Predicate | null;
   readonly ownership: readonly WriterRole[];
   readonly collectAt: CollectAt;
   readonly visibility: readonly ViewerScope[];
+  readonly visibilityRules: readonly VisibilityRule[];
   readonly classification: Classification;
   readonly piiKind: PiiKind;
   /** Whether the admin took the suggestion as given. */
@@ -183,7 +226,7 @@ export interface PublishPreview {
   readonly unchanged: boolean;
   readonly changes: readonly {
     /** `+` added, `~` tightened or loosened, `−` archived. */
-    readonly kind: 'added' | 'tightened' | 'loosened' | 'archived';
+    readonly kind: 'added' | 'tightened' | 'loosened' | 'changed' | 'archived';
     readonly key: string;
     /** "Cost centre added to HR information, required for everyone". */
     readonly summary: string;

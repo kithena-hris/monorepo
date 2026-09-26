@@ -125,6 +125,7 @@ export function drizzleDraftWriter(): DraftWriter {
         requiredness: a.requiredness,
         ownership: [...a.ownership],
         visibility: [...a.visibility],
+        visibilityRules: a.visibilityRules ?? null,
         collectAt: a.collectAt,
         classification: a.classification,
         classificationSource: a.classificationSource,
@@ -334,6 +335,9 @@ function toAttribute(row: typeof attributeDefinition.$inferSelect): Attribute {
     requiredness: row.requiredness,
     ownership: row.ownership,
     visibility: row.visibility,
+    // Absent rather than null, as the contract has it: a draft with no rules
+    // publishes the document it always did, checksum and all.
+    ...(row.visibilityRules === null ? {} : { visibilityRules: row.visibilityRules }),
     collectAt: row.collectAt,
     classification: row.classification,
     classificationSource: row.classificationSource,

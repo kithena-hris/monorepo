@@ -64,6 +64,8 @@ export const attributeDefinition = people.table(
     requiredness: jsonb('requiredness').notNull(),
     ownership: text('ownership').array().notNull(),
     visibility: text('visibility').array().notNull(),
+    /** Custom visibility rules (PEO-066); null for none. */
+    visibilityRules: jsonb('visibility_rules'),
     collectAt: text('collect_at').notNull(),
     classification: jsonb('classification').notNull(),
     classificationSource: text('classification_source').notNull(),

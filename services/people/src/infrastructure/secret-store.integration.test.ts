@@ -63,6 +63,7 @@ beforeAll(async () => {
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
     '20260922160000_people_registry.sql',
+    '20260926140000_people_visibility_rules.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
     '20260924220200_people_employment_period.sql',

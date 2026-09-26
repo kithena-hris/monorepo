@@ -175,8 +175,69 @@ describe('the diff a publish produces', () => {
       added: [],
       tightened: [],
       loosened: [],
+      changed: [],
       archived: [],
     });
+  });
+
+  it('names a field whose readers or conditions changed, which is neither tighter nor looser', () => {
+    // Who can see a field is the change an admin most needs to see before
+    // publishing, and requiredness's rank cannot say whether a new predicate
+    // asks more or less.
+    const before = published(draft());
+    const d = draft();
+    d.updateAttribute('employee_number', { visibility: ['self', 'hr', 'manager'] });
+    const after = publish(d, before, { clock: later, actor });
+    expect(after.ok && diff(before.document, after.value.document).changed).toEqual([
+      'employee_number',
+    ]);
+  });
+});
+
+describe('custom visibility rules at publish (PEO-066)', () => {
+  const grade: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'grade',
+    visibility: ['manager', 'hr'],
+  };
+  const band: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'bonus_band',
+    visibility: ['hr'],
+    visibilityRules: [
+      {
+        scopes: ['manager'],
+        when: {
+          combine: 'all',
+          clauses: [{ operand: 'attribute', key: 'grade', is: 'equals', equals: 'senior' }],
+        },
+      },
+    ],
+  };
+
+  it('publishes a rule whose dependency its scope can read', () => {
+    const d = draft();
+    d.addAttribute(grade);
+    expect(d.addAttribute(band).ok).toBe(true);
+    expect(publish(d, null, { clock, actor }).ok).toBe(true);
+  });
+
+  it('refuses once the dependency has been narrowed since the rule was saved', () => {
+    const d = draft();
+    d.addAttribute(grade);
+    d.addAttribute(band);
+    expect(d.updateAttribute('grade', { visibility: ['hr'] }).ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
+  it('refuses once the dependency has been archived', () => {
+    const d = draft();
+    d.addAttribute(grade);
+    d.addAttribute(band);
+    expect(d.archiveAttribute('grade', clock).ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 });
 

@@ -15,8 +15,10 @@ const field = (
   dataType: 'text',
   options: [],
   requiredness: 'always',
+  requiredWhen: null,
   ownership: ['hr'],
   visibility: ['self', 'manager', 'hr'],
+  visibilityRules: [],
   collectAt: 'hr_only',
   classification: 'internal',
   piiKind: 'none',
@@ -28,6 +30,13 @@ const field = (
 const draft: RegistryDraft = {
   published: { version: 3, publishedAt: '12 Sep' },
   unpublishedChanges: 4,
+  choices: {
+    legalEntities: [{ value: '00000000-0000-4000-8000-0000000000e1', label: 'Acme SL' }],
+    countries: [
+      { value: 'ES', label: 'Spain' },
+      { value: 'DE', label: 'Germany' },
+    ],
+  },
   sections: [
     {
       key: 'hr',
@@ -228,6 +237,8 @@ describe('FieldRegistry', () => {
         section={health}
         field={null}
         takenKeys={draft.fields.map((f) => f.key)}
+        choices={draft.choices}
+        fields={draft.fields}
         advise={advise}
         onSave={onSaveField}
       />,
@@ -300,6 +311,8 @@ describe('FieldRegistry', () => {
         section={hr}
         field={costCentre}
         takenKeys={[]}
+        choices={draft.choices}
+        fields={draft.fields}
         advise={() =>
           Promise.resolve({
             kind: 'choose',

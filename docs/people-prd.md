@@ -495,6 +495,15 @@ Each requiredness rule additionally carries:
 - `appliesTo` — `new_records` or `all_records`. Defaults to `all_records`; see
   §8.4 for what that actually does, which is not "block".
 
+**The editor (PEO-065).** The field editor offers Optional, Required for
+everyone, or Required when…, the last as rows combined all-or-any: a fact and
+the values it may hold (legal entities and countries from the tenant's own
+lists, the three enumerations from the contract), or another field being
+filled in or equal to one of its option keys — never a label, which can be
+renamed. It can say exactly what the grammar can, ten rows at most, and the
+same contract schema refuses anything else at the API boundary. The same
+predicate, and the same evaluator, decides custom visibility rules (§6.6).
+
 ### 6.6 Visibility and ownership
 
 **Ownership** is who may write. **Visibility** is who may read. They are
@@ -599,6 +608,39 @@ local intersection per attribute, not one check per field.
 absent from the response, not present-and-null, because present-and-null tells a
 manager that a field exists and has a value — which for a diversity self-ID
 field is the disclosure itself.
+
+**Custom visibility rules (PEO-066).** Beyond the presets, a field may carry
+up to five rules, each a set of preset scopes and a §6.5 predicate: those
+scopes may also read the field, **on the records the predicate holds for** —
+"their manager, for contractors", "HR, for people employed by the Spanish
+entity" (with `hr` left off the presets). A rule can only grant a scope the
+presets could have granted outright, to fewer people, so it narrows a preset
+and never reaches past one. The rules that keep it that way:
+
+- **Never for special-category data.** A rule is exactly how a health note
+  reaches a manager "for people in Spain"; who reads Article 9 data is the
+  presets' decision, all or nothing. The contract refuses it, and the read
+  side ignores a rule on such a field whatever a stored document says.
+- **A rule may not disclose what it reads.** Every field a rule's predicate
+  names must be one each scope it grants already reads by preset — "managers
+  see the bonus band when grade is senior" would show every manager their
+  reports' grades. Refused with `VISIBILITY_RULE_DISCLOSES` on save, and again
+  at publish, because narrowing or archiving the named field is an edit to a
+  different attribute. Special-category fields are never named at all.
+- **No subject, no rule.** A rule is decided per record, in `visibleTo`, with
+  the person's facts carried on the viewer's relations to them. Wherever the
+  question is about everybody — a directory filter, a search, a list's
+  columns, an analytics population, an export's column set — there is no
+  record, and no rule holds: "may filter by it" would answer for the records
+  the rule does not hold for. So a field visible only by rule is readable on
+  the profile, in a list's rows, in history and in what is missing, and is
+  never filterable. A rule that cannot be evaluated does not hold.
+- **Rules do not make a required field readable.** They hold of some records;
+  a field required of all of them still needs a preset reader among its
+  owners.
+
+The publish preview names a field whose readers or conditions changed, which
+no rank orders as tighter or looser.
 
 ### 6.7 Voluntary self-identification
 
@@ -3144,8 +3186,8 @@ with every field classified.
 PDF exports — the employee record and the roster — and the DSAR pack. Document
 import with filename matching. The TypeSafe classification suggestion and
 column mapping. The effective-dated history UI ("what did this look like in
-March"). Custom visibility rules beyond the presets; the full predicate editor
-for conditional requiredness; bulk edit grids. The rest of the chart set:
+March"). Custom visibility rules beyond the presets (built: §6.6); the full
+predicate editor for conditional requiredness (built: §6.5); bulk edit grids. The rest of the chart set:
 movement waterfall, attrition, tenure, span of control, onboarding funnel,
 joiner heatmap. Saved segments and scheduled reports. The aggregate reporting
 surface for voluntary self-ID.

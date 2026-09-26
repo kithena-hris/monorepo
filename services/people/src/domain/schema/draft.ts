@@ -92,6 +92,63 @@ function ownerCanRead(owners: readonly WriterRole[], visibility: readonly string
   });
 }
 
+/**
+ * Which scopes a viewer holding `scope` also holds (`scopesOf` in
+ * `field-access.ts`): everybody is the directory, and a direct manager is in
+ * their report's chain.
+ */
+const ALSO_HOLDS: Record<string, readonly string[]> = {
+  manager: ['manager', 'manager_chain', 'directory'],
+};
+
+/**
+ * A custom visibility rule may not disclose what it depends on (PEO-066).
+ *
+ * "Managers see the bonus band when grade is senior" shows a manager the
+ * grade of every report, one visible field at a time. So every attribute a
+ * rule's predicate names must be one each scope the rule grants can already
+ * read — outright, by preset, since a rule holding is itself the thing being
+ * decided — and never special-category data, which does not decide access to
+ * anything (§6.7). A name the document does not hold is refused too: it would
+ * never hold, and it would start holding the day somebody re-used the key.
+ *
+ * Checked on the edited attribute when it is saved, and on every attribute
+ * when the draft is published, because narrowing or archiving the field a
+ * rule depends on is an edit to a different attribute.
+ */
+export function checkVisibilityRules(
+  attribute: Pick<Attribute, 'key' | 'visibilityRules'>,
+  attributes: readonly Attribute[],
+): Result<void> {
+  const byKey = new Map(attributes.map((a) => [a.key as string, a]));
+  for (const rule of attribute.visibilityRules ?? []) {
+    for (const clause of rule.when.clauses) {
+      if (clause.operand !== 'attribute') continue;
+      const named = byKey.get(clause.key);
+      const discloses =
+        named === undefined ||
+        named.deprecatedAt !== null ||
+        named.classification.classification === 'special-category' ||
+        rule.scopes.some(
+          (scope) =>
+            !(ALSO_HOLDS[scope] ?? [scope, 'directory']).some((s) =>
+              named.visibility.includes(s as never),
+            ),
+        );
+      if (discloses) {
+        return err(
+          failure(
+            'VISIBILITY_RULE_DISCLOSES',
+            `${attribute.key} is shown by a rule on ${clause.key}, which not everybody it is shown to may read`,
+            ['visibilityRules'],
+          ),
+        );
+      }
+    }
+  }
+  return ok(undefined);
+}
+
 const DuplicateKey = (what: string, key: string) =>
   failure('DUPLICATE_KEY', `A ${what} called ${key} already exists`, ['key']);
 
@@ -207,6 +264,9 @@ export class SchemaDraft {
     const readable = this.#checkReadableByOwner(definition);
     if (!readable.ok) return readable;
 
+    const discloses = checkVisibilityRules(definition, [...this.#attributes.values()]);
+    if (!discloses.ok) return discloses;
+
     this.#attributes.set(definition.key, definition);
     return ok(definition);
   }
@@ -248,6 +308,9 @@ export class SchemaDraft {
 
     const readable = this.#checkReadableByOwner(next);
     if (!readable.ok) return readable;
+
+    const discloses = checkVisibilityRules(next, [...this.#attributes.values()]);
+    if (!discloses.ok) return discloses;
 
     const attribute: Attribute = { ...next, deprecatedAt: current.deprecatedAt };
     this.#attributes.set(key, attribute);

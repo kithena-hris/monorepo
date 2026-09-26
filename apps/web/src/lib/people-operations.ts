@@ -203,8 +203,15 @@ export const OPERATIONS = {
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
         collectAt classification piiKind origin pending
+        requiredWhen { ...PredicateParts }
+        visibilityRules { scopes when { ...PredicateParts } }
       }
+      choices { legalEntities { value label } countries { value label } }
     }
+  }
+  fragment PredicateParts on PersonPredicate {
+    combine
+    clauses { operand in key is equals }
   }`,
 
   Setup: `query Setup {
