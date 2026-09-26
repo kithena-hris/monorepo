@@ -45,7 +45,7 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
     expect(await screen.findByText('12345678A')).toBeInTheDocument();
   });
 
-  it('accepts, finally, and sends back with a note', async () => {
+  it('accepts, finally, and sends back only with a reason', async () => {
     const onDecide = vi.fn(done);
     render(
       <IdentifierReviews
@@ -61,9 +61,30 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
     expect(onDecide).toHaveBeenCalledWith('p1', 'es_nif', 'accept', null);
 
     await user.click(screen.getByRole('button', { name: /Send Lucía Ortega's NIF \/ NIE back/ }));
-    await user.type(screen.getByRole('textbox', { name: 'Note' }), 'Check your card');
+    // Sent back without saying why, the employee cannot tell what to fix.
+    await user.click(screen.getByRole('button', { name: 'Send back' }));
+    expect(onDecide).toHaveBeenCalledTimes(1);
+    const reason = screen.getByRole('textbox', { name: /What is wrong/ });
+    expect(reason).toHaveAccessibleDescription(/Say what is wrong/);
+    await user.type(reason, 'Check your card');
     await user.click(screen.getByRole('button', { name: 'Send back' }));
     expect(onDecide).toHaveBeenLastCalledWith('p1', 'es_nif', 'send_back', 'Check your card');
+  });
+
+  it('marks a value still waiting for approval, and says sending it back declines the change', async () => {
+    const { container } = render(
+      <IdentifierReviews
+        load={{ status: 'ready', data: { items: [{ ...item, held: true }] } }}
+        onDecide={vi.fn(done)}
+        onReveal={vi.fn()}
+      />,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+    expect(screen.getByText('Waiting for approval')).toBeInTheDocument();
+    await fast().click(screen.getByRole('button', { name: /Send Lucía Ortega's NIF \/ NIE back/ }));
+    expect(screen.getByText(/The change is declined, and Lucía Ortega is asked to correct it/))
+      .toBeInTheDocument();
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 
   it('says when there is nothing to review', () => {

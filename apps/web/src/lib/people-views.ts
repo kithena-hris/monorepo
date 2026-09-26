@@ -110,9 +110,14 @@ export const VIEWS = {
       changes: r.changes.map((c) => ({ ...c, before: formValue(c.before), after: formValue(c.after) })),
     })),
   }),
-  PeopleSetup: (v: Json & { profile: WithRecord | null }) => ({
+  PeopleSetup: (
+    v: Json & { profile: (WithRecord & { pending?: (Json & { value: Entry })[] }) | null },
+  ) => ({
     ...absentIfNull(v, ['legalEntity']),
-    profile: v.profile === null ? null : record(v.profile),
+    profile:
+      v.profile === null
+        ? null
+        : { ...record(v.profile), pending: (v.profile.pending ?? []).map(pending) },
   }),
   // A figure the view model always has as null, and GraphQL does not carry.
   Analytics: (v: Json) => ({ ...v, funnel: null }),

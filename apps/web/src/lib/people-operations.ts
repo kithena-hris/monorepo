@@ -64,7 +64,7 @@ const REVIEW = `
 const PENDING = `
   fragment PendingParts on PendingField {
     id key label kind value { ...EntryParts } effectiveFrom requestedAt expiresAt requestedBy reason
-    mine canDecide
+    mine canDecide canSelfApprove awaitingReview findings { level code message }
   }`;
 
 /** What the country checks warned about, on a save or before one (PEO-125). */
@@ -128,7 +128,7 @@ export const OPERATIONS = {
       isHr
       items {
         id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
-        reason mine canDecide
+        reason mine canDecide canSelfApprove awaitingReview findings { level code message }
         value { ...EntryParts }
         current { ...EntryParts }
       }
@@ -137,7 +137,7 @@ export const OPERATIONS = {
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
-      items { personId name attributeKey label last4 findings { level code message } enteredAt }
+      items { personId name attributeKey label last4 findings { level code message } enteredAt held }
     }
   }`,
 
@@ -285,9 +285,10 @@ export const OPERATIONS = {
       profile {
         sections { key label visibility fields { ...RecordFieldParts } }
         values { ...EntryParts }
+        pending { ...PendingParts }
       }
     }
-  }${RECORD_FIELD}${ENTRY}`,
+  }${RECORD_FIELD}${ENTRY}${PENDING}`,
 
   Integrations: `query Integrations {
     peopleIntegrations {
@@ -613,8 +614,12 @@ export const OPERATIONS = {
     ) { ...StageParts }
   }${STAGE}`,
 
-  DecidePendingChange: `mutation DecidePendingChange($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
-    decidePendingChange(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { ok }
+  DecidePendingChange: `mutation DecidePendingChange(
+    $id: ID!, $approve: Boolean!, $note: String, $soleApprover: Boolean, $key: String!
+  ) {
+    decidePendingChange(
+      id: $id, approve: $approve, note: $note, soleApprover: $soleApprover, idempotencyKey: $key
+    ) { ok }
   }`,
 
   WithdrawPendingChange: `mutation WithdrawPendingChange($id: ID!, $key: String!) {

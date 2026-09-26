@@ -354,7 +354,7 @@ export async function profileView(
 }
 
 /** A person's changes waiting for HR, as this viewer may see them (PEO-077). */
-async function pendingOnRecord(
+export async function pendingOnRecord(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
@@ -387,6 +387,9 @@ async function pendingOnRecord(
     reason: c.reason,
     mine: c.mine,
     canDecide: c.canDecide,
+    canSelfApprove: c.canSelfApprove,
+    awaitingReview: c.awaitingReview,
+    findings: c.findings,
   }));
 }
 
@@ -455,6 +458,9 @@ export async function approvalsView(
         reason: c.reason,
         mine: c.mine,
         canDecide: c.canDecide,
+        canSelfApprove: c.canSelfApprove,
+        awaitingReview: c.awaitingReview,
+        findings: c.findings,
       });
     }
     return ok({ isHr: inbox.value.isHr, items });
@@ -648,6 +654,8 @@ export interface IdentifierReviewItem {
     readonly message: string;
   }[];
   readonly enteredAt: string;
+  /** Held for approval, not yet written: reviewed first, and sending it back declines it. */
+  readonly held: boolean;
 }
 
 export interface IdentifierReviewsView {
@@ -677,6 +685,7 @@ export async function identifierReviewsView(
         last4: r.last4,
         findings: r.findings.filter((f) => f.level !== 'ok'),
         enteredAt: r.createdAt,
+        held: r.pendingChangeId !== null,
       });
     }
     return ok({ items });

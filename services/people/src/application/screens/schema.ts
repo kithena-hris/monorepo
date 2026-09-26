@@ -17,7 +17,8 @@ import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
-import type { RecordSection, FormValues } from './model.js';
+import type { RecordSection, FormValues, PendingFieldView } from './model.js';
+import { pendingOnRecord } from './people.js';
 import {
   formValues,
   NOBODY,
@@ -596,6 +597,11 @@ export interface SetupView {
   readonly profile: {
     readonly sections: readonly RecordSection[];
     readonly values: FormValues;
+    /**
+     * The administrator's own changes waiting for approval (PEO-077): the
+     * NIF they just gave, which as the only HR member they approve alone.
+     */
+    readonly pending: readonly PendingFieldView[];
   } | null;
 }
 
@@ -636,7 +642,11 @@ export async function setupView(
               (d) => d.collectAt !== 'hr_only',
               new Set(verdict.ok ? verdict.value.missing.map((m) => m.key) : []),
             );
-            profile = { sections, values: formValues(view.value, sections) };
+            profile = {
+              sections,
+              values: formValues(view.value, sections),
+              pending: await pendingOnRecord(deps, tx, asking, own.value),
+            };
           }
         }
       }
