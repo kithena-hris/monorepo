@@ -576,8 +576,8 @@ export interface DirectoryView {
   }[];
   /** The cursor for the page after this one; null on the last page. */
   readonly next: string | null;
-  /** Which of the screen's two buttons this viewer gets (§13.1). */
-  readonly can: { readonly import: boolean; readonly export: boolean };
+  /** Which of the screen's actions this viewer gets (§13.1, §8.4). */
+  readonly can: { readonly import: boolean; readonly export: boolean; readonly bulkEdit: boolean };
 }
 
 /** Shown as columns: in the directory, and readable on everybody. */
@@ -685,7 +685,7 @@ export async function directoryView(
       }),
       next: listed.value.next,
       // An export is a read, so everybody may build one of what they can see.
-      can: { import: everyone.isHr, export: true },
+      can: { import: everyone.isHr, export: true, bulkEdit: everyone.isHr },
     });
   });
 }

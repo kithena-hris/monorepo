@@ -24,6 +24,7 @@ import type {
   RecordSection,
 } from '../application/screens/model.js';
 import type { RolesView } from '../application/screens/roles.js';
+import type { BulkEditView, BulkResult } from '../application/screens/bulk-edit.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
 import type { ListedEndpoint } from '../infrastructure/webhooks/list.js';
@@ -409,6 +410,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       import: t.exposeBoolean('import'),
       export: t.exposeBoolean('export'),
+      bulkEdit: t.exposeBoolean('bulkEdit', { description: 'HR’s: set values on the people chosen (PEO-071).' }),
     }),
   });
   const DirectoryRef = builder.objectRef<Directory>('PeopleDirectory').implement({
@@ -1459,6 +1461,109 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
     }),
   );
+  /* ------------------------------------------------ bulk edit (PEO-071) -- */
+
+  type BulkRow = BulkResult['rows'][number];
+  const BulkPerson = builder
+    .objectRef<BulkEditView['people'][number]>('BulkEditPerson')
+    .implement({ fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }) });
+  const BulkEditRef = builder.objectRef<BulkEditView>('PeopleBulkEdit').implement({
+    description: 'The people chosen, and the fields HR may set on them in bulk.',
+    fields: (t) => ({
+      people: t.field({ type: [BulkPerson], resolve: (v) => list(v.people) }),
+      sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
+      today: t.exposeString('today'),
+      limit: t.exposeInt('limit', { description: 'People per request.' }),
+    }),
+  });
+  const BulkChangeRef = builder
+    .objectRef<BulkRow['changes'][number]>('BulkEditChange')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        dated: t.exposeBoolean('dated', {
+          description: 'False: kept without dates, so it changes on the day whatever the date says.',
+        }),
+        before: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.before }) }),
+        after: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.after }) }),
+      }),
+    });
+  const BulkRefusalRef = builder
+    .objectRef<NonNullable<BulkRow['refusal']>>('BulkEditRefusal')
+    .implement({
+      fields: (t) => ({
+        code: t.exposeString('code'),
+        message: t.exposeString('message'),
+        keys: t.stringList({ resolve: (r) => list(r.keys) }),
+      }),
+    });
+  const BulkRowRef = builder.objectRef<BulkRow>('BulkEditRow').implement({
+    fields: (t) => ({
+      personId: t.exposeID('personId'),
+      name: t.exposeString('name'),
+      outcome: t.exposeString('outcome', { description: 'changed, unchanged or refused' }),
+      changes: t.field({ type: [BulkChangeRef], resolve: (r) => list(r.changes) }),
+      refusal: t.field({ type: BulkRefusalRef, nullable: true, resolve: (r) => r.refusal }),
+      findings: t.field({ type: [FindingNoticeRef], resolve: (r) => list(r.findings) }),
+    }),
+  });
+  const BulkResultRef = builder.objectRef<BulkResult>('BulkEditResult').implement({
+    fields: (t) => ({
+      committed: t.exposeBoolean('committed'),
+      rows: t.field({ type: [BulkRowRef], resolve: (v) => list(v.rows) }),
+    }),
+  });
+  const bulkBody = (args: {
+    personIds: readonly (string | number)[];
+    values: readonly FormInput[];
+    effectiveFrom: string;
+  }) => ({
+    personIds: args.personIds.map(String),
+    values: changed(args.values),
+    effectiveFrom: args.effectiveFrom,
+  });
+  builder.queryFields((t) => ({
+    peopleBulkEdit: t.field({
+      type: BulkEditRef,
+      args: { personIds: t.arg.idList({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkEditView>(
+          ctx,
+          'GET',
+          `/v1/views/bulk-edit?people=${encodeURIComponent(args.personIds.map(String).join(','))}`,
+        ),
+    }),
+    peopleBulkEditPreview: t.field({
+      type: BulkResultRef,
+      description: 'What a bulk edit would change and refuse, per person, and why; nothing is kept.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        values: t.arg({ type: [FormValueInput], required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit/preview', { body: bulkBody(args) }),
+    }),
+  }));
+  builder.mutationField('bulkEditPeople', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description: 'A page of a bulk edit: one ordinary write per person, each atomic, each answered.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        values: t.arg({ type: [FormValueInput], required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, { idempotencyKey, ...args }, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit', {
+          body: bulkBody(args),
+          key: idempotencyKey,
+        }),
+    }),
+  );
+
   const IdentifierDecisionEnum = builder.enumType('IdentifierReviewDecision', {
     values: ['accept', 'send_back'] as const,
   });

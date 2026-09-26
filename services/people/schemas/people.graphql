@@ -101,6 +101,43 @@ type BooleanAttribute {
   value: Boolean
 }
 
+type BulkEditChange {
+  after: FormEntry
+  before: FormEntry
+  """
+  False: kept without dates, so it changes on the day whatever the date says.
+  """
+  dated: Boolean
+  key: String
+  label: String
+}
+
+type BulkEditPerson {
+  id: ID
+  name: String
+}
+
+type BulkEditRefusal {
+  code: String
+  keys: [String!]
+  message: String
+}
+
+type BulkEditResult {
+  committed: Boolean
+  rows: [BulkEditRow!]
+}
+
+type BulkEditRow {
+  changes: [BulkEditChange!]
+  findings: [IdentifierFindingNotice!]
+  name: String
+  """changed, unchanged or refused"""
+  outcome: String
+  personId: ID
+  refusal: BulkEditRefusal
+}
+
 """
 protect (special category), suggest, or fallback to the section default.
 """
@@ -142,6 +179,8 @@ type DateAttribute {
 }
 
 type DirectoryActions {
+  """HR’s: set values on the people chosen (PEO-071)."""
+  bulkEdit: Boolean
   export: Boolean
   import: Boolean
 }
@@ -638,6 +677,10 @@ input MoneyInput {
 type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """
+  A page of a bulk edit: one ordinary write per person, each atomic, each answered.
+  """
+  bulkEditPeople(effectiveFrom: String!, idempotencyKey: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
+  """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
   changeLocationZone(effectiveFrom: String!, id: ID!, idempotencyKey: String!, timeZone: String!): Location
@@ -782,6 +825,15 @@ type PeopleAnalytics {
   movement: AnalyticsMovement
   source: String
   sourceNote: String
+}
+
+"""The people chosen, and the fields HR may set on them in bulk."""
+type PeopleBulkEdit {
+  """People per request."""
+  limit: Int
+  people: [BulkEditPerson!]
+  sections: [RecordSection!]
+  today: String
 }
 
 type PeopleCompleteness {
@@ -1077,6 +1129,11 @@ type Query {
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage
   peopleAnalytics: PeopleAnalytics
+  peopleBulkEdit(personIds: [ID!]!): PeopleBulkEdit
+  """
+  What a bulk edit would change and refuse, per person, and why; nothing is kept.
+  """
+  peopleBulkEditPreview(effectiveFrom: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(after: ID, filter: String, search: String): PeopleDirectory

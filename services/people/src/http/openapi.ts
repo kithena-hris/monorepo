@@ -39,6 +39,7 @@ import {
 import { EmploymentPeriodsBody, LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
 import {
   Advice,
+  BulkEditBody,
   Entity,
   EndpointBody,
   EndpointPatch,
@@ -104,6 +105,7 @@ const components = {
   // The screens' writes (PEO-098, keyed and documented in PEO-116).
   SectionChanges: Sections,
   CompletenessChanges: Grid,
+  BulkEdit: BulkEditBody,
   NewSection: Label,
   Order,
   DraftField: Field,
@@ -220,6 +222,23 @@ function screenPaths(): Record<string, unknown> {
         'CompletenessChanges',
         200,
         'Saved',
+      ),
+    },
+    '/v1/views/bulk-edit/preview': {
+      post: screenWrite(
+        'What a bulk edit would change and refuse, per person, and why (PEO-071); nothing is kept',
+        'BulkEdit',
+        200,
+        '{ committed: false, rows }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/bulk-edit': {
+      post: screenWrite(
+        'A page of a bulk edit: one write per person, each atomic, each answered',
+        'BulkEdit',
+        200,
+        '{ committed: true, rows }',
       ),
     },
     '/v1/schema/draft/sections': {
