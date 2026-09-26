@@ -15,6 +15,12 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["next-env.d.ts", "src/**/*", ".next/types/**/*"],
+  "include": [
+    "next-env.d.ts",
+    "src/**/*",
+    ".next/types/**/*",
+    "vitest.config.ts",
+    "vitest.setup.ts"
+  ],
   "exclude": ["node_modules", ".next"]
 }
