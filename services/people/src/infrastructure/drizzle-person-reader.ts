@@ -90,7 +90,7 @@ function likePattern(text: string): string {
  * The directory's predicate: the tenant, `where` by containment, `search` by
  * substring.
  *
- * Containment is what `person_custom_idx` (GIN, jsonb_path_ops) answers, one
+ * Containment is what `person_tenant_directory_idx` (GIN) answers, one
  * `@>` for every key at once, though under RLS only through
  * `people.person_custom_candidates`, for the reason below. The search is
  * `ILIKE` over at most four short text columns and the two full names. Under
@@ -124,7 +124,7 @@ function matching(
   return and(
     eq(person.tenantId, tenantId),
     filter === undefined ? undefined : sql`${person.custom} @> ${filter}::jsonb`,
-    // The same narrowing for the filter, through `person_custom_idx`
+    // The same narrowing for the filter, through `person_tenant_directory_idx`
     // (20260926120000_people_custom_filter.sql); the `@>` above still decides.
     filter === undefined
       ? undefined

@@ -849,6 +849,31 @@ describe('a custom-field filter under row-level security', () => {
         expect(counted.ok && counted.value.all).toBe(10);
       });
 
+      it("reads a broad filter and a broad search in proportion to this tenant's matches, not every tenant's", async () => {
+        // The other 50,000-person tenant matches each of these just as often,
+        // so reading every tenant's candidates would be twice this tenant's.
+        const where = { site: 'Lisbon' };
+        const search = 'Family1';
+        const counting = async (narrowing: { where?: typeof where; search?: string }) => {
+          const { value: counted, work } = await measured(tenantId, (tx) =>
+            people.count(tx, { ...asking(hr, tenantId), ...narrowing }),
+          );
+          if (!counted.ok) throw new Error(counted.error.message);
+          expect(counted.value.all, JSON.stringify(narrowing)).toBeGreaterThan(2000);
+          return { matches: counted.value.all, work };
+        };
+        const filtered = await counting({ where });
+        const searched = await counting({ search });
+        const both = await counting({ where, search });
+        // Each function reads this tenant's candidates once, and the count
+        // probes the ones it is handed.
+        expect(filtered.work).toBeLessThanOrEqual(2 * filtered.matches + 1000);
+        expect(searched.work).toBeLessThanOrEqual(2 * searched.matches + 1000);
+        expect(both.work).toBeLessThanOrEqual(
+          filtered.matches + searched.matches + both.matches + 1000,
+        );
+      });
+
       it('finds exactly what the predicate finds, for filters narrow, broad, combined and empty', async () => {
         for (const filter of [
           TAIL,
