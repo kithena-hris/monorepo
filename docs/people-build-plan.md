@@ -1840,10 +1840,14 @@ it is written down here rather than left in a PR description.
       longer lists status under HR information.* *Still open:* a record
       read by its id is answered for a leaver, status withheld; hiding it
       from a peer altogether is a product call.
-- [ ] Route `/scim/v2/*` through the Cloudflare Tunnel to People
+- [x] Route `/scim/v2/*` through the Cloudflare Tunnel to People
       (`docs/environments.md` "Hosting" has the rule and the API call), and
       decide whether a tenant relying on SCIM keeps the VM awake. Found in
-      PEO-072. *(PRD §13.5)*
+      PEO-072. *(PRD §13.5)* _Done 2026-09-26: `api.kithena.com`
+      `^/scim/v2/` → `http://people:4001`, above the router's catch-all
+      (tunnel configuration version 2). Nothing wakes the VM for a push:
+      Okta and Entra retry on Cloudflare's 530 until it is awake, which is
+      acceptable until a tenant relies on near-real-time provisioning._
 - [ ] Verify SCIM against a live Okta and a live Entra tenant (the provider
       test suites: Okta's SCIM 2.0 spec tests, Entra's SCIM validator), and
       record what each sent that the build did not expect. Found in PEO-072.
@@ -1855,7 +1859,10 @@ it is written down here rather than left in a PR description.
       detection is the nearest thing. Found in PEO-072. *(PRD §13.5, §12.4)*
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
-      in PEO-113. *(PRD §13.1)*
+      in PEO-113. *(PRD §13.1)* _Half done: the router image copies
+      `persisted/` to `/persisted` (`apps/gateway/Dockerfile`), so production
+      serves the safelist. Left: a timed 100 MB import through the production
+      router once the People Phase 2/3 release is deployed._
 
 ## Blocked, and by what
 
