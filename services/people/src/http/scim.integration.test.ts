@@ -220,7 +220,9 @@ describe('connecting a system (PEO-072)', () => {
               {
                 id: okta.id,
                 system: 'Okta',
-                mapping: expect.arrayContaining([{ path: 'name.givenName', key: 'given_name' }]),
+                mapping: expect.arrayContaining([
+                  { path: 'name.givenName', key: 'given_name' },
+                ]) as unknown,
               },
             ],
           },
@@ -240,7 +242,10 @@ describe('connecting a system (PEO-072)', () => {
     });
     expect(taken.status).toBe(403);
     expect(await json(taken)).toMatchObject({
-      error: { code: 'SOURCE_OF_RECORD_EXTERNAL', message: expect.stringContaining('Okta') },
+      error: {
+        code: 'SOURCE_OF_RECORD_EXTERNAL',
+        message: expect.stringContaining('Okta') as unknown,
+      },
     });
     expect((await rest('POST', `/v1/scim/connections/${workday.id}/revoke`, {})).status).toBe(200);
   });
@@ -330,7 +335,7 @@ describe('/Users', () => {
         'work_email',
         't_shirt_size',
         'userName',
-      ]),
+      ]) as unknown,
     });
   });
 
@@ -483,7 +488,7 @@ describe('mirror mode: every other writer is refused, naming Okta (PEO-073)', ()
     );
     expect(saved['errors']).toEqual([
       expect.objectContaining({
-        extensions: expect.objectContaining({ code: 'SOURCE_OF_RECORD_EXTERNAL' }),
+        extensions: expect.objectContaining({ code: 'SOURCE_OF_RECORD_EXTERNAL' }) as unknown,
       }),
     ]);
     const profile = await graphql(

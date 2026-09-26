@@ -43,7 +43,7 @@ export type Notice =
    * and a link to the inbox, signed in.
    */
   | { readonly kind: 'approval_requested' }
-  | { readonly kind: 'approval_decided'; readonly decision: 'approved' | 'rejected' }
+  | { readonly kind: 'approval_decided'; readonly decision: ApprovalDecision }
   | { readonly kind: 'approval_expired' }
   | {
       readonly kind: 'scheduled_report';
@@ -56,6 +56,9 @@ export type ReportCadence = (typeof REPORT_CADENCES)[number];
 /** A file (`xlsx`, `pdf`) waits on the export page; a `summary` is the analytics screen. */
 export const REPORT_FORMATS = ['xlsx', 'pdf', 'summary'] as const;
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
+
+export const APPROVAL_DECISIONS = ['approved', 'rejected'] as const;
+export type ApprovalDecision = (typeof APPROVAL_DECISIONS)[number];
 
 export type NoticeKind = Notice['kind'];
 
@@ -132,7 +135,7 @@ const COPY: {
     footer: `Sent by Kithena on behalf of ${company} because you approve changes in People.`,
   }),
   approval_decided: ({ decision }, company) => {
-    if (decision !== 'approved' && decision !== 'rejected') return null;
+    if (!APPROVAL_DECISIONS.includes(decision)) return null;
     const approved = decision === 'approved';
     return {
       subject: `${company}: your change was ${approved ? 'approved' : 'not approved'}`,

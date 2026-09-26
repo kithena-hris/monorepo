@@ -142,7 +142,7 @@ describe('a sensitive field on a record (PEO-077)', () => {
     render(<SectionForm section={section} values={{}} onSave={onSave} />);
     const user = fast();
     const input = screen.getByLabelText(/IBAN/);
-    expect(input).toHaveAccessibleName(expect.stringContaining('Sensitive'));
+    expect(input).toHaveAccessibleName(/Sensitive/);
     await user.type(input, 'DE89370400440532013000');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('Sent to HR for approval')).toBeInTheDocument();

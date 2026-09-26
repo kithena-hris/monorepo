@@ -20,6 +20,12 @@ export type Json = Record<string, unknown>;
 export const isObject = (v: unknown): v is Json =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/** An array from a JSON body, whose items are not known to be anything yet. */
+export const isList = (v: unknown): v is readonly unknown[] => Array.isArray(v);
+
+/** An array as its items, anything else as the one item. */
+export const listOf = (v: unknown): readonly unknown[] => (isList(v) ? v : [v]);
+
 /** The key an object holds under this name, whatever its case. */
 export function keyOf(object: Json, name: string): string | undefined {
   const lower = name.toLowerCase();

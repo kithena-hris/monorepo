@@ -73,7 +73,25 @@ const admin = async (deps: ConnectionDeps, tx: Tx, asking: Asking): Promise<Resu
     : err(failure('FORBIDDEN', 'Only a People administrator manages provisioning'));
 };
 
-export function scimConnections(deps: ConnectionDeps) {
+export interface ScimConnections {
+  list(asking: Asking): Promise<Result<readonly ConnectionView[]>>;
+  create(asking: Asking, input: { readonly system: string }): Promise<Result<IssuedToken>>;
+  rotate(asking: Asking, id: string): Promise<Result<IssuedToken>>;
+  revoke(asking: Asking, id: string): Promise<Result<{ ok: true }>>;
+  setMapping(
+    asking: Asking,
+    id: string,
+    entries: readonly MappingEntry[],
+  ): Promise<Result<{ ok: true }>>;
+}
+
+/** A connection's token, returned once when it is issued. */
+export interface IssuedToken {
+  readonly id: string;
+  readonly token: string;
+}
+
+export function scimConnections(deps: ConnectionDeps): ScimConnections {
   const { store } = deps;
 
   const changed = (
@@ -249,5 +267,3 @@ export function scimConnections(deps: ConnectionDeps) {
       }),
   };
 }
-
-export type ScimConnections = ReturnType<typeof scimConnections>;

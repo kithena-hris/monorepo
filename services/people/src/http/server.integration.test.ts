@@ -335,16 +335,21 @@ describe('the booted service', () => {
     };
     expect(written.attributes).not.toHaveProperty('bonus');
     expect(written.pendingChanges).toEqual([
-      expect.objectContaining({ attributeKey: 'bonus', value: bonus, mine: true, canDecide: false }),
+      expect.objectContaining({
+        attributeKey: 'bonus',
+        value: bonus,
+        mine: true,
+        canDecide: false,
+      }),
     ]);
     const changeId = written.pendingChanges[0]?.id ?? '';
 
     const inbox = await fetch(`${base}/v1/pending-changes`, {
       headers: headers(SECOND_HR, ['hr']),
     });
-    expect(((await inbox.json()) as { items: { id: string; canDecide: boolean }[] }).items).toEqual([
-      expect.objectContaining({ id: changeId, canDecide: true }),
-    ]);
+    expect(((await inbox.json()) as { items: { id: string; canDecide: boolean }[] }).items).toEqual(
+      [expect.objectContaining({ id: changeId, canDecide: true })],
+    );
 
     const decide = (account: string, key: string) =>
       fetch(`${base}/v1/pending-changes/${changeId}/decision`, {
@@ -358,9 +363,9 @@ describe('the booted service', () => {
     expect(await approved.json()).toMatchObject({ id: changeId, state: 'approved' });
 
     const read = await fetch(`${base}/v1/people/${ADA}`, { headers: headers(HR_ACCOUNT, ['hr']) });
-    expect(((await read.json()) as { attributes: Record<string, unknown> }).attributes).toMatchObject(
-      { bonus },
-    );
+    expect(
+      ((await read.json()) as { attributes: Record<string, unknown> }).attributes,
+    ).toMatchObject({ bonus });
     const history = await fetch(`${base}/v1/people/${ADA}/history?attribute=bonus`, {
       headers: headers(HR_ACCOUNT, ['hr']),
     });
@@ -451,7 +456,7 @@ describe('the screens over GraphQL', () => {
 
     const manager = await graph(headers(MARCO_ACCOUNT), PROFILE, { id: ADA });
     expect(manager.errors).toBeUndefined();
-    const keys = (manager.data?.['peopleProfile'] as Profile).values.map((v) => v.key);
+    const keys = (manager.data?.['peopleProfile'] as Profile | undefined)?.values.map((v) => v.key);
     expect(keys).toContain('contract_end');
     expect(keys).not.toContain('intern_note');
 
@@ -532,9 +537,15 @@ describe('the screens over GraphQL', () => {
     expect(registered.fields.find((f) => f.key === 'agency')).toEqual({
       key: 'agency',
       requiredness: 'conditional',
-      requiredWhen: { combine: 'all', clauses: [{ operand: 'employmentType', in: ['contractor'] }] },
+      requiredWhen: {
+        combine: 'all',
+        clauses: [{ operand: 'employmentType', in: ['contractor'] }],
+      },
       visibilityRules: [
-        { scopes: ['manager'], when: { clauses: [{ operand: 'employmentType', in: ['contractor'] }] } },
+        {
+          scopes: ['manager'],
+          when: { clauses: [{ operand: 'employmentType', in: ['contractor'] }] },
+        },
       ],
     });
     expect(registered.choices.countries.map((c) => c.value)).toContain('ES');
@@ -560,7 +571,10 @@ describe('the screens over GraphQL', () => {
       key: 'rules-3',
       input: input('leave_cover', {
         visibilityRules: [
-          { scopes: ['manager'], when: { combine: 'all', clauses: [{ operand: 'status', in: ['on_leave'] }] } },
+          {
+            scopes: ['manager'],
+            when: { combine: 'all', clauses: [{ operand: 'status', in: ['on_leave'] }] },
+          },
         ],
       }),
     });
@@ -679,9 +693,9 @@ describe('the screens over GraphQL', () => {
     expect(asManager.errors).toBeUndefined();
     expect(JSON.stringify(asManager.data)).not.toContain('base_salary');
     expect(JSON.stringify(asManager.data)).not.toContain('5100000');
-    expect((asManager.data?.['peopleHistory'] as History).changes.map((c) => c.key)).toContain(
-      'job_title',
-    );
+    expect(
+      (asManager.data?.['peopleHistory'] as History | undefined)?.changes.map((c) => c.key),
+    ).toContain('job_title');
 
     const bad = await graph(hr, HISTORY, { id: ADA, asOf: 'March' });
     expect(bad.errors?.[0]?.extensions.code).toBe('BAD_REQUEST');

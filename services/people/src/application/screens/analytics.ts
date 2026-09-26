@@ -481,7 +481,13 @@ async function payView(
     grade: charts.value.grade.map(view(grade, true)),
     tenure: charts.value.tenure
       .toSorted((a, b) => order(a.bucket) - order(b.bucket) || a.currency.localeCompare(b.currency))
-      .map(view((b) => TENURE_LABELS[b as keyof typeof TENURE_LABELS] ?? b, false)),
+      .map(
+        view((b) => {
+          // A stored bucket this build has no label for reads as itself.
+          const band = TENURE_BANDS.find((t) => t === b);
+          return band === undefined ? b : TENURE_LABELS[band];
+        }, false),
+      ),
     compa: charts.value.compa.map(view(grade, true)),
   };
 }

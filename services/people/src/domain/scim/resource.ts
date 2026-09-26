@@ -1,4 +1,12 @@
-import { CORE_USER, ENTERPRISE_USER, KITHENA_USER, getCI, isObject, type Json } from './paths.js';
+import {
+  CORE_USER,
+  ENTERPRISE_USER,
+  KITHENA_USER,
+  getCI,
+  isList,
+  isObject,
+  type Json,
+} from './paths.js';
 
 export { CORE_USER, CORE_GROUP, ENTERPRISE_USER, KITHENA_USER } from './paths.js';
 
@@ -81,8 +89,8 @@ export function valuesOf(resource: Json): Record<string, unknown> {
   for (const n of TOP) put(n, getCI(resource, n));
 
   const emails = getCI(resource, 'emails');
-  const email = Array.isArray(emails)
-    ? (typed(emails, 'work') ?? emails.find(isPrimary) ?? (emails[0] as unknown))
+  const email = isList(emails)
+    ? (typed(emails, 'work') ?? emails.find(isPrimary) ?? emails[0])
     : undefined;
   put(WORK_EMAIL, getCI(email, 'value'));
   const phones = getCI(resource, 'phoneNumbers');

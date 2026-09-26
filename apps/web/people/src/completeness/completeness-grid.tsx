@@ -25,7 +25,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { Loaded, type IdentifierFinding, type Loadable, type Outcome } from '../load';
+import { Loaded, type IdentifierFinding, type Loadable } from '../load';
 import { PeopleSearch, PersonPicker, type SearchPeople } from '../record/attribute-input';
 
 /** An HR-owned field somebody is missing. */
@@ -324,8 +324,8 @@ function Grid({
 
       {shown.length === 0 ? null : (
         <Alert tone="warning" title="Our checks suggest some of these may be wrong">
-          Look again at the cells marked below. If they are right as they are, save anyway: HR
-          will review them, and what HR decides is final.
+          Look again at the cells marked below. If they are right as they are, save anyway: HR will
+          review them, and what HR decides is final.
         </Alert>
       )}
       {outcome === null ? null : outcome.ok ? (
@@ -362,7 +362,9 @@ function Grid({
               <SelectContent>
                 {state.fields.map((f) => (
                   <SelectItem key={f.key} value={f.key}>
-                    {f.sensitive === true ? `${f.label} (sensitive: changes wait for approval)` : f.label}
+                    {f.sensitive === true
+                      ? `${f.label} (sensitive: changes wait for approval)`
+                      : f.label}
                   </SelectItem>
                 ))}
               </SelectContent>

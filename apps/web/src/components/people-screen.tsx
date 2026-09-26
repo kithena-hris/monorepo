@@ -156,9 +156,8 @@ export function PeopleScreen({
                 onMove: thenRefresh((move: actions.LifecycleMove) =>
                   actions.moveLifecycle(id, move),
                 ),
-                onPlace: thenRefresh(
-                  (placement: Parameters<typeof actions.placePerson>[1]) =>
-                    actions.placePerson(id, placement),
+                onPlace: thenRefresh((placement: Parameters<typeof actions.placePerson>[1]) =>
+                  actions.placePerson(id, placement),
                 ),
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
@@ -536,9 +535,9 @@ export function PeopleScreen({
           segmentId: search['segment'] ?? null,
           onSegmentChange: (segment: string | null) => {
             router.replace(
-              (segment === null
+              segment === null
                 ? '/people/analytics'
-                : `/people/analytics?segment=${encodeURIComponent(segment)}`) as Route,
+                : `/people/analytics?segment=${encodeURIComponent(segment)}`,
             );
           },
         };

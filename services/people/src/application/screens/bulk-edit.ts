@@ -146,7 +146,9 @@ export async function bulkEditView(
         version,
         everyone.value,
         (d) =>
-          canWrite(d, everyone.value).ok && !LIFECYCLE_KEYS.has(d.key) && !NO_CONTROL.has(d.dataType),
+          canWrite(d, everyone.value).ok &&
+          !LIFECYCLE_KEYS.has(d.key) &&
+          !NO_CONTROL.has(d.dataType),
         new Set(),
       ),
       today: await tenantToday(deps, tx, asking.tenantId),
@@ -194,7 +196,7 @@ async function rows(
   const asOf = { ...asking, asOf: edit.effectiveFrom };
   // One savepoint per person: a refusal rolls back that person alone.
   const savepoint = <R>(_tenant: string, fn: (scope: { tx: Tx }) => Promise<R>) =>
-    tx.transaction((sp) => fn({ tx: sp as Tx }));
+    tx.transaction((sp) => fn({ tx: sp }));
 
   const out: BulkRow[] = [];
   for (const personId of ids) {
@@ -291,4 +293,3 @@ async function rolledBack<T>(
 }
 
 const ROLLBACK = new Error('preview: roll back');
-

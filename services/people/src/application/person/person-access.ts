@@ -700,7 +700,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     if (systemOf(asking) !== undefined) return SYSTEM_RELATIONS;
     const integration = integrationOf(asking);
     if (integration !== undefined) {
-      return { ...NO_RELATIONS, integrationId: integration.connectionId, sources: integration.owned };
+      return {
+        ...NO_RELATIONS,
+        integrationId: integration.connectionId,
+        sources: integration.owned,
+      };
     }
     return deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
   }
@@ -794,7 +798,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
    * everybody (`filterable`), a search only over what is (`searchable`).
    * Both read today, so neither combines with `asOf`.
    */
-  async function narrowing(
+  function narrowing(
     tx: Tx,
     asking: Asking & {
       readonly asOf?: string;
@@ -803,9 +807,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     },
     version: PublishedVersion,
     everyone: ViewerRelations,
-  ): Promise<
-    Result<{ where: Readonly<Record<string, string>>; search: PersonSearch | undefined }>
-  > {
+  ): Result<{ where: Readonly<Record<string, string>>; search: PersonSearch | undefined }> {
     const where = asking.where ?? {};
     const text = (asking.search ?? '').trim();
     if (Object.keys(where).length === 0 && text === '') return ok({ where, search: undefined });
@@ -1464,7 +1466,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const survivor = records.get(asking.personId);
     const absorbed = records.get(asking.absorbedPersonId);
     if (!survivor || !absorbed) return err(PersonNotFound());
-    const onSurvivor = await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId);
+    const onSurvivor = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      asking.personId,
+    );
     const onAbsorbed = await deps.relations.relations(
       tx,
       asking.tenantId,
@@ -1492,7 +1499,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     if (own === survivor.snapshot.id || own === absorbed.snapshot.id) {
       return failure('FORBIDDEN', 'Nobody merges their own record; another HR colleague has to');
     }
-    const reports = (await deps.duplicates?.reports(tx, asking.tenantId, absorbed.snapshot.id)) ?? 0;
+    const reports =
+      (await deps.duplicates?.reports(tx, asking.tenantId, absorbed.snapshot.id)) ?? 0;
     if (reports > 0) {
       return failure(
         'MERGE_HAS_REPORTS',
@@ -1760,7 +1768,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!pair.ok) return pair;
       const { survivor, absorbed, keys } = pair.value;
       const sameSealed = deps.duplicates
-        ? await deps.duplicates.sameClaims(tx, asking.tenantId, survivor.snapshot.id, absorbed.snapshot.id)
+        ? await deps.duplicates.sameClaims(
+            tx,
+            asking.tenantId,
+            survivor.snapshot.id,
+            absorbed.snapshot.id,
+          )
         : [];
       return ok({
         refusal: await mergeRefusalOf(tx, asking, survivor, absorbed),
@@ -1786,7 +1799,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // the survivor takes either, so neither is ever held twice.
       await store.releaseClaims(tx, asking.tenantId, absorbedId);
       const tomb = Person.rehydrate(absorbed.snapshot);
-      const moved = tomb.absorbInto(survivor.snapshot, Object.keys(taken.value), contextFor(asking));
+      const moved = tomb.absorbInto(
+        survivor.snapshot,
+        Object.keys(taken.value),
+        contextFor(asking),
+      );
       if (!moved.ok) return moved;
       await deps.people.save(tx, tomb, { fields: { identityAccountId: null } });
       for (const review of (await deps.reviews?.open(tx, asking.tenantId, absorbedId)) ?? []) {
@@ -1832,7 +1849,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         decidedBy: asking.viewer.accountId,
         decidedAt: deps.clock.instant(),
       });
-      const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, survivorId);
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        survivorId,
+      );
       return ok(await view(tx, asking, after, version, relations));
     },
 
@@ -1866,7 +1888,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const everyone = await everyoneTo(tx, asking);
-      const query = await narrowing(tx, asking, version, everyone);
+      const query = narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
       if (asking.gaps !== undefined && !everyone.isHr) {
         return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
@@ -1903,7 +1925,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const everyone = await everyoneTo(tx, asking);
-      const query = await narrowing(tx, asking, version, everyone);
+      const query = narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
       const counted = await deps.reader.count(
         tx,
@@ -2024,7 +2046,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const definition = version.document.attributes.find((d) => d.key === target.attributeKey);
       // A mirrored attribute is corrected where it is kept (§13.6).
       const writable = definition === undefined ? null : canWrite(definition, relations);
-      if (writable !== null && !writable.ok && writable.error.code === 'SOURCE_OF_RECORD_EXTERNAL') {
+      if (
+        writable !== null &&
+        !writable.ok &&
+        writable.error.code === 'SOURCE_OF_RECORD_EXTERNAL'
+      ) {
         return writable;
       }
       // The same refusal as an unwritable field, so a probe cannot tell an
@@ -2275,7 +2301,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         checks.push([definition, checked.value]);
       }
       // The same answer a write gives, and a retry of it replays (PEO-125).
-      return ok(await findingsFor(tx, deps.reviews, asking.tenantId, asking.personId, carried(checks)));
+      return ok(
+        await findingsFor(tx, deps.reviews, asking.tenantId, asking.personId, carried(checks)),
+      );
     },
 
     async identifierReviews(tx, asking) {
@@ -2621,9 +2649,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         .filter((d) => d.effectiveDated && !d.encrypted && !LIFECYCLE_KEYS.has(d.key))
         .map((d) => d.key as string);
       const all = await deps.people.history(tx, tenantId, personId);
-      const refused = new Set(
-        (await deps.refusals?.refused(tx, tenantId, personId)) ?? [],
-      );
+      const refused = new Set((await deps.refusals?.refused(tx, tenantId, personId)) ?? []);
       const asking: SystemAsking = {
         tenantId,
         viewer: { accountId: NOBODY, roles: new Set() },
@@ -2660,7 +2686,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             values[entry.attributeKey] = entry.value;
             changed.push(changedAttribute(definition, entry.value));
           }
-          const raised = aggregate.attributesInForce(changed, version.version, contextFor(asking), date);
+          const raised = aggregate.attributesInForce(
+            changed,
+            version.version,
+            contextFor(asking),
+            date,
+          );
           if (!raised.ok) return raised;
 
           const moved = (key: string) => group.some((e) => e.attributeKey === key);
@@ -2696,7 +2727,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
                 });
                 if (first) {
                   told.refuseScheduled(
-                    { historyId: entry.id, attributeKey: entry.attributeKey, code: placed.error.code },
+                    {
+                      historyId: entry.id,
+                      attributeKey: entry.attributeKey,
+                      code: placed.error.code,
+                    },
                     contextFor(asking),
                     date,
                   );
@@ -2714,7 +2749,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
             }
           }
           if (ORG_KEYS.some(moved)) aggregate.moveOrg(orgOf(values), contextFor(asking), date);
-          if ([...IDENTITY_FACT_KEYS].some(moved)) shareIdentityFacts(aggregate, asking, values, date);
+          if ([...IDENTITY_FACT_KEYS].some(moved))
+            shareIdentityFacts(aggregate, asking, values, date);
         }
 
         await deps.people.save(tx, aggregate, {
@@ -2731,7 +2767,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         const next =
           renumberInto === null
             ? null
-            : await renumbered(tx, tenantId, version, renumberInto.entity, values['employee_number']);
+            : await renumbered(
+                tx,
+                tenantId,
+                version,
+                renumberInto.entity,
+                values['employee_number'],
+              );
         if (next !== null && renumberInto !== null) {
           const written = await update(tx, {
             ...asking,

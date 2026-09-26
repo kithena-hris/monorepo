@@ -1,7 +1,7 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { matches, parseFilter, type Filter } from './filter.js';
-import { isObject, keyOf, splitSchema, type Json } from './paths.js';
+import { isList, isObject, keyOf, listOf, splitSchema, type Json } from './paths.js';
 
 /**
  * SCIM PATCH (RFC 7644 §3.5.2), applied to a resource as JSON.
@@ -41,7 +41,7 @@ export function parsePatch(body: unknown): Result<readonly PatchOperation[]> {
   const out: PatchOperation[] = [];
   for (const raw of operations) {
     if (!isObject(raw)) return Syntax('Each operation is an object');
-    const op = String(raw['op'] ?? '').toLowerCase();
+    const op = typeof raw['op'] === 'string' ? raw['op'].toLowerCase() : '';
     if (op !== 'add' && op !== 'replace' && op !== 'remove') {
       return Syntax(`${String(raw['op'])} is not a PATCH operation`);
     }
@@ -150,8 +150,8 @@ function applyAt(doc: Json, op: PatchOperation['op'], path: string, value: unkno
         existing.filter((e) => !gone(e)),
       );
     } else if (op === 'remove') remove(holder, attr);
-    else if (Array.isArray(existing) && op === 'add') {
-      const added = Array.isArray(value) ? value : [value];
+    else if (isList(existing) && op === 'add') {
+      const added = listOf(value);
       set(holder, attr, [...existing, ...added.filter((v) => !existing.some((e) => same(e, v)))]);
     } else if (isObject(value) && isObject(existing)) set(holder, attr, merge(existing, value));
     else set(holder, attr, value);

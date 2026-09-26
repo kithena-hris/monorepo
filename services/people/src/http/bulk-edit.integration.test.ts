@@ -157,22 +157,31 @@ const post = async (path: string, body: unknown, as = hr, key: string | null = n
     headers: { ...as, ...(key === null ? {} : { 'idempotency-key': key }) },
     body: JSON.stringify(body),
   });
-  return { status: response.status, body: (await response.json()) as { committed?: boolean; rows: Row[] } };
+  return {
+    status: response.status,
+    body: (await response.json()) as { committed?: boolean; rows: Row[] },
+  };
+};
+
+/** The superuser connection `beforeAll` opened first. */
+const superuser = () => {
+  const client = clients[0];
+  if (client === undefined) throw new Error('the admin client is not connected');
+  return client;
 };
 
 /** Every `profile_updated` People has raised, for one person. */
 const updates = async (personId: string) =>
   Number(
     (
-      await clients[0]!.unsafe<{ n: string }[]>(
+      await superuser().unsafe<{ n: string }[]>(
         `SELECT count(*) AS n FROM people.outbox
           WHERE event_name = 'people.person.profile_updated' AND aggregate_id = '${personId}'`,
       )
-    )[0]!.n,
+    )[0]?.n,
   );
 
-const outcomes = (rows: Row[]) =>
-  rows.map((r) => [r.personId, r.outcome, r.refusal?.code ?? null]);
+const outcomes = (rows: Row[]) => rows.map((r) => [r.personId, r.outcome, r.refusal?.code ?? null]);
 
 describe('bulk edit of a field that requires approval (PEO-077)', () => {
   it('holds each value for approval, or applies it when HR says so, and says which', async () => {
@@ -199,7 +208,7 @@ describe('bulk edit of a field that requires approval (PEO-077)', () => {
       'grade-applied',
     );
     expect(applied.body.rows[0]).toMatchObject({ outcome: 'changed', held: [] });
-    const events = await clients[0]!.unsafe<
+    const events = await superuser().unsafe<
       { envelope: { payload: { appliedWithoutApproval?: string[] } } }[]
     >(
       `SELECT envelope FROM people.outbox
@@ -230,9 +239,9 @@ describe('bulk edit (PEO-071)', () => {
     ]);
     expect(await updates(ADA)).toBe(before);
     const read = await fetch(`${base}/v1/people/${ADA}`, { headers: hr });
-    expect(((await read.json()) as { attributes: Record<string, unknown> }).attributes).not.toHaveProperty(
-      'job_title',
-    );
+    expect(
+      ((await read.json()) as { attributes: Record<string, unknown> }).attributes,
+    ).not.toHaveProperty('job_title');
   });
 
   it('is atomic per person: a value one person claims first is refused for the next, in the preview and the commit alike', async () => {
@@ -305,12 +314,19 @@ describe('bulk edit (PEO-071)', () => {
     expect(seen.data['peopleBulkEditPreview']).toEqual({
       committed: false,
       rows: [
-        { personId: MARCO, outcome: 'changed', changes: [{ key: 'desk_phone', after: { text: '200' } }] },
+        {
+          personId: MARCO,
+          outcome: 'changed',
+          changes: [{ key: 'desk_phone', after: { text: '200' } }],
+        },
       ],
     });
     const done = await graph(
       `mutation { bulkEditPeople(${args}, idempotencyKey: "g-1") { committed rows { outcome } } }`,
     );
-    expect(done.data['bulkEditPeople']).toEqual({ committed: true, rows: [{ outcome: 'changed' }] });
+    expect(done.data['bulkEditPeople']).toEqual({
+      committed: true,
+      rows: [{ outcome: 'changed' }],
+    });
   });
 });

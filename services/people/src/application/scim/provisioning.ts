@@ -90,7 +90,9 @@ const text = (v: unknown): string | null =>
   typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 /** Entra sends booleans as "True" and "False". */
 const flag = (v: unknown): boolean | undefined =>
-  v === undefined || v === null ? undefined : v === true || String(v).toLowerCase() === 'true';
+  v === undefined || v === null
+    ? undefined
+    : v === true || (typeof v === 'string' && v.toLowerCase() === 'true');
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /** Every path a filter reads. */
@@ -121,7 +123,28 @@ const listResponse = (total: number, startIndex: number, resources: readonly Jso
   Resources: resources,
 });
 
-export function scimProvisioning(deps: ScimDeps) {
+export interface ScimProvisioning {
+  /** The connection a bearer token belongs to, if it is live and its company has People. */
+  authenticate(
+    authorization: string | undefined,
+    correlationId: string,
+  ): Promise<Result<ScimCaller>>;
+  listUsers(caller: ScimCaller, query: ListQuery): Promise<Result<Json>>;
+  getUser(caller: ScimCaller, id: string): Promise<Result<Json>>;
+  createUser(caller: ScimCaller, raw: unknown): Promise<Result<Json>>;
+  replaceUser(caller: ScimCaller, id: string, raw: unknown): Promise<Result<Json>>;
+  patchUser(caller: ScimCaller, id: string, raw: unknown): Promise<Result<Json>>;
+  deleteUser(caller: ScimCaller, id: string): Promise<Result<null>>;
+  listGroups(caller: ScimCaller, query: ListQuery): Promise<Result<Json>>;
+  getGroup(caller: ScimCaller, id: string): Promise<Result<Json>>;
+  createGroup(caller: ScimCaller, raw: unknown): Promise<Result<Json>>;
+  replaceGroup(caller: ScimCaller, id: string, raw: unknown): Promise<Result<Json>>;
+  patchGroup(caller: ScimCaller, id: string, raw: unknown): Promise<Result<Json>>;
+  deleteGroup(caller: ScimCaller, id: string): Promise<Result<null>>;
+  extensionSchema(caller: ScimCaller): Promise<Result<Json>>;
+}
+
+export function scimProvisioning(deps: ScimDeps): ScimProvisioning {
   const { store, service } = deps;
   const now = () => deps.clock.instant();
 
@@ -591,5 +614,3 @@ export function scimProvisioning(deps: ScimDeps) {
       }),
   };
 }
-
-export type ScimProvisioning = ReturnType<typeof scimProvisioning>;

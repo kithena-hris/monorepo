@@ -626,7 +626,8 @@ function EditDialog({
 
   const renaming = editing.kind === 'location' && place !== null;
   const needsName = editing.kind === 'entity' || editing.kind === 'location';
-  const needsPlace = editing.kind === 'entity' ? entity === null : editing.kind === 'location' && !renaming;
+  const needsPlace =
+    editing.kind === 'entity' ? entity === null : editing.kind === 'location' && !renaming;
   const needsZone = editing.kind === 'entity' || editing.kind === 'zone' || needsPlace;
   const problems = {
     name: needsName && name.trim() === '',
@@ -634,7 +635,8 @@ function EditDialog({
     zone: needsZone && zone === '',
     prefix: editing.kind === 'numbering' && !/^[A-Za-z0-9-]{0,10}$/.test(prefix),
     digits: editing.kind === 'numbering' && (digits === null || digits < 1 || digits > 12),
-    start: editing.kind === 'numbering' && (start === null || start < 1 || !Number.isInteger(start)),
+    start:
+      editing.kind === 'numbering' && (start === null || start < 1 || !Number.isInteger(start)),
   };
   const invalid = Object.values(problems).some(Boolean);
   // A zone change is in force once its day has begun where the zone is.
@@ -800,10 +802,7 @@ function EditDialog({
       />,
       <p key="preview" className="text-sm">
         The next person hired here is{' '}
-        <span className="font-medium">
-          {numberOf(prefix, digits ?? 1, start ?? 1)}
-        </span>
-        .
+        <span className="font-medium">{numberOf(prefix, digits ?? 1, start ?? 1)}</span>.
       </p>,
     );
   }
@@ -999,9 +998,7 @@ function PayBandDialog({
     midpoint: major(band?.midpointMinor, band?.currency ?? 'EUR'),
     maximum: major(band?.maximumMinor, band?.currency ?? 'EUR'),
   });
-  const [from, setFrom] = useState<IsoDate | null>(
-    (band?.effectiveFrom as IsoDate | undefined) ?? null,
-  );
+  const [from, setFrom] = useState<IsoDate | null>(band?.effectiveFrom ?? null);
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);

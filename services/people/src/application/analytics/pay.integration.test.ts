@@ -162,12 +162,16 @@ const personId = (i: number) => `00000000-0000-4000-8000-${String(200 + i).padSt
 
 async function snapshot(minimum?: number) {
   return inTenant(ACME, (scope) =>
-    takePaySnapshot({ clock: fixedClock(AT), newId: uuidv7, sealed: secrets.revealAll }, scope, {
-      run: { day: DAY, days: { byEntity: new Map(), fallback: DAY } },
-      definitions,
-      ...(minimum === undefined ? {} : { cohortMinimum: minimum }),
-      takenBy: 'system:test',
-    }),
+    takePaySnapshot(
+      { clock: fixedClock(AT), newId: uuidv7, sealed: (tx, where) => secrets.revealAll(tx, where) },
+      scope,
+      {
+        run: { day: DAY, days: { byEntity: new Map(), fallback: DAY } },
+        definitions,
+        ...(minimum === undefined ? {} : { cohortMinimum: minimum }),
+        takenBy: 'system:test',
+      },
+    ),
   );
 }
 

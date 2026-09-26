@@ -1,6 +1,6 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
-import { getCI, isObject, splitSchema } from './paths.js';
+import { getCI, isObject, listOf, splitSchema } from './paths.js';
 
 /**
  * SCIM filters (RFC 7644 §3.4.2.2): parsed once, matched against a
@@ -153,10 +153,10 @@ export function valuesAt(resource: unknown, path: string): unknown[] {
   const { extension, rest } = splitSchema(path);
   let current: unknown[] = [extension === null ? resource : getCI(resource, extension)];
   for (const part of rest === '' ? [] : rest.split('.')) {
-    current = current.flatMap((v) => (Array.isArray(v) ? v : [v])).map((v) => getCI(v, part));
+    current = current.flatMap(listOf).map((v) => getCI(v, part));
   }
   return current
-    .flatMap((v) => (Array.isArray(v) ? v : [v]))
+    .flatMap(listOf)
     .map((v) => (isObject(v) && 'value' in v ? v['value'] : v))
     .filter((v) => v !== undefined && v !== null);
 }

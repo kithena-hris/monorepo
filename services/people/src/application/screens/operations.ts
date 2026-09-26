@@ -42,8 +42,13 @@ import {
 import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
 import { holds } from '../person/pending-changes.js';
-import { relationsToMany, type Asking } from '../person/person-access.js';
-import { unmappable, type ConnectionView, type ScimConnections } from '../scim/connections.js';
+import { type Asking } from '../person/person-access.js';
+import {
+  unmappable,
+  type ConnectionView,
+  type IssuedToken,
+  type ScimConnections,
+} from '../scim/connections.js';
 import { KITHENA_USER, USER_PATHS } from '../../domain/scim/resource.js';
 import { run } from '../person/service.js';
 import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
@@ -173,13 +178,25 @@ export async function integrationsView(
 const noScim = () =>
   Promise.resolve(err(failure('UNAVAILABLE', 'Provisioning is not configured here')));
 
-export const createScimConnection = (deps: IntegrationDeps, asking: Asking, system: string) =>
+export const createScimConnection = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  system: string,
+): Promise<Result<IssuedToken>> =>
   deps.scim === undefined ? noScim() : deps.scim.create(asking, { system });
 
-export const rotateScimToken = (deps: IntegrationDeps, asking: Asking, id: string) =>
+export const rotateScimToken = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+): Promise<Result<IssuedToken>> =>
   deps.scim === undefined ? noScim() : deps.scim.rotate(asking, id);
 
-export const revokeScimConnection = (deps: IntegrationDeps, asking: Asking, id: string) =>
+export const revokeScimConnection = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+): Promise<Result<{ ok: true }>> =>
   deps.scim === undefined ? noScim() : deps.scim.revoke(asking, id);
 
 export const setScimMapping = (
@@ -187,7 +204,8 @@ export const setScimMapping = (
   asking: Asking,
   id: string,
   mapping: readonly { readonly path: string; readonly key: string }[],
-) => (deps.scim === undefined ? noScim() : deps.scim.setMapping(asking, id, mapping));
+): Promise<Result<{ ok: true }>> =>
+  deps.scim === undefined ? noScim() : deps.scim.setMapping(asking, id, mapping);
 
 export interface DeliveriesView {
   readonly endpoint: { readonly id: string; readonly url: string; readonly enabled: boolean };
@@ -586,20 +604,20 @@ export async function dryRunImport(
         // list of forty thousand is a response no browser or function needs.
         blocked: [
           ...blocked.slice(0, SHOWN).map((r) => {
-          const problem = r.problems[0];
-          const at = problem === undefined ? -1 : (indexOf.get(problem.column) ?? -1);
-          const value = at < 0 ? '' : (r.cells[at] ?? '');
-          return {
-            row: r.row,
-            person: null,
-            problem:
-              problem?.reason ??
-              (r.outcome === 'duplicate' ? 'A duplicate of an earlier row' : 'Blocked'),
-            cell:
-              at < 0
-                ? `row ${String(r.row)}`
-                : `${column(at)}${String(r.row)} — ${value === '' ? 'empty' : `“${value}”`}`,
-          };
+            const problem = r.problems[0];
+            const at = problem === undefined ? -1 : (indexOf.get(problem.column) ?? -1);
+            const value = at < 0 ? '' : (r.cells[at] ?? '');
+            return {
+              row: r.row,
+              person: null,
+              problem:
+                problem?.reason ??
+                (r.outcome === 'duplicate' ? 'A duplicate of an earlier row' : 'Blocked'),
+              cell:
+                at < 0
+                  ? `row ${String(r.row)}`
+                  : `${column(at)}${String(r.row)} — ${value === '' ? 'empty' : `“${value}”`}`,
+            };
           }),
           ...plan.blockedItems.slice(0, SHOWN).map((item) => ({
             row: item.row,

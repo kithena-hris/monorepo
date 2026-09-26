@@ -134,7 +134,7 @@ async function run(
     taskQueue: TASK_QUEUE,
     workflowsPath: workflowsPath(),
     activities: {
-      announce: s.acts.announce,
+      announce: (input: Parameters<typeof s.acts.announce>[0]) => s.acts.announce(input),
       // The test server skips the workflow's week, not the application's
       // clock; the activity is told the week has passed.
       settle: (input: Parameters<typeof s.acts.settle>[0]) => {

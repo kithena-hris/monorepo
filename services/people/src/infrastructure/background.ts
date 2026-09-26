@@ -8,7 +8,7 @@ import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown, tenantPolicies, type PolicyRegistry } from '@kithena/telemetry';
 
 import { publishBreakdowns } from '../application/analytics/publish.js';
-import { takePaySnapshot } from '../application/analytics/pay.js';
+import { takePaySnapshot, type SealedValues } from '../application/analytics/pay.js';
 import { takeSnapshot } from '../application/analytics/snapshot.js';
 import { sweepReminders, type ReminderMailer } from '../application/completeness/reminders.js';
 import { recomputePerson } from '../application/completeness/recompute.js';
@@ -157,8 +157,10 @@ export async function startBackground(
 
   // The unique claims, the dated values and the pay snapshot's sealed salaries.
   const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
-  const sealed =
-    keys.length === 0 ? undefined : drizzleSecretStore(staticKeyRing(keys), logger).revealAll;
+  const secretStore =
+    keys.length === 0 ? undefined : drizzleSecretStore(staticKeyRing(keys), logger);
+  const sealed: SealedValues | undefined =
+    secretStore === undefined ? undefined : (tx, where) => secretStore.revealAll(tx, where);
 
   const jobs = [
     // The boot load, then hourly as a safety net for an event this process
@@ -279,7 +281,8 @@ export async function startBackground(
         for (const f of [...started.failed, ...ended.failed, ...effective.failed]) {
           logger.error({ err: f.error, tenantId, personId: f.personId }, 'lifecycle move failed');
         }
-        if (started.started > 0) logger.info({ tenantId, started: started.started }, 'pre-hires started');
+        if (started.started > 0)
+          logger.info({ tenantId, started: started.started }, 'pre-hires started');
         if (ended.ended > 0) logger.info({ tenantId, ended: ended.ended }, 'leavers’ access ended');
         if (effective.applied > 0) {
           logger.info({ tenantId, applied: effective.applied }, 'dated values came into force');

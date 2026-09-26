@@ -194,7 +194,9 @@ async function ownRecord(
   const sections = recordSections(version, relations, include, missing, people);
   // The person's doubted identifiers still open, on fields this viewer reads (PEO-125).
   const open = await deps.service.access.personReviews(tx, { ...asking, personId });
-  const labels = new Map(version.document.attributes.map((d) => [d.key as string, d.label.default]));
+  const labels = new Map(
+    version.document.attributes.map((d) => [d.key as string, d.label.default]),
+  );
   const reviews: IdentifierReviewEntry[] = (open.ok ? open.value : []).flatMap((r) =>
     r.state === 'pending' || r.state === 'sent_back'
       ? [
@@ -319,7 +321,9 @@ export async function profileView(
               ? locations.map(({ value, label }) => ({ value, label }))
               : f.options;
         // Moved through the placement control, where the date and the transfer are.
-        return PLACED.has(f.key) && placeable ? { ...f, options, readOnly: true } : { ...f, options };
+        return PLACED.has(f.key) && placeable
+          ? { ...f, options, readOnly: true }
+          : { ...f, options };
       }),
     }));
 
@@ -332,8 +336,7 @@ export async function profileView(
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,
-      employment:
-        periods?.ok && status !== null ? { status, periods: periods.value } : null,
+      employment: periods?.ok && status !== null ? { status, periods: periods.value } : null,
       sections: named.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, named),
       placement: placeable
@@ -639,7 +642,11 @@ export interface IdentifierReviewItem {
   readonly attributeKey: string;
   readonly label: string;
   readonly last4: string | null;
-  readonly findings: readonly { readonly level: string; readonly code: string; readonly message: string }[];
+  readonly findings: readonly {
+    readonly level: string;
+    readonly code: string;
+    readonly message: string;
+  }[];
   readonly enteredAt: string;
 }
 
@@ -717,7 +724,10 @@ const SIGNAL_WORDS = {
 } as const;
 
 /** A value as the comparison shows it: text, or a sealed value's last four. */
-function shown(value: unknown, options: readonly { value: string; label: string }[]): string | null {
+function shown(
+  value: unknown,
+  options: readonly { value: string; label: string }[],
+): string | null {
   const form = toForm(value);
   if (form === null || form === '') return null;
   if (typeof form === 'string') return options.find((o) => o.value === form)?.label ?? form;
@@ -758,7 +768,9 @@ export async function duplicatesView(
         personIds: c.personIds,
         names: [await nameFor(c.personIds[0]), await nameFor(c.personIds[1])],
         reasons: c.signals.map((s) =>
-          s.signal === 'unique_value' ? `Same ${labelOf(s.attributeKey ?? '')}` : SIGNAL_WORDS[s.signal],
+          s.signal === 'unique_value'
+            ? `Same ${labelOf(s.attributeKey ?? '')}`
+            : SIGNAL_WORDS[s.signal],
         ),
       });
     }
@@ -793,8 +805,14 @@ export async function duplicatesView(
             values,
             same,
             takeable: [
-              !same && values[0] !== null && intoB.value.refusal === null && intoB.value.takeable.includes(f.key),
-              !same && values[1] !== null && intoA.value.refusal === null && intoA.value.takeable.includes(f.key),
+              !same &&
+                values[0] !== null &&
+                intoB.value.refusal === null &&
+                intoB.value.takeable.includes(f.key),
+              !same &&
+                values[1] !== null &&
+                intoA.value.refusal === null &&
+                intoA.value.takeable.includes(f.key),
             ] as const,
           },
         ];
@@ -810,7 +828,10 @@ export async function duplicatesView(
     return ok({
       items,
       comparison: {
-        people: [person(readA.value, intoA.value.refusal), person(readB.value, intoB.value.refusal)],
+        people: [
+          person(readA.value, intoA.value.refusal),
+          person(readB.value, intoB.value.refusal),
+        ],
         rows,
       },
     });
@@ -884,7 +905,7 @@ export async function directoryView(
     if (segment !== null && !segment.ok) return segment;
     const narrowed = {
       ...asking,
-      where: { ...(segment?.value.filter ?? {}), ...query.filters },
+      where: { ...segment?.value.filter, ...query.filters },
       ...(query.search.trim() === '' ? {} : { search: query.search }),
     };
     const listed = await deps.service.access.list(tx, {

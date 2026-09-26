@@ -94,7 +94,7 @@ describe('PersonHistory', () => {
 
     const changes = within(screen.getByRole('list', { name: /Changes/ })).getAllByRole('listitem');
     expect(changes).toHaveLength(5);
-    const [, fix, typo, bank, phone] = changes as HTMLElement[];
+    const [, fix, typo, bank, phone] = changes;
     expect(within(fix as HTMLElement).getByText('Correction')).toBeInTheDocument();
     expect(fix).toHaveTextContent(/Replaces .*50,000\.00/);
     expect(fix).toHaveTextContent('Effective');
