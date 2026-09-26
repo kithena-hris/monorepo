@@ -173,6 +173,9 @@ jobs:
       contents: read
       pull-requests: write
       packages: read
+      # GitHub's OIDC token, exchanged for the role that may start the VM and
+      # open an SSH tunnel to it through SSM (`deploy/aws/provision.sh`).
+      id-token: write
     # 30, not 25: the VM deploy waits for People and the router to be healthy.
     timeout-minutes: 30
     environment:
@@ -230,7 +233,7 @@ jobs:
       # the router serves, and the shell loads the remote.
       #
       # People and the router run on one 4 GB VM under Docker Compose
-      # (`deploy/vm/`), reached over Tailscale; only the router is public,
+      # (`deploy/vm/`), reached by SSH over AWS Systems Manager; only the router is public,
       # through a Cloudflare Tunnel. People holds Kafka consumer groups, runs
       # hourly jobs and drains on SIGTERM (PEO-118), so it needs a process,
       # not a function. `docs/environments.md` "Hosting" has the rest.
@@ -240,9 +243,10 @@ jobs:
       - name: check the VM settings
         if: vars.ROUTER_URL_STAGING != ''
         env:
-          VM_HOST: ${{ vars.VM_TAILSCALE_HOST }}
-          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_STAGING }}
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          VM_DEPLOY_SSH_KEY: ${{ secrets.VM_DEPLOY_SSH_KEY }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
@@ -251,7 +255,7 @@ jobs:
           IMAGES: ${{ needs.images.result }}
         run: |
           missing=
-          for name in VM_HOST TS_OAUTH_CLIENT_ID TS_OAUTH_SECRET PEOPLE_API_TOKEN PEOPLE_ENV \
+          for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN PEOPLE_ENV \
                       CLOUDFLARE_TUNNEL_TOKEN AUTH_TOKEN_AUDIENCE KITHENA_ENTITLEMENTS; do
             [ -z "${!name}" ] && missing="$missing $name"
           done
@@ -264,15 +268,55 @@ jobs:
             exit 1
           fi
 
-      # An ephemeral node tagged `tag:ci`, gone when the job ends. The tailnet
-      # policy lets `tag:ci` reach `tag:vm` as `deploy` and nothing else.
-      - name: tailscale
+      # The VM stops itself when idle (`deploy/vm/idle-stop.sh`), so a deploy
+      # starts it first: a no-op when it is running. The deploy itself then
+      # counts as activity, so the VM stays up at least `IDLE_STOP_MINUTES`
+      # after it. The same role (`kithena-deploy-wake`) is what may open a
+      # Session Manager SSH tunnel to it, and nothing else.
+      - name: aws credentials for the VM
         if: vars.ROUTER_URL_STAGING != ''
-        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Pinned and checksummed, not `latest`: the one binary here that handles
+      # the tunnel. Bump the version and the digest together
+      # (https://s3.amazonaws.com/session-manager-downloads/plugin/latest/VERSION).
+      - name: session manager plugin
+        if: vars.ROUTER_URL_STAGING != ''
+        env:
+          VERSION: 1.2.835.0
+          SHA256: 7c6dcad12518571cc7959a713e6a8ae1bdf6ed66fd9bee37dc189e39ca58ae03
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/session-manager-plugin.deb" \
+            "https://s3.amazonaws.com/session-manager-downloads/plugin/$VERSION/ubuntu_64bit/session-manager-plugin.deb"
+          echo "$SHA256  $RUNNER_TEMP/session-manager-plugin.deb" | sha256sum -c -
+          sudo dpkg -i "$RUNNER_TEMP/session-manager-plugin.deb"
+          session-manager-plugin --version
+
+      # Running is not reachable: SSH goes through the SSM agent, so wait until
+      # Systems Manager reports the agent `Online`.
+      - name: wake the VM
+        if: vars.ROUTER_URL_STAGING != ''
+        env:
+          INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_STAGING }}
+        run: |
+          aws ec2 start-instances --instance-ids "$INSTANCE" \
+            --query 'StartingInstances[0].[PreviousState.Name,CurrentState.Name]' --output text
+          aws ec2 wait instance-running --instance-ids "$INSTANCE"
+          ping=
+          for _ in $(seq 1 60); do
+            ping="$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE" \
+              --query 'InstanceInformationList[0].PingStatus' --output text)"
+            [ "$ping" = Online ] && break
+            sleep 5
+          done
+          if [ "$ping" != Online ]; then
+            echo "::error::the SSM agent on $INSTANCE is not online ($ping) after 5 min"
+            exit 1
+          fi
 
       # Secrets travel on stdin into root-only 0600 files under
       # `/etc/kithena/staging/`: never argv, never an image, never this
@@ -283,7 +327,8 @@ jobs:
       - name: prepare the VM
         if: vars.ROUTER_URL_STAGING != ''
         env:
-          VM_HOST: ${{ vars.VM_TAILSCALE_HOST }}
+          INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_STAGING }}
+          VM_DEPLOY_SSH_KEY: ${{ secrets.VM_DEPLOY_SSH_KEY }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
@@ -292,9 +337,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
         run: |
-          mkdir -p ~/.ssh
-          printf 'Host vm\n  HostName %s\n  User deploy\n  StrictHostKeyChecking accept-new\n' \
-            "$VM_HOST" > ~/.ssh/config
+          # SSH as `deploy` with the environment's key, through a Session
+          # Manager tunnel to the instance: the VM listens on no public port.
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/null ~/.ssh/vm_deploy
+          printf '%s\n' "$VM_DEPLOY_SSH_KEY" > ~/.ssh/vm_deploy
+          cat > ~/.ssh/config <<EOF
+          Host vm
+            HostName $INSTANCE
+            User deploy
+            IdentityFile ~/.ssh/vm_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking accept-new
+            ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p
+          EOF
+          # The agent can be online a moment before sshd accepts.
+          for _ in $(seq 1 12); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
           # `migrations/` replaced whole, so the copy is exactly this commit's.
           ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
           scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \

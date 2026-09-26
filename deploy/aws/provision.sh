@@ -4,7 +4,7 @@
 # run by hand, never by CI.
 #
 #   deploy/aws/provision.sh --vercel-team kithena \
-#     --budget-email ops@example.com --operator-ip 203.0.113.7 [--apply]
+#     --budget-email ops@example.com --key-name kithena-operator [--apply]
 #
 # Prints every change it would make and makes none until `--apply`. Idempotent:
 # each resource is looked up first and created only when missing; the policies
@@ -19,7 +19,10 @@
 #   instance role    kithena-vm, the instance profile: Get/Put/Delete/List on
 #                    uploads and exports, Get/Put/List on backups (no delete:
 #                    the lifecycle rule deletes). People and `backup.sh` reach
-#                    it through IMDSv2, so no access key exists.
+#                    it through IMDSv2, so no access key exists. Also AWS's
+#                    managed AmazonSSMManagedInstanceCore, which lets the SSM
+#                    agent register: Session Manager is the only way in, for
+#                    the operator and for the deploy workflows.
 #   instance         c7i-flex.large, Ubuntu 24.04 amd64 (Canonical's SSM
 #                    parameter), 30 GB gp3 encrypted, IMDSv2 only with a hop
 #                    limit of 2 (People runs in a container, one hop further
@@ -28,16 +31,23 @@
 #                    protection, and InstanceInitiatedShutdownBehavior=stop:
 #                    `idle-stop.sh` ends in `shutdown -h now`, and that must stop
 #                    the instance, not terminate it.
-#   security group   no inbound rule but SSH from `--operator-ip`, for the one
-#                    bootstrap before Tailscale; `--close-ssh` removes it after.
+#   security group   no inbound rule at all: SSH rides a Session Manager
+#                    tunnel the agent dials out for, and Cloudflare Tunnel
+#                    dials out too. `--operator-ip` opens 22 to one address,
+#                    a fallback for a VM whose agent never came up;
+#                    `--close-ssh` removes every inbound rule again.
 #   wake role        assumed by the tenant app's Vercel project through Vercel's
 #                    OIDC issuer (team issuer mode), scoped to the team, the
 #                    project and the environment. May start this one instance
 #                    and describe instances; Describe* has no resource-level
 #                    permissions in EC2, so it cannot be narrower than `*`.
-#   deploy role      the same permissions for the production deploy workflow,
-#                    through GitHub's OIDC issuer and the `production`
-#                    environment, so a deploy can wake the VM it deploys to.
+#   deploy role      kithena-deploy-wake (the name predates SSM; it is the
+#                    deploy role): the same permissions for the deploy
+#                    workflows, through GitHub's OIDC issuer and the `staging`
+#                    and `production` environments, plus a Session Manager
+#                    session to this one instance with AWS-StartSSHSession
+#                    and nothing else, so a deploy can wake the VM and SSH to
+#                    it through SSM.
 #   schedule         optional (`--start-hour`/`--stop-hour`): EventBridge
 #                    Scheduler starts it on weekday mornings and stops it every
 #                    night, through a role that may do only that.
@@ -52,9 +62,9 @@ usage() {
   --region R            AWS region, default us-east-1
   --vercel-team SLUG    Vercel team slug, the OIDC issuer's path (required)
   --budget-email ADDR   where the budget alerts go (required)
-  --operator-ip IP      allow SSH from this address only, for the bootstrap
-  --close-ssh           remove every inbound rule (after Tailscale is up)
-  --key-name NAME       an existing EC2 key pair for that first SSH
+  --operator-ip IP      fallback only: allow SSH from this address
+  --close-ssh           remove every inbound rule (the end state)
+  --key-name NAME       an existing EC2 key pair for ubuntu, the bootstrap SSH
   --vercel-project P    default kithena-web-production
   --vercel-env E        default production
   --github-repo O/R     default kithena-hris/monorepo
@@ -131,7 +141,7 @@ sg="$(read_ ec2 describe-security-groups --filters "Name=group-name,Values=$NAME
 [ "$sg" = None ] && sg=
 if [ -z "$sg" ]; then
   act ec2 create-security-group --group-name "$NAME" --vpc-id "$vpc" \
-    --description 'kithena VM: no inbound; Tailscale and Cloudflare Tunnel dial out' \
+    --description 'kithena VM: no inbound; SSM and Cloudflare Tunnel dial out' \
     --tag-specifications "ResourceType=security-group,Tags=[{Key=Name,Value=$NAME},{Key=app,Value=kithena}]"
   [ -n "$apply" ] && sg="$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$NAME" \
     "Name=vpc-id,Values=$vpc" --query 'SecurityGroups[0].GroupId' --output text)"
@@ -226,6 +236,10 @@ role kithena-vm \
   "Resource":"arn:aws:s3:::$BACKUPS/*"}]}
 EOF
 )"
+# Managed, so AWS keeps it matched to what the agent calls. Attaching twice is
+# a no-op.
+act iam attach-role-policy --role-name kithena-vm \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 if [ -n "$(read_ iam get-instance-profile --instance-profile-name kithena-vm --query InstanceProfile.Arn --output text)" ]; then
   echo "exists: instance profile kithena-vm"
 else
@@ -310,7 +324,37 @@ role kithena-workspace-wake "$(cat <<EOF
 EOF
 )" "$wake_policy"
 
-say "wake role for the deploy workflow ($repo, environment production)"
+# The deploy workflows' role: wake, wait for the agent, SSH through SSM.
+#  - StartSession names the instance and the document, and
+#    SessionDocumentAccessCheck makes SSM check the document even when the
+#    caller omits it, so the default shell document is refused: SSH only.
+#    An AWS-owned document has no account in its ARN.
+#  - For an assumed role a session id starts with the role session name, not
+#    `aws:userid`, so the `session/${aws:userid}-*` resource AWS shows for IAM
+#    users never matches. Terminate and Resume use the tag Session Manager puts
+#    on every session instead, which carries the caller's `aws:userid`.
+#  - OpenDataChannel is scoped to this account's sessions in this region: it
+#    takes no tag condition, and a session is useless without its stream token.
+#  - DescribeInstanceInformation, like EC2's Describe*, has no resource-level
+#    permissions: `*` is the narrowest there is.
+deploy_policy="$(cat <<EOF
+{"Version":"2012-10-17","Statement":[
+ {"Sid":"StartThisInstance","Effect":"Allow","Action":"ec2:StartInstances","Resource":"$instance_arn"},
+ {"Sid":"DescribeHasNoResourceLevelPermissions","Effect":"Allow",
+  "Action":["ec2:DescribeInstances","ec2:DescribeInstanceStatus","ssm:DescribeInstanceInformation"],
+  "Resource":"*"},
+ {"Sid":"SshSessionToThisInstanceOnly","Effect":"Allow","Action":"ssm:StartSession",
+  "Resource":["$instance_arn","arn:aws:ssm:$region::document/AWS-StartSSHSession"],
+  "Condition":{"BoolIfExists":{"ssm:SessionDocumentAccessCheck":"true"}}},
+ {"Sid":"OwnSessionsOnly","Effect":"Allow","Action":["ssm:TerminateSession","ssm:ResumeSession"],
+  "Resource":"arn:aws:ssm:$region:$account:session/*",
+  "Condition":{"StringLike":{"ssm:resourceTag/aws:ssmmessages:session-id":"\${aws:userid}*"}}},
+ {"Sid":"SessionDataChannel","Effect":"Allow","Action":"ssmmessages:OpenDataChannel",
+  "Resource":"arn:aws:ssm:$region:$account:session/*"}]}
+EOF
+)"
+
+say "deploy role for the workflows ($repo, environments staging and production)"
 oidc_provider "$GITHUB_ISSUER" sts.amazonaws.com
 role kithena-deploy-wake "$(cat <<EOF
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow",
@@ -318,9 +362,9 @@ role kithena-deploy-wake "$(cat <<EOF
  "Action":"sts:AssumeRoleWithWebIdentity",
  "Condition":{"StringEquals":{
   "$GITHUB_ISSUER:aud":"sts.amazonaws.com",
-  "$GITHUB_ISSUER:sub":"repo:$repo:environment:production"}}}]}
+  "$GITHUB_ISSUER:sub":["repo:$repo:environment:staging","repo:$repo:environment:production"]}}}]}
 EOF
-)" "$wake_policy"
+)" "$deploy_policy"
 
 if [ -n "$start_hour" ]; then
   say "schedule: start weekdays $start_hour:00, stop daily $stop_hour:00 ($tz)"
@@ -373,11 +417,15 @@ endpoint and no keys, so People uses S3 through the instance role:
   PEOPLE_EXPORT_BUCKET=$EXPORTS
   PEOPLE_EXPORT_S3_REGION=$region
 Backups go to $BACKUPS; backup.sh works that out on the instance.
-GitHub repository variables, for the deploy workflow's wake step:
+GitHub repository variables, for the deploy workflows (wake, then SSH over SSM):
   WORKSPACE_INSTANCE_ID_PRODUCTION=$instance
+  WORKSPACE_INSTANCE_ID_STAGING=$instance
   AWS_ROLE_ARN_PRODUCTION=arn:aws:iam::$account:role/kithena-workspace-wake
   AWS_DEPLOY_ROLE_ARN=arn:aws:iam::$account:role/kithena-deploy-wake
   AWS_REGION=$region
   VM_PLATFORM=linux/amd64
+GitHub environment secret, staging and production: VM_DEPLOY_SSH_KEY, the
+private half of the deploy key whose public half bootstrap.sh installs.
+Operator shell: aws ssm start-session --target $instance
 EOF
 [ -n "$apply" ] || echo "dry run: rerun with --apply to make these changes"

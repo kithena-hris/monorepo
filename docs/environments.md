@@ -346,7 +346,7 @@ files, reports — and the nightly backups are in Amazon S3.
        │                 │                                                    ├─▶ openfga  │
        │                 │                                                    ├─▶ valkey   │
        │                 │                                                    └─▶ postgres │
-       │                 │  tailscaled ◀── GitHub Actions deploys, founder SSH (tailnet)  │
+       │                 │  amazon-ssm-agent ◀── deploys, operator (SSM, dials out)       │
        │                 │  instance role kithena-vm (IMDSv2, hop limit 2)               │
        │                 └───────────────────────────────┬──────────────────────────────┘
        ▼                                                 ▼
@@ -389,8 +389,11 @@ change's job.
   must boot and answer `/health`, which is where a native module built for the
   wrong architecture dies. Both are pushed to GHCR as
   `ghcr.io/<owner>/kithena-{people,router}:<sha>`.
-- **Onto the VM** — the deploy job joins the tailnet as an ephemeral node
-  (`tag:ci`), copies `deploy/vm/` to `~deploy/kithena`, writes the settings
+- **Onto the VM** — the deploy job assumes `kithena-deploy-wake` through
+  GitHub's OIDC token, starts the instance, waits for its SSM agent to be
+  `Online`, and SSHes in as `deploy` through a Session Manager tunnel
+  (`AWS-StartSSHSession`) with the environment's `VM_DEPLOY_SSH_KEY`. It
+  copies `deploy/vm/` to `~deploy/kithena`, writes the settings
   from the GitHub environment into root-only 0600 files on stdin, logs the VM
   into GHCR with the job's own token (expires with the job) and runs
   `deploy.sh <env> migrate`, then `deploy.sh <env> people <image>`, then
@@ -449,7 +452,7 @@ instance of its own.
 #### Memory budget
 
 Sized for 4 GB. The limits add up to 2.66 GB, leaving the kernel, Docker,
-containerd, tailscaled and the page cache (which Postgres leans on) about a
+containerd, the SSM agent and the page cache (which Postgres leans on) about a
 gigabyte. `bootstrap.sh` adds 4 GB of swap as headroom, at swappiness 10. They
 are limits, not reservations, and they were set from measurement: the stack
 run locally from these files through `deploy.sh` (arm64, cgroup v2), idle
@@ -501,7 +504,7 @@ it makes one.
 | --- | --- | --- |
 | Tenant app (shell), People remote, back-office, auth origin, Reach docs | Vercel Hobby | Yes |
 | Identity and messaging | Vercel functions; identity's data on Neon Free | Yes (Neon's compute sleeps between requests) |
-| People, the router, Redpanda, Temporal, OpenFGA, Valkey, People's Postgres | One EC2 `c7i-flex.large`, reached only through Cloudflare Tunnel (public) and Tailscale (deploys, SSH) | No: sleeps when idle, wakes on demand |
+| People, the router, Redpanda, Temporal, OpenFGA, Valkey, People's Postgres | One EC2 `c7i-flex.large`, reached only through Cloudflare Tunnel (public) and AWS Systems Manager Session Manager (deploys, SSH); no inbound port | No: sleeps when idle, wakes on demand |
 | Uploads, exports, reports, backups | Amazon S3, three private buckets in the same region | Yes |
 
 **The Free plan** (accounts opened since July 2025): up to $200 of credits —
@@ -523,9 +526,9 @@ up when staging should share the VM.
 | 30 GB gp3, $0.08/GB-month, running or not | $2.40 | $2.40 |
 | S3: a few GB at $0.023/GB-month, a few thousand requests | < $0.25 | < $0.25 |
 | Data out: inside AWS's 100 GB a month free | $0 | $0 |
-| EventBridge Scheduler, Budgets, IAM | $0 | $0 |
+| EventBridge Scheduler, Budgets, IAM, Session Manager | $0 | $0 |
 | **AWS, a month** | **~$68** | **~$11** |
-| Vercel Hobby, Neon Free, Cloudflare (DNS, Tunnel), Tailscale Personal, Resend Free, GHCR, GitHub Actions | $0 | $0 |
+| Vercel Hobby, Neon Free, Cloudflare (DNS, Tunnel), Resend Free, GHCR, GitHub Actions | $0 | $0 |
 
 Always on, $200 of credits last under three months; stopped when idle, they
 cover the whole six. S3's transfer from the instance is free in the same
@@ -582,9 +585,10 @@ storage" below has the buckets' rules.
 - **A backup is taken before every stop.** `idle-stop.sh` runs `backup.sh`,
   retries once, and refuses to stop after two failures unless the last good
   backup (`/etc/kithena/.last-backup`) is under 24 hours old.
-- **A deploy wakes it.** The production workflow assumes `kithena-deploy-wake`
-  through GitHub's OIDC token, starts the instance, and waits for its tailnet
-  node before copying anything. A deploy counts as activity.
+- **A deploy wakes it.** Both deploy workflows assume `kithena-deploy-wake`
+  (the deploy role; the name is older than its SSM half) through GitHub's OIDC
+  token, start the instance, and wait until Systems Manager reports its agent
+  `Online` before copying anything. A deploy counts as activity.
 
 **What idle means** (`deploy/vm/idle-stop.sh`, every 5 minutes from
 `kithena-idle-stop.timer`, every decision in `journalctl -u kithena-idle-stop`):
@@ -592,7 +596,7 @@ for `IDLE_STOP_MINUTES` (30 by default) no authenticated `/graphql` request in
 the router's access log — the router logs only `/graphql`, never `/health`,
 and a request without a valid token is a 401, which is the internet knocking,
 not a person — no kithena container started and nothing deployed, nobody
-logged in, no export job queued, running or retrying in BullMQ, no pending
+logged in and no Session Manager session open, no export job queued, running or retrying in BullMQ, no pending
 Temporal activity on `people-full-values`, and the VM up for more than 15
 minutes. Then `backup.sh`, `docker compose stop` (People drains on SIGTERM) and
 `shutdown -h now`, which `InstanceInitiatedShutdownBehavior=stop` turns into a
@@ -622,6 +626,56 @@ grant. With `WORKSPACE_INSTANCE_ID`, `AWS_ROLE_ARN` or `AWS_REGION` unset the
 routes answer 404 and the page shows People's error as before, which is how
 local dev runs.
 
+**Getting in: Session Manager, no open port.** The security group has no
+inbound rule and ufw denies everything inbound. The SSM agent (a snap on
+Canonical's image, registered through `AmazonSSMManagedInstanceCore` on the
+instance role) dials out to Systems Manager, and every way in rides that:
+IAM decides who, CloudTrail records each `StartSession`, and there is no
+third-party account and no VPN.
+
+```bash
+aws sso login
+aws ssm start-session --target <instance id>          # a shell, as ssm-user (sudo)
+
+# SSH and scp, through the same tunnel (~/.ssh/config):
+Host i-*
+  User ubuntu
+  ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p
+```
+
+`ssh i-…` then works as `ubuntu` with the key pair named by `--key-name`, and
+`scp file i-…:` too. An open session keeps the VM awake (`idle-stop.sh`
+counts it). The deploy workflows get narrower rights than the operator: the
+deploy role's policy is
+
+```json
+{ "Statement": [
+  { "Sid": "StartThisInstance", "Effect": "Allow", "Action": "ec2:StartInstances",
+    "Resource": "arn:aws:ec2:<region>:<account>:instance/<id>" },
+  { "Sid": "DescribeHasNoResourceLevelPermissions", "Effect": "Allow",
+    "Action": ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus",
+               "ssm:DescribeInstanceInformation"], "Resource": "*" },
+  { "Sid": "SshSessionToThisInstanceOnly", "Effect": "Allow", "Action": "ssm:StartSession",
+    "Resource": ["arn:aws:ec2:<region>:<account>:instance/<id>",
+                 "arn:aws:ssm:<region>::document/AWS-StartSSHSession"],
+    "Condition": { "BoolIfExists": { "ssm:SessionDocumentAccessCheck": "true" } } },
+  { "Sid": "OwnSessionsOnly", "Effect": "Allow",
+    "Action": ["ssm:TerminateSession", "ssm:ResumeSession"],
+    "Resource": "arn:aws:ssm:<region>:<account>:session/*",
+    "Condition": { "StringLike": {
+      "ssm:resourceTag/aws:ssmmessages:session-id": "${aws:userid}*" } } },
+  { "Sid": "SessionDataChannel", "Effect": "Allow", "Action": "ssmmessages:OpenDataChannel",
+    "Resource": "arn:aws:ssm:<region>:<account>:session/*" } ] }
+```
+
+trusted for `repo:<repo>:environment:staging` and `…:production` only. The
+document check means a session without `AWS-StartSSHSession` is refused, so
+the role cannot open a plain shell; SSH then wants the `deploy` key as well.
+`DescribeInstanceInformation`, like EC2's describes, has no resource-level
+permissions. Session ids of an assumed role begin with the role session name,
+so AWS's `session/${aws:userid}-*` resource would never match; the tag Session
+Manager puts on each session carries the caller instead.
+
 #### The checklist: from an empty account to the first deploy
 
 In order. Every step is once; rerunning a script is how a later change to it
@@ -631,44 +685,48 @@ lands.
    no access keys. Turn on **IAM Identity Center** in `us-east-1` with one
    user and the `AdministratorAccess` permission set, then on the laptop
    `aws configure sso` and `aws sso login`: the CLI signs in with short-lived
-   credentials and no access key is ever created.
-2. **Provision.** `deploy/aws/provision.sh --vercel-team <team slug>
-   --budget-email <you> --operator-ip "$(curl -4s ifconfig.me)"` and read the
-   plan it prints; then the same with `--apply`. It makes, in this order: the
-   security group (no inbound rule but SSH from that IP); the three buckets;
-   the `kithena-vm` role and instance profile; the instance (Canonical's
+   credentials and no access key is ever created. Install the Session Manager
+   plugin (`brew install --cask session-manager-plugin`, or AWS's package).
+2. **Provision.** Create or import an EC2 key pair for the `ubuntu` user
+   (`kithena-operator`), then `deploy/aws/provision.sh --vercel-team <team
+   slug> --budget-email <you> --key-name kithena-operator` and read the plan it
+   prints; then the same with `--apply`. It makes, in this order: the security
+   group (no inbound rule at all); the three buckets; the `kithena-vm` role
+   (with `AmazonSSMManagedInstanceCore`) and instance profile; the instance (Canonical's
    Ubuntu 24.04 amd64 AMI through the SSM parameter, 30 GB gp3 encrypted,
    IMDSv2 only with hop limit 2, the instance profile, termination
    protection, `InstanceInitiatedShutdownBehavior=stop`, a public IPv4
-   released while stopped); the Vercel and GitHub OIDC providers with the two
-   wake roles; and a $50 monthly budget alerting at $1, $10 and $50 of usage
+   released while stopped); the Vercel and GitHub OIDC providers with the
+   wake role and the deploy role; and a $50 monthly budget alerting at $1, $10 and $50 of usage
    before credits. Add `--start-hour 8 --stop-hour 20 --timezone <tz>` for an
    EventBridge Scheduler pair that starts it on weekday mornings and stops it
-   nightly. Pass `--key-name` for an existing key pair, or use EC2 Instance
-   Connect for the one SSH that follows. Keep what it prints under
-   "settings".
-3. **Tailscale.** Create a tailnet. In the access policy add tags and rules:
-   ```json
-   "tagOwners": { "tag:vm": ["autogroup:admin"], "tag:ci": ["autogroup:admin"] },
-   "grants": [ { "src": ["tag:ci"], "dst": ["tag:vm"], "ip": ["22"] } ],
-   "ssh": [
-     { "action": "accept", "src": ["tag:ci"], "dst": ["tag:vm"], "users": ["deploy"] },
-     { "action": "check",  "src": ["autogroup:admin"], "dst": ["tag:vm"], "users": ["deploy"] }
-   ]
+   nightly. Keep what it prints under "settings". Wait for
+   `aws ssm describe-instance-information` to list the instance `Online`.
+3. **The deploy key.** One ed25519 key pair, generated locally and never on
+   the VM: `ssh-keygen -t ed25519 -N '' -C kithena-deploy -f kithena-deploy`.
+   The private half, `kithena-deploy`, becomes the `VM_DEPLOY_SSH_KEY`
+   environment secret in both `staging` and `production`; the public half goes
+   to the bootstrap. Delete both files once they are stored.
+4. **Bootstrap**, over SSH through Session Manager — port 22 is never opened:
+   ```bash
+   ssh -o ProxyCommand='aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p' \
+     -i kithena-operator.pem ubuntu@<instance id> \
+     "sudo DEPLOY_SSH_PUBLIC_KEY='$(cat kithena-deploy.pub)' IDLE_STOP_MINUTES=30 bash -s" \
+     < deploy/vm/bootstrap.sh
    ```
-   Generate an auth key tagged `tag:vm` (one-off), and an **OAuth client** with
-   the `auth_keys` write scope and tag `tag:ci` for the workflows.
-4. **Bootstrap.** `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-…
-   IDLE_STOP_MINUTES=30 bash -s' < deploy/vm/bootstrap.sh`. It installs Docker
-   and Compose, unattended upgrades with a 04:30 reboot, 4 GB swap
-   (swappiness 10), Tailscale (hostname `kithena-vm`), then SSH key-only with
-   root login off, ufw (nothing in but the tailnet), the `deploy` user, the
-   backup timer and the idle stop. Check `tailscale ssh deploy@kithena-vm`
-   works, then close SSH for good: `provision.sh … --close-ssh --apply`. From
-   here on nothing reaches the VM except through Tailscale (which dials out)
-   and nothing is served except through the tunnel. Backups need nothing
-   more: `backup.sh` finds its bucket from the instance and writes with its
-   role.
+   It makes sure the SSM agent is running, installs Docker and Compose,
+   unattended upgrades with a 04:30 reboot, 4 GB swap (swappiness 10), then
+   SSH key-only with root login off, ufw (nothing inbound at all), the
+   `deploy` user with that public key, the backup timer and the idle stop.
+   Check `ssh deploy@<instance id>` through the same ProxyCommand with the
+   deploy key works. The end state is **zero inbound rules** on the security
+   group; if `--operator-ip` ever opened 22 as a fallback, close it:
+   `provision.sh … --close-ssh --apply`. Nothing reaches the VM except
+   through Session Manager (which dials out) and nothing is served except
+   through the tunnel. Backups need nothing more: `backup.sh` finds its
+   bucket from the instance and writes with its role. An instance
+   bootstrapped before SSM keeps its old VPN client until removed by hand
+   (`sudo tailscale logout && sudo apt-get purge -y tailscale`).
 5. **Cloudflare Tunnel.** Zero Trust → Networks → Tunnels → Create
    (`cloudflared`), one per environment (`kithena-production`, and
    `kithena-staging` if wanted). Copy the token. Public hostnames, in this
@@ -692,7 +750,8 @@ lands.
    ```
 9. **GitHub.** The environment secrets and repository variables below —
    `PEOPLE_ENV` with the bucket names `provision.sh` printed, and
-   `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`,
+   `VM_DEPLOY_SSH_KEY` in both environments, `WORKSPACE_INSTANCE_ID_PRODUCTION`,
+   `WORKSPACE_INSTANCE_ID_STAGING`, `AWS_ROLE_ARN_PRODUCTION`,
    `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION=us-east-1`, `VM_PLATFORM=linux/amd64`.
    The production deploy passes the first two and the region to the shell as
    `WORKSPACE_INSTANCE_ID`, `AWS_ROLE_ARN` and `AWS_REGION`.
@@ -726,17 +785,19 @@ included — go with it.
 | Email | **Resend Free** | 3,000 emails a month, 100 a day, one domain. |
 | Images | **GHCR** | Container registry storage and bandwidth are currently free; the published Packages allowance on GitHub Free is 500 MB storage and 1 GB/month transfer for private packages, if that ever applies. Measured: People's image is ~520 MB uncompressed, most of it one layer that changes every commit; the router's per-commit layers are under 1 MB. Five versions of each are kept (`delete-package-versions`). Pulls by Actions are free. **Making both packages public** (the repository is public and the images hold no secret) takes them out of any quota for good. |
 | CI | **GitHub Actions**, public repository | Standard runners free. |
-| Private access | **Tailscale Personal** | 3 users, 100 devices; CI joins as an ephemeral node per run. |
+| Private access | **AWS Systems Manager Session Manager** | Free for EC2 instances. IAM decides who, CloudTrail records every session; no inbound port, no third-party account. |
 
-#### Why Tailscale for deploys
+#### Why Session Manager for deploys
 
-The deploy has to reach the VM without the VM listening on the internet. A
-Tailscale ephemeral node in the job, with the tailnet policy allowing `tag:ci`
-to SSH to `tag:vm` as `deploy` and nothing else, does that with no SSH key to
-store and no public SSH hostname. The alternative, SSH through Cloudflare
-Access, would route deploys through the `cloudflared` container that the
-deploy itself manages — a broken stack would lock out the fix. Tailscale runs
-on the host, beside Docker rather than inside it.
+The deploy has to reach the VM without the VM listening on the internet. The
+SSM agent dials out, so SSH through `AWS-StartSSHSession` needs no open port,
+and the job's right to open that tunnel is the same OIDC-assumed role that
+wakes the instance: no extra account, no OAuth client, and every session in
+CloudTrail. The one secret is the `deploy` SSH key, which alone opens nothing
+without the role. The alternative, SSH through Cloudflare Access, would route
+deploys through the `cloudflared` container that the deploy itself manages —
+a broken stack would lock out the fix. The agent runs on the host, beside
+Docker rather than inside it.
 
 #### GitHub: environment secrets (Settings → Environments → `staging` / `production`)
 
@@ -744,8 +805,8 @@ Same names in both environments, different values.
 
 | Secret | Holds |
 | --- | --- |
-| `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | The Tailscale OAuth client (step 2). |
-| `CLOUDFLARE_TUNNEL_TOKEN` | That environment's tunnel token (step 4). |
+| `VM_DEPLOY_SSH_KEY` | The `deploy` user's ed25519 private key, OpenSSH format (checklist step 3). The same key in both environments while they share the VM. |
+| `CLOUDFLARE_TUNNEL_TOKEN` | That environment's tunnel token (step 5). |
 | `PEOPLE_API_TOKEN` | The token the router sends People as `x-internal-token`. Written to both on every deploy, so the two cannot disagree. Random, 32+ bytes. |
 | `PEOPLE_ENV` | Every other People setting, as a dotenv file (below). Written to `/etc/kithena/<env>/people.env`, 0600, on every deploy. |
 | `PEOPLE_REMOTE_SSR_SIGNING_KEY` | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel. |
@@ -794,10 +855,10 @@ presigns a GET.
 
 | Variable | Holds |
 | --- | --- |
-| `VM_TAILSCALE_HOST` | The VM's tailnet name, `kithena-vm`. |
 | `VM_PLATFORM` | The VM's platform: `linux/amd64` (unset means this), which the EC2 `c7i-flex.large` is; `linux/arm64` only for a Graviton instance. Picks the native runner the images are built on; anything else fails the images job. |
 | `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION` | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off. |
-| `AWS_DEPLOY_ROLE_ARN` | `kithena-deploy-wake`, which the production deploy assumes to start the VM before deploying to it. Unset: the deploy assumes the VM is up. |
+| `WORKSPACE_INSTANCE_ID_STAGING` | The instance staging deploys to, which is production's while they share it. Both ids are also the SSH target: the deploy connects to `deploy@<id>` through Session Manager. |
+| `AWS_DEPLOY_ROLE_ARN` | `kithena-deploy-wake`, the deploy role both deploys assume to start the VM, wait for its SSM agent and open the SSH tunnel. Required with `ROUTER_URL_*`. |
 | `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION` | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`. |
 | `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION` | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token. |
 | `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION` | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`. |
@@ -879,7 +940,7 @@ host or a setting, not a rewrite.
 
 | Move | When | What changes |
 | --- | --- | --- |
-| `c7i-flex.large` → `m7i-flex.large` (8 GB), then `m7i.xlarge` | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production | Stop, change the instance type, start (the volume, role and tailnet name stay), then raise the limits in `compose.yaml`. |
+| `c7i-flex.large` → `m7i-flex.large` (8 GB), then `m7i.xlarge` | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production | Stop, change the instance type, start (the volume, role and instance id stay), then raise the limits in `compose.yaml`. |
 | People and router → ECS on Fargate | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA | Same images (from GHCR, or pushed to ECR); `compose.yaml`'s environment becomes the task definition, the `kithena-vm` policy becomes the task role, the tunnel becomes an ALB. The buckets do not move. Waking and idle-stop go away. |
 | Redpanda → Amazon MSK or Redpanda Cloud | Real event volume, or People running more than one replica | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted. |
 | Temporal → Temporal Cloud | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted. |

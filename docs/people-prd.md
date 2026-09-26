@@ -2311,7 +2311,9 @@ JSX runtime and Reach, plus `ssr/people.css`.
   idle and woken by the shell when the People pages are opened) under Docker
   Compose, with Redpanda, Temporal, OpenFGA, Valkey and People's own Postgres
   beside them (identity's data stays on Neon), and only the router
-  is public (`api.<domain>`, through a Cloudflare Tunnel). Every object People
+  is public (`api.<domain>`, through a Cloudflare Tunnel). The instance has no
+  inbound port: operators and deploys reach it through AWS Systems Manager
+  Session Manager, IAM-controlled and recorded in CloudTrail. Every object People
   stores — uploads (§14.2), export files and reports (§15.1) — and the nightly
   backups are in Amazon S3, reached through the instance's IAM role with no
   access key. People's own REST
