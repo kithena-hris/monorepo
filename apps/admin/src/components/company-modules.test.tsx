@@ -188,7 +188,8 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
     await u.click(saveButton());
     expect(await screen.findByText('Identity is down.')).toBeInTheDocument();
     expect(on('Time off')).toBeChecked();
-    expect(saveButton()).toBeEnabled();
+    // The bar leaves its "Saving…" state a render after the message appears.
+    expect(await screen.findByRole('button', { name: 'Save changes' })).toBeEnabled();
   });
 
   it('discards the draft', async () => {
