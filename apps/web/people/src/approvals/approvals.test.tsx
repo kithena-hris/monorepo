@@ -77,7 +77,7 @@ describe('the approvals inbox (PEO-077)', () => {
     expect(onDecide).toHaveBeenCalledWith('c1', true, 'Checked against the form');
   });
 
-  it('lets the only HR member approve their own change, only after a dialog says what that means', async () => {
+  it('lets a requester no other HR member can approve for approve their own change, only after a dialog says what that means', async () => {
     const onSelfApprove = vi.fn(done);
     const onDecide = vi.fn(done);
     const { container } = render(
@@ -101,8 +101,8 @@ describe('the approvals inbox (PEO-077)', () => {
       screen.getByRole('button', { name: "Approve the change to Priya Shah's IBAN yourself" }),
     );
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/no other member to approve it/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/audit trail will show that you approved your own change/))
+    expect(within(dialog).getByText(/no other HR member who can approve it/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/audit trail will show that you approved your own change because no other HR/))
       .toBeInTheDocument();
     expect(await axeViolations(document.body)).toEqual([]);
     expect(onSelfApprove).not.toHaveBeenCalled();
@@ -209,7 +209,7 @@ describe('a sensitive field on a record (PEO-077)', () => {
     expect(onWithdraw).toHaveBeenCalledWith('c1');
   });
 
-  it('offers the only HR member, on their own record, to approve it themselves', async () => {
+  it('offers a requester no other HR member can approve for, on the record, to approve it themselves', async () => {
     const onSelfApprove = vi.fn(done);
     render(
       <Profile

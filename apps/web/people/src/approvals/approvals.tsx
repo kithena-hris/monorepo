@@ -42,8 +42,9 @@ import { ApproveAlone, PendingBadge } from '../record/pending';
  * seven days, a change lapses. An approval applies the value from the date
  * it was asked for.
  *
- * Two exceptions, both People's rules shown here. The tenant's only HR member
- * approves their own change alone, after a dialog that says so. And a
+ * Two exceptions, both People's rules shown here. When no other HR member may
+ * approve a change — the requester is the only one, or the only other is its
+ * subject — the requester approves it alone, after a dialog that says so. And a
  * national identifier our checks doubt is reviewed before it is approved: it
  * reads *Awaiting identifier review*, with what the checks found, and offers
  * no approval until HR accepts it under Identifiers to review.
@@ -67,7 +68,7 @@ export interface ApprovalsProps {
   readonly load: Loadable<ApprovalsState>;
   readonly onDecide: (changeId: string, approve: boolean, note: string | null) => Promise<Outcome>;
   readonly onWithdraw: (changeId: string) => Promise<Outcome>;
-  /** The only HR member approving their own change, once they confirm (PEO-077). */
+  /** A requester no other HR member can approve for, approving their own change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
   readonly onOpen?: (personId: string) => void;
 }

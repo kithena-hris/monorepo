@@ -109,7 +109,7 @@ export interface ProfileProps {
   readonly onHistory?: () => void;
   /** Take back a change of one's own that waits for approval (PEO-077). */
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
-  /** The only HR member approving their own held change, once they confirm (PEO-077). */
+  /** A requester no other HR member can approve for, approving their own held change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
   /** Open the approvals inbox, where HR decides (PEO-077). */
   readonly onApprovals?: () => void;

@@ -1116,11 +1116,13 @@ Ordered, but none of it blocks Phase 1 shipping.
       held: the connection is the source of record for what it writes. The
       subject access pack carries a person's held changes, and the secret
       rotation re-wraps sealed pending values._
-      _Later (product decision, 2026-09-26): **the only HR member approves
-      their own change alone**, once a dialog says there is no other
-      approver and that the audit trail records it as theirs. Allowed only
-      while the requester is the tenant's sole `hr` holder by the role rows,
-      asked at decision time in the decision's transaction, and only with
+      _Later (product decision, 2026-09-26): **a requester with no other
+      eligible approver approves their own change alone**, once a dialog
+      says there is no other HR member who can and that the audit trail
+      records it as theirs. Allowed only while no `hr` holder by the role
+      rows but the requester may decide — the only one, or one of two
+      changing the other's record, since the subject never decides — asked
+      at decision time in the decision's transaction, and only with
       `soleApprover` on the request (`decideChange`, `mayApproveAlone`);
       otherwise 403 as before. Recorded as `decided_as = 'sole_hr'` and
       `change_decided.decidedAs` (migration 20260926230000, which widens

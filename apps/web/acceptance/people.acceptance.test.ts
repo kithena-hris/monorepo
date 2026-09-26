@@ -265,8 +265,8 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       .getByRole('button', { name: 'Approve the change to NIF / NIE yourself' })
       .click();
     const alone = page.getByRole('dialog');
-    await alone.getByText(/no other member to approve it/).waitFor({ timeout: 30_000 });
-    await alone.getByText(/audit trail will show that you approved your own change/).waitFor();
+    await alone.getByText(/no other HR member who can approve it/).waitFor({ timeout: 30_000 });
+    await alone.getByText(/audit trail will show that you approved your own change because no other HR/).waitFor();
     await alone.getByRole('button', { name: 'Approve it myself' }).click();
     await eventually(
       'the NIF',

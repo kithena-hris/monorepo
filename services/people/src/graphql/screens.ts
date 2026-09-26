@@ -481,7 +481,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       canDecide: t.exposeBoolean('canDecide'),
       canSelfApprove: t.exposeBoolean('canSelfApprove', {
         description:
-          'The viewer asked and is the only member of HR: they approve it alone, once they confirm it.',
+          'The viewer asked and no other member of HR may approve it: they approve it alone, once they confirm it.',
       }),
       awaitingReview: t.exposeBoolean('awaitingReview', {
         description:
@@ -2508,14 +2508,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     decidePendingChange: t.field({
       type: Outcome,
       description:
-        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s — unless the requester is the only member of HR and confirms it with soleApprover.',
+        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s — unless no other member of HR may approve it and the requester confirms it with soleApprover.',
       args: {
         id: t.arg.id({ required: true }),
         approve: t.arg.boolean({ required: true }),
         note: t.arg.string(),
         soleApprover: t.arg.boolean({
           description:
-            'The requester approves their own change alone, as the only member of HR. Recorded as such.',
+            'The requester approves their own change alone, no other member of HR being able to. Recorded as such.',
         }),
         idempotencyKey: t.arg.string({ required: true }),
       },

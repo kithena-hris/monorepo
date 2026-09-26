@@ -13,11 +13,14 @@ import { decide, withdraw, type Approval } from './approval.js';
  *   asked for: an HR member does not approve their own pay rise because a
  *   colleague typed it.
  *
- * And the one exception to both: **the only HR member approves their own
- * change, once they confirm it** (`soleApprover`). A company whose single HR
- * holder is its first administrator would otherwise have nobody to approve
- * their own NIF, ever. Asked of who holds `hr` at decision time, so a second
- * HR member granted meanwhile closes the exception; recorded as `sole_hr`.
+ * And the one exception to both: **when nobody but the requester could
+ * approve, they approve it alone, once they confirm it** (`soleApprover`).
+ * The tenant's only HR member — its first administrator entering their own
+ * NIF — or one of two, changing the other's record, whom the rule above never
+ * lets decide: either would otherwise wait for an approver who cannot exist.
+ * Asked of who holds `hr` at decision time, so an eligible approver granted
+ * meanwhile closes the exception. Recorded as `sole_hr`: the requester was the
+ * sole HR member able to decide.
  *
  * A doubted national identifier is reviewed before it is approved (PEO-125):
  * while its review is open, nobody approves it.
@@ -34,13 +37,16 @@ export interface Decided {
   readonly decidedAs: DecidedAs;
 }
 
-/** Whether `by`, the requester, is the tenant's only HR member and so may approve alone. */
+/**
+ * Whether `by`, the requester, may approve alone: they hold `hr`, and no other
+ * holder may decide (`approversOf` is empty).
+ */
 export function mayApproveAlone(
   hr: readonly string[],
-  change: { readonly requestedBy: string },
+  change: { readonly requestedBy: string; readonly subjectAccountId: string | null },
   by: string,
 ): boolean {
-  return by === change.requestedBy && hr.length > 0 && hr.every((a) => a === by);
+  return by === change.requestedBy && hr.includes(by) && approversOf(hr, change).length === 0;
 }
 
 export function decideChange(
@@ -73,7 +79,11 @@ export function decideChange(
     requester &&
     decision.soleApprover === true &&
     decision.approve &&
-    mayApproveAlone(decision.hr, approval, decision.by);
+    mayApproveAlone(
+      decision.hr,
+      { requestedBy: approval.requestedBy, subjectAccountId: decision.subjectAccountId },
+      decision.by,
+    );
   if (requester && !alone) {
     return err(
       failure(

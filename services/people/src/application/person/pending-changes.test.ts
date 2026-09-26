@@ -372,7 +372,7 @@ describe('deciding a held change', () => {
   });
 });
 
-describe('the only HR member (PEO-077)', () => {
+describe('no other HR member who may approve (PEO-077)', () => {
   /** HR alone in the tenant, changing Ada's pay. */
   async function alone() {
     const s = setup();
@@ -434,6 +434,40 @@ describe('the only HR member (PEO-077)', () => {
       approve: true,
     });
     expect(second.ok && second.value.decidedAs).toBeNull();
+  });
+
+  it('may when the only other HR member is the one the change is about; a third decides', async () => {
+    const s = setup();
+    const written = await s.access.update(tx, {
+      ...asking(hr),
+      personId: HANNA,
+      changes: { base_salary: money },
+    });
+    const changeId = written.ok ? (written.value.held?.[0]?.changeId ?? '') : '';
+    const shown = await pendingFor(tx, s.deps, { ...asking(hr), personId: HANNA });
+    expect(shown.ok && shown.value.map((p) => p.canSelfApprove)).toEqual([true]);
+
+    // A third HR member granted before the decision is an eligible approver.
+    s.hrHolders.add(ADA_ACCOUNT);
+    const refused = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId,
+      approve: true,
+      soleApprover: true,
+    });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+
+    s.hrHolders.delete(ADA_ACCOUNT);
+    const decided = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId,
+      approve: true,
+      soleApprover: true,
+    });
+    expect(decided.ok && decided.value).toMatchObject({
+      approval: { state: 'approved', decidedBy: HR_ACCOUNT },
+      decidedAs: 'sole_hr',
+    });
   });
 
   it('is never let in without the role rows to ask', async () => {
