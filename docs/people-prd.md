@@ -1227,6 +1227,24 @@ keeps only the correction path: history records who changed it and when, but
 there is no "as of" query for it, because a phone number had no value "as of
 last March" in any sense payroll cares about.
 
+**Reading history back (PEO-064).** History is shown by today's rules, never
+the rules a row was written under. A field the viewer cannot read now has no
+rows for them, whoever could read it then, and nor does a field no longer in
+the schema; a field that is sealed now shows only that it changed and when,
+never a value — a classification tightened after the write must not be undone
+by scrolling back. The same rule holds on every transport (`GET
+/v1/people/{id}/history` included), because it is the application layer's.
+The history screen (`/people/:id/history`, `/people/me/history`) reads the
+record as of a date the viewer picks — today by default, on the person's own
+calendar — with corrections made since applied, since that is what is now
+known to have been true that day; a field kept without dates shows "not kept
+by date" on a past day rather than today's value. Below it, every change,
+newest in effect first, each with both dates and who recorded it (a colleague
+named only if the viewer may read their name): a correction says which value
+it replaces, and the value it replaced stays, marked superseded. One field at a
+time is a filter on the same page. It is read-only; a correction is made
+through `POST /v1/people/{id}/corrections`.
+
 Every read of a person takes an optional `asOf` date. The default is today. A
 payroll run for March asks for March, and gets the org chart, the salary and the
 cost centre as they were, not as they are. Across a rehire (§8.1) that holds
@@ -2030,7 +2048,7 @@ sends the router one of its own named operations (`apps/web/src/lib/people-opera
 with the token as a bearer. It holds no People address, no People token and
 builds no principal; People's internal token is the router's alone, and People
 refuses anything without it, the shell's own internal token included. Each
-screen reads one query — `peopleOnboarding`, `peopleProfile`,
+screen reads one query — `peopleOnboarding`, `peopleProfile`, `peopleHistory`,
 `peopleDirectory`, `peopleCompleteness`, `peopleRoleSettings`,
 `peopleRegistry`, `peopleSetup`, `peopleIntegrations`, `peopleExportBuilder`,
 `peopleAnalytics`, plus `peoplePublishPreview` and
@@ -2152,6 +2170,7 @@ caller check, and every authorization decision is made in
 ```
 GET    /v1/views/{setup|onboarding|profile|directory|completeness|registry|integrations|roles|export|analytics}
 GET    /v1/views/profile/{id}          one person, as the viewer may see them
+GET    /v1/views/history[/{id}]?asOf=  one record as of a date, and every change behind it (§8.5)
 POST   /v1/views/me/sections           save one section of my own record
 POST   /v1/views/people/{id}/sections  save one section of somebody's record
 POST   /v1/views/completeness          HR's grid: one write, and one event, per person

@@ -904,8 +904,15 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-063** Document import — a zip or folder matched to people by a
       filename pattern the admin confirms. An unmatched file goes to a review
       list, **never onto the nearest-looking person**. _(PRD §14.1)_
-- [ ] **PEO-064** Effective-dated history UI — "what did this look like in
+- [x] **PEO-064** Effective-dated history UI — "what did this look like in
       March", per attribute. _(PRD §8.5)_
+      _Built as `/people/:id/history` (and `/people/me/history`) over
+      `peopleHistory` / `GET /v1/views/history[/{id}]?asOf=`. History is
+      judged by today's rules (`readableHistory`): a field the viewer cannot
+      read now has no rows, and a field sealed now shows only that it changed
+      — on REST's `/history` too. Read-only: a correction is still made
+      through `POST /v1/people/{id}/corrections`; offering it from the
+      timeline is not built._
 - [ ] **PEO-065** The full predicate editor for conditional requiredness.
       _(PRD §6.5)_
 - [ ] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
