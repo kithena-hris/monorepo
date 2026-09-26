@@ -602,6 +602,24 @@ const personPath = (id: string | number) => `/v1/people/${encodeURIComponent(id)
 
 builder.mutationType({
   fields: (t) => ({
+    createPerson: t.field({
+      type: Person,
+      description:
+        'Add one person by hand: a provisional record with its first values; HR only. `POST /v1/people`.',
+      args: {
+        attributes: t.arg({ type: [AttributeValueInput], required: true }),
+        idempotencyKey: t.arg(idempotencyKey),
+      },
+      resolve: async (_root, args, ctx) => {
+        const attributes: Record<string, unknown> = {};
+        for (const input of args.attributes) attributes[input.key] = unwrap(valueOf(input));
+        const view = await viaRest<PersonView>(ctx, 'POST', '/v1/people', {
+          body: { attributes },
+          key: args.idempotencyKey,
+        });
+        return asPerson(ctx, view);
+      },
+    }),
     updatePerson: t.field({
       type: Person,
       args: {
