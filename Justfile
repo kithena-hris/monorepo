@@ -4,6 +4,11 @@ default:
     @just --list
 
 # Boot infrastructure, migrate, seed, and start everything.
+#
+# The seed is identity's then People's (`pnpm db:seed`): Acme, Ada invited and
+# named People's administrator, version 1 published and sample employees.
+# Identity's events are piped into People's seed, standing where the topic
+# would; see `services/people/src/seed-local.ts`.
 dev:
     docker compose up -d --wait
     pnpm db:migrate
