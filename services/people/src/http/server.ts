@@ -17,6 +17,8 @@ import { keyOf, type ObjectStore } from '../application/export/object-store.js';
 import type { ExportQueue } from '../application/export/queue.js';
 import { orgAdmin } from '../application/org/org.js';
 import { payBands } from '../application/analytics/pay.js';
+import { upcomingErasures } from '../application/retention/sweep.js';
+import { drizzleRetentionStore } from '../infrastructure/drizzle-retention-store.js';
 import { publish } from '@kithena/db-kit';
 import { outbox } from '../infrastructure/tables.js';
 import { tenantRoles } from '../application/roles/roles.js';
@@ -278,6 +280,7 @@ export function peopleService(
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
+    upcomingErasures: upcomingErasures({ store: drizzleRetentionStore(), clock: systemClock }),
     payBands: payBands({
       clock: systemClock,
       newId: uuidv7,

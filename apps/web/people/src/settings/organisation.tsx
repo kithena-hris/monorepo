@@ -88,6 +88,17 @@ export interface RetentionFloor {
   readonly reviewedOn: string | null;
 }
 
+/** A leaver the retention job erases next (PEO-075). HR's alone. */
+export interface UpcomingErasure {
+  readonly personId: string;
+  /** Null once the name itself has been erased. */
+  readonly name: string | null;
+  readonly dueOn: string;
+  readonly floors: readonly string[];
+  /** Unreviewed floors: nothing is erased automatically until counsel reviews them. */
+  readonly waitingForReview: readonly string[];
+}
+
 /** A pay band for one grade and currency from a day, in minor units (PEO-078). */
 export interface PayBand {
   readonly id: string;
@@ -126,6 +137,8 @@ export interface OrganisationState {
   readonly countries: readonly { readonly code: string; readonly name: string }[];
   readonly timeZones: readonly string[];
   readonly retentionFloors: readonly RetentionFloor[];
+  /** HR's alone; null or absent for anybody else (PEO-075). */
+  readonly upcomingErasures?: readonly UpcomingErasure[] | null;
 }
 
 export interface OrganisationProps {
@@ -226,6 +239,9 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
           <Stack gap={6}>
             <Company state={state} onSave={props.onUpdateSettings} />
             <RetentionFloors floors={state.retentionFloors} />
+            {state.upcomingErasures == null ? null : (
+              <UpcomingErasures erasures={state.upcomingErasures} />
+            )}
           </Stack>
         </TabsContent>
         {state.payBands == null ? null : (
@@ -1275,6 +1291,62 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
           </TableBody>
         </Table>
       </Stack>
+    </PageSection>
+  );
+}
+
+/**
+ * Who the retention job erases next, and when (PEO-075). HR's alone. A leaver
+ * whose erasure relies on a floor still pending legal review is listed as
+ * waiting, however overdue: the job skips them until counsel signs it off.
+ */
+function UpcomingErasures({
+  erasures,
+}: {
+  readonly erasures: readonly UpcomingErasure[];
+}): JSX.Element {
+  return (
+    <PageSection
+      title="Automated erasure"
+      description="Leavers whose records are due to be erased in the next three months, or already are. Erasure clears what each field’s retention allows; the record itself stays."
+    >
+      {erasures.length === 0 ? (
+        <EmptyState
+          title="Nobody is due"
+          description="No leaver’s records fall due for erasure in the next three months."
+        />
+      ) : (
+        <Table aria-label="Upcoming automated erasures">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Person</TableHead>
+              <TableHead>Due</TableHead>
+              <TableHead>Kept under</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {erasures.map((e) => (
+              <TableRow key={e.personId}>
+                <TableCell>{e.name ?? 'Name already erased'}</TableCell>
+                <TableCell>{e.dueOn}</TableCell>
+                <TableCell>
+                  {e.floors.length === 0
+                    ? 'The company’s policy'
+                    : e.floors.map((f) => FLOOR_NAMES[f] ?? f).join('; ')}
+                </TableCell>
+                <TableCell>
+                  {e.waitingForReview.length > 0 ? (
+                    <Badge tone="warning">Waiting for legal review</Badge>
+                  ) : (
+                    <Badge tone="neutral">Scheduled</Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </PageSection>
   );
 }

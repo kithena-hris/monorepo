@@ -231,6 +231,19 @@ describe('the events a person record produces', () => {
     expect(keys).toContain('classesCleared');
     expect(keys).not.toContain('values');
   });
+
+  it('says why a job erased, and which survivor a tombstone was erased with (PEO-075)', () => {
+    const anonymised = peopleEvents.find((e) => e.name === 'people.person.anonymised');
+    const parsed = anonymised?.payload.safeParse({
+      personId: '00000000-0000-4000-8000-0000000000a1',
+      classesCleared: ['confidential'],
+      attributeKeys: ['phone'],
+      under: 'statutory_floor',
+      automatedReason: 'retention expired (es-labour)',
+      survivorId: '00000000-0000-4000-8000-0000000000a2',
+    });
+    expect(parsed?.success).toBe(true);
+  });
 });
 
 describe('a unique-claim conflict', () => {

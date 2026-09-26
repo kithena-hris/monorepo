@@ -7,6 +7,7 @@ import type { TenantRoles } from '../roles/roles.js';
 import { inTenantResult, type PersonAccess } from './person-access.js';
 import type { SchemaVersions } from './ports.js';
 import type { PayBands } from '../analytics/pay.js';
+import type { upcomingErasures } from '../retention/sweep.js';
 
 /** One tenant transaction, as `tenantTransaction` in infrastructure provides it. */
 export type InTenant = <R>(
@@ -31,6 +32,8 @@ export interface PeopleService {
    * UNAVAILABLE and nothing is held.
    */
   readonly pending?: PendingChangeDeps;
+  /** Who the retention job erases next (PEO-075). Absent, nobody is listed. */
+  readonly upcomingErasures?: ReturnType<typeof upcomingErasures>;
 }
 
 /** A use case in its own tenant transaction, rolled back when it refuses. */

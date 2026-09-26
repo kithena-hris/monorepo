@@ -159,6 +159,32 @@ describe('the organisation settings (PEO-119)', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('shows HR who is erased next, and who waits for legal review (PEO-075)', async () => {
+    const hr = state({
+      upcomingErasures: [
+        { personId: 'p1', name: 'Ada Lovelace', dueOn: '2026-03-31', floors: ['es-labour'], waitingForReview: ['es-labour'] },
+        { personId: 'p2', name: null, dueOn: '2026-11-30', floors: [], waitingForReview: [] },
+      ],
+    });
+    const { container } = render(<Organisation {...props({ load: { status: 'ready', data: hr } })} />);
+    await fast().click(screen.getByRole('tab', { name: 'Company' }));
+    const table = screen.getByRole('table', { name: 'Upcoming automated erasures' });
+    const ada = within(table).getByRole('row', { name: /Ada Lovelace/ });
+    expect(within(ada).getByText('Spain, labour records')).toBeInTheDocument();
+    expect(within(ada).getByText('Waiting for legal review')).toBeInTheDocument();
+    const erased = within(table).getByRole('row', { name: /Name already erased/ });
+    expect(within(erased).getByText('The company’s policy')).toBeInTheDocument();
+    expect(within(erased).getByText('Scheduled')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('lists no automated erasures to anybody People sent none', async () => {
+    render(<Organisation {...props()} />);
+    await fast().click(screen.getByRole('tab', { name: 'Company' }));
+    expect(screen.queryByRole('table', { name: 'Upcoming automated erasures' })).toBeNull();
+    expect(screen.queryByText('Automated erasure')).toBeNull();
+  });
+
   it('shows anybody else the settings without a control', async () => {
     const { container } = render(
       <Organisation {...props({ load: { status: 'ready', data: state({ canManage: false }) } })} />,

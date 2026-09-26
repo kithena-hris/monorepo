@@ -107,3 +107,35 @@ export function mayErase(
     ),
   );
 }
+
+export interface NextErasure {
+  /** The first day anything a leaver still holds falls due. */
+  readonly dueOn: string;
+  /** Every floor relied on by what is due by then. */
+  readonly floors: readonly StatutoryFloor[];
+  /** Those of them counsel has not reviewed: an automated run waits for them (PEO-075). */
+  readonly waitingForReview: readonly StatutoryFloor[];
+}
+
+/**
+ * When the retention job next erases a leaver, and what it waits for.
+ *
+ * `decisions` are every held value's due date. The run that erases is the
+ * first on or after the earliest of them, and never before `today`; it
+ * considers everything due by then at once, so the floors are the union of
+ * theirs, and one unreviewed floor holds the whole run back, as `mayErase`
+ * does. Null when nothing held has a retention policy.
+ */
+export function nextErasure(
+  decisions: readonly { readonly dueOn: string; readonly floor: StatutoryFloor | null }[],
+  today: string,
+  reviews = FLOOR_REVIEWS,
+): NextErasure | null {
+  const dueOn = decisions.map((d) => d.dueOn).toSorted()[0];
+  if (dueOn === undefined) return null;
+  const runsOn = dueOn > today ? dueOn : today;
+  const floors = [
+    ...new Set(decisions.flatMap((d) => (d.dueOn <= runsOn && d.floor !== null ? [d.floor] : []))),
+  ];
+  return { dueOn, floors, waitingForReview: floors.filter((f) => reviews[f].status !== 'reviewed') };
+}

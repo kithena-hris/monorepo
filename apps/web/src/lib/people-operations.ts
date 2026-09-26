@@ -218,6 +218,7 @@ export const OPERATIONS = {
       countries { code name }
       timeZones
       retentionFloors { floor months status reviewedBy reviewedOn }
+      upcomingErasures { personId name dueOn floors waitingForReview }
       payBands { id grade currency minimumMinor midpointMinor maximumMinor effectiveFrom recordedAt supersedes }
     }
   }`,

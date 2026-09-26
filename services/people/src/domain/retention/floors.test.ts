@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { FLOOR_REVIEWS, mayErase, statutoryFloors, type FloorReview, type StatutoryFloor } from './floors.js';
+import { FLOOR_REVIEWS, mayErase, nextErasure, statutoryFloors, type FloorReview, type StatutoryFloor } from './floors.js';
 
 const allUnreviewed = FLOOR_REVIEWS;
 const esReviewed: Readonly<Record<StatutoryFloor, FloorReview>> = {
@@ -43,5 +43,37 @@ describe('erasing against a statutory floor (PEO-126)', () => {
     expect(!notHr.ok && notHr.error.code).toBe('FORBIDDEN');
     const blank = mayErase(['es-labour'], { kind: 'manual', roles: HR, reason: '   ' }, allUnreviewed);
     expect(!blank.ok && blank.error.code).toBe('REASON_REQUIRED');
+  });
+});
+
+const due = (dueOn: string, floor: StatutoryFloor | null = null) => ({ dueOn, floor });
+
+describe('the next automated erasure of a leaver (PEO-075)', () => {
+  it('is the earliest date anything held falls due, with every floor due by then', () => {
+    expect(
+      nextErasure([due('2027-01-01', 'de-labour'), due('2026-03-31', 'es-labour'), due('2026-03-31')], '2026-01-01', allUnreviewed),
+    ).toEqual({ dueOn: '2026-03-31', floors: ['es-labour'], waitingForReview: ['es-labour'] });
+  });
+
+  it('counts everything already overdue, as the next run will: one unreviewed floor holds it all back', () => {
+    // The phone number was due long ago, but today's run also finds the payslips due.
+    expect(nextErasure([due('2022-09-30'), due('2026-03-31', 'es-labour')], '2026-09-27', allUnreviewed)).toEqual({
+      dueOn: '2022-09-30',
+      floors: ['es-labour'],
+      waitingForReview: ['es-labour'],
+    });
+  });
+
+  it('waits for nothing once the floors it relies on are reviewed', () => {
+    expect(nextErasure([due('2026-03-31', 'es-labour')], '2026-01-01', esReviewed)).toEqual({
+      dueOn: '2026-03-31',
+      floors: ['es-labour'],
+      waitingForReview: [],
+    });
+  });
+
+  it('waits for nothing under tenant policy alone, and is null when nothing is held under retention', () => {
+    expect(nextErasure([due('2026-09-30')], '2026-01-01', allUnreviewed)).toEqual({ dueOn: '2026-09-30', floors: [], waitingForReview: [] });
+    expect(nextErasure([], '2026-01-01', allUnreviewed)).toBeNull();
   });
 });
