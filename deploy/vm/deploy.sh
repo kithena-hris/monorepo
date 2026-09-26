@@ -57,8 +57,6 @@ export MIGRATIONS_DIR="${MIGRATIONS_DIR:-$here/migrations}"
 files=(-f "$dir/compose.yaml")
 if [ "$env" = staging ]; then
   files+=(-f "$dir/compose.staging.yaml")
-  put REDPANDA_MEMORY 512M
-  put VALKEY_MAXMEMORY 96mb
 fi
 compose() {
   docker compose -p "kithena-$env" --project-directory "$dir" "${files[@]}" \

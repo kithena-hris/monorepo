@@ -34,8 +34,9 @@ env:
   VERCEL_CLI_VERSION: 59.3.0
 
 jobs:
-  # People's and the router's images, built natively on arm64 for the VM
-  # (`docs/environments.md` "Hosting") and proven before they are pushed:
+  # People's and the router's images, built natively for the VM's platform
+  # (`VM_PLATFORM`, `docs/environments.md` "Hosting") and proven before they
+  # are pushed:
   # the router image must pass a persisted operation, refuse an unknown hash
   # and refuse a request without a token (`apps/gateway/scripts/smoke.ts`), and
   # People's must boot and answer `/health`. Nothing is pushed otherwise.
@@ -44,14 +45,16 @@ jobs:
   # Compose network in every environment, so one router image per commit
   # serves either. Skipped while `ROUTER_URL_STAGING` is unset.
   images:
-    name: arm64 images
+    name: VM images
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
       vars.ROUTER_URL_STAGING != ''
-    # A native arm64 runner, free for a public repository. Under QEMU the
-    # People build takes an order of magnitude longer.
-    runs-on: ubuntu-24.04-arm
+    # A native runner for the VM's architecture, both free for a public
+    # repository. Under QEMU the People build takes an order of magnitude
+    # longer, so there is no cross-build: `--platform` below only makes a
+    # mismatch fail loudly.
+    runs-on: ${{ vars.VM_PLATFORM == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -80,6 +83,15 @@ jobs:
         run: |
           echo "people=ghcr.io/${OWNER,,}/kithena-people:${SHA}" >> "$GITHUB_OUTPUT"
           echo "router=ghcr.io/${OWNER,,}/kithena-router:${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: platform
+        env:
+          PLATFORM: ${{ vars.VM_PLATFORM || 'linux/amd64' }}
+        run: |
+          case "$PLATFORM" in
+            linux/amd64 | linux/arm64) echo "DOCKER_DEFAULT_PLATFORM=$PLATFORM" >> "$GITHUB_ENV" ;;
+            *) echo "::error::VM_PLATFORM must be linux/amd64 or linux/arm64, not $PLATFORM"; exit 1 ;;
+          esac
 
       - name: build and test the router image
         working-directory: apps/gateway
@@ -217,7 +229,7 @@ jobs:
       # the subgraph, the router composes it, the remote renders against what
       # the router serves, and the shell loads the remote.
       #
-      # People and the router run on one Oracle Cloud VM under Docker Compose
+      # People and the router run on one 4 GB VM under Docker Compose
       # (`deploy/vm/`), reached over Tailscale; only the router is public,
       # through a Cloudflare Tunnel. People holds Kafka consumer groups, runs
       # hourly jobs and drains on SIGTERM (PEO-118), so it needs a process,
@@ -248,7 +260,7 @@ jobs:
             exit 1
           fi
           if [ "$IMAGES" != success ]; then
-            echo "::error::the arm64 images job did not succeed ($IMAGES)"
+            echo "::error::the VM images job did not succeed ($IMAGES)"
             exit 1
           fi
 

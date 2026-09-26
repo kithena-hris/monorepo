@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# One Oracle Ampere A1 VM (Ubuntu 24.04, arm64), made ready for `deploy.sh`.
+# One 4 GB Ubuntu 24.04 VM, x86_64 or arm64, made ready for `deploy.sh`.
 #
-#   ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh
+#   ssh root@<public ip> 'TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh
+#
+# As root on Hetzner and DigitalOcean; on Oracle, where the image's user is
+# `ubuntu`, `ssh ubuntu@<ip> 'sudo TS_AUTHKEY=… bash -s' < …` instead.
 #
 # Idempotent: every step checks or overwrites, so running it again is how a
 # setting here reaches a VM that already exists. After the first run the VM
 # takes no inbound traffic at all — Tailscale for SSH, Cloudflare Tunnel for
-# the router, both dialling out — so delete the security list's port-22 rule.
+# the router, both dialling out — so remove the provider firewall's SSH rule
+# (Hetzner and DigitalOcean: the Cloud Firewall; Oracle: the security list).
 # `docs/environments.md` "Hosting" has the whole checklist.
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
@@ -35,8 +39,9 @@ Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-Time "04:30";
 EOF
 
-# 4 GB of swap: headroom for a spike, not capacity. The limits in
-# `compose.yaml` are what keep the stack inside 24 GB.
+# 4 GB of swap on a 4 GB box: headroom for a spike, not capacity, and rarely
+# touched (swappiness 10). The limits in `compose.yaml` are what keep the
+# stack inside the RAM; neither Hetzner's nor DigitalOcean's image has swap.
 if ! swapon --show | grep -q /swapfile; then
   [ -f /swapfile ] || { fallocate -l 4G /swapfile; chmod 600 /swapfile; mkswap /swapfile; }
   swapon /swapfile
@@ -45,14 +50,6 @@ fi
 sysctl -q -w vm.swappiness=10
 echo 'vm.swappiness=10' > /etc/sysctl.d/90-kithena.conf
 
-# SSH by key only, never as root. Reachable only over Tailscale once ufw is on.
-cat > /etc/ssh/sshd_config.d/10-kithena.conf <<'EOF'
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PermitRootLogin no
-EOF
-systemctl reload ssh
-
 # Tailscale: the deploy workflows and the founder reach the VM through it, as
 # `deploy`, with Tailscale SSH checking the tailnet policy instead of a key.
 command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh
@@ -60,6 +57,16 @@ if ! tailscale status >/dev/null 2>&1; then
   : "${TS_AUTHKEY:?set TS_AUTHKEY to a Tailscale auth key tagged tag:vm}"
   tailscale up --ssh --authkey "$TS_AUTHKEY" --advertise-tags=tag:vm --hostname kithena-vm
 fi
+
+# SSH by key only, never as root — and only once Tailscale is up, so a first
+# run that failed before this point can be rerun as root over the public
+# address. From here on the way in is Tailscale SSH as `deploy`.
+cat > /etc/ssh/sshd_config.d/10-kithena.conf <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF
+systemctl reload ssh
 
 # Oracle's Ubuntu image ships its own iptables rules (open 22, reject the
 # rest), loaded by netfilter-persistent. Two firewalls is one too many; ufw is
@@ -71,7 +78,9 @@ if dpkg -s netfilter-persistent >/dev/null 2>&1; then
   systemctl restart docker
 fi
 # Nothing inbound except on the tailnet. Published Docker ports would bypass
-# this; `compose.yaml` publishes none.
+# this; `compose.yaml` publishes none. Reset first, so a rule the image or an
+# earlier hand added (DigitalOcean's 1-click images allow 22) does not survive.
+ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow in on tailscale0
@@ -108,4 +117,6 @@ EOF
 systemctl daemon-reload
 systemctl enable --now kithena-backup.timer
 
-echo "bootstrapped: $(tailscale ip -4 2>/dev/null || echo 'tailscale not up')"
+# The architecture is what the `VM_PLATFORM` repository variable must say.
+echo "bootstrapped: $(tailscale ip -4 2>/dev/null || echo 'tailscale not up')," \
+  "VM_PLATFORM=linux/$(dpkg --print-architecture)"
