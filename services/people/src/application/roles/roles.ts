@@ -3,6 +3,7 @@ import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@k
 import { TenantId, type Actor } from '@kithena/contracts';
 
 import {
+  backOfficeRemoval,
   decideGrant,
   decideRevoke,
   TENANT_ROLES,
@@ -53,6 +54,12 @@ export interface RoleStore {
     by: string | null,
   ): Promise<void>;
   revoke(tx: Tx, tenantId: string, accountId: string, role: TenantRole): Promise<void>;
+  /**
+   * Let this transaction revoke the tenant's last `people_admin`, which the
+   * `role_grant_keep_an_admin` trigger otherwise refuses: only for a removal
+   * the back office's operator confirmed.
+   */
+  releaseLastAdministrator(tx: Tx): Promise<void>;
   candidates(tx: Tx, tenantId: string): Promise<readonly RoleCandidate[]>;
   publish(tx: Tx, events: readonly PendingEvent[]): Promise<void>;
 }
@@ -76,6 +83,9 @@ export interface Named {
   readonly correlationId: string;
   readonly causationId: string | null;
 }
+
+/** The back office's removal: `confirmedLast` when the operator was warned it leaves nobody. */
+export type Removed = Named & { readonly confirmedLast: boolean };
 
 export interface TenantRoles {
   /** Everybody holding a role, and who could; `people_admin` or `hr` only. */
@@ -102,11 +112,12 @@ export interface TenantRoles {
   /**
    * `identity.tenant.administrator_removed` for People: the back office takes
    * back what naming gave, `people_admin` and `hr`, with `via: back_office`.
-   * Never the last `people_admin` — the company would be left with nobody who
-   * can grant anything — so then nothing is revoked and the company's own
-   * administrators decide. Idempotent, like naming.
+   * When that leaves nobody holding one of them, only if the operator
+   * confirmed it (`confirmedLast`) — the last `people_admin` included; else
+   * nothing is revoked and the company's own administrators decide
+   * (`backOfficeRemoval`). Idempotent, like naming.
    */
-  administratorRemoved(tx: Tx, removed: Named): Promise<'applied' | 'unchanged'>;
+  administratorRemoved(tx: Tx, removed: Removed): Promise<'applied' | 'unchanged'>;
   /**
    * The account's access ended (PEO-109): every tenant role it holds is
    * revoked, in the transaction that ended it, by the system with the reason
@@ -265,14 +276,13 @@ export function tenantRoles(deps: {
     async administratorRemoved(tx, removed) {
       await store.lock(tx, removed.tenantId);
       const held = await store.holdings(tx, removed.tenantId);
-      const mine = held.get(removed.accountId);
-      if (mine === undefined) return 'unchanged';
-      const lastAdministrator =
-        mine.has('people_admin') &&
-        ![...held].some(([account, roles]) => account !== removed.accountId && roles.has('people_admin'));
-      if (lastAdministrator) return 'unchanged';
-      const roles = (['people_admin', 'hr'] as const).filter((role) => mine.has(role));
+      const { revoke: roles, last } = backOfficeRemoval(
+        held,
+        removed.accountId,
+        removed.confirmedLast,
+      );
       if (roles.length === 0) return 'unchanged';
+      if (last.includes('people_admin')) await store.releaseLastAdministrator(tx);
       for (const role of roles) await store.revoke(tx, removed.tenantId, removed.accountId, role);
       await store.publish(
         tx,
@@ -290,7 +300,10 @@ export function tenantRoles(deps: {
               role,
               by: null,
               via: 'back_office',
-              reason: 'Removed as a People administrator in the back office',
+              reason:
+                last.length > 0
+                  ? `Removed as a People administrator in the back office, confirmed leaving no ${last.join(' or ')}`
+                  : 'Removed as a People administrator in the back office',
             },
           ),
         ),

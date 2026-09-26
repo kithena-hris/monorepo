@@ -59,6 +59,11 @@ export function drizzleRoleStore(): RoleStore {
         );
     },
 
+    async releaseLastAdministrator(tx) {
+      // Transaction-local: gone at commit, and read by nothing but the trigger.
+      await tx.execute(sql`SELECT set_config('people.release_last_admin', 'on', true)`);
+    },
+
     async candidates(tx, tenantId) {
       const rows = await tx
         .select({

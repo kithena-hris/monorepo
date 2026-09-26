@@ -17,6 +17,7 @@ import { bringDueIntoForce, endAccessDue, startArrivals } from '../application/p
 import { reconcile } from '../application/reconcile.js';
 import { tenantRoles } from '../application/roles/roles.js';
 import { drizzleRoleStore } from './drizzle-role-store.js';
+import { httpRoleReport } from './role-report.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
@@ -68,7 +69,8 @@ import { tenantTransaction } from './unit-of-work.js';
  *   identity's account listing, so it runs only when `IDENTITY_URL` and a
  *   token (`PEOPLE_IDENTITY_TOKEN`, else `INTERNAL_API_TOKEN`) are set.
  *   Idempotent on the account, so a re-run or a second replica creates
- *   nothing twice.
+ *   nothing twice. Beside it, the same tenant's role holders are reported to
+ *   identity (`role-report.ts`), the backfill for the consumer's reports.
  *
  * Tenants come from `people.tenant`, which the consumer fills. One tenant at a
  * time, each in its own transaction; one tenant failing is logged and the rest
@@ -338,6 +340,15 @@ export async function startBackground(
   if (!identityUrl || !identityToken) {
     logger.info('IDENTITY_URL or PEOPLE_IDENTITY_TOKEN unset; reconciliation not scheduled');
   } else {
+    // Who holds the administrator roles, for the back office (`role-report.ts`):
+    // at boot and daily beside reconciliation, as the backfill for anything
+    // the consumer's report after each change missed.
+    const reportRoles = httpRoleReport({
+      baseUrl: identityUrl,
+      token: identityToken,
+      inTenant,
+      clock: systemClock,
+    });
     const run = reconcile({
       directory: httpAccountDirectory({ baseUrl: identityUrl, internalToken: identityToken }),
       people: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
@@ -367,6 +378,7 @@ export async function startBackground(
             return;
           }
           reconciledAt.set(tenantId, Date.now());
+          await reportRoles(tenantId);
           if (result.value.created > 0) logger.info({ tenantId, ...result.value }, 'reconciled');
         }),
       ),

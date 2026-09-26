@@ -1,13 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { readdir, readFile } from 'node:fs/promises';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
+import { ModuleRoleReport } from '@kithena/contracts';
 import { systemClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { uuidv7 } from '../person/ids.js';
 import { drizzleRoleStore } from '../../infrastructure/drizzle-role-store.js';
+import { peopleConsumer } from '../../infrastructure/consumers/handle.js';
+import { httpRoleReport } from '../../infrastructure/role-report.js';
 import { tenantTransaction, type InTenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { tenantRoles, type TenantRoles } from './roles.js';
 
@@ -205,12 +210,75 @@ describe('tenant roles in People', () => {
     const adam = await inTenant(ACME, ({ tx }) => roles.list(tx, as(ADAM.account)));
     expect(adam.ok ? null : adam.error.code).toBe('FORBIDDEN');
   });
-  it('takes back what the back office gave when it removes somebody, never the last people_admin', async () => {
+  it('reports who holds the administrator roles to identity after a role event, and never throws', async () => {
+    const received: { url: string; token: unknown; body: unknown }[] = [];
+    const identity = createServer((request, response) => {
+      let body = '';
+      request.on('data', (chunk: Buffer) => (body += chunk.toString()));
+      request.on('end', () => {
+        received.push({
+          url: request.url ?? '',
+          token: request.headers['x-internal-token'],
+          body: JSON.parse(body),
+        });
+        response.writeHead(204).end();
+      });
+    });
+    await new Promise<void>((resolve) => identity.listen(0, '127.0.0.1', resolve));
+    const baseUrl = `http://127.0.0.1:${String((identity.address() as AddressInfo).port)}`;
+    const report = httpRoleReport({ baseUrl, token: 'people-token', inTenant, clock: systemClock });
+    // Standalone of OpenFGA: the report alone still runs.
+    const handle = peopleConsumer({
+      inTenant,
+      provisional: {} as never,
+      recompute: (() => Promise.resolve()) as never,
+      reportRoles: report,
+    });
+    const granted = {
+      eventId: '01890000-0000-7000-8000-0000000000e1',
+      eventName: 'people.role.granted',
+      eventVersion: 1,
+      tenantId: ACME,
+      occurredAt: '2026-09-26T09:00:00.000Z',
+      recordedAt: '2026-09-26T09:00:00.000Z',
+      effectiveFrom: null,
+      aggregate: { type: 'TenantRole', id: PRIYA.account, version: 1 },
+      actor: { kind: 'system', process: 'people.roles' },
+      correlationId: '00000000-0000-4000-8000-00000000c0de',
+      causationId: null,
+      payload: { accountId: PRIYA.account, role: 'hr', by: null, via: 'back_office', reason: 'x' },
+    };
+    try {
+      expect(await handle(granted)).toBe('applied');
+    } finally {
+      await new Promise((resolve) => identity.close(resolve));
+    }
+
+    expect(received).toHaveLength(1);
+    expect(received[0]?.url).toBe(`/api/internal/tenants/${ACME}/module-roles/module.people`);
+    expect(received[0]?.token).toBe('people-token');
+    const sent = ModuleRoleReport.parse(received[0]?.body);
+    expect(sent.administratorRoles).toEqual(['people_admin', 'hr']);
+    const rows = await admin<{ account_id: string; role: string }[]>`
+      SELECT account_id, role FROM people.role_grant
+       WHERE tenant_id = ${ACME} AND role IN ('people_admin', 'hr')`;
+    expect(
+      sent.holders.flatMap((h) => h.roles.map((role) => `${h.accountId} ${role}`)).toSorted(),
+    ).toEqual(rows.map((r) => `${r.account_id} ${r.role}`).toSorted());
+
+    // Identity gone: logged, not thrown.
+    await expect(
+      httpRoleReport({ baseUrl, token: 'people-token', inTenant, clock: systemClock })(ACME),
+    ).resolves.toBeUndefined();
+  });
+
+  it('takes back what the back office gave when it removes somebody, the last only when confirmed', async () => {
     const backOffice = {
       tenantId: ACME,
       accountId: ADAM.account,
       correlationId: '00000000-0000-4000-8000-00000000c0de',
       causationId: null,
+      confirmedLast: false,
     };
     await inTenant(ACME, ({ tx }) => roles.administratorNamed(tx, backOffice));
     expect(await inTenant(ACME, ({ tx }) => roles.administratorRemoved(tx, backOffice))).toBe(
@@ -230,15 +298,37 @@ describe('tenant roles in People', () => {
       'unchanged',
     );
 
-    // The one administrator left keeps the role: nobody else could grant anything.
+    // The one administrator left keeps the role unless the operator was
+    // warned the company would have nobody to grant anything, and confirmed.
     const [last] = await admin<{ account_id: string }[]>`
       SELECT account_id FROM people.role_grant WHERE tenant_id = ${ACME} AND role = 'people_admin'`;
     const lastOne = { ...backOffice, accountId: last?.account_id ?? '' };
     expect(await inTenant(ACME, ({ tx }) => roles.administratorRemoved(tx, lastOne))).toBe(
       'unchanged',
     );
-    expect((await inTenant(ACME, ({ tx }) => roles.of(tx, ACME, lastOne.accountId))).roles).toContain(
-      'people_admin',
+    expect(
+      (await inTenant(ACME, ({ tx }) => roles.of(tx, ACME, lastOne.accountId))).roles,
+    ).toContain('people_admin');
+
+    // Confirmed: through the trigger that refuses it on every other path.
+    const confirmed = { ...lastOne, confirmedLast: true };
+    expect(await inTenant(ACME, ({ tx }) => roles.administratorRemoved(tx, confirmed))).toBe(
+      'applied',
     );
+    const left = (await inTenant(ACME, ({ tx }) => roles.of(tx, ACME, lastOne.accountId))).roles;
+    expect(left).not.toContain('people_admin');
+    expect(left).not.toContain('hr');
+    const [reason] = await admin<{ reason: string }[]>`
+      SELECT envelope -> 'payload' ->> 'reason' AS reason FROM people.outbox
+       WHERE event_name = 'people.role.revoked'
+         AND envelope -> 'payload' ->> 'accountId' = ${lastOne.accountId}
+         AND envelope -> 'payload' ->> 'role' = 'people_admin'`;
+    expect(reason?.reason).toMatch(/confirmed leaving no people_admin/);
+
+    // The setting was the transaction's alone: a plain revoke is refused again.
+    await admin`INSERT INTO people.role_grant (tenant_id, account_id, role) VALUES (${ACME}, ${ADAM.account}, 'people_admin')`;
+    await expect(
+      admin`DELETE FROM people.role_grant WHERE tenant_id = ${ACME} AND role = 'people_admin'`,
+    ).rejects.toThrow(/last people_admin/);
   });
 });
