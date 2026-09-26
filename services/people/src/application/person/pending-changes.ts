@@ -85,6 +85,8 @@ export interface PendingChangeStore {
     tenantId: string,
     where: { readonly personId?: string; readonly requestedBy?: string; readonly limit: number },
   ): Promise<readonly PendingChange[]>;
+  /** Every change to one person, whatever it became, oldest first: their subject access pack. */
+  forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly PendingChange[]>;
   /** A sealed value's plaintext, while it is pending. */
   unseal(tx: Tx, tenantId: string, id: string): Promise<string | null>;
   /**
