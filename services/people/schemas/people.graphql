@@ -1365,6 +1365,10 @@ type PeopleOrganisation {
   retentionFloors: [RetentionFloor!]
   settings: PeopleSettings
   timeZones: [String!]
+  """
+  Leavers due for automated erasure within three months or overdue; HR’s alone, null for anybody else.
+  """
+  upcomingErasures: [UpcomingErasure!]
 }
 
 """People to pick from, a keyset page at a time (PEO-122)."""
@@ -2015,6 +2019,20 @@ type TextAttribute {
 type TextEntry {
   key: String
   text: String
+}
+
+"""
+A leaver the retention job erases next (PEO-075): when, under which floors, and which of those wait for legal review.
+"""
+type UpcomingErasure {
+  dueOn: String
+  floors: [String!]
+  name: String
+  personId: ID
+  """
+  Unreviewed floors: nothing is erased automatically until counsel reviews them.
+  """
+  waitingForReview: [String!]
 }
 
 type VisibilityRule {

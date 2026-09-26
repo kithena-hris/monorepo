@@ -1,4 +1,5 @@
 import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { RetentionAttribute, RetentionStore } from '../application/retention/anonymise.js';
@@ -34,17 +35,42 @@ const clearable = new Map(
     .map(([prop, column]) => [column.name, prop] as const),
 );
 
+/**
+ * Every tombstone merged into `personId`, however many merges deep (PEO-074):
+ * a record absorbed into one that was itself absorbed later still points at
+ * the one it was merged into, not at the last survivor.
+ *
+ * `ponytail: merged_into has no index, so each level is a scan of the tenant's
+ * people. Merges are rare and shallow; index it if a tenant's merges are not.`
+ */
+export async function tombstonesOf(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  personId: string,
+): Promise<readonly string[]> {
+  const rows = await tx.execute(sql`
+    WITH RECURSIVE absorbed(id) AS (
+      SELECT id FROM people.person WHERE tenant_id = ${tenantId}::uuid AND merged_into = ${personId}::uuid
+      UNION
+      SELECT p.id FROM people.person p JOIN absorbed a ON p.merged_into = a.id
+       WHERE p.tenant_id = ${tenantId}::uuid
+    )
+    SELECT id FROM absorbed ORDER BY id
+  `);
+  return [...rows].map((r) => String(r['id']));
+}
+
 export function drizzleRetentionStore(): RetentionStore {
   return {
-    async leaver(tx, tenantId, personId) {
-      const rows = await tx
+    async leaver(tx, tenantId, personId, lock = true) {
+      const query = tx
         .select()
         .from(person)
         .where(and(eq(person.tenantId, tenantId), eq(person.id, personId)))
-        .limit(1)
-        // Locked, so a rehire (PEO-110) committing beside this run is either
-        // seen — no longer terminated, nothing due — or waits for it.
-        .for('update');
+        .limit(1);
+      // Locked, so a rehire (PEO-110) committing beside this run is either
+      // seen — no longer terminated, nothing due — or waits for it.
+      const rows = lock ? await query.for('update') : await query;
       const row = rows[0];
       if (!row) return null;
 
@@ -80,6 +106,56 @@ export function drizzleRetentionStore(): RetentionStore {
           ownZone: typeof ownZone === 'string' ? ownZone : null,
         },
       };
+    },
+
+    tombstones: tombstonesOf,
+
+    async candidates(tx, tenantId, { today, shortestMonths, keys, after, limit }) {
+      // A typed column holding a value counts as held, like `custom`, a
+      // secret or an unredacted history row; `leaver` then says exactly what.
+      const columns = keys.filter((k) => clearable.has(k));
+      const inColumn =
+        columns.length === 0
+          ? sql`false`
+          : sql.join(
+              columns.map((c) => sql`p.${sql.identifier(c)} IS NOT NULL`),
+              sql` OR `,
+            );
+      const rows = await tx.execute(sql`
+        WITH RECURSIVE human(root, id) AS (
+          SELECT id, id FROM people.person
+           WHERE tenant_id = ${tenantId}::uuid AND status = 'terminated'
+             AND last_working_day IS NOT NULL
+             -- Postgres clamps to a shorter month's end, as addMonths does;
+             -- the extra day is the zone furthest ahead of UTC.
+             AND last_working_day + make_interval(months => ${shortestMonths}) <= ${today}::date + 1
+             AND (${after}::uuid IS NULL OR id > ${after}::uuid)
+          UNION
+          SELECT h.root, p.id FROM people.person p JOIN human h ON p.merged_into = h.id
+           WHERE p.tenant_id = ${tenantId}::uuid
+        )
+        SELECT DISTINCT r.id AS person_id, r.last_working_day::text AS last_working_day,
+               nullif(concat_ws(' ', r.given_name, r.family_name), '') AS name
+          FROM human h
+          JOIN people.person p ON p.tenant_id = ${tenantId}::uuid AND p.id = h.id
+          JOIN people.person r ON r.tenant_id = ${tenantId}::uuid AND r.id = h.root
+         WHERE p.custom ?| ${sql.param([...keys])}::text[]
+            OR ${inColumn}
+            OR EXISTS (SELECT 1 FROM people.person_secret s
+                        WHERE s.tenant_id = p.tenant_id AND s.person_id = p.id
+                          AND s.attribute_key = ANY(${sql.param([...keys])}::text[]))
+            OR EXISTS (SELECT 1 FROM people.person_attribute_history ph
+                        WHERE ph.tenant_id = p.tenant_id AND ph.person_id = p.id
+                          AND ph.attribute_key = ANY(${sql.param([...keys])}::text[])
+                          AND ph.redacted_at IS NULL AND ph.value IS NOT NULL)
+         ORDER BY r.id
+         LIMIT ${limit}
+      `);
+      return [...rows].map((r) => ({
+        personId: String(r['person_id']),
+        lastWorkingDay: String(r['last_working_day']),
+        name: typeof r['name'] === 'string' ? r['name'] : null,
+      }));
     },
 
     async policies(tx, tenantId) {

@@ -1140,12 +1140,33 @@ Ordered, but none of it blocks Phase 1 shipping.
       "Undo merge" dialog listing what goes back and what is kept. Identifier
       reviews the merge superseded are not reopened; a sealed value is
       re-checked the next time it is written._
-- [ ] DSAR and retention follow `merged_into`. A tombstone's history is the
+- [x] DSAR and retention follow `merged_into`. A tombstone's history is the
       survivor's human, and neither the DSAR export nor the retention clock
-      reads it yet. Found in PEO-074. _(PRD §12)_
-- [ ] **PEO-075** Automated anonymisation on retention expiry. **Blocked until
-      counsel reviews the floors** (PEO-126): `mayErase` refuses automated
-      erasure under an unreviewed floor. _(PRD §8.1, §12)_
+      reads it yet. Found in PEO-074. _(PRD §12)_ _Landed: `tombstonesOf`
+      follows `merged_into` however deep. The DSAR pack carries each
+      tombstone under `mergedRecords` (`source: 'merged_record'`, its own
+      schema version, `mergedInto`), never mixed into the subject's values.
+      `anonymiseDue` reads the survivor's clock over what the survivor and
+      its tombstones hold, and erases the tombstones with the survivor under
+      the same floors, one `people.person.anonymised` each carrying
+      `survivorId`; a tombstone asked for on its own is never due. No
+      migration._
+- [x] **PEO-075** Automated anonymisation on retention expiry. _(PRD §8.1,
+      §12)_ _Built; **erases only under reviewed floors**. Every floor is a
+      placeholder still unreviewed (PEO-126), so today it erases only values
+      a tenant policy with no floor governs, and nothing under a floor until
+      counsel reviews it; the next run after a review erases. `sweepRetention`
+      in `application/retention/sweep.ts`, wired hourly in `background.ts`: a
+      bounded batch of candidate leavers per tenant, resumed by keyset, each
+      through `anonymiseDue` (`automated`, actor `system:retention`) in its own
+      transaction; refused `RETENTION_FLOOR_UNREVIEWED` is skipped, logged and
+      counted. The event carries `automatedReason` ("retention expired
+      (es-labour)"). A background job rather than Temporal: fire-and-forget,
+      no human step. HR sees who is next on the Company tab
+      (`peopleOrganisation.upcomingErasures`, "Waiting for legal review"),
+      `nextErasure` in `domain/retention/floors.ts`. No migration._ _Still
+      open:_ no legal hold or open-DSAR state exists to guard; HR's by-hand
+      erasure still has no route or profile control (PEO-126's follow-up).
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
 - [x] **PEO-077** Approval workflows on sensitive changes, via Temporal.
       _(PRD §8.6)_ _A per-field `requiresApproval`, on by default for
@@ -1911,4 +1932,4 @@ it is written down here rather than left in a PR description.
 | PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
-| PEO-075 | counsel reviews the floors | Automated erasure refuses an unreviewed floor (PEO-126); HR may erase one person by hand, with a stated reason |
+| PEO-075 | built; inert per floor until counsel reviews it | The job runs and erases under a tenant policy alone; it skips any leaver relying on an unreviewed floor (all three today) until that floor is reviewed (PEO-126) |

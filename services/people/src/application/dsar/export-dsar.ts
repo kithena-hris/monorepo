@@ -27,6 +27,11 @@ import type { PersonRepository } from '../person-repository.js';
  * Every exportable attribute appears, filled in or not: a pack that omits
  * empty fields cannot be told apart from one that lost them.
  *
+ * **A merge's tombstones are the subject's too** (PEO-074). Every record
+ * merged into theirs, however many merges deep, is in `mergedRecords`, each
+ * under its own schema version and labelled with the record it was merged
+ * into: its values, history and events, never mixed into the subject's own.
+ *
  * `ponytail: JSON only. The zip with a PDF for reading and the attached
  * documents waits for PEO-061's PDF renderer and a document store; this is
  * the JSON file that pack will contain.`
@@ -60,6 +65,23 @@ export interface DsarPackage {
    * identity is not the subject's data.
    */
   readonly changes: readonly DsarChange[];
+  /**
+   * Records merged into this one (PEO-074): the same human, kept apart so
+   * nobody reads a tombstone's old value as the subject's current one.
+   */
+  readonly mergedRecords: readonly DsarMergedRecord[];
+}
+
+/** A tombstone's part of the pack, labelled as from a merged record. */
+export interface DsarMergedRecord {
+  readonly source: 'merged_record';
+  readonly personId: string;
+  /** The record it was merged into: the subject, or another tombstone of theirs. */
+  readonly mergedInto: string;
+  readonly schemaVersion: number;
+  readonly attributes: readonly DsarAttribute[];
+  readonly history: readonly HistoryEntry[];
+  readonly events: readonly unknown[];
 }
 
 export interface DsarChange {
@@ -96,6 +118,8 @@ export interface DsarSource {
   /** A published version's document; the latest when `version` is null. */
   document(tx: PostgresJsDatabase, tenantId: string, version: number | null): Promise<{ version: number; document: SchemaDocument } | null>;
   events(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly unknown[]>;
+  /** Every tombstone merged into this person, however many merges deep (PEO-074). */
+  tombstones(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly string[]>;
 }
 
 export interface ExportDsarDeps {
@@ -127,49 +151,25 @@ export function exportDsar(
       return err(failure('DSAR_NOT_SUBJECT', 'A subject access export is run as the subject'));
     }
 
-    const record = await deps.source.record(tx, tenantId, personId);
-    if (!record) return err(failure('PERSON_NOT_FOUND', 'No such person', ['personId']));
+    const own = await recordPack(deps, tx, tenantId, personId);
+    if (!own.ok) return own;
+    const { record, exportable, attributes, history, events } = own.value;
 
-    /*
-     * A record never validated against a version (a provisional one) is read
-     * under the latest. No version at all is refused rather than answered
-     * with an empty pack: an incomplete DSAR that looks complete is the one
-     * outcome worse than a late one.
-     */
-    const manifest = await deps.source.document(tx, tenantId, record.schemaVersion);
-    if (!manifest) {
-      return err(failure('DSAR_NO_SCHEMA', 'No published schema version to export under'));
-    }
-
-    const exportable = manifest.document.attributes.filter((a) => a.classification.exportable);
-    const withheld = new Set(
-      manifest.document.attributes.filter((a) => !a.classification.exportable).map((a) => a.key as string),
-    );
-
-    const attributes: DsarAttribute[] = [];
-    for (const a of exportable) {
-      const key = a.key as string;
-      const value = a.encrypted
-        ? // eslint-disable-next-line no-await-in-loop -- a handful of secrets per person
-          await deps.secrets.reveal(tx, { tenantId, personId, attributeKey: key })
-        : // A tenant field lives in `custom`; a core one is a typed column of the same name.
-          Object.hasOwn(record.custom, key)
-          ? record.custom[key]
-          : record.columns[key];
-      attributes.push({
-        key,
-        label: a.label.default,
-        sectionKey: a.sectionKey,
-        classification: a.classification.classification,
-        piiKind: a.classification.piiKind,
-        value: value ?? null,
+    const mergedRecords: DsarMergedRecord[] = [];
+    for (const id of await deps.source.tombstones(tx, tenantId, personId)) {
+      // eslint-disable-next-line no-await-in-loop -- a merge or two per person
+      const pack = await recordPack(deps, tx, tenantId, id);
+      if (!pack.ok) return pack;
+      mergedRecords.push({
+        source: 'merged_record',
+        personId: id,
+        mergedInto: String(pack.value.record.columns['merged_into']),
+        schemaVersion: pack.value.version,
+        attributes: pack.value.attributes,
+        history: pack.value.history,
+        events: pack.value.events,
       });
     }
-
-    const [history, events] = await Promise.all([
-      deps.people.history(tx, tenantId, personId),
-      deps.source.events(tx, tenantId, personId),
-    ]);
 
     const now = deps.clock.instant();
     const labels = new Map(exportable.map((a) => [a.key as string, a.label.default]));
@@ -214,11 +214,67 @@ export function exportDsar(
     return ok({
       personId,
       generatedAt: now,
-      schemaVersion: manifest.version,
+      schemaVersion: own.value.version,
       attributes,
-      history: history.filter((h) => !withheld.has(h.attributeKey)),
+      history,
       events,
       changes,
+      mergedRecords,
     });
   };
+}
+
+/** One record's values, history and events under the version it was written under. */
+async function recordPack(deps: ExportDsarDeps, tx: PostgresJsDatabase, tenantId: string, personId: string) {
+  const record = await deps.source.record(tx, tenantId, personId);
+  if (!record) return err(failure('PERSON_NOT_FOUND', 'No such person', ['personId']));
+
+  /*
+   * A record never validated against a version (a provisional one) is read
+   * under the latest. No version at all is refused rather than answered
+   * with an empty pack: an incomplete DSAR that looks complete is the one
+   * outcome worse than a late one.
+   */
+  const manifest = await deps.source.document(tx, tenantId, record.schemaVersion);
+  if (!manifest) {
+    return err(failure('DSAR_NO_SCHEMA', 'No published schema version to export under'));
+  }
+
+  const exportable = manifest.document.attributes.filter((a) => a.classification.exportable);
+  const withheld = new Set(
+    manifest.document.attributes.filter((a) => !a.classification.exportable).map((a) => a.key as string),
+  );
+
+  const attributes: DsarAttribute[] = [];
+  for (const a of exportable) {
+    const key = a.key as string;
+    const value = a.encrypted
+      ? // eslint-disable-next-line no-await-in-loop -- a handful of secrets per person
+        await deps.secrets.reveal(tx, { tenantId, personId, attributeKey: key })
+      : // A tenant field lives in `custom`; a core one is a typed column of the same name.
+        Object.hasOwn(record.custom, key)
+        ? record.custom[key]
+        : record.columns[key];
+    attributes.push({
+      key,
+      label: a.label.default,
+      sectionKey: a.sectionKey,
+      classification: a.classification.classification,
+      piiKind: a.classification.piiKind,
+      value: value ?? null,
+    });
+  }
+
+  const [history, events] = await Promise.all([
+    deps.people.history(tx, tenantId, personId),
+    deps.source.events(tx, tenantId, personId),
+  ]);
+  return ok({
+    record,
+    version: manifest.version,
+    exportable,
+    attributes,
+    history: history.filter((h) => !withheld.has(h.attributeKey)),
+    events,
+  });
 }

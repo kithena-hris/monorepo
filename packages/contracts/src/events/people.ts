@@ -773,6 +773,17 @@ export const PersonAnonymised = defineEvent(
      * for why, the actor on the envelope says who. Absent on an automated run.
      */
     manualReason: z.string().min(1).max(500).optional().register(policy, asFreeText()),
+    /**
+     * Present when the retention job erased (PEO-075): "retention expired
+     * (es-labour)", naming the floors or the tenant policy that decided.
+     * Written by the job, never by a person.
+     */
+    automatedReason: z.string().min(1).max(200).optional().register(policy, asInternal()),
+    /**
+     * Present when this record is a merge's tombstone, erased because the
+     * survivor it points at was: one human, one retention clock (PEO-074).
+     */
+    survivorId: z.uuid().optional().register(policy, asPublic()),
   }),
 );
 
