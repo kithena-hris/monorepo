@@ -145,6 +145,7 @@ async function boot(analyzed: boolean): Promise<Database> {
     '20260922160000_people_registry.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
     '20260924350000_people_unique_key_lookup.sql',
