@@ -1,8 +1,8 @@
 import * as z from 'zod';
 import { failure, ok, type Result } from '@kithena/domain-kit';
 
+import { analyticsView } from '../application/screens/analytics.js';
 import {
-  analyticsView,
   commitImportView,
   completeImportUpload,
   createEndpoint,
@@ -32,6 +32,7 @@ import {
 } from '../application/screens/people.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
+import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import {
   addSection,
   adviseClassification,
@@ -137,6 +138,13 @@ export const UploadStart = z.strictObject({
 export const ImportStepBody = z.strictObject({
   uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
+});
+
+/** A saved segment (PEO-068): a name and the directory's filter, never a list of people. */
+export const SegmentBody = z.strictObject({
+  name: z.string().max(80),
+  filter: z.record(z.string().max(64), z.string().max(200)),
+  shared: z.boolean(),
 });
 
 const answer = <T>(result: Result<T>, status = 200): RestResponse =>
@@ -340,11 +348,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
           return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
         }
+        const segment = query.get('segment') ?? undefined;
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
         return answer(
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
             after: after ?? null,
+            ...(segment === undefined ? {} : { segmentId: segment }),
           }),
         );
       },
@@ -591,7 +604,47 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/analytics$/,
-      handle: async (asking) => answer(await analyticsView(deps, asking)),
+      handle: async (asking, _r, _p, query) => {
+        const segment = query.get('segment') ?? undefined;
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
+        return answer(
+          await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
+        );
+      },
+    },
+
+    /* saved segments (PEO-068) */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/segments$/,
+      handle: async (asking) => {
+        const listed = await segmentsView(deps, asking);
+        return answer(listed.ok ? ok({ items: listed.value }) : listed);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/segments$/,
+      handle: write(SegmentBody, (asking, input) => saveSegment(deps, asking, input), {
+        status: 201,
+        resource: (_asking, _id, made) => made.id,
+        again: async (asking, id) => {
+          const listed = await segmentsView(deps, asking);
+          const made = listed.ok ? listed.value.find((s) => s.id === id) : undefined;
+          return made === undefined
+            ? refused(failure('NOT_FOUND', 'There is no such segment'))
+            : { status: 201, body: made };
+        },
+      }),
+    },
+    {
+      method: 'DELETE',
+      pattern: new RegExp(`^/v1/segments/${UUID}$`),
+      handle: write(NoBody, (asking, _input, id) => deleteSegment(deps, asking, id), {
+        resource: (_asking, id) => id,
+      }),
     },
   ];
 }

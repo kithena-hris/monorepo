@@ -88,6 +88,27 @@ function keysOf(dimensions: readonly Dimension[], filters: Filters | undefined):
   ];
 }
 
+/**
+ * A saved segment's filter (PEO-068) as chart filters: each attribute key to
+ * the snapshot dimension that holds it. A key no dimension holds is refused
+ * rather than dropped — a chart that quietly ignored half a segment would be
+ * a chart of somebody else's segment. Whether the viewer may filter by each
+ * is `authorizeChart`'s, when the chart is drawn, as for any filter.
+ */
+export function chartFilters(filter: Readonly<Record<string, string>>): Result<Filters> {
+  const filters: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(filter)) {
+    const dimension = (Object.keys(DIMENSIONS) as Dimension[]).find(
+      (d) => DIMENSIONS[d].key === key && d !== 'tenure_band',
+    );
+    if (dimension === undefined) {
+      return err(failure('SEGMENT_NOT_CHARTABLE', `Analytics cannot filter by ${key}`, [key]));
+    }
+    filters[dimension] = [value];
+  }
+  return ok(filters as Filters);
+}
+
 /** Any key at all counts, so a stray `{ department: undefined }` errs towards refusing. */
 const hasFilters = (filters: Filters | undefined): boolean => Object.keys(filters ?? {}).length > 0;
 
@@ -754,13 +775,13 @@ export async function completeness(
 /** When do people join? Joiners by month against department. */
 export async function joinerHeatmap(
   ctx: ChartContext,
-  range: { readonly from: string; readonly to: string },
+  range: { readonly from: string; readonly to: string; readonly filters?: Filters },
 ): Promise<
   Result<{
     readonly cells: readonly { month: string; department: string | null; joiners: number }[];
   }>
 > {
-  const authorized = authorizeRange(ctx, ['department'], undefined);
+  const authorized = authorizeRange(ctx, ['department'], range.filters);
   if (!authorized.ok) return authorized;
   const scope = scopeOf(ctx.viewer, ctx.tenantId);
 
@@ -770,6 +791,7 @@ export async function joinerHeatmap(
           FROM people.headcount_snapshot
          WHERE tenant_id = ${ctx.tenantId}::uuid AND scope_id = ${scope}::uuid
            AND day > ${range.from}::date AND day <= ${range.to}::date
+           AND ${filterSql(range.filters)}
          GROUP BY 1, 2
         HAVING sum(joiners) > 0
          ORDER BY 1, 2`,

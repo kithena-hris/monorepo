@@ -67,6 +67,7 @@ import {
   drizzleSchemaRepository,
 } from '../infrastructure/drizzle-schema-repository.js';
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
+import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { callerWithEntitlements, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
@@ -417,6 +418,7 @@ function screenDeps(
     calendars,
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
+    segments: { store: drizzleSegments(), newId: uuidv7 },
     schema,
     draft: drizzleDraftWriter(),
     publisher: publishSchema({
@@ -504,6 +506,7 @@ export function wirePeople(server: Server): void {
     idempotency,
     exports,
     fullValues: exports.fullValues,
+    segments: drizzleSegments(),
     screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).

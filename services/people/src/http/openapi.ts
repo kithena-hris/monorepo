@@ -50,6 +50,7 @@ import {
   Sections,
   SetupChoice,
   ImportStepBody,
+  SegmentBody,
   UploadStart,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
@@ -115,6 +116,7 @@ const components = {
   PatchWebhookEndpoint: EndpointPatch,
   ImportUploadStart: UploadStart,
   ImportStep: ImportStepBody,
+  Segment: SegmentBody,
   RoleHolder: RoleHolderBody,
   RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
   RoleChange: RoleChangeBody,
@@ -292,6 +294,17 @@ function screenPaths(): Record<string, unknown> {
       post: screenWrite('Send a stored delivery again', null, 201, '{ deliveryId }', {
         path: 'id',
       }),
+    },
+    '/v1/segments': {
+      post: screenWrite(
+        'Save a segment: a named filter, shared within the tenant or not (PEO-068)',
+        'Segment',
+        201,
+        'The segment, and where you could use it',
+      ),
+    },
+    '/v1/segments/{id}': {
+      delete: screenWrite('Delete a segment you saved', null, 200, 'Deleted', { path: 'id' }),
     },
     '/v1/imports/uploads': {
       post: screenWrite(

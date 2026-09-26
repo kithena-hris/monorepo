@@ -6,6 +6,7 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
+import { segmentFor, segmentsFor } from './segments.js';
 import type {
   FormValue,
   FormValues,
@@ -578,6 +579,9 @@ export interface DirectoryView {
   readonly next: string | null;
   /** Which of the screen's two buttons this viewer gets (§13.1). */
   readonly can: { readonly import: boolean; readonly export: boolean };
+  /** The saved segment applied (PEO-068), and those this viewer could apply here. */
+  readonly segment: { readonly id: string; readonly name: string } | null;
+  readonly segments: readonly { readonly id: string; readonly name: string }[];
 }
 
 /** Shown as columns: in the directory, and readable on everybody. */
@@ -601,6 +605,8 @@ export async function directoryView(
     readonly search: string;
     readonly filters: Readonly<Record<string, string>>;
     readonly after?: string | null;
+    /** A saved segment's filter, under any typed alongside it (PEO-068). */
+    readonly segmentId?: string;
   },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
@@ -609,9 +615,14 @@ export async function directoryView(
     const definitions = version.document.attributes.filter((d) => d.deprecatedAt === null);
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
 
+    // The segment's filter is authorized below exactly as a typed one is:
+    // `list` refuses a key this viewer cannot filter by, over their people.
+    const segment =
+      query.segmentId === undefined ? null : await segmentFor(deps, tx, asking, query.segmentId);
+    if (segment !== null && !segment.ok) return segment;
     const narrowed = {
       ...asking,
-      where: query.filters,
+      where: { ...(segment?.value.filter ?? {}), ...query.filters },
       ...(query.search.trim() === '' ? {} : { search: query.search }),
     };
     const listed = await deps.service.access.list(tx, {
@@ -686,6 +697,10 @@ export async function directoryView(
       next: listed.value.next,
       // An export is a read, so everybody may build one of what they can see.
       can: { import: everyone.isHr, export: true },
+      segment: segment === null ? null : { id: segment.value.id, name: segment.value.name },
+      segments: (await segmentsFor(deps, tx, asking))
+        .filter((s) => s.usableIn.directory)
+        .map((s) => ({ id: s.id, name: s.name })),
     });
   });
 }

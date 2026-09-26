@@ -9,6 +9,7 @@ import type { Asking, PersonView } from '../person/person-access.js';
 import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
+import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
 import type {
   FormValue,
   FormValues,
@@ -38,6 +39,8 @@ export interface ScreenDeps {
   readonly calendars: Calendars;
   /** The completeness grid's totals over everybody (PEO-122). */
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
+  /** Saved segments (PEO-068). Absent, their routes answer UNAVAILABLE. */
+  readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
 }
 
 /** HR's share of the completeness grid, counted over everybody (PEO-122). */
