@@ -1,6 +1,8 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition, ViewerScope, WriterRole } from '@kithena/contracts';
 
+import { evaluatePredicate, type PersonFacts } from '../schema/requiredness.js';
+
 /**
  * Field-level authorization, as a pure intersection.
  *
@@ -28,6 +30,13 @@ export interface ViewerRelations {
   readonly isFinance: boolean;
   /** `people_admin`: may edit the schema. Not a key to every value in it. */
   readonly isAdmin: boolean;
+  /**
+   * The person being looked at, when there is one, for custom visibility
+   * rules (PEO-066). Absent for a question about everybody — a filter, a
+   * search, a directory column — and then no rule holds: a rule is true of
+   * some records, and those questions answer for all of them.
+   */
+  readonly subject?: PersonFacts;
 }
 
 /** Which scopes this viewer satisfies. `directory` is everyone in the tenant. */
@@ -62,9 +71,20 @@ function rolesOf(viewer: ViewerRelations): ReadonlySet<WriterRole> {
  * fallback: editing the schema is not a key to every value in it.
  */
 export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelations): boolean {
-  if (definition.visibility.length === 0) return false;
   const scopes = scopesOf(viewer);
-  return definition.visibility.some((scope) => scopes.has(scope));
+  if (definition.visibility.some((scope) => scopes.has(scope))) return true;
+
+  // A custom rule (PEO-066) grants one of the same scopes, on the records its
+  // predicate holds for. Never for special-category data, whatever a stored
+  // document says: the contract refuses it, and this is the read side of that.
+  const { subject } = viewer;
+  if (subject === undefined || definition.classification.classification === 'special-category') {
+    return false;
+  }
+  return (definition.visibilityRules ?? []).some(
+    (rule) =>
+      rule.scopes.some((scope) => scopes.has(scope)) && evaluatePredicate(rule.when, subject).holds,
+  );
 }
 
 /**

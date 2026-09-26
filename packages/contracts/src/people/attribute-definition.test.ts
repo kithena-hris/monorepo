@@ -159,3 +159,49 @@ describe('the rest of the shape', () => {
     expect(AttributeDefinition.safeParse(without).success).toBe(false);
   });
 });
+
+describe('custom visibility rules (PEO-066)', () => {
+  const rule = {
+    scopes: ['manager'],
+    when: { combine: 'all', clauses: [{ operand: 'country', in: ['ES'] }] },
+  };
+
+  it('are absent unless given, so a document published without them keeps its checksum', () => {
+    const parsed = define();
+    expect(parsed.success && 'visibilityRules' in parsed.data).toBe(false);
+  });
+
+  it('grant scopes on the closed predicate requiredness already uses', () => {
+    expect(define({ visibilityRules: [rule] }).success).toBe(true);
+    expect(
+      define({
+        visibilityRules: [{ ...rule, when: { clauses: [{ operand: 'salary', in: ['x'] }] } }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('refuses a rule that grants nobody', () => {
+    expect(define({ visibilityRules: [{ ...rule, scopes: [] }] }).success).toBe(false);
+  });
+
+  it('never apply to special-category data, which is not shown conditionally', () => {
+    expect(
+      define({
+        classification: {
+          classification: 'special-category',
+          piiKind: 'health',
+          exportable: true,
+          aiEligible: false,
+        },
+        visibilityRules: [rule],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('do not make a required field readable: they hold of some records only', () => {
+    expect(
+      define({ visibility: [], visibilityRules: [rule], requiredness: { mode: 'always' } })
+        .success,
+    ).toBe(false);
+  });
+});

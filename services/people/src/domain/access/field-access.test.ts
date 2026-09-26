@@ -183,3 +183,82 @@ describe('the decision both paths share', () => {
     expect(Object.hasOwn(seen, 'base_salary')).toBe(visibleTo(salary, relations({ isFinance: true })));
   });
 });
+
+describe('custom visibility rules (PEO-066)', () => {
+  const inSpain = {
+    legalEntityId: null,
+    country: 'ES',
+    employmentType: 'permanent' as const,
+    workModel: null,
+    status: 'active' as const,
+    values: {},
+    knownAttributes: new Set<string>(),
+  };
+  const inGermany = { ...inSpain, country: 'DE' };
+  const permit = define({
+    key: 'work_permit_expiry',
+    visibility: ['hr'],
+    visibilityRules: [
+      {
+        scopes: ['manager'],
+        when: { combine: 'all', clauses: [{ operand: 'country', in: ['ES'] }] },
+      },
+    ],
+  });
+
+  it('show the field to the scope on the records the predicate holds for', () => {
+    expect(visibleTo(permit, relations({ isManager: true, subject: inSpain }))).toBe(true);
+  });
+
+  it('and not on the others', () => {
+    expect(visibleTo(permit, relations({ isManager: true, subject: inGermany }))).toBe(false);
+  });
+
+  it('grant nothing to a scope the rule does not name', () => {
+    expect(visibleTo(permit, relations({ isFinance: true, subject: inSpain }))).toBe(false);
+  });
+
+  it('grant nothing when the record is not known: a question about everybody', () => {
+    // A filter or a search over this field would answer for the people the
+    // rule does not hold for, so without a subject no rule applies.
+    expect(visibleTo(permit, relations({ isManager: true }))).toBe(false);
+  });
+
+  it('grant nothing when the predicate cannot be evaluated', () => {
+    const onArchived = define({
+      key: 'notes',
+      visibility: ['hr'],
+      visibilityRules: [
+        {
+          scopes: ['manager'],
+          when: {
+            combine: 'any',
+            clauses: [
+              { operand: 'country', in: ['ES'] },
+              { operand: 'attribute', key: 'archived_thing', is: 'set' },
+            ],
+          },
+        },
+      ],
+    });
+    expect(visibleTo(onArchived, relations({ isManager: true, subject: inSpain }))).toBe(false);
+  });
+
+  it('are what the read path filters by, absent rather than null', () => {
+    const values = { work_permit_expiry: '2027-01-01' };
+    expect(readable([permit], values, relations({ isManager: true, subject: inGermany }))).toEqual(
+      {},
+    );
+    expect(readable([permit], values, relations({ isManager: true, subject: inSpain }))).toEqual(
+      values,
+    );
+  });
+
+  it('never show special-category data, even from a document that slipped past the contract', () => {
+    const smuggled: AttributeDefinition = {
+      ...ethnicity,
+      visibilityRules: permit.visibilityRules ?? [],
+    };
+    expect(visibleTo(smuggled, relations({ isManager: true, subject: inSpain }))).toBe(false);
+  });
+});
