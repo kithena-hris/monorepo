@@ -1000,8 +1000,22 @@ Ordered, but none of it blocks Phase 1 shipping.
       dimensions (`org_unit`, `work_location`, `status`, `employment_type`);
       a segment over another key is offered in the directory and export only.
       Deleting is REST and GraphQL only; the screens have no delete yet._
-- [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
+- [x] **PEO-069** Scheduled reports through `platform/messaging` — the email
       carries a link, not the data. _(PRD §16.3)_
+      _Landed as migration 20260926170000 (`people.report_schedule`,
+      `people.report_run`; widens `messaging.delivery`'s kinds). HR and
+      `people_admin` schedule an XLSX/PDF export or the analytics summary over
+      a segment or a filter, daily/weekly/monthly on a legal entity's clock,
+      to 1–25 accounts. Each run is built **as each recipient** at send time
+      through the export path — nobody receives a report built as the owner.
+      The email (`scheduled_report` notice) links to the tenant app:
+      `/people/export?export=<id>` (the recipient's own, signed there for 24
+      hours) or `/people/analytics`. Runs are idempotent per (schedule,
+      period) and **catch up on wake**: the sweep runs on boot and hourly in
+      the People process, sends only the latest missed period, and counts
+      the ones it covers. REST only (`/v1/report-schedules`); the screen that
+      manages schedules is not built — the export page shows a report's
+      download when its email is opened._
 - [x] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
       enforced in the query. Its design follows PEO-083: served from the
       monthly publication, rounded to 5, never from the live snapshot.

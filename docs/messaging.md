@@ -191,6 +191,20 @@ has not heard yet, only the event is raised. The durable
 notice is `people.webhook.endpoint_disabled`; this email is best effort beside
 it, keyed on the endpoint so a retry is one message.
 
+### `scheduled_report` (PEO-069)
+
+`{ "kind": "scheduled_report", "cadence": "weekly", "format": "xlsx" }` —
+`cadence` is `daily`, `weekly` or `monthly`, `format` `xlsx`, `pdf` or
+`summary`. People sends one per recipient per run of a schedule HR made, keyed
+on the schedule, the period and the recipient. It says how often and in what
+format, and nothing else: not the schedule's name (typed by whoever made it,
+so it can say anything), not who the report is about, not a number. A file
+links to `<slug>.app…/people/export?export=<id>`, where the recipient — only
+the recipient — signs in and is handed the signed 24-hour download; a summary
+links to `<slug>.app…/people/analytics`. Both are on the company's own origin,
+so no second link rule was needed, and both survive the backend being asleep:
+the tenant app wakes it, where a link straight to the file would not.
+
 ---
 
 ## What it refuses to hold

@@ -106,8 +106,21 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         endpointId: query.params['id'] ?? '',
         after: given(query.search['after']),
       });
-    case 'ExportBuilder':
-      return read('ExportBuilder');
+    case 'ExportBuilder': {
+      const builder = await read('ExportBuilder');
+      // A scheduled report's email links here with its export (PEO-069).
+      const id = given(query.search['export']);
+      if (builder.status !== 'ready' || id === null) return builder;
+      const ready = await people<object>('ScheduledExport', { id });
+      return {
+        status: 'ready',
+        data: {
+          ...(builder.data as object),
+          // Somebody else's, or gone: said as such, never as an error page.
+          ready: ready.ok ? ready.data : { status: 'missing', links: [], expiresAt: null },
+        },
+      };
+    }
     case 'Analytics':
       return read('Analytics', { segment: given(query.search['segment']) }, VIEWS.Analytics);
     case 'PeopleSetup': {

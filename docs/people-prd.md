@@ -2313,6 +2313,11 @@ GET    /v1/exports/files/{key}         a signed link, 24 hours; carries its own 
 POST   /v1/exports/full-values         finance asks for sealed fields in full, with a reason
 GET    /v1/exports/full-values/{id}    the requester or HR; the one-use link to the requester only
 POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
+GET    /v1/report-schedules            HR and people_admin: scheduled reports, each with its last run (§16.3)
+POST   /v1/report-schedules            schedule an export file or the analytics summary; first runs next period
+POST   /v1/report-schedules/{id}/pause   and /resume — resuming skips what it was paused through
+DELETE /v1/report-schedules/{id}       with its run history
+GET    /v1/report-schedules/{id}/runs  the last 50 runs: period, periods covered, outcome per recipient
 GET    /v1/roles                       who holds a tenant role; HR and people_admin (PEO-112)
 POST   /v1/roles/grants                people_admin: grant a role, with a reason; never to oneself
 POST   /v1/roles/revocations           people_admin: revoke one; never the last people_admin (409)
@@ -3286,6 +3291,53 @@ beside charts that are. Only the owner deletes a segment.
 Scheduled reports go out through `platform/messaging` on a tenant-set cadence:
 a PDF roster, an XLSX export, or a digest of the completeness numbers. The
 email carries a link, not the data.
+
+**As built (PEO-069).** A schedule is `people.report_schedule`: a name, an
+audience (a saved segment, or a filter where `{}` is everybody), a report — an
+export file (XLSX or PDF, chosen fields or all, with the reason a financial
+field needs) or the summary, which is the analytics screen and its headcount,
+movement and completeness numbers — a cadence (daily, weekly on a weekday, or
+monthly on the 1st–28th, at an hour), whose clock the hour is read on (a legal
+entity's, else the tenant's default), and 1–25 recipients, who must sign in
+here. HR and People administrators make, pause, resume and delete them; a
+schedule is the tenant's cadence, not a person's. It holds no result and no
+person.
+
+**Every run is authorized as each recipient, at send time.** The file is the
+export that recipient could have asked for themselves that morning — their
+rows, their readable columns, the segment's filter refused if they may not
+filter by it — built through the ordinary export path and audited as
+`people.export.completed` with the schedule's process as the actor. A summary
+goes only to somebody the analytics screen would draw for, and under a segment
+only to somebody who could chart by it. Nobody is sent a report built as the
+owner. A recipient who has left or has no work email, a run whose owner no
+longer holds `hr` or `people_admin`, and a run whose segment has gone are
+recorded and sent nothing. So two recipients of one schedule can receive
+different files, each exactly what they may read.
+
+**The email carries a link to the tenant app, never the data or the file's
+own link** (`scheduled_report`, docs/messaging.md): a file waits at
+`/people/export?export=<id>`, where only its recipient is handed the signed
+24-hour download, and a summary is `/people/analytics`. A forwarded email
+opens nothing, and the tenant app wakes a sleeping backend where a direct file
+link would be dead. The email says how often and in what format — never the
+schedule's name, who it is about, or a number.
+
+**Periods, not timers, because the backend sleeps.** A period is the calendar
+date an occurrence falls on in the schedule's zone. The sweep runs in the
+People process on every boot and hourly after, and a schedule is due when a
+period has come that has not run. Only the latest is sent — a report is built
+from the day it is sent, whichever period it is for — and the periods it
+covers are counted on the run. So a weekly report reaches its recipients the
+next time anybody wakes People, not at 07:00 on Monday, and a tenant nobody
+opens for a month gets one report, not four. A new schedule starts from the
+period current when it is saved and a resumed one from the period current when
+it is resumed: neither sends on the spot, and a pause is not caught up. Each
+run is `people.report_run`, keyed on (schedule, period): claimed and committed
+before anything is built, so two replicas or two sweeps send a period once,
+and a crash mid-run leaves that period recorded without an outcome rather than
+sent twice. CSV is not offered: it is several files for one export, and a
+scheduled report is one.
 
 **Exporting a chart exports its data**, as CSV or XLSX, plus the chart itself
 inside the PDF report. There is no "download as PNG" — a PNG of a chart is a

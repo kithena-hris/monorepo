@@ -60,6 +60,44 @@ describe('renderNotice: profile_reminder', () => {
   });
 });
 
+describe('renderNotice: scheduled_report', () => {
+  const EXPORT =
+    'https://acme.app.kithena.com/people/export?export=0190a0b2-0000-7000-8000-000000000001';
+
+  it('says how often and what format, links to the page that holds the file, and nothing more', () => {
+    const result = renderNotice(
+      { kind: 'scheduled_report', cadence: 'weekly', format: 'xlsx' },
+      EXPORT,
+      ACME,
+    );
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: your weekly People report is ready');
+    expect(result.value.text).toContain('weekly Excel report');
+    expect(result.value.text).toContain('24 hours');
+    expect(result.value.html).toContain(`href="${EXPORT.replace('&', '&amp;')}"`);
+  });
+
+  it('sends a summary to the numbers rather than with them', () => {
+    const result = renderNotice(
+      { kind: 'scheduled_report', cadence: 'monthly', format: 'summary' },
+      'https://acme.app.kithena.com/people/analytics',
+      ACME,
+    );
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: your monthly People summary');
+    expect(result.value.text).toContain('Open the summary');
+  });
+
+  it('refuses a cadence or format it has no words for', () => {
+    for (const notice of [
+      { kind: 'scheduled_report', cadence: 'hourly', format: 'xlsx' },
+      { kind: 'scheduled_report', cadence: 'daily', format: '<b>csv</b>' },
+    ]) {
+      expect(renderNotice(notice as never, PROFILE, ACME).ok).toBe(false);
+    }
+  });
+});
+
 describe('the company', () => {
   it('is named in the subject and both bodies, and escaped in the HTML', () => {
     const result = renderNotice({ kind: 'profile_reminder', missing: 2 }, PROFILE, 'Smith & <Co>');
