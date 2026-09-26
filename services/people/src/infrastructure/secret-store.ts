@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, ne } from 'drizzle-orm';
+import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { logger } from '@kithena/telemetry';
 
@@ -232,7 +232,13 @@ export function secretRotation(
         .selectDistinct({ keyId: personSecret.keyId })
         .from(personSecret)
         .where(eq(personSecret.tenantId, tenantId));
-      return rows.map((r) => r.keyId).filter((id) => ring.byId(id) === undefined);
+      // A value waiting for approval is sealed under the same ring (PEO-077).
+      const pending = await tx.execute<{ key_id: string }>(sql`
+        SELECT DISTINCT key_id FROM people.pending_change
+         WHERE tenant_id = ${tenantId}::uuid AND key_id IS NOT NULL`);
+      return [...new Set([...rows.map((r) => r.keyId), ...[...pending].map((r) => r.key_id)])].filter(
+        (id) => ring.byId(id) === undefined,
+      );
     });
     if (missing.length > 0) {
       halted = true;
@@ -269,6 +275,33 @@ export function secretRotation(
       });
       if (done.length < batch) break;
       after = done.at(-1)?.personId ?? after;
+    }
+    // Values waiting for approval (PEO-077), sealed under the same ring: moved
+    // onto the current key the same way, so an old key can go as soon as this
+    // run is done. A closed change holds no ciphertext.
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop -- one batch, one transaction, at a time
+      const moved = await inTenant(tenantId, async ({ tx }) => {
+        const rows = await tx.execute<{ id: string; ciphertext: Buffer; key_id: string }>(sql`
+          SELECT id, ciphertext, key_id FROM people.pending_change
+           WHERE tenant_id = ${tenantId}::uuid AND ciphertext IS NOT NULL AND key_id <> ${current}
+           ORDER BY id LIMIT ${batch}`);
+        for (const row of rows) {
+          const next = rewrap(
+            { ciphertext: Buffer.from(row.ciphertext).toString('base64'), keyId: row.key_id },
+            ring,
+          );
+          // eslint-disable-next-line no-await-in-loop -- see `rotate`
+          await tx.execute(sql`
+            UPDATE people.pending_change
+               SET ciphertext = ${Buffer.from(next.ciphertext, 'base64')}, key_id = ${next.keyId}
+             WHERE tenant_id = ${tenantId}::uuid AND id = ${row.id}::uuid
+               AND key_id = ${row.key_id} AND ciphertext IS NOT NULL`);
+        }
+        return [...rows].length;
+      });
+      rewrapped += moved;
+      if (moved < batch) break;
     }
     if (rewrapped > 0) logger.info({ tenantId, current, rewrapped }, 'secrets re-wrapped');
     return { rewrapped };
