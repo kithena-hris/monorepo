@@ -261,6 +261,11 @@ export const OPERATIONS = {
     }
   }`,
 
+  /* A scheduled report's file, from the link in its email (PEO-069): the requester's own only. */
+  ScheduledExport: `query ScheduledExport($id: ID!) {
+    peopleExport(id: $id) { id status expiresAt links { name url } }
+  }`,
+
   Analytics: `query Analytics($segment: ID) {
     peopleAnalytics(segment: $segment) {
       asOf source sourceNote
