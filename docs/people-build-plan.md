@@ -1095,7 +1095,16 @@ Ordered, but none of it blocks Phase 1 shipping.
       counsel reviews the floors** (PEO-126): `mayErase` refuses automated
       erasure under an unreviewed floor. _(PRD §8.1, §12)_
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
-- [ ] **PEO-077** Approval workflows on sensitive changes, via Temporal.
+- [x] **PEO-077** Approval workflows on sensitive changes, via Temporal.
+      _(PRD §8.6)_ _A per-field `requiresApproval`, on by default for
+      financial or encrypted data. A sensitive value from any writer is held
+      as a pending change, never a current value; HR other than the requester
+      and the subject approves within seven days, and the approval applies it
+      from its original `effectiveFrom`. Withdrawal, expiry, notices through
+      messaging, the approvals inbox, the Sensitive marker in Reach, and HR's
+      "apply without approval" on import and bulk edit. SCIM writes are not
+      held: the connection is the source of record for what it writes. A DSAR
+      does not yet include pending changes._
 - [ ] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
       _Not started: waiting on product decisions the PRD leaves open — where

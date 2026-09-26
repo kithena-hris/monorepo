@@ -1389,6 +1389,105 @@ calendar it moves them to. An import row is judged the same way, on the
 calendar of the person the row is about. An export's file date and its "As of"
 line are the tenant default's day, because one file has one date.
 
+### 8.6 Approval of sensitive changes (PEO-077)
+
+A change to a **sensitive** field is not applied until somebody else approves
+it. Which fields are sensitive is a per-field setting, `requiresApproval` on
+the attribute definition (§6.2), edited on the field editor's last step and
+published through the ordinary versioned publish (§9.3, which names a field
+whose setting changed). **The default follows the policy**: on for financial
+data and for anything stored encrypted — the bank account, the salary a
+tenant classifies as financial, `tax_code`, the national identifiers — and off
+for everything else, so a sensitive field a tenant adds tomorrow is held
+without anybody remembering a checkbox. The setting is absent from a
+definition until a tenant chooses, so every published document keeps its
+checksum; seeded and country-pack fields get the default. A tenant may turn it
+either way on any field.
+
+- **Every writer, nothing refused.** The form, the completeness grid, bulk
+  edit, the import, a hire, REST and GraphQL all write through
+  `PersonAccess.update` or `correct`, and that is where a sensitive value is
+  taken out of the write, checked like any other value, and recorded as a
+  **pending change** instead. The rest of the write goes ahead. A correction
+  to a sensitive field is held too, with what it supersedes and its reason.
+  The lifecycle's own dates (`hire_date`, `last_working_day`) have their own
+  HR-only moves and are not held.
+- **Never a current value.** A pending value is not in the person's row,
+  history, secrets, completeness, exports or PDFs. The record reads what is in
+  force; the pending value is shown beside it, marked *Pending approval*, to
+  a viewer who may read the field — masked as the field is, a sealed one by
+  its last four — with when it would take effect, who asked and until when it
+  waits. A sealed pending value is kept sealed under the secrets' key ring
+  (`people.pending_change`), and its ciphertext is dropped when the change
+  closes.
+- **Who decides.** Anyone holding `hr`, except the requester and except the
+  person the change is about: HR's own change needs a second HR member, and
+  nobody approves a change to their own record, whoever asked. The database
+  refuses a requester's decision as well as the domain. A one-person HR team
+  changing its own pay has nobody to approve it, and the change lapses; nobody
+  is let in to fill the gap.
+- **An approval applies it** through the same write path, as the requester,
+  from the `effectiveFrom` the write asked for — a raise entered on the 15th
+  and effective on the 1st is effective on the 1st however long HR took — in
+  the decision's transaction. Its `profile_updated` or `attribute_corrected`
+  is caused by `change_decided`, which records who decided and any note. A
+  value the write path would now refuse (a unique value taken meanwhile, a
+  field archived) refuses the approval with the write's own reason; HR then
+  rejects it.
+- **Withdrawal and expiry.** The requester may withdraw a change while it
+  waits. Undecided after **seven days** it expires: it reads as expired from
+  that moment, a late decision is refused, the expiry is recorded once, and
+  the requester is emailed.
+- **HR may apply without approval.** The import and bulk edit offer *Apply
+  sensitive values without approval* (`applySensitiveWithoutApproval` on the
+  shared write path); only `hr` may, anybody else is refused, and each
+  person's `profile_updated` (or `attribute_corrected`) names the keys applied
+  that way (`appliedWithoutApproval`).
+- **System work and mirrors are not held.** The scheduled-values job applies
+  history that was already approved; a renumbering is People's own. A SCIM
+  connection writes only the attributes it is the source of record for
+  (§13.6): the upstream system is authoritative there, nobody in People could
+  approve or reject it, and holding it would only hold the truth back.
+- **Notifications** go through `platform/messaging`'s notice API: every
+  approver is told when a change is requested, and the requester when it is
+  approved, rejected or expired. None names the person, the field or the
+  value — only that there is a change, and a link to the approvals inbox.
+- **Marked everywhere.** A sensitive field carries Reach's *Sensitive* badge
+  (`Badge tone="sensitive"`, `Field sensitive`) wherever it is drawn: the
+  forms, the profile, history, the completeness grid, bulk edit, the import's
+  mapping and review, the field registry and the approvals inbox; the record
+  PDF labels it `(sensitive)`.
+- **The inbox** (`/people/approvals`) lists, oldest first, every change
+  waiting for HR, and a requester's own for anybody else: who it is about,
+  the field, the value asked for beside the value in force, who asked, when,
+  why (a correction's reason) and when it lapses. HR approves or rejects with
+  an optional note there; a requester withdraws there or on the record.
+- **Retention.** A closed change keeps the value asked for as the audit of
+  the request; the retention job erases it with the attribute it would have
+  changed.
+
+**As built.** The wait is a Temporal workflow per change on task queue
+`people-pending-change`, modelled on full values (§15.2): People starts it
+from its own `people.person.change_requested` and wakes it from
+`change_decided` and `change_withdrawn`, so a change held by any transport
+starts one only after its transaction committed. It announces the change to
+the approvers once, sleeps until the change closes or the week runs out, then
+records a due expiry and tells the requester how it ended; the decision and
+the value it applies are the request's, never the workflow's. Without
+`TEMPORAL_ADDRESS` the same activities run in-process off the same events,
+and an undecided change expires lazily. REST: `GET /v1/pending-changes`,
+`GET /v1/pending-changes/{id}`, `POST /v1/pending-changes/{id}/decision`,
+`POST /v1/pending-changes/{id}/withdrawal`, `GET
+/v1/people/{id}/pending-changes`; every person write answers with
+`pendingChanges`, and a held correction with `pendingChange`. GraphQL:
+`peopleApprovals`, `PeopleProfile.pending`, `decidePendingChange`,
+`withdrawPendingChange`. Migration `20260926180000`.
+
+**Not done.** A subject access request does not yet include a person's pending
+or decided changes. A pending sealed value is not re-wrapped by the key
+rotation job: an old key may be dropped no sooner than seven days after the
+rotation that replaced it.
+
 ---
 
 ## 9. The settings screen
@@ -1670,6 +1769,20 @@ never anybody's values, every field classified like any other.
 | `people.location.zone_changed` v1  | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
 | `people.settings.changed` v1       | default time zone, cohort minimum, changed field names                                               |
 | `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number                                                           |
+
+Changes held for approval (§8.6). Each names the change, the person and the
+key, never a value; who asked or decided is the envelope's actor, and when
+the change would take effect is its `effectiveFrom`.
+
+| Event                                 | Payload highlights                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `people.person.change_requested` v1   | changeId, personId, attributeKey, kind, supersedes, reason, expiresAt     |
+| `people.person.change_decided` v1     | changeId, personId, attributeKey, decision (approved, rejected), note     |
+| `people.person.change_withdrawn` v1   | changeId, personId, attributeKey                                          |
+| `people.person.change_expired` v1     | changeId, personId, attributeKey                                          |
+
+`profile_updated` and `attribute_corrected` carry `appliedWithoutApproval`
+when HR wrote a sensitive value straight through.
 
 `people.person.org_changed` already names the legal entity and location a
 person moved to; that event is what tells a consumer a person changed
@@ -3044,7 +3157,7 @@ order — the same order as the profile screen, so the file reads like the UI.
   request. It holds nothing: it wakes on the decision or when the week runs
   out, and asks the request's row what to do. The same approval rules — a
   stated reason, separation of duties, a deadline, a single use — are the
-  primitives the approval workflows on sensitive changes (Phase 3) will reuse.
+  primitives the approval of sensitive changes reuses (§8.6).
 
 - **Special-category attributes never appear** in a standard export at all.
   They are reachable only through the DSAR path (§15.5), which runs as the
@@ -3555,7 +3668,7 @@ surface for voluntary self-ID.
 SCIM 2.0; mirror mode and per-attribute external ownership; duplicate detection
 and merge; automated anonymisation on retention expiry; document attributes
 wired to the Documents module; approval workflows on sensitive changes via
-Temporal; pay distribution and compa-ratio charts behind the finance relation.
+Temporal (built: §8.6); pay distribution and compa-ratio charts behind the finance relation.
 
 ### Out of scope
 
