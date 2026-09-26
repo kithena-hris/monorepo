@@ -55,7 +55,7 @@ function absentIfNull<T extends Json>(value: T, keys: readonly string[]): T {
   ) as T;
 }
 
-const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy']);
+const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy', 'keptIn']);
 const section = (s: Json & { fields: Json[] }) => ({ ...s, fields: s.fields.map(field) });
 
 interface WithRecord {

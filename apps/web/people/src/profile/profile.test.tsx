@@ -175,6 +175,31 @@ describe('Profile', () => {
     });
   });
 
+  it('draws a field kept in an upstream system read-only, saying where to change it (PEO-073)', async () => {
+    const user = fast();
+    const mirrored: ProfileState = {
+      person,
+      sections: [
+        {
+          key: 'contact',
+          label: 'Contact',
+          visibility: ['self', 'hr'],
+          readsLogged: false,
+          fields: [
+            field({ key: 'mobile', label: 'Mobile', dataType: 'phone', readOnly: false }),
+            field({ key: 'given_name', label: 'Given name', ownedBy: 'Okta', keptIn: 'Okta' }),
+          ],
+        },
+      ],
+      values: { given_name: 'Ada' },
+    };
+    render(<Profile load={{ status: 'ready', data: mirrored }} onSave={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Edit Contact' }));
+    const form = screen.getByRole('form', { name: 'Contact' });
+    expect(within(form).getByLabelText('Given name')).toBeDisabled();
+    expect(within(form).getByText('Kept in Okta; change it there.')).toBeInTheDocument();
+  });
+
   it('picks a manager by searching People, whoever they are among 50,000 (PEO-122)', async () => {
     const user = fast();
     const withManager: ProfileState = {

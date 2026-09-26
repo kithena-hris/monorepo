@@ -319,6 +319,20 @@ export function PeopleScreen({
           onOpenLog: (id: string) => {
             go(`/people/settings/integrations/${id}`);
           },
+          scim: {
+            onConnect: async (system: string) => {
+              const made = await actions.createScimConnection(system);
+              if (made.ok) refresh();
+              return made;
+            },
+            onRotateToken: async (id: string) => {
+              const rotated = await actions.rotateScimToken(id);
+              if (rotated.ok) refresh();
+              return rotated;
+            },
+            onDisconnect: thenRefresh(actions.revokeScimConnection),
+            onSetMapping: thenRefresh(actions.setScimMapping),
+          },
         };
       case 'RoleSettings':
         return {

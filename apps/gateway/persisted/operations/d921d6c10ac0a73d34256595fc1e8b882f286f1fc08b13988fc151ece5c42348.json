@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RevokeScimConnection($id: ID!, $key: String!) {\n    revokeScimConnection(id: $id, idempotencyKey: $key) { ok }\n  }"}
