@@ -17,17 +17,17 @@ permissions:
 # Superseded runs are cancelled on a pull request, where only the tip matters
 # and an older commit's result is noise worth paying nothing for.
 #
-# Never on `main`, because the group key there is the same string for every
-# push — `refs/heads/main` — so a second merge cancels the first merge's run.
-# That is not just a lost result: `vercel-production` triggers on this workflow
-# and refuses anything whose conclusion is not `success`, and a cancelled run
-# reports `cancelled`. The deploy is then skipped silently, with no failure
-# anywhere to notice, and `main` sits undeployed until something else happens
-# to push. Two merges nine minutes apart is all it takes, which is exactly how
-# #8 came to never reach production.
+# On `main` too, since 2026-09-27. A second merge now cancels the first
+# merge's run, and `vercel-production` skips the cancelled one (it deploys only
+# a `success`). That used to lose the older commit — #8 never reached
+# production that way — but the deploy no longer ships "this commit": it ships
+# every target that differs from its `deployed/production/<target>` tag
+# (`tools/scripts/src/affected-targets.ts`), so the newer merge's deploy carries
+# the older one's changes with it. The cost is that a superseded commit gets no
+# verdict of its own; the newer run judges both.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
