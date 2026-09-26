@@ -917,6 +917,20 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-063** Document import — a zip or folder matched to people by a
       filename pattern the admin confirms. An unmatched file goes to a review
       list, **never onto the nearest-looking person**. _(PRD §14.1)_
+      **Blocked on a document store.** A `document_ref` value is a reference,
+      never bytes (§6.4), and document storage is out of scope for People
+      (§19, "Document storage itself"). Nothing durable exists to point at:
+      the import upload bucket is deleted on commit and after a day, and is
+      not indexed by person — which is the only reason §14.2 allows it to hold
+      employee data — and the export store expires in a day too. Keeping
+      contracts and ID scans in either would make People the document store,
+      with the retention, erasure, scanning and export path the contract
+      (`data-type.ts`) says belong to whoever owns documents. No
+      `document_ref` write path exists yet either (no profile control; bulk
+      edit has none). Unblocked by PEO-076, or by a PRD decision naming the
+      object storage §6.4 falls back to and who owns its retention and
+      erasure. The upload, zip safety and dry-run shape can then reuse §14.2's
+      presigned flow as it stands._
 - [x] **PEO-064** Effective-dated history UI — "what did this look like in
       March", per attribute. _(PRD §8.5)_
       _Built as `/people/:id/history` (and `/people/me/history`) over

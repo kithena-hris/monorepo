@@ -2548,6 +2548,13 @@ are matched to people by a filename pattern the admin confirms
 accompanying sheet. Nothing is attached on a guess — an unmatched file lands in
 a review list, never on the nearest-looking person.
 
+**Not built yet (PEO-063), deliberately.** An imported document needs
+somewhere durable to live, and People has nowhere legitimate: it stores a
+reference and never bytes (§6.4), its two buckets are an upload kept for a day
+and an export kept for a day, and document storage is out of scope. Document
+import waits for the Documents module (PEO-076) or for a decision that names
+the object storage §6.4 falls back to, and who owns its retention and erasure.
+
 ### 14.2 The flow
 
 ```
