@@ -1,7 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import ExcelJS from 'exceljs';
 import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition } from '@kithena/contracts';
+import { requiresApproval, type AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -639,7 +639,9 @@ async function pdfFile(
           .filter((d) => d.sectionKey === s.key && visibleTo(d, person.relations))
           .flatMap((d) => {
             const value = valueOf(person, d);
-            return value === null ? [] : [{ label: label(d), value }];
+            // Marked as the screens mark it (PEO-077): a change to it waits for approval.
+            const named = requiresApproval(d) ? `${label(d)} (sensitive)` : label(d);
+            return value === null ? [] : [{ label: named, value }];
           });
         return fields.length === 0 ? [] : [{ label: s.label.default, fields }];
       });
