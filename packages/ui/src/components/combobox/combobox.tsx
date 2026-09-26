@@ -54,6 +54,12 @@ export interface ComboboxProps {
   value: string | readonly string[] | null;
   onChange: (value: string | readonly string[] | null) => void;
   multiple?: boolean;
+  /**
+   * With `multiple`, the selection also shows under the trigger as chips,
+   * each with a button that removes it — for a choice that is read back as
+   * often as it is made, where "3 selected" would hide who.
+   */
+  chips?: boolean;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
@@ -91,6 +97,7 @@ export function Combobox({
   value,
   onChange,
   multiple = false,
+  chips = false,
   placeholder = 'Select…',
   searchPlaceholder = 'Search…',
   emptyMessage = 'No matches.',
@@ -111,6 +118,9 @@ export function Combobox({
   const listId = useId();
   const optionIdPrefix = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const chipsRef = useRef<HTMLUListElement>(null);
+  const [removed, setRemoved] = useState('');
 
   // A `typeof` narrowing rather than `Array.isArray`, which widens a
   // `readonly string[]` to `any[]` and takes the inference with it.
@@ -207,7 +217,62 @@ export function Combobox({
         ? `${String(selectedOptions.length)} selected`
         : (selectedOptions[0]?.label ?? placeholder);
 
-  return (
+  /*
+   * Removing a chip unmounts the button that had focus, which would drop
+   * focus to the page. It goes to the chip that took its place, else to the
+   * trigger, and the removal is announced: the list changed without a word.
+   */
+  const removeChip = (option: ComboboxOption, index: number): void => {
+    onChange(selected.filter((v) => v !== option.value));
+    setRemoved(`${option.label} removed`);
+    requestAnimationFrame(() => {
+      const buttons = chipsRef.current?.querySelectorAll('button');
+      const next = buttons?.[Math.min(index, buttons.length - 1)];
+      (next ?? triggerRef.current)?.focus();
+    });
+  };
+
+  const chipList =
+    multiple && chips ? (
+      <>
+        {selectedOptions.length > 0 ? (
+          <ul
+            ref={chipsRef}
+            aria-label={`${label}, ${String(selectedOptions.length)} selected`}
+            className="flex flex-wrap gap-1.5"
+          >
+            {selectedOptions.map((option, index) => (
+              <li key={option.value} className="max-w-full">
+                <Badge tone="accent" className="max-w-full pe-1 motion-safe:animate-pop-in">
+                  <span className="truncate">{option.label}</span>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`Remove ${option.label}`}
+                    onClick={() => {
+                      removeChip(option, index);
+                    }}
+                    className={cn(
+                      'tap-target relative grid size-4 shrink-0 place-items-center rounded-full',
+                      'transition-colors hover:bg-surface-hover',
+                      'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+                      'disabled:pointer-events-none',
+                    )}
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p aria-live="polite" className="sr-only">
+          {removed}
+        </p>
+      </>
+    ) : null;
+
+  const popover = (
     <Popover
       open={open}
       onOpenChange={(next) => {
@@ -217,6 +282,7 @@ export function Combobox({
       }}
     >
       <PopoverTrigger
+        ref={triggerRef}
         id={id}
         disabled={disabled}
         aria-label={label}
@@ -389,5 +455,14 @@ export function Combobox({
         </p>
       </PopoverContent>
     </Popover>
+  );
+
+  return chipList === null ? (
+    popover
+  ) : (
+    <div className="flex flex-col gap-2">
+      {popover}
+      {chipList}
+    </div>
   );
 }
