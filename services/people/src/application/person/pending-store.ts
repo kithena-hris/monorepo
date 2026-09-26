@@ -41,13 +41,15 @@ type Row = {
   decided_by: string | null;
   decided_at: Date | string | null;
   note: string | null;
+  decided_as: PendingChange['decidedAs'];
 };
 
 const iso = (v: Date | string) => new Date(v).toISOString();
 const day = (v: Date | string) => (typeof v === 'string' ? v.slice(0, 10) : iso(v).slice(0, 10));
 
 const COLUMNS = sql`tenant_id, id, person_id, attribute_key, kind, sealed, value, last4, supersedes,
-  effective_from, requested_by, requested_at, reason, expires_at, state, decided_by, decided_at, note`;
+  effective_from, requested_by, requested_at, reason, expires_at, state, decided_by, decided_at, note,
+  decided_as`;
 
 function fromRow(r: Row): PendingChange {
   return {
@@ -71,6 +73,7 @@ function fromRow(r: Row): PendingChange {
     sealed: r.sealed,
     value: r.sealed ? null : r.value,
     last4: r.last4,
+    decidedAs: r.decided_as,
   };
 }
 
@@ -137,7 +140,7 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
         UPDATE people.pending_change
            SET state = ${a.state}, decided_by = ${a.decidedBy}::uuid,
                decided_at = ${a.decidedAt}::timestamptz, note = ${a.note},
-               ciphertext = NULL, key_id = NULL
+               decided_as = ${next.decidedAs}, ciphertext = NULL, key_id = NULL
          WHERE tenant_id = ${prior.tenantId}::uuid AND id = ${prior.approval.id}::uuid
            AND state = 'pending'
         RETURNING id`);

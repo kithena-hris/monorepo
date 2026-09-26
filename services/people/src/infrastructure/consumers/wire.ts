@@ -19,6 +19,8 @@ import { roleReportFrom } from '../role-report.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { approvalMailerFrom } from '../approval-mailer.js';
 import { drizzlePersonReader } from '../drizzle-person-reader.js';
+import { drizzleIdentifierReviews } from '../drizzle-identifier-reviews.js';
+import { drizzleSecretStore } from '../secret-store.js';
 import { keysFrom, open, seal, staticKeyRing } from '../envelope.js';
 import { tenantAppBase, tenantCompanies } from '../tenant-origin.js';
 import { startPendingChanges, type PendingChangeRunner } from '../temporal/pending-change.js';
@@ -164,6 +166,8 @@ async function pendingChanges(
       clock: systemClock,
       newId: uuidv7,
     },
+    // A held identifier's review closes with its change (PEO-125).
+    reviews: drizzleIdentifierReviews(ring, drizzleSecretStore(ring, logger)),
     reader: drizzlePersonReader(),
     roles: drizzleRoleStore(),
     companyOf: tenantCompanies(base ?? '', drizzleOrgStore()),

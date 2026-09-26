@@ -7,6 +7,7 @@ import {
   scheduled,
   timelineOf,
   valueAsOf,
+  valuesOn,
   type HistoryEntry,
 } from './history.js';
 
@@ -56,6 +57,38 @@ describe('reading a value as of a date', () => {
 
   it('ignores another attribute entirely', () => {
     expect(valueAsOf(history, 'job_title', '2026-07-01')).toBeUndefined();
+  });
+});
+
+describe('a record’s values on a date', () => {
+  // A hire dated ahead is judged on where the person will sit that day: a
+  // placement recorded now and effective from the start date is in force for
+  // the hire, and not a day before it.
+  const placed = [
+    entry({
+      id: 'p1',
+      attributeKey: 'legal_entity_id',
+      value: 'acme-es',
+      effectiveFrom: '2099-01-04',
+      recordedAt: '2026-09-26T09:00:00.000Z',
+    }),
+  ];
+  const today = { legal_entity_id: null, given_name: 'Lena' };
+
+  it('reads a value scheduled for that day', () => {
+    expect(valuesOn(today, placed, ['legal_entity_id'], '2099-01-04')).toEqual({
+      legal_entity_id: 'acme-es',
+      given_name: 'Lena',
+    });
+  });
+
+  it('keeps what stands before anything recorded is in force', () => {
+    expect(valuesOn(today, placed, ['legal_entity_id'], '2099-01-03')).toEqual(today);
+  });
+
+  it('keeps what stands for a key with no history, and touches only the keys asked', () => {
+    const values = { legal_entity_id: 'acme-de', location_id: 'berlin' };
+    expect(valuesOn(values, placed, ['location_id'], '2099-01-04')).toEqual(values);
   });
 });
 

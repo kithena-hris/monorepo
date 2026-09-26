@@ -1,4 +1,4 @@
-import { err, failure, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { decide, withdraw, type Approval } from './approval.js';
 
@@ -13,8 +13,41 @@ import { decide, withdraw, type Approval } from './approval.js';
  *   asked for: an HR member does not approve their own pay rise because a
  *   colleague typed it.
  *
- * Pure; the caller brings the clock and says whether the decider holds `hr`.
+ * And the one exception to both: **when nobody but the requester could
+ * approve, they approve it alone, once they confirm it** (`soleApprover`).
+ * The tenant's only HR member — its first administrator entering their own
+ * NIF — or one of two, changing the other's record, whom the rule above never
+ * lets decide: either would otherwise wait for an approver who cannot exist.
+ * Asked of who holds `hr` at decision time, so an eligible approver granted
+ * meanwhile closes the exception. Recorded as `sole_hr`: the requester was the
+ * sole HR member able to decide.
+ *
+ * A doubted national identifier is reviewed before it is approved (PEO-125):
+ * while its review is open, nobody approves it.
+ *
+ * Pure; the caller brings the clock, says whether the decider holds `hr`, and
+ * who holds it in the tenant.
  */
+
+/** How a change was decided: by another HR member, by the only one, or by a review. */
+export type DecidedAs = 'approver' | 'sole_hr' | 'identifier_review';
+
+export interface Decided {
+  readonly approval: Approval;
+  readonly decidedAs: DecidedAs;
+}
+
+/**
+ * Whether `by`, the requester, may approve alone: they hold `hr`, and no other
+ * holder may decide (`approversOf` is empty).
+ */
+export function mayApproveAlone(
+  hr: readonly string[],
+  change: { readonly requestedBy: string; readonly subjectAccountId: string | null },
+  by: string,
+): boolean {
+  return by === change.requestedBy && hr.includes(by) && approversOf(hr, change).length === 0;
+}
 
 export function decideChange(
   approval: Approval,
@@ -26,15 +59,67 @@ export function decideChange(
     readonly approve: boolean;
     readonly at: string;
     readonly note?: string | null;
+    /** Every account holding `hr` in the tenant, now. */
+    readonly hr: readonly string[];
+    /** The requester confirmed they approve it alone, as the only HR member. */
+    readonly soleApprover?: boolean;
+    /** Its identifier review is not accepted yet (PEO-125). */
+    readonly awaitingReview?: boolean;
   },
-): Result<Approval> {
+): Result<Decided> {
   if (!decision.isHr) {
     return err(failure('FORBIDDEN', 'Only HR decides a pending change'));
   }
-  if (decision.subjectAccountId !== null && decision.by === decision.subjectAccountId) {
+  const requester = decision.by === approval.requestedBy;
+  const subject = decision.subjectAccountId !== null && decision.by === decision.subjectAccountId;
+  if (subject && !requester) {
     return err(failure('FORBIDDEN', 'Nobody decides a change to their own record'));
   }
-  return decide(approval, decision);
+  const alone =
+    requester &&
+    decision.soleApprover === true &&
+    decision.approve &&
+    mayApproveAlone(
+      decision.hr,
+      { requestedBy: approval.requestedBy, subjectAccountId: decision.subjectAccountId },
+      decision.by,
+    );
+  if (requester && !alone) {
+    return err(
+      failure(
+        'FORBIDDEN',
+        subject
+          ? 'Nobody decides a change to their own record while another HR member can'
+          : 'Nobody decides their own request while another HR member can',
+      ),
+    );
+  }
+  if (decision.approve && decision.awaitingReview === true) {
+    return err(
+      failure('AWAITING_REVIEW', 'HR reviews this identifier before the change can be approved'),
+    );
+  }
+  const decided = decide(approval, { ...decision, ownAllowed: alone });
+  return decided.ok
+    ? ok({ approval: decided.value, decidedAs: alone ? 'sole_hr' : 'approver' })
+    : decided;
+}
+
+/**
+ * A review found errors in the doubted identifier this change holds
+ * (PEO-125): the change is declined with the reviewer's reason, which is
+ * required — the employee has to know what to correct. Whoever reviewed may
+ * be the requester: declining is not approving.
+ */
+export function declineForReview(
+  approval: Approval,
+  review: { readonly by: string; readonly at: string; readonly note: string | null },
+): Result<Decided> {
+  if ((review.note?.trim() ?? '') === '') {
+    return err(failure('REASON_REQUIRED', 'Say what is wrong; the employee is shown it', ['note']));
+  }
+  const decided = decide(approval, { ...review, approve: false, ownAllowed: true });
+  return decided.ok ? ok({ approval: decided.value, decidedAs: 'identifier_review' }) : decided;
 }
 
 /** The requester takes the change back while it waits. */
@@ -48,7 +133,8 @@ export function withdrawChange(
 /**
  * Who may decide, of the accounts holding `hr`: everybody but the requester
  * and the subject. Empty is possible — a one-person HR team changing their own
- * pay — and then the change waits until it expires; nobody is quietly let in.
+ * pay — and then only they may approve it, alone and saying so
+ * (`mayApproveAlone`); nobody else is quietly let in.
  */
 export function approversOf(
   hr: readonly string[],

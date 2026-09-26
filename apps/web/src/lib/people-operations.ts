@@ -64,7 +64,7 @@ const REVIEW = `
 const PENDING = `
   fragment PendingParts on PendingField {
     id key label kind value { ...EntryParts } effectiveFrom requestedAt expiresAt requestedBy reason
-    mine canDecide
+    mine canDecide canSelfApprove awaitingReview findings { level code message }
   }`;
 
 /** What the country checks warned about, on a save or before one (PEO-125). */
@@ -128,7 +128,7 @@ export const OPERATIONS = {
       isHr
       items {
         id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
-        reason mine canDecide
+        reason mine canDecide canSelfApprove awaitingReview findings { level code message }
         value { ...EntryParts }
         current { ...EntryParts }
       }
@@ -137,7 +137,7 @@ export const OPERATIONS = {
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
-      items { personId name attributeKey label last4 findings { level code message } enteredAt }
+      items { personId name attributeKey label last4 findings { level code message } enteredAt held }
     }
   }`,
 
@@ -161,6 +161,7 @@ export const OPERATIONS = {
       people { id name }
       sections { key label visibility fields { ...RecordFieldParts } }
       today limit
+      placement { entities { value label } locations { value label legalEntityId } }
     }
   }${RECORD_FIELD}`,
 
@@ -172,6 +173,13 @@ export const OPERATIONS = {
       personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
       applySensitiveWithoutApproval: $applySensitiveWithoutApproval
     ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
+  /** Who a page of a bulk hire would hire and skip, and why; nothing is kept. */
+  BulkHirePreview: `query BulkHirePreview($hires: [BulkHireInput!]!) {
+    peopleBulkHirePreview(hires: $hires) {
       committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
     }
   }${ENTRY}`,
@@ -285,9 +293,10 @@ export const OPERATIONS = {
       profile {
         sections { key label visibility fields { ...RecordFieldParts } }
         values { ...EntryParts }
+        pending { ...PendingParts }
       }
     }
-  }${RECORD_FIELD}${ENTRY}`,
+  }${RECORD_FIELD}${ENTRY}${PENDING}`,
 
   Integrations: `query Integrations {
     peopleIntegrations {
@@ -397,6 +406,13 @@ export const OPERATIONS = {
       personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
       applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
     ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
+  /** A page of a bulk hire: provisional people, each from a start date. */
+  BulkHirePeople: `mutation BulkHirePeople($hires: [BulkHireInput!]!, $key: String!) {
+    bulkHirePeople(hires: $hires, idempotencyKey: $key) {
       committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
     }
   }${ENTRY}`,
@@ -580,6 +596,10 @@ export const OPERATIONS = {
     discardPerson(personId: $personId, idempotencyKey: $key) { id }
   }`,
 
+  HirePerson: `mutation HirePerson($personId: ID!, $hireDate: String!, $legalEntityId: ID, $locationId: ID, $key: String!) {
+    hirePerson(personId: $personId, hireDate: $hireDate, legalEntityId: $legalEntityId, locationId: $locationId, idempotencyKey: $key) { id }
+  }`,
+
   RehirePerson: `mutation RehirePerson($personId: ID!, $startDate: String!, $overrideReason: String, $key: String!) {
     rehirePerson(personId: $personId, startDate: $startDate, overrideReason: $overrideReason, idempotencyKey: $key) { id }
   }`,
@@ -613,8 +633,12 @@ export const OPERATIONS = {
     ) { ...StageParts }
   }${STAGE}`,
 
-  DecidePendingChange: `mutation DecidePendingChange($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
-    decidePendingChange(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { ok }
+  DecidePendingChange: `mutation DecidePendingChange(
+    $id: ID!, $approve: Boolean!, $note: String, $soleApprover: Boolean, $key: String!
+  ) {
+    decidePendingChange(
+      id: $id, approve: $approve, note: $note, soleApprover: $soleApprover, idempotencyKey: $key
+    ) { ok }
   }`,
 
   WithdrawPendingChange: `mutation WithdrawPendingChange($id: ID!, $key: String!) {

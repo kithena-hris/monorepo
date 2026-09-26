@@ -22,7 +22,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
-import { isMissing, type RecordSection, type Values } from '../record/model';
+import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
 
 export interface PackSection {
@@ -53,7 +53,12 @@ export interface SetupState {
   /** Null until version 1 is published. */
   readonly published: number | null;
   /** The administrator's own record, once there is a version to evaluate it against. */
-  readonly profile: { readonly sections: readonly RecordSection[]; readonly values: Values } | null;
+  readonly profile: {
+    readonly sections: readonly RecordSection[];
+    readonly values: Values;
+    /** Their own changes waiting for approval, such as the NIF (PEO-077). */
+    readonly pending?: readonly PendingValue[];
+  } | null;
 }
 
 export interface PeopleSetupProps {
@@ -62,6 +67,12 @@ export interface PeopleSetupProps {
   /** Accept the pack with these sections on, and publish it as version 1. */
   readonly onPublish: (pack: { country: string; sections: readonly string[] }) => Promise<Outcome>;
   readonly onSaveProfile: (sectionKey: string, changed: Values) => Promise<Outcome>;
+  /**
+   * The first administrator is usually the only HR member, so nobody else can
+   * approve their NIF: they approve it themselves, once they confirm (PEO-077).
+   */
+  readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
+  readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
   readonly onFinish: () => void;
 }
 
@@ -105,6 +116,8 @@ function Wizard({
   onConfirmEntity,
   onPublish,
   onSaveProfile,
+  onSelfApprove,
+  onWithdraw,
   onFinish,
 }: PeopleSetupProps & { readonly state: SetupState }): JSX.Element {
   // Where the admin is, resumed from what the tenant already has: coming back
@@ -374,6 +387,9 @@ function Wizard({
                   section={section}
                   values={state.profile?.values ?? {}}
                   onSave={onSaveProfile}
+                  pending={state.profile?.pending ?? []}
+                  {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
+                  {...(onWithdraw === undefined ? {} : { onWithdraw })}
                 />
               </PageSection>
             ))}

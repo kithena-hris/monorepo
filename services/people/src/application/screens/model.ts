@@ -66,6 +66,16 @@ export interface PendingFieldView {
   readonly mine: boolean;
   /** The viewer holds HR and is neither the requester nor the person. */
   readonly canDecide: boolean;
+  /** The viewer asked and no other HR member may approve it: they approve it alone, once they confirm. */
+  readonly canSelfApprove: boolean;
+  /** A doubted national identifier: nobody approves it until HR accepts its review (PEO-125). */
+  readonly awaitingReview: boolean;
+  /** What the checks doubted, while it awaits review. Never the value. */
+  readonly findings: readonly {
+    readonly level: string;
+    readonly code: string;
+    readonly message: string;
+  }[];
 }
 
 export interface RecordSection {

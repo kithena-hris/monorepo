@@ -245,6 +245,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         last4: t.exposeString('last4', { nullable: true }),
         findings: t.field({ type: [FindingRef], resolve: (r) => list(r.findings) }),
         enteredAt: t.exposeString('enteredAt'),
+        held: t.exposeBoolean('held', {
+          description:
+            'Held for approval, not yet written: reviewed first; sending it back declines the change.',
+        }),
       }),
     });
   const ReviewsRef = builder
@@ -475,6 +479,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       reason: t.exposeString('reason', { nullable: true }),
       mine: t.exposeBoolean('mine', { description: 'The viewer asked; they may withdraw it.' }),
       canDecide: t.exposeBoolean('canDecide'),
+      canSelfApprove: t.exposeBoolean('canSelfApprove', {
+        description:
+          'The viewer asked and no other member of HR may approve it: they approve it alone, once they confirm it.',
+      }),
+      awaitingReview: t.exposeBoolean('awaitingReview', {
+        description:
+          'A national identifier the checks doubt: nobody approves it until HR accepts its review.',
+      }),
+      findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
     }),
   });
   const ApprovalItemRef = builder
@@ -493,6 +506,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         reason: t.exposeString('reason', { nullable: true }),
         mine: t.exposeBoolean('mine'),
         canDecide: t.exposeBoolean('canDecide'),
+        canSelfApprove: t.exposeBoolean('canSelfApprove'),
+        awaitingReview: t.exposeBoolean('awaitingReview'),
+        findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
         personId: t.exposeID('personId'),
         name: t.exposeString('name'),
         readable: t.exposeBoolean('readable', {
@@ -874,6 +890,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       fields: (t) => ({
         sections: t.field({ type: [RecordSectionRef], resolve: (p) => list(p.sections) }),
         values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
+        pending: t.field({ type: [PendingFieldRef], resolve: (p) => list(p.pending) }),
       }),
     });
   const SetupRef = builder.objectRef<Setup>('PeopleSetup').implement({
@@ -1947,6 +1964,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
       today: t.exposeString('today'),
       limit: t.exposeInt('limit', { description: 'People per request.' }),
+      placement: t.field({
+        type: PlacementRef,
+        nullable: true,
+        description:
+          'Where a bulk hire may place somebody placed nowhere: the live entities and locations. Null when there is nowhere to place anybody.',
+        resolve: (v) => v.placement ?? null,
+      }),
     }),
   });
   const BulkChangeRef = builder
@@ -2045,6 +2069,60 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit', {
           body: bulkBody(args),
           key: idempotencyKey,
+        }),
+    }),
+  );
+
+  const BulkHireInput = builder.inputType('BulkHireInput', {
+    fields: (t) => ({
+      personId: t.id({ required: true }),
+      hireDate: t.string({ required: true, description: 'On the person’s own calendar.' }),
+      legalEntityId: t.id({
+        description:
+          'For somebody placed nowhere on their start date, placed from it; somebody placed keeps theirs.',
+      }),
+      locationId: t.id({ description: 'Their work location; it names its legal entity.' }),
+    }),
+  });
+  const hireBody = (
+    hires: readonly {
+      personId: string | number;
+      hireDate: string;
+      legalEntityId?: string | number | null | undefined;
+      locationId?: string | number | null | undefined;
+    }[],
+  ) => ({
+    hires: hires.map((h) => ({
+      personId: String(h.personId),
+      hireDate: h.hireDate,
+      ...(h.legalEntityId == null ? {} : { legalEntityId: String(h.legalEntityId) }),
+      ...(h.locationId == null ? {} : { locationId: String(h.locationId) }),
+    })),
+  });
+  builder.queryField('peopleBulkHirePreview', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description: 'Who a bulk hire would hire and who it would skip, and why; nothing is kept.',
+      args: { hires: t.arg({ type: [BulkHireInput], required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-hire/preview', {
+          body: hireBody(args.hires),
+        }),
+    }),
+  );
+  builder.mutationField('bulkHirePeople', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description:
+        'A page of a bulk hire: provisional people hired from a start date, each atomic, each answered.',
+      args: {
+        hires: t.arg({ type: [BulkHireInput], required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-hire', {
+          body: hireBody(args.hires),
+          key: args.idempotencyKey,
         }),
     }),
   );
@@ -2491,11 +2569,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     decidePendingChange: t.field({
       type: Outcome,
       description:
-        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.',
+        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s — unless no other member of HR may approve it and the requester confirms it with soleApprover.',
       args: {
         id: t.arg.id({ required: true }),
         approve: t.arg.boolean({ required: true }),
         note: t.arg.string(),
+        soleApprover: t.arg.boolean({
+          description:
+            'The requester approves their own change alone, no other member of HR being able to. Recorded as such.',
+        }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, { id, idempotencyKey, ...decision }, ctx) => {

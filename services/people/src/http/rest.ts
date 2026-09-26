@@ -164,9 +164,29 @@ export const PendingChangeBody = z.object({
   canDecide: z
     .boolean()
     .describe('The caller holds hr and is neither the requester nor the subject.'),
+  canSelfApprove: z
+    .boolean()
+    .describe(
+      'The caller asked for it and no other member of HR may approve it: they may, with `soleApprover`.',
+    ),
+  awaitingReview: z
+    .boolean()
+    .describe(
+      'A national identifier the checks doubt: nobody approves it until HR accepts its review.',
+    ),
+  findings: z
+    .array(IdentifierFindingBody)
+    .describe('What the checks doubted, while it awaits review. Never the value.'),
   /** On a single change read: where it stands, and who closed it. */
   state: z.enum(['pending', 'approved', 'rejected', 'withdrawn', 'expired']).optional(),
   decidedBy: z.uuid().nullable().optional(),
+  decidedAs: z
+    .enum(['sole_hr', 'identifier_review'])
+    .nullable()
+    .optional()
+    .describe(
+      'How it was decided when not by another member of HR: alone, as the only one; or by a review that found errors.',
+    ),
   note: z.string().nullable().optional(),
 });
 
@@ -175,6 +195,12 @@ export const PendingChangesBody = z.object({ items: z.array(PendingChangeBody) }
 export const PendingChangeDecisionBody = z.strictObject({
   approve: z.boolean(),
   note: z.string().max(500).optional(),
+  soleApprover: z
+    .boolean()
+    .optional()
+    .describe(
+      'The requester confirms they approve their own change alone, no other member of HR being able to (the only other may be its subject). Refused while an eligible approver holds hr; recorded as `sole_hr`.',
+    ),
 });
 
 export const PersonWriteBody = PersonBody.extend({
@@ -209,6 +235,12 @@ export const IdentifierReviewBody = z.object({
   findings: z.array(IdentifierFindingBody),
   createdAt: z.string(),
   last4: z.string().nullable().describe('What a screen shows. The value only through /reveal.'),
+  changeId: z
+    .uuid()
+    .nullable()
+    .describe(
+      'The change holding the value for approval, not yet written: reviewed first, then approved. Sending it back declines the change.',
+    ),
 });
 
 /** A suspected duplicate (PEO-074): two ids and why, never a value. */
@@ -717,8 +749,12 @@ export function restRoutes(deps: RestDeps): Route[] {
         reason: change.approval.reason === '' ? null : change.approval.reason,
         mine: change.approval.requestedBy === asking.viewer.accountId,
         canDecide: false,
+        canSelfApprove: false,
+        awaitingReview: false,
+        findings: [],
         state: change.approval.state,
         decidedBy: change.approval.decidedBy,
+        decidedAs: change.decidedAs,
         note: change.approval.note,
       });
     });
@@ -912,6 +948,7 @@ export function restRoutes(deps: RestDeps): Route[] {
               changeId,
               approve: input.value.approve,
               note: input.value.note ?? null,
+              soleApprover: input.value.soleApprover === true,
             });
             return decided.ok ? ok(changeId) : decided;
           },
@@ -1300,6 +1337,7 @@ export function restRoutes(deps: RestDeps): Route[] {
               findings: r.findings,
               createdAt: r.createdAt,
               last4: r.last4,
+              changeId: r.pendingChangeId,
             })),
           }),
         ),

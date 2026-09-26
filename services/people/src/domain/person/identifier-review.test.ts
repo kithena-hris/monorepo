@@ -11,6 +11,7 @@ const review = (state: IdentifierReview['state']): IdentifierReview => ({
   personId: 'p1',
   attributeKey: 'es_nif',
   historyId: 'h1',
+  pendingChangeId: null,
   valueHash: 'hash',
   keyId: 'k1',
   findings: [mismatch],
@@ -117,6 +118,13 @@ describe('a reviewer deciding', () => {
         note: null,
       });
       expect(!decided.ok && decided.error.code).toBe('REVIEW_DECIDED');
+    }
+  });
+
+  it('never sends a value back without saying why: the employee has to know what to fix', () => {
+    for (const note of [null, '   ']) {
+      const decided = decideReview(review('pending'), { decision: 'send_back', by: 'hr-1', at, note });
+      expect(!decided.ok && decided.error).toMatchObject({ code: 'REASON_REQUIRED', path: ['note'] });
     }
   });
 

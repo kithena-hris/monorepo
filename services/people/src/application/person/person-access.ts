@@ -27,10 +27,12 @@ import {
   currentValue,
   record,
   valueAsOf,
+  valuesOn,
   type HistoryEntry,
 } from '../../domain/person/history.js';
 import {
   hireFactsOf,
+  hireRefusal,
   IDENTITY_FACT_KEYS,
   identityFactsOf,
   Person,
@@ -62,7 +64,13 @@ import type {
   Viewer,
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
-import { approvedOf, holdChange, holds, type Holding } from './pending-changes.js';
+import {
+  approvedOf,
+  declineHeldForReview,
+  holdChange,
+  holds,
+  type Holding,
+} from './pending-changes.js';
 import type { Asking, PersonCount, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
@@ -75,8 +83,10 @@ import {
   gateIdentifiers,
   reveal as revealIdentifier,
   reviewable,
+  reviewHeld,
   type AttributeFindings,
   type Carried,
+  type HeldValues,
   type IdentifierReviews,
   type ReviewItem,
 } from './identifier-review.js';
@@ -184,6 +194,12 @@ type Tx = PostgresJsDatabase;
 
 type On<T> = Asking & { readonly personId: string } & T;
 
+/** A hire of somebody on the books, and where it placed them, by name; null when it placed nobody. */
+export interface HiredExisting {
+  readonly view: PersonView;
+  readonly placed: { readonly legalEntity: string | null; readonly location: string | null } | null;
+}
+
 export interface PersonAccess {
   read(tx: Tx, asking: On<{ readonly asOf?: string }>): Promise<Result<PersonView>>;
   list(
@@ -255,6 +271,22 @@ export interface PersonAccess {
       readonly effectiveFrom?: string;
     }>,
   ): Promise<Result<PersonView>>;
+  /**
+   * Hire somebody already on the books, provisional since they were added
+   * without a start date: placed first, from the start date, when they are
+   * placed nowhere that day and a placement is given — somebody placed keeps
+   * theirs — then `hire`, as the import hires. HR only. Refused in words HR
+   * can act on (`hireRefusal`): already employed, left, discarded or merged,
+   * or placed nowhere when the tenant has a legal entity to place them in.
+   */
+  hireExisting(
+    tx: Tx,
+    asking: On<{
+      readonly hireDate: string;
+      readonly legalEntityId?: string;
+      readonly locationId?: string;
+    }>,
+  ): Promise<Result<HiredExisting>>;
   /**
    * The rest of §8.1, HR only, each a no-op answered with the record when it
    * already stands where it would move to (a retry, not a second event).
@@ -667,6 +699,26 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const zone = personZone(await calendars.load(tx, tenantId), placementOf(values), at);
     return { zone, day: localDate(at, zone) };
   }
+
+  /**
+   * Where somebody sits on a date (a start date): what is in force that day,
+   * a placement scheduled for it included, and what the row holds for a key
+   * nothing recorded was in force for yet.
+   */
+  async function placementOn(
+    tx: Tx,
+    tenantId: string,
+    person: {
+      readonly snapshot: { readonly id: string };
+      readonly values: Readonly<Record<string, unknown>>;
+      readonly legalEntityId: string | null;
+    },
+    date: string,
+  ): Promise<{ readonly values: Record<string, unknown>; readonly legalEntityId: string | null }> {
+    const history = await deps.people.history(tx, tenantId, person.snapshot.id);
+    const values = valuesOn(person.values, history, ORG_KEYS, date);
+    return { values, legalEntityId: textOf(values['legal_entity_id']) ?? person.legalEntityId };
+  }
   const actorOf = (asking: Asking): Actor => {
     const integration = integrationOf(asking);
     return (
@@ -964,13 +1016,16 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     asking: Asking & { readonly personId: string },
     version: PublishedVersion,
     changes: Readonly<Record<string, unknown>>,
+    /** The start date, whose placement numbers them. */
+    on: string,
   ): Promise<{ employee_number?: string }> {
     if (!deps.numbering || changes['employee_number'] !== undefined) return {};
     if (!version.document.attributes.some((d) => d.key === 'employee_number')) return {};
     const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
     if (!person || person.snapshot.status !== 'provisional') return {};
     if (person.values['employee_number'] !== undefined) return {};
-    const entity = changes['legal_entity_id'] ?? person.legalEntityId;
+    const entity =
+      changes['legal_entity_id'] ?? (await placementOn(tx, asking.tenantId, person, on)).legalEntityId;
     if (typeof entity !== 'string') return {};
     const next = await nextNumber(tx, asking.tenantId, entity);
     return next === null ? {} : { employee_number: next };
@@ -1073,7 +1128,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // Every value checked before anything is written, so a bad sixth field
     // does not leave five claims behind.
     const accepted: [AttributeDefinition, unknown][] = [];
-    const heldBack: [AttributeDefinition, unknown][] = [];
+    const heldBack: [AttributeDefinition, unknown, NationalIdCheck | null][] = [];
     const checks: Carried[] = [];
     for (const [key, proposed] of Object.entries(allowed)) {
       const definition = byKey.get(key);
@@ -1083,7 +1138,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // Held for approval (PEO-077): checked like every value, then recorded
       // apart and left out of everything below — no claim, no review, no row.
       if (mode.value === 'hold' && holds(definition)) {
-        heldBack.push([definition, valid.value.value]);
+        heldBack.push([definition, valid.value.value, valid.value.check]);
         continue;
       }
       checks.push([definition, valid.value.check]);
@@ -1093,7 +1148,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       mode.value === 'bypass' ? accepted.filter(([d]) => holds(d)).map(([d]) => d.key) : [];
 
     const held: HeldChange[] = [];
-    for (const [definition, value] of heldBack) {
+    for (const [definition, value, check] of heldBack) {
+      // A doubted identifier is reviewed before it is approved (PEO-125).
+      const review = await reviewHeld(tx, deps, asking.tenantId, asking.personId, [
+        definition,
+        check,
+      ]);
       const kept = await holdChange(tx, deps.approvals as Holding, {
         tenantId: asking.tenantId,
         personId: asking.personId,
@@ -1106,8 +1166,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         kind: 'value',
         supersedes: null,
         reason: null,
+        review,
       });
       if (!kept.ok) return kept;
+      await review.open(tx, kept.value.approval.id);
       held.push({ changeId: kept.value.approval.id, attributeKey: definition.key });
     }
     // Everything this write carried is waiting on HR: the record is as it was.
@@ -1402,6 +1464,23 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     CALENDAR_DATE.test(asking.lastWorkingDay)
       ? ok(asking.lastWorkingDay)
       : err(failure('VALUE_INVALID', 'lastWorkingDay is a calendar date', ['lastWorkingDay']));
+
+  /** What a held identifier carries, from its change: it is not in the record yet (PEO-077). */
+  const heldValues: HeldValues = {
+    async last4(tx, tenantId, changeId) {
+      const change = await deps.approvals?.store.find(tx, tenantId, changeId);
+      if (!change) return null;
+      return change.sealed ? change.last4 : typeof change.value === 'string' ? change.value.slice(-4) : null;
+    },
+    async value(tx, tenantId, changeId) {
+      const change = await deps.approvals?.store.find(tx, tenantId, changeId);
+      if (change?.approval.state !== 'pending') return null;
+      if (!change.sealed) return typeof change.value === 'string' ? change.value : null;
+      const plaintext = await deps.approvals?.store.unseal(tx, tenantId, changeId);
+      const parsed = plaintext == null ? null : (JSON.parse(plaintext) as unknown);
+      return typeof parsed === 'string' ? parsed : null;
+    },
+  };
 
   /** The open review a reviewer asks about, if they may decide it (PEO-125). */
   async function reviewTarget(tx: Tx, asking: On<{ readonly attributeKey: string }>) {
@@ -2088,6 +2167,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // Held for approval (PEO-077): recorded with what it supersedes and why,
       // applied through here again once HR approves, from the date it corrects.
       if (mode.value === 'hold' && holds(definition)) {
+        const review = await reviewHeld(tx, deps, asking.tenantId, asking.personId, [
+          definition,
+          admitted.value.check,
+        ]);
         const kept = await holdChange(tx, deps.approvals as Holding, {
           tenantId: asking.tenantId,
           personId: asking.personId,
@@ -2100,8 +2183,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           kind: 'correction',
           supersedes: asking.supersedes,
           reason: asking.reason,
+          review,
         });
         if (!kept.ok) return kept;
+        await review.open(tx, kept.value.approval.id);
         return ok({ held: { changeId: kept.value.approval.id, attributeKey: definition.key } });
       }
       // A correction is a write like any other: a doubted identifier is
@@ -2325,10 +2410,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           review.personId,
         );
         if (!definition || !visibleTo(definition, relations)) continue;
-        const sealed = definition.encrypted
-          ? await deps.secrets.list(tx, asking.tenantId, review.personId)
-          : [];
-        const last4 = sealed.find((s) => s.attributeKey === review.attributeKey)?.last4 ?? null;
+        // A held value is not in the record yet: its last four are the change's.
+        const last4 =
+          review.pendingChangeId !== null
+            ? await heldValues.last4(tx, asking.tenantId, review.pendingChangeId)
+            : definition.encrypted
+              ? ((await deps.secrets.list(tx, asking.tenantId, review.personId)).find(
+                  (s) => s.attributeKey === review.attributeKey,
+                )?.last4 ?? null)
+              : null;
         items.push({ ...review, label: definition.label.default, last4 });
       }
       return ok(items);
@@ -2358,13 +2448,29 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const target = await reviewTarget(tx, asking);
       if (!target.ok) return target;
       const { review, reviews } = target.value;
-      return decideIdentifier(tx, { reviews, clock: deps.clock, newId: deps.newId }, review, {
-        tenantId: asking.tenantId,
-        by: asking.viewer.accountId,
-        correlationId: asking.correlationId,
-        decision: asking.decision,
-        note: asking.note ?? null,
+      const decided = await decideIdentifier(
+        tx,
+        { reviews, clock: deps.clock, newId: deps.newId },
+        review,
+        {
+          tenantId: asking.tenantId,
+          by: asking.viewer.accountId,
+          correlationId: asking.correlationId,
+          decision: asking.decision,
+          note: asking.note ?? null,
+        },
+      );
+      // A held value the review found errors in is declined with the reason
+      // (PEO-125): the employee corrects it; nobody approves it. Accepted, it
+      // simply becomes approvable.
+      if (!decided.ok || decided.value.state !== 'sent_back') return decided;
+      if (review.pendingChangeId === null || !deps.approvals) return decided;
+      const declined = await declineHeldForReview(tx, deps.approvals, {
+        ...asking,
+        changeId: review.pendingChangeId,
+        note: decided.value.note,
       });
+      return declined.ok ? decided : declined;
     },
 
     async revealIdentifier(tx, asking) {
@@ -2377,6 +2483,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         correlationId: asking.correlationId,
         definition,
         values: person.values,
+        held: heldValues,
       });
     },
 
@@ -2405,7 +2512,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // The values first, without telling identity: the hire below tells it
       // once, with the name as it stands after both.
       const { changes: asked = {}, hireDate, ...rest } = asking;
-      const changes = { ...asked, ...(await numberFor(tx, asking, version, asked)) };
+      const changes = { ...asked, ...(await numberFor(tx, asking, version, asked, hireDate)) };
       if (Object.keys(changes).length > 0) {
         const updated = await update(tx, { ...rest, changes }, false);
         if (!updated.ok) return updated;
@@ -2420,16 +2527,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       );
       if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR hires a person'));
 
-      const facts = hireFactsOf(
-        person.values,
-        person.legalEntityId,
-        version.version,
-        person.sourceOfRecord,
-      );
+      // Where they sit on their first day, a placement scheduled for it included.
+      const on = await placementOn(tx, asking.tenantId, person, hireDate);
+      const facts = hireFactsOf(on.values, on.legalEntityId, version.version, person.sourceOfRecord);
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
-      const { zone } = await calendarOf(tx, asking.tenantId, person.values);
+      const { zone } = await calendarOf(tx, asking.tenantId, on.values);
       const hired = aggregate.hire(hireDate, facts.value, contextFor(asking), zone);
       if (!hired.ok) return hired;
       shareIdentityFacts(aggregate, asking, person.values, hireDate);
@@ -2440,6 +2544,67 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!after) return err(PersonNotFound());
       return ok(await view(tx, asking, after, version, relations));
+    },
+
+    /**
+     * The status first, so an employee is never moved by a hire that is
+     * refused anyway. Everything is read as of the start date: a placement
+     * given is dated from it, past or ahead, recorded now, and one already
+     * scheduled for that day is a placement the hire reads (PEO-124).
+     */
+    async hireExisting(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (!CALENDAR_DATE.test(asking.hireDate)) {
+        return err(failure('VALUE_INVALID', 'The start date is a calendar date', ['hireDate']));
+      }
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR hires a person'));
+      const employed = hireRefusal(person.snapshot.status, true);
+      if (employed) return err(employed);
+
+      const { hireDate, legalEntityId, locationId, ...on } = asking;
+      const calendar = await calendars.load(tx, asking.tenantId);
+      const before = await placementOn(tx, asking.tenantId, person, hireDate);
+      const places =
+        before.legalEntityId === null && (legalEntityId !== undefined || locationId !== undefined);
+      if (places) {
+        const moved = await api.place(tx, {
+          ...on,
+          ...(legalEntityId === undefined ? {} : { legalEntityId }),
+          ...(locationId === undefined ? {} : { locationId }),
+          effectiveFrom: hireDate,
+        });
+        if (!moved.ok) return moved;
+      }
+      const current = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!current) return err(PersonNotFound());
+      const now = await placementOn(tx, asking.tenantId, current, hireDate);
+      const where = textOf(now.values['location_id']);
+      const placed = places
+        ? {
+            legalEntity:
+              now.legalEntityId === null
+                ? null
+                : (calendar.entities.get(now.legalEntityId)?.name ?? null),
+            location: where === null ? null : (calendar.locations.get(where)?.name ?? null),
+          }
+        : null;
+      const needsEntity =
+        version.document.attributes.some(
+          (d) => d.key === 'legal_entity_id' && d.deprecatedAt === null,
+        ) && [...calendar.entities.values()].some((e) => e.archived !== true);
+      const refusal = hireRefusal(current.snapshot.status, !needsEntity || now.legalEntityId !== null);
+      if (refusal) return err(refusal);
+      const hired = await api.hire(tx, { ...on, hireDate });
+      return hired.ok ? ok({ view: hired.value, placed }) : hired;
     },
 
     /**

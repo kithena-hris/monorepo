@@ -45,6 +45,7 @@ import { EmploymentPeriodsBody, LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js
 import {
   Advice,
   BulkEditBody,
+  BulkHireBody,
   Entity,
   EndpointBody,
   ScimConnectionBody,
@@ -121,6 +122,7 @@ const components = {
   SectionChanges: Sections,
   CompletenessChanges: Grid,
   BulkEdit: BulkEditBody,
+  BulkHire: BulkHireBody,
   NewSection: Label,
   Order,
   DraftField: Field,
@@ -251,6 +253,23 @@ function screenPaths(): Record<string, unknown> {
         200,
         '{ committed: false, rows }',
         { safe: true },
+      ),
+    },
+    '/v1/views/bulk-hire/preview': {
+      post: screenWrite(
+        'Who a bulk hire would hire and who it would skip, and why; nothing is kept',
+        'BulkHire',
+        200,
+        '{ committed: false, rows }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/bulk-hire': {
+      post: screenWrite(
+        'A page of a bulk hire: provisional people hired from a start date, each atomic, each answered',
+        'BulkHire',
+        200,
+        '{ committed: true, rows }',
       ),
     },
     '/v1/views/bulk-edit': {

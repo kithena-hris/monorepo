@@ -92,6 +92,13 @@ export function decide(
     readonly approve: boolean;
     readonly at: string;
     readonly note?: string | null;
+    /**
+     * The requester may decide their own request: only where the caller has
+     * established there is nobody else who could (PEO-077's sole HR member,
+     * confirmed) or the decision is not an approval of theirs at all (a review
+     * that found errors). Separation of duties stays the default.
+     */
+    readonly ownAllowed?: boolean;
   },
 ): Result<Approval> {
   const state = stateAt(approval, decision.at);
@@ -101,7 +108,7 @@ export function decide(
   if (state !== 'pending') {
     return err(failure('APPROVAL_DECIDED', `This request was already ${state}`));
   }
-  if (decision.by === approval.requestedBy) {
+  if (decision.by === approval.requestedBy && decision.ownAllowed !== true) {
     return err(failure('FORBIDDEN', 'Nobody decides their own request'));
   }
   const note = decision.note?.trim() ?? '';

@@ -29,6 +29,7 @@ import { useState, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, PendingValue, RecordField } from '../record/model';
+import { ApproveAlone, PendingBadge } from '../record/pending';
 
 /**
  * The approvals inbox (PEO-077; PRD §8.6).
@@ -40,6 +41,13 @@ import type { AttributeValue, PendingValue, RecordField } from '../record/model'
  * force; anybody else sees their own, and may withdraw one. Undecided after
  * seven days, a change lapses. An approval applies the value from the date
  * it was asked for.
+ *
+ * Two exceptions, both People's rules shown here. When no other HR member may
+ * approve a change — the requester is the only one, or the only other is its
+ * subject — the requester approves it alone, after a dialog that says so. And a
+ * national identifier our checks doubt is reviewed before it is approved: it
+ * reads *Awaiting identifier review*, with what the checks found, and offers
+ * no approval until HR accepts it under Identifiers to review.
  */
 
 export interface ApprovalItem extends PendingValue {
@@ -60,6 +68,8 @@ export interface ApprovalsProps {
   readonly load: Loadable<ApprovalsState>;
   readonly onDecide: (changeId: string, approve: boolean, note: string | null) => Promise<Outcome>;
   readonly onWithdraw: (changeId: string) => Promise<Outcome>;
+  /** A requester no other HR member can approve for, approving their own change, once they confirm (PEO-077). */
+  readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
   readonly onOpen?: (personId: string) => void;
 }
 
@@ -75,11 +85,23 @@ const asField = (item: ApprovalItem): RecordField => ({
   sensitive: true,
 });
 
-export function Approvals({ load, onDecide, onWithdraw, onOpen }: ApprovalsProps): JSX.Element {
+export function Approvals({
+  load,
+  onDecide,
+  onWithdraw,
+  onSelfApprove,
+  onOpen,
+}: ApprovalsProps): JSX.Element {
   return (
     <Loaded load={load} what="changes waiting for approval">
       {(state) => (
-        <Inbox state={state} onDecide={onDecide} onWithdraw={onWithdraw} onOpen={onOpen} />
+        <Inbox
+          state={state}
+          onDecide={onDecide}
+          onWithdraw={onWithdraw}
+          onSelfApprove={onSelfApprove}
+          onOpen={onOpen}
+        />
       )}
     </Loaded>
   );
@@ -89,11 +111,13 @@ function Inbox({
   state,
   onDecide,
   onWithdraw,
+  onSelfApprove,
   onOpen,
 }: {
   readonly state: ApprovalsState;
   readonly onDecide: ApprovalsProps['onDecide'];
   readonly onWithdraw: ApprovalsProps['onWithdraw'];
+  readonly onSelfApprove: ApprovalsProps['onSelfApprove'];
   readonly onOpen: ApprovalsProps['onOpen'];
 }): JSX.Element {
   const [deciding, setDeciding] = useState<{ item: ApprovalItem; approve: boolean } | null>(null);
@@ -153,9 +177,7 @@ function Inbox({
                       <Badge tone="sensitive" size="sm">
                         Sensitive
                       </Badge>
-                      <Badge tone="warning" size="sm">
-                        Pending approval
-                      </Badge>
+                      <PendingBadge pending={item} />
                     </span>
                   </TableCell>
                   <TableCell>
@@ -177,6 +199,13 @@ function Inbox({
                     <span className="block text-sm text-fg-muted">
                       From {longDate(item.effectiveFrom)}
                     </span>
+                    {item.awaitingReview === true && (item.findings ?? []).length > 0 ? (
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {(item.findings ?? []).map((f) => (
+                          <li key={f.code}>{f.message}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <span className="flex flex-col gap-1 text-sm">
@@ -191,18 +220,34 @@ function Inbox({
                   </TableCell>
                   <TableCell>
                     <span className="flex flex-wrap gap-2">
+                      {item.awaitingReview === true ? (
+                        <span className="text-sm text-fg-muted">
+                          Reviewed first: accept it or send it back under Identifiers to review,
+                          then it can be approved.
+                        </span>
+                      ) : null}
+                      {item.canSelfApprove === true &&
+                      item.awaitingReview !== true &&
+                      onSelfApprove !== undefined ? (
+                        <ApproveAlone
+                          label={`${item.name}'s ${item.label}`}
+                          onApprove={() => onSelfApprove(item.id)}
+                        />
+                      ) : null}
                       {item.canDecide ? (
                         <>
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            aria-label={`Approve the change to ${item.name}'s ${item.label}`}
-                            onClick={() => {
-                              setDeciding({ item, approve: true });
-                            }}
-                          >
-                            Approve
-                          </Button>
+                          {item.awaitingReview === true ? null : (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              aria-label={`Approve the change to ${item.name}'s ${item.label}`}
+                              onClick={() => {
+                                setDeciding({ item, approve: true });
+                              }}
+                            >
+                              Approve
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             aria-label={`Reject the change to ${item.name}'s ${item.label}`}
@@ -233,7 +278,7 @@ function Inbox({
                           Somebody else decides: it is about you.
                         </span>
                       ) : null}
-                      {!item.canDecide && item.mine && state.isHr ? (
+                      {!item.canDecide && item.mine && state.isHr && item.canSelfApprove !== true ? (
                         <span className="text-sm text-fg-muted">
                           Another HR member decides your own change.
                         </span>

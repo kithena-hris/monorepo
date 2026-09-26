@@ -1073,6 +1073,20 @@ builder.mutationFields((t) => ({
     resolve: (_root, args, ctx) =>
       move(ctx, 'withdrawNotice', args.personId, {}, args.idempotencyKey),
   }),
+  hirePerson: t.field({
+    type: Person,
+    description:
+      'Hire a provisional person from a start date: active once it has begun on their calendar, pre-hire until then; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      hireDate: t.arg.string({ required: true }),
+      legalEntityId: t.arg.id({ description: 'For somebody placed nowhere yet.' }),
+      locationId: t.arg.id(),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
+      move(ctx, 'hirePerson', personId, sent(rest), key),
+  }),
   rehirePerson: t.field({
     type: Person,
     description:

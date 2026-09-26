@@ -129,6 +129,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
+    '20260926230000_people_pending_change_decided_as.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
     '20260926143000_people_duplicates.sql',
@@ -260,6 +261,7 @@ describe('a subject access export', () => {
       sealed: true,
       value: null,
       last4: '3000',
+      decidedAs: null,
       ...over,
     });
     const REJECTED = '01890000-0000-7000-8000-0000000000d2';

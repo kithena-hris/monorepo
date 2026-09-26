@@ -232,6 +232,27 @@ export async function commitBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
 }
 
 /**
+ * A page of a bulk hire: each person from their start date (not started yet),
+ * and where to place them should they be placed nowhere that day.
+ */
+export type BulkHirePage = readonly {
+  readonly personId: string;
+  readonly hireDate: string;
+  readonly legalEntityId?: string;
+  readonly locationId?: string;
+}[];
+
+/** Who this page would hire and skip, and why; nothing is kept. */
+export async function previewBulkHire(hires: BulkHirePage): Promise<BulkEdited> {
+  return bulk(people('BulkHirePreview', { hires: [...hires] }));
+}
+
+/** This page, hired: each person on their own, the refused ones said why. */
+export async function commitBulkHire(hires: BulkHirePage): Promise<BulkEdited> {
+  return bulk(people('BulkHirePeople', { hires: [...hires] }));
+}
+
+/**
  * People a person field may name, found by name over everybody, as the
  * person signed in may read them (PEO-122). The picker's first page: typing
  * more narrows it.
@@ -392,15 +413,29 @@ export async function requestFullValues(fields: readonly string[], reason: strin
 
 /* ---------------------------------------------- approvals (PEO-077) -- */
 
-/** HR approves or rejects a change held for approval; People decides who may. */
+/**
+ * HR approves or rejects a change held for approval; People decides who may.
+ * `soleApprover`: the requester approving their own, no other HR member being able to, having confirmed it.
+ */
 export async function decidePendingChange(
   id: string,
   approve: boolean,
   note: string | null,
+  soleApprover = false,
 ): Promise<Outcome> {
   return outcome(
-    people('DecidePendingChange', { id, approve, ...(note === null ? {} : { note }) }),
+    people('DecidePendingChange', {
+      id,
+      approve,
+      ...(note === null ? {} : { note }),
+      ...(soleApprover ? { soleApprover } : {}),
+    }),
   );
+}
+
+/** The requester approves their own held change when no other HR member can, having confirmed it (PEO-077). */
+export async function approveAlone(id: string): Promise<Outcome> {
+  return decidePendingChange(id, true, null, true);
 }
 
 /** The requester takes their change back while it waits. */
@@ -529,7 +564,13 @@ export type LifecycleMove =
   | { readonly kind: 'startLeave' }
   | { readonly kind: 'endLeave' }
   | { readonly kind: 'discard' }
-  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string };
+  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string }
+  | {
+      readonly kind: 'hire';
+      readonly hireDate: string;
+      readonly legalEntityId?: string;
+      readonly locationId?: string;
+    };
 
 const MOVES = {
   giveNotice: 'GiveNotice',
@@ -540,6 +581,7 @@ const MOVES = {
   endLeave: 'EndLeave',
   discard: 'DiscardPerson',
   rehire: 'RehirePerson',
+  hire: 'HirePerson',
 } as const;
 
 export async function moveLifecycle(personId: string, move: LifecycleMove): Promise<Outcome> {

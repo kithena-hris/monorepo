@@ -4,6 +4,7 @@ import { fixedClock } from '@kithena/domain-kit';
 
 import {
   hireFactsOf,
+  hireRefusal,
   identityFactsOf,
   Person,
   type EventContext,
@@ -488,6 +489,42 @@ describe('hiring', () => {
     const p = person({ status: 'active', hireDate: '2026-01-01' });
     p.hire('2026-10-01', HIRED, ctx, 'Etc/UTC');
     expect(p.drainEvents()).toEqual([]);
+  });
+});
+
+describe('hiring somebody already on the books', () => {
+  // Somebody added without a start date waits, provisional, until HR hires
+  // them. What refuses anybody else is said in words HR can act on, before
+  // the aggregate is asked, so a batch can list who would be skipped and why.
+  it('allows a provisional record that is placed', () => {
+    expect(hireRefusal('provisional', true)).toBeNull();
+  });
+
+  it('refuses somebody already employed, whatever their employment is doing', () => {
+    for (const status of ['pre_hire', 'active', 'on_leave', 'notice'] as const) {
+      expect(hireRefusal(status, true)).toMatchObject({ code: 'INVALID_TRANSITION' });
+      expect(hireRefusal(status, true)?.message).toMatch(/already/i);
+    }
+  });
+
+  it('points a leaver at rehire', () => {
+    expect(hireRefusal('terminated', true)?.message).toMatch(/rehire/i);
+  });
+
+  it('refuses a record that was discarded or merged', () => {
+    expect(hireRefusal('discarded', true)?.message).toMatch(/discarded/i);
+    expect(hireRefusal('merged', true)?.message).toMatch(/merged/i);
+  });
+
+  it('refuses a provisional record with nowhere to work', () => {
+    expect(hireRefusal('provisional', false)).toMatchObject({
+      code: 'PLACEMENT_REQUIRED',
+      path: ['legalEntityId'],
+    });
+  });
+
+  it('judges the status before the placement', () => {
+    expect(hireRefusal('active', false)?.code).toBe('INVALID_TRANSITION');
   });
 });
 

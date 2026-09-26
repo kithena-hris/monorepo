@@ -309,6 +309,7 @@ describe('what identity is told', () => {
   it('audits an identifier review by codes, never the value (PEO-125)', () => {
     expect(payloadKeys('people.person.identifier_reviewed').toSorted()).toEqual([
       'attributeKey',
+      'changeId',
       'decision',
       'findingCodes',
       'note',
@@ -319,6 +320,28 @@ describe('what identity is told', () => {
       'attributeKey',
       'personId',
       'reviewId',
+    ]);
+  });
+
+  it('says how a held change was decided, and which review it waits on, never a value (PEO-077)', () => {
+    expect(payloadKeys('people.person.change_requested').toSorted()).toEqual([
+      'attributeKey',
+      'changeId',
+      'expiresAt',
+      'kind',
+      'personId',
+      'reason',
+      'reviewId',
+      'supersedes',
+      'supersedesReview',
+    ]);
+    expect(payloadKeys('people.person.change_decided').toSorted()).toEqual([
+      'attributeKey',
+      'changeId',
+      'decidedAs',
+      'decision',
+      'note',
+      'personId',
     ]);
   });
 

@@ -5,6 +5,7 @@ import {
   localDate,
   ok,
   type Clock,
+  type DomainFailure,
   type PendingEvent,
   type Result,
 } from '@kithena/domain-kit';
@@ -220,6 +221,35 @@ export function hireFactsOf(
     schemaVersion,
     sourceOfRecord,
   });
+}
+
+/**
+ * Why a record already on the books cannot be hired, or null when it can.
+ *
+ * Only a provisional record is hired; everybody else is refused in words HR
+ * can act on, which a batch lists before anything is written. `placed` is
+ * false when the record has no legal entity and the tenant has one to give
+ * it: somebody employed by nobody cannot be paid or numbered. The status is
+ * judged first, so an employee missing a placement is "already employed".
+ * `hire` itself still refuses anything but provisional.
+ */
+export function hireRefusal(status: PersonState, placed: boolean): DomainFailure | null {
+  switch (status) {
+    case 'provisional':
+      return placed
+        ? null
+        : failure('PLACEMENT_REQUIRED', 'Choose a legal entity and work location first', [
+            'legalEntityId',
+          ]);
+    case 'terminated':
+      return failure('INVALID_TRANSITION', 'They have left; rehire them instead');
+    case 'discarded':
+      return failure('INVALID_TRANSITION', 'This record was discarded');
+    case 'merged':
+      return failure('INVALID_TRANSITION', 'This record was merged into another person');
+    default:
+      return failure('INVALID_TRANSITION', 'Already employed; there is nobody to hire');
+  }
 }
 
 /** The calendar day before a calendar date. Arithmetic on the date, never on a clock. */

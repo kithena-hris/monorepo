@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation HirePerson($personId: ID!, $hireDate: String!, $legalEntityId: ID, $locationId: ID, $key: String!) {\n    hirePerson(personId: $personId, hireDate: $hireDate, legalEntityId: $legalEntityId, locationId: $locationId, idempotencyKey: $key) { id }\n  }"}

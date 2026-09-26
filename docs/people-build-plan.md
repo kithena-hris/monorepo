@@ -1051,6 +1051,23 @@ Ordered, but none of it blocks Phase 1 shipping.
       "everyone matching this filter", and choosing people from the phone
       layout's cards; a person field's before/after shows the id, not the
       name._
+      _Added later: **bulk hire**, a Hire tab beside Set values. One start
+      date for all, changed per person in the preview's rows; one legal
+      entity and work location for everybody placed nowhere on their start
+      date, changed per person the same way, and placed from the start date
+      in the hire's own savepoint (somebody placed keeps theirs). The
+      preview is `hireExisting` per person in a savepoint, rolled back, so
+      who is skipped and why (already employed, placed nowhere with nowhere
+      chosen, no work email) is the commit's answer. Once shown it follows
+      every edit, recomputed after a pause with an older answer never drawn
+      over a newer one, and Hire is not offered while it recomputes; the
+      commit sends exactly what the preview on screen was computed from and
+      reports partial success. REST `/v1/views/bulk-hire[/preview]`, GraphQL
+      `peopleBulkHirePreview`, `bulkHirePeople`, answered in bulk edit's
+      shape; `peopleBulkEdit` carries the placement choices. A retried
+      commit is answered with the first answer, kept without names in
+      `people.bulk_answer` (migration `20260926231500`) and its names read
+      again, not recomputed._
 
 ## Phase 3
 
@@ -1116,6 +1133,21 @@ Ordered, but none of it blocks Phase 1 shipping.
       held: the connection is the source of record for what it writes. The
       subject access pack carries a person's held changes, and the secret
       rotation re-wraps sealed pending values._
+      _Later (product decision, 2026-09-26): **a requester with no other
+      eligible approver approves their own change alone**, once a dialog
+      says there is no other HR member who can and that the audit trail
+      records it as theirs. Allowed only while no `hr` holder by the role
+      rows but the requester may decide — the only one, or one of two
+      changing the other's record, since the subject never decides — asked
+      at decision time in the decision's transaction, and only with
+      `soleApprover` on the request (`decideChange`, `mayApproveAlone`);
+      otherwise 403 as before. Recorded as `decided_as = 'sole_hr'` and
+      `change_decided.decidedAs` (migration 20260926230000, which widens
+      `pending_change_not_self_decided` for exactly this and the review's
+      decline). `canSelfApprove` on every pending value; "Approve it myself"
+      on the profile's pending note, the setup wizard's section and the
+      inbox. A doubted national identifier is reviewed before it is
+      approved: see PEO-125._
 - [x] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
       _Landed as migration 20260926190000 with the three decisions §16.2
@@ -1603,6 +1635,20 @@ it is written down here rather than left in a PR description.
       Proven by the acceptance test: HR terminates with access ended now
       (`access_ended` in the outbox), then rehires, and period 2 is on the
       screen and in `people.employment_period`.*
+      *Added later: **Hire** on a not-started (provisional) person, which
+      nothing offered before — somebody added without a start date stayed
+      provisional for good. `hireRefusal` (domain) and
+      `PersonAccess.hireExisting` (status first, then a placement for
+      somebody placed nowhere on their start date, then `hire` exactly as
+      the import hires); REST `POST /v1/people/{id}/hire`, GraphQL
+      `hirePerson`, keyed. The dialog asks the start date, and a legal
+      entity and location when they have none. Everything is read as of the
+      start date (`valuesOn`): a placement is dated from it, past or ahead,
+      recorded now, and one already scheduled for that day satisfies the
+      hire and names its entity. A tenant with no legal entity hires without
+      one. Proven by `http/hire.integration.test.ts` (a start date ahead
+      placed and hired on it) and the acceptance test: HR adds a person with
+      no date, hires them on the profile, and they are active.*
 - [x] **PEO-121** Finance full values and the webhook delivery log on screen.
       PEO-088's request, decision and one download, and PEO-032/093's
       delivery log with replay, have transports and no screen; neither has a
@@ -1743,6 +1789,27 @@ it is written down here rather than left in a PR description.
       `people.person.identifier_reviewed` (codes, never the value). The
       import dry run lists doubted cells without blocking; the commit counts
       what went to review.*
+      *Later (product decision, 2026-09-26): **a doubted value held for
+      approval (PEO-077) is reviewed first, then approved.** Holding it opens
+      the review against the held change (`identifier_review.pending_change_id`,
+      `history_id` null; migration 20260926230100) by the same
+      `onIdentifierWritten` rule a write follows, so it also supersedes
+      whatever was open — a sent-back value is answered by the next one
+      (`change_requested.supersedesReview`; `reviewId` when it opens one).
+      Nobody approves the change while its review is not accepted
+      (`AWAITING_REVIEW`); the inbox shows *Awaiting identifier review* with
+      the findings and no Approve. HR's queue lists it with the change's last
+      four and reveals it from the held change, audited. Accepted, it becomes
+      approvable, and the approval writes it through the normal path, where
+      the accepted review of the same value asks nobody again. **Send back
+      now requires a reason**, always; on a held value it declines the change
+      in the same transaction (`change_decided`, `decidedAs:
+      identifier_review`, the reason as its note; `identifier_reviewed`
+      carries `changeId`), the employee's record shows "HR could not accept
+      your NIF: <reason>. Please correct it." with *Correct it*, and the
+      workflow emails them messaging's new `correction_requested` notice
+      (which names neither the field nor the reason). A change closed any
+      other way supersedes its pending review.*
 - [x] **PEO-126** Product decision: keep the statutory retention floors
       (es-labour 48 months, de-labour 72, eu-payroll 120) but mark each
       unreviewed, pending counsel, and block automated erasure until counsel

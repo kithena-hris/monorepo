@@ -1,1 +1,0 @@
-{"version":1,"body":"query IdentifierReviews {\n    peopleIdentifierReviews {\n      items { personId name attributeKey label last4 findings { level code message } enteredAt }\n    }\n  }"}

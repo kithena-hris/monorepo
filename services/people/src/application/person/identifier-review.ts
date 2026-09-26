@@ -50,6 +50,8 @@ export interface IdentifierReviews {
   open(tx: Tx, tenantId: string, personId: string): Promise<readonly IdentifierReview[]>;
   /** HR's queue, oldest first. */
   pending(tx: Tx, tenantId: string, limit: number): Promise<readonly IdentifierReview[]>;
+  /** The review of a value held for approval (PEO-077), whatever its state. */
+  forChange(tx: Tx, tenantId: string, changeId: string): Promise<IdentifierReview | null>;
   insert(tx: Tx, tenantId: string, review: IdentifierReview): Promise<void>;
   /** Close whatever is open on this attribute: a new value replaced it. */
   supersede(tx: Tx, tenantId: string, personId: string, attributeKey: string): Promise<void>;
@@ -194,6 +196,7 @@ export async function gateIdentifiers(
           personId,
           attributeKey: key,
           historyId,
+          pendingChangeId: null,
           ...reviews.fingerprint(tenantId, key, check.normalised),
           findings: check.findings,
           state: 'pending',
@@ -208,12 +211,81 @@ export async function gateIdentifiers(
   };
 }
 
+/** A held identifier's review, planned before the change is recorded and opened once it is. */
+export interface HeldReview {
+  /** The review this value opens, or null when nothing is doubted. */
+  readonly id: string | null;
+  /** The sent-back review this value answers, closed by it. */
+  readonly supersedes: string | null;
+  open(tx: Tx, changeId: string): Promise<void>;
+}
+
+/**
+ * **A doubted identifier held for approval is reviewed first** (PEO-077,
+ * PEO-125). The same rule a write follows (`onIdentifierWritten`), taken when
+ * the value is held rather than when it is written: whatever is open on the
+ * attribute is superseded — a sent-back value is answered by this one — and a
+ * doubted value opens its review against the held change. Nobody approves the
+ * change until that review is accepted; once approved, the write meets the
+ * accepted review of the same value and asks nobody again.
+ */
+export async function reviewHeld(
+  tx: Tx,
+  deps: {
+    readonly reviews?: IdentifierReviews | undefined;
+    readonly clock: Clock;
+    readonly newId: () => string;
+  },
+  tenantId: string,
+  personId: string,
+  carried: Carried,
+): Promise<HeldReview> {
+  const { reviews } = deps;
+  const [definition, check] = carried;
+  const none: HeldReview = { id: null, supersedes: null, open: () => Promise.resolve() };
+  if (!reviews || definition.typeConfig.kind !== 'national_id') return none;
+  const latest = await reviews.latest(tx, tenantId, personId, definition.key);
+  const same =
+    latest !== null && check !== null && reviews.matches(tenantId, latest, check.normalised);
+  const plan = onIdentifierWritten({ findings: check?.findings ?? [], latest, sameAsLatest: same });
+  const id = plan.open && check !== null ? deps.newId() : null;
+  return {
+    id,
+    supersedes: plan.supersede && latest?.state === 'sent_back' ? latest.id : null,
+    async open(at, changeId) {
+      if (plan.supersede) await reviews.supersede(at, tenantId, personId, definition.key);
+      if (id === null || check === null) return;
+      await reviews.insert(at, tenantId, {
+        id,
+        personId,
+        attributeKey: definition.key,
+        historyId: null,
+        pendingChangeId: changeId,
+        ...reviews.fingerprint(tenantId, definition.key, check.normalised),
+        findings: check.findings,
+        state: 'pending',
+        createdAt: deps.clock.instant(),
+        decidedBy: null,
+        decidedAt: null,
+        note: null,
+      });
+    },
+  };
+}
+
 /* ------------------------------------------------------------ reviewing -- */
 
 /** One review as HR's queue lists it. The value is never here; `last4` is what a screen shows. */
 export interface ReviewItem extends IdentifierReview {
   readonly label: string;
   readonly last4: string | null;
+}
+
+/** The value a held change carries, for its review: sealed until a reviewer reveals it (PEO-077). */
+export interface HeldValues {
+  last4(tx: Tx, tenantId: string, changeId: string): Promise<string | null>;
+  /** The value in full while the change is pending; null once it closed. */
+  value(tx: Tx, tenantId: string, changeId: string): Promise<string | null>;
 }
 
 export interface ReviewDeps {
@@ -312,6 +384,7 @@ export async function decide(
         decision: decided.value.state,
         findingCodes: review.findings.filter((f) => f.level !== 'ok').map((f) => f.code),
         note: decided.value.note,
+        ...(review.pendingChangeId === null ? {} : { changeId: review.pendingChangeId }),
       }),
     ),
   ]);
@@ -329,15 +402,20 @@ export async function reveal(
     readonly correlationId: string;
     readonly definition: AttributeDefinition;
     readonly values: Readonly<Record<string, unknown>>;
+    /** Where a held value is read from: it is not in the record yet. */
+    readonly held?: HeldValues;
   },
 ): Promise<Result<string>> {
-  const value = input.definition.encrypted
-    ? await deps.reviews.reveal(tx, {
-        tenantId: input.tenantId,
-        personId: review.personId,
-        attributeKey: review.attributeKey,
-      })
-    : input.values[review.attributeKey];
+  const value =
+    review.pendingChangeId !== null
+      ? await input.held?.value(tx, input.tenantId, review.pendingChangeId)
+      : input.definition.encrypted
+        ? await deps.reviews.reveal(tx, {
+            tenantId: input.tenantId,
+            personId: review.personId,
+            attributeKey: review.attributeKey,
+          })
+        : input.values[review.attributeKey];
   if (typeof value !== 'string') return err(NotReviewable(review.attributeKey));
   await deps.reviews.publish(tx, [
     audit(

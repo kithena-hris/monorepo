@@ -924,6 +924,21 @@ A request whose move has already happened — the same leave started, the same
 notice or termination with the same last working day, the same discard — is
 answered with the record and raises nothing.
 
+- **Hire** — `provisional` only, HR only, from a start date on the person's
+  calendar, past or future: `active` once it has begun there, `pre_hire`
+  until then, the hire effective from it whenever it was entered. Three ways
+  in, one use case (`PersonAccess.hire`): Add employee with a start date, the
+  import, and hiring somebody already on the books — added without a date,
+  or provisioned from an account — from their profile or a page at a time
+  from bulk edit. The last is refused, in words HR can act on, for somebody
+  already employed, a leaver (rehire them instead), a discarded or merged
+  record, and a record placed nowhere on their start date while the tenant
+  has a legal entity to place them in. The profile's Hire asks for the
+  entity and location then, and bulk hire takes one for everybody placed
+  nowhere, changeable per person; either places them from the start date,
+  past or ahead, recorded now, and somebody placed keeps their placement.
+  The hire reads where they sit as of the start date, so a placement
+  scheduled for that day is the one it is hired into.
 - **Leave** — `active → on_leave → active`, effective from today. Bringing back
   somebody who was never away is refused, not answered.
 - **Notice** — from `active`, and from `on_leave` (somebody resigns during
@@ -1202,7 +1217,8 @@ is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
   comparison: the review stores an HMAC of the normalised value under the
   tenant's derived key, as a unique claim does, and the key rotation re-keys
   it; nothing is decrypted to compare. `send_back`: the employee is asked to
-  correct it; their profile and onboarding say so, with HR's note, and
+  correct it, and HR must say why; their profile and onboarding say so, with
+  HR's reason and a way to correct it, and
   completeness lists the key under `attention` (present, so not missing) until
   a new value supersedes the review. Either is
   `people.person.identifier_reviewed`: the reviewer on the envelope, the
@@ -1212,6 +1228,10 @@ is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
 - **A different value** written after an acceptance is checked afresh; one
   written after a send-back supersedes the review and opens a new one only if
   it is doubted too.
+- **A value held for approval is reviewed before it is approved** (§8.6):
+  its review opens against the held change, not a history row, the change is
+  not approvable until the review is accepted, and sending it back declines
+  the change with the reason.
 - **Every write path, one gate.** An edit, a section save (profile,
   onboarding, GraphQL, REST), the completeness grid's bulk save, an import
   row, a hire and a correction (`supersedes`) all admit their values through
@@ -1424,9 +1444,33 @@ either way on any field.
 - **Who decides.** Anyone holding `hr`, except the requester and except the
   person the change is about: HR's own change needs a second HR member, and
   nobody approves a change to their own record, whoever asked. The database
-  refuses a requester's decision as well as the domain. A one-person HR team
-  changing its own pay has nobody to approve it, and the change lapses; nobody
-  is let in to fill the gap.
+  refuses a requester's decision as well as the domain.
+- **With no other eligible approver, the requester approves alone.** When
+  no `hr` holder but the requester may decide — they are the tenant's only
+  one (the first administrator entering their own NIF in the setup wizard,
+  a one-person HR team), or the only other is the person the change is about
+  (one of two HR members changing the other's record) — the requester may
+  approve it, after a dialog that says there is no other HR member who can
+  and that the audit trail records it as theirs alone. The request carries
+  `soleApprover`; without it, or while an eligible approver holds `hr`, it is
+  refused as before. Who holds `hr` is read from the role rows at decision
+  time, in the decision's transaction, so an approver granted meanwhile
+  decides instead. It is never a rejection (the requester withdraws) and
+  never somebody else's change about them. Recorded as `sole_hr` — the
+  requester was the sole HR member able to decide — on the change and on
+  `change_decided`; the database allows a requester's decision only when it
+  is recorded so.
+- **A doubted national identifier is reviewed first** (§8.4). Holding a
+  national identifier our checks doubt opens its review against the held
+  value; the change reads *Awaiting identifier review*, with the findings,
+  and nobody approves it until the review is accepted. Accepted, it is
+  approved as any change, and the write meets the accepted review and asks
+  nobody again. A review that finds errors must say why: it declines the
+  change with that reason (`identifier_review`), the employee's record shows
+  "HR could not accept your NIF: <reason>. Please correct it." with a way to
+  correct it, and they are emailed to (without the field or the reason). The
+  value they give next answers the review. A value the checks do not doubt
+  is approval only.
 - **An approval applies it** through the same write path, as the requester,
   from the `effectiveFrom` the write asked for — a raise entered on the 15th
   and effective on the 1st is effective on the 1st however long HR took — in
@@ -1451,8 +1495,11 @@ either way on any field.
   approve or reject it, and holding it would only hold the truth back.
 - **Notifications** go through `platform/messaging`'s notice API: every
   approver is told when a change is requested, and the requester when it is
-  approved, rejected or expired. None names the person, the field or the
-  value — only that there is a change, and a link to the approvals inbox.
+  approved, rejected or expired; the person it is about, when a review
+  declined it, that a detail needs correcting (`correction_requested`, linking
+  to their profile) — instead of "not approved" when they asked themselves.
+  None names the person, the field or the value — only that there is a
+  change, and a link.
 - **Marked everywhere.** A sensitive field carries Reach's *Sensitive* badge
   (`Badge tone="sensitive"`, `Field sensitive`) wherever it is drawn: the
   forms, the profile, history, the completeness grid, bulk edit, the import's
@@ -1487,12 +1534,15 @@ records a due expiry and tells the requester how it ended; the decision and
 the value it applies are the request's, never the workflow's. Without
 `TEMPORAL_ADDRESS` the same activities run in-process off the same events,
 and an undecided change expires lazily. REST: `GET /v1/pending-changes`,
-`GET /v1/pending-changes/{id}`, `POST /v1/pending-changes/{id}/decision`,
-`POST /v1/pending-changes/{id}/withdrawal`, `GET
+`GET /v1/pending-changes/{id}`, `POST /v1/pending-changes/{id}/decision` (`soleApprover` for the only HR
+member), `POST /v1/pending-changes/{id}/withdrawal`, `GET
 /v1/people/{id}/pending-changes`; every person write answers with
-`pendingChanges`, and a held correction with `pendingChange`. GraphQL:
-`peopleApprovals`, `PeopleProfile.pending`, `decidePendingChange`,
-`withdrawPendingChange`. Migration `20260926180000`.
+`pendingChanges`, and a held correction with `pendingChange`; each pending
+change says `canSelfApprove`, `awaitingReview` and its `findings`. GraphQL:
+`peopleApprovals`, `PeopleProfile.pending`, `PeopleSetup.profile.pending`,
+`decidePendingChange(soleApprover)`, `withdrawPendingChange`. Migrations
+`20260926180000`, `20260926230000` (`decided_as`) and `20260926230100` (a
+review of a held value).
 
 ---
 
@@ -1662,9 +1712,12 @@ sit on the person's profile, in an Employment section that only HR is sent.
 It shows their day, their status and every employment period, and offers the
 moves §8.1 allows from the current status: give or withdraw notice, start or
 end leave, terminate (with the reason, a note, eligibility for rehire and
-ending access now), end access, discard a provisional record, and rehire
-(asking why when the last period says not eligible). People refuses anything
-else, and the screen shows the refusal.
+ending access now), end access, hire or discard a provisional record, and
+rehire (asking why when the last period says not eligible). Hire asks for the
+start date, and for a legal entity and work location when the person has
+none, and says what will happen ("Ada Lovelace becomes an employee from 1
+October 2026", or pre-hire until then). People refuses anything else, and the
+screen shows the refusal.
 
 **The delivery log and full values, as built (PEO-121).** Each endpoint's
 card on the integrations screen opens its delivery log: newest first, fifty
@@ -1750,7 +1803,7 @@ New:
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
-| `people.person.identifier_reviewed` v1 | HR decided a national identifier our checks doubted (§6.4, §8.4): the person, the attribute key, the review id, `accepted` or `sent_back`, the finding codes and the reviewer's note (free text); the reviewer is the envelope's actor. Never the value |
+| `people.person.identifier_reviewed` v1 | HR decided a national identifier our checks doubted (§6.4, §8.4): the person, the attribute key, the review id, `accepted` or `sent_back`, the finding codes and the reviewer's note (free text, required to send back); `changeId` when the value was held for approval and reviewed first (§8.6); the reviewer is the envelope's actor. Never the value |
 | `people.person.identifier_revealed` v1 | A reviewer read a doubted identifier in full to decide it (§8.4): the person, the attribute key, the review id; who is the envelope's actor. Never the value |
 | `people.person.access_restored` v1 | Access came back (§5, §8.1): a rehired person's new employment started (reason `rehired`), or a notice's last working day was corrected forward to a day not yet ended (reason `last_working_day_corrected`). `restoredAt`, the account id. Identity reinstates on it |
 | `people.role.granted` v1 | A tenant role granted (PEO-112): whom, which role, by whom, `via` people or the back office, and why |
@@ -1782,8 +1835,8 @@ the change would take effect is its `effectiveFrom`.
 
 | Event                                 | Payload highlights                                                        |
 | ------------------------------------- | ------------------------------------------------------------------------- |
-| `people.person.change_requested` v1   | changeId, personId, attributeKey, kind, supersedes, reason, expiresAt     |
-| `people.person.change_decided` v1     | changeId, personId, attributeKey, decision (approved, rejected), note     |
+| `people.person.change_requested` v1   | changeId, personId, attributeKey, kind, supersedes, reason, expiresAt; reviewId when a doubted identifier opened its review, supersedesReview when it answers one sent back |
+| `people.person.change_decided` v1     | changeId, personId, attributeKey, decision (approved, rejected), note; decidedAs (sole_hr, identifier_review) when not another HR member's decision |
 | `people.person.change_withdrawn` v1   | changeId, personId, attributeKey                                          |
 | `people.person.change_expired` v1     | changeId, personId, attributeKey                                          |
 
@@ -2420,6 +2473,7 @@ POST   /v1/people/{id}/notice          HR: on notice until a last working day (�
 POST   /v1/people/{id}/notice/withdraw HR: notice withdrawn before the last day ends
 POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
 POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
+POST   /v1/people/{id}/hire            HR: a provisional person hired from a start date, placed from it if placed nowhere (§8.1)
 POST   /v1/people/{id}/rehire          HR: a new employment period on the same record (§8.1)
 GET    /v1/people/{id}/employment-periods   HR: every employment, first first
 POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar

@@ -243,6 +243,8 @@ export function peopleService(
   };
   const reader = drizzlePersonReader();
   const relations = relationsFrom(process.env);
+  // Doubted national identifiers, queued for HR (PEO-125).
+  const reviews = drizzleIdentifierReviews(ring, secrets);
   const access = personAccess({
     people: drizzlePersonRepository(),
     reader,
@@ -250,8 +252,7 @@ export function peopleService(
     relations,
     approvals: holding,
     secrets,
-    // Doubted national identifiers, queued for HR (PEO-125).
-    reviews: drizzleIdentifierReviews(ring, secrets),
+    reviews,
     duplicates: drizzleDuplicates(),
     uniques: drizzleUniqueClaims(ring),
     clock: systemClock,
@@ -271,7 +272,9 @@ export function peopleService(
   });
   return {
     access,
-    pending: { ...holding, access, schemas, reader, relations },
+    // Who holds `hr` decides whether a requester approves alone (PEO-077); a
+    // doubted identifier waits on its review (PEO-125).
+    pending: { ...holding, access, schemas, reader, relations, roles: drizzleRoleStore(), reviews },
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),

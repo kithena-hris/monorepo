@@ -229,3 +229,59 @@ describe('PeopleSetup', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('the first administrator’s held NIF (PEO-077)', () => {
+  it('is theirs to approve alone, with no other HR member who can, after the dialog', async () => {
+    const onSelfApprove = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { container } = render(
+      <PeopleSetup
+        load={{
+          status: 'ready',
+          data: {
+            ...fresh,
+            entityConfirmed: true,
+            published: 1,
+            profile: {
+              ...profile,
+              pending: [
+                {
+                  id: 'c1',
+                  key: 'legal_name',
+                  label: 'Legal name',
+                  kind: 'value',
+                  value: 'Priya Shah',
+                  effectiveFrom: '2026-09-26',
+                  requestedAt: '2026-09-26T09:00:00.000Z',
+                  expiresAt: '2026-10-03T09:00:00.000Z',
+                  requestedBy: 'You',
+                  reason: null,
+                  mine: true,
+                  canDecide: false,
+                  canSelfApprove: true,
+                },
+              ],
+            },
+          },
+        }}
+        onConfirmEntity={vi.fn()}
+        onPublish={vi.fn()}
+        onSaveProfile={vi.fn()}
+        onSelfApprove={onSelfApprove}
+        onWithdraw={vi.fn()}
+        onFinish={vi.fn()}
+      />,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+    const user = fast();
+    await user.click(
+      screen.getByRole('button', { name: 'Approve the change to Legal name yourself' }),
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/no other HR member who can approve it/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Approve it myself' }));
+    expect(onSelfApprove).toHaveBeenCalledWith('c1');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+});

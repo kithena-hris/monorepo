@@ -15,6 +15,7 @@ import {
   type RoleReads,
 } from '../../application/person/pending-changes.js';
 import { inTenantResult } from '../../application/person/person-access.js';
+import type { IdentifierReviews } from '../../application/person/identifier-review.js';
 import type { PersonReader } from '../../application/person/ports.js';
 import type { InTenant } from '../../application/person/service.js';
 import type { ApprovalMailer, ApprovalNotice } from '../approval-mailer.js';
@@ -54,6 +55,8 @@ export interface PendingChangeRunner {
 
 export interface PendingChangeWorkDeps {
   readonly holding: Holding;
+  /** A held identifier's review, closed with its change when that expires (PEO-125). */
+  readonly reviews?: IdentifierReviews;
   readonly reader: PersonReader;
   readonly roles: RoleReads;
   /** The company's name and origin, or null when it cannot be linked to. */
@@ -113,24 +116,42 @@ export function activities(
       type Told = {
         readonly state: Settled;
         readonly requester: string | null;
+        /** Set when a review declined it: the employee is asked to correct it. */
+        readonly correct: string | null;
         readonly company: ReminderCompany | null;
       };
       const settled = await inTenantResult<Told>(inTenant, input.tenantId, async (tx) => {
-        const done = await settlePendingChange(tx, deps.holding, input);
+        const done = await settlePendingChange(
+          tx,
+          { ...deps.holding, ...(deps.reviews === undefined ? {} : { reviews: deps.reviews }) },
+          input,
+        );
         if (!done.ok) return done;
         const { state, change } = done.value;
         if (state === 'pending' || state === 'withdrawn') {
-          return ok({ state, requester: null, company: null });
+          return ok({ state, requester: null, correct: null, company: null });
         }
+        const who = await whoToTell(tx, deps, change);
+        const correct = change.decidedAs === 'identifier_review' ? who.subject : null;
         return ok({
           state,
-          requester: (await whoToTell(tx, deps, change)).requester,
+          // One email each: the employee who asked is told to correct it, not also that it failed.
+          requester: who.requester === correct ? null : who.requester,
+          correct,
           company: await deps.companyOf(tx, input.tenantId),
         });
       });
       // A refusal here is a change that vanished; retrying will not find it.
       if (!settled.ok) throw new Error(`settle refused: ${settled.error.code}`);
-      const { state, requester, company } = settled.value;
+      const { state, requester, correct, company } = settled.value;
+      if (correct !== null) {
+        await mail(
+          input.tenantId,
+          company,
+          [{ email: correct, key: `approval/${input.changeId}/correct` }],
+          { kind: 'correction_requested' },
+        );
+      }
       if (requester !== null && (state === 'approved' || state === 'rejected')) {
         await mail(
           input.tenantId,

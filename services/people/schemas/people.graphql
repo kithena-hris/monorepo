@@ -155,11 +155,14 @@ type AnalyticsTenureBand {
 }
 
 type ApprovalItem {
+  awaitingReview: Boolean
   canDecide: Boolean
+  canSelfApprove: Boolean
   """What is in force now, masked the same way."""
   current: FormEntry
   effectiveFrom: String
   expiresAt: String
+  findings: [IdentifierFinding!]
   id: ID
   key: String
   kind: String
@@ -245,6 +248,18 @@ type BulkEditRow {
   outcome: String
   personId: ID
   refusal: BulkEditRefusal
+}
+
+input BulkHireInput {
+  """On the person’s own calendar."""
+  hireDate: String!
+  """
+  For somebody placed nowhere on their start date, placed from it; somebody placed keeps theirs.
+  """
+  legalEntityId: ID
+  """Their work location; it names its legal entity."""
+  locationId: ID
+  personId: ID!
 }
 
 """
@@ -612,6 +627,10 @@ type IdentifierReviewItem {
   attributeKey: String
   enteredAt: String
   findings: [IdentifierFinding!]
+  """
+  Held for approval, not yet written: reviewed first; sending it back declines the change.
+  """
+  held: Boolean
   label: String
   last4: String
   name: String
@@ -853,6 +872,10 @@ type Mutation {
     values: [FormValueInput!]!
   ): BulkEditResult
   """
+  A page of a bulk hire: provisional people hired from a start date, each atomic, each answered.
+  """
+  bulkHirePeople(hires: [BulkHireInput!]!, idempotencyKey: String!): BulkEditResult
+  """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
   changeLocationZone(effectiveFrom: String!, id: ID!, idempotencyKey: String!, timeZone: String!): Location
@@ -915,9 +938,18 @@ type Mutation {
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
   """
-  HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.
+  HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s — unless no other member of HR may approve it and the requester confirms it with soleApprover.
   """
-  decidePendingChange(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): WriteOutcome
+  decidePendingChange(
+    approve: Boolean!
+    id: ID!
+    idempotencyKey: String!
+    note: String
+    """
+    The requester approves their own change alone, no other member of HR being able to. Recorded as such.
+    """
+    soleApprover: Boolean
+  ): WriteOutcome
   """Delete a segment you saved."""
   deletePeopleSegment(id: ID!, idempotencyKey: String!): WriteOutcome
   deleteReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
@@ -943,6 +975,17 @@ type Mutation {
   people_admin only, never to oneself. A role already held changes nothing.
   """
   grantRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
+  """
+  Hire a provisional person from a start date: active once it has begun on their calendar, pre-hire until then; HR only.
+  """
+  hirePerson(
+    hireDate: String!
+    idempotencyKey: String!
+    """For somebody placed nowhere yet."""
+    legalEntityId: ID
+    locationId: ID
+    personId: ID!
+  ): Person
   """
   Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.
   """
@@ -1108,9 +1151,18 @@ type PayBand {
 A value waiting for HR approval. Never the field’s value, which stays what is in force.
 """
 type PendingField {
+  """
+  A national identifier the checks doubt: nobody approves it until HR accepts its review.
+  """
+  awaitingReview: Boolean
   canDecide: Boolean
+  """
+  The viewer asked and no other member of HR may approve it: they approve it alone, once they confirm it.
+  """
+  canSelfApprove: Boolean
   effectiveFrom: String
   expiresAt: String
+  findings: [IdentifierFinding!]
   id: ID
   key: String
   """value, or a correction of a recorded one"""
@@ -1167,6 +1219,10 @@ type PeopleBulkEdit {
   """People per request."""
   limit: Int
   people: [BulkEditPerson!]
+  """
+  Where a bulk hire may place somebody placed nowhere: the live entities and locations. Null when there is nowhere to place anybody.
+  """
+  placement: ProfilePlacement
   sections: [RecordSection!]
   today: String
 }
@@ -1557,6 +1613,10 @@ type Query {
   What a bulk edit would change and refuse, per person, and why; nothing is kept.
   """
   peopleBulkEditPreview(applySensitiveWithoutApproval: Boolean, effectiveFrom: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
+  """
+  Who a bulk hire would hire and who it would skip, and why; nothing is kept.
+  """
+  peopleBulkHirePreview(hires: [BulkHireInput!]!): BulkEditResult
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory
@@ -1914,6 +1974,7 @@ type SetupPackSection {
 }
 
 type SetupProfile {
+  pending: [PendingField!]
   sections: [RecordSection!]
   values: [FormEntry!]
 }
