@@ -4,11 +4,13 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   DataTable,
   DatePicker,
   EmptyState,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   PageHeader,
   Select,
@@ -44,12 +46,17 @@ export interface BulkEditPage {
   readonly personIds: readonly string[];
   readonly values: Readonly<Record<string, AttributeValue>>;
   readonly effectiveFrom: string;
+  /** HR writes values that need approval straight through, recorded as such (PEO-077). */
+  readonly applySensitiveWithoutApproval?: boolean;
 }
 
 export interface BulkRow {
   readonly personId: string;
   readonly name: string;
-  readonly outcome: 'changed' | 'unchanged' | 'refused';
+  /** `held`: every value it would change waits for HR's approval (PEO-077). */
+  readonly outcome: 'changed' | 'unchanged' | 'refused' | 'held';
+  /** Fields sent to HR for approval rather than written. */
+  readonly held?: readonly string[];
   readonly changes: readonly {
     readonly key: string;
     readonly label: string;
@@ -97,8 +104,18 @@ export function BulkEdit({ load, searchPeople, ...props }: BulkEditProps): JSX.E
   );
 }
 
-const TONE = { changed: 'accent', unchanged: 'neutral', refused: 'danger' } as const;
-const WORD = { changed: 'Changes', unchanged: 'Already set', refused: 'Refused' } as const;
+const TONE = {
+  changed: 'accent',
+  unchanged: 'neutral',
+  refused: 'danger',
+  held: 'warning',
+} as const;
+const WORD = {
+  changed: 'Changes',
+  unchanged: 'Already set',
+  refused: 'Refused',
+  held: 'Pending approval',
+} as const;
 
 function Editor({
   state,
@@ -110,6 +127,8 @@ function Editor({
   const [chosen, setChosen] = useState<readonly string[]>(fields[0] ? [fields[0].key] : []);
   const [values, setValues] = useState<Readonly<Record<string, AttributeValue>>>({});
   const [effectiveFrom, setEffectiveFrom] = useState(state.today);
+  const [withoutApproval, setWithoutApproval] = useState(false);
+  const sensitive = fields.filter((f) => f.sensitive === true && chosen.includes(f.key));
   const [shown, setShown] = useState<{ committed: boolean; rows: readonly BulkRow[] } | null>(
     null,
   );
@@ -123,6 +142,7 @@ function Editor({
   const page = (): Omit<BulkEditPage, 'personIds'> => ({
     values: Object.fromEntries(chosen.map((k) => [k, values[k] ?? null])),
     effectiveFrom,
+    ...(withoutApproval && sensitive.length > 0 ? { applySensitiveWithoutApproval: true } : {}),
   });
 
   /** Every page in turn, a page of `limit` people a request; stops at the first failure. */
@@ -250,6 +270,24 @@ function Editor({
           Empty clears the field. A field kept without dates changes on the day, whatever the date
           says.
         </p>
+        {sensitive.length === 0 ? null : (
+          <Field orientation="horizontal" className="justify-start">
+            <FieldControl>
+              <Checkbox
+                checked={withoutApproval}
+                onCheckedChange={(on) => {
+                  reset();
+                  setWithoutApproval(on === true);
+                }}
+              />
+            </FieldControl>
+            <FieldLabel>Apply sensitive values without approval</FieldLabel>
+            <FieldDescription>
+              {sensitive.map((f) => f.label).join(', ')} otherwise wait for a second HR member to
+              approve them. Each change records that you applied it without approval.
+            </FieldDescription>
+          </Field>
+        )}
       </Card>
 
       {problem === null ? null : (
@@ -291,20 +329,23 @@ function Editor({
             <Stat label={shown.committed ? 'Changed' : 'Will change'} value={count('changed')} />
             <Stat label="Already set" value={count('unchanged')} />
             <Stat label="Refused" value={count('refused')} />
+            {count('held') === 0 ? null : (
+              <Stat label="Pending approval" value={count('held')} />
+            )}
           </AutoGrid>
           <Results rows={shown.rows} byKey={byKey} />
           {shown.committed ? null : (
             <div>
               <Button
                 variant="primary"
-                disabled={count('changed') === 0}
+                disabled={count('changed') + count('held') === 0}
                 loading={busy}
                 loadingLabel="Saving"
                 onClick={() => {
                   void run(onCommit);
                 }}
               >
-                {`Apply to ${String(count('changed'))} ${count('changed') === 1 ? 'person' : 'people'}`}
+                {`Apply to ${String(count('changed') + count('held'))} ${count('changed') + count('held') === 1 ? 'person' : 'people'}`}
               </Button>
             </div>
           )}
@@ -324,9 +365,15 @@ function Results({
   const wide = useBreakpoint('md');
   const what = (r: BulkRow): JSX.Element | null => {
     if (r.refusal !== null) return <span>{r.refusal.message}</span>;
-    if (r.changes.length === 0) return null;
+    const held = r.held ?? [];
+    if (r.changes.length === 0 && held.length === 0) return null;
     return (
       <ul className="flex flex-col gap-1">
+        {held.length === 0 ? null : (
+          <li>
+            {held.join(', ')}: waits for HR&apos;s approval; the record keeps what it had until then.
+          </li>
+        )}
         {r.changes.map((c) => {
           const field = byKey.get(c.key) ?? FALLBACK(c);
           return (

@@ -13,7 +13,7 @@ import {
   type PendingChangeDeps,
 } from './pending-changes.js';
 import { inMemoryPendingChangeStore } from './pending-store.js';
-import { personAccess } from './person-access.js';
+import { asIntegration, personAccess } from './person-access.js';
 import type { Viewer } from './ports.js';
 
 /**
@@ -183,6 +183,21 @@ describe('a write to a field that requires approval', () => {
     expect(published).toEqual([]);
     const [updated] = named(store.events, 'people.person.profile_updated');
     expect(updated?.payload).toMatchObject({ appliedWithoutApproval: ['base_salary'] });
+  });
+
+  it('is written by the integration that is its source of record, which nobody here could approve', async () => {
+    const { access, published } = setup();
+    const okta = { connectionId: '00000000-0000-4000-8000-0000000000e1', system: 'Okta' };
+    const written = await access.update(tx, {
+      ...asIntegration(
+        { tenantId: TENANT, correlationId: 'c' },
+        { ...okta, owned: new Map([['base_salary', okta]]) },
+      ),
+      personId: ADA,
+      changes: { base_salary: money },
+    });
+    expect(written.ok && written.value.held).toBeUndefined();
+    expect(published).toEqual([]);
   });
 
   it('refuses that choice to anybody without hr', async () => {

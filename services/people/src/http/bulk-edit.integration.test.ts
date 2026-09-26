@@ -76,6 +76,7 @@ beforeAll(async () => {
     '20260924270200_people_role_grant.sql',
     '20260924330000_people_identifier_review.sql',
     '20260926143000_people_duplicates.sql',
+    '20260926160000_people_scim.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -115,6 +116,8 @@ beforeAll(async () => {
         define({ key: 'desk_phone' }),
         // The employee's to fill in, not HR's.
         define({ key: 'nickname', ownership: ['employee'] }),
+        // PEO-077: a change waits for a second HR member, unless HR applies it without.
+        define({ key: 'pay_grade', requiresApproval: true }),
       ]),
       [],
       '2026-09-01',
@@ -170,6 +173,42 @@ const updates = async (personId: string) =>
 
 const outcomes = (rows: Row[]) =>
   rows.map((r) => [r.personId, r.outcome, r.refusal?.code ?? null]);
+
+describe('bulk edit of a field that requires approval (PEO-077)', () => {
+  it('holds each value for approval, or applies it when HR says so, and says which', async () => {
+    const held = await post(
+      '',
+      { personIds: [ADA], values: { pay_grade: 'G7' }, effectiveFrom: ON },
+      hr,
+      'grade-held',
+    );
+    expect(held.status).toBe(200);
+    expect(held.body.rows[0]).toMatchObject({ outcome: 'held', held: ['pay_grade'], changes: [] });
+    const pending = await fetch(`${base}/v1/people/${ADA}/pending-changes`, { headers: hr });
+    expect(((await pending.json()) as { items: unknown[] }).items).toHaveLength(1);
+
+    const applied = await post(
+      '',
+      {
+        personIds: [MARCO],
+        values: { pay_grade: 'G8' },
+        effectiveFrom: ON,
+        applySensitiveWithoutApproval: true,
+      },
+      hr,
+      'grade-applied',
+    );
+    expect(applied.body.rows[0]).toMatchObject({ outcome: 'changed', held: [] });
+    const events = await clients[0]!.unsafe<
+      { envelope: { payload: { appliedWithoutApproval?: string[] } } }[]
+    >(
+      `SELECT envelope FROM people.outbox
+        WHERE event_name = 'people.person.profile_updated' AND aggregate_id = '${MARCO}'
+        ORDER BY created_at DESC, event_id DESC LIMIT 1`,
+    );
+    expect(events[0]?.envelope.payload.appliedWithoutApproval).toEqual(['pay_grade']);
+  });
+});
 
 describe('bulk edit (PEO-071)', () => {
   it('previews exactly what would change, keeping nothing', async () => {

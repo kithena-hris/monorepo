@@ -52,6 +52,11 @@ export interface BulkEdit {
   readonly values: Readonly<Record<string, unknown>>;
   /** When the change takes effect, once for the batch. A field kept without dates changes on the day. */
   readonly effectiveFrom: string;
+  /**
+   * Write values that require approval straight through (PEO-077), recorded
+   * on each person's event. HR's alone, as bulk edit is.
+   */
+  readonly applySensitiveWithoutApproval?: boolean | undefined;
 }
 
 export interface BulkChange {
@@ -67,9 +72,14 @@ export interface BulkChange {
 export interface BulkRow {
   readonly personId: string;
   readonly name: string;
-  /** `unchanged`: every value already stood as of `effectiveFrom`, so nothing is written. */
-  readonly outcome: 'changed' | 'unchanged' | 'refused';
+  /**
+   * `unchanged`: every value already stood as of `effectiveFrom`, so nothing
+   * is written. `held`: every value it would change waits for approval.
+   */
+  readonly outcome: 'changed' | 'unchanged' | 'refused' | 'held';
   readonly changes: readonly BulkChange[];
+  /** Labels of the fields sent to HR for approval rather than written (PEO-077). */
+  readonly held: readonly string[];
   /** Why nothing was written for this person: the single write path's own answer. */
   readonly refusal: {
     readonly code: string;
@@ -200,7 +210,15 @@ async function rows(
       Object.entries(changes).filter(([k, v]) => !same(was(k), toForm(v))),
     );
     if (Object.keys(differs).length === 0) {
-      out.push({ personId, name, outcome: 'unchanged', changes: [], refusal: null, findings: [] });
+      out.push({
+        personId,
+        name,
+        outcome: 'unchanged',
+        changes: [],
+        held: [],
+        refusal: null,
+        findings: [],
+      });
       continue;
     }
     const written = await inTenantResult(savepoint, asking.tenantId, async (sp) => {
@@ -209,6 +227,9 @@ async function rows(
         personId,
         changes: differs,
         effectiveFrom: edit.effectiveFrom,
+        ...(edit.applySensitiveWithoutApproval === true
+          ? { applySensitiveWithoutApproval: true }
+          : {}),
       });
       if (!saved.ok) return saved;
       const after = await deps.service.access.read(sp, { ...asOf, personId });
@@ -218,11 +239,14 @@ async function rows(
       out.push(refusedRow(personId, name, written.error));
       continue;
     }
+    const held = new Set((written.value.saved.held ?? []).map((h) => h.attributeKey));
+    const applied = Object.keys(differs).filter((key) => !held.has(key));
     out.push({
       personId,
       name,
-      outcome: 'changed',
-      changes: Object.keys(differs).map((key) => ({
+      outcome: applied.length === 0 ? 'held' : 'changed',
+      held: [...held].map((key) => byKey.get(key)?.label.default ?? key),
+      changes: applied.map((key) => ({
         key,
         label: byKey.get(key)?.label.default ?? key,
         dated: byKey.get(key)?.effectiveDated === true,
@@ -243,6 +267,7 @@ const refusedRow = (personId: string, name: string, error: DomainFailure): BulkR
   name,
   outcome: 'refused',
   changes: [],
+  held: [],
   refusal: { code: error.code, message: error.message, keys: error.path ?? [] },
   findings: [],
 });

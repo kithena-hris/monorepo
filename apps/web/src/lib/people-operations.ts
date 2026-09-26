@@ -165,9 +165,14 @@ export const OPERATIONS = {
   }${RECORD_FIELD}`,
 
   /** What a page of a bulk edit would change and refuse; nothing is kept. */
-  BulkEditPreview: `query BulkEditPreview($personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!) {
-    peopleBulkEditPreview(personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom) {
-      committed rows { personId name outcome changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+  BulkEditPreview: `query BulkEditPreview(
+    $personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $applySensitiveWithoutApproval: Boolean
+  ) {
+    peopleBulkEditPreview(
+      personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval
+    ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
     }
   }${ENTRY}`,
 
@@ -373,9 +378,15 @@ export const OPERATIONS = {
     placePerson(personId: $personId, legalEntityId: $legalEntityId, locationId: $locationId, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
   }`,
 
-  BulkEditPeople: `mutation BulkEditPeople($personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $key: String!) {
-    bulkEditPeople(personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom, idempotencyKey: $key) {
-      committed rows { personId name outcome changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+  BulkEditPeople: `mutation BulkEditPeople(
+    $personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $applySensitiveWithoutApproval: Boolean,
+    $key: String!
+  ) {
+    bulkEditPeople(
+      personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
+    ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
     }
   }${ENTRY}`,
 

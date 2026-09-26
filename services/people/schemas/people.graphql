@@ -201,8 +201,12 @@ type BulkEditResult {
 type BulkEditRow {
   changes: [BulkEditChange!]
   findings: [IdentifierFindingNotice!]
+  """Fields sent to HR for approval rather than written (PEO-077)."""
+  held: [String!]
   name: String
-  """changed, unchanged or refused"""
+  """
+  changed, unchanged, refused, or held: every value it would change waits for approval
+  """
   outcome: String
   personId: ID
   refusal: BulkEditRefusal
@@ -805,7 +809,14 @@ type Mutation {
   """
   A page of a bulk edit: one ordinary write per person, each atomic, each answered.
   """
-  bulkEditPeople(effectiveFrom: String!, idempotencyKey: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
+  bulkEditPeople(
+    """HR only: write values that require approval without it (PEO-077)."""
+    applySensitiveWithoutApproval: Boolean
+    effectiveFrom: String!
+    idempotencyKey: String!
+    personIds: [ID!]!
+    values: [FormValueInput!]!
+  ): BulkEditResult
   """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
@@ -1408,7 +1419,7 @@ type Query {
   """
   What a bulk edit would change and refuse, per person, and why; nothing is kept.
   """
-  peopleBulkEditPreview(effectiveFrom: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
+  peopleBulkEditPreview(applySensitiveWithoutApproval: Boolean, effectiveFrom: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory

@@ -1926,8 +1926,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       personId: t.exposeID('personId'),
       name: t.exposeString('name'),
-      outcome: t.exposeString('outcome', { description: 'changed, unchanged or refused' }),
+      outcome: t.exposeString('outcome', {
+        description: 'changed, unchanged, refused, or held: every value it would change waits for approval',
+      }),
       changes: t.field({ type: [BulkChangeRef], resolve: (r) => list(r.changes) }),
+      held: t.stringList({
+        description: 'Fields sent to HR for approval rather than written (PEO-077).',
+        resolve: (r) => list(r.held),
+      }),
       refusal: t.field({ type: BulkRefusalRef, nullable: true, resolve: (r) => r.refusal }),
       findings: t.field({ type: [FindingNoticeRef], resolve: (r) => list(r.findings) }),
     }),
@@ -1942,10 +1948,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     personIds: readonly (string | number)[];
     values: readonly FormInput[];
     effectiveFrom: string;
+    applySensitiveWithoutApproval?: boolean | null | undefined;
   }) => ({
     personIds: args.personIds.map(String),
     values: changed(args.values),
     effectiveFrom: args.effectiveFrom,
+    ...(args.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
   });
   builder.queryFields((t) => ({
     peopleBulkEdit: t.field({
@@ -1965,6 +1973,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         personIds: t.arg.idList({ required: true }),
         values: t.arg({ type: [FormValueInput], required: true }),
         effectiveFrom: t.arg.string({ required: true }),
+        applySensitiveWithoutApproval: t.arg.boolean(),
       },
       resolve: (_root, args, ctx) =>
         viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit/preview', { body: bulkBody(args) }),
@@ -1978,6 +1987,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         personIds: t.arg.idList({ required: true }),
         values: t.arg({ type: [FormValueInput], required: true }),
         effectiveFrom: t.arg.string({ required: true }),
+        applySensitiveWithoutApproval: t.arg.boolean({
+          description: 'HR only: write values that require approval without it (PEO-077).',
+        }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: (_root, { idempotencyKey, ...args }, ctx) =>

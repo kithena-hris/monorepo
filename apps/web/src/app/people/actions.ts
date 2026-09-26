@@ -182,6 +182,8 @@ export interface BulkEditPage {
   readonly personIds: readonly string[];
   readonly values: Values;
   readonly effectiveFrom: string;
+  /** HR writes values that need approval straight through (PEO-077). */
+  readonly applySensitiveWithoutApproval?: boolean;
 }
 export type BulkEdited =
   | { readonly ok: true; readonly committed: boolean; readonly rows: readonly unknown[] }
@@ -200,6 +202,7 @@ const bulkVariables = (page: BulkEditPage) => ({
   personIds: [...page.personIds],
   values: formInputs(page.values),
   effectiveFrom: page.effectiveFrom,
+  ...(page.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
 });
 
 /** What this page would change and refuse, per person; nothing is kept. */

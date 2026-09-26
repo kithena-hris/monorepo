@@ -155,6 +155,8 @@ export const BulkEditBody = z.strictObject({
   personIds: z.array(z.uuid()).min(1).max(BULK_PAGE),
   values: z.record(z.string().max(64), z.unknown()),
   effectiveFrom: z.iso.date(),
+  /** HR writes values that require approval without it (PEO-077). */
+  applySensitiveWithoutApproval: z.boolean().optional(),
 });
 export const EndpointBody = z.strictObject({
   url: z.string().max(2000),
