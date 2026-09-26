@@ -924,6 +924,17 @@ A request whose move has already happened — the same leave started, the same
 notice or termination with the same last working day, the same discard — is
 answered with the record and raises nothing.
 
+- **Hire** — `provisional` only, HR only, from a start date on the person's
+  calendar, past or future: `active` once it has begun there, `pre_hire`
+  until then, the hire effective from it whenever it was entered. Three ways
+  in, one use case (`PersonAccess.hire`): Add employee with a start date, the
+  import, and hiring somebody already on the books — added without a date,
+  or provisioned from an account — from their profile or a page at a time
+  from bulk edit. The last is refused, in words HR can act on, for somebody
+  already employed, a leaver (rehire them instead), a discarded or merged
+  record, and a record placed nowhere while the tenant has a legal entity to
+  place them in; the profile's Hire asks for the entity and location then,
+  and places them from the start date when it has passed, today otherwise.
 - **Leave** — `active → on_leave → active`, effective from today. Bringing back
   somebody who was never away is refused, not answered.
 - **Notice** — from `active`, and from `on_leave` (somebody resigns during
@@ -1662,9 +1673,12 @@ sit on the person's profile, in an Employment section that only HR is sent.
 It shows their day, their status and every employment period, and offers the
 moves §8.1 allows from the current status: give or withdraw notice, start or
 end leave, terminate (with the reason, a note, eligibility for rehire and
-ending access now), end access, discard a provisional record, and rehire
-(asking why when the last period says not eligible). People refuses anything
-else, and the screen shows the refusal.
+ending access now), end access, hire or discard a provisional record, and
+rehire (asking why when the last period says not eligible). Hire asks for the
+start date, and for a legal entity and work location when the person has
+none, and says what will happen ("Ada Lovelace becomes an employee from 1
+October 2026", or pre-hire until then). People refuses anything else, and the
+screen shows the refusal.
 
 **The delivery log and full values, as built (PEO-121).** Each endpoint's
 card on the integrations screen opens its delivery log: newest first, fifty
@@ -2420,6 +2434,7 @@ POST   /v1/people/{id}/notice          HR: on notice until a last working day (�
 POST   /v1/people/{id}/notice/withdraw HR: notice withdrawn before the last day ends
 POST   /v1/people/{id}/termination     HR: employment ended, once the last day has come; endAccessNow for cause
 POST   /v1/people/{id}/access/end      HR: a leaver's access ends now, not at the end of the last day (§5)
+POST   /v1/people/{id}/hire            HR: a provisional person hired from a start date, placed first if given (§8.1)
 POST   /v1/people/{id}/rehire          HR: a new employment period on the same record (§8.1)
 GET    /v1/people/{id}/employment-periods   HR: every employment, first first
 POST   /v1/people/{id}/leave/start     HR: on leave from today, on their calendar
