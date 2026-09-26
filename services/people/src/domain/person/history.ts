@@ -168,6 +168,25 @@ export function valueAsOf(
   return timeline.filter((e) => e.effectiveFrom <= asOf).at(-1);
 }
 
+/**
+ * A record's values with `keys` read as they stand on `date`: a row in force
+ * that day, a scheduled one included, and otherwise what the record holds —
+ * a key nothing recorded yet was in force for keeps its current value.
+ */
+export function valuesOn(
+  values: Readonly<Record<string, unknown>>,
+  history: readonly HistoryEntry[],
+  keys: readonly string[],
+  date: string,
+): Record<string, unknown> {
+  const out = { ...values };
+  for (const key of keys) {
+    const entry = valueAsOf(history, key, date);
+    if (entry !== undefined) out[key] = entry.value;
+  }
+  return out;
+}
+
 /** UTC−12, where the date is the earliest date anywhere on Earth. */
 const LATEST_ZONE = 'Etc/GMT+12';
 
