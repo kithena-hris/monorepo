@@ -43,13 +43,30 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 
 /** What People's checks warned about on a national identifier (PEO-125). Never the value. */
 type Finding = Readonly<Record<string, string>>;
+/**
+ * A save's answer: what the checks found, and what it sent to HR for approval
+ * instead of saving (PEO-077) — the fields' labels for a form, a count for the
+ * grid.
+ */
 export type Saved =
-  | { readonly ok: true; readonly findings: readonly Finding[] }
+  | {
+      readonly ok: true;
+      readonly findings: readonly Finding[];
+      readonly held?: readonly string[] | number;
+    }
   | { readonly ok: false; readonly message: string };
 
-const saved = async (answer: Promise<PeopleAnswer<{ findings?: Finding[] }>>): Promise<Saved> => {
+const saved = async (
+  answer: Promise<PeopleAnswer<{ findings?: Finding[]; held?: readonly string[] | number | null }>>,
+): Promise<Saved> => {
   const a = await answer;
-  return a.ok ? { ok: true, findings: a.data.findings ?? [] } : { ok: false, message: a.message };
+  if (!a.ok) return { ok: false, message: a.message };
+  const held = a.data.held;
+  return {
+    ok: true,
+    findings: a.data.findings ?? [],
+    ...(held === undefined || held === null ? {} : { held }),
+  };
 };
 
 export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Saved> {
@@ -265,6 +282,24 @@ export async function requestFullValues(fields: readonly string[], reason: strin
   return outcome(people('RequestFullValues', { fields: [...fields], reason }));
 }
 
+/* ---------------------------------------------- approvals (PEO-077) -- */
+
+/** HR approves or rejects a change held for approval; People decides who may. */
+export async function decidePendingChange(
+  id: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Outcome> {
+  return outcome(
+    people('DecidePendingChange', { id, approve, ...(note === null ? {} : { note }) }),
+  );
+}
+
+/** The requester takes their change back while it waits. */
+export async function withdrawPendingChange(id: string): Promise<Outcome> {
+  return outcome(people('WithdrawPendingChange', { id }));
+}
+
 export async function decideFullValues(
   id: string,
   approve: boolean,
@@ -455,8 +490,15 @@ export async function dryRunImport(
 export async function commitImport(
   uploadId: string,
   mapping: Readonly<Record<number, string | null>>,
+  applySensitiveWithoutApproval = false,
 ): Promise<Staged> {
-  return staged(people('CommitImport', { uploadId, mapping: columns(mapping) }));
+  return staged(
+    people('CommitImport', {
+      uploadId,
+      mapping: columns(mapping),
+      ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+    }),
+  );
 }
 
 /* -------------------------------------------------------------- export -- */

@@ -152,6 +152,10 @@ export function PeopleScreen({
           onHistory: () => {
             go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
           },
+          onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onApprovals: () => {
+            go('/people/approvals');
+          },
         };
       }
       // A date is a URL, so Back returns to the one before (PEO-064).
@@ -324,6 +328,15 @@ export function PeopleScreen({
           onDecide: thenRefresh(actions.reviewIdentifier),
           onReveal: actions.revealIdentifier,
         };
+      case 'Approvals':
+        return {
+          load: loadable,
+          onDecide: thenRefresh(actions.decidePendingChange),
+          onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onOpen: (personId: string) => {
+            go(`/people/${personId}`);
+          },
+        };
       case 'WebhookLog': {
         const next =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
@@ -406,11 +419,19 @@ export function PeopleScreen({
             const id = importing.uploadId;
             return id === null ? again : next(await actions.dryRunImport(id, mapping), id, mapping);
           },
-          onCommit: async () => {
+          onCommit: async (options?: { readonly applyWithoutApproval?: boolean }) => {
             const id = importing.uploadId;
             return id === null
               ? again
-              : next(await actions.commitImport(id, importing.mapping), id, importing.mapping);
+              : next(
+                  await actions.commitImport(
+                    id,
+                    importing.mapping,
+                    options?.applyWithoutApproval === true,
+                  ),
+                  id,
+                  importing.mapping,
+                );
           },
           onDownloadBlocked: () => {
             // A signed link to the stored report: it downloads, and expires.

@@ -56,6 +56,8 @@ function absentIfNull<T extends Json>(value: T, keys: readonly string[]): T {
 }
 
 const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy']);
+/** A change waiting for approval (PEO-077): its value from its entry, masked as it came. */
+const pending = (p: Json & { value: Entry }) => ({ ...p, value: formValue(p.value) });
 const section = (s: Json & { fields: Json[] }) => ({ ...s, fields: s.fields.map(field) });
 
 interface WithRecord {
@@ -76,7 +78,14 @@ function stage(s: Json): Json {
 /** Each screen's answer as its view model, by the component that draws it. */
 export const VIEWS = {
   Onboarding: (v: WithRecord & Json) => record(v),
-  Profile: (v: WithRecord & Json) => record(v),
+  Profile: (v: WithRecord & Json & { pending?: (Json & { value: Entry })[] }) => ({
+    ...record(v),
+    pending: (v.pending ?? []).map(pending),
+  }),
+  Approvals: (v: Json & { items: (Json & { value: Entry; current: Entry })[] }) => ({
+    ...v,
+    items: v.items.map((i) => ({ ...pending(i), current: formValue(i.current) })),
+  }),
   // Each change's value too, from its entry: a sealed one stays `{ last4: null }`.
   PersonHistory: (v: WithRecord & Json & { changes: (Json & { value: Entry })[] }) => ({
     ...record(v),

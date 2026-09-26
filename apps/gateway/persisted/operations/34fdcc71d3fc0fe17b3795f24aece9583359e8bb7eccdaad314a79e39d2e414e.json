@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DecidePendingChange($id: ID!, $approve: Boolean!, $note: String, $key: String!) {\n    decidePendingChange(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { ok }\n  }"}
