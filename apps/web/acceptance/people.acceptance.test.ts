@@ -12,6 +12,7 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  * - PEO-049: a fresh tenant's administrator reaches a published version 1
  *   and a complete first profile from the setup wizard, at 390×844 with a
  *   software keyboard raised, and abandoning half way leaves a partial record.
+ *   Her NIF requires approval, so a second member of HR approves it (PEO-077).
  * - PEO-055: an admin takes a broken file, fixes the blocked rows from the
  *   downloaded CSV, and imports them without re-mapping.
  * - PEO-112: the People administrator grants a role on the roles screen, with
@@ -25,6 +26,12 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  *
  * `stack.ts` has what is real: all of it.
  */
+
+/**
+ * A second member of HR, with no session: approves what Priya may not, a
+ * change to her own record (PEO-077). Over People's REST, as the router sends it.
+ */
+const SECOND_HR = '00000000-0000-4000-8000-0000000000b3';
 
 let stack: Stack;
 let browser: Browser;
@@ -234,12 +241,35 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await identification.getByRole('textbox', { name: /NIF \/ NIE/ }).fill('12345678Z');
     await inView(page, 'Save', 'Identification & right to work');
     await identification.getByRole('button', { name: 'Save' }).click();
+
+    // A NIF requires approval (PEO-077): held, and the form says so.
+    await identification
+      .getByText(/NIF \/ NIE is not changed until HR approves/)
+      .waitFor({ timeout: 30_000 });
+    const [held] = await eventually(
+      'the held NIF',
+      () => stack.sql<{ id: string }[]>`
+        SELECT id::text FROM people.pending_change
+         WHERE person_id = ${ADMIN.person} AND attribute_key = 'es_nif' AND state = 'pending'`,
+      (rows) => rows.length === 1,
+    );
+    const decision = `/v1/pending-changes/${held?.id ?? ''}/decision`;
+    // Nobody approves a change to their own record, HR or not.
+    expect((await stack.writeAsPeople(ADMIN.account, decision, { approve: true })).status).toBe(
+      403,
+    );
+    // A second member of HR does, and it is written.
+    await stack.writeTuples([
+      { user: `user:${SECOND_HR}`, relation: 'hr', object: `tenant:${TENANT}` },
+    ]);
+    expect((await stack.writeAsPeople(SECOND_HR, decision, { approve: true })).status).toBe(200);
     await eventually(
       'the NIF',
       () => stack.sql`SELECT 1 FROM people.person_secret WHERE person_id = ${ADMIN.person}`,
       (rows) => rows.length === 1,
     );
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
     await page.getByText('Complete', { exact: true }).waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Finish' }).click();
     await page.waitForURL(/\/people\/me$/);
@@ -870,8 +900,35 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
       SELECT 1 FROM people.person_secret WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`;
     expect(before).toHaveLength(0);
 
-    // Submitted anyway: saved, and queued for HR.
+    // Submitted anyway. A NIF requires approval (PEO-077), so it is held, not
+    // yet written: no secret, and no review until the approval applies it.
     await form.getByRole('button', { name: 'Save anyway' }).click();
+    // The form closes; the section says where the value went.
+    await own
+      .getByText(/NIF \/ NIE is not changed until HR approves/)
+      .waitFor({ timeout: 30_000 });
+    await eventually(
+      'the held NIF',
+      () => stack.sql<{ state: string }[]>`
+        SELECT state FROM people.pending_change
+         WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
+      (rows) => rows.length === 1 && rows[0]?.state === 'pending',
+    );
+    const unreviewed = await stack.sql`
+      SELECT 1 FROM people.identifier_review
+       WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`;
+    expect(unreviewed).toHaveLength(0);
+
+    // HR approves it; applied through the one write path, it meets the review gate.
+    const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const approvals = await hr.newPage();
+    await approvals.goto(`${stack.shell}/people/approvals`);
+    await approvals.waitForLoadState('networkidle');
+    await approvals
+      .getByRole('table', { name: 'Changes waiting for approval' })
+      .getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ })
+      .click();
+    await approvals.getByRole('dialog').getByRole('button', { name: 'Approve', exact: true }).click();
     const [pending] = await eventually(
       'the review',
       () => stack.sql<{ state: string; findings: { code: string }[] }[]>`
@@ -886,7 +943,6 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
     await employee.close();
 
     // HR sees what the checks found, reveals the value, and accepts it.
-    const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
     await reviews.getByRole('link', { name: 'Identifiers to review' }).click();
