@@ -1013,9 +1013,16 @@ Ordered, but none of it blocks Phase 1 shipping.
       hours) or `/people/analytics`. Runs are idempotent per (schedule,
       period) and **catch up on wake**: the sweep runs on boot and hourly in
       the People process, sends only the latest missed period, and counts
-      the ones it covers. REST only (`/v1/report-schedules`); the screen that
-      manages schedules is not built — the export page shows a report's
-      download when its email is opened._
+      the ones it covers. Managed at `/people/reports` (list with status and
+      last run, create and edit, pause/resume, delete behind a confirmation,
+      `/people/reports/{id}` for the run history), over REST
+      (`/v1/report-schedules`, `PUT` to edit) and GraphQL
+      (`peopleReportSchedules`, `peopleReportRuns`, five mutations). Saving a
+      new schedule, or a change to its recipients or audience, first asks the
+      user to confirm that each recipient gets only what they may see, so
+      recipients may receive different people and columns; the recipients
+      field says the same in its description and a tooltip. The export page
+      shows a report's download when its email is opened._
 - [x] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
       enforced in the query. Its design follows PEO-083: served from the
       monthly publication, rounded to 5, never from the live snapshot.

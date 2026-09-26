@@ -2429,6 +2429,7 @@ POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
 GET    /v1/report-schedules            HR and people_admin: scheduled reports, each with its last run (§16.3)
 POST   /v1/report-schedules            schedule an export file or the analytics summary; first runs next period
 POST   /v1/report-schedules/{id}/pause   and /resume — resuming skips what it was paused through
+PUT    /v1/report-schedules/{id}       change one; whoever saves it owns it; starts again from the next period
 DELETE /v1/report-schedules/{id}       with its run history
 GET    /v1/report-schedules/{id}/runs  the last 50 runs: period, periods covered, outcome per recipient
 GET    /v1/roles                       who holds a tenant role; HR and people_admin (PEO-112)
@@ -3451,6 +3452,21 @@ before anything is built, so two replicas or two sweeps send a period once,
 and a crash mid-run leaves that period recorded without an outcome rather than
 sent twice. CSV is not offered: it is several files for one export, and a
 scheduled report is one.
+
+**The screen (`/people/reports`).** HR and People administrators see every
+schedule with its report, audience, cadence, recipients, last run and whether
+it is paused; edit, pause or resume one; delete one behind a confirmation
+(its history goes with it); and open its history at `/people/reports/{id}` —
+each period, how many it covered, and per recipient what happened, in words.
+Anybody else is told only that HR schedules reports. **Saving a new schedule,
+or a change to who receives it or what it covers, first shows a confirmation
+that has to be accepted**: each recipient gets only what they are allowed to
+see, the report is built again for every recipient, and so different
+recipients may receive different people and different columns. The
+recipients field says the same beneath it and in a tooltip. An edit makes
+whoever saved it the owner and starts again from the next period, so it
+never sends on the spot. The form offers the saver's own segments (a summary
+only those it can chart by), fields and the company's legal entities.
 
 **Exporting a chart exports its data**, as CSV or XLSX, plus the chart itself
 inside the PDF report. There is no "download as PNG" — a PNG of a chart is a
