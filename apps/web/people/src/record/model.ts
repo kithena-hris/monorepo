@@ -35,6 +35,8 @@ export interface RecordField {
   readonly currency?: string;
   /** Who may change it, named when this viewer may not (§8.3): "HR". */
   readonly ownedBy?: string;
+  /** The upstream system it is kept in for this person (PEO-073): changed there, not here. */
+  readonly keptIn?: string;
   /** A change to it waits for HR's approval (PEO-077): marked wherever it is drawn. */
   readonly sensitive?: boolean;
 }

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation MergePerson($personId: ID!, $absorbedPersonId: ID!, $take: [String!], $key: String!) {\n    mergePerson(personId: $personId, absorbedPersonId: $absorbedPersonId, take: $take, idempotencyKey: $key) { id }\n  }"}

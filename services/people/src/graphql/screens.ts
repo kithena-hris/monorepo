@@ -1,5 +1,6 @@
+import type { AnalyticsView } from '../application/screens/analytics.js';
+import type { SegmentView } from '../application/screens/segments.js';
 import type {
-  AnalyticsView,
   DeliveriesView,
   ExportBuilderView,
   ImportStageView,
@@ -13,6 +14,9 @@ import type {
   HistoryChange,
   HistoryView,
   IdentifierReviewsView,
+  ComparedPerson,
+  ComparedRow,
+  DuplicatesView,
   OnboardingView,
   PickerView,
   ProfileView,
@@ -26,6 +30,7 @@ import type {
   RecordSection,
 } from '../application/screens/model.js';
 import type { RolesView } from '../application/screens/roles.js';
+import type { BulkEditView, BulkResult } from '../application/screens/bulk-edit.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
 import type { ListedEndpoint } from '../infrastructure/webhooks/list.js';
@@ -93,6 +98,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         description: 'Who changes a read-only field; null when the viewer does.',
         resolve: (f) => f.ownedBy ?? null,
+      }),
+      keptIn: t.string({
+        nullable: true,
+        description:
+          'The upstream system that is the source of record for this field on this person (PEO-073); change it there.',
+        resolve: (f) => f.keptIn ?? null,
       }),
       sensitive: t.exposeBoolean('sensitive', {
         description:
@@ -244,6 +255,92 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
       }),
     });
+  /* ------------------------------------------------- duplicates (PEO-074) -- */
+
+  const DuplicateItemRef = builder
+    .objectRef<DuplicatesView['items'][number]>('DuplicatePair')
+    .implement({
+      description: 'Two records that look like one human, and why. Never a value.',
+      fields: (t) => ({
+        personIds: t.idList({ resolve: (d) => [...d.personIds] }),
+        names: t.stringList({ resolve: (d) => [...d.names] }),
+        reasons: t.stringList({ resolve: (d) => list(d.reasons) }),
+      }),
+    });
+  const ComparedPersonRef = builder.objectRef<ComparedPerson>('ComparedPerson').implement({
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      status: t.exposeString('status'),
+      refusal: t.exposeString('refusal', {
+        nullable: true,
+        description: 'Why this record may not absorb the other; null when it may.',
+      }),
+    }),
+  });
+  const ComparedRowRef = builder.objectRef<ComparedRow>('ComparedRow').implement({
+    description: 'One attribute side by side, as the viewer may read it. A sealed value is its last four.',
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      values: t.field({ type: ['String'], nullable: { items: true, list: false }, resolve: (r) => [...r.values] }),
+      same: t.exposeBoolean('same'),
+      takeable: t.field({ type: ['Boolean'], resolve: (r) => [...r.takeable] }),
+    }),
+  });
+  const ComparisonRef = builder
+    .objectRef<NonNullable<DuplicatesView['comparison']>>('DuplicateComparison')
+    .implement({
+      fields: (t) => ({
+        people: t.field({ type: [ComparedPersonRef], resolve: (c) => [...c.people] }),
+        rows: t.field({ type: [ComparedRowRef], resolve: (c) => list(c.rows) }),
+      }),
+    });
+  const DuplicatesRef = builder.objectRef<DuplicatesView>('PeopleDuplicates').implement({
+    description: 'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
+    fields: (t) => ({
+      items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
+      comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
+    }),
+  });
+  const DismissedRef = builder
+    .objectRef<{ personIds: readonly string[]; decision: string }>('DuplicateDismissed')
+    .implement({
+      fields: (t) => ({
+        personIds: t.idList({ resolve: (d) => [...d.personIds] }),
+        decision: t.exposeString('decision'),
+      }),
+    });
+  builder.queryField('peopleDuplicates', (t) =>
+    t.field({
+      type: DuplicatesRef,
+      description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
+      args: { a: t.arg.id(), b: t.arg.id() },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.a) query.set('a', args.a);
+        if (args.b) query.set('b', args.b);
+        const qs = query.toString();
+        return viaRest<DuplicatesView>(ctx, 'GET', `/v1/views/duplicates${qs === '' ? '' : `?${qs}`}`);
+      },
+    }),
+  );
+  builder.mutationField('dismissDuplicate', (t) =>
+    t.field({
+      type: DismissedRef,
+      description: 'HR says a pair are two people; the queue stops offering it.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ personIds: string[]; decision: string }>(ctx, 'POST', '/v1/duplicates/dismissals', {
+          body: { personIds: args.personIds.map(String) },
+          key: args.idempotencyKey,
+        }),
+    }),
+  );
+
   const FindingsRef = builder
     .objectRef<{ findings: readonly IdentifierFindingView[] }>('IdentifierCheck')
     .implement({
@@ -482,10 +579,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       import: t.exposeBoolean('import'),
       export: t.exposeBoolean('export'),
+      bulkEdit: t.exposeBoolean('bulkEdit', { description: 'HR’s: set values on the people chosen (PEO-071).' }),
     }),
   });
+  const SegmentRef = builder
+    .objectRef<{ readonly id: string; readonly name: string }>('PeopleSegmentRef')
+    .implement({
+      description: 'A saved segment, by name (PEO-068).',
+      fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
+    });
   const DirectoryRef = builder.objectRef<Directory>('PeopleDirectory').implement({
     fields: (t) => ({
+      segment: t.field({ type: SegmentRef, nullable: true, resolve: (v) => v.segment }),
+      segments: t.field({
+        type: [SegmentRef],
+        description: 'The saved segments this viewer could apply here.',
+        resolve: (v) => list(v.segments),
+      }),
       active: t.exposeInt('active'),
       incomplete: t.exposeInt('incomplete', { nullable: true }),
       columns: t.field({ type: [Column], resolve: (v) => list(v.columns) }),
@@ -808,6 +918,46 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       secretRotated: t.exposeString('secretRotated', { nullable: true }),
     }),
   });
+  type Scim = IntegrationsView['scim'];
+  const ScimMappingEntry = builder
+    .objectRef<Scim['connections'][number]['mapping'][number]>('ScimMappingEntry')
+    .implement({
+      fields: (t) => ({ path: t.exposeString('path'), key: t.exposeString('key') }),
+    });
+  const ScimConnectionRef = builder
+    .objectRef<Scim['connections'][number]>('ScimConnection')
+    .implement({
+      description: 'An upstream system provisioning people over SCIM (PEO-072).',
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        system: t.exposeString('system'),
+        createdAt: t.exposeString('createdAt'),
+        tokenRotatedAt: t.exposeString('tokenRotatedAt', { nullable: true }),
+        revokedAt: t.exposeString('revokedAt', { nullable: true }),
+        linked: t.exposeInt('linked', { description: 'How many people it provisions.' }),
+        mapping: t.field({
+          type: [ScimMappingEntry],
+          description: 'The approved mapping: every attribute it names is kept in this system.',
+          resolve: (c) => list(c.mapping),
+        }),
+      }),
+    });
+  const ScimAttribute = builder
+    .objectRef<Scim['mappable'][number]>('ScimMappableAttribute')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
+    });
+  const ScimRef = builder.objectRef<Scim>('PeopleScim').implement({
+    fields: (t) => ({
+      url: t.exposeString('url', { description: 'The SCIM base URL to give the provider.' }),
+      paths: t.stringList({ resolve: (s) => list(s.paths) }),
+      extension: t.exposeString('extension', {
+        description: 'The schema a tenant attribute is mapped under, as `<extension>:<key>`.',
+      }),
+      mappable: t.field({ type: [ScimAttribute], resolve: (s) => list(s.mappable) }),
+      connections: t.field({ type: [ScimConnectionRef], resolve: (s) => list(s.connections) }),
+    }),
+  });
   const Integrations = builder.objectRef<IntegrationsView>('PeopleIntegrations').implement({
     fields: (t) => ({
       schemaVersion: t.exposeInt('schemaVersion'),
@@ -815,6 +965,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       events: t.stringList({ resolve: (v) => list(v.events) }),
       fields: t.field({ type: [IntegrationField], resolve: (v) => list(v.fields) }),
       endpoints: t.field({ type: [Endpoint], resolve: (v) => list(v.endpoints) }),
+      scim: t.field({ type: ScimRef, resolve: (v) => v.scim }),
     }),
   });
 
@@ -869,6 +1020,69 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       percent: t.exposeFloat('percent'),
       leavers: t.exposeInt('leavers'),
       formula: t.exposeString('formula'),
+      trend: t.field({
+        type: [Point],
+        description: 'Rolling 12-month attrition, in percent, by month',
+        resolve: (a) => list(a.trend),
+      }),
+    }),
+  });
+  const TenureBand = builder
+    .objectRef<NonNullable<A['tenure']>[number]>('AnalyticsTenureBand')
+    .implement({
+      fields: (t) => ({
+        label: t.exposeString('label'),
+        headcount: t.exposeInt('headcount'),
+        leavers: t.exposeInt('leavers', {
+          description: 'Left in the 12 months before, by tenure at leaving',
+        }),
+      }),
+    });
+  type Joiners = NonNullable<A['joiners']>;
+  const HeatCell = builder.objectRef<Joiners['cells'][number]>('AnalyticsHeatCell').implement({
+    fields: (t) => ({
+      row: t.exposeString('row'),
+      column: t.exposeString('column'),
+      value: t.exposeInt('value'),
+    }),
+  });
+  const JoinerHeatmap = builder.objectRef<Joiners>('AnalyticsJoiners').implement({
+    fields: (t) => ({
+      months: t.exposeStringList('months'),
+      departments: t.exposeStringList('departments'),
+      cells: t.field({ type: [HeatCell], resolve: (j) => list(j.cells) }),
+    }),
+  });
+  type Composition = NonNullable<A['composition']>;
+  const Series = builder.objectRef<Composition['series'][number]>('AnalyticsSeries').implement({
+    fields: (t) => ({
+      label: t.exposeString('label'),
+      values: t.exposeIntList('values'),
+    }),
+  });
+  const CompositionRef = builder.objectRef<Composition>('AnalyticsComposition').implement({
+    fields: (t) => ({
+      categories: t.exposeStringList('categories'),
+      series: t.field({ type: [Series], resolve: (c) => list(c.series) }),
+    }),
+  });
+  const SelfId = builder.objectRef<NonNullable<A['selfId']>[number]>('AnalyticsSelfId').implement({
+    description:
+      'One self-identification question in aggregate, from its monthly publication (§6.7, §16.1).',
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      status: t.exposeString('status', {
+        description: 'ok, or insufficient_data below the cohort minimum',
+      }),
+      minimum: t.exposeInt('minimum', { nullable: true }),
+      publishedAsOf: t.exposeString('publishedAsOf', { nullable: true }),
+      total: t.exposeInt('total', {
+        nullable: true,
+        description: 'Rounded to 5 on its own; not the sum of the rounded counts',
+      }),
+      note: t.exposeString('note'),
+      cells: t.field({ type: [Point], resolve: (c) => list(c.cells) }),
     }),
   });
   const Complete = builder.objectRef<NonNullable<A['complete']>>('AnalyticsComplete').implement({
@@ -923,6 +1137,55 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         nullable: true,
         resolve: (v) => (v.completenessBySection === null ? null : list(v.completenessBySection)),
       }),
+      segment: t.field({ type: SegmentRef, nullable: true, resolve: (v) => v.segment }),
+      segments: t.field({ type: [SegmentRef], resolve: (v) => list(v.segments) }),
+      tenure: t.field({
+        type: [TenureBand],
+        nullable: true,
+        resolve: (v) => (v.tenure === null ? null : list(v.tenure)),
+      }),
+      span: t.field({
+        type: [Point],
+        nullable: true,
+        description: 'Managers by number of direct reports',
+        resolve: (v) => (v.span === null ? null : list(v.span)),
+      }),
+      joiners: t.field({ type: JoinerHeatmap, nullable: true, resolve: (v) => v.joiners }),
+      composition: t.field({
+        type: CompositionRef,
+        nullable: true,
+        resolve: (v) => v.composition,
+      }),
+      selfId: t.field({
+        type: [SelfId],
+        nullable: true,
+        description: "HR's only; never under a segment",
+        resolve: (v) => (v.selfId === null ? null : list(v.selfId)),
+      }),
+    }),
+  });
+
+  const SegmentCondition = builder
+    .objectRef<SegmentView['filter'][number]>('PeopleSegmentCondition')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), value: t.exposeString('value') }),
+    });
+  const SegmentUse = builder.objectRef<SegmentView['usableIn']>('PeopleSegmentUse').implement({
+    fields: (t) => ({
+      directory: t.exposeBoolean('directory'),
+      analytics: t.exposeBoolean('analytics'),
+    }),
+  });
+  const Segment = builder.objectRef<SegmentView>('PeopleSegment').implement({
+    description:
+      'A saved segment (PEO-068): a filter, never a list of people. Using it shows you only the people you may see.',
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      filter: t.field({ type: [SegmentCondition], resolve: (v) => list(v.filter) }),
+      shared: t.exposeBoolean('shared'),
+      mine: t.exposeBoolean('mine'),
+      usableIn: t.field({ type: SegmentUse, resolve: (v) => v.usableIn }),
     }),
   });
 
@@ -1268,11 +1531,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleDirectory: t.field({
       type: DirectoryRef,
-      args: { search: t.arg.string(), filter: t.arg.string(), after: t.arg.id() },
+      args: {
+        search: t.arg.string(),
+        filter: t.arg.string(),
+        after: t.arg.id(),
+        segment: t.arg.id(),
+      },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.search) query.set('search', args.search);
         if (args.filter) query.set('filter', args.filter);
+        if (args.segment) query.set('segment', args.segment);
         if (args.after) query.set('after', args.after);
         const qs = query.toString();
         return viaRest<DirectoryView>(ctx, 'GET', `/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
@@ -1321,7 +1590,21 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleAnalytics: t.field({
       type: Analytics,
-      resolve: view<AnalyticsView>(() => '/v1/views/analytics'),
+      args: { segment: t.arg.id() },
+      resolve: (_root, args, ctx) =>
+        viaRest<AnalyticsView>(
+          ctx,
+          'GET',
+          args.segment
+            ? `/v1/views/analytics?segment=${encodeURIComponent(args.segment)}`
+            : '/v1/views/analytics',
+        ),
+    }),
+    peopleSegments: t.field({
+      type: [Segment],
+      description: 'The saved segments you see and could use somewhere (PEO-068).',
+      resolve: async (_root, _args, ctx) =>
+        list((await viaRest<{ items: SegmentView[] }>(ctx, 'GET', '/v1/segments')).items),
     }),
     peopleExport: t.field({
       type: ExportRef,
@@ -1376,6 +1659,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       items: t.stringList(),
       money: t.field({ type: MoneyValueInput }),
       clear: t.boolean(),
+    }),
+  });
+  const SegmentConditionInput = builder.inputType('PeopleSegmentConditionInput', {
+    fields: (t) => ({
+      key: t.string({ required: true }),
+      value: t.string({ required: true }),
     }),
   });
   const CellInput = builder.inputType('GridCellInput', {
@@ -1455,6 +1744,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
       }),
     });
+  const ScimToken = builder
+    .objectRef<{ id: string; token: string | null }>('ScimConnectionToken')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        token: t.exposeString('token', {
+          nullable: true,
+          description: 'Shown once. Null when a retry of the same key answers: rotate again.',
+        }),
+      }),
+    });
+  const ScimMappingInput = builder.inputType('ScimMappingInput', {
+    fields: (t) => ({
+      path: t.string({ required: true }),
+      key: t.string({ required: true }),
+    }),
+  });
   const Replayed = builder.objectRef<{ deliveryId: string }>('WebhookReplay').implement({
     fields: (t) => ({ deliveryId: t.exposeID('deliveryId') }),
   });
@@ -1579,6 +1885,109 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
     }),
   );
+  /* ------------------------------------------------ bulk edit (PEO-071) -- */
+
+  type BulkRow = BulkResult['rows'][number];
+  const BulkPerson = builder
+    .objectRef<BulkEditView['people'][number]>('BulkEditPerson')
+    .implement({ fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }) });
+  const BulkEditRef = builder.objectRef<BulkEditView>('PeopleBulkEdit').implement({
+    description: 'The people chosen, and the fields HR may set on them in bulk.',
+    fields: (t) => ({
+      people: t.field({ type: [BulkPerson], resolve: (v) => list(v.people) }),
+      sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
+      today: t.exposeString('today'),
+      limit: t.exposeInt('limit', { description: 'People per request.' }),
+    }),
+  });
+  const BulkChangeRef = builder
+    .objectRef<BulkRow['changes'][number]>('BulkEditChange')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        dated: t.exposeBoolean('dated', {
+          description: 'False: kept without dates, so it changes on the day whatever the date says.',
+        }),
+        before: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.before }) }),
+        after: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.after }) }),
+      }),
+    });
+  const BulkRefusalRef = builder
+    .objectRef<NonNullable<BulkRow['refusal']>>('BulkEditRefusal')
+    .implement({
+      fields: (t) => ({
+        code: t.exposeString('code'),
+        message: t.exposeString('message'),
+        keys: t.stringList({ resolve: (r) => list(r.keys) }),
+      }),
+    });
+  const BulkRowRef = builder.objectRef<BulkRow>('BulkEditRow').implement({
+    fields: (t) => ({
+      personId: t.exposeID('personId'),
+      name: t.exposeString('name'),
+      outcome: t.exposeString('outcome', { description: 'changed, unchanged or refused' }),
+      changes: t.field({ type: [BulkChangeRef], resolve: (r) => list(r.changes) }),
+      refusal: t.field({ type: BulkRefusalRef, nullable: true, resolve: (r) => r.refusal }),
+      findings: t.field({ type: [FindingNoticeRef], resolve: (r) => list(r.findings) }),
+    }),
+  });
+  const BulkResultRef = builder.objectRef<BulkResult>('BulkEditResult').implement({
+    fields: (t) => ({
+      committed: t.exposeBoolean('committed'),
+      rows: t.field({ type: [BulkRowRef], resolve: (v) => list(v.rows) }),
+    }),
+  });
+  const bulkBody = (args: {
+    personIds: readonly (string | number)[];
+    values: readonly FormInput[];
+    effectiveFrom: string;
+  }) => ({
+    personIds: args.personIds.map(String),
+    values: changed(args.values),
+    effectiveFrom: args.effectiveFrom,
+  });
+  builder.queryFields((t) => ({
+    peopleBulkEdit: t.field({
+      type: BulkEditRef,
+      args: { personIds: t.arg.idList({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkEditView>(
+          ctx,
+          'GET',
+          `/v1/views/bulk-edit?people=${encodeURIComponent(args.personIds.map(String).join(','))}`,
+        ),
+    }),
+    peopleBulkEditPreview: t.field({
+      type: BulkResultRef,
+      description: 'What a bulk edit would change and refuse, per person, and why; nothing is kept.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        values: t.arg({ type: [FormValueInput], required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit/preview', { body: bulkBody(args) }),
+    }),
+  }));
+  builder.mutationField('bulkEditPeople', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description: 'A page of a bulk edit: one ordinary write per person, each atomic, each answered.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        values: t.arg({ type: [FormValueInput], required: true }),
+        effectiveFrom: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, { idempotencyKey, ...args }, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-edit', {
+          body: bulkBody(args),
+          key: idempotencyKey,
+        }),
+    }),
+  );
+
   const IdentifierDecisionEnum = builder.enumType('IdentifierReviewDecision', {
     values: ['accept', 'send_back'] as const,
   });
@@ -1826,6 +2235,56 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         return { id, secret: rotated.secret ?? null };
       },
     }),
+    createScimConnection: t.field({
+      type: ScimToken,
+      args: { system: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        const made = await viaRest<{ id: string; token?: string }>(ctx, 'POST', '/v1/scim/connections', {
+          body: { system: args.system },
+          key: args.idempotencyKey,
+        });
+        return { id: made.id, token: made.token ?? null };
+      },
+    }),
+    rotateScimToken: t.field({
+      type: ScimToken,
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        const rotated = await viaRest<{ token?: string }>(
+          ctx,
+          'POST',
+          `/v1/scim/connections/${encodeURIComponent(args.id)}/rotate`,
+          { body: {}, key: args.idempotencyKey },
+        );
+        return { id: args.id, token: rotated.token ?? null };
+      },
+    }),
+    revokeScimConnection: t.field({
+      type: Outcome,
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/scim/connections/${encodeURIComponent(args.id)}/revoke`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    setScimMapping: t.field({
+      type: Outcome,
+      args: {
+        id: t.arg.id({ required: true }),
+        mapping: t.arg({ type: [ScimMappingInput], required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'PUT', `/v1/scim/connections/${encodeURIComponent(args.id)}/mapping`, {
+          body: { mapping: args.mapping.map((m) => ({ path: m.path, key: m.key })) },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
     replayWebhookDelivery: t.field({
       type: Replayed,
       args: { deliveryId: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
@@ -1902,12 +2361,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: ExportRef,
       description: 'Over 2,000 rows the export is queued; ask `peopleExport` for its links.',
       args: {
-        format: t.arg.string({ required: true }),
+        format: t.arg.string({ required: true, description: 'csv, xlsx or pdf.' }),
+        recordOf: t.arg.id({
+          description: 'With pdf: this person’s employee record instead of a roster.',
+        }),
         fields: t.arg.stringList(),
         asOf: t.arg.string(),
         includeArchived: t.arg.boolean(),
         personIds: t.arg.idList(),
         filter: t.arg.string(),
+        segmentId: t.arg.id(),
         reason: t.arg.string(),
         idempotencyKey: t.arg.string({ required: true }),
       },
@@ -1916,6 +2379,36 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           body: sent(asked),
           key: idempotencyKey,
         }),
+    }),
+    savePeopleSegment: t.field({
+      type: Segment,
+      description: 'Save a named filter, for yourself or shared within the tenant (PEO-068).',
+      args: {
+        name: t.arg.string({ required: true }),
+        filter: t.arg({ type: [SegmentConditionInput], required: true }),
+        shared: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<SegmentView>(ctx, 'POST', '/v1/segments', {
+          body: {
+            name: args.name,
+            filter: Object.fromEntries(args.filter.map((c) => [c.key, c.value])),
+            shared: args.shared,
+          },
+          key: args.idempotencyKey,
+        }),
+    }),
+    deletePeopleSegment: t.field({
+      type: Outcome,
+      description: 'Delete a segment you saved.',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'DELETE', `/v1/segments/${encodeURIComponent(args.id)}`, {
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
     }),
     requestFullValues: t.field({
       type: FullValues,

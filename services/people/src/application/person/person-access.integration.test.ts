@@ -132,6 +132,7 @@ beforeAll(async () => {
     '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',
@@ -608,8 +609,14 @@ describe('the directory at 50,000 people', () => {
     const first = await timed('a directory search and its count', () => pageOf(null));
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    expect(first.value.all).toBe(50);
+    // Every seventh is terminated: a leaver is listed to HR alone, and outside
+    // HR "active" is everybody listed, so no status is read off a count (§6.3).
+    expect(first.value.all).toBe(43);
     expect(first.value.active).toBe(43);
+    const byHr = await inTenantResult(inTenant, PERF, (tx) =>
+      people.count(tx, { ...asking(hr, PERF), search: 'family204' }),
+    );
+    expect(byHr).toEqual(ok({ all: 50, active: 43 }));
 
     const seen = [...first.value.items];
     let next = first.value.next;
@@ -620,9 +627,10 @@ describe('the directory at 50,000 people', () => {
       seen.push(...page.value.items);
       next = page.value.next;
     }
-    expect(seen).toHaveLength(50);
-    expect(new Set(seen.map((p) => p.id)).size).toBe(50);
+    expect(seen).toHaveLength(43);
+    expect(new Set(seen.map((p) => p.id)).size).toBe(43);
     expect(new Set(seen.map((p) => p.attributes['family_name']))).toEqual(new Set(['Family204']));
+    expect(seen.every((p) => p.status === undefined)).toBe(true);
     // Somebody who is not HR does not read everybody's email, so it is not searched.
     expect(seen.every((p) => p.attributes['work_email'] === undefined)).toBe(true);
   });

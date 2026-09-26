@@ -111,6 +111,7 @@ async function countUpTo(
   request: ExportJobRequest,
   limit: number,
 ): Promise<Result<number>> {
+  if (request.recordOf !== undefined) return ok(1);
   if (request.personIds) return ok(Math.min(request.personIds.length, limit));
   let n = 0;
   let after: string | null = null;

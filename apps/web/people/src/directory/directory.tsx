@@ -20,7 +20,8 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { Loaded, type Loadable } from '../load';
+import { Loaded, type Loadable, type Outcome } from '../load';
+import { SaveSegment, SegmentSelect, type SegmentRef } from '../segments';
 
 /** A column, generated from the published schema: only what this viewer may read. */
 export interface DirectoryColumn {
@@ -52,6 +53,8 @@ export interface DirectoryState {
   readonly columns: readonly DirectoryColumn[];
   readonly filterable: readonly DirectoryFilter[];
   readonly people: readonly DirectoryPerson[];
+  /** The saved segments this viewer could apply here (PEO-068). */
+  readonly segments?: readonly SegmentRef[];
 }
 
 export interface DirectoryProps {
@@ -61,10 +64,17 @@ export interface DirectoryProps {
   /** Applied by the shell, server-side: `?filter=key:value`. */
   readonly filters: Readonly<Record<string, string>>;
   readonly onFiltersChange: (filters: Readonly<Record<string, string>>) => void;
+  /** The saved segment applied, server-side: `?segment=<id>`. */
+  readonly segmentId?: string | null;
+  readonly onSegmentChange?: (segmentId: string | null) => void;
+  /** Save the filters in force as a segment. */
+  readonly onSaveSegment?: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
   readonly onOpen: (personId: string) => void;
   /** Present only when the viewer may do each. */
   readonly onExport?: () => void;
   readonly onImport?: () => void;
+  /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
+  readonly onBulkEdit?: (personIds: readonly string[]) => void;
   /** Present when People has a page after this one. */
   readonly onNextPage?: () => void;
   /** Present when this is not the first page. */
@@ -120,7 +130,11 @@ function Table({
   onSearchChange,
   filters,
   onFiltersChange,
+  segmentId = null,
+  onSegmentChange,
+  onSaveSegment,
   onOpen,
+  onBulkEdit,
   onNextPage,
   onFirstPage,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
@@ -168,28 +182,45 @@ function Table({
     <Stack gap={4}>
       <Toolbar
         search={<SearchField label="Search people" value={search} onValueChange={onSearchChange} />}
-        filters={state.filterable.map((f) => (
-          <Select
-            key={f.key}
-            value={filters[f.key] ?? ANY}
-            onValueChange={(value) => {
-              const rest = Object.fromEntries(Object.entries(filters).filter(([k]) => k !== f.key));
-              onFiltersChange(value === ANY ? rest : { ...rest, [f.key]: value });
-            }}
-          >
-            <SelectTrigger aria-label={f.label} className="w-auto min-w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ANY}>{f.label}: any</SelectItem>
-              {f.options.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {f.label}: {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ))}
+        actions={
+          onSaveSegment === undefined || Object.keys(filters).length === 0 ? undefined : (
+            <SaveSegment onSave={onSaveSegment} />
+          )
+        }
+        filters={[
+          onSegmentChange === undefined ? null : (
+            <SegmentSelect
+              key="segment"
+              segments={state.segments ?? []}
+              value={segmentId}
+              onChange={onSegmentChange}
+            />
+          ),
+          ...state.filterable.map((f) => (
+            <Select
+              key={f.key}
+              value={filters[f.key] ?? ANY}
+              onValueChange={(value) => {
+                const rest = Object.fromEntries(
+                  Object.entries(filters).filter(([k]) => k !== f.key),
+                );
+                onFiltersChange(value === ANY ? rest : { ...rest, [f.key]: value });
+              }}
+            >
+              <SelectTrigger aria-label={f.label} className="w-auto min-w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>{f.label}: any</SelectItem>
+                {f.options.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {f.label}: {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )),
+        ]}
       />
       {wide ? (
         <DataTable
@@ -201,6 +232,22 @@ function Table({
           onRowClick={(p) => {
             onOpen(p.id);
           }}
+          {...(onBulkEdit === undefined
+            ? {}
+            : {
+                selectable: true,
+                bulkActions: (rows: DirectoryPerson[]) => (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      onBulkEdit(rows.map((p) => p.id));
+                    }}
+                  >
+                    Edit together
+                  </Button>
+                ),
+              })}
           stickyHeader
           empty={
             <EmptyState

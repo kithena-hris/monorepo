@@ -3,13 +3,14 @@ import ExcelJS from 'exceljs';
 import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
-import { visibleTo } from '../../domain/access/field-access.js';
+import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import { exponentOf, fromMinor, MASK } from '../import/cells.js';
 import { writeCsv } from '../import/csv.js';
 import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
 import { PERSON_ID_COLUMN } from '../import/parse.js';
 import type { Calendars } from '../org/org.js';
+import type { TenantCalendar } from '../../domain/org/calendar.js';
 import {
   relationsToMany,
   type Asking,
@@ -18,9 +19,12 @@ import {
   type SealedValue,
 } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
+import { nameOf } from '../screens/record.js';
+import { PDF_TYPE, recordPdf, rosterPdf, type Cell } from './pdf.js';
 
 /**
- * CSV and XLSX exports of the directory (PRD §15.2, §15.4).
+ * CSV, XLSX and PDF exports of the directory, and the PDF employee record
+ * (PRD §15.2, §15.4, §15.5).
  *
  * **An export is a read.** Every row comes from `PersonAccess.list`, so every
  * cell is one this viewer may read, and a column exists only when the viewer
@@ -40,7 +44,7 @@ import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
  * their own file in CSV, never `contact_1_name … contact_4_email`.
  */
 
-export type ExportFormat = 'csv' | 'xlsx';
+export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export interface ExportRequest extends Asking {
   readonly format: ExportFormat;
@@ -51,8 +55,16 @@ export interface ExportRequest extends Asking {
   readonly includeArchived?: boolean;
   /** A selection. Absent is everybody the viewer may list. */
   readonly personIds?: readonly string[];
+  /**
+   * Only people whose attributes equal these: a saved segment's filter
+   * (PEO-068). Authorized by the list as any directory filter is, as the
+   * requester and when the file is built.
+   */
+  readonly where?: Readonly<Record<string, string>>;
   /** How the requester described who, for the provenance sheet. */
   readonly filter?: string;
+  /** With `pdf`: this one person's employee record instead of a roster (§15.5). */
+  readonly recordOf?: string;
 }
 
 export interface ExportFile {
@@ -105,6 +117,7 @@ export function exportableColumns(
 interface Row {
   readonly person: PersonView;
   readonly judged: Judgement;
+  readonly relations: ViewerRelations;
 }
 
 /**
@@ -126,6 +139,9 @@ export async function buildExport(
   request: ExportRequest,
   reveal?: Reveal,
 ): Promise<Result<BuiltExport>> {
+  if (request.recordOf !== undefined && request.format !== 'pdf') {
+    return err(failure('VALUE_INVALID', 'An employee record is a PDF', ['recordOf']));
+  }
   const version = await deps.schemas.current(tx, request.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published to export'));
 
@@ -156,18 +172,21 @@ export async function buildExport(
   const requested = candidates.filter((d) => !wanted || wanted.has(d.key));
 
   // Every row through the read path, and the columns this viewer may read on
-  // at least one of them.
+  // at least one of them. A record is one person, read as their profile is.
   const selection = request.personIds ? new Set(request.personIds) : null;
   const readableKeys = new Set<string>();
   const rows: Row[] = [];
   let after: string | null = null;
   do {
-    const page = await deps.access.list(tx, {
-      ...request,
-      after,
-      limit: PAGE,
-      ...(request.asOf ? { asOf: request.asOf } : {}),
-    });
+    const page: Result<{ readonly items: readonly PersonView[]; readonly next: string | null }> =
+      request.recordOf === undefined
+        ? await deps.access.list(tx, {
+            ...request,
+            after,
+            limit: PAGE,
+            ...(request.asOf ? { asOf: request.asOf } : {}),
+          })
+        : await one(tx, deps, request, request.recordOf);
     if (!page.ok) return page;
     const chosen = page.value.items.filter((p) => !selection || selection.has(p.id));
     const related = await relationsToMany(
@@ -195,7 +214,7 @@ export async function buildExport(
             relations,
           )
         : NOTHING_JUDGED;
-      rows.push({ person, judged });
+      rows.push({ person, judged, relations });
     }
     after = page.value.next;
   } while (after !== null);
@@ -220,25 +239,37 @@ export async function buildExport(
   const repeating = columns.filter((d) => d.cardinality === 'repeating');
 
   const files =
-    request.format === 'csv'
-      ? csvFiles(flat, repeating, rows, stamp)
-      : [
-          {
-            name: `people-${stamp}.xlsx`,
-            mediaType: XLSX_TYPE,
-            bytes: await workbook(
-              flat,
-              repeating,
-              rows,
-              version,
-              judgedBy,
-              request,
-              deps.clock,
-              columns,
-              stamp,
-            ),
-          },
-        ];
+    request.format === 'pdf'
+      ? [
+          await pdfFile(tx, deps, request, {
+            version,
+            columns,
+            universe: request.fields ? requested : liveAttributes(version, request),
+            rows,
+            day,
+            stamp,
+            calendar,
+          }),
+        ]
+      : request.format === 'csv'
+        ? csvFiles(flat, repeating, rows, stamp)
+        : [
+            {
+              name: `people-${stamp}.xlsx`,
+              mediaType: XLSX_TYPE,
+              bytes: await workbook(
+                flat,
+                repeating,
+                rows,
+                version,
+                judgedBy,
+                request,
+                deps.clock,
+                columns,
+                stamp,
+              ),
+            },
+          ];
 
   return ok({
     files,
@@ -450,13 +481,7 @@ async function workbook(
   for (const line of [
     ['Schema version', version.version],
     ['As of', request.asOf ?? today],
-    [
-      'Filter',
-      request.filter ??
-        (request.personIds
-          ? `${String(request.personIds.length)} selected people`
-          : 'Everyone you can see'),
-    ],
+    ['Filter', described(request)],
     ['Fields', columns.map((d) => d.key).join(', ')],
     ['Exported by', request.viewer.accountId],
     ['Exported at', clock.instant()],
@@ -470,4 +495,190 @@ async function workbook(
   }
 
   return new Uint8Array(await wb.xlsx.writeBuffer());
+}
+
+/** How a file names who is in it: the builder's words, a selection, or everybody. */
+const described = (request: ExportRequest): string =>
+  request.filter ??
+  (request.personIds
+    ? `${String(request.personIds.length)} selected people`
+    : 'Everyone you can see');
+
+/* ------------------------------------------------------------------- pdf -- */
+
+/** One person as a page of the read path, so a record takes the roster's road. */
+async function one(
+  tx: PostgresJsDatabase,
+  deps: ExportDeps,
+  request: ExportRequest,
+  personId: string,
+): Promise<Result<{ items: readonly PersonView[]; next: null }>> {
+  const read = await deps.access.read(tx, {
+    ...request,
+    personId,
+    ...(request.asOf ? { asOf: request.asOf } : {}),
+  });
+  return read.ok ? ok({ items: [read.value], next: null }) : read;
+}
+
+/**
+ * With no fields asked for, what a page is about is every live field — a
+ * special-category one included, since a record silent about it reads as
+ * though there were none. The withheld count is taken over these, whether or
+ * not a value is held, so it says nothing about what a record contains.
+ */
+const liveAttributes = (version: PublishedVersion, request: ExportRequest) =>
+  version.document.attributes.filter(
+    (d) => request.includeArchived === true || d.deprecatedAt === null,
+  );
+
+/** The fields about this person the page does not show this viewer (§15.5). */
+const withheld = (
+  universe: readonly AttributeDefinition[],
+  shown: ReadonlySet<string>,
+  relations: ViewerRelations,
+) => universe.filter((d) => !shown.has(d.key) || !visibleTo(d, relations)).length;
+
+const NOT_PROVIDED: Cell = { text: 'Not provided', muted: true };
+const WITHHELD: Cell = { text: 'Withheld', muted: true };
+const REFS = new Set(['person_ref', 'legal_entity_ref', 'location_ref']);
+
+/** A value as a person reads it on paper: labels, names, grouped money. */
+function printed(
+  d: AttributeDefinition,
+  value: unknown,
+  names: ReadonlyMap<string, string>,
+): string {
+  if (Array.isArray(value)) {
+    return value.map((v) => printed(d, v, names)).join(d.cardinality === 'repeating' ? '\n' : ', ');
+  }
+  if (typeof value === 'string' && REFS.has(d.typeConfig.kind)) return names.get(value) ?? value;
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (isMoney(value)) {
+    // A decimal string, so the amount never passes through a float.
+    return new Intl.NumberFormat('en', { style: 'currency', currency: value.currency }).format(
+      fromMinor(value.amountMinor, value.currency) as `${number}`,
+    );
+  }
+  if (isSealed(value)) return masked(value);
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value)
+      .filter((v): v is string => typeof v === 'string' && v !== '')
+      .join(', ');
+  }
+  return optionLabel(d, value);
+}
+
+interface PdfInput {
+  readonly version: PublishedVersion;
+  readonly columns: readonly AttributeDefinition[];
+  readonly universe: readonly AttributeDefinition[];
+  readonly rows: readonly Row[];
+  readonly day: string;
+  readonly stamp: string;
+  readonly calendar: Pick<TenantCalendar, 'entities' | 'locations'>;
+}
+
+/**
+ * The names a page prints for the people, entities and locations it points
+ * at. A person is named only as this viewer may read them; otherwise the id.
+ */
+async function namesFor(
+  tx: PostgresJsDatabase,
+  deps: ExportDeps,
+  request: ExportRequest,
+  input: PdfInput,
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  for (const e of input.calendar.entities.values()) names.set(e.id, e.name);
+  for (const l of input.calendar.locations.values()) names.set(l.id, l.name);
+  for (const r of input.rows) {
+    const n = nameOf(r.person.attributes);
+    if (n !== null) names.set(r.person.id, n);
+  }
+  const people = input.columns.filter((d) => d.typeConfig.kind === 'person_ref');
+  for (const r of input.rows) {
+    for (const d of people) {
+      const id = r.person.attributes[d.key];
+      if (typeof id !== 'string' || names.has(id)) continue;
+      const read = await deps.access.read(tx, { ...request, personId: id });
+      names.set(id, (read.ok ? nameOf(read.value.attributes) : null) ?? id);
+    }
+  }
+  return names;
+}
+
+async function pdfFile(
+  tx: PostgresJsDatabase,
+  deps: ExportDeps,
+  request: ExportRequest,
+  input: PdfInput,
+): Promise<ExportFile> {
+  const names = await namesFor(tx, deps, request, input);
+  const shown = new Set(input.columns.map((d) => d.key as string));
+  const furniture = {
+    generatedAt: `${deps.clock.instant().slice(0, 16).replace('T', ' ')} UTC`,
+    generatedBy: request.viewer.accountId,
+  };
+  // A value, "Not provided" for a required gap, or nothing: an optional gap
+  // and a not-applicable one are omitted (§15.4).
+  const valueOf = (r: Row, d: AttributeDefinition): Cell | null => {
+    const value = r.person.attributes[d.key];
+    if (!isBlank(value)) return { text: printed(d, value, names) };
+    return r.judged.missing.has(d.key) ? NOT_PROVIDED : null;
+  };
+
+  const person = input.rows[0];
+  if (request.recordOf !== undefined && person !== undefined) {
+    // Every section the person has something in, headed as the profile is.
+    const sections = input.version.document.sections
+      .filter((s) => s.archivedAt === null)
+      .toSorted((a, b) => a.order - b.order)
+      .flatMap((s) => {
+        const fields = input.columns
+          .filter((d) => d.sectionKey === s.key && visibleTo(d, person.relations))
+          .flatMap((d) => {
+            const value = valueOf(person, d);
+            return value === null ? [] : [{ label: label(d), value }];
+          });
+        return fields.length === 0 ? [] : [{ label: s.label.default, fields }];
+      });
+    const number = person.person.attributes['employee_number'];
+    const numbered = typeof number === 'string' && number !== '' ? number : null;
+    return {
+      name: `record-${numbered ?? person.person.id}-${input.stamp}.pdf`,
+      mediaType: PDF_TYPE,
+      bytes: await recordPdf({
+        ...furniture,
+        title: nameOf(person.person.attributes) ?? 'Employee record',
+        lines: [
+          `Employee record${numbered === null ? '' : ` · ${numbered}`}`,
+          `As of ${input.day}`,
+        ],
+        withheld: withheld(input.universe, shown, person.relations),
+        sections,
+      }),
+    };
+  }
+
+  const count = input.rows.length;
+  return {
+    name: `people-${input.stamp}.pdf`,
+    mediaType: PDF_TYPE,
+    bytes: await rosterPdf({
+      ...furniture,
+      title: 'People roster',
+      lines: [
+        `Filter: ${described(request)}`,
+        `As of ${input.day} · ${String(count)} ${count === 1 ? 'person' : 'people'}`,
+      ],
+      withheld: input.rows.reduce((n, r) => n + withheld(input.universe, shown, r.relations), 0),
+      headers: input.columns.map(label),
+      rows: input.rows.map((r) =>
+        input.columns.map((d) =>
+          visibleTo(d, r.relations) ? (valueOf(r, d) ?? { text: '' }) : WITHHELD,
+        ),
+      ),
+    }),
+  };
 }

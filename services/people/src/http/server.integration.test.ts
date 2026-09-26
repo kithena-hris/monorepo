@@ -76,6 +76,7 @@ beforeAll(async () => {
     '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
@@ -85,6 +86,7 @@ beforeAll(async () => {
     '20260924270200_people_role_grant.sql',
     '20260924330000_people_identifier_review.sql',
     '20260924360000_people_import_upload.sql',
+    '20260926160000_people_scim.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -494,6 +496,16 @@ describe('the screens over GraphQL', () => {
       classificationSource: 'human',
       ...over,
     });
+    // A rule on a placement fact needs its field readable by the scope it
+    // grants: managers see employment type here, so "for contractors" is theirs.
+    expect(
+      (
+        await graph(admin, SAVE, {
+          key: 'rules-0',
+          input: input('employment_type', { visibility: ['manager', 'hr'] }),
+        })
+      ).errors,
+    ).toBeUndefined();
     expect(
       (
         await graph(admin, SAVE, {
@@ -541,6 +553,18 @@ describe('the screens over GraphQL', () => {
       }),
     });
     expect(discloses.errors?.[0]?.extensions.code).toBe('VISIBILITY_RULE_DISCLOSES');
+
+    // "Managers see this for people on leave" tells them who is on leave:
+    // status is HR's alone.
+    const onLeave = await graph(admin, SAVE, {
+      key: 'rules-3',
+      input: input('leave_cover', {
+        visibilityRules: [
+          { scopes: ['manager'], when: { combine: 'all', clauses: [{ operand: 'status', in: ['on_leave'] }] } },
+        ],
+      }),
+    });
+    expect(onLeave.errors?.[0]?.extensions.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 
   it('writes a section with a key, and answers a retry of that key without writing again', async () => {

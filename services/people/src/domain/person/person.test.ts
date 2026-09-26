@@ -408,6 +408,41 @@ describe('a value dated in the future, on its day (PEO-124)', () => {
   });
 });
 
+describe('a record mirrored from an external system (PEO-073, PRD §13.6)', () => {
+  it('says which fields the upstream system changed, never their values', () => {
+    const p = person({ status: 'active' });
+    const synced = p.syncedFromExternal(
+      { provider: 'Okta', externalId: '00u1abcd', fieldsChanged: ['given_name', 'job_title'] },
+      ctx,
+      '2026-09-22',
+    );
+    expect(synced.ok).toBe(true);
+    expect(p.drainEvents()).toEqual([
+      expect.objectContaining({
+        eventName: 'people.person.synced_from_external',
+        effectiveFrom: '2026-09-22',
+        payload: {
+          personId: PERSON,
+          provider: 'Okta',
+          externalId: '00u1abcd',
+          fieldsChanged: ['given_name', 'job_title'],
+        },
+      }),
+    ]);
+  });
+
+  it('refuses a sync to a discarded record, which holds nothing', () => {
+    const gone = person({ status: 'discarded' });
+    const synced = gone.syncedFromExternal(
+      { provider: 'Okta', externalId: 'x', fieldsChanged: ['active'] },
+      ctx,
+      '2026-09-22',
+    );
+    expect(synced.ok).toBe(false);
+    expect(gone.drainEvents()).toEqual([]);
+  });
+});
+
 describe('hiring', () => {
   const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
 
@@ -1309,5 +1344,63 @@ describe('placement and transfer (PEO-123)', () => {
     const first = employed();
     first.correctHireDate('2024-01-15', ctx, UTC);
     expect(first.drainPeriod()).toMatchObject({ period: 1, startedOn: '2024-01-15' });
+  });
+});
+
+describe('being absorbed by a duplicate (PEO-074)', () => {
+  const SURVIVOR = '00000000-0000-4000-8000-0000000000a9';
+  const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
+  const survivor = () =>
+    person({ id: SURVIVOR, status: 'active', hireDate: '2026-01-05', identityAccountId: null });
+
+  it('leaves a tombstone pointing at the survivor, and hands over its account', () => {
+    const absorbed = person();
+    const moved = absorbed.absorbInto(survivor().snapshot, ['date_of_birth'], ctx);
+    expect(moved).toEqual({ ok: true, value: ACCOUNT });
+    expect(absorbed.status).toBe('merged');
+    expect(absorbed.snapshot).toMatchObject({ mergedInto: SURVIVOR, identityAccountId: null });
+    expect(absorbed.deletable).toBe(false);
+    expect(absorbed.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
+      [
+        'people.person.status_changed',
+        { personId: PERSON, previous: 'provisional', next: 'merged', reason: 'merged' },
+      ],
+      [
+        'people.person.merged',
+        {
+          survivingPersonId: SURVIVOR,
+          absorbedPersonId: PERSON,
+          attributesTaken: ['date_of_birth'],
+          identityAccountId: ACCOUNT,
+        },
+      ],
+    ]);
+  });
+
+  it('is refused for a record that holds an employment', () => {
+    const absorbed = person({ status: 'active', hireDate: '2026-01-05' });
+    const moved = absorbed.absorbInto(survivor().snapshot, [], ctx);
+    expect(moved.ok).toBe(false);
+    if (moved.ok) return;
+    expect(moved.error.code).toBe('MERGE_ABSORBS_EMPLOYMENT');
+    expect(absorbed.drainEvents()).toEqual([]);
+  });
+
+  it('cannot be edited, hired, discarded or corrected afterwards', () => {
+    const absorbed = person({ status: 'merged', mergedInto: SURVIVOR, identityAccountId: null });
+    expect(absorbed.updateProfile([], 3, ctx, null).ok).toBe(false);
+    expect(absorbed.hire('2026-10-01', HIRED, ctx, UTC).ok).toBe(false);
+    expect(absorbed.discard(ctx).ok).toBe(false);
+    expect(absorbed.correctHireDate('2026-10-01', ctx, UTC).ok).toBe(false);
+  });
+
+  it('gives the survivor the account, once', () => {
+    const s = survivor();
+    expect(s.adoptAccount(ACCOUNT).ok).toBe(true);
+    expect(s.identityAccountId).toBe(ACCOUNT);
+    const again = s.adoptAccount('00000000-0000-4000-8000-0000000000b2');
+    expect(again.ok).toBe(false);
+    if (again.ok) return;
+    expect(again.error.code).toBe('MERGE_TWO_ACCOUNTS');
   });
 });

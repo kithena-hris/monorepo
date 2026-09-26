@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CreateScimConnection($system: String!, $key: String!) {\n    createScimConnection(system: $system, idempotencyKey: $key) { id token }\n  }"}

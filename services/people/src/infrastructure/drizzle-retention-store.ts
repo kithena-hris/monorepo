@@ -163,6 +163,19 @@ export function drizzleRetentionStore(): RetentionStore {
            AND attribute_key = ANY(${sql.param([...keys])}::text[])
       `);
 
+      /*
+       * The upstream system's ids for a leaver past retention go with their
+       * values (PEO-072): a SCIM userName is usually their email, and an
+       * externalId finds them in the provider. Unlinked, the provider's next
+       * read of them is a 404, which is the truth.
+       */
+      await tx.execute(sql`
+        DELETE FROM people.scim_group_member
+         WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid`);
+      await tx.execute(sql`
+        DELETE FROM people.scim_link
+         WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid`);
+
       // Same transaction as the write, like every other person write here.
       await publish(tx, outbox, events);
     },

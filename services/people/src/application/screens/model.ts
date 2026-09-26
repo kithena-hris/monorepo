@@ -36,6 +36,11 @@ export interface RecordField {
   readonly ownedBy?: string;
   /** A change to it waits for HR's approval (PEO-077): marked wherever the field is drawn. */
   readonly sensitive: boolean;
+  /**
+   * The upstream system that is the source of record for it on this person
+   * (PEO-073): read-only for everybody here, changed there.
+   */
+  readonly keptIn?: string;
 }
 
 /**

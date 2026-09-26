@@ -1,11 +1,13 @@
 import type { Clock } from '@kithena/domain-kit';
-import type {
-  EmploymentType,
-  PersonStatus,
-  PredicateClause,
-  Requiredness,
-  RequirednessPredicate,
-  WorkModel,
+import {
+  attributesReferenced,
+  type AttributeDefinition,
+  type EmploymentType,
+  type PersonStatus,
+  type PredicateClause,
+  type Requiredness,
+  type RequirednessPredicate,
+  type WorkModel,
 } from '@kithena/contracts';
 
 /**
@@ -78,6 +80,24 @@ export function evaluateRequiredness(
 
   const verdict = evaluatePredicate(rule.when, facts);
   return { required: verdict.holds, unevaluable: verdict.unevaluable };
+}
+
+/**
+ * The special-category fields a requiredness rule reads (PEO-065, §6.5).
+ *
+ * A rule on one leaks through completeness: "workplace adjustment missing"
+ * tells whoever sees the gap that the person has a disability on file. The
+ * draft refuses such a rule; completeness treats one a published document
+ * still holds as broken, which is "not required" for everybody.
+ */
+export function specialCategoryReads(
+  rule: Requiredness,
+  definitions: readonly Pick<AttributeDefinition, 'key' | 'classification'>[],
+): readonly string[] {
+  const reads = new Set(attributesReferenced(rule));
+  return definitions
+    .filter((d) => reads.has(d.key) && d.classification.classification === 'special-category')
+    .map((d) => d.key as string);
 }
 
 /**

@@ -1,8 +1,10 @@
 import {
   Alert,
   AutoGrid,
+  BarChart,
   Button,
   FunnelChart,
+  HeatmapChart,
   HorizontalBarChart,
   PageHeader,
   PageSection,
@@ -11,6 +13,7 @@ import {
   Sparkline,
   Stack,
   Stat,
+  StackedBarChart,
   Table,
   TableBody,
   TableCell,
@@ -18,6 +21,7 @@ import {
   TableHeader,
   TableRow,
   TimelineChart,
+  TrendChart,
   WaterfallChart,
   type ChartPoint,
   type FunnelStage,
@@ -28,6 +32,7 @@ import {
 import { useId, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
+import { SegmentSelect, type SegmentRef } from '../segments';
 
 /**
  * What People may answer about its own data, already shaped by the query
@@ -52,6 +57,8 @@ export interface AnalyticsState {
     readonly percent: number;
     readonly leavers: number;
     readonly formula: string;
+    /** Rolling 12-month attrition, in percent, by month (PEO-067). */
+    readonly trend?: readonly ChartPoint[];
   } | null;
   readonly complete: { readonly percent: number; readonly incomplete: number } | null;
   readonly expiringIn90Days: number | null;
@@ -72,6 +79,51 @@ export interface AnalyticsState {
    */
   readonly expiries: { readonly today: IsoDate; readonly items: readonly ExpiryItem[] } | null;
   readonly funnel: readonly FunnelStage[] | null;
+  /** Here now, and left in the last 12 months, by tenure band (PEO-067). */
+  readonly tenure?:
+    | readonly {
+        readonly label: string;
+        readonly headcount: number;
+        readonly leavers: number;
+      }[]
+    | null;
+  /** Managers by number of direct reports. */
+  readonly span?: readonly ChartPoint[] | null;
+  /** Joiners by department and month. */
+  readonly joiners?: {
+    readonly months: readonly string[];
+    readonly departments: readonly string[];
+    readonly cells: readonly {
+      readonly row: string;
+      readonly column: string;
+      readonly value: number;
+    }[];
+  } | null;
+  /** Headcount by department, split by employment type. */
+  readonly composition?: {
+    readonly categories: readonly string[];
+    readonly series: readonly { readonly label: string; readonly values: readonly number[] }[];
+  } | null;
+  /**
+   * Voluntary self-identification, HR's only (PEO-070): each question from its
+   * monthly publication, rounded to 5, withheld whole below the cohort
+   * minimum. A withheld one has no numbers here to show.
+   */
+  readonly selfId?: readonly SelfIdChart[] | null;
+  /** The saved segment applied, and those the viewer could apply (PEO-068). */
+  readonly segment?: SegmentRef | null;
+  readonly segments?: readonly SegmentRef[];
+}
+
+export interface SelfIdChart {
+  readonly key: string;
+  readonly label: string;
+  readonly status: 'ok' | 'insufficient_data';
+  readonly minimum: number | null;
+  readonly publishedAsOf: string | null;
+  readonly total: number | null;
+  readonly note: string;
+  readonly cells: readonly ChartPoint[];
 }
 
 export interface ExpiryItem {
@@ -85,6 +137,9 @@ export interface ExpiryItem {
 
 export interface AnalyticsProps {
   readonly load: Loadable<AnalyticsState>;
+  /** Applied by the shell, server-side: `?segment=<id>`. */
+  readonly segmentId?: string | null;
+  readonly onSegmentChange?: (segmentId: string | null) => void;
 }
 
 const percent = (n: number): string => `${n.toFixed(1)}%`;
@@ -134,19 +189,51 @@ export function expiryRows(items: readonly ExpiryItem[]): TimelineRow[] {
  * also offers its numbers as a visible `Table` one tap away, because a chart
  * is never the only way to get a number.
  */
-export function Analytics({ load }: AnalyticsProps): JSX.Element {
+export function Analytics({
+  load,
+  segmentId = null,
+  onSegmentChange,
+}: AnalyticsProps): JSX.Element {
   return (
     <Loaded load={load} what="the analytics">
-      {(state) => <Workforce state={state} />}
+      {(state) => (
+        <Workforce state={state} segmentId={segmentId} onSegmentChange={onSegmentChange} />
+      )}
     </Loaded>
   );
 }
 
-function Workforce({ state }: { readonly state: AnalyticsState }): JSX.Element {
+function Workforce({
+  state,
+  segmentId,
+  onSegmentChange,
+}: {
+  readonly state: AnalyticsState;
+  readonly segmentId: string | null;
+  readonly onSegmentChange: AnalyticsProps['onSegmentChange'];
+}): JSX.Element {
   const { headcount, attrition, complete, movement } = state;
   return (
     <Stack gap={6}>
-      <PageHeader title="Workforce" description={`${state.asOf} · ${state.sourceNote}`} />
+      <PageHeader
+        title="Workforce"
+        description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · ${state.sourceNote}`}
+        actions={
+          onSegmentChange === undefined ? undefined : (
+            <SegmentSelect
+              segments={state.segments ?? []}
+              value={segmentId}
+              onChange={onSegmentChange}
+            />
+          )
+        }
+      />
+      {state.segment ? (
+        <Alert tone="info">
+          Showing the people you may see in {state.segment.name}. Span of control, expiries and
+          self-identification are not drawn for a segment.
+        </Alert>
+      ) : null}
       {state.source === 'history' ? (
         <Alert tone="info">
           This date is between snapshots, so it was replayed from history. It is exact, and it was
@@ -260,6 +347,100 @@ function Workforce({ state }: { readonly state: AnalyticsState }): JSX.Element {
         </ChartSection>
       )}
 
+      {attrition?.trend === undefined || attrition.trend.length < 2 ? null : (
+        <ChartSection
+          title="Are people leaving faster"
+          description={`Rolling 12 months: ${attrition.formula}`}
+          numbers={attrition.trend.map((p) => [p.label, percent(p.value)])}
+        >
+          <TrendChart
+            label="Attrition, rolling 12 months"
+            series={[{ label: 'Attrition', tone: 'danger', data: attrition.trend }]}
+            format={percent}
+          />
+        </ChartSection>
+      )}
+
+      {state.composition == null || state.composition.categories.length === 0 ? null : (
+        <ChartSection
+          title="What we are made of"
+          description="Headcount by department, split by employment type"
+          numbers={state.composition.categories.flatMap((category, i) =>
+            (state.composition?.series ?? []).map((s): [string, number] => [
+              `${category}, ${s.label}`,
+              s.values[i] ?? 0,
+            ]),
+          )}
+        >
+          <StackedBarChart
+            label="Headcount by department and employment type"
+            categories={state.composition.categories}
+            series={state.composition.series}
+          />
+        </ChartSection>
+      )}
+
+      {state.tenure == null ? null : (
+        <ChartSection
+          title="Who is at risk of leaving"
+          description="Tenure today, beside the tenure at leaving of the last 12 months' leavers"
+          numbers={state.tenure.flatMap((b): [string, number][] => [
+            [`${b.label}: here now`, b.headcount],
+            [`${b.label}: left`, b.leavers],
+          ])}
+        >
+          <StackedBarChart
+            label="Tenure bands"
+            categories={state.tenure.map((b) => b.label)}
+            series={[
+              {
+                label: 'Left in the last 12 months',
+                tone: 'danger',
+                values: state.tenure.map((b) => b.leavers),
+              },
+              { label: 'Here now', tone: 'accent', values: state.tenure.map((b) => b.headcount) },
+            ]}
+          />
+        </ChartSection>
+      )}
+
+      {state.span == null || state.span.length === 0 ? null : (
+        <ChartSection
+          title="Is the org shaped sensibly"
+          description="How many managers have how many direct reports"
+          numbers={state.span.map((p) => [p.label, p.value])}
+        >
+          <BarChart label="Span of control" data={state.span} showValues />
+        </ChartSection>
+      )}
+
+      {state.joiners == null || state.joiners.cells.length === 0 ? null : (
+        <ChartSection
+          title="When people join"
+          description="Joiners by department and month, the last 12 months"
+          numbers={state.joiners.cells.map((c) => [`${c.row}, ${c.column}`, c.value])}
+        >
+          <ScrollArea className="w-full">
+            <div className="min-w-[36rem]">
+              <HeatmapChart
+                label="Joiners by department and month"
+                rows={state.joiners.departments}
+                columns={state.joiners.months}
+                cells={state.joiners.cells}
+                describe={(value, row, column) =>
+                  `${String(value)} ${value === 1 ? 'joiner' : 'joiners'} in ${row}, ${column}`
+                }
+              />
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </ChartSection>
+      )}
+
+      {state.selfId == null
+        ? null
+        : state.selfId.map((q) => <SelfIdSection key={q.key} question={q} />)}
+
       {state.funnel === null ? null : (
         <ChartSection
           title="Where new joiners stall"
@@ -270,6 +451,43 @@ function Workforce({ state }: { readonly state: AnalyticsState }): JSX.Element {
         </ChartSection>
       )}
     </Stack>
+  );
+}
+
+/**
+ * One self-identification question in aggregate (PRD §6.7, §16.1). Withheld
+ * whole below the cohort minimum, and then there is no number anywhere on
+ * the page to read: not in a bar, a tooltip, nor the table.
+ */
+function SelfIdSection({ question }: { readonly question: SelfIdChart }): JSX.Element {
+  const published =
+    question.publishedAsOf === null ? 'Not published yet' : `Published ${question.publishedAsOf}`;
+  if (question.status !== 'ok') {
+    return (
+      <PageSection
+        surface
+        title={question.label}
+        description={`Voluntary self-identification · ${published}`}
+      >
+        <Alert tone="info" title="Insufficient data">
+          Fewer than {question.minimum ?? 10} people in at least one answer, so nothing is shown.
+        </Alert>
+      </PageSection>
+    );
+  }
+  return (
+    <ChartSection
+      title={question.label}
+      description={`Voluntary self-identification · ${published} · ${question.note}`}
+      numbers={[
+        ...question.cells.map((c): [string, number] => [c.label, c.value]),
+        ...(question.total === null
+          ? []
+          : [['Total, rounded on its own', question.total] as [string, number]]),
+      ]}
+    >
+      <BarChart label={question.label} data={question.cells} showValues />
+    </ChartSection>
   );
 }
 

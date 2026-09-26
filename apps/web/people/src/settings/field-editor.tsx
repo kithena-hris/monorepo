@@ -162,7 +162,31 @@ export function approvalByDefault(dataType: DataType, piiKind: string): boolean 
 }
 
 /** What stops each step from moving on, or null when it may. */
-function problemsIn(step: number, draft: Draft, keyTaken: (key: string) => boolean) {
+/**
+ * A condition on special-category data leaks through completeness: "missing"
+ * tells whoever sees the gap that the condition held. People refuses it
+ * (`PREDICATE_DISCLOSES`); saying so here puts the sentence beside the row.
+ */
+function specialCategoryProblem(
+  predicate: Draft['requiredWhen'],
+  others: readonly PredicateField[],
+): string | null {
+  for (const clause of predicate.clauses) {
+    if (clause.operand !== 'attribute') continue;
+    const named = others.find((f) => f.key === clause.key);
+    if (named?.classification === 'special-category') {
+      return `${named.label} is special-category data, so it cannot decide whether a field is required: a missing value would tell whoever sees it that the condition held.`;
+    }
+  }
+  return null;
+}
+
+function problemsIn(
+  step: number,
+  draft: Draft,
+  keyTaken: (key: string) => boolean,
+  others: readonly PredicateField[],
+) {
   const problems: Partial<
     Record<
       'label' | 'key' | 'options' | 'ownership' | 'requiredWhen' | 'visibility' | 'rules' | 'kind',
@@ -184,7 +208,8 @@ function problemsIn(step: number, draft: Draft, keyTaken: (key: string) => boole
     problems.ownership = 'Somebody has to be able to fill it in.';
   }
   if (step === 1 && draft.requiredness === 'conditional') {
-    const problem = predicateProblem(draft.requiredWhen);
+    const problem =
+      predicateProblem(draft.requiredWhen) ?? specialCategoryProblem(draft.requiredWhen, others);
     if (problem !== null) problems.requiredWhen = problem;
   }
   if (step === 2) {
@@ -280,7 +305,12 @@ export function FieldEditor({
 
   const editing = field !== null;
   const others = fields.filter((f) => f.key !== draft.key);
-  const problems = problemsIn(step, draft, (key) => !editing && takenKeys.includes(key));
+  const problems = problemsIn(
+    step,
+    draft,
+    (key) => !editing && takenKeys.includes(key),
+    others,
+  );
   const blocked = Object.keys(problems).length > 0;
   const set = (patch: Partial<Draft>): void => {
     setDraft((current) => ({ ...current, ...patch }));

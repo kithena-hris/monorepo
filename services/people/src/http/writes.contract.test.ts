@@ -37,6 +37,8 @@ const SAFE = [
   'POST /v1/views/people/{id}/identifier-check',
   'POST /v1/people/{id}/identifier-reviews/reveal',
   'POST /v1/views/completeness/identifier-check',
+  // PEO-071: a bulk edit's preview, rolled back whatever it wrote.
+  'POST /v1/views/bulk-edit/preview',
 ];
 
 const callerFrom: CallerFrom = () =>

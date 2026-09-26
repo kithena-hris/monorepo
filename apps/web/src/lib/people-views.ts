@@ -55,7 +55,7 @@ function absentIfNull<T extends Json>(value: T, keys: readonly string[]): T {
   ) as T;
 }
 
-const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy']);
+const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy', 'keptIn']);
 /** A change waiting for approval (PEO-077): its value from its entry, masked as it came. */
 const pending = (p: Json & { value: Entry }) => ({ ...p, value: formValue(p.value) });
 const section = (s: Json & { fields: Json[] }) => ({ ...s, fields: s.fields.map(field) });
@@ -96,6 +96,18 @@ export const VIEWS = {
     people: v.people.map((p) => ({
       ...p,
       values: Object.fromEntries(p.values.map((cell) => [cell.key, cell.value])),
+    })),
+  }),
+  BulkEdit: (v: Json & { sections: (Json & { fields: Json[] })[] }) => ({
+    ...v,
+    sections: v.sections.map(section),
+  }),
+  // Each change's two values as form values, as a record's are.
+  BulkEditResult: (v: Json & { rows: (Json & { changes: (Json & { before: Entry; after: Entry })[] })[] }) => ({
+    ...v,
+    rows: v.rows.map((r) => ({
+      ...r,
+      changes: r.changes.map((c) => ({ ...c, before: formValue(c.before), after: formValue(c.after) })),
     })),
   }),
   PeopleSetup: (v: Json & { profile: WithRecord | null }) => ({

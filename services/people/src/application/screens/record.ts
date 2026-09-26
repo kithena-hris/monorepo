@@ -9,6 +9,7 @@ import type { Asking, PersonView } from '../person/person-access.js';
 import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
+import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
 import type {
   FormValue,
   FormValues,
@@ -38,6 +39,8 @@ export interface ScreenDeps {
   readonly calendars: Calendars;
   /** The completeness grid's totals over everybody (PEO-122). */
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
+  /** Saved segments (PEO-068). Absent, their routes answer UNAVAILABLE. */
+  readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
 }
 
 /** HR's share of the completeness grid, counted over everybody (PEO-122). */
@@ -129,6 +132,7 @@ function fieldOf(
         ? people
         : [];
   const readOnly = !canWrite(d, relations).ok;
+  const keptIn = relations.sources?.get(d.key)?.system;
   return {
     key: d.key,
     label: label(d),
@@ -138,7 +142,8 @@ function fieldOf(
     required: d.requiredness.mode === 'always' || missing.has(d.key),
     readOnly,
     ...(config.kind === 'money' && config.currency !== null ? { currency: config.currency } : {}),
-    ...(readOnly ? { ownedBy: ownedBy(d) } : {}),
+    ...(readOnly ? { ownedBy: keptIn ?? ownedBy(d) } : {}),
+    ...(keptIn === undefined ? {} : { keptIn }),
     sensitive: requiresApproval(d),
   };
 }
@@ -199,7 +204,7 @@ export function fromForm(definition: AttributeDefinition | undefined, value: unk
 }
 
 /** A form's changed values as the write path takes them, and the definitions they name. */
-async function formChanges(
+export async function formChanges(
   deps: ScreenDeps,
   tx: Tx,
   tenantId: string,
@@ -217,7 +222,7 @@ async function formChanges(
 }
 
 /** The findings worth a warning: anything worse than `ok`, labelled for a form (PEO-125). */
-function warnings(
+export function warnings(
   byKey: ReadonlyMap<string, AttributeDefinition>,
   found: readonly AttributeFindings[],
 ): IdentifierFindingView[] {

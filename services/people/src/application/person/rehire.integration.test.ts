@@ -167,6 +167,7 @@ beforeAll(async () => {
     '20260926180000_people_pending_change.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260923110000_people_completeness.sql',
     '20260923140000_people_retention.sql',
@@ -174,6 +175,7 @@ beforeAll(async () => {
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924200000_people_employee_numbering.sql',
+    '20260926160000_people_scim.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

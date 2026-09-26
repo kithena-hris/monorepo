@@ -82,6 +82,18 @@ describe('Directory', () => {
     expect(onOpen).toHaveBeenCalledWith('l');
   });
 
+  it('lets HR choose people and edit them together, and nobody else choose at all (PEO-071)', async () => {
+    const user = fast();
+    const onBulkEdit = vi.fn();
+    const { rerender } = render(<Directory {...props()} />);
+    expect(screen.queryByRole('checkbox', { name: 'Select Adam Reyes' })).toBeNull();
+    rerender(<Directory {...props({ onBulkEdit })} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Select Adam Reyes' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select Lena Moreau' }));
+    await user.click(screen.getByRole('button', { name: 'Edit together' }));
+    expect(onBulkEdit).toHaveBeenCalledWith(['a', 'l']);
+  });
+
   it('has loading, error and empty states', async () => {
     const { container, rerender } = render(
       <Directory {...props({ load: { status: 'loading' } })} />,
@@ -113,5 +125,43 @@ describe('Directory', () => {
 
     rerender(<Directory {...props({ onFirstPage })} />);
     expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
+
+  it('applies a saved segment through the shell, and saves the filters as one (PEO-068)', async () => {
+    const user = fast();
+    const onSegmentChange = vi.fn();
+    const onSaveSegment = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const withSegments = { ...state, segments: [{ id: 'seg-1', name: 'Madrid engineering' }] };
+    const { container, rerender } = render(
+      <Directory
+        {...props({
+          load: { status: 'ready', data: withSegments },
+          onSegmentChange,
+          onSaveSegment,
+        })}
+      />,
+    );
+    // Nothing to save until a filter is set.
+    expect(screen.queryByRole('button', { name: 'Save as segment' })).toBeNull();
+    await user.click(screen.getByRole('combobox', { name: 'Segment' }));
+    await user.click(await screen.findByRole('option', { name: 'Segment: Madrid engineering' }));
+    expect(onSegmentChange).toHaveBeenCalledWith('seg-1');
+
+    rerender(
+      <Directory
+        {...props({
+          load: { status: 'ready', data: withSegments },
+          filters: { cost_centre: 'ENG-204' },
+          onSegmentChange,
+          onSaveSegment,
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Save as segment' }));
+    await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'ENG-204');
+    await user.click(screen.getByRole('switch', { name: 'Share with everybody in the company' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSaveSegment).toHaveBeenCalledWith({ name: 'ENG-204', shared: true });
+    expect(await axeViolations(container)).toEqual([]);
   });
 });

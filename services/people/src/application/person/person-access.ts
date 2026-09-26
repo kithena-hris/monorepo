@@ -15,7 +15,9 @@ import {
   partitionWrites,
   readable,
   readableHistory,
+  statusVisibleTo,
   visibleTo,
+  type ExternalSource,
   type ViewerRelations,
 } from '../../domain/access/field-access.js';
 import { assessCompleteness, type CompletenessVerdict } from '../../domain/person/completeness.js';
@@ -77,6 +79,13 @@ import {
 } from './identifier-review.js';
 import type { IdentifierReview, ReviewDecision } from '../../domain/person/identifier-review.js';
 import type { NationalIdCheck } from '../../country-packs/national-id.js';
+import {
+  candidates,
+  mergeRefusal,
+  valuesTaken,
+  type Candidate,
+} from '../../domain/person/merge.js';
+import { shownTo, takeable, type DuplicateStore } from './duplicates.js';
 
 /**
  * Reading and writing a person, for every transport.
@@ -139,6 +148,8 @@ export interface PersonAccessDeps {
    * serves people passes it.
    */
   readonly approvals?: Holding;
+  /** Duplicate candidates and decisions (PEO-074). Absent, the queue is empty and nothing merges. */
+  readonly duplicates?: DuplicateStore;
 }
 
 export interface Asking {
@@ -156,7 +167,8 @@ export interface Asking {
 
 export interface PersonView {
   readonly id: string;
-  readonly status: string;
+  /** HR's, and the person's own (`statusVisibleTo`); absent for anybody else. */
+  readonly status?: string;
   readonly schemaVersion: number | null;
   /** Only what this viewer may read. A withheld key is absent, never null. */
   readonly attributes: Readonly<Record<string, unknown>>;
@@ -362,6 +374,62 @@ export interface PersonAccess {
   ): Promise<Result<IdentifierReview>>;
   /** The value under review in full, for HR deciding it: audited. */
   revealIdentifier(tx: Tx, asking: On<{ readonly attributeKey: string }>): Promise<Result<string>>;
+  /**
+   * HR's queue of suspected duplicates (PEO-074), strongest first, with only
+   * the signals HR may read. A ranking, never a merge.
+   */
+  duplicates(
+    tx: Tx,
+    asking: Asking & { readonly limit?: number },
+  ): Promise<Result<readonly Candidate[]>>;
+  /** HR says two records are two people: the queue stops offering the pair. */
+  dismissDuplicate(
+    tx: Tx,
+    asking: Asking & { readonly personIds: readonly [string, string] },
+  ): Promise<Result<void>>;
+  /**
+   * Whether `personId` may absorb `absorbedPersonId`, and what the viewer
+   * could copy across: the comparison screen asks this, and `merge` applies
+   * the same rules. `sameSealed` names the sealed values both hold, compared
+   * by keyed hash.
+   */
+  mergeOptions(
+    tx: Tx,
+    asking: On<{ readonly absorbedPersonId: string }>,
+  ): Promise<
+    Result<{
+      readonly refusal: DomainFailure | null;
+      readonly takeable: readonly string[];
+      readonly sameSealed: readonly string[];
+    }>
+  >;
+  /**
+   * HR merges `absorbedPersonId` into `personId` (PEO-074): the absorbed
+   * record becomes a tombstone pointing at the survivor, its account moves
+   * across, and the values named in `take` are written onto the survivor as
+   * ordinary, correctable history. Audited by its events and a decision row.
+   */
+  merge(
+    tx: Tx,
+    asking: On<{ readonly absorbedPersonId: string; readonly take: readonly string[] }>,
+  ): Promise<Result<PersonView>>;
+  /**
+   * An upstream system's change to a record it mirrors (PEO-072, PEO-073):
+   * the attributes it owns written through `update`, effective now, and
+   * `synced_from_external` naming them and anything else the link changed
+   * (`active`, `userName`). Only an integration asks; nothing written and
+   * nothing named is no event at all.
+   */
+  syncExternal(
+    tx: Tx,
+    asking: On<{
+      readonly changes: Readonly<Record<string, unknown>>;
+      /** Fields of the link itself that changed, named on the event. */
+      readonly linkChanged: readonly string[];
+      /** How the upstream system identifies the person. */
+      readonly externalId: string;
+    }>,
+  ): Promise<Result<PersonView>>;
 }
 
 /** A correction's new row, and what the checks found if it was a national identifier (PEO-125). */
@@ -527,6 +595,50 @@ const APPROVED_RELATIONS: ViewerRelations = {
   isAdmin: true,
 };
 
+/**
+ * An integration writing (PEO-072, PEO-073): a SCIM connection whose token
+ * the transport has already checked. Like `AS_SYSTEM` a symbol, so nothing
+ * parsed from a request body can claim to be one.
+ *
+ * It holds no role and reads no scope. It writes and reads exactly the
+ * attributes it owns — its approved mapping — and `canWrite` refuses the
+ * rest; every other writer is refused those same attributes on the records
+ * it mirrors (`sources` on their relations, `withSources`).
+ */
+const AS_INTEGRATION = Symbol('people.integration');
+export interface IntegrationWriter {
+  readonly connectionId: string;
+  /** What the tenant calls the system; the envelope's `provider`. */
+  readonly system: string;
+  /** Every attribute the connection is the source of record for. */
+  readonly owned: ReadonlyMap<string, ExternalSource>;
+}
+type IntegrationAsking = Asking & { readonly [AS_INTEGRATION]?: IntegrationWriter };
+const integrationOf = (asking: Asking): IntegrationWriter | undefined =>
+  (asking as IntegrationAsking)[AS_INTEGRATION];
+const NO_RELATIONS: ViewerRelations = {
+  isSelf: false,
+  isManager: false,
+  isInManagerChain: false,
+  isHr: false,
+  isFinance: false,
+  isAdmin: false,
+};
+
+/** The asking of an integration the SCIM transport authenticated. Nobody else builds one. */
+export function asIntegration(
+  on: { readonly tenantId: string; readonly correlationId: string },
+  writer: IntegrationWriter,
+): Asking {
+  const asking: IntegrationAsking = {
+    tenantId: on.tenantId,
+    correlationId: on.correlationId,
+    viewer: { accountId: NOBODY, roles: new Set() },
+    [AS_INTEGRATION]: writer,
+  };
+  return asking;
+}
+
 const NotPublished = () =>
   failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet');
 const PersonNotFound = () => failure('NOT_FOUND', 'No such person');
@@ -566,16 +678,54 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const zone = personZone(await calendars.load(tx, tenantId), placementOf(values), at);
     return { zone, day: localDate(at, zone) };
   }
-  const actorOf = (asking: Asking): Actor =>
-    systemOf(asking) ?? { kind: 'user', userId: asking.viewer.accountId };
+  const actorOf = (asking: Asking): Actor => {
+    const integration = integrationOf(asking);
+    return (
+      systemOf(asking) ??
+      (integration === undefined
+        ? { kind: 'user', userId: asking.viewer.accountId }
+        : {
+            kind: 'integration',
+            integrationId: integration.connectionId,
+            provider: integration.system,
+          })
+    );
+  };
 
-  /** Who the write is as: the resolver's answer, or the reach of a system or approved write. */
+  /**
+   * Who is asking, to this person: People itself, an integration (which
+   * holds only what it owns), or a person, as the resolver answers.
+   */
+  async function relationsOf(tx: Tx, asking: Asking, personId: string): Promise<ViewerRelations> {
+    if (systemOf(asking) !== undefined) return SYSTEM_RELATIONS;
+    const integration = integrationOf(asking);
+    if (integration !== undefined) {
+      return { ...NO_RELATIONS, integrationId: integration.connectionId, sources: integration.owned };
+    }
+    return deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
+  }
+
+  /** The refusal of a write, naming who owns it when a mirrored attribute is why (§13.6). */
+  function refusalOf(
+    definitions: ReadonlyMap<string, AttributeDefinition>,
+    refused: readonly string[],
+    relations: ViewerRelations,
+  ): DomainFailure {
+    for (const key of refused) {
+      const definition = definitions.get(key);
+      const decided = definition === undefined ? null : canWrite(definition, relations);
+      if (decided !== null && !decided.ok && decided.error.code === 'SOURCE_OF_RECORD_EXTERNAL') {
+        return decided.error;
+      }
+    }
+    return failure('FIELD_NOT_WRITABLE', `Not yours to change: ${refused.join(', ')}`, refused);
+  }
+
+  /** Who the write is as: `relationsOf`, or the reach an approved change was asked with. */
   const writeRelations = (tx: Tx, asking: Asking, personId: string): Promise<ViewerRelations> =>
     approvedOf(asking) !== undefined
       ? Promise.resolve(APPROVED_RELATIONS)
-      : systemOf(asking) !== undefined
-        ? Promise.resolve(SYSTEM_RELATIONS)
-        : deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
+      : relationsOf(tx, asking, personId);
 
   /**
    * What a write does with values that require approval (PEO-077): hold them,
@@ -595,6 +745,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     }
     if (deps.approvals === undefined) return ok('write');
     if (systemOf(asking) !== undefined || approvedOf(asking) !== undefined) return ok('write');
+    // An integration writes only what it is the source of record for (§13.6):
+    // the upstream system is authoritative there, and nobody here could
+    // approve or reject it — People would only hold the truth back.
+    if (integrationOf(asking) !== undefined) return ok('write');
     return ok(asking.applySensitiveWithoutApproval === true ? 'bypass' : 'hold');
   }
 
@@ -627,6 +781,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
   }
 
   /**
+   * Who the viewer is to nobody in particular: their tenant-wide relations,
+   * with self and manager false. The resolver answers that for an id no
+   * person has. A list is shown under these: leavers, and every status, are
+   * HR's (§6.3), and a filter or search reads only what is readable on all.
+   */
+  const everyoneTo = (tx: Tx, asking: Asking) =>
+    deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+
+  /**
    * A list's `where` and `search`, authorized: each filtered key readable on
    * everybody (`filterable`), a search only over what is (`searchable`).
    * Both read today, so neither combines with `asOf`.
@@ -639,6 +802,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       readonly search?: string;
     },
     version: PublishedVersion,
+    everyone: ViewerRelations,
   ): Promise<
     Result<{ where: Readonly<Record<string, string>>; search: PersonSearch | undefined }>
   > {
@@ -650,10 +814,6 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         failure('FILTER_WITH_AS_OF', 'A filter reads today; it cannot be combined with asOf'),
       );
     }
-    // Who the viewer is to nobody in particular: their tenant-wide relations,
-    // with self and manager false. The resolver answers that for an id no
-    // person has.
-    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     const allowed = filterable(version.document.attributes, Object.keys(where), everyone);
     if (!allowed.ok) return allowed;
     if (text === '') return ok({ where, search: undefined });
@@ -694,7 +854,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
     return {
       id: person.snapshot.id,
-      status: person.snapshot.status,
+      ...(statusVisibleTo(relations) ? { status: person.snapshot.status } : {}),
       schemaVersion: person.schemaVersion,
       attributes: readable(definitions, Object.fromEntries(values), relations),
     };
@@ -912,14 +1072,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     }
 
     const definitions = version.document.attributes;
-    const { allowed, refused } = partitionWrites(definitions, asking.changes, relations);
-    if (refused.length > 0) {
-      return err(
-        failure('FIELD_NOT_WRITABLE', `Not yours to change: ${refused.join(', ')}`, refused),
-      );
-    }
-
     const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+    const { allowed, refused } = partitionWrites(definitions, asking.changes, relations);
+    if (refused.length > 0) return err(refusalOf(byKey, refused, relations));
+
     const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...allowed });
     const effectiveFrom = asking.effectiveFrom ?? day;
 
@@ -1183,8 +1339,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
     if (!after) return err(PersonNotFound());
     const now =
-      systemOf(asking) === undefined && approvedOf(asking) === undefined
-        ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
+      approvedOf(asking) === undefined
+        ? await relationsOf(tx, asking, asking.personId)
         : SYSTEM_RELATIONS;
     return ok({
       ...(await view(tx, asking, after, version, now)),
@@ -1287,6 +1443,65 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return ok({ review: review.value, reviews, definition, person });
   }
 
+  /**
+   * The two records of a merge, as HR, and what HR could copy across (PEO-074).
+   * Locked in id order when a merge will follow, so two reviewers merging the
+   * same pair in opposite directions queue rather than deadlock.
+   */
+  async function mergePair(
+    tx: Tx,
+    asking: On<{ readonly absorbedPersonId: string }>,
+    lock: boolean,
+  ) {
+    const version = await deps.schemas.current(tx, asking.tenantId);
+    if (!version) return err(NotPublished());
+    const records = new Map<string, PersonRecord>();
+    for (const id of [asking.personId, asking.absorbedPersonId].toSorted()) {
+      const found = await deps.reader.record(tx, asking.tenantId, id, lock);
+      if (!found) return err(PersonNotFound());
+      records.set(id, found);
+    }
+    const survivor = records.get(asking.personId);
+    const absorbed = records.get(asking.absorbedPersonId);
+    if (!survivor || !absorbed) return err(PersonNotFound());
+    const onSurvivor = await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId);
+    const onAbsorbed = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      asking.absorbedPersonId,
+    );
+    // HR moves a person (§8.1); a merge is the largest move there is.
+    if (!onSurvivor.isHr || !onAbsorbed.isHr) {
+      return err(failure('FORBIDDEN', 'Only HR merges records'));
+    }
+    const keys = takeable(version.document.attributes, onSurvivor, onAbsorbed);
+    return ok({ version, survivor, absorbed, keys });
+  }
+
+  /** Why this merge may not happen: the domain's rule, then the two that need a read. */
+  async function mergeRefusalOf(
+    tx: Tx,
+    asking: Asking,
+    survivor: PersonRecord,
+    absorbed: PersonRecord,
+  ): Promise<DomainFailure | null> {
+    const refused = mergeRefusal(survivor.snapshot, absorbed.snapshot);
+    if (refused !== null) return refused;
+    const own = await deps.reader.personOf(tx, asking.tenantId, asking.viewer.accountId);
+    if (own === survivor.snapshot.id || own === absorbed.snapshot.id) {
+      return failure('FORBIDDEN', 'Nobody merges their own record; another HR colleague has to');
+    }
+    const reports = (await deps.duplicates?.reports(tx, asking.tenantId, absorbed.snapshot.id)) ?? 0;
+    if (reports > 0) {
+      return failure(
+        'MERGE_HAS_REPORTS',
+        `${String(reports)} ${reports === 1 ? 'person reports' : 'people report'} to the record being absorbed; move them first`,
+      );
+    }
+    return null;
+  }
+
   const api: PersonAccess = {
     giveNotice: (tx, asking) => {
       const day = lastDayOf(asking);
@@ -1370,7 +1585,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         );
       }
       const entity = asking.legalEntityId ?? person.legalEntityId;
-      const facts = hireFactsOf(person.values, entity, version.version);
+      const facts = hireFactsOf(person.values, entity, version.version, person.sourceOfRecord);
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
@@ -1508,6 +1723,119 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         (p, _zone, ctx) => p.discard(ctx),
       ),
 
+    async duplicates(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
+      const store = deps.duplicates;
+      if (!store) return ok([]);
+      const limit = Math.min(asking.limit ?? 50, 200);
+      // ponytail: a pair of signals per candidate at most, so four times the page is enough rows.
+      const rows = await store.signals(tx, asking.tenantId, limit * 4);
+      const ranked = candidates(rows, await store.decided(tx, asking.tenantId));
+      return ok(shownTo(ranked, version.document.attributes, everyone).slice(0, limit));
+    },
+
+    async dismissDuplicate(tx, asking) {
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
+      const [a, b] = asking.personIds;
+      if (a === b) return err(failure('SAME_PERSON', 'A record cannot be a duplicate of itself'));
+      for (const id of asking.personIds) {
+        if (!(await deps.reader.record(tx, asking.tenantId, id))) return err(PersonNotFound());
+      }
+      await deps.duplicates?.record(tx, asking.tenantId, {
+        id: deps.newId(),
+        personIds: [a, b],
+        decision: 'not_duplicate',
+        decidedBy: asking.viewer.accountId,
+        decidedAt: deps.clock.instant(),
+      });
+      return ok(undefined);
+    },
+
+    async mergeOptions(tx, asking) {
+      const pair = await mergePair(tx, asking, false);
+      if (!pair.ok) return pair;
+      const { survivor, absorbed, keys } = pair.value;
+      const sameSealed = deps.duplicates
+        ? await deps.duplicates.sameClaims(tx, asking.tenantId, survivor.snapshot.id, absorbed.snapshot.id)
+        : [];
+      return ok({
+        refusal: await mergeRefusalOf(tx, asking, survivor, absorbed),
+        takeable: [...keys],
+        sameSealed,
+      });
+    },
+
+    async merge(tx, asking) {
+      const store = deps.duplicates;
+      if (!store) return err(failure('NOT_FOUND', 'Duplicate review is not available'));
+      const pair = await mergePair(tx, asking, true);
+      if (!pair.ok) return pair;
+      const { survivor, absorbed, keys, version } = pair.value;
+      const refused = await mergeRefusalOf(tx, asking, survivor, absorbed);
+      if (refused !== null) return err(refused);
+      const taken = valuesTaken(asking.take, absorbed.values, keys);
+      if (!taken.ok) return taken;
+      const survivorId = survivor.snapshot.id;
+      const absorbedId = absorbed.snapshot.id;
+
+      // The tombstone first: it gives up its claims and its account before
+      // the survivor takes either, so neither is ever held twice.
+      await store.releaseClaims(tx, asking.tenantId, absorbedId);
+      const tomb = Person.rehydrate(absorbed.snapshot);
+      const moved = tomb.absorbInto(survivor.snapshot, Object.keys(taken.value), contextFor(asking));
+      if (!moved.ok) return moved;
+      await deps.people.save(tx, tomb, { fields: { identityAccountId: null } });
+      for (const review of (await deps.reviews?.open(tx, asking.tenantId, absorbedId)) ?? []) {
+        await deps.reviews?.supersede(tx, asking.tenantId, absorbedId, review.attributeKey);
+      }
+      await rejudge(tx, asking, absorbedId, null);
+
+      const account = moved.value;
+      if (account !== null) {
+        const heir = Person.rehydrate(survivor.snapshot);
+        const adopted = heir.adoptAccount(account);
+        if (!adopted.ok) return adopted;
+        await deps.people.save(tx, heir, { fields: { identityAccountId: account } });
+      }
+      if (Object.keys(taken.value).length > 0) {
+        const written = await update(
+          tx,
+          { ...asking, personId: survivorId, changes: taken.value },
+          false,
+        );
+        if (!written.ok) return written;
+      } else {
+        await rejudge(tx, asking, survivorId, null);
+      }
+      // Identity caches a name and a start per account: the account that
+      // moved now signs in as the survivor, so it learns the survivor's.
+      const after = await deps.reader.record(tx, asking.tenantId, survivorId, true);
+      if (!after) return err(PersonNotFound());
+      const told = Person.rehydrate(after.snapshot);
+      const named = Object.keys(taken.value).some((k) => IDENTITY_FACT_KEYS.has(k));
+      if (account !== null || named) {
+        shareIdentityFacts(told, asking, after.values, null);
+        await deps.people.save(tx, told);
+      }
+
+      await store.record(tx, asking.tenantId, {
+        id: deps.newId(),
+        personIds: [survivorId, absorbedId],
+        decision: 'merged',
+        survivorId,
+        absorbedId,
+        attributesTaken: Object.keys(taken.value),
+        decidedBy: asking.viewer.accountId,
+        decidedAt: deps.clock.instant(),
+      });
+      const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, survivorId);
+      return ok(await view(tx, asking, after, version, relations));
+    },
+
     async read(
       tx: Tx,
       asking: Asking & { readonly personId: string; readonly asOf?: string },
@@ -1516,12 +1844,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!version) return err(NotPublished());
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!person) return err(PersonNotFound());
-      const relations = await deps.relations.relations(
-        tx,
-        asking.tenantId,
-        asking.viewer,
-        asking.personId,
-      );
+      const relations = await relationsOf(tx, asking, asking.personId);
       return ok(await view(tx, asking, person, version, relations, asking.asOf));
     },
 
@@ -1542,11 +1865,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const query = await narrowing(tx, asking, version);
+      const everyone = await everyoneTo(tx, asking);
+      const query = await narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
-      if (asking.gaps !== undefined) {
-        const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-        if (!everyone.isHr) return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
+      if (asking.gaps !== undefined && !everyone.isHr) {
+        return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
       }
       const rows = await deps.reader.page(
         tx,
@@ -1556,6 +1879,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         query.value.where,
         query.value.search,
         asking.gaps,
+        everyone.isHr,
       );
       const related = await relationsToMany(
         deps.relations,
@@ -1578,11 +1902,18 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     async count(tx, asking) {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const query = await narrowing(tx, asking, version);
+      const everyone = await everyoneTo(tx, asking);
+      const query = await narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
-      return ok(
-        await deps.reader.count(tx, asking.tenantId, query.value.where, query.value.search),
+      const counted = await deps.reader.count(
+        tx,
+        asking.tenantId,
+        query.value.where,
+        query.value.search,
+        everyone.isHr,
       );
+      // "Active" is a status; outside HR it is everybody listed, none of them leavers.
+      return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all });
     },
 
     update: (tx, asking) => update(tx, asking),
@@ -1601,8 +1932,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!version) return err(NotPublished());
 
       const id = deps.newId();
-      const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id);
-      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR creates a person record'));
+      // HR creates records, and so does an integration the tenant connected
+      // to provision them (PEO-072): a record it creates is its mirror.
+      const integration = integrationOf(asking);
+      if (integration === undefined) {
+        const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id);
+        if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR creates a person record'));
+      }
 
       await deps.people.create(
         tx,
@@ -1614,8 +1950,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           hireDate: null,
           lastWorkingDay: null,
         }),
-        { schemaVersion: version.version },
+        {
+          schemaVersion: version.version,
+          ...(integration === undefined ? {} : { sourceOfRecord: 'external' as const }),
+        },
       );
+      // An integration may provision somebody it holds nothing about yet.
+      if (integration !== undefined && Object.keys(asking.attributes).length === 0) {
+        return api.read(tx, { ...asking, personId: id });
+      }
       return update(tx, { ...asking, personId: id, changes: asking.attributes });
     },
 
@@ -1679,9 +2022,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }
 
       const definition = version.document.attributes.find((d) => d.key === target.attributeKey);
+      // A mirrored attribute is corrected where it is kept (§13.6).
+      const writable = definition === undefined ? null : canWrite(definition, relations);
+      if (writable !== null && !writable.ok && writable.error.code === 'SOURCE_OF_RECORD_EXTERNAL') {
+        return writable;
+      }
       // The same refusal as an unwritable field, so a probe cannot tell an
       // archived attribute from one it may not touch.
-      if (!definition || !canWrite(definition, relations).ok) {
+      if (!definition || writable === null || !writable.ok) {
         return err(
           failure('FIELD_NOT_WRITABLE', `Not yours to change: ${target.attributeKey}`, [
             target.attributeKey,
@@ -2044,7 +2392,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       );
       if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR hires a person'));
 
-      const facts = hireFactsOf(person.values, person.legalEntityId, version.version);
+      const facts = hireFactsOf(
+        person.values,
+        person.legalEntityId,
+        version.version,
+        person.sourceOfRecord,
+      );
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
@@ -2201,6 +2554,33 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       return ok(await view(tx, asking, after, version, relations));
     },
 
+    async syncExternal(tx, asking) {
+      const integration = integrationOf(asking);
+      if (integration === undefined) {
+        return err(failure('FORBIDDEN', 'Only the system a record is mirrored from syncs it'));
+      }
+      const keys = Object.keys(asking.changes);
+      if (keys.length > 0) {
+        const written = await update(tx, asking);
+        if (!written.ok) return written;
+      }
+      const fields = [...keys, ...asking.linkChanged];
+      if (fields.length > 0) {
+        const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+        if (!person) return err(PersonNotFound());
+        const aggregate = Person.rehydrate(person.snapshot);
+        const { day } = await calendarOf(tx, asking.tenantId, person.values);
+        const synced = aggregate.syncedFromExternal(
+          { provider: integration.system, externalId: asking.externalId, fieldsChanged: fields },
+          contextFor(asking),
+          day,
+        );
+        if (!synced.ok) return synced;
+        await deps.people.save(tx, aggregate);
+      }
+      return api.read(tx, asking);
+    },
+
     /**
      * Dated values whose day has come, brought into the projection (PEO-124,
      * §8.5, §11.2: history is the truth, the row a projection of it).
@@ -2232,7 +2612,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         (await calendarOf(tx, tenantId, values)).day;
       if (!version || !person) return ok({ day: await today({}), applied: 0 });
       const status = person.snapshot.status;
-      if (status === 'terminated' || status === 'discarded') {
+      if (status === 'terminated' || status === 'discarded' || status === 'merged') {
         return ok({ day: await today(person.values), applied: 0 });
       }
 

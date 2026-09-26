@@ -63,6 +63,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           search: given(query.search['search']),
           filter: given(query.search['filter']),
           after: given(query.search['after']),
+          segment: given(query.search['segment']),
         },
         VIEWS.Directory,
       );
@@ -76,6 +77,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       );
     case 'Onboarding':
       return read('Onboarding', {}, VIEWS.Onboarding);
+    case 'BulkEdit':
+      return read(
+        'BulkEdit',
+        { personIds: (query.search['people'] ?? '').split(',').filter((id) => id !== '') },
+        VIEWS.BulkEdit,
+      );
     case 'CompletenessGrid':
       return read('Completeness', { after: given(query.search['after']) });
     case 'FieldRegistry':
@@ -94,15 +101,30 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('IdentifierReviews');
     case 'Approvals':
       return read('Approvals', {}, VIEWS.Approvals);
+    case 'Duplicates':
+      return read('Duplicates', { a: given(query.search['a']), b: given(query.search['b']) });
     case 'WebhookLog':
       return read('WebhookDeliveries', {
         endpointId: query.params['id'] ?? '',
         after: given(query.search['after']),
       });
-    case 'ExportBuilder':
-      return read('ExportBuilder');
+    case 'ExportBuilder': {
+      const builder = await read('ExportBuilder');
+      // A scheduled report's email links here with its export (PEO-069).
+      const id = given(query.search['export']);
+      if (builder.status !== 'ready' || id === null) return builder;
+      const ready = await people<object>('ScheduledExport', { id });
+      return {
+        status: 'ready',
+        data: {
+          ...(builder.data as object),
+          // Somebody else's, or gone: said as such, never as an error page.
+          ready: ready.ok ? ready.data : { status: 'missing', links: [], expiresAt: null },
+        },
+      };
+    }
     case 'Analytics':
-      return read('Analytics', {}, VIEWS.Analytics);
+      return read('Analytics', { segment: given(query.search['segment']) }, VIEWS.Analytics);
     case 'PeopleSetup': {
       const loaded = await read('Setup', {}, VIEWS.PeopleSetup);
       if (loaded.status !== 'ready') return loaded;

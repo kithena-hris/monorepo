@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required readOnly currency ownedBy sensitive
+    key label description dataType options { value label } required readOnly currency ownedBy keptIn sensitive
   }`;
 
 const ENTRY = `
@@ -141,9 +141,35 @@ export const OPERATIONS = {
     }
   }`,
 
+  Duplicates: `query Duplicates($a: ID, $b: ID) {
+    peopleDuplicates(a: $a, b: $b) {
+      items { personIds names reasons }
+      comparison {
+        people { id name status refusal }
+        rows { key label values same takeable }
+      }
+    }
+  }`,
+
   GridCheck: `query GridCheck($changes: [GridChangeInput!]!) {
     peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
   }`,
+
+  /** The people chosen for a bulk edit, and what HR may set on them (PEO-071). */
+  BulkEdit: `query BulkEdit($personIds: [ID!]!) {
+    peopleBulkEdit(personIds: $personIds) {
+      people { id name }
+      sections { key label visibility fields { ...RecordFieldParts } }
+      today limit
+    }
+  }${RECORD_FIELD}`,
+
+  /** What a page of a bulk edit would change and refuse; nothing is kept. */
+  BulkEditPreview: `query BulkEditPreview($personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!) {
+    peopleBulkEditPreview(personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom) {
+      committed rows { personId name outcome changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
 
   IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
     peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
@@ -182,14 +208,16 @@ export const OPERATIONS = {
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID) {
-    peopleDirectory(search: $search, filter: $filter, after: $after) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment) {
       active incomplete
+      segment { id name }
+      segments { id name }
       columns { key label }
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } missing }
       next
-      can { import export }
+      can { import export bulkEdit }
     }
   }`,
 
@@ -262,6 +290,11 @@ export const OPERATIONS = {
       endpoints {
         id url enabled events allowlist alertEmail retrying problem lastDelivery secretRotated
       }
+      scim {
+        url paths extension
+        mappable { key label }
+        connections { id system createdAt tokenRotatedAt revokedAt linked mapping { path key } }
+      }
     }
   }`,
 
@@ -273,16 +306,28 @@ export const OPERATIONS = {
     }
   }`,
 
-  Analytics: `query Analytics {
-    peopleAnalytics {
+  /* A scheduled report's file, from the link in its email (PEO-069): the requester's own only. */
+  ScheduledExport: `query ScheduledExport($id: ID!) {
+    peopleExport(id: $id) { id status expiresAt links { name url } }
+  }`,
+
+  Analytics: `query Analytics($segment: ID) {
+    peopleAnalytics(segment: $segment) {
       asOf source sourceNote
+      segment { id name }
+      segments { id name }
       headcount { value change trend { label value } }
-      attrition { percent leavers formula }
+      attrition { percent leavers formula trend { label value } }
       complete { percent incomplete }
       expiringIn90Days
       expiries { today items { kind personId name day } }
       movement { period opening joiners moves leavers closing }
       completenessBySection { label value }
+      tenure { label headcount leavers }
+      span { label value }
+      joiners { months departments cells { row column value } }
+      composition { categories series { label values } }
+      selfId { key label status minimum publishedAsOf total note cells { label value } }
     }
   }`,
 
@@ -327,6 +372,12 @@ export const OPERATIONS = {
   PlacePerson: `mutation PlacePerson($personId: ID!, $legalEntityId: ID, $locationId: ID, $effectiveFrom: String, $key: String!) {
     placePerson(personId: $personId, legalEntityId: $legalEntityId, locationId: $locationId, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
   }`,
+
+  BulkEditPeople: `mutation BulkEditPeople($personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $key: String!) {
+    bulkEditPeople(personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom, idempotencyKey: $key) {
+      committed rows { personId name outcome changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
 
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
     saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok held ${GRID_FINDINGS} }
@@ -380,6 +431,22 @@ export const OPERATIONS = {
 
   RotateWebhookSecret: `mutation RotateWebhookSecret($id: ID!, $key: String!) {
     rotateWebhookSecret(id: $id, idempotencyKey: $key) { id secret }
+  }`,
+
+  CreateScimConnection: `mutation CreateScimConnection($system: String!, $key: String!) {
+    createScimConnection(system: $system, idempotencyKey: $key) { id token }
+  }`,
+
+  RotateScimToken: `mutation RotateScimToken($id: ID!, $key: String!) {
+    rotateScimToken(id: $id, idempotencyKey: $key) { id token }
+  }`,
+
+  RevokeScimConnection: `mutation RevokeScimConnection($id: ID!, $key: String!) {
+    revokeScimConnection(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  SetScimMapping: `mutation SetScimMapping($id: ID!, $mapping: [ScimMappingInput!]!, $key: String!) {
+    setScimMapping(id: $id, mapping: $mapping, idempotencyKey: $key) { ok }
   }`,
 
   ReplayWebhookDelivery: `mutation ReplayWebhookDelivery($deliveryId: ID!, $key: String!) {
@@ -481,6 +548,14 @@ export const OPERATIONS = {
     rehirePerson(personId: $personId, startDate: $startDate, overrideReason: $overrideReason, idempotencyKey: $key) { id }
   }`,
 
+  MergePerson: `mutation MergePerson($personId: ID!, $absorbedPersonId: ID!, $take: [String!], $key: String!) {
+    mergePerson(personId: $personId, absorbedPersonId: $absorbedPersonId, take: $take, idempotencyKey: $key) { id }
+  }`,
+
+  DismissDuplicate: `mutation DismissDuplicate($personIds: [ID!]!, $key: String!) {
+    dismissDuplicate(personIds: $personIds, idempotencyKey: $key) { decision }
+  }`,
+
   StartImportUpload: `mutation StartImportUpload($name: String!, $size: Int!) {
     startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
   }`,
@@ -510,10 +585,21 @@ export const OPERATIONS = {
     withdrawPendingChange(id: $id, idempotencyKey: $key) { ok }
   }`,
 
-  RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $key: String!) {
-    requestExport(format: $format, fields: $fields, asOf: $asOf, idempotencyKey: $key) {
+  RequestExport: `mutation RequestExport(
+    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String, $key: String!
+  ) {
+    requestExport(
+      format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
+      idempotencyKey: $key
+    ) {
       id status rowCount expiresAt links { name url }
     }
+  }`,
+
+  SaveSegment: `mutation SaveSegment(
+    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $shared: Boolean!, $key: String!
+  ) {
+    savePeopleSegment(name: $name, filter: $filter, shared: $shared, idempotencyKey: $key) { id }
   }`,
 } as const;
 

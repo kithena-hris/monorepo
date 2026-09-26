@@ -15,7 +15,7 @@ export const roleGrant = pgSchema('people').table('role_grant', {
 });
 
 /** A person in these states signs in as nobody. */
-const GONE = ['terminated', 'discarded'];
+const GONE = ['terminated', 'discarded', 'merged'];
 
 export function drizzleRoleStore(): RoleStore {
   return {

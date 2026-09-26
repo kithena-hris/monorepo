@@ -1,7 +1,12 @@
 import type { Clock } from '@kithena/domain-kit';
 import type { AttributeDefinition, WriterRole } from '@kithena/contracts';
 
-import { evaluateRequiredness, type PersonFacts } from '../schema/requiredness.js';
+import {
+  evaluateRequiredness,
+  specialCategoryReads,
+  type PersonFacts,
+  type RequirednessVerdict,
+} from '../schema/requiredness.js';
 
 /**
  * Whether a record has everything the published version asks of it.
@@ -55,10 +60,11 @@ export interface CompletenessVerdict {
  * The states that have nothing to be complete about.
  *
  * A provisional record is an account with nobody's details in it yet, and a
- * discarded one is a mistake somebody withdrew. Counting either as incomplete
+ * discarded one is a mistake somebody withdrew, and a merged one is a tombstone
+ * whose survivor is judged instead (PEO-074). Counting any as incomplete
  * would nag a person on day zero for fields nobody has asked them for.
  */
-const NOT_APPLICABLE = new Set(['provisional', 'discarded']);
+const NOT_APPLICABLE = new Set(['provisional', 'discarded', 'merged']);
 
 /**
  * What a pre-hire is asked for (PRD §8.1): what is collected before the first
@@ -82,6 +88,23 @@ function hasValue(value: unknown): boolean {
   return true;
 }
 
+/**
+ * A rule on special-category data is broken, never evaluated (PEO-065): a gap
+ * it opened would tell whoever sees it that the condition held. The draft
+ * refuses one; this is the read side, for a document published before that.
+ */
+function requirednessOf(
+  definition: AttributeDefinition,
+  definitions: readonly AttributeDefinition[],
+  facts: PersonFacts,
+  clock: Clock,
+  timeZone: string,
+): RequirednessVerdict {
+  const hidden = specialCategoryReads(definition.requiredness, definitions);
+  if (hidden.length > 0) return { required: false, unevaluable: hidden };
+  return evaluateRequiredness(definition.requiredness, facts, clock, timeZone);
+}
+
 export function assessCompleteness(
   definitions: readonly AttributeDefinition[],
   facts: PersonFacts,
@@ -102,7 +125,7 @@ export function assessCompleteness(
     if (definition.deprecatedAt !== null) continue;
     if (!askable(definition, facts.status)) continue;
 
-    const verdict = evaluateRequiredness(definition.requiredness, facts, clock, timeZone);
+    const verdict = requirednessOf(definition, definitions, facts, clock, timeZone);
     if (verdict.unevaluable.length > 0) {
       unevaluable.push({ key: definition.key, reads: verdict.unevaluable });
     }
@@ -147,7 +170,7 @@ export function notApplicable(
     .filter(
       (d) =>
         !askable(d, facts.status) ||
-        !evaluateRequiredness(d.requiredness, facts, clock, timeZone).required,
+        !requirednessOf(d, definitions, facts, clock, timeZone).required,
     )
     .map((d) => d.key);
 }

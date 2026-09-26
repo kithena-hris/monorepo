@@ -22,7 +22,10 @@ import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { RelationsResolver } from '../application/person/ports.js';
-import { withSubjects } from '../application/person/subject.js';
+import { withSources, withSubjects } from '../application/person/subject.js';
+import { scimConnections } from '../application/scim/connections.js';
+import { scimProvisioning } from '../application/scim/provisioning.js';
+import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
@@ -44,6 +47,7 @@ import { exportStoreFrom, startExportRunner } from '../infrastructure/export-que
 import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleIdentifierReviews } from '../infrastructure/drizzle-identifier-reviews.js';
+import { drizzleDuplicates } from '../infrastructure/drizzle-duplicates.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
@@ -73,12 +77,17 @@ import {
   drizzleSchemaRepository,
 } from '../infrastructure/drizzle-schema-repository.js';
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
+import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
+import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedules.js';
+import { reportMailerFrom } from '../infrastructure/report-mailer.js';
+import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { callerWithEntitlements, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestDeps, type RestResponse } from './rest.js';
+import { SCIM_PREFIX, scimHandler } from './scim.js';
 
 /**
  * The composition root for People's transports, called once from `main.ts`.
@@ -99,14 +108,22 @@ const POLL_MS = 60_000;
  */
 export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
   // Each answer about one person carries that person's facts, for custom
-  // visibility rules (PEO-066) on every path that reads through it.
-  return withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), drizzlePersonReader());
+  // visibility rules (PEO-066), and the attributes an upstream system owns
+  // on them (PEO-073), on every path that reads through it.
+  return withSources(
+    withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), drizzlePersonReader()),
+    drizzleScimStore(),
+  );
 }
 
 export function peopleService(
   databaseUrl: string,
   secretKeys: string | undefined,
-): PeopleService & { readonly webhooks: WebhookService; close(): Promise<void> } {
+): PeopleService & {
+  readonly webhooks: WebhookService;
+  tenants(): Promise<string[]>;
+  close(): Promise<void>;
+} {
   const client = postgres(databaseUrl);
   const db = drizzle(client);
   const ring = staticKeyRing(keysFrom(secretKeys));
@@ -232,6 +249,7 @@ export function peopleService(
     secrets,
     // Doubted national identifiers, queued for HR (PEO-125).
     reviews: drizzleIdentifierReviews(ring, secrets),
+    duplicates: drizzleDuplicates(),
     uniques: drizzleUniqueClaims(ring),
     clock: systemClock,
     newId: uuidv7,
@@ -266,6 +284,7 @@ export function peopleService(
       return result;
     },
     webhooks: hooks,
+    tenants: () => knownTenants(db),
     /** The poller and the retry timers stop, the passes in hand finish, then the pool (PEO-118). */
     async close() {
       closed = true;
@@ -435,11 +454,21 @@ function screenDeps(
   const calendars = drizzleOrgStore();
   return {
     service,
+    scim: scimConnections({
+      service,
+      relations: relationsFrom(process.env),
+      store: drizzleScimStore(),
+      clock: systemClock,
+      newId: uuidv7,
+    }),
+    scimUrl: scimUrl(),
     relations: relationsFrom(process.env),
     clock: systemClock,
     calendars,
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
+    segments: { store: drizzleSegments(), newId: uuidv7 },
+    schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
     publisher: publishSchema({
@@ -465,6 +494,95 @@ function screenDeps(
     },
     // The bucket the browser uploads an import to (§14.2), and who may.
     uploads: { store: uploads, intents: drizzleUploadIntents() },
+  };
+}
+
+/** Where SCIM is served publicly (§13.5): what an administrator pastes into Okta or Entra. */
+function scimUrl(): string {
+  const explicit = process.env['PEOPLE_SCIM_URL'];
+  const base = (process.env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
+  return (explicit ?? `${base}${SCIM_PREFIX}`).replace(/\/$/, '');
+}
+
+/** The deployment's module list, for a company whose own is not recorded; none when unset. */
+function deploymentEntitlements(): readonly string[] {
+  try {
+    const parsed: unknown = JSON.parse(process.env['KITHENA_ENTITLEMENTS'] ?? '[]');
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Scheduled reports as HR's screens manage them (PEO-069). */
+function scheduleAdmin(): ScheduleAdminDeps {
+  return {
+    schedules: drizzleReportSchedules(),
+    segments: drizzleSegments(),
+    accounts: drizzleRoleStore(),
+    calendars: drizzleOrgStore(),
+    clock: systemClock,
+    newId: uuidv7,
+  };
+}
+
+const REPORTS_EVERY_MS = 60 * 60 * 1000;
+
+/**
+ * Scheduled reports (PEO-069): every known tenant's due runs, on boot and
+ * hourly. In this process rather than `background.ts` because a report is an
+ * export, and an export's file has to land in the store this process's
+ * download route opens — in development that store is memory.
+ *
+ * On boot is the point: the VM sleeps when idle and nothing wakes it at 07:00
+ * on a Monday, so the first tick after a wake sends whatever came due while
+ * it slept, once (`duePeriod`). Only with a mailer and a safe tenant app
+ * base, as reminders: a run without them would claim a period and send
+ * nothing.
+ */
+function startReports(
+  service: ReturnType<typeof peopleService>,
+  exports: ExportJobDeps,
+): () => Promise<void> {
+  const mailer = reportMailerFrom(process.env);
+  const base = tenantAppBase(process.env);
+  if (mailer === undefined || base === null) {
+    logger.info('no report mailer or no tenant app base; scheduled reports not sent');
+    return () => Promise.resolve();
+  }
+  const sweep = sendDueReports({
+    ...scheduleAdmin(),
+    inTenant: service.inTenant,
+    exports,
+    company: tenantCompanies(base, drizzleOrgStore()),
+    mailer,
+  });
+  let running: Promise<void> | null = null;
+  const tick = (): void => {
+    running ??= (async () => {
+      for (const tenantId of await service.tenants()) {
+        try {
+          // eslint-disable-next-line no-await-in-loop -- one tenant at a time is the bound
+          const { runs, waiting } = await sweep(tenantId);
+          if (runs > 0) logger.info({ tenantId, runs }, 'scheduled reports run');
+          if (waiting) logger.info({ tenantId }, 'company not known yet; reports wait');
+        } catch (cause) {
+          logger.error({ err: cause, tenantId }, 'scheduled reports failed for a tenant');
+        }
+      }
+    })()
+      .catch((cause: unknown) => {
+        logger.error({ err: cause }, 'scheduled report sweep failed');
+      })
+      .finally(() => {
+        running = null;
+      });
+  };
+  tick();
+  const timer = setInterval(tick, REPORTS_EVERY_MS).unref();
+  return async () => {
+    clearInterval(timer);
+    await running;
   };
 }
 
@@ -518,6 +636,7 @@ export function wirePeople(server: Server): void {
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
   const exports = wireExports(service);
+  const stopReports = startReports(service, exports.deps);
   const uploads = uploadStoreFrom(process.env);
   const stopSweep = sweepUploads(uploads);
   const idempotency = drizzleIdempotency();
@@ -527,6 +646,7 @@ export function wirePeople(server: Server): void {
     idempotency,
     exports,
     fullValues: exports.fullValues,
+    segments: drizzleSegments(),
     screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
@@ -535,10 +655,25 @@ export function wirePeople(server: Server): void {
   onShutdown('requests, exports and the service pool', async () => {
     await drain(server);
     stopSweep();
+    await stopReports();
     await exports.close();
     await service.close();
   });
   const document = JSON.stringify(openApiDocument());
+  // SCIM (PEO-072): its own bearer tokens, not the router's principal.
+  const scim = scimHandler(
+    scimProvisioning({
+      service,
+      store: drizzleScimStore(),
+      clock: systemClock,
+      newId: uuidv7,
+      baseUrl: scimUrl(),
+      entitlements: (tenantId) =>
+        service.inTenant(tenantId, ({ tx }) => recordedEntitlements(tx, tenantId)),
+      fallbackEntitlements: deploymentEntitlements(),
+    }),
+    scimUrl(),
+  );
   const [graphql] = server.listeners('request') as ((
     request: IncomingMessage,
     response: ServerResponse,
@@ -547,6 +682,38 @@ export function wirePeople(server: Server): void {
 
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
     const path = request.url ?? '/';
+    if (path === SCIM_PREFIX || path.startsWith(`${SCIM_PREFIX}/`)) {
+      void (async () => {
+        try {
+          const body = await bodyOf(request, BODY_LIMIT);
+          if (body === null) {
+            send(response, { status: 413, body: { error: { code: 'TOO_LARGE', message: 'Body too large' } } });
+            return;
+          }
+          const answer = await scim({
+            method: request.method ?? 'GET',
+            url: path,
+            headers: request.headers,
+            body,
+          });
+          response.writeHead(answer.status, answer.headers);
+          response.end(answer.body === null ? undefined : JSON.stringify(answer.body));
+        } catch (cause) {
+          logger.error({ err: cause }, 'people SCIM request failed');
+          if (!response.headersSent) {
+            response.writeHead(500, { 'content-type': 'application/scim+json' });
+            response.end(
+              JSON.stringify({
+                schemas: ['urn:ietf:params:scim:api:messages:2.0:Error'],
+                status: '500',
+                detail: 'Something went wrong',
+              }),
+            );
+          }
+        }
+      })();
+      return;
+    }
     if (!path.startsWith('/v1/')) {
       graphql?.(request, response);
       return;

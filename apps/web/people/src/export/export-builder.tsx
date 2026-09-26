@@ -22,7 +22,7 @@ import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 
-export type ExportFormat = 'xlsx' | 'csv';
+export type ExportFormat = 'xlsx' | 'csv' | 'pdf';
 
 export interface ExportState {
   readonly today: IsoDate;
@@ -41,6 +41,15 @@ export interface ExportState {
     readonly label: string;
     readonly fields: readonly { readonly key: string; readonly label: string }[];
   }[];
+  /**
+   * A scheduled report's file, when its email's link opened this page
+   * (PEO-069). `missing` is somebody else's, or one that no longer exists.
+   */
+  readonly ready?: {
+    readonly status: 'queued' | 'completed' | 'expired' | 'missing';
+    readonly expiresAt: string | null;
+    readonly links: readonly { readonly name: string; readonly url: string }[];
+  };
 }
 
 export interface ExportChoice {
@@ -58,6 +67,11 @@ export interface ExportBuilderProps {
 const FORMATS: readonly { value: ExportFormat; label: string; description: string }[] = [
   { value: 'xlsx', label: 'Excel (.xlsx)', description: 'For a person to read and edit.' },
   { value: 'csv', label: 'CSV', description: 'For another system, or to import back.' },
+  {
+    value: 'pdf',
+    label: 'PDF roster',
+    description: 'To print or file. Landscape, with the headers and the filter on every page.',
+  },
 ];
 
 /**
@@ -77,9 +91,51 @@ export function ExportBuilder({ load, onExport }: ExportBuilderProps): JSX.Eleme
         description="Columns come from the published schema, with the label on row 1 and the key the re-importer reads on row 2."
       />
       <Loaded load={load} what="the export builder">
-        {(state) => <Builder state={state} onExport={onExport} />}
+        {(state) => (
+          <Stack gap={6}>
+            {state.ready === undefined ? null : <Ready ready={state.ready} />}
+            <Builder state={state} onExport={onExport} />
+          </Stack>
+        )}
       </Loaded>
     </Stack>
+  );
+}
+
+/** The file a scheduled report's email pointed at: the recipient's own, for 24 hours. */
+function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> }): JSX.Element {
+  if (ready.status === 'completed') {
+    return (
+      <Alert tone="success" title="Your scheduled report is ready">
+        <Stack gap={3}>
+          <p>
+            It holds only what you can see in People. The link stops working 24 hours after the
+            report was made.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ready.links.map((link) => (
+              <Button key={link.url} asChild size="sm" variant="primary">
+                <a href={link.url}>Download {link.name}</a>
+              </Button>
+            ))}
+          </div>
+        </Stack>
+      </Alert>
+    );
+  }
+  if (ready.status === 'queued') {
+    return (
+      <Alert tone="info">
+        Your scheduled report is still being prepared. Try again in a minute.
+      </Alert>
+    );
+  }
+  return (
+    <Alert tone="warning" title="This report is no longer available">
+      {ready.status === 'expired'
+        ? 'Scheduled reports are deleted 24 hours after they are made. The next one arrives as scheduled.'
+        : 'It was made for somebody else, or it no longer exists.'}
+    </Alert>
   );
 }
 

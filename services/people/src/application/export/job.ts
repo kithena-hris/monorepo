@@ -1,7 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 import { err, failure, ok, type PendingEvent, type Result } from '@kithena/domain-kit';
-import { ExportCompleted, type AttributeDefinition } from '@kithena/contracts';
+import { ExportCompleted, type Actor, type AttributeDefinition } from '@kithena/contracts';
 
 import { buildExport, type ExportDeps, type ExportRequest } from './export.js';
 import type { ObjectStore } from './object-store.js';
@@ -96,6 +96,11 @@ export interface ExportJobRequest extends ExportRequest {
   readonly reason?: string | null;
   /** Given when the export was queued, so a retry is the same export. */
   readonly exportId?: string;
+  /**
+   * Who the audit event names, when it is not the viewer asking: a scheduled
+   * report (PEO-069) is built as its recipient, and nobody asked for it.
+   */
+  readonly actor?: Actor;
 }
 
 export interface ExportJobResult {
@@ -216,7 +221,7 @@ export async function runExportJob(
       occurredAt: now,
       effectiveFrom: null,
       aggregate: { type: 'Export', id: exportId, version: 1 },
-      actor: { kind: 'user', userId: request.viewer.accountId },
+      actor: request.actor ?? { kind: 'user', userId: request.viewer.accountId },
       correlationId: request.correlationId,
       causationId: null,
       payload: ExportCompleted.payload.parse({

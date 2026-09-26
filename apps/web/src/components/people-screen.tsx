@@ -62,6 +62,19 @@ function putFile(
 
 type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
 
+/**
+ * A small export is ready now: open its file. A queued one is announced when
+ * it is ready, as the screen says.
+ */
+function download(
+  made: { ok: true; links: readonly { url: string }[] } | { ok: false; message: string },
+): Outcome {
+  if (!made.ok) return made;
+  const first = made.links[0];
+  if (first !== undefined) window.location.assign(first.url);
+  return { ok: true };
+}
+
 export function PeopleScreen({
   route,
   load,
@@ -147,6 +160,9 @@ export function PeopleScreen({
                   (placement: Parameters<typeof actions.placePerson>[1]) =>
                     actions.placePerson(id, placement),
                 ),
+                // The employee record as a PDF (PEO-061), as this viewer reads it.
+                onDownloadRecord: async (reason: string) =>
+                  download(await actions.exportRecord(id, reason)),
               }),
           searchPeople: actions.searchPeople,
           onHistory: () => {
@@ -184,15 +200,18 @@ export function PeopleScreen({
           search?: string;
           filters?: Record<string, string>;
           after?: string;
+          segment?: string | null;
         }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
           const f = next.filters ?? filters;
+          const segment = next.segment === undefined ? (search['segment'] ?? null) : next.segment;
           if (text !== '') q.set('search', text);
           const joined = Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
           if (joined !== '') q.set('filter', joined);
+          if (segment !== null && segment !== '') q.set('segment', segment);
           if (next.after !== undefined) q.set('after', next.after);
           const qs = q.toString();
           const to = `/people/directory${qs === '' ? '' : `?${qs}`}` as Route;
@@ -202,7 +221,7 @@ export function PeopleScreen({
         const data =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? (load.data as {
-                can?: { import?: boolean; export?: boolean };
+                can?: { import?: boolean; export?: boolean; bulkEdit?: boolean };
                 next?: string | null;
               })
             : {};
@@ -218,6 +237,13 @@ export function PeopleScreen({
           onFiltersChange: (next: Record<string, string>) => {
             query({ filters: next });
           },
+          segmentId: search['segment'] ?? null,
+          onSegmentChange: (segment: string | null) => {
+            query({ segment });
+          },
+          onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
+            actions.saveSegment({ ...segment, filter: filters }),
+          ),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
@@ -232,6 +258,13 @@ export function PeopleScreen({
             ? {
                 onImport: () => {
                   go('/people/import');
+                },
+              }
+            : {}),
+          ...(can.bulkEdit === true
+            ? {
+                onBulkEdit: (ids: readonly string[]) => {
+                  go(`/people/bulk-edit?people=${ids.join(',')}`);
                 },
               }
             : {}),
@@ -278,6 +311,17 @@ export function PeopleScreen({
               }),
         };
       }
+      // Previewed and applied a page of people at a time (PEO-071).
+      case 'BulkEdit':
+        return {
+          load: loadable,
+          onPreview: actions.previewBulkEdit,
+          onCommit: actions.commitBulkEdit,
+          searchPeople: actions.searchPeople,
+          onBack: () => {
+            go('/people/directory');
+          },
+        };
       case 'FieldRegistry':
         return {
           load: loadable,
@@ -307,6 +351,20 @@ export function PeopleScreen({
           onOpenLog: (id: string) => {
             go(`/people/settings/integrations/${id}`);
           },
+          scim: {
+            onConnect: async (system: string) => {
+              const made = await actions.createScimConnection(system);
+              if (made.ok) refresh();
+              return made;
+            },
+            onRotateToken: async (id: string) => {
+              const rotated = await actions.rotateScimToken(id);
+              if (rotated.ok) refresh();
+              return rotated;
+            },
+            onDisconnect: thenRefresh(actions.revokeScimConnection),
+            onSetMapping: thenRefresh(actions.setScimMapping),
+          },
         };
       case 'RoleSettings':
         return {
@@ -335,6 +393,27 @@ export function PeopleScreen({
           onWithdraw: thenRefresh(actions.withdrawPendingChange),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
+          },
+        };
+      case 'Duplicates':
+        return {
+          load: loadable,
+          onCompare: (a: string, b: string) => {
+            go(`/people/duplicates?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+          },
+          onBack: () => {
+            go('/people/duplicates');
+          },
+          // Afterwards the survivor's record: the merge's answer, as People now holds it.
+          onMerge: async (survivorId: string, absorbedId: string, take: readonly string[]) => {
+            const merged = await actions.mergePerson(survivorId, absorbedId, take);
+            if (merged.ok) go(`/people/${encodeURIComponent(survivorId)}`);
+            return merged;
+          },
+          onDismiss: async (a: string, b: string) => {
+            const dismissed = await actions.dismissDuplicate([a, b]);
+            if (dismissed.ok) go('/people/duplicates');
+            return dismissed;
           },
         };
       case 'WebhookLog': {
@@ -379,15 +458,8 @@ export function PeopleScreen({
       case 'ExportBuilder':
         return {
           load: loadable,
-          onExport: async (choice: Parameters<typeof actions.requestExport>[0]) => {
-            const made = await actions.requestExport(choice);
-            if (!made.ok) return made;
-            // A small export is ready now: open its file. A queued one is
-            // announced when it is ready, as the screen says.
-            const first = made.links[0];
-            if (first !== undefined) window.location.assign(first.url);
-            return { ok: true };
-          },
+          onExport: async (choice: Parameters<typeof actions.requestExport>[0]) =>
+            download(await actions.requestExport(choice)),
         };
       case 'ImportFlow': {
         const stage = importing.stages.at(-1) ?? { step: 'upload' };
@@ -447,7 +519,17 @@ export function PeopleScreen({
         };
       }
       case 'Analytics':
-        return { load: loadable };
+        return {
+          load: loadable,
+          segmentId: search['segment'] ?? null,
+          onSegmentChange: (segment: string | null) => {
+            router.replace(
+              (segment === null
+                ? '/people/analytics'
+                : `/people/analytics?segment=${encodeURIComponent(segment)}`) as Route,
+            );
+          },
+        };
       default:
         return {};
     }

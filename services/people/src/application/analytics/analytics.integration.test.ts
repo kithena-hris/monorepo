@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
-import { fixedClock } from '@kithena/domain-kit';
+import { fixedClock, ok } from '@kithena/domain-kit';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 import { startPostgres } from '@kithena/testing';
 
@@ -33,6 +33,11 @@ import {
 import { publishBreakdowns, ROUNDING_NOTE } from './publish.js';
 import { takeSnapshot } from './snapshot.js';
 import { utcCalendars } from '../org/org.js';
+import type { PublishedVersion } from '../../domain/schema/publish.js';
+import { drizzleSegments } from '../../infrastructure/drizzle-segments.js';
+import { analyticsView } from '../screens/analytics.js';
+import type { ScreenDeps } from '../screens/record.js';
+import { saveSegment } from '../screens/segments.js';
 
 /**
  * Snapshots and the charts over them, against real Postgres as `svc_people`.
@@ -218,6 +223,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260923100000_people_snapshot.sql',
     '20260923180000_people_published_breakdown.sql',
@@ -386,13 +392,23 @@ describe('the snapshot', () => {
 
   it("counts a manager's whole chain and nobody else", async () => {
     const boss = await chart(ACME, managerOf(BOSS), (ctx) =>
-      composition(ctx, { asOf: D3, by: ['status'] }),
+      composition(ctx, { asOf: D3, by: ['employment_type'] }),
     );
     const manager = await chart(ACME, managerOf(MANAGER), (ctx) =>
+      composition(ctx, { asOf: D3, by: ['employment_type'] }),
+    );
+    expect(boss).toMatchObject({ ok: true, value: { cells: [{ keys: ['permanent'], count: 3 }] } });
+    expect(manager).toMatchObject({
+      ok: true,
+      value: { cells: [{ keys: ['permanent'], count: 2 }] },
+    });
+  });
+
+  it('never breaks a chain down by status, which is HR’s (§6.3)', async () => {
+    const byStatus = await chart(ACME, managerOf(BOSS), (ctx) =>
       composition(ctx, { asOf: D3, by: ['status'] }),
     );
-    expect(boss).toMatchObject({ ok: true, value: { cells: [{ keys: ['active'], count: 3 }] } });
-    expect(manager).toMatchObject({ ok: true, value: { cells: [{ keys: ['active'], count: 2 }] } });
+    expect(byStatus.ok ? 'drawn' : byStatus.error.code).toBe('FIELD_NOT_READABLE');
   });
 
   it('falls back to history off the grid, and says so', async () => {
@@ -1176,5 +1192,196 @@ describe('at 50,000 people', () => {
     } finally {
       await admin.execute(sql`GRANT SELECT ON people.person TO svc_people`);
     }
+  });
+});
+
+describe('the analytics screen: the remaining charts, segments and self-ID (PEO-067, 068, 070)', () => {
+  const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000d2';
+  const BOSS_ACCOUNT = '00000000-0000-4000-8000-0000000000d3';
+  const MANAGER_ACCOUNT = '00000000-0000-4000-8000-0000000000d4';
+  const people: Record<string, string> = { [BOSS_ACCOUNT]: BOSS, [MANAGER_ACCOUNT]: MANAGER };
+  const version = {
+    version: 1,
+    document: {
+      attributes: definitions,
+      sections: [{ key: 'hr_information', label: { default: 'HR' }, order: 0 }],
+    },
+  } as unknown as PublishedVersion;
+  let ids = 0;
+
+  function deps(at: string, cohortMinimum = 10): ScreenDeps {
+    return {
+      service: {
+        access: {} as never,
+        schemas: { current: () => Promise.resolve(version) } as never,
+        inTenant: (tenantId, fn) => inTenant(tenantId, fn),
+        org: {
+          settings: () =>
+            Promise.resolve(
+              ok({ defaultTimeZone: 'UTC', cohortMinimum, slug: null, displayName: null }),
+            ),
+        } as never,
+      },
+      relations: {
+        relations: (_tx, _tenant, viewer) =>
+          Promise.resolve({ ...NO_RELATIONS, isHr: viewer.roles.has('hr') }),
+      },
+      clock: fixedClock(at),
+      calendars: utcCalendars,
+      personOf: (_tx, _tenant, account) => Promise.resolve(people[account] ?? null),
+      gapTotals: () => Promise.resolve({ waiting: 0, staff: [] }),
+      segments: {
+        store: drizzleSegments(),
+        newId: () => {
+          ids += 1;
+          return `00000000-0000-4000-8000-${String(3000 + ids).padStart(12, '0')}`;
+        },
+      },
+    };
+  }
+  const as = (accountId: string, roles: string[] = []) => ({
+    tenantId: ACME,
+    viewer: { accountId, roles: new Set(roles) },
+    correlationId: '00000000-0000-4000-8000-0000000000cc',
+  });
+  const view = (accountId: string, roles: string[] = [], segmentId?: string) =>
+    analyticsView(
+      deps(`${D3}T12:00:00.000Z`),
+      as(accountId, roles),
+      segmentId === undefined ? {} : { segmentId },
+    );
+
+  beforeAll(async () => {
+    await admin.execute(sql.raw(await migration('20260926130000_people_segment.sql')));
+  });
+
+  it('draws tenure, span, the joiner heatmap and composition for HR, tenant-wide', async () => {
+    const result = await view(HR_ACCOUNT, ['hr']);
+    if (!result.ok) throw new Error(result.error.message);
+    const v = result.value;
+    expect(v.tenure?.find((b) => b.label === '2 to 5 years')).toEqual({
+      label: '2 to 5 years',
+      headcount: 0,
+      leavers: 1,
+    });
+    expect(v.span).toEqual([
+      { label: '1 report', value: 1 },
+      { label: '2 reports', value: 1 },
+    ]);
+    expect(v.joiners).toEqual({
+      months: ['2026-03'],
+      departments: [OPS],
+      cells: [{ row: OPS, column: '2026-03', value: 1 }],
+    });
+    expect(v.composition?.categories.toSorted()).toEqual([ENG, OPS].toSorted());
+    expect(v.composition?.series).toEqual([{ label: 'permanent', values: [2, 2] }]);
+    expect(v.attrition?.trend.at(-1)).toEqual({ label: '2026-03', value: 25 });
+  });
+
+  it("limits a manager's every chart to their own chain, and gives them no self-ID at all", async () => {
+    const result = await view(MANAGER_ACCOUNT);
+    if (!result.ok) throw new Error(result.error.message);
+    const v = result.value;
+    // The report and the joiner; not the boss, not the leaver who reported to the boss.
+    expect(v.headcount.value).toBe(2);
+    expect(v.tenure?.reduce((n, b) => n + b.headcount + b.leavers, 0)).toBe(2);
+    expect(v.span).toEqual([{ label: '2 reports', value: 1 }]);
+    expect(v.composition?.series.flatMap((s) => s.values).reduce((a, b) => a + b, 0)).toBe(2);
+    expect(v.selfId).toBeNull();
+  });
+
+  it('refuses anybody who is neither HR nor has a record', async () => {
+    expect(await view('00000000-0000-4000-8000-0000000000ee')).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+  });
+
+  it("withholds HR's self-ID chart below the minimum, and never carries its numbers", async () => {
+    // Nobody at Acme has answered: one cohort, too small, published on D3.
+    const result = await view(HR_ACCOUNT, ['hr']);
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.selfId).toEqual([
+      {
+        key: 'ethnicity',
+        label: 'ethnicity',
+        status: 'insufficient_data',
+        minimum: 10,
+        publishedAsOf: D3,
+        total: null,
+        note: ROUNDING_NOTE,
+        cells: [],
+      },
+    ]);
+  });
+
+  it("uses the tenant's raised minimum", async () => {
+    const raised = await analyticsView(deps(`${D3}T12:00:00.000Z`, 25), as(HR_ACCOUNT, ['hr']));
+    expect(raised.ok && raised.value.selfId?.[0]?.minimum).toBe(25);
+  });
+
+  describe('a segment HR saved and shared', () => {
+    let engineering = '';
+    let hrOnly = '';
+
+    beforeAll(async () => {
+      const saved = await saveSegment(deps(`${D3}T12:00:00.000Z`), as(HR_ACCOUNT, ['hr']), {
+        name: 'Engineering',
+        filter: { org_unit: ENG },
+        shared: true,
+      });
+      const secret = await saveSegment(deps(`${D3}T12:00:00.000Z`), as(HR_ACCOUNT, ['hr']), {
+        name: 'Madrid',
+        filter: { work_location: MADRID },
+        shared: true,
+      });
+      if (!saved.ok || !secret.ok) throw new Error('segments not saved');
+      engineering = saved.value.id;
+      hrOnly = secret.value.id;
+    });
+
+    it('counts, for each viewer, only the people they may see that match it', async () => {
+      const headcount = async (account: string, roles: string[] = []) => {
+        const r = await view(account, roles, engineering);
+        if (!r.ok) throw new Error(r.error.message);
+        return r.value.headcount.value;
+      };
+      // The boss and the manager are in Engineering.
+      expect(await headcount(HR_ACCOUNT, ['hr'])).toBe(2);
+      // Of the boss's chain, only the manager is.
+      expect(await headcount(BOSS_ACCOUNT)).toBe(1);
+      // Nobody in the manager's chain is.
+      expect(await headcount(MANAGER_ACCOUNT)).toBe(0);
+    });
+
+    it('draws no chart it cannot filter, rather than drawing it unfiltered', async () => {
+      const result = await view(HR_ACCOUNT, ['hr'], engineering);
+      if (!result.ok) throw new Error(result.error.message);
+      expect(result.value).toMatchObject({
+        segment: { id: engineering, name: 'Engineering' },
+        span: null,
+        expiries: null,
+        selfId: null,
+      });
+    });
+
+    it('refuses a manager a segment over a field they cannot read, rather than answering', async () => {
+      expect(await view(BOSS_ACCOUNT, [], hrOnly)).toMatchObject({
+        ok: false,
+        error: { code: 'FIELD_NOT_READABLE' },
+      });
+      // Nor is it offered to them.
+      const offered = await view(BOSS_ACCOUNT);
+      expect(offered.ok && offered.value.segments.map((s) => s.name)).toEqual(['Engineering']);
+    });
+
+    it('keeps segments in their own tenant', async () => {
+      const seen = await inTenant(GLOBEX, (scope) => drizzleSegments().all(scope.tx, GLOBEX));
+      expect(seen).toEqual([]);
+      const raw = await inTenant(GLOBEX, ({ tx }) =>
+        tx.execute(sql`SELECT count(*)::int AS n FROM people.segment`),
+      );
+      expect([...raw][0]).toEqual({ n: 0 });
+    });
   });
 });

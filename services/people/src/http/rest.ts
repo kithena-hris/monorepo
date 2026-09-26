@@ -29,6 +29,8 @@ import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
 import { RoleChangeBody } from './roles.js';
 import { schemaArtifact } from './schema-artifact.js';
+import { seenBy } from '../domain/segment/segment.js';
+import type { SegmentStore } from '../infrastructure/drizzle-segments.js';
 
 /**
  * REST v1, per §13.2. The same application layer as GraphQL, so the same
@@ -69,7 +71,10 @@ const Attributes = z
 
 export const PersonBody = z.object({
   id: z.uuid(),
-  status: z.string(),
+  status: z
+    .string()
+    .optional()
+    .describe('Employment status: HR’s, and the person’s own. Absent for anybody else.'),
   schemaVersion: z.int().nullable(),
   attributes: Attributes,
 });
@@ -198,6 +203,25 @@ export const IdentifierReviewBody = z.object({
   last4: z.string().nullable().describe('What a screen shows. The value only through /reveal.'),
 });
 
+/** A suspected duplicate (PEO-074): two ids and why, never a value. */
+export const DuplicateBody = z.object({
+  personIds: z.tuple([z.uuid(), z.uuid()]),
+  signals: z.array(
+    z.object({
+      signal: z.enum(['unique_value', 'work_email', 'name_and_birth_date']),
+      attributeKey: z
+        .string()
+        .nullable()
+        .describe('The unique attribute whose keyed hash both hold; null for the others.'),
+    }),
+  ),
+});
+
+/** HR says a pair are two people: the queue stops offering it. */
+export const DuplicateDismissalBody = z.strictObject({
+  personIds: z.tuple([z.uuid(), z.uuid()]),
+});
+
 export const IdentifierReviewDecisionBody = z.strictObject({
   attributeKey: z.string().max(64),
   decision: z.enum(['accept', 'send_back']),
@@ -264,12 +288,19 @@ export function filterIn(filter: string | undefined): Record<string, string> {
 export const AsOfQuery = z.object({ asOf: z.iso.date().optional() });
 
 export const CreateExportBody = z.strictObject({
-  format: z.enum(['csv', 'xlsx']),
+  /** `pdf` is a landscape roster, or with `recordOf` one person's employee record. */
+  format: z.enum(['csv', 'xlsx', 'pdf']),
+  recordOf: z
+    .uuid()
+    .optional()
+    .describe('With format pdf: this person’s employee record instead of a roster.'),
   fields: z.array(z.string()).max(500).optional(),
   asOf: z.iso.date().optional(),
   includeArchived: z.boolean().optional(),
   personIds: z.array(z.uuid()).max(50_000).optional(),
   filter: z.string().max(500).optional(),
+  /** Only the people a saved segment matches, of those you may list (PEO-068). */
+  segmentId: z.uuid().optional(),
   /** Required when a financial field is in the file; recorded with the export. */
   reason: z.string().max(500).optional(),
 });
@@ -403,6 +434,11 @@ const STATUS: Record<string, number> = {
   UNIQUE_VALUE_TAKEN: 409,
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
+  // PEO-074: a merge the records' states refuse.
+  MERGE_ABSORBS_EMPLOYMENT: 409,
+  MERGE_TOMBSTONE: 409,
+  MERGE_TWO_ACCOUNTS: 409,
+  MERGE_HAS_REPORTS: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
   // PEO-112: a grant to oneself, and the last administrator.
   SELF_GRANT: 403,
@@ -419,6 +455,9 @@ const STATUS: Record<string, number> = {
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
+  // An upstream system is the source of record for it (PEO-073): change it there.
+  SOURCE_OF_RECORD_EXTERNAL: 403,
+  SCIM_CONNECTION_REVOKED: 409,
   UNAVAILABLE: 503,
 };
 
@@ -559,6 +598,8 @@ export interface RestDeps {
   };
   /** The routes the tenant app's screens read and act through (PEO-098, `screens.ts`). */
   readonly screens?: readonly Route[];
+  /** Saved segments, for an export of one (PEO-068). */
+  readonly segments?: SegmentStore;
 }
 
 export type Handler = (
@@ -1015,6 +1056,7 @@ export function restRoutes(deps: RestDeps): Route[] {
         const asked: ExportJobRequest = {
           ...asking,
           format: v.format,
+          ...(v.recordOf ? { recordOf: v.recordOf } : {}),
           ...(v.fields ? { fields: v.fields } : {}),
           ...(v.asOf ? { asOf: v.asOf } : {}),
           ...(v.includeArchived !== undefined ? { includeArchived: v.includeArchived } : {}),
@@ -1028,7 +1070,18 @@ export function restRoutes(deps: RestDeps): Route[] {
           request,
           201,
           async (tx) => {
-            const requested = await requestExport(tx, exports.deps, asked);
+            let request = asked;
+            if (v.segmentId !== undefined) {
+              const all = (await deps.segments?.all(tx, asking.tenantId)) ?? [];
+              const segment = all.find(
+                (s) => s.id === v.segmentId && seenBy(s, asking.viewer.accountId),
+              );
+              if (segment === undefined) {
+                return err(failure('NOT_FOUND', 'There is no such segment', ['segmentId']));
+              }
+              request = { ...asked, where: segment.filter, filter: v.filter ?? segment.name };
+            }
+            const requested = await requestExport(tx, exports.deps, request);
             if (!requested.ok) return requested;
             if (requested.value.status === 'queued') pending.job = requested.value.job;
             return ok(requested.value.exportId);
@@ -1186,6 +1239,37 @@ export function restRoutes(deps: RestDeps): Route[] {
             return updated.ok ? ok(personId) : updated;
           },
           (id) => writtenPerson(asking, id, input.value.attributes),
+        );
+      },
+    },
+    // Suspected duplicates, for HR (PEO-074). A ranking; the merge is its own write.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/duplicates$/,
+      handle: async (asking) =>
+        respond(
+          await run(service, asking.tenantId, (tx) => service.access.duplicates(tx, asking)),
+          200,
+          (items) => ({ items }),
+        ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/duplicates\/dismissals$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(DuplicateDismissalBody, request);
+        if (!input.ok) return refused(input.error);
+        const { personIds } = input.value;
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const dismissed = await service.access.dismissDuplicate(tx, { ...asking, personIds });
+            return dismissed.ok ? ok(personIds[0]) : dismissed;
+          },
+          () => Promise.resolve({ status: 200, body: { personIds, decision: 'not_duplicate' } }),
         );
       },
     },

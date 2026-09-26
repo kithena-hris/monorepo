@@ -317,7 +317,11 @@ interface PersonShape {
 const Person = builder.objectRef<PersonShape>('Person').implement({
   fields: (t) => ({
     id: t.id({ resolve: (p) => p.view.id }),
-    status: t.string({ resolve: (p) => p.view.status }),
+    status: t.string({
+      nullable: true,
+      description: 'Employment status: HR’s, and the person’s own. Null for anybody else (§6.3).',
+      resolve: (p) => p.view.status ?? null,
+    }),
     schemaVersion: t.int({ nullable: true, resolve: (p) => p.view.schemaVersion }),
     attributes: t.field({ type: [AnyAttribute], resolve: (p) => attributesOf(p.view, p.version) }),
   }),
@@ -1059,6 +1063,19 @@ builder.mutationFields((t) => ({
     description: 'Withdraw a provisional record that was never a person; HR only.',
     args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
     resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}, args.idempotencyKey),
+  }),
+  mergePerson: t.field({
+    type: Person,
+    description:
+      'Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      absorbedPersonId: t.arg.id({ required: true }),
+      take: t.arg.stringList(),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
+      move(ctx, 'mergePerson', personId, sent(rest), key),
   }),
 }));
 

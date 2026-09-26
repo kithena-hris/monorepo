@@ -9,6 +9,7 @@ import {
   PersonHired,
   PersonIdentityLinked,
   PersonManagerChanged,
+  PersonMerged,
   PersonOrgChanged,
   PersonProvisioned,
   PersonStatusChanged,
@@ -84,6 +85,7 @@ const RELATIONAL: readonly { readonly name: string; readonly schema: z.ZodType }
   PersonIdentityLinked,
   PersonHired,
   PersonManagerChanged,
+  PersonMerged,
   PersonOrgChanged,
   PersonStatusChanged,
   PersonTerminated,
@@ -270,6 +272,21 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         return deps.inTenant(event.tenantId, ({ tx }) =>
           authz.syncRoles(tx, event.tenantId, event.payload.accountId),
         );
+      }
+
+      /*
+       * A merge (PEO-074): the absorbed record's `status_changed` already
+       * dropped its tuples; the survivor may have gained its account.
+       */
+      case PersonMerged.name: {
+        const event = parse(PersonMerged, raw);
+        if (!event) return 'rejected';
+        const { authz } = deps;
+        if (!authz) return 'ignored';
+        return deps.inTenant(event.tenantId, async ({ tx }) => {
+          await authz.sync(tx, event.tenantId, event.payload.absorbedPersonId);
+          return authz.sync(tx, event.tenantId, event.payload.survivingPersonId);
+        });
       }
 
       default: {

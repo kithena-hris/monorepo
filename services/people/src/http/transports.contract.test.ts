@@ -23,6 +23,9 @@ const MARCO = '00000000-0000-4000-8000-0000000000a2';
 const ADA_ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
 const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
 const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
+const PEER = '00000000-0000-4000-8000-0000000000a3';
+const PEER_ACCOUNT = '00000000-0000-4000-8000-0000000000b4';
+const GONE = '00000000-0000-4000-8000-0000000000a4';
 
 const definitions = [
   define({
@@ -68,7 +71,10 @@ function transports(account: string, roles: string[]) {
       job_title: 'Engineer',
       ethnicity: 'declined',
     },
+    status: 'on_leave',
   });
+  store.seed(PEER, { account: PEER_ACCOUNT });
+  store.seed(GONE, { fields: { managerId: MARCO }, status: 'terminated' });
 
   const service: PeopleService = {
     access: personAccess(store.deps),
@@ -102,6 +108,36 @@ function transports(account: string, roles: string[]) {
         data: { person: { attributes: { key: string }[] } };
       };
       return body.data.person.attributes.map((a) => a.key).toSorted();
+    },
+    statusViaGraphQL: async () => {
+      const response = await yoga.fetch('http://people.test/graphql', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          query: `query ($id: ID!) { person(id: $id) { status } people { nodes { id status } } }`,
+          variables: { id: ADA },
+        }),
+      });
+      const body = (await response.json()) as {
+        data: {
+          person: { status: string | null };
+          people: { nodes: { id: string; status: string | null }[] };
+        };
+      };
+      return {
+        one: body.data.person.status,
+        listed: Object.fromEntries(body.data.people.nodes.map((n) => [n.id, n.status])),
+      };
+    },
+    statusViaRest: async () => {
+      const get = async (url: string) =>
+        (await rest({ method: 'GET', url, headers: {}, body: '' }))?.body;
+      const one = (await get(`/v1/people/${ADA}`)) as { status?: string };
+      const page = (await get('/v1/people')) as { items: { id: string; status?: string }[] };
+      return {
+        one: one.status ?? null,
+        listed: Object.fromEntries(page.items.map((i) => [i.id, i.status ?? null])),
+      };
     },
     viaRest: async (): Promise<string[]> => {
       const answer = await rest({ method: 'GET', url: `/v1/people/${ADA}`, headers: {}, body: '' });
@@ -137,5 +173,31 @@ describe.each([
     const { viaGraphQL, viaRest } = transports(account, roles);
     expect(await viaGraphQL()).not.toContain('ethnicity');
     expect(await viaRest()).not.toContain('ethnicity');
+  });
+});
+
+/**
+ * Employment status is HR's, and the person's own (§6.3, §7): "on leave" told
+ * to a manager or a peer is the disclosure a visibility rule is refused for.
+ * Withheld means absent over REST and null over GraphQL, on the record and on
+ * every row of a list; and a leaver is not listed to anybody but HR at all.
+ */
+describe.each([
+  { who: 'HR', account: HR_ACCOUNT, roles: ['hr'], sees: 'on_leave', leavers: true },
+  { who: 'Ada herself', account: ADA_ACCOUNT, roles: [], sees: 'on_leave', leavers: false },
+  { who: 'her manager', account: MARCO_ACCOUNT, roles: [], sees: null, leavers: false },
+  { who: 'a peer', account: PEER_ACCOUNT, roles: [], sees: null, leavers: false },
+  { who: 'finance', account: PEER_ACCOUNT, roles: ['finance'], sees: null, leavers: false },
+])('$who asking Ada’s status', ({ account, roles, sees, leavers }) => {
+  it('gets the same answer through GraphQL and REST', async () => {
+    const { statusViaGraphQL, statusViaRest } = transports(account, roles);
+    for (const answer of [await statusViaGraphQL(), await statusViaRest()]) {
+      expect(answer.one).toBe(sees);
+      expect(answer.listed[ADA]).toBe(sees);
+      expect(Object.hasOwn(answer.listed, GONE)).toBe(leavers);
+      if (leavers) expect(answer.listed[GONE]).toBe('terminated');
+      // Nobody else's status reaches a viewer who is not HR.
+      if (!leavers) expect(answer.listed[MARCO]).toBe(account === MARCO_ACCOUNT ? 'active' : null);
+    }
   });
 });

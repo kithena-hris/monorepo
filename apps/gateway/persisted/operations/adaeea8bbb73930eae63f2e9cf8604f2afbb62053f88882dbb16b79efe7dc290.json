@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetScimMapping($id: ID!, $mapping: [ScimMappingInput!]!, $key: String!) {\n    setScimMapping(id: $id, mapping: $mapping, idempotencyKey: $key) { ok }\n  }"}

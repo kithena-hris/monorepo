@@ -28,11 +28,18 @@ type AnalyticsAttrition {
   formula: String
   leavers: Int
   percent: Float
+  """Rolling 12-month attrition, in percent, by month"""
+  trend: [AnalyticsPoint!]
 }
 
 type AnalyticsComplete {
   incomplete: Int
   percent: Float
+}
+
+type AnalyticsComposition {
+  categories: [String!]
+  series: [AnalyticsSeries!]
 }
 
 type AnalyticsExpiries {
@@ -58,6 +65,18 @@ type AnalyticsHeadcount {
   value: Int
 }
 
+type AnalyticsHeatCell {
+  column: String
+  row: String
+  value: Int
+}
+
+type AnalyticsJoiners {
+  cells: [AnalyticsHeatCell!]
+  departments: [String!]
+  months: [String!]
+}
+
 type AnalyticsMovement {
   closing: Int
   joiners: Int
@@ -70,6 +89,34 @@ type AnalyticsMovement {
 type AnalyticsPoint {
   label: String
   value: Float
+}
+
+"""
+One self-identification question in aggregate, from its monthly publication (§6.7, §16.1).
+"""
+type AnalyticsSelfId {
+  cells: [AnalyticsPoint!]
+  key: String
+  label: String
+  minimum: Int
+  note: String
+  publishedAsOf: String
+  """ok, or insufficient_data below the cohort minimum"""
+  status: String
+  """Rounded to 5 on its own; not the sum of the rounded counts"""
+  total: Int
+}
+
+type AnalyticsSeries {
+  label: String
+  values: [Int!]
+}
+
+type AnalyticsTenureBand {
+  headcount: Int
+  label: String
+  """Left in the 12 months before, by tenure at leaving"""
+  leavers: Int
 }
 
 type ApprovalItem {
@@ -124,6 +171,43 @@ type BooleanAttribute {
   value: Boolean
 }
 
+type BulkEditChange {
+  after: FormEntry
+  before: FormEntry
+  """
+  False: kept without dates, so it changes on the day whatever the date says.
+  """
+  dated: Boolean
+  key: String
+  label: String
+}
+
+type BulkEditPerson {
+  id: ID
+  name: String
+}
+
+type BulkEditRefusal {
+  code: String
+  keys: [String!]
+  message: String
+}
+
+type BulkEditResult {
+  committed: Boolean
+  rows: [BulkEditRow!]
+}
+
+type BulkEditRow {
+  changes: [BulkEditChange!]
+  findings: [IdentifierFindingNotice!]
+  name: String
+  """changed, unchanged or refused"""
+  outcome: String
+  personId: ID
+  refusal: BulkEditRefusal
+}
+
 """
 protect (special category), suggest, or fallback to the section default.
 """
@@ -133,6 +217,25 @@ type ClassificationAdvice {
   kind: String
   piiKind: String
   reason: String
+}
+
+type ComparedPerson {
+  id: ID
+  name: String
+  """Why this record may not absorb the other; null when it may."""
+  refusal: String
+  status: String
+}
+
+"""
+One attribute side by side, as the viewer may read it. A sealed value is its last four.
+"""
+type ComparedRow {
+  key: String
+  label: String
+  same: Boolean
+  takeable: [Boolean!]
+  values: [String]!
 }
 
 type CompletenessField {
@@ -167,6 +270,8 @@ type DateAttribute {
 }
 
 type DirectoryActions {
+  """HR’s: set values on the people chosen (PEO-071)."""
+  bulkEdit: Boolean
   export: Boolean
   import: Boolean
 }
@@ -217,6 +322,23 @@ input DraftFieldInput {
   sectionKey: String!
   visibility: [String!]!
   visibilityRules: [VisibilityRuleInput!]
+}
+
+type DuplicateComparison {
+  people: [ComparedPerson!]
+  rows: [ComparedRow!]
+}
+
+type DuplicateDismissed {
+  decision: String
+  personIds: [ID!]
+}
+
+"""Two records that look like one human, and why. Never a value."""
+type DuplicatePair {
+  names: [String!]
+  personIds: [ID!]
+  reasons: [String!]
 }
 
 """An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`."""
@@ -681,6 +803,10 @@ input MoneyInput {
 type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """
+  A page of a bulk edit: one ordinary write per person, each atomic, each answered.
+  """
+  bulkEditPeople(effectiveFrom: String!, idempotencyKey: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
+  """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
   changeLocationZone(effectiveFrom: String!, id: ID!, idempotencyKey: String!, timeZone: String!): Location
@@ -704,6 +830,7 @@ type Mutation {
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
+  createScimConnection(idempotencyKey: String!, system: String!): ScimConnectionToken
   createWebhookEndpoint(alertEmail: String!, allowlist: [String!]!, events: [String!]!, idempotencyKey: String!, url: String!): WebhookEndpointSecret
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
@@ -711,8 +838,12 @@ type Mutation {
   HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.
   """
   decidePendingChange(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): WriteOutcome
+  """Delete a segment you saved."""
+  deletePeopleSegment(id: ID!, idempotencyKey: String!): WriteOutcome
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
+  """HR says a pair are two people; the queue stops offering it."""
+  dismissDuplicate(idempotencyKey: String!, personIds: [ID!]!): DuplicateDismissed
   """
   The five counts and the blocked rows. Changes nothing, so takes no key.
   """
@@ -731,6 +862,10 @@ type Mutation {
   people_admin only, never to oneself. A role already held changes nothing.
   """
   grantRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
+  """
+  Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.
+  """
+  mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
   """
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
@@ -751,7 +886,20 @@ type Mutation {
   """
   Over 2,000 rows the export is queued; ask `peopleExport` for its links.
   """
-  requestExport(asOf: String, fields: [String!], filter: String, format: String!, idempotencyKey: String!, includeArchived: Boolean, personIds: [ID!], reason: String): PeopleExport
+  requestExport(
+    asOf: String
+    fields: [String!]
+    filter: String
+    """csv, xlsx or pdf."""
+    format: String!
+    idempotencyKey: String!
+    includeArchived: Boolean
+    personIds: [ID!]
+    reason: String
+    """With pdf: this person’s employee record instead of a roster."""
+    recordOf: ID
+    segmentId: ID
+  ): PeopleExport
   """Finance asks for sealed fields in full, with a reason; HR decides."""
   requestFullValues(asOf: String, fields: [String!]!, filter: String, idempotencyKey: String!, personIds: [ID!], reason: String!): FullValuesRequest
   """The doubted value in full, for HR deciding it (PEO-125). Audited."""
@@ -762,16 +910,23 @@ type Mutation {
   reviewIdentifier(attributeKey: String!, decision: IdentifierReviewDecision!, idempotencyKey: String!, note: String, personId: ID!): IdentifierDecision
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
+  revokeScimConnection(id: ID!, idempotencyKey: String!): WriteOutcome
+  rotateScimToken(id: ID!, idempotencyKey: String!): ScimConnectionToken
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
   """Add or change a field in the draft; the draft decides whether it may."""
   saveDraftField(editing: String, idempotencyKey: String!, input: DraftFieldInput!): WriteOutcome
   saveOwnSection(changed: [FormValueInput!]!, idempotencyKey: String!): SectionSaved
+  """
+  Save a named filter, for yourself or shared within the tenant (PEO-068).
+  """
+  savePeopleSegment(filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
   """
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
+  setScimMapping(id: ID!, idempotencyKey: String!, mapping: [ScimMappingInput!]!): WriteOutcome
   """
   Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
   """
@@ -856,12 +1011,21 @@ type PeopleAnalytics {
   attrition: AnalyticsAttrition
   complete: AnalyticsComplete
   completenessBySection: [AnalyticsPoint!]
+  composition: AnalyticsComposition
   expiries: AnalyticsExpiries
   expiringIn90Days: Int
   headcount: AnalyticsHeadcount
+  joiners: AnalyticsJoiners
   movement: AnalyticsMovement
+  segment: PeopleSegmentRef
+  segments: [PeopleSegmentRef!]
+  """HR's only; never under a segment"""
+  selfId: [AnalyticsSelfId!]
   source: String
   sourceNote: String
+  """Managers by number of direct reports"""
+  span: [AnalyticsPoint!]
+  tenure: [AnalyticsTenureBand!]
 }
 
 """
@@ -870,6 +1034,15 @@ Changes waiting for approval: every one for HR, the viewer’s own otherwise.
 type PeopleApprovals {
   isHr: Boolean
   items: [ApprovalItem!]
+}
+
+"""The people chosen, and the fields HR may set on them in bulk."""
+type PeopleBulkEdit {
+  """People per request."""
+  limit: Int
+  people: [BulkEditPerson!]
+  sections: [RecordSection!]
+  today: String
 }
 
 type PeopleCompleteness {
@@ -891,6 +1064,17 @@ type PeopleDirectory {
   incomplete: Int
   next: String
   people: [DirectoryPerson!]
+  segment: PeopleSegmentRef
+  """The saved segments this viewer could apply here."""
+  segments: [PeopleSegmentRef!]
+}
+
+"""
+HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.
+"""
+type PeopleDuplicates {
+  comparison: DuplicateComparison
+  items: [DuplicatePair!]
 }
 
 type PeopleExport {
@@ -947,6 +1131,7 @@ type PeopleIntegrations {
   events: [String!]
   fields: [IntegrationField!]
   schemaVersion: Int
+  scim: PeopleScim
 }
 
 type PeopleOnboarding {
@@ -1021,6 +1206,49 @@ type PeopleSchema {
   version: Int
 }
 
+type PeopleScim {
+  connections: [ScimConnection!]
+  """The schema a tenant attribute is mapped under, as `<extension>:<key>`."""
+  extension: String
+  mappable: [ScimMappableAttribute!]
+  paths: [String!]
+  """The SCIM base URL to give the provider."""
+  url: String
+}
+
+"""
+A saved segment (PEO-068): a filter, never a list of people. Using it shows you only the people you may see.
+"""
+type PeopleSegment {
+  filter: [PeopleSegmentCondition!]
+  id: ID
+  mine: Boolean
+  name: String
+  shared: Boolean
+  usableIn: PeopleSegmentUse
+}
+
+type PeopleSegmentCondition {
+  key: String
+  value: String
+}
+
+input PeopleSegmentConditionInput {
+  key: String!
+  value: String!
+}
+
+"""A saved segment, by name (PEO-068)."""
+type PeopleSegmentRef {
+  id: ID
+  name: String
+}
+
+type PeopleSegmentUse {
+  analytics: Boolean
+  directory: Boolean
+}
+
 type PeopleSettings {
   cohortMinimum: Int
   defaultTimeZone: String
@@ -1044,6 +1272,9 @@ type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
   schemaVersion: Int
+  """
+  Employment status: HR’s, and the person’s own. Null for anybody else (§6.3).
+  """
   status: String
 }
 
@@ -1168,14 +1399,23 @@ type Query {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage
-  peopleAnalytics: PeopleAnalytics
+  peopleAnalytics(segment: ID): PeopleAnalytics
   """
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
   peopleApprovals: PeopleApprovals
+  peopleBulkEdit(personIds: [ID!]!): PeopleBulkEdit
+  """
+  What a bulk edit would change and refuse, per person, and why; nothing is kept.
+  """
+  peopleBulkEditPreview(effectiveFrom: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
-  peopleDirectory(after: ID, filter: String, search: String): PeopleDirectory
+  peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory
+  """
+  Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
+  """
+  peopleDuplicates(a: ID, b: ID): PeopleDuplicates
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder: PeopleExportBuilder
@@ -1209,6 +1449,8 @@ type Query {
   """Who holds a tenant role; HR and people_admin only."""
   peopleRoles: [RoleHolder!]
   peopleSchema(version: Int): PeopleSchema
+  """The saved segments you see and could use somewhere (PEO-068)."""
+  peopleSegments: [PeopleSegment!]
   peopleSettings: PeopleSettings
   peopleSetup: PeopleSetup
   """
@@ -1223,6 +1465,10 @@ type RecordField {
   currency: String
   dataType: String
   description: String
+  """
+  The upstream system that is the source of record for this field on this person (PEO-073); change it there.
+  """
+  keptIn: String
   key: String
   label: String
   options: [FieldOption!]
@@ -1324,6 +1570,40 @@ type RoleSettingsPerson {
   personId: ID
   roles: [String!]
   workEmail: String
+}
+
+"""An upstream system provisioning people over SCIM (PEO-072)."""
+type ScimConnection {
+  createdAt: String
+  id: ID
+  """How many people it provisions."""
+  linked: Int
+  """The approved mapping: every attribute it names is kept in this system."""
+  mapping: [ScimMappingEntry!]
+  revokedAt: String
+  system: String
+  tokenRotatedAt: String
+}
+
+type ScimConnectionToken {
+  id: ID
+  """Shown once. Null when a retry of the same key answers: rotate again."""
+  token: String
+}
+
+type ScimMappableAttribute {
+  key: String
+  label: String
+}
+
+type ScimMappingEntry {
+  key: String
+  path: String
+}
+
+input ScimMappingInput {
+  key: String!
+  path: String!
 }
 
 """An encrypted value. Only its last four characters are ever served."""
