@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
-import { BulkEdit, type BulkEditPage, type BulkEditState, type BulkOutcome, type BulkRow } from './bulk-edit';
+import {
+  BulkEdit,
+  type BulkEditPage,
+  type BulkEditState,
+  type BulkHirePage,
+  type BulkOutcome,
+  type BulkRow,
+} from './bulk-edit';
 
 const state: BulkEditState = {
   people: [
@@ -137,5 +144,104 @@ describe('BulkEdit', () => {
         ),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe('BulkEdit: hire', () => {
+  const hired = (personId: string, name: string, status: string): BulkRow =>
+    row(personId, name, {
+      changes: [
+        { key: 'hire_date', label: 'Start date', dated: true, before: null, after: '2026-09-26' },
+        { key: 'status', label: 'Status', dated: true, before: 'Not started', after: status },
+      ],
+    });
+  const hires = (committed: boolean) =>
+    vi.fn(
+      (page: BulkHirePage): Promise<BulkOutcome> =>
+        Promise.resolve({
+          ok: true,
+          committed,
+          rows: page.map(({ personId }) =>
+            personId === 'j'
+              ? row(personId, 'Joan Bosch', {
+                  outcome: 'refused',
+                  changes: [],
+                  refusal: {
+                    code: 'INVALID_TRANSITION',
+                    message: 'Already employed; there is nobody to hire',
+                  },
+                })
+              : hired(personId, personId === 'a' ? 'Adam Reyes' : 'Lena Moreau', 'Active'),
+          ),
+        }),
+    );
+
+  it('previews who is hired and who is skipped and why, then hires, reporting partial success', async () => {
+    const user = fast();
+    const onPreviewHire = hires(false);
+    const onCommitHire = hires(true);
+    const { container } = render(
+      <BulkEdit
+        load={{ status: 'ready', data: state }}
+        onPreview={vi.fn()}
+        onCommit={vi.fn()}
+        onPreviewHire={onPreviewHire}
+        onCommitHire={onCommitHire}
+      />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Hire' }));
+    expect(screen.getByRole('heading', { name: 'Hire 3 people' })).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
+
+    await screen.findByText('Nobody is hired yet');
+    expect(onPreviewHire.mock.calls.map(([page]) => page)).toEqual([
+      [
+        { personId: 'a', hireDate: '2026-09-26' },
+        { personId: 'l', hireDate: '2026-09-26' },
+      ],
+      [{ personId: 'j', hireDate: '2026-09-26' }],
+    ]);
+    const table = screen.getByRole('table', { name: 'Per person' });
+    expect(within(table).getByText('Already employed; there is nobody to hire')).toBeInTheDocument();
+    expect(within(table).getAllByText('Skipped')).toHaveLength(1);
+    expect(await axeViolations(container)).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Hire 2 people' }));
+    await screen.findByText(/Hired 2 people\. 1 skipped/);
+    expect(onCommitHire).toHaveBeenCalledTimes(2);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('takes a start date per person when asked', async () => {
+    const user = fast();
+    const onPreviewHire = hires(false);
+    render(
+      <BulkEdit
+        load={{ status: 'ready', data: state }}
+        onPreview={vi.fn()}
+        onCommit={vi.fn()}
+        onPreviewHire={onPreviewHire}
+        onCommitHire={hires(true)}
+      />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Hire' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Set a start date per person' }));
+    const each = screen.getByRole('list', { name: 'Start date per person' });
+    await user.click(within(each).getByRole('button', { name: /Lena Moreau/ }));
+    await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
+    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
+    await screen.findByText('Nobody is hired yet');
+    expect(onPreviewHire.mock.calls[0]?.[0]).toEqual([
+      { personId: 'a', hireDate: '2026-09-26' },
+      { personId: 'l', hireDate: '2026-09-30' },
+    ]);
+  });
+
+  it('offers no hire where the host gives none', () => {
+    render(
+      <BulkEdit load={{ status: 'ready', data: state }} onPreview={vi.fn()} onCommit={vi.fn()} />,
+    );
+    expect(screen.queryByRole('tab', { name: 'Hire' })).toBeNull();
   });
 });

@@ -231,6 +231,19 @@ export async function commitBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
   return bulk(people('BulkEditPeople', bulkVariables(page)));
 }
 
+/** A page of a bulk hire: each person from their start date (not started yet). */
+export type BulkHirePage = readonly { readonly personId: string; readonly hireDate: string }[];
+
+/** Who this page would hire and skip, and why; nothing is kept. */
+export async function previewBulkHire(hires: BulkHirePage): Promise<BulkEdited> {
+  return bulk(people('BulkHirePreview', { hires: [...hires] }));
+}
+
+/** This page, hired: each person on their own, the refused ones said why. */
+export async function commitBulkHire(hires: BulkHirePage): Promise<BulkEdited> {
+  return bulk(people('BulkHirePeople', { hires: [...hires] }));
+}
+
 /**
  * People a person field may name, found by name over everybody, as the
  * person signed in may read them (PEO-122). The picker's first page: typing
@@ -529,7 +542,13 @@ export type LifecycleMove =
   | { readonly kind: 'startLeave' }
   | { readonly kind: 'endLeave' }
   | { readonly kind: 'discard' }
-  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string };
+  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string }
+  | {
+      readonly kind: 'hire';
+      readonly hireDate: string;
+      readonly legalEntityId?: string;
+      readonly locationId?: string;
+    };
 
 const MOVES = {
   giveNotice: 'GiveNotice',
@@ -540,6 +559,7 @@ const MOVES = {
   endLeave: 'EndLeave',
   discard: 'DiscardPerson',
   rehire: 'RehirePerson',
+  hire: 'HirePerson',
 } as const;
 
 export async function moveLifecycle(personId: string, move: LifecycleMove): Promise<Outcome> {

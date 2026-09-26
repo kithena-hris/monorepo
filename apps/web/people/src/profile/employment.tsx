@@ -35,6 +35,7 @@ import {
 import { useState, type JSX, type ReactNode } from 'react';
 
 import type { Outcome } from '../load';
+import { longDate } from '../record/display';
 
 /**
  * HR's view of somebody's employment (PEO-119, PEO-120): whose day it is for
@@ -82,7 +83,25 @@ export type LifecycleMove =
   | { readonly kind: 'startLeave' }
   | { readonly kind: 'endLeave' }
   | { readonly kind: 'discard' }
-  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string };
+  | { readonly kind: 'rehire'; readonly startDate: string; readonly overrideReason?: string }
+  | {
+      readonly kind: 'hire';
+      readonly hireDate: string;
+      readonly legalEntityId?: string;
+      readonly locationId?: string;
+    };
+
+/** Where a person sits and where they may go (PEO-123), for HR only. */
+export interface PlacementState {
+  readonly legalEntityId: string | null;
+  readonly locationId: string | null;
+  readonly entities: readonly { readonly value: string; readonly label: string }[];
+  readonly locations: readonly {
+    readonly value: string;
+    readonly label: string;
+    readonly legalEntityId: string;
+  }[];
+}
 
 const STATUS: Record<string, string> = {
   provisional: 'Provisional',
@@ -115,7 +134,7 @@ export function dayAfter(day: string): string {
 
 /** What each status may move to (§8.1). People refuses anything else anyway. */
 const OFFERED: Record<string, readonly Asking[]> = {
-  provisional: ['discard'],
+  provisional: ['hire', 'discard'],
   pre_hire: ['terminate'],
   active: ['giveNotice', 'startLeave', 'terminate'],
   on_leave: ['endLeave', 'giveNotice', 'terminate'],
@@ -132,15 +151,22 @@ const LABEL: Record<Asking, string> = {
   endLeave: 'End leave',
   discard: 'Discard record',
   rehire: 'Rehire',
+  hire: 'Hire',
 };
 
 export function Employment({
   state,
   onMove,
+  name,
+  placement,
 }: {
   readonly state: EmploymentState;
   /** Absent on one's own profile: nobody moves their own employment. */
   readonly onMove?: ((move: LifecycleMove) => Promise<Outcome>) | undefined;
+  /** Who this is, for a hire to say what it will do. */
+  readonly name?: string | undefined;
+  /** Where they sit: a hire asks for it when they sit nowhere yet. */
+  readonly placement?: PlacementState | null | undefined;
 }): JSX.Element {
   const [asking, setAsking] = useState<Asking | null>(null);
   const { calendar, employment } = state;
@@ -219,6 +245,8 @@ export function Employment({
           kind={asking}
           today={calendar.today}
           lastPeriod={periods.at(-1) ?? null}
+          name={name ?? 'They'}
+          placement={placement ?? null}
           onMove={onMove}
           onClose={() => {
             setAsking(null);
@@ -271,12 +299,16 @@ function MoveDialog({
   kind,
   today,
   lastPeriod,
+  name,
+  placement,
   onMove,
   onClose,
 }: {
   readonly kind: Asking;
   readonly today: string;
   readonly lastPeriod: EmploymentPeriod | null;
+  readonly name: string;
+  readonly placement: PlacementState | null;
   readonly onMove: (move: LifecycleMove) => Promise<Outcome>;
   readonly onClose: () => void;
 }): JSX.Element {
@@ -291,14 +323,24 @@ function MoveDialog({
   const [eligible, setEligible] = useState(true);
   const [endNow, setEndNow] = useState(false);
   const [override, setOverride] = useState('');
+  const [entity, setEntity] = useState('');
+  const [location, setLocation] = useState('');
+  // A hire places somebody who sits nowhere, where the tenant has somewhere to put them.
+  const places =
+    kind === 'hire' &&
+    placement !== null &&
+    placement.legalEntityId === null &&
+    placement.entities.length > 0;
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
 
   const notEligible = kind === 'rehire' && lastPeriod?.eligibleForRehire === false;
-  const needsDay = kind === 'giveNotice' || kind === 'terminate' || kind === 'rehire';
+  const needsDay =
+    kind === 'giveNotice' || kind === 'terminate' || kind === 'rehire' || kind === 'hire';
   const problems = {
     day: needsDay && day === null,
+    entity: places && entity === '',
     reason: kind === 'terminate' && reason === '',
     override: notEligible && override.trim() === '',
   };
@@ -320,6 +362,13 @@ function MoveDialog({
         };
       case 'rehire':
         return { kind, startDate: d, ...(notEligible ? { overrideReason: override.trim() } : {}) };
+      case 'hire':
+        return {
+          kind,
+          hireDate: d,
+          ...(places && entity !== '' ? { legalEntityId: entity } : {}),
+          ...(places && location !== '' ? { locationId: location } : {}),
+        };
       default:
         return { kind };
     }
@@ -335,6 +384,7 @@ function MoveDialog({
     endLeave: 'They are back from today, on their calendar.',
     discard: 'This provisional record was never a person. It is withdrawn.',
     rehire: 'A new employment period on the same record, starting on this day.',
+    hire: 'Their employment starts on this day, on their calendar: past or future.',
   };
 
   const body: ReactNode[] = [];
@@ -342,7 +392,7 @@ function MoveDialog({
     body.push(
       <div key="day" className="flex flex-col gap-1.5">
         <DatePicker
-          label={kind === 'rehire' ? 'Start date' : 'Last working day'}
+          label={kind === 'rehire' || kind === 'hire' ? 'Start date' : 'Last working day'}
           value={day}
           onChange={setDay}
         />
@@ -398,6 +448,29 @@ function MoveDialog({
         </FieldControl>
         <FieldLabel>End their access now</FieldLabel>
       </Field>,
+    );
+  }
+  if (places) {
+    body.push(
+      <PlacementPickers
+        key="placement"
+        placement={placement}
+        entity={entity}
+        location={location}
+        onEntity={setEntity}
+        onLocation={setLocation}
+        required
+        invalid={shown && problems.entity}
+      />,
+    );
+  }
+  if (kind === 'hire' && day !== null) {
+    body.push(
+      <Alert key="what" tone="info">
+        {day <= today
+          ? `${name} becomes an employee from ${longDate(day)}.`
+          : `${name} is pre-hire until ${longDate(day)}, and an employee from then.`}
+      </Alert>,
     );
   }
   if (notEligible) {
@@ -467,5 +540,87 @@ function MoveDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * A legal entity and one of its work locations (PEO-123): a location names
+ * its entity, so choosing one sets the other, and an entity keeps only its
+ * own locations on offer.
+ */
+export function PlacementPickers({
+  placement,
+  entity,
+  location,
+  onEntity,
+  onLocation,
+  required = false,
+  invalid = false,
+  locationHint,
+}: {
+  readonly placement: PlacementState;
+  readonly entity: string;
+  readonly location: string;
+  readonly onEntity: (entity: string) => void;
+  readonly onLocation: (location: string) => void;
+  readonly required?: boolean;
+  readonly invalid?: boolean;
+  readonly locationHint?: string;
+}): JSX.Element {
+  const offices = placement.locations.filter((l) => entity === '' || l.legalEntityId === entity);
+  return (
+    <>
+      <Field required={required} invalid={invalid}>
+        <FieldLabel>Legal entity</FieldLabel>
+        <Select
+          value={entity}
+          onValueChange={(next) => {
+            onEntity(next);
+            if (!placement.locations.some((l) => l.value === location && l.legalEntityId === next)) {
+              onLocation('');
+            }
+          }}
+        >
+          <FieldControl>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose" />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {placement.entities.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FieldError>Choose where they are employed.</FieldError>
+      </Field>
+      <Field>
+        <FieldLabel>Work location</FieldLabel>
+        <Select
+          value={location}
+          onValueChange={(next) => {
+            onLocation(next);
+            const office = placement.locations.find((l) => l.value === next);
+            if (office) onEntity(office.legalEntityId);
+          }}
+        >
+          <FieldControl>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose" />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {offices.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {locationHint === undefined ? null : <FieldDescription>{locationHint}</FieldDescription>}
+      </Field>
+    </>
   );
 }

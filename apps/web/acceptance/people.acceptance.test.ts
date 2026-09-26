@@ -679,6 +679,84 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
   });
 });
 
+describe('Hiring somebody added without a start date', () => {
+  const statusOf = async (email: string) =>
+    (
+      await stack.sql<{ status: string }[]>`
+        SELECT status FROM people.person WHERE tenant_id = ${TENANT} AND work_email = ${email}`
+    )[0]?.status;
+
+  it('HR adds a person with no start date, then hires them from their profile', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/new`);
+    const form = page.getByRole('form', { name: 'Add employee' });
+    await form.waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    await form.getByRole('textbox', { name: /Legal first name/ }).fill('Edith');
+    await form.getByRole('textbox', { name: /Legal family name/ }).fill('Clarke');
+    await form.getByRole('textbox', { name: /Work email/ }).fill('edith@acme.example');
+    await form.getByRole('button', { name: 'Add employee' }).click();
+    await page.waitForURL(/\/people\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    expect(await statusOf('edith@acme.example')).toBe('provisional');
+
+    // Placed nowhere yet: the hire asks where, and starts today.
+    await page.getByRole('button', { name: 'Hire' }).click();
+    const hire = page.getByRole('dialog', { name: 'Hire' });
+    await hire.getByText(/Edith Clarke becomes an employee from/).waitFor();
+    await hire.getByRole('combobox', { name: /Legal entity/ }).click();
+    await page.getByRole('option').first().click();
+    await hire.getByRole('button', { name: 'Hire' }).click();
+    await eventually('the hire', () => statusOf('edith@acme.example'), (s) => s === 'active');
+    await context.close();
+  });
+
+  it('HR chooses two people not started in the directory and hires them together', async () => {
+    const [entity] = await stack.sql<{ id: string }[]>`
+      SELECT id::text FROM people.legal_entity WHERE tenant_id = ${TENANT} ORDER BY name LIMIT 1`;
+    for (const [given, email] of [
+      ['Alan', 'alan@acme.example'],
+      ['Joan', 'joan@acme.example'],
+    ] as const) {
+      const made = await stack.writeAsPeople(ADMIN.account, '/v1/people', {
+        attributes: { given_name: given, family_name: 'Bulkhire', work_email: email },
+      });
+      expect(made.status).toBe(201);
+      const id = (made.body as { id: string }).id;
+      const placed = await stack.writeAsPeople(ADMIN.account, `/v1/people/${id}/placement`, {
+        legalEntityId: entity?.id,
+      });
+      expect(placed.status).toBe(200);
+      expect(await statusOf(email)).toBe('provisional');
+    }
+
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/directory?search=Bulkhire`);
+    await page.waitForLoadState('networkidle');
+    const people = page.getByRole('table', { name: 'People' });
+    await people.getByText('Alan Bulkhire').waitFor({ timeout: 30_000 });
+    await page.getByRole('checkbox', { name: 'Select Alan Bulkhire' }).click();
+    await page.getByRole('checkbox', { name: 'Select Joan Bulkhire' }).click();
+    await page.getByRole('button', { name: 'Edit together' }).click();
+    await page.waitForURL(/\/people\/bulk-edit/);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('tab', { name: 'Hire' }).click();
+    await page.getByRole('button', { name: 'Preview hire' }).click();
+    await page.getByText('Nobody is hired yet').waitFor({ timeout: 30_000 });
+    expect(await statusOf('alan@acme.example')).toBe('provisional');
+    await page.getByRole('button', { name: 'Hire 2 people' }).click();
+    await page.getByText('Hired 2 people.').waitFor({ timeout: 30_000 });
+    expect([await statusOf('alan@acme.example'), await statusOf('joan@acme.example')]).toEqual([
+      'active',
+      'active',
+    ]);
+    await context.close();
+  });
+});
+
 describe('PEO-121: finance asks for full values, HR approves, one download', () => {
   it('issues one file behind a link that works once', async () => {
     // Adam holds finance since PEO-112's test granted it; the tuple that grant

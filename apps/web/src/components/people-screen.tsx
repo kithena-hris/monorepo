@@ -332,6 +332,8 @@ export function PeopleScreen({
           load: loadable,
           onPreview: actions.previewBulkEdit,
           onCommit: actions.commitBulkEdit,
+          onPreviewHire: actions.previewBulkHire,
+          onCommitHire: actions.commitBulkHire,
           searchPeople: actions.searchPeople,
           onBack: () => {
             go('/people/directory');

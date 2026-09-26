@@ -93,6 +93,67 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     expect(await within(dialog).findByText('Not yet')).toBeInTheDocument();
   });
 
+  it('hires somebody not started, saying what will happen, placing them when they sit nowhere', async () => {
+    const onMove = vi.fn(done);
+    const placement = {
+      legalEntityId: null,
+      locationId: null,
+      entities: [{ value: 'es', label: 'Acme Spain' }],
+      locations: [{ value: 'mad', label: 'Madrid', legalEntityId: 'es' }],
+    };
+    const { container } = render(
+      <Employment
+        state={state('provisional', [])}
+        onMove={onMove}
+        name="Ada Lovelace"
+        placement={placement}
+      />,
+    );
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Hire' }));
+    const dialog = screen.getByRole('dialog', { name: 'Hire' });
+    expect(within(dialog).getByText(/Ada Lovelace becomes an employee from/)).toBeInTheDocument();
+    expect(await axeViolations(container.ownerDocument.body)).toEqual([]);
+
+    // Nowhere to work yet: the entity is asked for before anything is sent.
+    await user.click(within(dialog).getByRole('button', { name: 'Hire' }));
+    expect(onMove).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('combobox', { name: /Work location/ }));
+    await user.click(screen.getByRole('option', { name: 'Madrid' }));
+
+    await user.click(within(dialog).getByRole('button', { name: /Start date/ }));
+    await user.click(await screen.findByRole('button', { name: /30 September|September 30/ }));
+    expect(within(dialog).getByText(/Ada Lovelace is pre-hire until/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Hire' }));
+    expect(onMove).toHaveBeenCalledWith({
+      kind: 'hire',
+      hireDate: '2026-09-30',
+      legalEntityId: 'es',
+      locationId: 'mad',
+    });
+  });
+
+  it('asks nothing about placement for somebody already placed, and offers no hire once hired', async () => {
+    const onMove = vi.fn(done);
+    const placed = {
+      legalEntityId: 'es',
+      locationId: 'mad',
+      entities: [{ value: 'es', label: 'Acme Spain' }],
+      locations: [{ value: 'mad', label: 'Madrid', legalEntityId: 'es' }],
+    };
+    const { rerender } = render(
+      <Employment state={state('provisional', [])} onMove={onMove} placement={placed} />,
+    );
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Hire' }));
+    const dialog = screen.getByRole('dialog', { name: 'Hire' });
+    expect(within(dialog).queryByRole('combobox')).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Hire' }));
+    expect(onMove).toHaveBeenCalledWith({ kind: 'hire', hireDate: '2026-09-24' });
+    rerender(<Employment state={state('pre_hire')} onMove={onMove} placement={placed} />);
+    expect(screen.queryByRole('button', { name: 'Hire' })).toBeNull();
+  });
+
   it('moves without a form where there is nothing to ask', async () => {
     const onMove = vi.fn(done);
     render(<Employment state={state('on_leave')} onMove={onMove} />);

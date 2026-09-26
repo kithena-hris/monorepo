@@ -176,6 +176,13 @@ export const OPERATIONS = {
     }
   }${ENTRY}`,
 
+  /** Who a page of a bulk hire would hire and skip, and why; nothing is kept. */
+  BulkHirePreview: `query BulkHirePreview($hires: [BulkHireInput!]!) {
+    peopleBulkHirePreview(hires: $hires) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
   IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
     peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
   }`,
@@ -401,6 +408,13 @@ export const OPERATIONS = {
     }
   }${ENTRY}`,
 
+  /** A page of a bulk hire: provisional people, each from a start date. */
+  BulkHirePeople: `mutation BulkHirePeople($hires: [BulkHireInput!]!, $key: String!) {
+    bulkHirePeople(hires: $hires, idempotencyKey: $key) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
     saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok held ${GRID_FINDINGS} }
   }`,
@@ -578,6 +592,10 @@ export const OPERATIONS = {
 
   DiscardPerson: `mutation DiscardPerson($personId: ID!, $key: String!) {
     discardPerson(personId: $personId, idempotencyKey: $key) { id }
+  }`,
+
+  HirePerson: `mutation HirePerson($personId: ID!, $hireDate: String!, $legalEntityId: ID, $locationId: ID, $key: String!) {
+    hirePerson(personId: $personId, hireDate: $hireDate, legalEntityId: $legalEntityId, locationId: $locationId, idempotencyKey: $key) { id }
   }`,
 
   RehirePerson: `mutation RehirePerson($personId: ID!, $startDate: String!, $overrideReason: String, $key: String!) {

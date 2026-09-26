@@ -19,11 +19,6 @@ import {
   FieldLabel,
   PageHeader,
   PageSection,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Stack,
   Textarea,
 } from '@reach/ui';
@@ -36,7 +31,13 @@ import type { PendingValue, RecordSection, Values } from '../record/model';
 import { PendingNote, SensitiveMark } from '../record/pending';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
-import { Employment, type EmploymentState, type LifecycleMove } from './employment';
+import {
+  Employment,
+  PlacementPickers,
+  type EmploymentState,
+  type LifecycleMove,
+  type PlacementState,
+} from './employment';
 
 export interface ProfileSection extends RecordSection {
   /** Reading this section is audited, and the viewer is told so. */
@@ -77,16 +78,7 @@ export interface ProfileState {
   readonly pending?: readonly PendingValue[];
 }
 
-export interface PlacementState {
-  readonly legalEntityId: string | null;
-  readonly locationId: string | null;
-  readonly entities: readonly { readonly value: string; readonly label: string }[];
-  readonly locations: readonly {
-    readonly value: string;
-    readonly label: string;
-    readonly legalEntityId: string;
-  }[];
-}
+export type { PlacementState };
 
 export interface PlacementChange {
   readonly legalEntityId?: string | null;
@@ -234,6 +226,8 @@ function Record({
         <Employment
           state={{ calendar: state.calendar, employment: state.employment ?? null }}
           onMove={onMove}
+          name={person.name}
+          placement={state.placement}
         />
       ) : null}
       {/* Where they work, beside their employment (PEO-123). */}
@@ -357,7 +351,6 @@ function PlacementSection({
   const [from, setFrom] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const offices = placement.locations.filter((l) => entity === '' || l.legalEntityId === entity);
   const transfer =
     entity !== '' && placement.legalEntityId !== null && entity !== placement.legalEntityId;
   const unchanged =
@@ -383,58 +376,14 @@ function PlacementSection({
         }}
       >
         <Stack gap={4}>
-          <Field>
-            <FieldLabel>Legal entity</FieldLabel>
-            <Select
-              value={entity}
-              onValueChange={(next) => {
-                setEntity(next);
-                if (
-                  !placement.locations.some((l) => l.value === location && l.legalEntityId === next)
-                ) {
-                  setLocation('');
-                }
-              }}
-            >
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose" />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                {placement.entities.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel>Work location</FieldLabel>
-            <Select
-              value={location}
-              onValueChange={(next) => {
-                setLocation(next);
-                const office = placement.locations.find((l) => l.value === next);
-                if (office) setEntity(office.legalEntityId);
-              }}
-            >
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose" />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                {offices.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>Their day is this location’s, from the date below.</FieldDescription>
-          </Field>
+          <PlacementPickers
+            placement={placement}
+            entity={entity}
+            location={location}
+            onEntity={setEntity}
+            onLocation={setLocation}
+            locationHint="Their day is this location’s, from the date below."
+          />
           <DatePicker label="Effective from" value={from} onChange={setFrom} />
           {transfer ? (
             <Alert tone="info" title="This is a transfer">

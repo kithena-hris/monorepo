@@ -20,6 +20,10 @@ import {
   SelectValue,
   Stack,
   Stat,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   useBreakpoint,
   type DataColumn,
 } from '@reach/ui';
@@ -73,12 +77,19 @@ export type BulkOutcome =
   | { readonly ok: true; readonly committed: boolean; readonly rows: readonly BulkRow[] }
   | { readonly ok: false; readonly message: string };
 
+/** A page of a bulk hire: each person not started yet, from their start date. */
+export type BulkHirePage = readonly { readonly personId: string; readonly hireDate: string }[];
+
 export interface BulkEditProps {
   readonly load: Loadable<BulkEditState>;
   /** What a page would change and refuse; People keeps nothing. */
   readonly onPreview: (page: BulkEditPage) => Promise<BulkOutcome>;
   /** A page, written: one ordinary write per person. */
   readonly onCommit: (page: BulkEditPage) => Promise<BulkOutcome>;
+  /** Who a page of a bulk hire would hire and skip, and why; People keeps nothing. */
+  readonly onPreviewHire?: (hires: BulkHirePage) => Promise<BulkOutcome>;
+  /** A page, hired: each person on their own. Absent, the screen offers no hire. */
+  readonly onCommitHire?: (hires: BulkHirePage) => Promise<BulkOutcome>;
   /** Finds people for a person field. */
   readonly searchPeople?: SearchPeople;
   readonly onBack?: () => void;
@@ -98,7 +109,31 @@ export function BulkEdit({ load, searchPeople, ...props }: BulkEditProps): JSX.E
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
       <Loaded load={load} what="the people to edit">
-        {(state) => <Editor state={state} {...props} />}
+        {(state) => {
+          const { onPreviewHire, onCommitHire, ...edit } = props;
+          if (onPreviewHire === undefined || onCommitHire === undefined || state.people.length === 0) {
+            return <Editor state={state} {...edit} />;
+          }
+          return (
+            <Tabs defaultValue="edit">
+              <TabsList aria-label="What to do">
+                <TabsTrigger value="edit">Set values</TabsTrigger>
+                <TabsTrigger value="hire">Hire</TabsTrigger>
+              </TabsList>
+              <TabsContent value="edit">
+                <Editor state={state} {...edit} />
+              </TabsContent>
+              <TabsContent value="hire">
+                <Hire
+                  state={state}
+                  onPreview={onPreviewHire}
+                  onCommit={onCommitHire}
+                  {...(props.onBack === undefined ? {} : { onBack: props.onBack })}
+                />
+              </TabsContent>
+            </Tabs>
+          );
+        }}
       </Loaded>
     </PeopleSearch.Provider>
   );
@@ -117,12 +152,43 @@ const WORD = {
   held: 'Pending approval',
 } as const;
 
+/**
+ * Every page in turn, `limit` people a request; stops at the first failure
+ * and says how far it got, since what went before it was done.
+ */
+async function pages(
+  ids: readonly string[],
+  limit: number,
+  act: (ids: readonly string[]) => Promise<BulkOutcome>,
+): Promise<{ rows: BulkRow[]; committed: boolean; problem: string | null }> {
+  const rows: BulkRow[] = [];
+  let committed = false;
+  for (let at = 0; at < ids.length; at += limit) {
+    const answer = await act(ids.slice(at, at + limit));
+    if (!answer.ok) {
+      return {
+        rows,
+        committed,
+        problem:
+          rows.length === 0
+            ? answer.message
+            : `${answer.message}. Stopped after ${String(rows.length)} of ${String(ids.length)} people; the rest were not done.`,
+      };
+    }
+    committed = answer.committed;
+    rows.push(...answer.rows);
+  }
+  return { rows, committed, problem: null };
+}
+
 function Editor({
   state,
   onPreview,
   onCommit,
   onBack,
-}: Omit<BulkEditProps, 'load' | 'searchPeople'> & { readonly state: BulkEditState }): JSX.Element {
+}: Omit<BulkEditProps, 'load' | 'searchPeople' | 'onPreviewHire' | 'onCommitHire'> & {
+  readonly state: BulkEditState;
+}): JSX.Element {
   const fields = state.sections.flatMap((s) => s.fields);
   const [chosen, setChosen] = useState<readonly string[]>(fields[0] ? [fields[0].key] : []);
   const [values, setValues] = useState<Readonly<Record<string, AttributeValue>>>({});
@@ -149,23 +215,13 @@ function Editor({
   const run = async (act: BulkEditProps['onPreview']): Promise<void> => {
     setBusy(true);
     setProblem(null);
-    const rows: BulkRow[] = [];
-    let committed = false;
-    for (let at = 0; at < state.people.length; at += state.limit) {
-      const ids = state.people.slice(at, at + state.limit).map((p) => p.id);
-      const answer = await act({ ...page(), personIds: ids });
-      if (!answer.ok) {
-        setProblem(
-          rows.length === 0
-            ? answer.message
-            : `${answer.message}. Stopped after ${String(rows.length)} of ${String(state.people.length)} people; the rest were not done.`,
-        );
-        break;
-      }
-      committed = answer.committed;
-      rows.push(...answer.rows);
-    }
-    setShown(rows.length === 0 ? null : { committed, rows });
+    const done = await pages(
+      state.people.map((p) => p.id),
+      state.limit,
+      (ids) => act({ ...page(), personIds: ids }),
+    );
+    setProblem(done.problem);
+    setShown(done.rows.length === 0 ? null : { committed: done.committed, rows: done.rows });
     setBusy(false);
   };
 
@@ -355,12 +411,179 @@ function Editor({
   );
 }
 
+/**
+ * Bulk hire: the people chosen who were added without a start date, hired
+ * from one — the same for all, or one each. The preview is People hiring
+ * them and throwing it away, so who it skips and why (already employed,
+ * nowhere to work, no work email) is the commit's own answer. Each person is
+ * hired on their own: one skipped leaves the others hired.
+ */
+function Hire({
+  state,
+  onPreview,
+  onCommit,
+  onBack,
+}: {
+  readonly state: BulkEditState;
+  readonly onPreview: (hires: BulkHirePage) => Promise<BulkOutcome>;
+  readonly onCommit: (hires: BulkHirePage) => Promise<BulkOutcome>;
+  readonly onBack?: () => void;
+}): JSX.Element {
+  const [day, setDay] = useState(state.today);
+  const [each, setEach] = useState(false);
+  const [dates, setDates] = useState<Readonly<Record<string, string>>>({});
+  const [shown, setShown] = useState<{ committed: boolean; rows: readonly BulkRow[] } | null>(
+    null,
+  );
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const reset = (): void => {
+    setShown(null);
+    setProblem(null);
+  };
+  const dateOf = (id: string): string => (each ? (dates[id] ?? day) : day);
+
+  const run = async (act: (hires: BulkHirePage) => Promise<BulkOutcome>): Promise<void> => {
+    setBusy(true);
+    setProblem(null);
+    const done = await pages(
+      state.people.map((p) => p.id),
+      state.limit,
+      (ids) => act(ids.map((personId) => ({ personId, hireDate: dateOf(personId) }))),
+    );
+    setProblem(done.problem);
+    setShown(done.rows.length === 0 ? null : { committed: done.committed, rows: done.rows });
+    setBusy(false);
+  };
+  const count = (outcome: BulkRow['outcome']) =>
+    shown?.rows.filter((r) => r.outcome === outcome).length ?? 0;
+  const hired = count('changed');
+  const skipped = count('refused');
+
+  return (
+    <Stack gap={6}>
+      <PageHeader
+        title={`Hire ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}`}
+        description="People added without a start date become employees from it: active once it has begun on their calendar, starting soon until then."
+        actions={onBack === undefined ? undefined : <Button onClick={onBack}>Directory</Button>}
+      />
+      <Card className="flex flex-col gap-4 p-4">
+        <DatePicker
+          label="Start date"
+          value={day}
+          onChange={(next) => {
+            reset();
+            setDay(next ?? state.today);
+          }}
+        />
+        <Field orientation="horizontal" className="justify-start">
+          <FieldControl>
+            <Checkbox
+              checked={each}
+              onCheckedChange={(on) => {
+                reset();
+                setEach(on === true);
+              }}
+            />
+          </FieldControl>
+          <FieldLabel>Set a start date per person</FieldLabel>
+        </Field>
+        {each ? (
+          <ul className="flex flex-col gap-3" aria-label="Start date per person">
+            {state.people.map((p) => (
+              <li key={p.id}>
+                <DatePicker
+                  label={p.name}
+                  value={dateOf(p.id)}
+                  onChange={(next) => {
+                    reset();
+                    setDates((d) => ({ ...d, [p.id]: next ?? day }));
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="text-sm text-fg-muted">
+          Each date is a day on the person’s own calendar, past or future.
+        </p>
+      </Card>
+
+      {problem === null ? null : (
+        <Alert tone="danger" title="That did not go through">
+          {problem}
+        </Alert>
+      )}
+
+      {shown === null ? (
+        <div>
+          <Button
+            variant="primary"
+            loading={busy}
+            loadingLabel="Working out who would be hired"
+            onClick={() => {
+              void run(onPreview);
+            }}
+          >
+            Preview hire
+          </Button>
+        </div>
+      ) : (
+        <Stack gap={4}>
+          {shown.committed ? (
+            <Alert tone={skipped === 0 ? 'success' : 'warning'}>
+              {`Hired ${String(hired)} ${hired === 1 ? 'person' : 'people'}.`}
+              {skipped === 0
+                ? ''
+                : ` ${String(skipped)} skipped, as each says below; nothing was done for them.`}
+            </Alert>
+          ) : (
+            <Alert tone="info" title="Nobody is hired yet">
+              This is what hiring would do, person by person. Each person is hired on their own:
+              one skipped does not stop the others.
+            </Alert>
+          )}
+          <AutoGrid minItemWidth="10rem" gap={3}>
+            <Stat label={shown.committed ? 'Hired' : 'Will be hired'} value={hired} />
+            <Stat label="Skipped" value={skipped} />
+          </AutoGrid>
+          <Results rows={shown.rows} byKey={new Map()} words={HIRE_WORD} />
+          {shown.committed ? null : (
+            <div>
+              <Button
+                variant="primary"
+                disabled={hired === 0}
+                loading={busy}
+                loadingLabel="Hiring"
+                onClick={() => {
+                  void run(onCommit);
+                }}
+              >
+                {`Hire ${String(hired)} ${hired === 1 ? 'person' : 'people'}`}
+              </Button>
+            </div>
+          )}
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+const HIRE_WORD: Record<BulkRow['outcome'], string> = {
+  changed: 'Hired',
+  unchanged: 'Already set',
+  refused: 'Skipped',
+  held: 'Pending approval',
+};
+
 function Results({
   rows,
   byKey,
+  words = WORD,
 }: {
   readonly rows: readonly BulkRow[];
   readonly byKey: ReadonlyMap<string, RecordField>;
+  readonly words?: Readonly<Record<BulkRow['outcome'], string>>;
 }): JSX.Element {
   const wide = useBreakpoint('md');
   const what = (r: BulkRow): JSX.Element | null => {
@@ -394,7 +617,7 @@ function Results({
   };
   const badge = (r: BulkRow) => (
     <Badge tone={TONE[r.outcome]} size="sm">
-      {WORD[r.outcome]}
+      {words[r.outcome]}
     </Badge>
   );
   const columns: DataColumn<BulkRow>[] = [
