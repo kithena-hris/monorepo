@@ -1,4 +1,4 @@
-h1:YLaBYtrsv5p4aCyZ8XFW5tTPlliaVKDdwxVDxnk2+wI=
+h1:4Dq3CkrL3qlqHvGfQKHpNBBOsbHfyQB4/HqAFTgFf1o=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -55,3 +55,5 @@ h1:YLaBYtrsv5p4aCyZ8XFW5tTPlliaVKDdwxVDxnk2+wI=
 20260926190000_people_pay.sql h1:e7iFvh3/iPmOCUKnLvN9ZI2geGKl7g6tpxPdZUURGj0=
 20260926200000_people_status_idx_skip_scan.sql h1:RWgXI3lHBIjqWNSdYCVBDcXCkS7DNcbWRFNoW8kNcKk=
 20260926210000_tenant_administrator.sql h1:qgxXrR0cHwWS+IiAANZmTiUCHTJvmAY/BV7XeKLR63g=
+20260926220000_module_role_report.sql h1:FpG3LgfuXMH6bJGX4pBxdoidadO/vDT1w6tZtSnYX6k=
+20260926220100_people_role_grant_release_last.sql h1:ykr08+p79iyKJ77cLu/VYbFq9xa1Yw64NeSKIUu1lD4=
