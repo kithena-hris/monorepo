@@ -43,7 +43,8 @@ const INVITATIONS =
 
 /**
  * `/api/internal/admin/tenants/<uuid>/entitlements`, put: the modules the
- * company bought, the whole list (PEO-114).
+ * company bought, the whole list (PEO-114), and who administers each
+ * (`administrators`: module → account ids, the whole list for that module).
  */
 const ENTITLEMENTS =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/entitlements$/i;
@@ -55,12 +56,20 @@ const ENTITLEMENTS =
 const ADMINISTRATORS =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/administrators$/i;
 
-/** A string-to-string map from a body, or empty. */
-function stringMap(value: unknown): Record<string, string> {
+/**
+ * Module → administrators from a body: a list of strings, or one string (the
+ * older form). Anything else about an entry drops it.
+ */
+function administratorMap(value: unknown): Record<string, string | string[]> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter((e): e is [string, string] => typeof e[1] === 'string'),
-  );
+  const out: Record<string, string | string[]> = {};
+  for (const [module, given] of Object.entries(value)) {
+    if (typeof given === 'string') out[module] = given;
+    else if (Array.isArray(given) && given.every((g) => typeof g === 'string')) {
+      out[module] = given;
+    }
+  }
+  return out;
 }
 
 /** The operator acting, when the back office says. */
@@ -126,6 +135,11 @@ export interface TenantDetail {
   readonly entitlements: readonly string[] | null;
   /** What it holds: the recorded list, else the deployment's. */
   readonly effectiveEntitlements: readonly string[];
+  /**
+   * Module → the accounts the back office has named to administer it and
+   * that can still sign in (PEO-112). A module missing has nobody named.
+   */
+  readonly administrators: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface TenantCursor {
@@ -229,7 +243,7 @@ export function adminRoutes({
       // Who administers each administered module switched on (PEO-112).
       const set = await setEntitlements(tenantId, {
         entitlements: list as string[],
-        administrators: stringMap(asked?.['administrators']),
+        administrators: administratorMap(asked?.['administrators']),
         namedBy: operatorOf(asked),
       });
       if (!set.ok) {
@@ -523,7 +537,7 @@ export function adminRoutes({
         : {}),
       // Who administers each administered module switched on (PEO-112), by
       // the email of one of `admins`.
-      administrators: stringMap(body['administrators']),
+      administrators: administratorMap(body['administrators']),
       namedBy: operatorOf(body),
       address: {
         country: typeof address['country'] === 'string' ? address['country'] : '',

@@ -42,7 +42,10 @@ describe('a company’s modules', () => {
   });
 
   it('records the wizard’s choice and announces it with the company', async () => {
-    const id = await create('chosen', { entitlements: ['module.timeoff'] });
+    const id = await create('chosen', {
+      entitlements: ['module.timeoff'],
+      administrators: { 'module.timeoff': ['ada@chosen.example'] },
+    });
     const detail = await identity.call('GET', `${tenants}/${id}`);
     expect(detail.body).toMatchObject({
       entitlements: ['module.timeoff'],
@@ -56,8 +59,17 @@ describe('a company’s modules', () => {
 
   it('changes on the company page, once per real change', async () => {
     const id = await create('changing');
+    const [ada] = await identity.sql<{ id: string }[]>`
+      SELECT id FROM platform.account WHERE tenant_id = ${id}::uuid`;
     const put = (entitlements: unknown) =>
-      identity.call('PUT', `${tenants}/${id}/entitlements`, { entitlements });
+      identity.call('PUT', `${tenants}/${id}/entitlements`, {
+        entitlements,
+        // Time off is administered: switching it on names somebody (PEO-112).
+        administrators:
+          Array.isArray(entitlements) && entitlements.includes('module.timeoff')
+            ? { 'module.timeoff': [ada?.id] }
+            : {},
+      });
 
     expect((await put(['module.timeoff', 'module.people'])).body).toMatchObject({
       entitlements: ['module.people', 'module.timeoff'],

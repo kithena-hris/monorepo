@@ -78,6 +78,7 @@ export default ModuleManifest.parse({
     'identity.tenant.amended',
     'identity.tenant.entitlements_changed',
     'identity.tenant.administrator_named',
+    'identity.tenant.administrator_removed',
     'people.schema.published',
     'people.role.granted',
     'people.role.revoked',

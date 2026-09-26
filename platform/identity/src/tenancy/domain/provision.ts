@@ -54,10 +54,10 @@ export interface ProvisionRequest {
   readonly entitlements?: readonly string[];
   /**
    * Who administers each administered module switched on here, by the email
-   * of one of `admins` (PEO-112). Required for each such module: nobody is a
-   * module's administrator because they were invited first.
+   * of one or more of `admins` (PEO-112). Required for each such module:
+   * nobody is a module's administrator because they were invited first.
    */
-  readonly administrators?: Readonly<Record<string, string>>;
+  readonly administrators?: Readonly<Record<string, string | readonly string[]>>;
   /** The back-office operator creating the company. */
   readonly namedBy?: string | null;
 }
@@ -66,7 +66,7 @@ export interface ProvisionRequest {
 export type CheckedProvision = Omit<ProvisionRequest, 'entitlements' | 'administrators'> & {
   readonly timeZone: string;
   readonly entitlements: readonly ModuleEntitlement[] | null;
-  /** Module → the administrator's email, one of `admins`. */
+  /** Module → an administrator's email, one of `admins`; a module may appear more than once. */
   readonly administrators: readonly { entitlement: ModuleEntitlement; email: string }[];
 };
 
@@ -165,11 +165,14 @@ export function checkProvisionable(
   }
   for (const entitlement of entitlements ?? []) {
     if (!ADMINISTERED_MODULES.includes(entitlement)) continue;
-    const email = asked[entitlement]?.trim().toLowerCase();
-    if (email === undefined || !unique.includes(email)) {
+    const given = asked[entitlement] ?? [];
+    const emails = [
+      ...new Set((typeof given === 'string' ? [given] : given).map((e) => e.trim().toLowerCase())),
+    ];
+    if (emails.length === 0 || emails.some((email) => !unique.includes(email))) {
       return err(AdministratorRequired(entitlement));
     }
-    administrators.push({ entitlement, email });
+    for (const email of emails) administrators.push({ entitlement, email });
   }
 
   return ok({

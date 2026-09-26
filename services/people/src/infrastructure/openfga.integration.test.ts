@@ -80,6 +80,13 @@ const named = (tenantId: string, accountId: string, n: number) => ({
   payload: { entitlement: 'module.people', accountId, namedBy: null },
 });
 
+/** The back office taking one back: the same envelope, the reverse event. */
+const removed = (tenantId: string, accountId: string, n: number) => ({
+  ...named(tenantId, accountId, n),
+  eventName: 'identity.tenant.administrator_removed',
+  payload: { entitlement: 'module.people', accountId, removedBy: null },
+});
+
 const relations = (tenantId: string, accountId: string, personId: string) =>
   inTenant(tenantId, ({ tx }) =>
     fga.relations.relations(tx, tenantId, viewer(accountId), personId),
@@ -329,5 +336,19 @@ describe('OpenFGA relations for People', () => {
     );
     await relay();
     expect((await relations(ACME, MANAGER.account, OTHER.person)).isFinance).toBe(false);
+  });
+  it('grants a second named administrator and revokes them when the back office removes them', async () => {
+    expect(await handle(named(ACME, MANAGER.account, 3))).toBe('applied');
+    await relay();
+    expect(await fga.roles(ACME, MANAGER.account)).toEqual(new Set(['people_admin', 'hr']));
+
+    expect(await handle(removed(ACME, MANAGER.account, 4))).toBe('applied');
+    expect(await handle(removed(ACME, MANAGER.account, 4))).toBe('unchanged');
+    await relay();
+    expect(await fga.roles(ACME, MANAGER.account)).toEqual(new Set());
+
+    // Never the last people_admin: the company would have nobody to grant anything.
+    expect(await handle(removed(ACME, BOSS.account, 5))).toBe('unchanged');
+    expect((await fga.roles(ACME, BOSS.account)).has('people_admin')).toBe(true);
   });
 });

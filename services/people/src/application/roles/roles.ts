@@ -100,6 +100,14 @@ export interface TenantRoles {
    */
   administratorNamed(tx: Tx, named: Named): Promise<'applied' | 'unchanged'>;
   /**
+   * `identity.tenant.administrator_removed` for People: the back office takes
+   * back what naming gave, `people_admin` and `hr`, with `via: back_office`.
+   * Never the last `people_admin` — the company would be left with nobody who
+   * can grant anything — so then nothing is revoked and the company's own
+   * administrators decide. Idempotent, like naming.
+   */
+  administratorRemoved(tx: Tx, removed: Named): Promise<'applied' | 'unchanged'>;
+  /**
    * The account's access ended (PEO-109): every tenant role it holds is
    * revoked, in the transaction that ended it, by the system with the reason
    * `access_ended` — the last `people_admin` included, since a leaver
@@ -251,6 +259,42 @@ export function tenantRoles(deps: {
       }
       if (events.length === 0) return 'unchanged';
       await store.publish(tx, events);
+      return 'applied';
+    },
+
+    async administratorRemoved(tx, removed) {
+      await store.lock(tx, removed.tenantId);
+      const held = await store.holdings(tx, removed.tenantId);
+      const mine = held.get(removed.accountId);
+      if (mine === undefined) return 'unchanged';
+      const lastAdministrator =
+        mine.has('people_admin') &&
+        ![...held].some(([account, roles]) => account !== removed.accountId && roles.has('people_admin'));
+      if (lastAdministrator) return 'unchanged';
+      const roles = (['people_admin', 'hr'] as const).filter((role) => mine.has(role));
+      if (roles.length === 0) return 'unchanged';
+      for (const role of roles) await store.revoke(tx, removed.tenantId, removed.accountId, role);
+      await store.publish(
+        tx,
+        roles.map((role) =>
+          event(
+            'people.role.revoked',
+            {
+              tenantId: removed.tenantId,
+              correlationId: removed.correlationId,
+              causationId: removed.causationId,
+              actor: { kind: 'system', process: PROCESS },
+            },
+            {
+              accountId: removed.accountId,
+              role,
+              by: null,
+              via: 'back_office',
+              reason: 'Removed as a People administrator in the back office',
+            },
+          ),
+        ),
+      );
       return 'applied';
     },
 

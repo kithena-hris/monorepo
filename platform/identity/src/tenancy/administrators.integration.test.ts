@@ -118,4 +118,89 @@ describe('naming who administers People', () => {
     expect(refused.status).toBe(422);
     expect(refused.body).toMatchObject({ code: 'MODULE_NOT_ENABLED' });
   });
+  it('keeps several administrators per module, adds and removes them, and never the last', async () => {
+    const created = await identity.call(
+      'POST',
+      tenants,
+      companyRequest('several', {
+        admins: ['ada@several.example', 'grace@several.example', 'alan@several.example'],
+        entitlements: ['module.people', 'module.timeoff'],
+        administrators: {
+          'module.people': ['ada@several.example', 'grace@several.example'],
+          'module.timeoff': ['ada@several.example', 'grace@several.example'],
+        },
+        operatorId: OPERATOR,
+      }),
+    );
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    const id = String(created.body['tenantId']);
+    const [ada, grace, alan] = await Promise.all(
+      ['ada', 'grace', 'alan'].map((who) => accountOf(id, `${who}@several.example`)),
+    );
+    const detail = async () =>
+      (await identity.call('GET', `${tenants}/${id}`)).body['administrators'] as Record<
+        string,
+        string[]
+      >;
+    expect(await detail()).toEqual({ 'module.people': [ada, grace], 'module.timeoff': [ada, grace] });
+
+    const put = (administrators: Record<string, unknown>) =>
+      identity.call('PUT', `${tenants}/${id}/entitlements`, {
+        entitlements: ['module.people', 'module.timeoff'],
+        administrators,
+        operatorId: OPERATOR,
+      });
+
+    // Grace off People, Alan on; Time off untouched.
+    const changed = await put({ 'module.people': [ada, alan] });
+    expect(changed.status, JSON.stringify(changed.body)).toBe(200);
+    expect(changed.body['administrators']).toEqual({
+      'module.people': [ada, alan],
+      'module.timeoff': [ada, grace],
+    });
+    const removed = await identity.sql<{ payload: Record<string, unknown> }[]>`
+      SELECT envelope -> 'payload' AS payload FROM platform.outbox
+       WHERE tenant_id = ${id}::uuid AND event_name = 'identity.tenant.administrator_removed'`;
+    expect(removed.map((r) => r.payload)).toEqual([
+      { entitlement: 'module.people', accountId: grace, removedBy: OPERATOR },
+    ]);
+
+    // Sending the same list again raises nothing.
+    const before = (await named(id)).length;
+    expect((await put({ 'module.people': [ada, alan] })).status).toBe(200);
+    expect(await named(id)).toHaveLength(before);
+
+    const last = await put({ 'module.people': [], 'module.timeoff': [ada] });
+    expect(last.status).toBe(422);
+    expect(last.body).toMatchObject({
+      code: 'LAST_ADMINISTRATOR',
+      path: ['administrators', 'module.people'],
+    });
+    expect(await detail()).toEqual({
+      'module.people': [ada, alan],
+      'module.timeoff': [ada, grace],
+    });
+  });
+
+  it('forgets a naming when the invitation behind it is withdrawn', async () => {
+    const created = await identity.call(
+      'POST',
+      tenants,
+      companyRequest('withdrawn', {
+        admins: ['ada@withdrawn.example', 'grace@withdrawn.example'],
+        entitlements: ['module.people'],
+        administrators: { 'module.people': ['ada@withdrawn.example', 'grace@withdrawn.example'] },
+      }),
+    );
+    const id = String(created.body['tenantId']);
+    const grace = await accountOf(id, 'grace@withdrawn.example');
+    const gone = await identity.call(
+      'DELETE',
+      `${tenants}/${id}/accounts/${grace}/invitation`,
+    );
+    expect(gone.status).toBe(204);
+    expect((await identity.call('GET', `${tenants}/${id}`)).body['administrators']).toEqual({
+      'module.people': [await accountOf(id, 'ada@withdrawn.example')],
+    });
+  });
 });
