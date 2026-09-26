@@ -1,0 +1,13 @@
+# Local dev: composed from the checked-in SDL, so the router does not race the
+# subgraphs at start-up. The router runs in Docker, so it reaches the services
+# on the host through host.docker.internal.
+version: 1
+subgraphs:
+  - name: people
+    routing_url: http://host.docker.internal:4001/graphql
+    schema:
+      file: ../../services/people/schemas/people.graphql
+  - name: timeoff
+    routing_url: http://host.docker.internal:4002/graphql
+    schema:
+      file: ../../services/timeoff/schemas/timeoff.graphql

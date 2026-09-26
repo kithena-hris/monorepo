@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wgc router compose -i graph.yaml -o supergraph.json && router",
+    "dev": "bash scripts/dev.sh",
     "compose": "wgc router compose -i graph.yaml -o supergraph.json",
     "check": "wgc router compose -i graph.check.yaml -o supergraph.json",
     "typecheck": "tsc --noEmit",
