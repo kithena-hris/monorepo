@@ -1111,10 +1111,35 @@ Ordered, but none of it blocks Phase 1 shipping.
       (`MERGE_ABSORBS_EMPLOYMENT`): two employment periods on one human need
       somebody to decide which start, number and pay line are true, which is
       payroll's call. Found in PEO-074. _(PRD §12.4)_
-- [ ] A merge's undo. Nothing is destroyed — the tombstone keeps its
+- [x] A merge's undo. Nothing is destroyed — the tombstone keeps its
       history, values and prior state, the decision row names what moved —
       but there is no `unmerge` use case; today a wrong merge is corrected
       value by value on the survivor. Found in PEO-074.
+      _Landed as migration 20260927143500 (`duplicate_decision.moved`,
+      `reason`, `reverses`, decision `unmerged`, one undo per merge). A
+      merge now records the history rows it wrote on the survivor, the keys
+      the survivor held nothing for, and the account it moved — ids, never
+      values; a merge from before that is refused `UNMERGE_UNRECORDED`.
+      `unmergePerson` (`POST /v1/people/{id}/unmerge`, the id the absorbed
+      record's), HR only, never on one's own record, with a reason: the
+      tombstone returns to `provisional` with its account (when the
+      survivor still holds it) and its unique claims (sealed ones re-hashed
+      from `reveal`); each value the merge wrote that is still last on the
+      survivor's timeline is corrected back to what stood before it —
+      `attribute_corrected` superseding the merge's row, from its effective
+      day, applied without approval since it restores an approved state;
+      a value changed since, now mirrored or sealed, or held before with no
+      row to say what, is **kept** and named, not refused. Refused
+      `UNMERGE_ERASED` once retention redacted the tombstone and
+      `UNMERGE_SURVIVOR_GONE` while the survivor is itself merged or
+      discarded (undo the later merge first; not followed transitively).
+      Raises `status_changed` (`unmerged`) and `people.person.unmerged`
+      (`supersedes` the merge decision, reversed and kept keys); the
+      decision row makes the pair a candidate again. OpenFGA re-syncs both.
+      Screen: "Merged records" under `/people/duplicates`, each with an
+      "Undo merge" dialog listing what goes back and what is kept. Identifier
+      reviews the merge superseded are not reopened; a sealed value is
+      re-checked the next time it is written._
 - [ ] DSAR and retention follow `merged_into`. A tombstone's history is the
       survivor's human, and neither the DSAR export nor the retention clock
       reads it yet. Found in PEO-074. _(PRD §12)_
@@ -1848,11 +1873,24 @@ it is written down here rather than left in a PR description.
       test suites: Okta's SCIM 2.0 spec tests, Entra's SCIM validator), and
       record what each sent that the build did not expect. Found in PEO-072.
       *(PRD §13.5)*
-- [ ] A SCIM POST for somebody already in People (HR-created, or provisioned
+- [x] A SCIM POST for somebody already in People (HR-created, or provisioned
       by identity) creates a second record or is refused `uniqueness`. HR
       adopting the existing record into the connection — and whether that
       should ever be automatic — needs deciding; PEO-074's duplicate
       detection is the nearest thing. Found in PEO-072. *(PRD §13.5, §12.4)*
+      _Decided 2026-09-27 and landed: a POST whose work email (the User's
+      work email, else an email-shaped `userName`), trimmed and
+      case-insensitive, matches exactly one live record that no connection
+      links adopts it — linked, only the attributes the connection owns
+      written through the ordinary sync (PEO-073), `adopted_by_external`
+      (`matchedOn: work_email`) before the link's `synced_from_external`,
+      201 with that record's id. Zero matches creates as before; several,
+      or the one linked to any connection, creates a record and the
+      duplicate queue offers each pair as "SCIM provisioned, same work
+      email" (`scim_work_email`, computed from `scim_link`, nothing stored).
+      A merged or discarded record never matches. A record whose email only
+      the unmapped `userName` carries is flagged by `userName`; an IdP work
+      email that is neither mapped nor the `userName` is not._
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*

@@ -838,6 +838,23 @@ type LocationZone {
 }
 
 """
+A merge still standing, and what undoing it would reverse and keep. Labels, never values.
+"""
+type MergedPair {
+  absorbedId: ID
+  absorbedName: String
+  """The sign-in the merge moved: returned, kept, or null when none moved."""
+  account: String
+  kept: [String!]
+  mergedAt: String
+  """Why this merge cannot be undone; null when it can."""
+  refusal: String
+  reversed: [String!]
+  survivorId: ID
+  survivorName: String
+}
+
+"""
 Minor units as a string: an Int is 32 bits, and money is never a float.
 """
 type MoneyAttribute {
@@ -1078,6 +1095,10 @@ type Mutation {
     personId: ID!
     reason: LeavingReason!
   ): Person
+  """
+  Undo the merge that absorbed this record: provisional again with its sign-in back, the values copied onto the survivor corrected back unless changed since; HR only.
+  """
+  unmergePerson(idempotencyKey: String!, personId: ID!, reason: String!): Person
   updateLegalEntity(archived: Boolean, id: ID!, idempotencyKey: String!, name: String, timeZone: String): LegalEntity
   updateLocation(archived: Boolean, id: ID!, idempotencyKey: String!, name: String): Location
   updatePeopleSettings(cohortMinimum: Int, defaultTimeZone: String, idempotencyKey: String!): PeopleSettings
@@ -1259,6 +1280,7 @@ HR’s queue of suspected duplicates, strongest first; a merge is always HR’s 
 type PeopleDuplicates {
   comparison: DuplicateComparison
   items: [DuplicatePair!]
+  merges: [MergedPair!]
 }
 
 type PeopleExport {

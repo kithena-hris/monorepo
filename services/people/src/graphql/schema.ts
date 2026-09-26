@@ -1162,6 +1162,18 @@ builder.mutationFields((t) => ({
     resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
       move(ctx, 'mergePerson', personId, sent(rest), key),
   }),
+  unmergePerson: t.field({
+    type: Person,
+    description:
+      'Undo the merge that absorbed this record: provisional again with its sign-in back, the values copied onto the survivor corrected back unless changed since; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      reason: t.arg.string({ required: true }),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, reason }, ctx) =>
+      move(ctx, 'unmergePerson', personId, { reason }, key),
+  }),
 }));
 
 /* -------------------------------------------------------------- roles -- */

@@ -771,6 +771,7 @@ describe('at 390×844, with a finger', () => {
         onBack={vi.fn()}
         onMerge={ok}
         onDismiss={ok}
+        onUnmerge={ok}
       />,
     );
   });

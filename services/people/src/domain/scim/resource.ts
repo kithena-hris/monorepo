@@ -20,7 +20,7 @@ export { CORE_USER, CORE_GROUP, ENTERPRISE_USER, KITHENA_USER } from './paths.js
  * work email.
  */
 
-const WORK_EMAIL = 'emails[type eq "work"].value';
+export const WORK_EMAIL = 'emails[type eq "work"].value';
 const PHONES = {
   'phoneNumbers[type eq "work"].value': 'work',
   'phoneNumbers[type eq "mobile"].value': 'mobile',

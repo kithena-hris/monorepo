@@ -479,6 +479,11 @@ const STATUS: Record<string, number> = {
   MERGE_TOMBSTONE: 409,
   MERGE_TWO_ACCOUNTS: 409,
   MERGE_HAS_REPORTS: 409,
+  // A merge's undo the records' states refuse.
+  UNMERGE_NOT_MERGED: 409,
+  UNMERGE_ERASED: 409,
+  UNMERGE_SURVIVOR_GONE: 409,
+  UNMERGE_UNRECORDED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
   // PEO-112: a grant to oneself, and the last administrator.
   SELF_GRANT: 403,

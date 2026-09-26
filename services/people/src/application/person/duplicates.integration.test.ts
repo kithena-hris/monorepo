@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
-import { fixedClock } from '@kithena/domain-kit';
+import { fixedClock, type Clock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { inTenantResult, personAccess, type Asking } from './person-access.js';
@@ -48,7 +48,17 @@ const SIGNED_UP = '00000000-0000-4000-8000-0000000000a2';
 const LEAVER = '00000000-0000-4000-8000-0000000000a3';
 const OTHER = '00000000-0000-4000-8000-0000000000a4';
 const ADA_ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
-const clock = fixedClock('2026-09-26T09:00:00.000Z');
+/** Fixed, and moved on by the undo's tests so what came after a merge sorts after it. */
+let now = fixedClock('2026-09-26T09:00:00.000Z');
+const clock: Clock = {
+  now: () => now.now(),
+  today: (zone) => now.today(zone),
+  instant: () => now.instant(),
+  date: (zone) => now.date(zone),
+};
+const at = (iso: string) => {
+  now = fixedClock(iso);
+};
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 const NIF = '12345678Z';
 
@@ -143,6 +153,9 @@ beforeAll(async () => {
     '20260924330000_people_identifier_review.sql',
     '20260926230100_people_identifier_review_held.sql',
     '20260926143000_people_duplicates.sql',
+    '20260923140000_people_retention.sql',
+    '20260926160000_people_scim.sql',
+    '20260927143500_people_unmerge.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -389,5 +402,164 @@ describe('merging', () => {
   it('lets Ada sign in to the survivor', async () => {
     const own = await inTenant(ACME, ({ tx }) => drizzlePersonReader().personOf(tx, ACME, ADA_ACCOUNT));
     expect(own).toBe(HR_RECORD);
+  });
+});
+
+describe('undoing a merge', () => {
+  const SURVIVOR = '00000000-0000-4000-8000-0000000000a5';
+  const ABSORBED = '00000000-0000-4000-8000-0000000000a6';
+  const GRACE_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
+  const REASON = 'Two cousins with one email alias, not one person';
+  const options = (personId: string, viewer = hr) =>
+    inTenantResult(inTenant, ACME, (tx) => people.unmergeOptions(tx, { ...as(viewer), personId }));
+  const unmerge = (personId: string, reason = REASON, viewer = hr) =>
+    inTenantResult(inTenant, ACME, (tx) => people.unmerge(tx, { ...as(viewer), personId, reason }));
+  const write = (personId: string, changes: Record<string, unknown>) =>
+    inTenantResult(inTenant, ACME, (tx) => people.update(tx, { ...as(hr), personId, changes }));
+  const row = async (id: string) =>
+    [
+      ...(await admin.execute(sql`
+        SELECT status, merged_into, identity_account_id, given_name, family_name
+          FROM people.person WHERE id = ${id}::uuid`)),
+    ][0];
+
+  it('keeps what a merge made before history said what stood there, and refuses a value now held twice', async () => {
+    // The merge above: HR_RECORD's name had no history row, and it has since taken Ada's NIF.
+    const undo = await options(SIGNED_UP);
+    expect(undo.ok && undo.value).toMatchObject({
+      survivorId: HR_RECORD,
+      refusal: null,
+      reversed: [],
+      kept: ['given_name'],
+      account: 'returned',
+    });
+    const refused = await unmerge(SIGNED_UP);
+    expect(!refused.ok && refused.error.code).toBe('UNIQUE_VALUE_TAKEN');
+    expect(await row(SIGNED_UP)).toMatchObject({ status: 'merged', merged_into: HR_RECORD });
+  });
+
+  it('reverses what the merge moved, keeps what changed since, and gives the sign-in back', async () => {
+    at('2026-09-27T09:00:00.000Z');
+    await create(SURVIVOR, 'active', null, {});
+    await create(ABSORBED, 'provisional', GRACE_ACCOUNT, {});
+    expect((await write(SURVIVOR, { given_name: 'Grace', family_name: 'Hopper', work_email: 'gh@acme.test' })).ok).toBe(true);
+    expect((await write(ABSORBED, { given_name: 'Gracie', family_name: 'Hopper-Smith', work_email: 'GH@acme.test' })).ok).toBe(true);
+    at('2026-09-27T10:00:00.000Z');
+    expect((await merge(SURVIVOR, ABSORBED, ['given_name', 'family_name'])).ok).toBe(true);
+    at('2026-09-27T11:00:00.000Z');
+    expect((await write(SURVIVOR, { family_name: 'Hopper-Jones' })).ok).toBe(true);
+    at('2026-09-27T12:00:00.000Z');
+
+    const undo = await options(ABSORBED);
+    expect(undo.ok && undo.value).toMatchObject({
+      survivorId: SURVIVOR,
+      refusal: null,
+      reversed: ['given_name'],
+      kept: ['family_name'],
+      account: 'returned',
+    });
+    const byAda = await unmerge(ABSORBED, REASON, ada);
+    expect(!byAda.ok && byAda.error.code).toBe('FORBIDDEN');
+    const silent = await unmerge(ABSORBED, '  ');
+    expect(!silent.ok && silent.error.code).toBe('VALUE_INVALID');
+
+    const undone = await unmerge(ABSORBED);
+    expect(undone.ok).toBe(true);
+    expect(await row(ABSORBED)).toEqual({
+      status: 'provisional',
+      merged_into: null,
+      identity_account_id: GRACE_ACCOUNT,
+      given_name: 'Gracie',
+      family_name: 'Hopper-Smith',
+    });
+    expect(await row(SURVIVOR)).toEqual({
+      status: 'active',
+      merged_into: null,
+      identity_account_id: null,
+      given_name: 'Grace',
+      family_name: 'Hopper-Jones',
+    });
+    const own = await inTenant(ACME, ({ tx }) => drizzlePersonReader().personOf(tx, ACME, GRACE_ACCOUNT));
+    expect(own).toBe(ABSORBED);
+  });
+
+  it('corrects rather than overwrites: the merge’s row is superseded, from the day it took effect', async () => {
+    const rows = [
+      ...(await admin.execute(sql`
+        SELECT id, value, effective_from::text AS effective_from, supersedes
+          FROM people.person_attribute_history
+         WHERE person_id = ${SURVIVOR}::uuid AND attribute_key = 'given_name'
+         ORDER BY recorded_at`)),
+    ];
+    expect(rows.map((r) => r['value'])).toEqual(['Grace', 'Gracie', 'Grace']);
+    expect(rows[2]).toMatchObject({ supersedes: rows[1]?.['id'], effective_from: rows[1]?.['effective_from'] });
+    expect(await payloads('people.person.attribute_corrected')).toContainEqual(
+      expect.objectContaining({
+        personId: SURVIVOR,
+        supersedes: rows[1]?.['id'],
+        reason: `Merge undone: ${REASON}`,
+      }),
+    );
+  });
+
+  it('says so, naming the merge it reverses, and records the decision', async () => {
+    const [decision] = [
+      ...(await admin.execute(sql`
+        SELECT id FROM people.duplicate_decision WHERE decision = 'merged' AND absorbed_id = ${ABSORBED}::uuid`)),
+    ];
+    expect(await payloads('people.person.unmerged')).toEqual([
+      {
+        survivingPersonId: SURVIVOR,
+        absorbedPersonId: ABSORBED,
+        supersedes: decision?.['id'],
+        reason: REASON,
+        attributesReversed: ['given_name'],
+        attributesKept: ['family_name'],
+        identityAccountId: GRACE_ACCOUNT,
+      },
+    ]);
+    expect(await payloads('people.person.status_changed')).toContainEqual({
+      personId: ABSORBED,
+      previous: 'merged',
+      next: 'provisional',
+      reason: 'unmerged',
+    });
+    const rows = await admin.execute(sql`
+      SELECT decision, reason, reverses, attributes_taken, moved
+        FROM people.duplicate_decision WHERE decision = 'unmerged'`);
+    expect([...rows]).toEqual([
+      {
+        decision: 'unmerged',
+        reason: REASON,
+        reverses: decision?.['id'],
+        attributes_taken: ['given_name'],
+        moved: { kept: ['family_name'], accountKept: false },
+      },
+    ]);
+  });
+
+  it('offers the pair for review again, and refuses the same undo twice', async () => {
+    const listed = await queue();
+    expect(listed.ok && listed.value.map((c) => c.personIds)).toContainEqual([SURVIVOR, ABSORBED]);
+    const again = await unmerge(ABSORBED);
+    expect(!again.ok && again.error.code).toBe('UNMERGE_NOT_MERGED');
+  });
+
+  it('is refused once retention erased the tombstone, and while the survivor is itself merged away', async () => {
+    const [x, y, z] = ['a7', 'a8', 'a9'].map((n) => `00000000-0000-4000-8000-0000000000${n}`);
+    for (const id of [x, y, z] as string[]) await create(id, 'provisional', null, {});
+    expect((await write(y as string, { given_name: 'Yan' })).ok).toBe(true);
+    expect((await write(x as string, { given_name: 'Xan' })).ok).toBe(true);
+    expect((await merge(x as string, y as string)).ok).toBe(true);
+    expect((await merge(z as string, x as string)).ok).toBe(true);
+    const gone = await unmerge(y as string);
+    expect(!gone.ok && gone.error.code).toBe('UNMERGE_SURVIVOR_GONE');
+
+    await admin.execute(sql`
+      UPDATE people.person_attribute_history
+         SET value = NULL, redacted_at = now(), redaction_reason = 'retention'
+       WHERE person_id = ${x as string}::uuid`);
+    const refused = await options(x as string);
+    expect(refused.ok && refused.value.refusal?.code).toBe('UNMERGE_ERASED');
   });
 });

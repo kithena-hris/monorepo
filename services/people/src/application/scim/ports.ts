@@ -94,6 +94,16 @@ export interface ScimStore {
     claim: { userName: string; externalId: string | null; except: string | null },
   ): Promise<'userName' | 'externalId' | null>;
   putLink(tx: Tx, tenantId: string, connectionId: string, link: ScimLink): Promise<void>;
+  /**
+   * Live records (never merged or discarded) whose work email is this one,
+   * trimmed and case-insensitively, and whether any connection already links
+   * each. At most a few: the caller only needs to tell one from several.
+   */
+  byWorkEmail(
+    tx: Tx,
+    tenantId: string,
+    email: string,
+  ): Promise<readonly { readonly personId: string; readonly linked: boolean }[]>;
   /** The link gone, and the person out of this connection's groups. */
   unlink(tx: Tx, tenantId: string, connectionId: string, personId: string): Promise<void>;
 
