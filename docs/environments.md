@@ -466,18 +466,17 @@ REST API and the published schema artifact (`PEOPLE_PUBLIC_URL/v1/schema/version
 §13.4): a customer integration reaching `/v1/*` needs its own tunnel route when
 it is wanted, and deciding which paths are public is that change's job.
 
-**SCIM (PEO-072) is the next public path, and it is not routed yet.** People
+**SCIM (PEO-072) is routed in production (2026-09-26).** People
 serves it at `/scim/v2/*` on its own port and authenticates it itself, with
 each connection's bearer token — an identity provider holds no user token, so
 the router cannot front it. The integrations screen shows the base URL as
 `PEOPLE_SCIM_URL`, else `PEOPLE_PUBLIC_URL` + `/scim/v2`
-(`https://api.kithena.com/scim/v2` in production). Until the route below
-exists, a provider pointed at it reaches the router and gets its 401. To do,
-by an operator, not by a deploy:
+(`https://api.kithena.com/scim/v2` in production). The route is tunnel
+configuration, set by an operator rather than by a deploy:
 
-- [ ] Add the public hostname rule `api.kithena.com`, path `^/scim/v2/` →
+- [x] Add the public hostname rule `api.kithena.com`, path `^/scim/v2/` →
       `http://people:4001`, **above** the router's catch-all, on
-      `kithena-production` (and `api.staging.kithena.com` on
+      `kithena-production` (done: tunnel configuration version 2; and `api.staging.kithena.com` on
       `kithena-staging`). In the dashboard (step 5 below), or through
       Cloudflare's API for a remotely managed tunnel: read the current
       ingress with `GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations`,
@@ -857,7 +856,7 @@ lands.
    order:
    - `api.kithena.com`, path `^/v1/exports/files/` → `http://people:4001`
    - `api.kithena.com`, path `^/scim/v2/` → `http://people:4001` (SCIM,
-     PEO-072; not yet added — see the checklist above)
+     PEO-072)
    - `api.kithena.com` (no path) → `http://router:4000`
 
    (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.
