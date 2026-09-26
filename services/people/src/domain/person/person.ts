@@ -768,6 +768,8 @@ export class Person extends AggregateRoot<string> {
     schemaVersion: number,
     ctx: EventContext,
     effectiveFrom: string | null,
+    /** Keys that require approval, applied without it by HR's choice (PEO-077). */
+    appliedWithoutApproval: readonly string[] = [],
   ): Result<void> {
     if (this.#status === 'terminated' || this.#status === 'discarded') {
       return err(InvalidTransition(this.#status, 'edited'));
@@ -778,7 +780,15 @@ export class Person extends AggregateRoot<string> {
 
     this.#raise(
       'people.person.profile_updated',
-      { personId: this.id, identityAccountId: this.#identityAccountId, changed, schemaVersion },
+      {
+        personId: this.id,
+        identityAccountId: this.#identityAccountId,
+        changed,
+        schemaVersion,
+        ...(appliedWithoutApproval.length === 0
+          ? {}
+          : { appliedWithoutApproval: [...appliedWithoutApproval] }),
+      },
       ctx,
       effectiveFrom,
     );
@@ -851,12 +861,20 @@ export class Person extends AggregateRoot<string> {
     reason: string | null,
     ctx: EventContext,
     effectiveFrom: string,
+    /** A correction that requires approval, applied without it by HR's choice (PEO-077). */
+    appliedWithoutApproval = false,
   ): Result<void> {
     if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'corrected'));
 
     this.#raise(
       'people.person.attribute_corrected',
-      { personId: this.id, attribute, supersedes, reason },
+      {
+        personId: this.id,
+        attribute,
+        supersedes,
+        reason,
+        ...(appliedWithoutApproval ? { appliedWithoutApproval: true } : {}),
+      },
       ctx,
       effectiveFrom,
     );

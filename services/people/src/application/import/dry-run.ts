@@ -200,6 +200,12 @@ export interface DryRunInput {
   /** A resolved mapping: nothing left in review, nothing refused. */
   readonly mapping: readonly ColumnMapping[];
   readonly dateOrder?: DateOrder;
+  /**
+   * Write values that require approval straight through (PEO-077). HR's
+   * alone: the write path refuses anybody else, row by row, and each row's
+   * event records the keys it applied this way.
+   */
+  readonly applySensitiveWithoutApproval?: boolean;
 }
 
 const isSystemColumn = (key: string) => Object.hasOwn(SYSTEM_COLUMNS, key);

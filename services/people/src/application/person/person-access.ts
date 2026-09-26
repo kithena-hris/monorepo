@@ -60,6 +60,7 @@ import type {
   Viewer,
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
+import { approvedOf, holdChange, holds, type Holding } from './pending-changes.js';
 import { countryOf, factsOf } from './subject.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 import {
@@ -132,12 +133,25 @@ export interface PersonAccessDeps {
    * still returns its findings and nothing is queued.
    */
   readonly reviews?: IdentifierReviews;
+  /**
+   * Changes held for approval (PEO-077). Absent — tests about something
+   * else — nothing is held and every value is written; every wiring that
+   * serves people passes it.
+   */
+  readonly approvals?: Holding;
 }
 
 export interface Asking {
   readonly tenantId: string;
   readonly viewer: Viewer;
   readonly correlationId: string;
+  /**
+   * Write values that require approval straight through, recorded on the
+   * event as applied without it (PEO-077): the import's "apply sensitive
+   * values without approval", and bulk edit's. HR's alone; anybody else
+   * asking is refused.
+   */
+  readonly applySensitiveWithoutApproval?: boolean;
 }
 
 export interface PersonView {
@@ -151,6 +165,17 @@ export interface PersonView {
    * identifier it carried (PEO-125). A warning, never a refusal.
    */
   readonly findings?: readonly AttributeFindings[];
+  /**
+   * On a write only: values it held for approval rather than wrote (PEO-077).
+   * `attributes` still reads what is in force.
+   */
+  readonly held?: readonly HeldChange[];
+}
+
+/** A value a write held for approval instead of writing (PEO-077). */
+export interface HeldChange {
+  readonly changeId: string;
+  readonly attributeKey: string;
 }
 
 /** What an encrypted value reads as. The plaintext has its own, audited, path. */
@@ -206,6 +231,7 @@ export interface PersonAccess {
     tx: Tx,
     asking: On<{ readonly attributeKey?: string }>,
   ): Promise<Result<readonly HistoryEntry[]>>;
+  /** A correction to a field that requires approval is held: `{ held }`, and nothing is written. */
   correct(
     tx: Tx,
     asking: On<{
@@ -213,7 +239,7 @@ export interface PersonAccess {
       readonly value: unknown;
       readonly reason: string | null;
     }>,
-  ): Promise<Result<CorrectedEntry>>;
+  ): Promise<Result<CorrectedEntry | { readonly held: HeldChange }>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
   /**
    * Confirm a provisional record as an employee, from a start date. The one
@@ -488,6 +514,18 @@ const SYSTEM_RELATIONS: ViewerRelations = {
   isAdmin: false,
 };
 const EFFECTIVE_ACTOR: Actor = { kind: 'system', process: 'people-effective' };
+/**
+ * An approved change is written with the reach its requester had when they
+ * asked (PEO-077): the write was checked then, and only that one key is in it.
+ */
+const APPROVED_RELATIONS: ViewerRelations = {
+  isSelf: true,
+  isManager: true,
+  isInManagerChain: true,
+  isHr: true,
+  isFinance: true,
+  isAdmin: true,
+};
 
 const NotPublished = () =>
   failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet');
@@ -531,6 +569,35 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
   const actorOf = (asking: Asking): Actor =>
     systemOf(asking) ?? { kind: 'user', userId: asking.viewer.accountId };
 
+  /** Who the write is as: the resolver's answer, or the reach of a system or approved write. */
+  const writeRelations = (tx: Tx, asking: Asking, personId: string): Promise<ViewerRelations> =>
+    approvedOf(asking) !== undefined
+      ? Promise.resolve(APPROVED_RELATIONS)
+      : systemOf(asking) !== undefined
+        ? Promise.resolve(SYSTEM_RELATIONS)
+        : deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
+
+  /**
+   * What a write does with values that require approval (PEO-077): hold them,
+   * write them because HR said so (`bypassed`), or write them as any other —
+   * a system process, an approval being applied, or no holding wired.
+   */
+  function approvalMode(
+    asking: Asking,
+    relations: ViewerRelations,
+  ): Result<'hold' | 'bypass' | 'write'> {
+    if (asking.applySensitiveWithoutApproval === true && !relations.isHr) {
+      return err(
+        failure('FORBIDDEN', 'Only HR applies a value that needs approval without it', [
+          'applySensitiveWithoutApproval',
+        ]),
+      );
+    }
+    if (deps.approvals === undefined) return ok('write');
+    if (systemOf(asking) !== undefined || approvedOf(asking) !== undefined) return ok('write');
+    return ok(asking.applySensitiveWithoutApproval === true ? 'bypass' : 'hold');
+  }
+
   /** After a write: the record's completeness, judged again in the same transaction. */
   async function rejudge(
     tx: Tx,
@@ -554,7 +621,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       newEventId: eventId === undefined ? deps.newId : () => eventId,
       actor: actorOf(asking),
       correlationId: asking.correlationId,
-      causationId: null,
+      // An approved change is caused by the decision that let it through (PEO-077).
+      causationId: approvedOf(asking)?.causationId ?? null,
     };
   }
 
@@ -824,10 +892,9 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
     if (!person) return err(PersonNotFound());
 
-    const relations =
-      systemOf(asking) === undefined
-        ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
-        : SYSTEM_RELATIONS;
+    const relations = await writeRelations(tx, asking, asking.personId);
+    const mode = approvalMode(asking, relations);
+    if (!mode.ok) return mode;
 
     if (asking.effectiveFrom !== undefined && !CALENDAR_DATE.test(asking.effectiveFrom)) {
       return err(failure('VALUE_INVALID', 'effectiveFrom is a calendar date', ['effectiveFrom']));
@@ -859,14 +926,46 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // Every value checked before anything is written, so a bad sixth field
     // does not leave five claims behind.
     const accepted: [AttributeDefinition, unknown][] = [];
+    const heldBack: [AttributeDefinition, unknown][] = [];
     const checks: Carried[] = [];
     for (const [key, proposed] of Object.entries(allowed)) {
       const definition = byKey.get(key);
       if (!definition) continue; // partitionWrites refused unknown keys already
       const valid = validate(definition, proposed, day);
       if (!valid.ok) return valid;
+      // Held for approval (PEO-077): checked like every value, then recorded
+      // apart and left out of everything below — no claim, no review, no row.
+      if (mode.value === 'hold' && holds(definition)) {
+        heldBack.push([definition, valid.value.value]);
+        continue;
+      }
       checks.push([definition, valid.value.check]);
       accepted.push([definition, valid.value.value]);
+    }
+    const bypassed =
+      mode.value === 'bypass' ? accepted.filter(([d]) => holds(d)).map(([d]) => d.key) : [];
+
+    const held: HeldChange[] = [];
+    for (const [definition, value] of heldBack) {
+      const kept = await holdChange(tx, deps.approvals as Holding, {
+        tenantId: asking.tenantId,
+        personId: asking.personId,
+        definition,
+        value,
+        effectiveFrom: definition.effectiveDated ? effectiveFrom : day,
+        actor: actorOf(asking),
+        requestedBy: asking.viewer.accountId,
+        correlationId: asking.correlationId,
+        kind: 'value',
+        supersedes: null,
+        reason: null,
+      });
+      if (!kept.ok) return kept;
+      held.push({ changeId: kept.value.approval.id, attributeKey: definition.key });
+    }
+    // Everything this write carried is waiting on HR: the record is as it was.
+    if (accepted.length === 0 && held.length > 0) {
+      return ok({ ...(await view(tx, asking, person, version, relations)), held });
     }
 
     const legalEntityId =
@@ -977,6 +1076,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       version.version,
       contextFor(asking, eventId),
       effectiveFrom,
+      bypassed,
     );
     if (!raised.ok) return raised;
 
@@ -1068,7 +1168,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           { ...asking, changes: { employee_number: next }, effectiveFrom },
           tellIdentity,
         );
-        return numbered.ok ? ok({ ...numbered.value, findings }) : numbered;
+        return numbered.ok
+          ? ok({
+              ...numbered.value,
+              findings,
+              ...(held.length === 0 ? {} : { held: [...held, ...(numbered.value.held ?? [])] }),
+            })
+          : numbered;
       }
     }
 
@@ -1077,10 +1183,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
     if (!after) return err(PersonNotFound());
     const now =
-      systemOf(asking) === undefined
+      systemOf(asking) === undefined && approvedOf(asking) === undefined
         ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
         : SYSTEM_RELATIONS;
-    return ok({ ...(await view(tx, asking, after, version, now)), findings });
+    return ok({
+      ...(await view(tx, asking, after, version, now)),
+      findings,
+      ...(held.length === 0 ? {} : { held }),
+    });
   }
 
   /**
@@ -1549,17 +1659,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly value: unknown;
         readonly reason: string | null;
       },
-    ): Promise<Result<CorrectedEntry>> {
+    ): Promise<Result<CorrectedEntry | { readonly held: HeldChange }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
       if (!person) return err(PersonNotFound());
-      const relations = await deps.relations.relations(
-        tx,
-        asking.tenantId,
-        asking.viewer,
-        asking.personId,
-      );
+      const relations = await writeRelations(tx, asking, asking.personId);
+      const mode = approvalMode(asking, relations);
+      if (!mode.ok) return mode;
 
       const history = await deps.people.history(tx, asking.tenantId, asking.personId);
       const target = history.find((e) => e.id === asking.supersedes);
@@ -1603,6 +1710,26 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const admitted = validate(definition, asking.value, day);
       if (!admitted.ok) return admitted;
       const valid = { value: admitted.value.value };
+
+      // Held for approval (PEO-077): recorded with what it supersedes and why,
+      // applied through here again once HR approves, from the date it corrects.
+      if (mode.value === 'hold' && holds(definition)) {
+        const kept = await holdChange(tx, deps.approvals as Holding, {
+          tenantId: asking.tenantId,
+          personId: asking.personId,
+          definition,
+          value: valid.value,
+          effectiveFrom: target.effectiveFrom,
+          actor: actorOf(asking),
+          requestedBy: asking.viewer.accountId,
+          correlationId: asking.correlationId,
+          kind: 'correction',
+          supersedes: asking.supersedes,
+          reason: asking.reason,
+        });
+        if (!kept.ok) return kept;
+        return ok({ held: { changeId: kept.value.approval.id, attributeKey: definition.key } });
+      }
       // A correction is a write like any other: a doubted identifier is
       // checked and queued for HR by the same gate (PEO-125).
       const identifiers = await gate(tx, asking.tenantId, asking.personId, [
@@ -1691,6 +1818,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.reason,
         contextFor(asking, eventId),
         target.effectiveFrom,
+        mode.value === 'bypass' && holds(definition),
       );
       if (!raised.ok) return raised;
 

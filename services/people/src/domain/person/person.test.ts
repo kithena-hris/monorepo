@@ -327,6 +327,34 @@ describe('the facts identity keeps a copy of', () => {
   });
 });
 
+describe('a sensitive value HR applied without approval (PEO-077)', () => {
+  const iban = ChangedAttribute.parse({
+    key: 'iban',
+    sectionKey: 'pay',
+    classification: 'confidential',
+    encrypted: true,
+  });
+
+  it('says so on the update, naming the keys, and says nothing when there were none', () => {
+    const p = person({ status: 'active' });
+    p.updateProfile([iban], 1, ctx, null, ['iban']);
+    p.updateProfile([iban], 1, ctx, null, []);
+    const [bypassed, plain] = p.drainEvents();
+    expect(bypassed?.payload).toMatchObject({ appliedWithoutApproval: ['iban'] });
+    expect(plain?.payload).not.toHaveProperty('appliedWithoutApproval');
+  });
+
+  it('says so on a correction', () => {
+    const p = person({ status: 'active' });
+    const supersedes = '00000000-0000-4000-9000-000000000001';
+    p.correctAttribute(iban, supersedes, null, ctx, '2026-09-01', true);
+    p.correctAttribute(iban, supersedes, null, ctx, '2026-09-01');
+    const [bypassed, plain] = p.drainEvents();
+    expect(bypassed?.payload).toMatchObject({ appliedWithoutApproval: true });
+    expect(plain?.payload).not.toHaveProperty('appliedWithoutApproval');
+  });
+});
+
 describe('a value dated in the future, on its day (PEO-124)', () => {
   const title = ChangedAttribute.parse({
     key: 'job_title',
