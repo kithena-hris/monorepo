@@ -49,6 +49,78 @@ without that guard either would deploy a commit whose tests failed.
 schema is readable by the old code, so migrating first is safe. Migrating second
 leaves a window where new code reads columns that do not exist yet.
 
+## What a deploy ships
+
+Only what changed. Vercel Hobby allows 100 deployments a day across every
+project, and shipping all eight on every merge, every staged pull request
+push and every preview spent that before the day was out.
+
+**Targets.** Each deploy workflow knows these, one gated group of steps each:
+
+| Target          | Ships                         | Affected by                                                               |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------- |
+| `shell`         | `apps/web` (tenant app)       | `@kithena/web` or anything it depends on                                  |
+| `auth`          | `apps/auth/shell`             | `@kithena/auth-shell` …                                                   |
+| `admin`         | `apps/admin`                  | `@kithena/admin` …                                                        |
+| `identity`      | `platform/identity`           | `@kithena/identity` …                                                     |
+| `messaging`     | `platform/messaging`          | `@kithena/messaging` …                                                    |
+| `docs`          | `apps/docs`                   | `@reach/docs` … (production and previews only)                            |
+| `storybook`     | `apps/storybook`              | `@reach/storybook` … (production and previews only)                       |
+| `people-remote` | `apps/web/people`             | `@kithena/web-people` … (not previewed)                                   |
+| `people`        | People's image, on the VM     | `@kithena/people` …, `deploy/vm/**`                                       |
+| `router`        | the router's image, on the VM | `@kithena/gateway` … (config, persisted operations), `services/people/schemas/**`, `deploy/vm/**` |
+| `migrations`    | Atlas, Neon and the VM        | `migrations/**`, `atlas.hcl`                                              |
+
+"…" is turbo's graph: a change to `packages/ui` reaches `shell`, `auth`,
+`admin`, `docs`, `storybook` and `people-remote`; one to `packages/contracts`
+reaches every app and service importing it. On top of that, every target but
+`migrations` ships when `pnpm-lock.yaml`, the root `package.json`,
+`pnpm-workspace.yaml`, `turbo.json`, `.npmrc`, `tsconfig.base.json` or
+`patches/` changes, and every target of a workflow ships when that workflow
+file or `tools/scripts/src/affected-targets.ts` changes. The mapping lives in
+that one script, with its tests beside it.
+
+**Measured against what is running, not against the previous commit.** After a
+target deploys and passes its checks, the `mark` job moves a lightweight tag
+`deployed/<env>/<target>` (`production` or `staging`) to that commit. The next
+run diffs its commit against each target's tag, both trees, so:
+
+- a deploy that failed, or was rolled back, moves no tag, and the next run
+  ships that target again;
+- a target skipped for a run keeps its older tag, so a change it has not
+  shipped yet is still in the next diff;
+- a target with no tag has never been deployed, and deploys.
+
+Staging diffs the same way even though its commits come from different pull
+request branches: going back from another branch's change is a change.
+Previews diff against the pull request's merge base instead of a tag.
+
+Nothing listens for these tags and a tag moved by `GITHUB_TOKEN` starts no
+workflow. List them with `git ls-remote origin 'refs/tags/deployed/*'`.
+Deleting one forces that target's next deploy.
+
+**Forcing a deploy.** A secret or a variable changes nothing in git, so a
+change there needs asking for:
+
+```bash
+gh workflow run vercel-production.yml -f targets=identity,messaging
+gh workflow run vercel-production.yml -f targets=all
+gh workflow run vercel-staging.yml --ref <branch> -f targets=shell
+```
+
+The named targets ship on top of whatever has changed; an empty `targets`
+ships only what changed, which is how to retry. Production runs from `main`
+only, and still needs the environment's approval. The first run after this
+landed has no tags and ships everything once.
+
+**What a merge costs.** Over the 40 merges to `main` before this change, every
+one shipped all eight Vercel projects: 320 deployments. Measured with the
+script, the same merges ship 203 — a People or identity change ships one, a
+`packages/ui` change six. The rest of the 203 is the two things that still
+ship everything: a change to `vercel-production.yml` (six of the 40) and a
+dependency bump through the lockfile or root `package.json` (nine). A merge
+touching only `docs/` or a root Markdown file ships nothing.
+
 ## Rolling back
 
 Production promotes the previous deployment when its smoke test fails. That is
