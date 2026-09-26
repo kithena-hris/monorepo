@@ -210,6 +210,7 @@ export const OPERATIONS = {
       countries { code name }
       timeZones
       retentionFloors { floor months status reviewedBy reviewedOn }
+      payBands { id grade currency minimumMinor midpointMinor maximumMinor effectiveFrom recordedAt supersedes }
     }
   }`,
 
@@ -333,7 +334,17 @@ export const OPERATIONS = {
       joiners { months departments cells { row column value } }
       composition { categories series { label values } }
       selfId { key label status minimum publishedAsOf total note cells { label value } }
+      pay {
+        asOf minimum
+        grade { ...PayGroup }
+        tenure { ...PayGroup }
+        compa { ...PayGroup }
+      }
     }
+  }
+  fragment PayGroup on AnalyticsPayGroup {
+    label currency status people p25 median p75
+    band { minimumMinor midpointMinor maximumMinor }
   }`,
 
   PublishPreview: `query PublishPreview($requiredFrom: String!) {
@@ -519,6 +530,16 @@ export const OPERATIONS = {
     setEmployeeNumbering(
       legalEntityId: $legalEntityId, prefix: $prefix, digits: $digits, start: $start, idempotencyKey: $key
     ) { legalEntityId }
+  }`,
+
+  SetPayBand: `mutation SetPayBand(
+    $grade: String!, $currency: String!, $minimumMinor: String!, $midpointMinor: String!,
+    $maximumMinor: String!, $effectiveFrom: String!, $key: String!
+  ) {
+    setPayBand(
+      grade: $grade, currency: $currency, minimumMinor: $minimumMinor, midpointMinor: $midpointMinor,
+      maximumMinor: $maximumMinor, effectiveFrom: $effectiveFrom, idempotencyKey: $key
+    ) { id }
   }`,
 
   GiveNotice: `mutation GiveNotice($personId: ID!, $lastWorkingDay: String!, $reason: LeavingReason, $key: String!) {

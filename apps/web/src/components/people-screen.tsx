@@ -454,6 +454,7 @@ export function PeopleScreen({
           onUpdateLocation: thenRefresh(actions.updateLocation),
           onChangeZone: thenRefresh(actions.changeZone),
           onSetNumbering: thenRefresh(actions.setNumbering),
+          onSetPayBand: thenRefresh(actions.setPayBand),
         };
       case 'ExportBuilder':
         return {

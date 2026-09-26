@@ -17,7 +17,9 @@ import {
   type ChartContext,
   type Filters,
 } from '../analytics/queries.js';
+import { payCharts, type PayCell } from '../analytics/pay.js';
 import { selfIdFields } from '../analytics/snapshot.js';
+import { fromMinor } from '../import/cells.js';
 import { relationsToMany, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { NOBODY, tenantToday, type ScreenDeps } from './record.js';
@@ -130,7 +132,41 @@ export interface AnalyticsView {
   } | null;
   /** Voluntary self-identification, HR's only, from the monthly publication (PEO-070). */
   readonly selfId: readonly SelfIdChart[] | null;
+  /** Pay in aggregate, finance's only, never under a segment (PEO-078). */
+  readonly pay: PayView | null;
   readonly funnel: null;
+}
+
+/**
+ * One group's quartiles, or "insufficient data" with no number at all.
+ * Salary figures are minor units; compa-ratio figures a ratio to four places.
+ */
+export interface PayGroupView {
+  readonly label: string;
+  readonly currency: string;
+  readonly status: 'ok' | 'insufficient_data';
+  readonly people: number | null;
+  readonly p25: string | null;
+  readonly median: string | null;
+  readonly p75: string | null;
+  /** The band in force for this grade and currency, in minor units; null for none, and for tenure. */
+  readonly band: {
+    readonly minimumMinor: string;
+    readonly midpointMinor: string;
+    readonly maximumMinor: string;
+  } | null;
+}
+
+export interface PayView {
+  /** The snapshot day the figures are from; null before the first. */
+  readonly asOf: string | null;
+  readonly minimum: number;
+  /** Salary per grade, inside its band. */
+  readonly grade: readonly PayGroupView[];
+  /** Salary per tenure band: pay against tenure, never a point per person. */
+  readonly tenure: readonly PayGroupView[];
+  /** Salary over the band midpoint, per grade. */
+  readonly compa: readonly PayGroupView[];
 }
 
 const minusMonths = (day: string, n: number): string => {
@@ -358,6 +394,9 @@ export async function analyticsView(
           ? stacked(made.value.cells, department, employment)
           : null,
       selfId: filters === undefined ? await selfIdCharts(ctx) : null,
+      // Finance's, and never under a segment: a segment's pay beside the
+      // tenant's is the pay of everybody outside it.
+      pay: filters === undefined ? await payView(ctx, asking, definitions) : null,
       // ponytail: the onboarding funnel is drawn by the screen but has no
       // query shaped for it yet; absent, not empty.
       funnel: null,
@@ -393,4 +432,87 @@ async function selfIdCharts(ctx: ChartContext): Promise<SelfIdChart[] | null> {
     });
   }
   return charts.length === 0 ? null : charts;
+}
+
+/**
+ * Pay in aggregate as finance's screen draws it (PEO-078), or null for
+ * anybody else, so the section is absent rather than empty. Grades are
+ * labelled by their field's options, tenure bands by the tenure chart's.
+ */
+async function payView(
+  ctx: ChartContext,
+  asking: Asking,
+  definitions: readonly AttributeDefinition[],
+): Promise<PayView | null> {
+  const charts = await payCharts(
+    ctx,
+    asking,
+    ctx.cohortMinimum === undefined ? {} : { cohortMinimum: ctx.cohortMinimum },
+  );
+  if (!charts.ok) return null;
+  const { bands } = charts.value;
+  const grade = labeller(definitions, 'grade');
+  const bandOf = (bucket: string, currency: string): PayGroupView['band'] => {
+    const band = bands.find((b) => b.grade === bucket && b.currency === currency);
+    return band === undefined
+      ? null
+      : {
+          minimumMinor: band.minimumMinor,
+          midpointMinor: band.midpointMinor,
+          maximumMinor: band.maximumMinor,
+        };
+  };
+  const view =
+    (label: (bucket: string) => string, banded: boolean) =>
+    (c: PayCell): PayGroupView => ({
+      label: label(c.bucket),
+      currency: c.currency,
+      status: c.status,
+      people: c.people,
+      p25: c.p25,
+      median: c.median,
+      p75: c.p75,
+      band: banded ? bandOf(c.bucket, c.currency) : null,
+    });
+  const order = (b: string) => TENURE_BANDS.indexOf(b as (typeof TENURE_BANDS)[number]);
+  return {
+    asOf: charts.value.asOf,
+    minimum: charts.value.minimum,
+    grade: charts.value.grade.map(view(grade, true)),
+    tenure: charts.value.tenure
+      .toSorted((a, b) => order(a.bucket) - order(b.bucket) || a.currency.localeCompare(b.currency))
+      .map(view((b) => TENURE_LABELS[b as keyof typeof TENURE_LABELS] ?? b, false)),
+    compa: charts.value.compa.map(view(grade, true)),
+  };
+}
+
+const INSUFFICIENT = 'insufficient data';
+
+/**
+ * The rows a CSV of the pay charts carries (§16.3: exporting a chart exports
+ * its data). Built from the view and nothing else, so a withheld group is
+ * "insufficient data" and empty cells here too: no count, no figure. There is
+ * no total row, because quartiles do not add up to one.
+ */
+export function payExport(pay: PayView): readonly (readonly string[])[] {
+  const money = (minor: string | null, currency: string) =>
+    minor === null ? '' : fromMinor(Number(minor), currency);
+  const rowsOf = (chart: string, groups: readonly PayGroupView[], ratio: boolean) =>
+    groups.map((g) =>
+      g.status !== 'ok'
+        ? [chart, g.label, g.currency, INSUFFICIENT, '', '', '']
+        : [
+            chart,
+            g.label,
+            g.currency,
+            String(g.people),
+            ...[g.p25, g.median, g.p75].map((v) => (ratio ? (v ?? '') : money(v, g.currency))),
+          ],
+    );
+  return [
+    ['chart', 'group', 'currency', 'people', '25th percentile', 'median', '75th percentile'],
+    ...rowsOf('salary by grade', pay.grade, false),
+    ...rowsOf('salary by tenure', pay.tenure, false),
+    ...rowsOf('compa-ratio by grade', pay.compa, true),
+  ];
 }

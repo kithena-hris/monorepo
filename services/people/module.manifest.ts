@@ -60,6 +60,8 @@ export default ModuleManifest.parse({
     'people.webhook.endpoint_disabled',
     'people.role.granted',
     'people.role.revoked',
+    'people.pay_band.set',
+    'people.pay_band.corrected',
     'people.scim.connection_changed',
   ],
   /*

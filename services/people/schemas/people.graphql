@@ -86,6 +86,41 @@ type AnalyticsMovement {
   period: String
 }
 
+"""
+Pay in aggregate, finance only: quartiles per group, never a minimum, a maximum or a person (PEO-078).
+"""
+type AnalyticsPay {
+  asOf: String
+  compa: [AnalyticsPayGroup!]
+  grade: [AnalyticsPayGroup!]
+  """The cohort minimum in force"""
+  minimum: Int
+  tenure: [AnalyticsPayGroup!]
+}
+
+"""The band in force for a grade and currency, in minor units."""
+type AnalyticsPayBand {
+  maximumMinor: String
+  midpointMinor: String
+  minimumMinor: String
+}
+
+"""
+Quartiles for one group in one currency, or insufficient_data with no count and no figure (PEO-078).
+"""
+type AnalyticsPayGroup {
+  band: AnalyticsPayBand
+  currency: String
+  label: String
+  median: String
+  """Minor units for salary; a ratio to four places for compa-ratio"""
+  p25: String
+  p75: String
+  people: Int
+  """ok, or insufficient_data below the cohort minimum"""
+  status: String
+}
+
 type AnalyticsPoint {
   label: String
   value: Float
@@ -937,6 +972,10 @@ type Mutation {
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
+  """
+  Set a pay band from a day, or correct the one recorded for that day; HR or finance (PEO-078).
+  """
+  setPayBand(currency: String!, effectiveFrom: String!, grade: String!, idempotencyKey: String!, maximumMinor: String!, midpointMinor: String!, minimumMinor: String!): PayBand
   setScimMapping(id: ID!, idempotencyKey: String!, mapping: [ScimMappingInput!]!): WriteOutcome
   """
   Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
@@ -992,6 +1031,21 @@ type OrgCountry {
 }
 
 """
+A pay band for one grade and currency from a day, in minor units (PEO-078). The latest recording for that day.
+"""
+type PayBand {
+  currency: String
+  effectiveFrom: String
+  grade: String
+  id: ID
+  maximumMinor: String
+  midpointMinor: String
+  minimumMinor: String
+  recordedAt: String
+  supersedes: ID
+}
+
+"""
 A value waiting for HR approval. Never the field’s value, which stays what is in force.
 """
 type PendingField {
@@ -1028,6 +1082,8 @@ type PeopleAnalytics {
   headcount: AnalyticsHeadcount
   joiners: AnalyticsJoiners
   movement: AnalyticsMovement
+  """Finance's only; never under a segment"""
+  pay: AnalyticsPay
   segment: PeopleSegmentRef
   segments: [PeopleSegmentRef!]
   """HR's only; never under a segment"""
@@ -1160,6 +1216,10 @@ type PeopleOrganisation {
   legalEntities: [LegalEntity!]
   locations: [Location!]
   numberings: [EmployeeNumbering!]
+  """
+  Pay bands as they now stand; HR and finance see and edit them, nobody else.
+  """
+  payBands: [PayBand!]
   """
   The statutory retention floors and their legal review; law, the same for every tenant.
   """

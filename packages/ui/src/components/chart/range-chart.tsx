@@ -32,6 +32,13 @@ import type { ChartTone } from './chart';
  * A value below the minimum or above the maximum is pinned to the edge, drawn
  * in the danger tone, and *says so in words*. Silently clamping it is how a
  * chart hides the exact case somebody opened it to find.
+ *
+ * ### A spread is optional, and inside the row
+ *
+ * `spread` draws a second, narrower range across the row — the middle half of
+ * a distribution, say, with `value` as its median. It says where most of the
+ * figures sit without drawing any one of them, which is what an aggregate
+ * that must not name anybody needs. `spreadLabel` says what it is.
  */
 
 export interface RangeBand {
@@ -44,6 +51,8 @@ export interface RangeBand {
   value?: number;
   /** A second line under the label, a headcount, a grade code. */
   meta?: string;
+  /** An inner range drawn across the row: where most of the figures sit. */
+  spread?: { low: number; high: number };
   tone?: ChartTone;
 }
 
@@ -52,6 +61,8 @@ export interface RangeChartProps {
   label: string;
   /** What the numbers are: "Base salary, EUR". */
   valueLabel: string;
+  /** What `spread` is: "Middle half". */
+  spreadLabel?: string;
   format?: (value: number) => string;
   /** Row height in pixels. */
   rowHeight?: number;
@@ -90,6 +101,7 @@ export function RangeChart({
   data,
   label,
   valueLabel,
+  spreadLabel = 'Spread',
   format = (value) => String(value),
   rowHeight: rowHeightProp = 34,
   labelWidth = 140,
@@ -103,8 +115,13 @@ export function RangeChart({
   const rowHeight = Math.max(rowHeightProp, useCoarsePointer() ? 60 : 0);
   // One scale for every row, so two bands can be compared by eye. Per-row
   // scales would make a narrow band look as wide as a broad one.
-  const floor = Math.min(...data.flatMap((band) => [band.min, band.value ?? band.min]));
-  const ceiling = Math.max(...data.flatMap((band) => [band.max, band.value ?? band.max]));
+  const floor = Math.min(
+    ...data.flatMap((band) => [band.min, band.value ?? band.min, band.spread?.low ?? band.min]),
+  );
+  const ceiling = Math.max(
+    ...data.flatMap((band) => [band.max, band.value ?? band.max, band.spread?.high ?? band.max]),
+  );
+  const spreads = data.some((band) => band.spread !== undefined);
   const span = Math.max(ceiling - floor, 1);
   const at = (value: number): number =>
     ((Math.min(Math.max(value, floor), ceiling) - floor) / span) * 100;
@@ -158,6 +175,10 @@ export function RangeChart({
 
             const readout = `${band.label}: ${format(band.min)} to ${format(band.max)}, midpoint ${format(mid)}${
               band.value === undefined ? '' : `. ${valueLabel} ${format(band.value)}${position}`
+            }${
+              band.spread === undefined
+                ? ''
+                : `. ${spreadLabel} ${format(band.spread.low)} to ${format(band.spread.high)}`
             }`;
 
             return (
@@ -204,6 +225,20 @@ export function RangeChart({
                   </div>
                 </Tooltip>
 
+                {band.spread === undefined ? null : (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'pointer-events-none absolute inset-y-3 rounded-xs opacity-50',
+                      edgeTone[tone],
+                    )}
+                    style={{
+                      insetInlineStart: percent(at(band.spread.low)),
+                      width: percent(at(band.spread.high) - at(band.spread.low)),
+                    }}
+                  />
+                )}
+
                 {band.value === undefined ? null : (
                   <span
                     aria-hidden
@@ -238,6 +273,7 @@ export function RangeChart({
             <th scope="col">Midpoint</th>
             <th scope="col">Maximum</th>
             <th scope="col">{valueLabel}</th>
+            {spreads ? <th scope="col">{spreadLabel}</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -258,6 +294,13 @@ export function RangeChart({
                           : ''
                     }`}
               </td>
+              {spreads ? (
+                <td>
+                  {band.spread === undefined
+                    ? 'None'
+                    : `${format(band.spread.low)} to ${format(band.spread.high)}`}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

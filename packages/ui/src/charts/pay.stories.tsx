@@ -150,6 +150,40 @@ export const OutOfBand: Story = {
   },
 };
 
+export const Spread: Story = {
+  name: 'Median and middle half',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`spread` draws the middle half of a distribution across the band, with `value` as its median. It shows where most people sit without drawing any one of them, which is what a chart must do when a minimum or a maximum would be somebody’s salary.',
+      },
+    },
+  },
+  args: {
+    valueLabel: 'Median',
+    spreadLabel: 'Middle half',
+    data: bands.slice(0, 4).map(({ value, ...band }) => ({
+      ...band,
+      value,
+      spread: {
+        low: value - (band.max - band.min) * 0.15,
+        high: value + (band.max - band.min) * 0.12,
+      },
+    })),
+  },
+  render: (args) => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Median and middle half by grade</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <RangeChart {...args} />
+      </CardContent>
+    </Card>
+  ),
+};
+
 export const Equity: Story = {
   name: 'Pay equity scatter',
   parameters: {

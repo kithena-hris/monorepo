@@ -326,3 +326,28 @@ describe('what identity is told', () => {
     expect(unlinked?.success).toBe(false);
   });
 });
+
+describe('a pay band (PEO-078)', () => {
+  it('is company policy in minor units, naming nobody', () => {
+    const keys = ['bandId', 'effectiveFrom', 'grade', 'maximum', 'midpoint', 'minimum'];
+    expect(payloadKeys('people.pay_band.set').toSorted()).toEqual(keys);
+    expect(payloadKeys('people.pay_band.corrected').toSorted()).toEqual(
+      [...keys, 'supersedes'].toSorted(),
+    );
+  });
+
+  it('refuses an amount that is not whole minor units', () => {
+    const set = peopleEvents.find((e) => e.name === 'people.pay_band.set');
+    const eur = (amountMinor: number) => ({ amountMinor, currency: 'EUR' });
+    const band = {
+      bandId: '00000000-0000-4000-8000-0000000000a1',
+      grade: 'L3',
+      minimum: eur(4_000_000),
+      midpoint: eur(5_000_000),
+      maximum: eur(6_000_000),
+      effectiveFrom: '2026-01-01',
+    };
+    expect(set?.payload.safeParse(band).success).toBe(true);
+    expect(set?.payload.safeParse({ ...band, midpoint: eur(5_000_000.5) }).success).toBe(false);
+  });
+});

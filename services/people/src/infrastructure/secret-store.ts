@@ -67,6 +67,16 @@ export interface SecretStore {
   ): Promise<string | null>;
 
   /**
+   * Every holder's plaintext for one attribute, for an aggregate and nothing
+   * else (PEO-078: the nightly pay snapshot). Held in memory by the caller for
+   * the length of one computation; logged as a count, never a value.
+   */
+  revealAll(
+    tx: PostgresJsDatabase,
+    where: { tenantId: string; attributeKey: string },
+  ): Promise<ReadonlyMap<string, string>>;
+
+  /**
    * Re-wrap everything this person holds under the ring's current key.
    *
    * Per person rather than per tenant, so a rotation job is a bounded loop
@@ -152,6 +162,29 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
       );
 
       return open(row, ring);
+    },
+
+    async revealAll(tx, where) {
+      const rows = await tx
+        .select({
+          personId: personSecret.personId,
+          ciphertext: personSecret.ciphertext,
+          keyId: personSecret.keyId,
+        })
+        .from(personSecret)
+        .where(
+          and(
+            eq(personSecret.tenantId, where.tenantId),
+            eq(personSecret.attributeKey, where.attributeKey),
+          ),
+        );
+
+      logger?.info(
+        { attributeKey: where.attributeKey, count: rows.length },
+        'secrets revealed for an aggregate',
+      );
+
+      return new Map(rows.map((row) => [row.personId, open(row, ring)]));
     },
 
     async rotate(tx, tenantId, personId) {

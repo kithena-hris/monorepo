@@ -16,6 +16,9 @@ import { drizzleExportLedger } from '../application/export/ledger.js';
 import { keyOf, type ObjectStore } from '../application/export/object-store.js';
 import type { ExportQueue } from '../application/export/queue.js';
 import { orgAdmin } from '../application/org/org.js';
+import { payBands } from '../application/analytics/pay.js';
+import { publish } from '@kithena/db-kit';
+import { outbox } from '../infrastructure/tables.js';
 import { tenantRoles } from '../application/roles/roles.js';
 import { drizzleRoleStore } from '../infrastructure/drizzle-role-store.js';
 import { uuidv7 } from '../application/person/ids.js';
@@ -272,6 +275,11 @@ export function peopleService(
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
+    payBands: payBands({
+      clock: systemClock,
+      newId: uuidv7,
+      publish: (tx, events) => publish(tx, outbox, events),
+    }),
     inTenant: async (tenantId, fn) => {
       const result = await raw(tenantId, fn);
       // Not from inside `sharing` (a screen's keyed write): nothing has

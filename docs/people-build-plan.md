@@ -1105,17 +1105,22 @@ Ordered, but none of it blocks Phase 1 shipping.
       "apply without approval" on import and bulk edit. SCIM writes are not
       held: the connection is the source of record for what it writes. A DSAR
       does not yet include pending changes._
-- [ ] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
+- [x] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
-      _Not started: waiting on product decisions the PRD leaves open — where
-      pay bands (minimum, midpoint, maximum per grade and currency) live and
-      who maintains them, since compa-ratio is against a band midpoint and
-      People holds no bands; whether the snapshot may decrypt a sealed
-      (financial) salary in-process to count aggregates; whether the
-      per-person `ScatterChart` of pay against tenure becomes an aggregate
-      per tenure band, since finance sees aggregates only; and which
-      statistics a cell shows (quartiles rather than minimum and maximum,
-      which are one person's salary) under which cohort minimum._
+      _Landed as migration 20260926190000 with the three decisions §16.2
+      records: bands in People (`people.pay_band`, append-only, per grade
+      and currency, effective-dated, HR or finance on the Pay bands tab,
+      `people.pay_band.set`/`.corrected`); the nightly snapshot decrypting
+      `base_salary` in memory and writing only quartiles per group
+      (`people.pay_snapshot`, a CHECK at the floor of ten) with an audit
+      row per run (`people.pay_snapshot_audit`); finance seeing the 25th,
+      median and 75th per grade, tenure band and compa-ratio, one currency
+      each, and "insufficient data" with no number below the cohort
+      minimum. `decimal.js` added to People for the arithmetic. Reach's
+      `RangeChart` gained `spread` for the middle half. `GET`/`POST
+      /v1/pay-bands`, `setPayBand`, `peopleOrganisation.payBands`,
+      `peopleAnalytics.pay`. Not annualised by pay frequency or scaled by
+      FTE; a raise dated ahead on a sealed salary counts from entry._
 
 ---
 
