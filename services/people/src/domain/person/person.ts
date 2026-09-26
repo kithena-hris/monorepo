@@ -123,7 +123,8 @@ type StatusReason =
   | 'corrected'
   | 'rehired'
   | 'notice_withdrawn'
-  | 'merged';
+  | 'merged'
+  | 'unmerged';
 
 /** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
 export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
@@ -780,6 +781,83 @@ export class Person extends AggregateRoot<string> {
       return err(failure('MERGE_TWO_ACCOUNTS', 'This record already signs in with an account'));
     }
     this.#identityAccountId = accountId;
+    return ok(undefined);
+  }
+
+  /**
+   * A record absorbed into another, merged back out (PEO-074's undo): HR
+   * decided the merge was wrong. Back to `provisional`, the only state a
+   * record is ever absorbed from, with the account the merge moved, when the
+   * survivor still held it. `unmerged` names the merge decision it reverses
+   * (`supersedes`), HR's reason, and which of the values the merge wrote on
+   * the survivor were corrected back and which were kept, having changed
+   * since; the corrections themselves are the survivor's own events.
+   */
+  restoreFromMerge(
+    undo: {
+      readonly survivorId: string;
+      readonly supersedes: string;
+      readonly reason: string;
+      readonly reversed: readonly string[];
+      readonly kept: readonly string[];
+      readonly identityAccountId: string | null;
+    },
+    ctx: EventContext,
+  ): Result<void> {
+    if (this.#status !== 'merged' || this.#mergedInto !== undo.survivorId) {
+      return err(failure('UNMERGE_NOT_MERGED', 'This record is not merged into that one'));
+    }
+    this.#mergedInto = null;
+    this.#identityAccountId = undo.identityAccountId;
+    this.#moveTo('provisional', 'unmerged', ctx);
+    this.#raise(
+      'people.person.unmerged',
+      {
+        survivingPersonId: undo.survivorId,
+        absorbedPersonId: this.id,
+        supersedes: undo.supersedes,
+        reason: undo.reason,
+        attributesReversed: [...undo.reversed],
+        attributesKept: [...undo.kept],
+        identityAccountId: undo.identityAccountId,
+      },
+      ctx,
+    );
+    return ok(undefined);
+  }
+
+  /** The account a merge moved here, given back when the merge is undone. */
+  releaseAccount(accountId: string): Result<void> {
+    if (this.#identityAccountId !== accountId) {
+      return err(failure('ACCOUNT_NOT_HELD', 'This record does not sign in with that account'));
+    }
+    this.#identityAccountId = null;
+    return ok(undefined);
+  }
+
+  /**
+   * An upstream system provisioned somebody People already had, and took this
+   * record rather than creating a second (PEO-072 follow-up): the one live
+   * record whose work email matched, linked to nobody else. Raised before the
+   * link's `synced_from_external`, so an auditor sees why a system now owns
+   * attributes on a record HR created. Never a tombstone.
+   */
+  adoptedByExternal(
+    adoption: {
+      readonly provider: string;
+      readonly externalId: string;
+      readonly matchedOn: 'work_email';
+    },
+    ctx: EventContext,
+    effectiveFrom: string,
+  ): Result<void> {
+    if (this.#gone) return err(InvalidTransition(this.#status, 'adopted'));
+    this.#raise(
+      'people.person.adopted_by_external',
+      { personId: this.id, ...adoption },
+      ctx,
+      effectiveFrom,
+    );
     return ok(undefined);
   }
 

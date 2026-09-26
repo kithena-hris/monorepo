@@ -6,7 +6,7 @@ import { currentValue } from '../../domain/person/history.js';
 import { REPORT_LIFETIME_MS, type ObjectStore } from '../export/object-store.js';
 import { inTenantResult, type Asking, type PersonAccess } from '../person/person-access.js';
 import { holds } from '../person/pending-changes.js';
-import type { InTenant } from '../person/service.js';
+import type { InTenant } from '../person/ports.js';
 import { writeCsv } from './csv.js';
 import { PERSON_ID_COLUMN } from './parse.js';
 import {
@@ -110,7 +110,11 @@ export interface ReportIndex {
   /** When the report for this file expires, or null when none is held. */
   expiresAt(tx: PostgresJsDatabase, tenantId: string, checksum: string): Promise<string | null>;
   /** The checksums of every report that contains this person. */
-  containing(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly string[]>;
+  containing(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personId: string,
+  ): Promise<readonly string[]>;
   remove(tx: PostgresJsDatabase, tenantId: string, checksums: readonly string[]): Promise<void>;
 }
 
@@ -146,7 +150,10 @@ function signReport(
   checksum: string,
   reportExpires: string,
 ): Promise<string> {
-  const until = Math.min(Date.parse(deps.clock.instant()) + REPORT_LINK_MS, Date.parse(reportExpires));
+  const until = Math.min(
+    Date.parse(deps.clock.instant()) + REPORT_LINK_MS,
+    Date.parse(reportExpires),
+  );
   return deps.reports.store.sign(reportKey(tenantId, checksum), new Date(until).toISOString());
 }
 
@@ -296,11 +303,7 @@ export async function commitImport(
   const blocked = report(input, outcomes, plan.blockedItems);
   const storedAt = deps.clock.instant();
   const expiresAt = new Date(Date.parse(storedAt) + REPORT_LIFETIME_MS).toISOString();
-  await deps.reports.store.put(
-    reportKey(input.tenantId, input.file.checksum),
-    blocked,
-    'text/csv',
-  );
+  await deps.reports.store.put(reportKey(input.tenantId, input.file.checksum), blocked, 'text/csv');
   await deps.reports.index.save(tx, {
     tenantId: input.tenantId,
     checksum: input.file.checksum,

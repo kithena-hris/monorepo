@@ -1111,16 +1111,62 @@ Ordered, but none of it blocks Phase 1 shipping.
       (`MERGE_ABSORBS_EMPLOYMENT`): two employment periods on one human need
       somebody to decide which start, number and pay line are true, which is
       payroll's call. Found in PEO-074. _(PRD §12.4)_
-- [ ] A merge's undo. Nothing is destroyed — the tombstone keeps its
+- [x] A merge's undo. Nothing is destroyed — the tombstone keeps its
       history, values and prior state, the decision row names what moved —
       but there is no `unmerge` use case; today a wrong merge is corrected
       value by value on the survivor. Found in PEO-074.
-- [ ] DSAR and retention follow `merged_into`. A tombstone's history is the
+      _Landed as migration 20260927143500 (`duplicate_decision.moved`,
+      `reason`, `reverses`, decision `unmerged`, one undo per merge). A
+      merge now records the history rows it wrote on the survivor, the keys
+      the survivor held nothing for, and the account it moved — ids, never
+      values; a merge from before that is refused `UNMERGE_UNRECORDED`.
+      `unmergePerson` (`POST /v1/people/{id}/unmerge`, the id the absorbed
+      record's), HR only, never on one's own record, with a reason: the
+      tombstone returns to `provisional` with its account (when the
+      survivor still holds it) and its unique claims (sealed ones re-hashed
+      from `reveal`); each value the merge wrote that is still last on the
+      survivor's timeline is corrected back to what stood before it —
+      `attribute_corrected` superseding the merge's row, from its effective
+      day, applied without approval since it restores an approved state;
+      a value changed since, now mirrored or sealed, or held before with no
+      row to say what, is **kept** and named, not refused. Refused
+      `UNMERGE_ERASED` once retention redacted the tombstone and
+      `UNMERGE_SURVIVOR_GONE` while the survivor is itself merged or
+      discarded (undo the later merge first; not followed transitively).
+      Raises `status_changed` (`unmerged`) and `people.person.unmerged`
+      (`supersedes` the merge decision, reversed and kept keys); the
+      decision row makes the pair a candidate again. OpenFGA re-syncs both.
+      Screen: "Merged records" under `/people/duplicates`, each with an
+      "Undo merge" dialog listing what goes back and what is kept. Identifier
+      reviews the merge superseded are not reopened; a sealed value is
+      re-checked the next time it is written._
+- [x] DSAR and retention follow `merged_into`. A tombstone's history is the
       survivor's human, and neither the DSAR export nor the retention clock
-      reads it yet. Found in PEO-074. _(PRD §12)_
-- [ ] **PEO-075** Automated anonymisation on retention expiry. **Blocked until
-      counsel reviews the floors** (PEO-126): `mayErase` refuses automated
-      erasure under an unreviewed floor. _(PRD §8.1, §12)_
+      reads it yet. Found in PEO-074. _(PRD §12)_ _Landed: `tombstonesOf`
+      follows `merged_into` however deep. The DSAR pack carries each
+      tombstone under `mergedRecords` (`source: 'merged_record'`, its own
+      schema version, `mergedInto`), never mixed into the subject's values.
+      `anonymiseDue` reads the survivor's clock over what the survivor and
+      its tombstones hold, and erases the tombstones with the survivor under
+      the same floors, one `people.person.anonymised` each carrying
+      `survivorId`; a tombstone asked for on its own is never due. No
+      migration._
+- [x] **PEO-075** Automated anonymisation on retention expiry. _(PRD §8.1,
+      §12)_ _Built; **erases only under reviewed floors**. Every floor is a
+      placeholder still unreviewed (PEO-126), so today it erases only values
+      a tenant policy with no floor governs, and nothing under a floor until
+      counsel reviews it; the next run after a review erases. `sweepRetention`
+      in `application/retention/sweep.ts`, wired hourly in `background.ts`: a
+      bounded batch of candidate leavers per tenant, resumed by keyset, each
+      through `anonymiseDue` (`automated`, actor `system:retention`) in its own
+      transaction; refused `RETENTION_FLOOR_UNREVIEWED` is skipped, logged and
+      counted. The event carries `automatedReason` ("retention expired
+      (es-labour)"). A background job rather than Temporal: fire-and-forget,
+      no human step. HR sees who is next on the Company tab
+      (`peopleOrganisation.upcomingErasures`, "Waiting for legal review"),
+      `nextErasure` in `domain/retention/floors.ts`. No migration._ _Still
+      open:_ no legal hold or open-DSAR state exists to guard; HR's by-hand
+      erasure still has no route or profile control (PEO-126's follow-up).
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
 - [x] **PEO-077** Approval workflows on sensitive changes, via Temporal.
       _(PRD §8.6)_ _A per-field `requiresApproval`, on by default for
@@ -1840,22 +1886,42 @@ it is written down here rather than left in a PR description.
       longer lists status under HR information.* *Still open:* a record
       read by its id is answered for a leaver, status withheld; hiding it
       from a peer altogether is a product call.
-- [ ] Route `/scim/v2/*` through the Cloudflare Tunnel to People
+- [x] Route `/scim/v2/*` through the Cloudflare Tunnel to People
       (`docs/environments.md` "Hosting" has the rule and the API call), and
       decide whether a tenant relying on SCIM keeps the VM awake. Found in
-      PEO-072. *(PRD §13.5)*
+      PEO-072. *(PRD §13.5)* _Done 2026-09-26: `api.kithena.com`
+      `^/scim/v2/` → `http://people:4001`, above the router's catch-all
+      (tunnel configuration version 2). Nothing wakes the VM for a push:
+      Okta and Entra retry on Cloudflare's 530 until it is awake, which is
+      acceptable until a tenant relies on near-real-time provisioning._
 - [ ] Verify SCIM against a live Okta and a live Entra tenant (the provider
       test suites: Okta's SCIM 2.0 spec tests, Entra's SCIM validator), and
       record what each sent that the build did not expect. Found in PEO-072.
       *(PRD §13.5)*
-- [ ] A SCIM POST for somebody already in People (HR-created, or provisioned
+- [x] A SCIM POST for somebody already in People (HR-created, or provisioned
       by identity) creates a second record or is refused `uniqueness`. HR
       adopting the existing record into the connection — and whether that
       should ever be automatic — needs deciding; PEO-074's duplicate
       detection is the nearest thing. Found in PEO-072. *(PRD §13.5, §12.4)*
+      _Decided 2026-09-27 and landed: a POST whose work email (the User's
+      work email, else an email-shaped `userName`), trimmed and
+      case-insensitive, matches exactly one live record that no connection
+      links adopts it — linked, only the attributes the connection owns
+      written through the ordinary sync (PEO-073), `adopted_by_external`
+      (`matchedOn: work_email`) before the link's `synced_from_external`,
+      201 with that record's id. Zero matches creates as before; several,
+      or the one linked to any connection, creates a record and the
+      duplicate queue offers each pair as "SCIM provisioned, same work
+      email" (`scim_work_email`, computed from `scim_link`, nothing stored).
+      A merged or discarded record never matches. A record whose email only
+      the unmapped `userName` carries is flagged by `userName`; an IdP work
+      email that is neither mapped nor the `userName` is not._
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
-      in PEO-113. *(PRD §13.1)*
+      in PEO-113. *(PRD §13.1)* _Half done: the router image copies
+      `persisted/` to `/persisted` (`apps/gateway/Dockerfile`), so production
+      serves the safelist. Left: a timed 100 MB import through the production
+      router once the People Phase 2/3 release is deployed._
 
 ## Blocked, and by what
 
@@ -1866,4 +1932,4 @@ it is written down here rather than left in a PR description.
 | PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
-| PEO-075 | counsel reviews the floors | Automated erasure refuses an unreviewed floor (PEO-126); HR may erase one person by hand, with a stated reason |
+| PEO-075 | built; inert per floor until counsel reviews it | The job runs and erases under a tenant policy alone; it skips any leaver relying on an unreviewed floor (all three today) until that floor is reviewed (PEO-126) |

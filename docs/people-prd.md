@@ -1800,6 +1800,8 @@ New:
 | `people.person.profile_incomplete` v1 | Missing attribute keys and their owners |
 | `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
 | `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids, the keys taken (never values) and the account that moved to the survivor, null when none. Raised on the absorbed record after its `status_changed` (reason `merged`); the taken values travel on the survivor's own `profile_updated` |
+| `people.person.unmerged` v1 | A merge undone by HR. Carries both ids, the merge decision it supersedes, HR's reason, the keys corrected back on the survivor and the keys kept because they changed since (never values), and the account given back, null when none. Raised on the restored record after its `status_changed` (reason `unmerged`); the reversals are the survivor's own `attribute_corrected` |
+| `people.person.adopted_by_external` v1 | A SCIM connection took an existing record instead of creating a second: the one live record with the work email it sent, linked to no connection. Carries the provider, the external id and what matched; the link's `synced_from_external` follows |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
@@ -2153,7 +2155,8 @@ derived artifact computed from the union of both.**
     runs automated erasure of a value whose policy names that floor is refused
     (`RETENTION_FLOOR_UNREVIEWED`, the domain rule `mayErase`), whichever
     period won — the due date is only as sound as the floor it was compared
-    with. Scheduled anonymisation (PEO-075) is blocked on this.
+    with. Scheduled anonymisation (PEO-075) is built and live, and skips every
+    leaver this governs — see *Automated erasure* below.
   - **HR may act by hand**, one person at a time, with a stated reason: an
     `anonymiseDue` run in `manual` mode, refused to anybody without `hr` and
     to a blank reason. The reason travels on `people.person.anonymised`
@@ -2167,6 +2170,33 @@ derived artifact computed from the union of both.**
     <floor> --reviewer … --on … --reference …` rewrites that one entry, and
     the commit that lands it — authored, reviewed, merged — is the audit
     record. Nothing in the running service can change a floor's status.
+- **Automated erasure (PEO-075).** A People background job, hourly, takes a
+  bounded batch of leavers per tenant (keyset by id, resuming where the last
+  batch stopped; a fresh pass a day after the last one finished) whose
+  shortest retention period may have run out and who still hold a value
+  under a policy, themselves or in a merge's tombstone. Each goes through the
+  same `anonymiseDue` HR's by-hand erasure uses, in `automated` mode, as
+  `system:retention`, in a transaction of its own; the event carries
+  `automatedReason` — "retention expired (es-labour)", or "(tenant policy)".
+  A leaver whose due values rely on an unreviewed floor is skipped, logged
+  and counted, and asked again next pass: **the job is live but inert under
+  every floor counsel has not reviewed**, which today is all three, so it
+  erases only values governed by a tenant policy with no floor. Idempotent,
+  because only held values are cleared. It is a background job beside the
+  lifecycle's dated moves, not a Temporal workflow: nobody waits on it and
+  there is no human step to resume. HR sees who is next on the Company tab
+  (`peopleOrganisation.upcomingErasures`): who, when, under which floors, and
+  "Waiting for legal review" where a floor is unreviewed, however overdue.
+  People keeps no legal hold and no open-DSAR state yet; when it does, the
+  guard goes in `anonymiseDue`, for the job and HR alike.
+- **A merge's tombstones are on the survivor's clock (PEO-074).** A tombstone
+  is the same human. It is never a leaver of its own, so it is never erased
+  ahead of its survivor, and whatever falls due for the survivor is erased
+  from every tombstone merged into it, however many merges deep, in the same
+  transaction and under the same floors; each gets its own
+  `people.person.anonymised` naming the survivor (`survivorId`). The DSAR
+  pack carries the tombstones too, under `mergedRecords`, each under its own
+  schema version and labelled with the record it was merged into.
 
 An attribute cannot be created without a policy. There is no "unclassified"
 state, no default that means "we will decide later", and no code path that

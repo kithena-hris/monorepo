@@ -180,6 +180,10 @@ export const duplicateDecision = people.table('duplicate_decision', {
   survivorId: uuid('survivor_id'),
   absorbedId: uuid('absorbed_id'),
   attributesTaken: text('attributes_taken').array().notNull(),
+  /** What a merge moved, or what an undo kept (20260927143500): ids and keys, never values. */
+  moved: jsonb('moved'),
+  reason: text('reason'),
+  reverses: uuid('reverses'),
   decidedBy: uuid('decided_by').notNull(),
   decidedAt: timestamp('decided_at', { withTimezone: true }).notNull(),
 });

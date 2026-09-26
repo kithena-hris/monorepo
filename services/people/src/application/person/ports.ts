@@ -173,6 +173,14 @@ export interface Secrets {
     tenantId: string,
     personId: string,
   ): Promise<readonly { readonly attributeKey: string; readonly last4: string | null }[]>;
+  /**
+   * The plaintext, for claiming a sealed unique value again when a merge is
+   * undone. Absent, such a value goes unclaimed until it is next written.
+   */
+  reveal?(
+    tx: PostgresJsDatabase,
+    where: { tenantId: string; personId: string; attributeKey: string },
+  ): Promise<string | null>;
 }
 
 /** `drizzleUniqueClaims` satisfies this. */
@@ -222,3 +230,9 @@ export interface PersonCount {
   readonly active: number;
   readonly notStarted: number;
 }
+
+/** One tenant transaction, as `tenantTransaction` in infrastructure provides it. */
+export type InTenant = <R>(
+  tenantId: string,
+  fn: (scope: { tx: PostgresJsDatabase }) => Promise<R>,
+) => Promise<R>;

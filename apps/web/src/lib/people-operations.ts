@@ -144,6 +144,7 @@ export const OPERATIONS = {
   Duplicates: `query Duplicates($a: ID, $b: ID) {
     peopleDuplicates(a: $a, b: $b) {
       items { personIds names reasons }
+      merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       comparison {
         people { id name status refusal }
         rows { key label values same takeable }
@@ -218,6 +219,7 @@ export const OPERATIONS = {
       countries { code name }
       timeZones
       retentionFloors { floor months status reviewedBy reviewedOn }
+      upcomingErasures { personId name dueOn floors waitingForReview }
       payBands { id grade currency minimumMinor midpointMinor maximumMinor effectiveFrom recordedAt supersedes }
     }
   }`,
@@ -606,6 +608,10 @@ export const OPERATIONS = {
 
   MergePerson: `mutation MergePerson($personId: ID!, $absorbedPersonId: ID!, $take: [String!], $key: String!) {
     mergePerson(personId: $personId, absorbedPersonId: $absorbedPersonId, take: $take, idempotencyKey: $key) { id }
+  }`,
+
+  UnmergePerson: `mutation UnmergePerson($personId: ID!, $reason: String!, $key: String!) {
+    unmergePerson(personId: $personId, reason: $reason, idempotencyKey: $key) { id }
   }`,
 
   DismissDuplicate: `mutation DismissDuplicate($personIds: [ID!]!, $key: String!) {

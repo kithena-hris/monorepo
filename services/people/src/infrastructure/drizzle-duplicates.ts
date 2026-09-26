@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm';
 
-import type { DuplicateStore } from '../application/person/duplicates.js';
+import type { DuplicateStore, Moved } from '../application/person/duplicates.js';
 import { pairKey, type DuplicateSignal } from '../domain/person/merge.js';
 import { attributeUnique, duplicateDecision } from './tables.js';
 
@@ -47,6 +47,16 @@ export function drizzleDuplicates(): DuplicateStore {
               ON x.given = y.given AND x.family = y.family AND x.born = y.born AND x.id < y.id
            WHERE x.given <> '' AND x.family <> ''
           UNION ALL
+          -- A record a SCIM connection provisioned, and another live record
+          -- holding the email it arrived with: an adoption that could not be
+          -- automatic (PEO-072), left to HR.
+          SELECT x.id, y.id, 'scim_work_email', NULL
+            FROM people.scim_link l
+            JOIN live x ON x.id = l.person_id
+            JOIN live y ON y.id <> x.id AND y.email <> ''
+                       AND (y.email = x.email OR y.email = lower(btrim(l.user_name)))
+           WHERE l.tenant_id = ${tenantId}::uuid
+          UNION ALL
           SELECT u.person_id, u.conflict_with, 'unique_value', u.attribute_key
             FROM people.attribute_unique u
             JOIN live x ON x.id = u.person_id
@@ -63,11 +73,59 @@ export function drizzleDuplicates(): DuplicateStore {
     },
 
     async decided(tx, tenantId) {
-      const rows = await tx
-        .select({ a: duplicateDecision.personA, b: duplicateDecision.personB })
-        .from(duplicateDecision)
-        .where(eq(duplicateDecision.tenantId, tenantId));
-      return new Set(rows.map((r) => pairKey(r.a, r.b)));
+      // A pair whose latest decision is an undo is undecided again.
+      const rows = await tx.execute<{ a: string; b: string }>(sql`
+        SELECT person_a AS a, person_b AS b FROM (
+          SELECT DISTINCT ON (person_a, person_b) person_a, person_b, decision
+            FROM people.duplicate_decision
+           WHERE tenant_id = ${tenantId}::uuid
+           ORDER BY person_a, person_b, decided_at DESC, id DESC
+        ) latest
+         WHERE decision <> 'unmerged'`);
+      return new Set([...rows].map((r) => pairKey(r.a, r.b)));
+    },
+
+    async merges(tx, tenantId, where) {
+      const rows = await tx.execute<{
+        id: string;
+        survivor_id: string;
+        absorbed_id: string;
+        attributes_taken: string[];
+        moved: Moved | null;
+        decided_by: string;
+        decided_at: Date | string;
+      }>(sql`
+        SELECT d.id, d.survivor_id, d.absorbed_id, d.attributes_taken, d.moved,
+               d.decided_by, d.decided_at
+          FROM people.duplicate_decision d
+          JOIN people.person p ON p.tenant_id = d.tenant_id AND p.id = d.absorbed_id
+         WHERE d.tenant_id = ${tenantId}::uuid AND d.decision = 'merged'
+           AND p.status = 'merged' AND p.merged_into = d.survivor_id
+           AND NOT EXISTS (
+             SELECT 1 FROM people.duplicate_decision u
+              WHERE u.tenant_id = d.tenant_id AND u.reverses = d.id)
+           ${where.absorbedId === undefined ? sql`` : sql`AND d.absorbed_id = ${where.absorbedId}::uuid`}
+         ORDER BY d.decided_at DESC, d.id DESC
+         LIMIT ${where.limit}`);
+      return [...rows].map((r) => ({
+        id: r.id,
+        survivorId: r.survivor_id,
+        absorbedId: r.absorbed_id,
+        attributesTaken: r.attributes_taken,
+        moved: r.moved,
+        decidedBy: r.decided_by,
+        decidedAt: new Date(r.decided_at).toISOString(),
+      }));
+    },
+
+    async erased(tx, tenantId, personId) {
+      const [row] = await tx.execute<{ erased: boolean }>(sql`
+        SELECT EXISTS (
+          SELECT 1 FROM people.person_attribute_history
+           WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid
+             AND redacted_at IS NOT NULL
+        ) AS erased`);
+      return row?.erased === true;
     },
 
     async record(tx, tenantId, decision) {
@@ -83,6 +141,9 @@ export function drizzleDuplicates(): DuplicateStore {
           survivorId: decision.survivorId ?? null,
           absorbedId: decision.absorbedId ?? null,
           attributesTaken: [...(decision.attributesTaken ?? [])],
+          moved: decision.moved ?? null,
+          reason: decision.reason ?? null,
+          reverses: decision.reverses ?? null,
           decidedBy: decision.decidedBy,
           decidedAt: new Date(decision.decidedAt),
         })

@@ -95,10 +95,12 @@ import type { NationalIdCheck } from '../../country-packs/national-id.js';
 import {
   candidates,
   mergeRefusal,
+  unmergePlan,
+  unmergeRefusal,
   valuesTaken,
   type Candidate,
 } from '../../domain/person/merge.js';
-import { shownTo, takeable, type DuplicateStore } from './duplicates.js';
+import { shownTo, takeable, type DuplicateStore, type MergeDecision } from './duplicates.js';
 
 /**
  * Reading and writing a person, for every transport.
@@ -435,6 +437,26 @@ export interface PersonAccess {
     asking: On<{ readonly absorbedPersonId: string; readonly take: readonly string[] }>,
   ): Promise<Result<PersonView>>;
   /**
+   * What undoing the merge that absorbed `personId` would do (PEO-074
+   * follow-up), for the dialog that asks HR first; `unmerge` applies the
+   * same rules. `refusal` says why it may not happen at all.
+   */
+  unmergeOptions(tx: Tx, asking: On<object>): Promise<Result<UnmergeOptions>>;
+  /** Merges still standing, newest first, for HR: what an undo is offered on. */
+  merges(
+    tx: Tx,
+    asking: Asking & { readonly limit?: number },
+  ): Promise<Result<readonly MergeDecision[]>>;
+  /**
+   * HR undoes the merge that absorbed `personId`, for a stated reason: the
+   * tombstone is provisional again with its account and its unique claims
+   * back, each value the merge wrote on the survivor is corrected back to
+   * what stood before it (`attribute_corrected`, superseding the merge's
+   * row), a value changed since is kept, and the pair is offered for review
+   * again. Audited by `unmerged` and a decision row naming the merge.
+   */
+  unmerge(tx: Tx, asking: On<{ readonly reason: string }>): Promise<Result<PersonView>>;
+  /**
    * An upstream system's change to a record it mirrors (PEO-072, PEO-073):
    * the attributes it owns written through `update`, effective now, and
    * `synced_from_external` naming them and anything else the link changed
@@ -449,8 +471,23 @@ export interface PersonAccess {
       readonly linkChanged: readonly string[];
       /** How the upstream system identifies the person. */
       readonly externalId: string;
+      /** The link was made just now to a record People already had (PEO-072 follow-up). */
+      readonly adopted?: { readonly matchedOn: 'work_email' };
     }>,
   ): Promise<Result<PersonView>>;
+}
+
+/** What an undo would do, as the dialog shows it before HR confirms. */
+export interface UnmergeOptions {
+  readonly survivorId: string;
+  readonly mergedAt: string;
+  readonly refusal: DomainFailure | null;
+  /** Keys whose merged value goes back to what the survivor held before. */
+  readonly reversed: readonly string[];
+  /** Keys the merge wrote that changed since, or that HR may no longer write: left as they stand. */
+  readonly kept: readonly string[];
+  /** The sign-in the merge moved: given back, kept (the survivor no longer holds it), or none moved. */
+  readonly account: 'returned' | 'kept' | null;
 }
 
 /** A correction's new row, and what the checks found if it was a national identifier (PEO-125). */
@@ -1578,6 +1615,122 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return null;
   }
 
+  /**
+   * The merge that absorbed `asking.personId`, both records (locked in id
+   * order when an undo follows), and what undoing it would do — or why not.
+   */
+  async function unmergeCase(tx: Tx, asking: On<object>, lock: boolean) {
+    const store = deps.duplicates;
+    if (!store) return err(failure('NOT_FOUND', 'Duplicate review is not available'));
+    const version = await deps.schemas.current(tx, asking.tenantId);
+    if (!version) return err(NotPublished());
+    if (!(await deps.reader.record(tx, asking.tenantId, asking.personId))) {
+      return err(PersonNotFound());
+    }
+    const [merge] = await store.merges(tx, asking.tenantId, {
+      absorbedId: asking.personId,
+      limit: 1,
+    });
+    if (merge === undefined) {
+      return err(failure('UNMERGE_NOT_MERGED', 'This record is not merged into another'));
+    }
+    const records = new Map<string, PersonRecord>();
+    for (const id of [merge.absorbedId, merge.survivorId].toSorted()) {
+      const found = await deps.reader.record(tx, asking.tenantId, id, lock);
+      if (!found) return err(PersonNotFound());
+      records.set(id, found);
+    }
+    const absorbed = records.get(merge.absorbedId);
+    const survivor = records.get(merge.survivorId);
+    if (!absorbed || !survivor) return err(PersonNotFound());
+    const onSurvivor = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      merge.survivorId,
+    );
+    const onAbsorbed = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      merge.absorbedId,
+    );
+    if (!onSurvivor.isHr || !onAbsorbed.isHr) {
+      return err(failure('FORBIDDEN', 'Only HR undoes a merge'));
+    }
+    const own = await deps.reader.personOf(tx, asking.tenantId, asking.viewer.accountId);
+    const refusal =
+      own === merge.survivorId || own === merge.absorbedId
+        ? failure('FORBIDDEN', 'Nobody undoes a merge of their own record; another HR colleague has to')
+        : (unmergeRefusal(
+            absorbed.snapshot,
+            survivor.snapshot,
+            await store.erased(tx, asking.tenantId, merge.absorbedId),
+          ) ??
+          (merge.moved === null
+            ? failure(
+                'UNMERGE_UNRECORDED',
+                'This merge was made before an undo could be recorded; correct the survivor value by value',
+              )
+            : null));
+
+    // A value the survivor now holds as HR may not write it — mirrored from
+    // an upstream system since, or sealed — is kept, like one changed since.
+    const plan = unmergePlan(
+      merge.moved?.history ?? {},
+      await deps.people.history(tx, asking.tenantId, merge.survivorId),
+      new Set(merge.moved?.empty ?? []),
+    );
+    const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+    const writable = (key: string) => {
+      const d = byKey.get(key);
+      return d !== undefined && !d.encrypted && canWrite(d, onSurvivor).ok;
+    };
+    const reverse = plan.reverse.filter((r) => writable(r.key));
+    const kept = [
+      ...plan.kept,
+      ...plan.reverse.filter((r) => !writable(r.key)).map((r) => r.key),
+    ];
+    const moved = merge.moved?.identityAccountId ?? null;
+    const account: UnmergeOptions['account'] =
+      moved === null ? null : survivor.snapshot.identityAccountId === moved ? 'returned' : 'kept';
+    return ok({ merge, absorbed, survivor, version, refusal, reverse, kept, account, moved });
+  }
+
+  /** The record's unique values claimed again: a tombstone gave its claims up. */
+  async function reclaim(
+    tx: Tx,
+    asking: Asking,
+    person: PersonRecord,
+    version: PublishedVersion,
+  ): Promise<Result<void>> {
+    const entity = textOf(person.values['legal_entity_id']);
+    for (const d of version.document.attributes) {
+      if (d.uniqueScope === 'none' || d.deprecatedAt !== null) continue;
+      const value =
+        person.values[d.key] ??
+        (d.encrypted
+          ? ((await deps.secrets.reveal?.(tx, {
+              tenantId: asking.tenantId,
+              personId: person.snapshot.id,
+              attributeKey: d.key,
+            })) ?? null)
+          : null);
+      if (value === null) continue;
+      const claimed = await claimUnique(tx, asking, person, d, value, entity);
+      if (!claimed.ok) {
+        return err(
+          failure(
+            'UNIQUE_VALUE_TAKEN',
+            `${d.label.default} on the merged record is now held by another record; change it there first`,
+            [d.key],
+          ),
+        );
+      }
+    }
+    return ok(undefined);
+  }
+
   const api: PersonAccess = {
     giveNotice: (tx, asking) => {
       const day = lastDayOf(asking);
@@ -1886,13 +2039,23 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         if (!adopted.ok) return adopted;
         await deps.people.save(tx, heir, { fields: { identityAccountId: account } });
       }
+      // The rows this merge writes, by key, so an undo reverses exactly them.
+      const rows: Record<string, string> = {};
       if (Object.keys(taken.value).length > 0) {
+        const before = new Set(
+          (await deps.people.history(tx, asking.tenantId, survivorId)).map((e) => e.id),
+        );
         const written = await update(
           tx,
           { ...asking, personId: survivorId, changes: taken.value },
           false,
         );
         if (!written.ok) return written;
+        for (const e of await deps.people.history(tx, asking.tenantId, survivorId)) {
+          if (!before.has(e.id) && e.supersedes === null && e.attributeKey in taken.value) {
+            rows[e.attributeKey] = e.id;
+          }
+        }
       } else {
         await rejudge(tx, asking, survivorId, null);
       }
@@ -1914,6 +2077,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         survivorId,
         absorbedId,
         attributesTaken: Object.keys(taken.value),
+        moved: {
+          history: rows,
+          empty: Object.keys(rows).filter((k) => (survivor.values[k] ?? null) === null),
+          identityAccountId: account,
+        },
         decidedBy: asking.viewer.accountId,
         decidedAt: deps.clock.instant(),
       });
@@ -1924,6 +2092,119 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         survivorId,
       );
       return ok(await view(tx, asking, after, version, relations));
+    },
+
+    async merges(tx, asking) {
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
+      return ok(
+        (await deps.duplicates?.merges(tx, asking.tenantId, {
+          limit: Math.min(asking.limit ?? 20, 100),
+        })) ?? [],
+      );
+    },
+
+    async unmergeOptions(tx, asking) {
+      const found = await unmergeCase(tx, asking, false);
+      if (!found.ok) return found;
+      const { merge, refusal, reverse, kept, account } = found.value;
+      return ok({
+        survivorId: merge.survivorId,
+        mergedAt: merge.decidedAt,
+        refusal,
+        reversed: reverse.map((r) => r.key),
+        kept,
+        account,
+      });
+    },
+
+    async unmerge(tx, asking) {
+      const reason = asking.reason.trim();
+      if (reason === '' || reason.length > 500) {
+        return err(failure('VALUE_INVALID', 'Say why the merge was wrong, in at most 500 characters', ['reason']));
+      }
+      const found = await unmergeCase(tx, asking, true);
+      if (!found.ok) return found;
+      const { merge, absorbed, version, refusal, reverse, kept, account, moved } = found.value;
+      if (refusal !== null) return err(refusal);
+      const store = deps.duplicates as DuplicateStore;
+      const { survivorId, absorbedId } = merge;
+      const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+
+      // The survivor first: each merged value corrected back, from the day it
+      // took effect, its unique claim following the value.
+      for (const r of reverse) {
+        const corrected = await api.correct(tx, {
+          ...asking,
+          personId: survivorId,
+          supersedes: r.supersedes,
+          value: r.value,
+          reason: `Merge undone: ${reason}`,
+          // Restoring what stood before the merge: nothing to approve.
+          applySensitiveWithoutApproval: true,
+        });
+        if (!corrected.ok) return corrected;
+        const d = byKey.get(r.key);
+        if (d !== undefined && d.uniqueScope !== 'none') {
+          const now = await deps.reader.record(tx, asking.tenantId, survivorId, true);
+          if (!now) return err(PersonNotFound());
+          const claimed = await claimUnique(
+            tx,
+            asking,
+            now,
+            d,
+            r.value,
+            textOf(now.values['legal_entity_id']),
+          );
+          if (!claimed.ok) return claimed;
+        }
+      }
+      // The account back where it came from, released before it is taken.
+      if (account === 'returned' && moved !== null) {
+        const now = await deps.reader.record(tx, asking.tenantId, survivorId, true);
+        if (!now) return err(PersonNotFound());
+        const heir = Person.rehydrate(now.snapshot);
+        const released = heir.releaseAccount(moved);
+        if (!released.ok) return released;
+        await deps.people.save(tx, heir, { fields: { identityAccountId: null } });
+      }
+
+      const back = account === 'returned' ? moved : null;
+      const restored = Person.rehydrate(absorbed.snapshot);
+      const undone = restored.restoreFromMerge(
+        {
+          survivorId,
+          supersedes: merge.id,
+          reason,
+          reversed: reverse.map((r) => r.key),
+          kept,
+          identityAccountId: back,
+        },
+        contextFor(asking),
+      );
+      if (!undone.ok) return undone;
+      // Identity learns whose name the returned account signs in with again.
+      if (back !== null) shareIdentityFacts(restored, asking, absorbed.values, null);
+      await deps.people.save(tx, restored, { fields: { identityAccountId: back } });
+      const claimed = await reclaim(tx, asking, absorbed, version);
+      if (!claimed.ok) return claimed;
+      await rejudge(tx, asking, absorbedId, null);
+      await rejudge(tx, asking, survivorId, null);
+
+      await store.record(tx, asking.tenantId, {
+        id: deps.newId(),
+        personIds: [survivorId, absorbedId],
+        decision: 'unmerged',
+        survivorId,
+        absorbedId,
+        attributesTaken: reverse.map((r) => r.key),
+        moved: { kept, accountKept: account === 'kept' },
+        reason,
+        reverses: merge.id,
+        decidedBy: asking.viewer.accountId,
+        decidedAt: deps.clock.instant(),
+      });
+      return api.read(tx, { ...asking, personId: absorbedId });
     },
 
     async read(
@@ -2751,6 +3032,23 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const integration = integrationOf(asking);
       if (integration === undefined) {
         return err(failure('FORBIDDEN', 'Only the system a record is mirrored from syncs it'));
+      }
+      if (asking.adopted !== undefined) {
+        const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+        if (!person) return err(PersonNotFound());
+        const aggregate = Person.rehydrate(person.snapshot);
+        const { day } = await calendarOf(tx, asking.tenantId, person.values);
+        const adopted = aggregate.adoptedByExternal(
+          {
+            provider: integration.system,
+            externalId: asking.externalId,
+            matchedOn: asking.adopted.matchedOn,
+          },
+          contextFor(asking),
+          day,
+        );
+        if (!adopted.ok) return adopted;
+        await deps.people.save(tx, aggregate);
       }
       const keys = Object.keys(asking.changes);
       if (keys.length > 0) {

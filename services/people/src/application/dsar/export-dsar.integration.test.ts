@@ -337,6 +337,40 @@ describe('a subject access export', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'DSAR_NOT_SUBJECT' } });
   });
 
+  it('carries every record merged into theirs, however deep, labelled as from the merged record (PEO-074)', async () => {
+    const OLD = '00000000-0000-4000-8000-0000000000a2';
+    const OLDER = '00000000-0000-4000-8000-0000000000a3';
+    await admin.execute(sql`
+      INSERT INTO people.person (id, tenant_id, status, merged_into, given_name, custom, schema_version)
+      VALUES (${OLD}::uuid, ${ACME}::uuid, 'merged', ${ADA}::uuid, 'Ada L.', ${JSON.stringify({ shoe_size: 36 })}::jsonb, 2),
+             (${OLDER}::uuid, ${ACME}::uuid, 'merged', ${OLD}::uuid, 'A. Lovelace', '{}'::jsonb, 1)
+    `);
+    await admin.execute(sql`
+      INSERT INTO people.person_attribute_history (id, tenant_id, person_id, attribute_key, value, effective_from, actor)
+      VALUES ('01890000-0000-7000-8000-0000000000f9'::uuid, ${ACME}::uuid, ${OLDER}::uuid, 'shoe_size', '35'::jsonb,
+              '2020-01-01', ${JSON.stringify({ kind: 'system', process: 'seed' })}::jsonb)
+    `);
+
+    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    if (!result.ok) throw new Error(result.error.message);
+
+    // The subject's own values are untouched by what the tombstones hold.
+    expect(result.value.attributes.find((a) => a.key === 'given_name')?.value).toBe('Ada');
+    const merged = result.value.mergedRecords.map((m) => ({
+      source: m.source,
+      personId: m.personId,
+      mergedInto: m.mergedInto,
+      schemaVersion: m.schemaVersion,
+      given: m.attributes.find((a) => a.key === 'given_name')?.value,
+      shoes: m.attributes.find((a) => a.key === 'shoe_size')?.value ?? null,
+      history: m.history.map((h) => [h.attributeKey, h.value]),
+    }));
+    expect(merged).toEqual([
+      { source: 'merged_record', personId: OLD, mergedInto: ADA, schemaVersion: 2, given: 'Ada L.', shoes: 36, history: [] },
+      { source: 'merged_record', personId: OLDER, mergedInto: OLD, schemaVersion: 1, given: 'A. Lovelace', shoes: null, history: [['shoe_size', 35]] },
+    ]);
+  });
+
   // Last, because it redacts a row the tests above read.
   it('still exports once retention has redacted part of the history', async () => {
     await admin.execute(sql`

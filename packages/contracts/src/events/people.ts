@@ -498,6 +498,7 @@ export const PersonStatusChanged = defineEvent(
         'rehired',
         'notice_withdrawn',
         'merged',
+        'unmerged',
       ])
       .register(policy, asInternal()),
   }),
@@ -702,6 +703,55 @@ export const PersonMerged = defineEvent(
 );
 
 /**
+ * A merge undone: HR decided two records were two people after all (PEO-074
+ * follow-up). Raised on the record that had been absorbed, after its
+ * `status_changed` back to `provisional` (reason `unmerged`).
+ *
+ * `supersedes` names the merge decision this reverses, the typed correction
+ * of that decision rather than a quiet rewrite of it. The values the merge
+ * wrote on the survivor are corrected by the survivor's own
+ * `attribute_corrected`, each superseding the merge's row; this event names
+ * which keys were reversed and which were kept because they had changed since.
+ */
+export const PersonUnmerged = defineEvent(
+  'people.person.unmerged',
+  1,
+  z.object({
+    survivingPersonId: PersonId,
+    absorbedPersonId: PersonId,
+    /** The merge decision this undoes. */
+    supersedes: z.uuid().register(policy, asPublic()),
+    /** HR's words for why the merge was wrong; the envelope's actor says who. */
+    reason: z.string().min(1).max(500).register(policy, asFreeText()),
+    /** Keys corrected back on the survivor. Names, not values. */
+    attributesReversed: z.array(AttributeKey).register(policy, asInternal()),
+    /** Keys the merge wrote that changed since and were left as they stand. */
+    attributesKept: z.array(AttributeKey).register(policy, asInternal()),
+    /** The account given back to this record; null when none moved or the survivor no longer held it. */
+    identityAccountId: z.uuid().nullable().register(policy, asPublic()),
+  }),
+);
+
+/**
+ * An upstream system provisioned somebody People already had, and took the
+ * existing record instead of creating a second (PEO-072 follow-up): exactly
+ * one live record held the work email it sent, linked to no connection. The
+ * link's own `synced_from_external` follows, naming what it wrote.
+ */
+export const PersonAdoptedByExternal = defineEvent(
+  'people.person.adopted_by_external',
+  1,
+  z.object({
+    personId: PersonId,
+    provider: z.string().register(policy, asPublic()),
+    /** Identifies the same person in the upstream system. */
+    externalId: z.string().register(policy, asIdentity()),
+    /** What matched: the one rule there is, named so a second is a new value. */
+    matchedOn: z.enum(['work_email']).register(policy, asPublic()),
+  }),
+);
+
+/**
  * Retention executed against a terminated record.
  *
  * Which classes were cleared, never what was in them. `anonymised` rather than
@@ -723,6 +773,17 @@ export const PersonAnonymised = defineEvent(
      * for why, the actor on the envelope says who. Absent on an automated run.
      */
     manualReason: z.string().min(1).max(500).optional().register(policy, asFreeText()),
+    /**
+     * Present when the retention job erased (PEO-075): "retention expired
+     * (es-labour)", naming the floors or the tenant policy that decided.
+     * Written by the job, never by a person.
+     */
+    automatedReason: z.string().min(1).max(200).optional().register(policy, asInternal()),
+    /**
+     * Present when this record is a merge's tombstone, erased because the
+     * survivor it points at was: one human, one retention clock (PEO-074).
+     */
+    survivorId: z.uuid().optional().register(policy, asPublic()),
   }),
 );
 
@@ -1202,6 +1263,8 @@ export const peopleEvents = [
   PersonProfileIncomplete,
   PersonProfileCompleted,
   PersonMerged,
+  PersonUnmerged,
+  PersonAdoptedByExternal,
   PersonAnonymised,
   PersonSyncedFromExternal,
   UniqueClaimConflict,
