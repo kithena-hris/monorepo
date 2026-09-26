@@ -9,7 +9,7 @@ dev:
     pnpm db:migrate
     pnpm db:seed
     pnpm --filter @kithena/people upload-bucket
-    pnpm turbo run dev --parallel --env-mode=loose
+    pnpm turbo run dev --parallel --env-mode=loose --concurrency=20
 
 up:
     docker compose up -d --wait
