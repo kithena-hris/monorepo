@@ -1923,13 +1923,72 @@ it is written down here rather than left in a PR description.
       serves the safelist. Left: a timed 100 MB import through the production
       router once the People Phase 2/3 release is deployed._
 
+## Revisit later — the owner's list
+
+Everything left on People that needs the product owner rather than the next
+ticket, gathered in one place on 2026-09-27. Tick an item here when it is done;
+the ticket or follow-up it points at is ticked with it.
+
+**After the first production deploy of People Phase 2/3**
+- [ ] Deploy: Actions → "deploy to production" → Everything (ships #164–#171;
+      Postgres 18 is already live and its 17 volume removed).
+- [ ] Switch People on and name its administrators for each company in the
+      back office (`admin.kithena.com` → Companies → Modules).
+- [ ] Confirm SCIM is reachable: `curl -i https://api.kithena.com/scim/v2/Users`
+      answers `401` in `application/scim+json`.
+- [ ] Time a 100 MB import through the production router (the router
+      follow-up above; the safelist half is done).
+
+**Needs somebody outside the code**
+- [ ] Counsel reviews the statutory retention floors (PEO-037). Until a floor
+      is reviewed, PEO-075's automated erasure skips everybody under it.
+- [ ] A person per country confirms its pack's paperwork rules (PEO-059).
+- [ ] Live Okta and Entra test tenants, to run SCIM against the real providers
+      (the follow-up above).
+- [ ] The Documents module, which PEO-063 and PEO-076 wait for.
+
+**Product decisions still open**
+- [ ] Merging two employed records: refused by decision; revisit if payroll
+      can say which start, number and pay line win (follow-up above).
+- [ ] Legal hold and open-DSAR state: People has neither, so erasure (HR's and
+      PEO-075's) cannot hold anybody back for them. Decide whether People owns
+      them.
+- [ ] HR's by-hand erasure has a use case but no route or profile button
+      (PEO-126's follow-up). Decide where it lives.
+- [ ] A leaver with one value under an unreviewed floor keeps everything, even
+      values only a tenant policy governs. Decide whether to erase the
+      unblocked part.
+- [ ] Merges made before #168 cannot be undone (`UNMERGE_UNRECORDED`). If any
+      exist in production, decide whether to recover them from the outbox.
+- [ ] Undo merge is on the duplicates screen only, not on the profile.
+- [ ] Bulk hire replays its first answer without names (they are read again);
+      confirm that is acceptable.
+- [ ] A leaver read by id is answered with status withheld; hiding the record
+      from peers altogether is a product call (see the status follow-up).
+
+**Operations**
+- [ ] Turn on S3 versioning for `kithena-378988188471-backups` (with old
+      versions expiring after ~30 days): today a later backup on the same day
+      overwrites the earlier one.
+- [ ] Set `KITHENA_ENTITLEMENTS` on the `kithena-identity-production` Vercel
+      project to exactly `["module.people"]`, so a company with no recorded list
+      gets People.
+- [ ] Locally, only the seed carries events from identity to People (no
+      Debezium). Decide whether local dev needs a live event path.
+- [ ] Chromatic's free snapshot quota is used up, so "UI Tests" never finishes
+      (not a required check). Decide whether to pay, drop it, or rely on the
+      Storybook axe and contrast gates.
+- [ ] Move off Vercel Hobby when deploy volume needs it; then restore the
+      preview and staging triggers (`docs/environments.md`, "What a deploy
+      ships").
+
 ## Blocked, and by what
 
 | Ticket  | Blocked on          | Note                                                                                                                                      |
 | ------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | PEO-027 | PEO-002             | People cannot see a name captured at enrolment until identity publishes it                                                                |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked                         |
-| PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
+| PEO-045 | resolved | Default 10, raisable per tenant in People settings (decided 2026-09-26); the floor never goes below 10 |
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
 | PEO-075 | built; inert per floor until counsel reviews it | The job runs and erases under a tenant policy alone; it skips any leaver relying on an unreviewed floor (all three today) until that floor is reviewed (PEO-126) |
