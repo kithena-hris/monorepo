@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto';
 
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
-import { checkVisibilityRules, type Attribute, type SchemaDraft, type Section } from './draft.js';
+import {
+  checkRequirednessPredicate,
+  checkVisibilityRules,
+  type Attribute,
+  type SchemaDraft,
+  type Section,
+} from './draft.js';
 
 /**
  * Publishing a draft, and what a published version is allowed to do afterwards.
@@ -145,6 +151,8 @@ export function publish(
   for (const attribute of document.attributes) {
     const discloses = checkVisibilityRules(attribute, document.attributes);
     if (!discloses.ok) return discloses;
+    const predicate = checkRequirednessPredicate(attribute, document.attributes);
+    if (!predicate.ok) return predicate;
   }
 
   return ok(

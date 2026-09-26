@@ -938,7 +938,14 @@ Ordered, but none of it blocks Phase 1 shipping.
       `RequirednessPredicate`, parsed at the REST boundary, so GraphQL, REST
       and the draft refuse the same things. Editing a conditional field used
       to save it as optional; it keeps its predicate now. The evaluator is
-      shared with PEO-066 (`evaluatePredicate`)._
+      shared with PEO-066 (`evaluatePredicate`).
+      Privacy guard: a predicate may not name a special-category field
+      (`PREDICATE_DISCLOSES`, on save and at publish; the editor says so
+      beside the condition), since "missing" would tell whoever sees the gap
+      that the condition held. A published document that still holds one is
+      failed closed by `assessCompleteness`: the field is not required of
+      anybody and the rule is reported as unevaluable. No country pack or
+      seed carries such a predicate._
 - [x] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
       _As built: `visibilityRules` on the definition — up to five, each
       preset scopes plus the same closed predicate, granting those scopes on
@@ -952,7 +959,11 @@ Ordered, but none of it blocks Phase 1 shipping.
       holds there. Safety: never for special-category data (contract and
       read side); never on a field a granted scope cannot already read
       outright, or on an archived one (`VISIBILITY_RULE_DISCLOSES`, on save
-      and again at publish); rules never count towards "a required field
+      and again at publish); the same for a placement fact, judged
+      through the field `factsOf` reads it from (`legal_entity_id`,
+      `home_address`/`country`, `employment_type`, `work_model`; no such
+      field is a refusal too), and `status` only for `hr`, whose alone it is
+      (PEO-120); rules never count towards "a required field
       somebody can read". The publish preview names a field whose readers or
       conditions changed (`changed`)._
 - [x] **PEO-067** The remaining charts — attrition, tenure, span of control,

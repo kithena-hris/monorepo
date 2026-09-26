@@ -428,6 +428,16 @@ describe('the screens over GraphQL', () => {
       classificationSource: 'human',
       ...over,
     });
+    // A rule on a placement fact needs its field readable by the scope it
+    // grants: managers see employment type here, so "for contractors" is theirs.
+    expect(
+      (
+        await graph(admin, SAVE, {
+          key: 'rules-0',
+          input: input('employment_type', { visibility: ['manager', 'hr'] }),
+        })
+      ).errors,
+    ).toBeUndefined();
     expect(
       (
         await graph(admin, SAVE, {
@@ -475,6 +485,18 @@ describe('the screens over GraphQL', () => {
       }),
     });
     expect(discloses.errors?.[0]?.extensions.code).toBe('VISIBILITY_RULE_DISCLOSES');
+
+    // "Managers see this for people on leave" tells them who is on leave:
+    // status is HR's alone.
+    const onLeave = await graph(admin, SAVE, {
+      key: 'rules-3',
+      input: input('leave_cover', {
+        visibilityRules: [
+          { scopes: ['manager'], when: { combine: 'all', clauses: [{ operand: 'status', in: ['on_leave'] }] } },
+        ],
+      }),
+    });
+    expect(onLeave.errors?.[0]?.extensions.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 
   it('writes a section with a key, and answers a retry of that key without writing again', async () => {
