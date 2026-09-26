@@ -93,6 +93,32 @@ export function readable(
 }
 
 /**
+ * A person's history as this viewer may read it (PEO-064, §8.5).
+ *
+ * Judged by today's rules, never the rules the row was written under: a row
+ * of a field the viewer cannot read now is absent, whoever could read it then,
+ * and so is a row of a field no longer in the schema. A field that is sealed
+ * now shows none of its past values — only that it changed — because a
+ * classification that tightened after the write must not be undone by
+ * scrolling back: a value written in plaintext before the field was
+ * encrypted is exactly the plaintext the seal exists to hide.
+ */
+export function readableHistory<
+  E extends { readonly attributeKey: string; readonly value: unknown },
+>(
+  definitions: readonly AttributeDefinition[],
+  entries: readonly E[],
+  viewer: ViewerRelations,
+): E[] {
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  return entries.flatMap((e) => {
+    const definition = byKey.get(e.attributeKey);
+    if (definition === undefined || !visibleTo(definition, viewer)) return [];
+    return definition.encrypted ? [{ ...e, value: null }] : [e];
+  });
+}
+
+/**
  * Whether this viewer may write this attribute.
  *
  * Ownership, not visibility, and the two genuinely differ: an employee owns

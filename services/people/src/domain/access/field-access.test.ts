@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
-import { canWrite, readable, visibleTo, type ViewerRelations } from './field-access.js';
+import {
+  canWrite,
+  readable,
+  readableHistory,
+  visibleTo,
+  type ViewerRelations,
+} from './field-access.js';
 
 /**
  * Who may read a field, and who may write it.
@@ -180,6 +186,46 @@ describe('the decision both paths share', () => {
     // the four would drift and the one that drifted would be discovered by a
     // customer.
     const seen = readable([salary], { base_salary: 1 }, relations({ isFinance: true }));
-    expect(Object.hasOwn(seen, 'base_salary')).toBe(visibleTo(salary, relations({ isFinance: true })));
+    expect(Object.hasOwn(seen, 'base_salary')).toBe(
+      visibleTo(salary, relations({ isFinance: true })),
+    );
+  });
+});
+
+describe('what history shows (PEO-064)', () => {
+  const row = (attributeKey: string, value: unknown) => ({ id: attributeKey, attributeKey, value });
+  // Written in plaintext before the field was sealed: a classification that
+  // tightened later does not unseal what was written under the looser one.
+  const iban = define({
+    key: 'iban',
+    encrypted: true,
+    includeInEvents: false,
+    includeInDirectory: false,
+    visibility: ['self', 'hr'],
+  });
+  const rows = [
+    row('job_title', 'Engineer'),
+    row('base_salary', { amountMinor: 1, currency: 'EUR' }),
+    row('ethnicity', 'answered'),
+    row('iban', 'ES9121000418450200051332'),
+    row('retired_key', 'from a field no longer in the schema'),
+  ];
+
+  it('drops every row of a field the viewer cannot read now', () => {
+    const seen = readableHistory(
+      [salary, title, ethnicity, iban],
+      rows,
+      relations({ isManager: true }),
+    );
+    expect(seen.map((r) => r.attributeKey)).toEqual(['job_title']);
+  });
+
+  it('never shows a sealed field its past plaintext, only that it changed', () => {
+    const seen = readableHistory([iban], rows, relations({ isHr: true }));
+    expect(seen).toEqual([{ id: 'iban', attributeKey: 'iban', value: null }]);
+  });
+
+  it('keeps a self-ID answer out of its own history, as out of the record', () => {
+    expect(readableHistory([ethnicity], rows, relations({ isSelf: true, isHr: true }))).toEqual([]);
   });
 });

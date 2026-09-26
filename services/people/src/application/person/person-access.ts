@@ -14,6 +14,7 @@ import {
   canWrite,
   partitionWrites,
   readable,
+  readableHistory,
   visibleTo,
   type ViewerRelations,
 } from '../../domain/access/field-access.js';
@@ -1497,7 +1498,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       return update(tx, { ...asking, personId: id, changes: asking.attributes });
     },
 
-    /** Dated facts, for the attributes this viewer may read. */
+    /** Dated facts, for the attributes this viewer may read now; a sealed one's without values. */
     async history(
       tx: Tx,
       asking: Asking & { readonly personId: string; readonly attributeKey?: string },
@@ -1513,19 +1514,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.personId,
       );
 
-      const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
       const entries = await deps.people.history(
         tx,
         asking.tenantId,
         asking.personId,
         asking.attributeKey,
       );
-      return ok(
-        entries.filter((e) => {
-          const definition = byKey.get(e.attributeKey);
-          return definition !== undefined && visibleTo(definition, relations);
-        }),
-      );
+      return ok(readableHistory(version.document.attributes, entries, relations));
     },
 
     /**
