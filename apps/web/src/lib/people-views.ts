@@ -77,6 +77,11 @@ function stage(s: Json): Json {
 export const VIEWS = {
   Onboarding: (v: WithRecord & Json) => record(v),
   Profile: (v: WithRecord & Json) => record(v),
+  // Each change's value too, from its entry: a sealed one stays `{ last4: null }`.
+  PersonHistory: (v: WithRecord & Json & { changes: (Json & { value: Entry })[] }) => ({
+    ...record(v),
+    changes: v.changes.map((c) => ({ ...c, value: formValue(c.value) })),
+  }),
   Directory: (v: Json & { people: (Json & { values: { key: string; value: string }[] })[] }) => ({
     ...v,
     people: v.people.map((p) => ({

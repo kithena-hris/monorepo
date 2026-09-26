@@ -68,6 +68,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       );
     case 'Profile':
       return read('Profile', { personId: query.params['id'] ?? null }, VIEWS.Profile);
+    case 'PersonHistory':
+      return read(
+        'History',
+        { personId: query.params['id'] ?? null, asOf: given(query.search['asOf']) },
+        VIEWS.PersonHistory,
+      );
     case 'Onboarding':
       return read('Onboarding', {}, VIEWS.Onboarding);
     case 'CompletenessGrid':

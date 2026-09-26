@@ -90,6 +90,8 @@ export interface ProfileProps {
   readonly onPlace?: (placement: PlacementChange) => Promise<Outcome>;
   /** Finds people for a person field, by name, over everybody (PEO-122). */
   readonly searchPeople?: SearchPeople;
+  /** Open the record as of a date, and its changes (PEO-064). */
+  readonly onHistory?: () => void;
 }
 
 /**
@@ -109,6 +111,7 @@ export function Profile({
   onMove,
   onPlace,
   searchPeople,
+  onHistory,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
@@ -120,6 +123,7 @@ export function Profile({
             onCheck={onCheck}
             onMove={onMove}
             onPlace={onPlace}
+            onHistory={onHistory}
           />
         )}
       </Loaded>
@@ -133,12 +137,14 @@ function Record({
   onCheck,
   onMove,
   onPlace,
+  onHistory,
 }: {
   readonly state: ProfileState;
   readonly onSave: ProfileProps['onSave'];
   readonly onCheck: ProfileProps['onCheck'];
   readonly onMove: ProfileProps['onMove'];
   readonly onPlace: ProfileProps['onPlace'];
+  readonly onHistory: ProfileProps['onHistory'];
 }): JSX.Element {
   const [editing, setEditing] = useState<string | null>(null);
   const [values, setValues] = useState<Values>(state.values);
@@ -158,10 +164,15 @@ function Record({
         }
         description={person.summary ?? undefined}
         actions={
-          person.missing === null ? undefined : (
-            <Badge tone={person.missing === 0 ? 'success' : 'warning'}>
-              {person.missing === 0 ? 'Complete' : `${String(person.missing)} missing`}
-            </Badge>
+          person.missing === null && onHistory === undefined ? undefined : (
+            <span className="flex items-center gap-2">
+              {person.missing === null ? null : (
+                <Badge tone={person.missing === 0 ? 'success' : 'warning'}>
+                  {person.missing === 0 ? 'Complete' : `${String(person.missing)} missing`}
+                </Badge>
+              )}
+              {onHistory === undefined ? null : <Button onClick={onHistory}>History</Button>}
+            </span>
           )
         }
       />

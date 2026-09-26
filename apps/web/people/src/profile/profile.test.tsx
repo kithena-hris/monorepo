@@ -236,6 +236,23 @@ describe('Profile', () => {
     expect(screen.queryByRole('form', { name: 'Placement' })).toBeNull();
   });
 
+  it('opens the history where the shell offers it (PEO-064)', async () => {
+    const onHistory = vi.fn();
+    const { rerender } = render(
+      <Profile load={{ status: 'ready', data: asManager }} onSave={vi.fn()} />,
+    );
+    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
+    rerender(
+      <Profile
+        load={{ status: 'ready', data: asManager }}
+        onSave={vi.fn()}
+        onHistory={onHistory}
+      />,
+    );
+    await fast().click(screen.getByRole('button', { name: 'History' }));
+    expect(onHistory).toHaveBeenCalledOnce();
+  });
+
   it('has loading and error states', async () => {
     const { container, rerender } = render(
       <Profile load={{ status: 'loading' }} onSave={vi.fn()} />,

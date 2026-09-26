@@ -96,6 +96,21 @@ export const OPERATIONS = {
     }
   }${RECORD_FIELD}${ENTRY}${REVIEW}`,
 
+  /** A record as of a date, and every change behind it (PEO-064). */
+  History: `query History($personId: ID, $asOf: String) {
+    peopleHistory(personId: $personId, asOf: $asOf) {
+      person { id name }
+      asOf
+      sections { key label visibility fields { ...RecordFieldParts } }
+      dated
+      values { ...EntryParts }
+      changes {
+        id key effectiveFrom recordedAt by supersedes supersededBy
+        value { ...EntryParts }
+      }
+    }
+  }${RECORD_FIELD}${ENTRY}`,
+
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
       items { personId name attributeKey label last4 findings { level code message } enteredAt }

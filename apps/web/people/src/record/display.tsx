@@ -5,6 +5,9 @@ import { isMissing, type AttributeValue, type RecordField } from './model';
 
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
 
+/** A calendar date, "14 March 1994": a date has no zone, so it is read as UTC. */
+export const longDate = (iso: string): string => date.format(Date.parse(`${iso}T00:00:00Z`));
+
 /**
  * One value, read-only, the way a person reads it.
  *
@@ -29,7 +32,7 @@ export function DisplayValue({
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;
     if (field.dataType === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return <>{date.format(Date.parse(`${value}T00:00:00Z`))}</>;
+      return <>{longDate(value)}</>;
     }
     return <>{value}</>;
   }

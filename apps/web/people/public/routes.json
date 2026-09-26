@@ -5,6 +5,7 @@
     { "path": "/people/setup", "component": "PeopleSetup" },
     { "path": "/people/onboarding", "component": "Onboarding" },
     { "path": "/people/me", "component": "Profile" },
+    { "path": "/people/me/history", "component": "PersonHistory" },
     { "path": "/people/completeness", "component": "CompletenessGrid" },
     { "path": "/people/settings/fields", "component": "FieldRegistry" },
     { "path": "/people/settings/integrations", "component": "Integrations" },
@@ -16,6 +17,7 @@
     { "path": "/people/full-values", "component": "FullValues" },
     { "path": "/people/identifier-reviews", "component": "IdentifierReviews" },
     { "path": "/people/analytics", "component": "Analytics" },
-    { "path": "/people/:id", "component": "Profile" }
+    { "path": "/people/:id", "component": "Profile" },
+    { "path": "/people/:id/history", "component": "PersonHistory" }
   ]
 }

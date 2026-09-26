@@ -149,6 +149,23 @@ export function PeopleScreen({
                 ),
               }),
           searchPeople: actions.searchPeople,
+          onHistory: () => {
+            go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
+          },
+        };
+      }
+      // A date is a URL, so Back returns to the one before (PEO-064).
+      case 'PersonHistory': {
+        const id = params['id'];
+        const here = id === undefined ? '/people/me/history' : `/people/${id}/history`;
+        return {
+          load: loadable,
+          onAsOf: (asOf: string | null) => {
+            go(asOf === null ? here : `${here}?asOf=${encodeURIComponent(asOf)}`);
+          },
+          onBack: () => {
+            go(id === undefined ? '/people/me' : `/people/${id}`);
+          },
         };
       }
       case 'Directory': {

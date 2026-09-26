@@ -11,6 +11,7 @@ import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
 import { Onboarding } from '../onboarding/onboarding';
+import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
 import type { RecordField } from '../record/model';
 import { FieldRegistry } from '../settings/field-registry';
@@ -264,6 +265,61 @@ describe('at 390×844, with a finger', () => {
     await settled();
     expect(await violations(document.body)).toEqual([]);
     expect(underFloor(document.body)).toEqual([]);
+  });
+
+  it('a history, as of a date (PEO-064)', async () => {
+    await checked(
+      <PersonHistory
+        load={{
+          status: 'ready',
+          data: {
+            person: { id: 'p', name: 'Adam Reyes' },
+            asOf: '2026-04-15',
+            sections: [
+              {
+                key: 'compensation',
+                label: 'Compensation',
+                visibility: ['self', 'hr'],
+                fields: [
+                  field({
+                    key: 'base_salary',
+                    label: 'Base salary',
+                    dataType: 'money',
+                    readOnly: true,
+                  }),
+                ],
+              },
+            ],
+            dated: ['base_salary'],
+            values: { base_salary: { amountMinor: '5100000', currency: 'EUR' } },
+            changes: [
+              {
+                id: 'fix',
+                key: 'base_salary',
+                value: { amountMinor: '5100000', currency: 'EUR' },
+                effectiveFrom: '2026-03-01',
+                recordedAt: '2026-06-02T08:30:00.000Z',
+                by: 'Priya Shah',
+                supersedes: 'typo',
+                supersededBy: null,
+              },
+              {
+                id: 'typo',
+                key: 'base_salary',
+                value: { amountMinor: '5000000', currency: 'EUR' },
+                effectiveFrom: '2026-03-01',
+                recordedAt: '2026-03-15T09:12:00.000Z',
+                by: 'Priya Shah',
+                supersedes: null,
+                supersededBy: 'fix',
+              },
+            ],
+          },
+        }}
+        onAsOf={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
   });
 
   it('People home', async () => {

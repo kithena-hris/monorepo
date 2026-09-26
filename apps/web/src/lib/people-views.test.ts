@@ -39,6 +39,31 @@ describe('a record back from GraphQL', () => {
     expect(Object.hasOwn(profile.values, 'base_salary')).toBe(false);
     expect(profile.sections[0]?.fields[0]).toEqual({ key: 'job_title', label: 'Job title' });
   });
+
+  it('puts each change of a history back as a form value, a sealed one still sealed (PEO-064)', () => {
+    const history = VIEWS.PersonHistory({
+      sections: [],
+      values: [],
+      changes: [
+        {
+          id: 'a',
+          value: {
+            __typename: 'MoneyEntry',
+            key: 'base_salary',
+            amountMinor: '1',
+            currency: 'EUR',
+          },
+        },
+        { id: 'b', value: { __typename: 'SealedEntry', key: 'iban', last4: null } },
+        { id: 'c', value: { __typename: 'EmptyEntry', key: 'nickname' } },
+      ],
+    });
+    expect(history.changes.map((c) => c.value)).toEqual([
+      { amountMinor: '1', currency: 'EUR' },
+      { last4: null },
+      null,
+    ]);
+  });
 });
 
 describe('the shell', () => {

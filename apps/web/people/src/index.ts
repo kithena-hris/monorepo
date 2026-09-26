@@ -9,6 +9,7 @@ export { FieldRegistry } from './settings/field-registry';
 export { PeopleSetup } from './setup/people-setup';
 export { Onboarding } from './onboarding/onboarding';
 export { Profile } from './profile/profile';
+export { PersonHistory } from './profile/history';
 export { Directory } from './directory/directory';
 export { CompletenessGrid } from './completeness/completeness-grid';
 export { Integrations } from './settings/integrations/integrations';
