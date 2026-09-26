@@ -122,6 +122,7 @@ beforeAll(async () => {
           dataType: 'money',
           typeConfig: { kind: 'money' },
           visibility: ['hr'],
+          effectiveDated: true,
           classification: {
             classification: 'confidential',
             piiKind: 'none',
@@ -370,6 +371,96 @@ describe('the screens over GraphQL', () => {
       `mutation { savePersonSection(personId: "${ADA}", changed: [{ key: "job_title", text: "x" }]) { ok } }`,
     );
     expect(unkeyed.errors).toBeDefined();
+  });
+
+  it('reads a record as of a date with every change behind it, corrections superseding (PEO-064)', async () => {
+    const hr = headers(HR_ACCOUNT, ['hr']);
+    const pay = (amountMinor: number, effectiveFrom: string, key: string) =>
+      fetch(`${base}/v1/people/${ADA}`, {
+        method: 'PATCH',
+        headers: { ...hr, 'idempotency-key': key },
+        body: JSON.stringify({
+          attributes: { base_salary: { amountMinor, currency: 'EUR' } },
+          effectiveFrom,
+        }),
+      });
+    expect((await pay(5_000_000, '2026-03-01', 'history-march')).status).toBe(200);
+    expect((await pay(6_000_000, '2026-06-01', 'history-june')).status).toBe(200);
+    const rows = (await (
+      await fetch(`${base}/v1/people/${ADA}/history?attribute=base_salary`, { headers: hr })
+    ).json()) as { items: { id: string; effectiveFrom: string }[] };
+    const march = rows.items.find((r) => r.effectiveFrom === '2026-03-01');
+    const fixed = await fetch(`${base}/v1/people/${ADA}/corrections`, {
+      method: 'POST',
+      headers: { ...hr, 'idempotency-key': 'history-typo' },
+      body: JSON.stringify({
+        supersedes: march?.id,
+        value: { amountMinor: 5_100_000, currency: 'EUR' },
+        reason: 'typo',
+      }),
+    });
+    expect(fixed.status).toBe(201);
+
+    const HISTORY = `query ($id: ID, $asOf: String) {
+      peopleHistory(personId: $id, asOf: $asOf) {
+        person { id name }
+        asOf dated
+        sections { key fields { key } }
+        values { __typename ... on MoneyEntry { key amountMinor } ... on TextEntry { key text } }
+        changes {
+          id key effectiveFrom recordedAt by supersedes supersededBy
+          value { __typename ... on MoneyEntry { amountMinor } }
+        }
+      }
+    }`;
+    interface History {
+      asOf: string | null;
+      dated: string[];
+      values: { key: string; amountMinor?: string }[];
+      changes: {
+        id: string;
+        key: string;
+        effectiveFrom: string;
+        by: string;
+        supersedes: string | null;
+        supersededBy: string | null;
+        value: { amountMinor?: string };
+      }[];
+    }
+    const asHr = await graph(hr, HISTORY, { id: ADA, asOf: '2026-04-15' });
+    expect(asHr.errors).toBeUndefined();
+    const seen = asHr.data?.['peopleHistory'] as History;
+    expect(seen.asOf).toBe('2026-04-15');
+    expect(seen.dated).toEqual(['base_salary']);
+    // March as corrected, not as typed: no pay cut followed by a raise.
+    expect(seen.values).toContainEqual({
+      __typename: 'MoneyEntry',
+      key: 'base_salary',
+      amountMinor: '5100000',
+    });
+    // A field kept without dates has no value "as of" a past day.
+    expect(seen.values.map((v) => v.key)).not.toContain('job_title');
+    const typo = seen.changes.find((c) => c.id === march?.id);
+    const correction = seen.changes.find((c) => c.supersedes === march?.id);
+    expect(typo?.supersededBy).toBe(correction?.id);
+    expect(typo?.value.amountMinor).toBe('5000000');
+    expect(correction).toMatchObject({
+      effectiveFrom: '2026-03-01',
+      by: 'You',
+      value: { amountMinor: '5100000' },
+    });
+
+    // The manager reads job title and never salary — not now, not as of March, not in its history.
+    const asManager = await graph(headers(MARCO_ACCOUNT), HISTORY, { id: ADA, asOf: '2026-04-15' });
+    expect(asManager.errors).toBeUndefined();
+    expect(JSON.stringify(asManager.data)).not.toContain('base_salary');
+    expect(JSON.stringify(asManager.data)).not.toContain('5100000');
+    expect((asManager.data?.['peopleHistory'] as History).changes.map((c) => c.key)).toContain(
+      'job_title',
+    );
+
+    const bad = await graph(hr, HISTORY, { id: ADA, asOf: 'March' });
+    expect(bad.errors?.[0]?.extensions.code).toBe('BAD_REQUEST');
   });
 
   it('takes an import through storage: the browser PUTs the file, GraphQL carries none', async () => {

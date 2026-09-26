@@ -1,5 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition } from '@kithena/contracts';
+import type { Actor, AttributeDefinition } from '@kithena/contracts';
 
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
@@ -7,6 +7,7 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type {
+  FormValue,
   FormValues,
   IdentifierFindingView,
   IdentifierReviewEntry,
@@ -336,6 +337,176 @@ export async function profileView(
 }
 
 export { checkSection, saveSection };
+
+/* ------------------------------------------------------------ history -- */
+
+/** One recorded change, as the history screen draws it (PEO-064). */
+export interface HistoryChange {
+  readonly id: string;
+  readonly key: string;
+  /** A sealed field's change reads `{ last4: null }`: that it changed, never what to. */
+  readonly value: FormValue;
+  /** When it takes effect in the domain. */
+  readonly effectiveFrom: string;
+  /** When we recorded it. */
+  readonly recordedAt: string;
+  /** Who recorded it, in words: "You", a name the viewer may read, an integration. */
+  readonly by: string;
+  /** The change this one corrects. */
+  readonly supersedes: string | null;
+  /** The correction that replaced this one; it no longer stands. */
+  readonly supersededBy: string | null;
+}
+
+export interface HistoryView {
+  readonly person: { readonly id: string; readonly name: string };
+  /** The date the values are read as of; null is today, on the person's own calendar. */
+  readonly asOf: string | null;
+  readonly sections: readonly RecordSection[];
+  /**
+   * Keys with an "as of" (§8.5). A field kept without dates — a phone number —
+   * has its changes and no value on a past date, so with `asOf` set it is not
+   * in `values`.
+   */
+  readonly dated: readonly string[];
+  readonly values: FormValues;
+  /** Every change to a field in `sections`, newest in effect first. */
+  readonly changes: readonly HistoryChange[];
+}
+
+/**
+ * One person's record as it stood on a date, and every change behind it
+ * (PEO-064, §8.5): "what did this look like in March".
+ *
+ * Both halves read through `PersonAccess` — `read` with `asOf`, and
+ * `history`, which drops a field the viewer cannot read now and a sealed
+ * field's values (`readableHistory`) — so the screen cannot show a past value
+ * of anything the profile would not show today.
+ */
+export async function historyView(
+  deps: ScreenDeps,
+  asking: Asking,
+  personId: string | null,
+  asOf: string | null,
+): Promise<Result<HistoryView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const id = personId === null ? await personOfViewer(deps, tx, asking) : ok(personId);
+    if (!id.ok) return id;
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+    const view = await deps.service.access.read(tx, {
+      ...asking,
+      personId: id.value,
+      ...(asOf === null ? {} : { asOf }),
+    });
+    if (!view.ok) return view;
+    const history = await deps.service.access.history(tx, { ...asking, personId: id.value });
+    if (!history.ok) return history;
+    // The name as it is now, whatever date the record is read as of.
+    const now =
+      asOf === null ? view : await deps.service.access.read(tx, { ...asking, personId: id.value });
+
+    const definitions = version.document.attributes;
+    const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+    const people = await named(deps, tx, asking, [
+      ...referenced(definitions, view.value.attributes),
+      ...history.value.flatMap((e) =>
+        byKey.get(e.attributeKey)?.typeConfig.kind === 'person_ref' && typeof e.value === 'string'
+          ? [e.value]
+          : [],
+      ),
+    ]);
+    const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
+    // Entities and locations by name, archived ones too: history names them.
+    const org = await deps.calendars.load(tx, asking.tenantId);
+    const places: Record<string, { value: string; label: string }[]> = {
+      legal_entity_id: [...org.entities.values()].map((e) => ({ value: e.id, label: e.name })),
+      location_id: [...org.locations.values()].map((l) => ({ value: l.id, label: l.name })),
+    };
+    const sections = recordSections(version, relations, () => true, new Set(), people).map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => ({ ...f, options: places[f.key] ?? f.options, readOnly: true })),
+    }));
+    const shown = new Set(sections.flatMap((s) => s.fields.map((f) => f.key)));
+    const dated = definitions
+      .filter((d) => d.effectiveDated && shown.has(d.key))
+      .map((d) => d.key as string);
+    const undated = new Set([...shown].filter((k) => !dated.includes(k)));
+
+    const values = formValues(view.value, sections);
+    const supersededBy = new Map(
+      history.value.flatMap((e) => (e.supersedes === null ? [] : [[e.supersedes, e.id] as const])),
+    );
+    const by = await actors(
+      deps,
+      tx,
+      asking,
+      history.value.map((e) => e.actor),
+    );
+    const changes = history.value
+      .filter((e) => shown.has(e.attributeKey))
+      .toSorted(
+        (a, b) =>
+          b.effectiveFrom.localeCompare(a.effectiveFrom) ||
+          b.recordedAt.localeCompare(a.recordedAt),
+      )
+      .map((e) => ({
+        id: e.id,
+        key: e.attributeKey,
+        value: byKey.get(e.attributeKey)?.encrypted === true ? { last4: null } : toForm(e.value),
+        effectiveFrom: e.effectiveFrom,
+        recordedAt: e.recordedAt,
+        by: by(e.actor),
+        supersedes: e.supersedes,
+        supersededBy: supersededBy.get(e.id) ?? null,
+      }));
+
+    return ok({
+      person: { id: id.value, name: (now.ok ? nameOf(now.value.attributes) : null) ?? 'Unnamed' },
+      asOf,
+      sections,
+      dated,
+      values:
+        asOf === null
+          ? values
+          : Object.fromEntries(Object.entries(values).filter(([k]) => !undated.has(k))),
+      changes,
+    });
+  });
+}
+
+/**
+ * Who made each change, in words the viewer may read. A person is named only
+ * if this viewer can read their name; otherwise "A colleague".
+ */
+async function actors(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  all: readonly Actor[],
+): Promise<(actor: Actor) => string> {
+  const names = new Map<string, string>();
+  for (const actor of all) {
+    if (actor.kind !== 'user' || names.has(actor.userId)) continue;
+    if (actor.userId === asking.viewer.accountId) {
+      names.set(actor.userId, 'You');
+      continue;
+    }
+    const personId = await deps.personOf(tx, asking.tenantId, actor.userId);
+    const read =
+      personId === null ? null : await deps.service.access.read(tx, { ...asking, personId });
+    names.set(
+      actor.userId,
+      (read?.ok === true ? nameOf(read.value.attributes) : null) ?? 'A colleague',
+    );
+  }
+  return (actor) =>
+    actor.kind === 'user'
+      ? (names.get(actor.userId) ?? 'A colleague')
+      : actor.kind === 'integration'
+        ? `An integration (${actor.provider})`
+        : 'Automatically';
+}
 
 /* ------------------------------------------------- identifier reviews -- */
 

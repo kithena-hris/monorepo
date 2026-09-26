@@ -9,6 +9,8 @@ import type {
 import type {
   CompletenessView,
   DirectoryView,
+  HistoryChange,
+  HistoryView,
   IdentifierReviewsView,
   OnboardingView,
   PickerView,
@@ -339,6 +341,36 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Their doubted identifiers still open, on fields the viewer reads (PEO-125).',
         resolve: (v) => list(v.reviews),
       }),
+    }),
+  });
+
+  const HistoryChangeRef = builder.objectRef<HistoryChange>('HistoryChange').implement({
+    description:
+      'One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.',
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      key: t.exposeString('key'),
+      value: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.value }) }),
+      effectiveFrom: t.exposeString('effectiveFrom'),
+      recordedAt: t.exposeString('recordedAt'),
+      by: t.exposeString('by'),
+      supersedes: t.exposeID('supersedes', { nullable: true }),
+      supersededBy: t.exposeID('supersededBy', { nullable: true }),
+    }),
+  });
+  const HistoryPerson = builder
+    .objectRef<HistoryView['person']>('HistoryPerson')
+    .implement({ fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }) });
+  const HistoryRef = builder.objectRef<HistoryView>('PeopleHistory').implement({
+    description:
+      'A record as of a date, and every change behind it, as the viewer may read them now.',
+    fields: (t) => ({
+      person: t.field({ type: HistoryPerson, resolve: (v) => v.person }),
+      asOf: t.exposeString('asOf', { nullable: true }),
+      sections: t.field({ type: [RecordSectionRef], resolve: (v) => list(v.sections) }),
+      dated: t.stringList({ resolve: (v) => list(v.dated) }),
+      values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
+      changes: t.field({ type: [HistoryChangeRef], resolve: (v) => list(v.changes) }),
     }),
   });
 
@@ -1057,6 +1089,22 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           args.personId === null || args.personId === undefined
             ? '/v1/views/profile'
             : `/v1/views/profile/${encodeURIComponent(args.personId)}`,
+        ),
+    }),
+    peopleHistory: t.field({
+      type: HistoryRef,
+      description:
+        'One person as of a date (default today), and every change; no id is "my history".',
+      args: { personId: t.arg.id(), asOf: t.arg.string() },
+      resolve: (_root, args, ctx) =>
+        viaRest<HistoryView>(
+          ctx,
+          'GET',
+          `/v1/views/history${
+            args.personId === null || args.personId === undefined
+              ? ''
+              : `/${encodeURIComponent(args.personId)}`
+          }${args.asOf ? `?asOf=${encodeURIComponent(args.asOf)}` : ''}`,
         ),
     }),
     peopleDirectory: t.field({

@@ -22,6 +22,7 @@ import {
   checkSection,
   completenessView,
   directoryView,
+  historyView,
   identifierReviewsView,
   onboardingView,
   pickerView,
@@ -50,6 +51,7 @@ import { sharing } from '../infrastructure/unit-of-work.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { NoBody } from './lifecycle.js';
 import {
+  AsOfQuery,
   filterIn,
   idempotent,
   json,
@@ -256,6 +258,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: new RegExp(`^/v1/views/profile/${UUID}$`),
       handle: async (asking, _r, params) =>
         answer(await profileView(deps, asking, params['id'] ?? '')),
+    },
+    // A record as of a date, and every change behind it (PEO-064).
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/history(?:/${UUID})?$`),
+      handle: async (asking, _r, params, query) => {
+        const q = parse(AsOfQuery, Object.fromEntries(query));
+        if (!q.ok) return refused(q.error);
+        return answer(await historyView(deps, asking, params['id'] ?? null, q.value.asOf ?? null));
+      },
     },
     {
       method: 'POST',

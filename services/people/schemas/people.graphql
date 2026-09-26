@@ -335,12 +335,31 @@ type GridSaved {
   ok: Boolean
 }
 
+"""
+One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.
+"""
+type HistoryChange {
+  by: String
+  effectiveFrom: String
+  id: ID
+  key: String
+  recordedAt: String
+  supersededBy: ID
+  supersedes: ID
+  value: FormEntry
+}
+
 type HistoryEntry {
   attributeKey: String
   effectiveFrom: String
   id: ID
   recordedAt: String
   supersedes: ID
+}
+
+type HistoryPerson {
+  id: ID
+  name: String
 }
 
 type IdentifierCheck {
@@ -808,6 +827,18 @@ type PeopleFullValues {
   requests: [FullValuesListed!]
 }
 
+"""
+A record as of a date, and every change behind it, as the viewer may read them now.
+"""
+type PeopleHistory {
+  asOf: String
+  changes: [HistoryChange!]
+  dated: [String!]
+  person: HistoryPerson
+  sections: [RecordSection!]
+  values: [FormEntry!]
+}
+
 """Which of People’s areas this viewer’s roles open (PEO-119)."""
 type PeopleHome {
   admin: Boolean
@@ -1028,6 +1059,10 @@ type Query {
   What saving these grid cells would be warned about (PEO-125); nothing is kept.
   """
   peopleGridCheck(changes: [GridChangeInput!]!): GridIdentifierCheck
+  """
+  One person as of a date (default today), and every change; no id is "my history".
+  """
+  peopleHistory(asOf: String, personId: ID): PeopleHistory
   peopleHome: PeopleHome
   """
   What saving these values would be warned about; nothing is kept. No person id is "my record".
