@@ -51,7 +51,8 @@ const ENTITLEMENTS =
 
 /**
  * `/api/internal/admin/tenants/<uuid>/administrators`, posted: name who
- * administers a module the company has (PEO-112).
+ * administers a module the company has (PEO-112). `grant: false` only adds
+ * them to the back office's list, and raises nothing.
  */
 const ADMINISTRATORS =
   /^\/api\/internal\/admin\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/administrators$/i;
@@ -295,6 +296,8 @@ export function adminRoutes({
         entitlement,
         accountId,
         namedBy: operatorOf(asked),
+        // `grant: false` only adds them to the list; absent, the module grants.
+        grant: asked?.['grant'] !== false,
       });
       if (!named.ok) {
         return json(named.error.code === 'TENANT_UNKNOWN' ? 404 : 422, {

@@ -311,17 +311,22 @@ export default async function Company({
   }
 
   /**
-   * "Grant again": name somebody the back office set, so the module grants
-   * what naming gives. Idempotent — a module grants nothing already held.
+   * Add somebody to a module's list. `grant` (Grant again, or Add to list with
+   * its box ticked) also tells the module, which grants whatever of naming's
+   * roles they lack; without it they are only recorded here.
    */
-  async function grantAgain(entitlement: string, accountId: string): Promise<GrantAgainResult> {
+  async function nameAdministrator(
+    entitlement: string,
+    accountId: string,
+    grant: boolean,
+  ): Promise<GrantAgainResult> {
     'use server';
 
     const operator = await currentOperator();
     if (!operator) return { ok: false, message: 'Your session has expired.' };
     const { status, body } = await callIdentity(
       `/api/internal/admin/tenants/${id}/administrators`,
-      { method: 'POST', body: { entitlement, accountId, operatorId: operator.operatorId } },
+      { method: 'POST', body: { entitlement, accountId, grant, operatorId: operator.operatorId } },
     );
     if (status === 201) {
       revalidatePath(`/companies/${id}`);
@@ -585,7 +590,8 @@ export default async function Company({
               effective={company.effectiveEntitlements}
               administrators={company.administrators ?? {}}
               moduleRoles={company.moduleRoles ?? {}}
-              grantAgain={grantAgain}
+              name={nameAdministrator}
+              companyName={company.displayName}
               // Anybody who can still sign in, or will once they enrol.
               accounts={company.people
                 .filter((p) => ['provisioned', 'invited', 'active'].includes(p.status))

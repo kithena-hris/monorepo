@@ -75,8 +75,8 @@ export function ModulesEditor({
   readonly emptyMessage?: string;
 }): JSX.Element {
   const [shared, setShared] = useState(() => sameEverywhere(value));
-  const [sharedList, setSharedList] = useState<readonly string[]>(
-    () => listOf(value, administeredOn(value)[0] ?? ''),
+  const [sharedList, setSharedList] = useState<readonly string[]>(() =>
+    listOf(value, administeredOn(value)[0] ?? ''),
   );
   const options = people.map((p) => ({ value: p.value, label: p.label }));
   const asList = (next: string | readonly string[] | null): readonly string[] =>

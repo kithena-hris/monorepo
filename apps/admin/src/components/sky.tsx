@@ -128,9 +128,20 @@ const GRADIENTS: Record<Condition, { day: [string, string]; night: [string, stri
  * of huddling in one corner of it.
  */
 const STARS: readonly [number, number, number][] = [
-  [7, 22, 2], [16, 52, 1.5], [24, 16, 2], [33, 44, 1.5], [42, 26, 2],
-  [51, 58, 1.5], [59, 20, 2], [67, 48, 1.5], [88, 24, 2], [95, 52, 1.5],
-  [11, 66, 1.5], [37, 12, 1.5], [73, 14, 2], [83, 62, 1.5],
+  [7, 22, 2],
+  [16, 52, 1.5],
+  [24, 16, 2],
+  [33, 44, 1.5],
+  [42, 26, 2],
+  [51, 58, 1.5],
+  [59, 20, 2],
+  [67, 48, 1.5],
+  [88, 24, 2],
+  [95, 52, 1.5],
+  [11, 66, 1.5],
+  [37, 12, 1.5],
+  [73, 14, 2],
+  [83, 62, 1.5],
 ];
 
 function Stars({ dim }: { readonly dim: boolean }): JSX.Element {
@@ -165,8 +176,12 @@ const PUFFS: readonly [number, number, number][] = [
   // Two clusters, each of three discs that overlap enough to merge into one
   // shape. Spread any wider and they read as separate blobs, which is what the
   // first spacing did — a cloud is a silhouette, not a row of circles.
-  [9, 36, 46], [15, 22, 64], [23, 38, 42],
-  [62, 26, 40], [68, 14, 56], [76, 30, 36],
+  [9, 36, 46],
+  [15, 22, 64],
+  [23, 38, 42],
+  [62, 26, 40],
+  [68, 14, 56],
+  [76, 30, 36],
 ];
 
 function Clouds({
@@ -177,7 +192,13 @@ function Clouds({
   readonly isDay: boolean;
 }): JSX.Element {
   const fill =
-    condition === 'storm' ? '#0b1220' : condition === 'rain' ? (isDay ? '#7c8ea3' : '#2c3a4e') : '#f8fafc';
+    condition === 'storm'
+      ? '#0b1220'
+      : condition === 'rain'
+        ? isDay
+          ? '#7c8ea3'
+          : '#2c3a4e'
+        : '#f8fafc';
   const opacity = condition === 'fog' ? 0.5 : condition === 'storm' ? 0.85 : 0.8;
 
   return (
@@ -210,8 +231,19 @@ function Clouds({
  * glance — and a glance is the whole job.
  */
 const DROPS: readonly [number, number][] = [
-  [12, 18], [21, 46], [30, 12], [39, 38], [48, 22], [57, 50], [66, 16],
-  [75, 40], [84, 26], [93, 14], [17, 62], [45, 64], [71, 58],
+  [12, 18],
+  [21, 46],
+  [30, 12],
+  [39, 38],
+  [48, 22],
+  [57, 50],
+  [66, 16],
+  [75, 40],
+  [84, 26],
+  [93, 14],
+  [17, 62],
+  [45, 64],
+  [71, 58],
 ];
 
 function Precipitation({ frozen }: { readonly frozen: boolean }): JSX.Element {

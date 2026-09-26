@@ -48,7 +48,8 @@ export function SignInButton(): JSX.Element {
       // Used once, whatever happens next: a challenge that has been through a
       // ceremony is spent, and one that failed to arrive is worth nothing.
       warmed.current = null;
-      options ??= ((await post('/api/operator/begin', {})) as { options?: unknown }).options ?? null;
+      options ??=
+        ((await post('/api/operator/begin', {})) as { options?: unknown }).options ?? null;
 
       if (options === null) {
         setState('refused');

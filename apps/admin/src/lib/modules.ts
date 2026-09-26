@@ -43,6 +43,11 @@ export function roleLabel(role: string): string {
   return ROLE_WORDS[role] ?? role;
 }
 
+/** The role in a sentence: "without a People administrator", "without HR". */
+export function rolePhrase(role: string): string {
+  return role === 'people_admin' ? 'a People administrator' : roleLabel(role);
+}
+
 /** Who holds a module's administrator roles, as the module last reported it. */
 export interface ModuleRoles {
   readonly asOf: string;

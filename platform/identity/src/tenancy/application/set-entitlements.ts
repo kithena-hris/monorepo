@@ -34,7 +34,16 @@ export interface ModulesScope {
   /** Module → who the back office has named and can still sign in. */
   administrators(): Promise<Readonly<Record<string, readonly string[]>>>;
   save(entitlements: readonly ModuleEntitlement[]): Promise<void>;
-  name(administrator: NamedAdministrator, namedBy: string | null): Promise<void>;
+  /**
+   * Remember the naming and, when `announce` (the default), raise
+   * `administrator_named` so the module grants. Not announced, the list
+   * records somebody the module already has, and the module hears nothing.
+   */
+  name(
+    administrator: NamedAdministrator,
+    namedBy: string | null,
+    announce?: boolean,
+  ): Promise<void>;
   /** `confirmedLast`: the operator was warned it leaves the module without a role holder. */
   remove(
     administrator: NamedAdministrator,
@@ -81,6 +90,12 @@ export type NameAdministrator = (
     readonly entitlement: string;
     readonly accountId: string;
     readonly namedBy?: string | null;
+    /**
+     * False: only add them to the back office's list — "Add to list" for
+     * somebody who already administers the module there — without telling the
+     * module, so nothing is granted. Default true.
+     */
+    readonly grant?: boolean;
   },
 ) => Promise<Result<NamedAdministrator>>;
 
@@ -149,7 +164,7 @@ export function nameAdministrator({ inTenant }: ModulesDeps): NameAdministrator 
       const administrator = { entitlement, accountId: asked.accountId };
       const accounts = await usable(scope, [administrator]);
       if (!accounts.ok) return accounts;
-      await scope.name(administrator, asked.namedBy ?? null);
+      await scope.name(administrator, asked.namedBy ?? null, asked.grant !== false);
       return ok(administrator);
     });
 }

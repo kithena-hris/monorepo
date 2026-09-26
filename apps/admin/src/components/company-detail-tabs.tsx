@@ -249,7 +249,8 @@ export function CompanyDetailTabs({
 
               {brandingPublic ? null : (
                 <Alert tone="info" title="Branding is hidden">
-                  Their logo and cover image are stored but are not shown before an employee signs in.
+                  Their logo and cover image are stored but are not shown before an employee signs
+                  in.
                 </Alert>
               )}
             </Stack>
