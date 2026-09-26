@@ -13,10 +13,27 @@ export { CORE_USER, CORE_GROUP, ENTERPRISE_USER, KITHENA_USER } from './paths.js
  */
 
 const WORK_EMAIL = 'emails[type eq "work"].value';
-const PHONES = { 'phoneNumbers[type eq "work"].value': 'work', 'phoneNumbers[type eq "mobile"].value': 'mobile' } as const;
+const PHONES = {
+  'phoneNumbers[type eq "work"].value': 'work',
+  'phoneNumbers[type eq "mobile"].value': 'mobile',
+} as const;
 const NAME = ['givenName', 'familyName', 'middleName'] as const;
-const TOP = ['displayName', 'nickName', 'title', 'userType', 'preferredLanguage', 'locale', 'timezone'] as const;
-const ENTERPRISE = ['employeeNumber', 'costCenter', 'organization', 'division', 'department'] as const;
+const TOP = [
+  'displayName',
+  'nickName',
+  'title',
+  'userType',
+  'preferredLanguage',
+  'locale',
+  'timezone',
+] as const;
+const ENTERPRISE = [
+  'employeeNumber',
+  'costCenter',
+  'organization',
+  'division',
+  'department',
+] as const;
 
 /** Every core path a mapping may name, in the order a settings screen lists them. */
 export const USER_PATHS: readonly string[] = [
@@ -28,23 +45,29 @@ export const USER_PATHS: readonly string[] = [
   ...ENTERPRISE.map((n) => `${ENTERPRISE_USER}:${n}`),
 ];
 
-const EXTENSION_KEY = new RegExp(`^${KITHENA_USER.replaceAll('.', '\\.')}:([a-z][a-z0-9_]{0,63})$`, 'u');
+const EXTENSION_KEY = new RegExp(
+  `^${KITHENA_USER.replaceAll('.', '\\.')}:([a-z][a-z0-9_]{0,63})$`,
+  'u',
+);
 
 export function isMappablePath(path: string): boolean {
   return USER_PATHS.includes(path) || EXTENSION_KEY.test(path);
 }
 
 /** The attribute a Kithena extension path names; null for a core path. */
-export const extensionKeyOf = (path: string): string | null => EXTENSION_KEY.exec(path)?.[1] ?? null;
+export const extensionKeyOf = (path: string): string | null =>
+  EXTENSION_KEY.exec(path)?.[1] ?? null;
 
 type Values = Readonly<Record<string, unknown>>;
 
 const typed = (items: unknown, type: string): Json | undefined =>
   Array.isArray(items)
-    ? (items.find((i) => isObject(i) && String(getCI(i, 'type')).toLowerCase() === type) as Json | undefined)
+    ? (items.find((i) => isObject(i) && String(getCI(i, 'type')).toLowerCase() === type) as
+        Json | undefined)
     : undefined;
 
-const isPrimary = (i: unknown) => isObject(i) && String(getCI(i, 'primary')).toLowerCase() === 'true';
+const isPrimary = (i: unknown) =>
+  isObject(i) && String(getCI(i, 'primary')).toLowerCase() === 'true';
 
 /** A User's values under the paths a mapping may name. Absent stays absent. */
 export function valuesOf(resource: Json): Record<string, unknown> {
@@ -112,7 +135,11 @@ export interface UserInput {
   readonly active: boolean;
   /** The record's values, under the paths they are mapped from. */
   readonly values: Values;
-  readonly meta: { readonly created: string; readonly lastModified: string; readonly location: string };
+  readonly meta: {
+    readonly created: string;
+    readonly lastModified: string;
+    readonly location: string;
+  };
 }
 
 /** A User as the RFC shapes one: only what is set, and each extension only when it holds something. */
@@ -140,7 +167,11 @@ export function userResource(input: UserInput): Json {
   const has = (o: Json) => Object.keys(o).length > 0;
 
   return {
-    schemas: [CORE_USER, ...(has(enterprise) ? [ENTERPRISE_USER] : []), ...(has(kithena) ? [KITHENA_USER] : [])],
+    schemas: [
+      CORE_USER,
+      ...(has(enterprise) ? [ENTERPRISE_USER] : []),
+      ...(has(kithena) ? [KITHENA_USER] : []),
+    ],
     id: input.id,
     ...(input.externalId === null ? {} : { externalId: input.externalId }),
     userName: input.userName,

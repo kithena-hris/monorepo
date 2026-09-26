@@ -70,7 +70,9 @@ describe('the comparisons', () => {
       true,
     );
     expect(
-      holds('urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department eq "Engineering"'),
+      holds(
+        'urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department eq "Engineering"',
+      ),
     ).toBe(true);
   });
 

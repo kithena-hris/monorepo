@@ -178,10 +178,9 @@ function ConnectionCard({
   const changed = JSON.stringify(mapping) !== JSON.stringify(connection.mapping);
   const usedPaths = new Set(mapping.map((m) => m.path));
   const usedKeys = new Set(mapping.map((m) => m.key));
-  const paths = [
-    ...scim.paths,
-    ...scim.mappable.map((a) => `${scim.extension}:${a.key}`),
-  ].filter((p) => !usedPaths.has(p));
+  const paths = [...scim.paths, ...scim.mappable.map((a) => `${scim.extension}:${a.key}`)].filter(
+    (p) => !usedPaths.has(p),
+  );
   const extensionKey = path.startsWith(`${scim.extension}:`)
     ? path.slice(scim.extension.length + 1)
     : null;
@@ -202,7 +201,9 @@ function ConnectionCard({
       description={[
         `${String(connection.linked)} people provisioned`,
         `connected ${connection.createdAt.slice(0, 10)}`,
-        connection.tokenRotatedAt === null ? null : `token rotated ${connection.tokenRotatedAt.slice(0, 10)}`,
+        connection.tokenRotatedAt === null
+          ? null
+          : `token rotated ${connection.tokenRotatedAt.slice(0, 10)}`,
       ]
         .filter((x) => x !== null)
         .join(' · ')}
@@ -229,7 +230,9 @@ function ConnectionCard({
               {mapping.map((m) => (
                 <TableRow key={m.path}>
                   <TableCell>
-                    <span className="font-mono text-sm break-all">{pathLabel(m.path, scim.extension)}</span>
+                    <span className="font-mono text-sm break-all">
+                      {pathLabel(m.path, scim.extension)}
+                    </span>
                   </TableCell>
                   <TableCell>{labelOf.get(m.key) ?? m.key}</TableCell>
                   {live ? (

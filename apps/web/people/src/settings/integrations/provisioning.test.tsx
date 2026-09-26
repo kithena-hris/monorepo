@@ -83,7 +83,9 @@ describe('Provisioning (PEO-072, PEO-073)', () => {
     );
     expect(within(okta).getByText(/every mapped field read-only in People/)).toBeInTheDocument();
     await user.click(within(okta).getByRole('button', { name: 'Save mapping' }));
-    expect(onSetMapping).toHaveBeenCalledWith('c1', [{ path: 'name.givenName', key: 'given_name' }]);
+    expect(onSetMapping).toHaveBeenCalledWith('c1', [
+      { path: 'name.givenName', key: 'given_name' },
+    ]);
   });
 
   it('shows a new token once, to copy', async () => {
@@ -110,6 +112,8 @@ describe('Provisioning (PEO-072, PEO-073)', () => {
     const okta = screen.getByRole('region', { name: 'Okta' });
     await user.click(within(okta).getByRole('button', { name: 'Stop keeping Given name in Okta' }));
     await user.click(within(okta).getByRole('button', { name: 'Save mapping' }));
-    expect(await within(okta).findByText('given_name is already kept in Workday')).toBeInTheDocument();
+    expect(
+      await within(okta).findByText('given_name is already kept in Workday'),
+    ).toBeInTheDocument();
   });
 });

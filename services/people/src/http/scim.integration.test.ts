@@ -77,7 +77,9 @@ const events = async (name: string) =>
     ...(await admin.execute(
       sql`SELECT envelope FROM people.outbox WHERE event_name = ${name} ORDER BY created_at, event_id`,
     )),
-  ].map((r) => r['envelope'] as { actor: Record<string, unknown>; payload: Record<string, unknown> });
+  ].map(
+    (r) => r['envelope'] as { actor: Record<string, unknown>; payload: Record<string, unknown> },
+  );
 
 beforeAll(async () => {
   const pg = await startPostgres();
@@ -107,7 +109,12 @@ beforeAll(async () => {
       key,
       ownership: ['employee', 'hr'],
       visibility: ['self', 'hr', 'directory'],
-      classification: { classification: 'internal', piiKind: 'identity', exportable: true, aiEligible: true },
+      classification: {
+        classification: 'internal',
+        piiKind: 'identity',
+        exportable: true,
+        aiEligible: true,
+      },
     });
   for (const tenant of [ACME, OTHER]) {
     await inTenant(tenant, ({ tx }) =>
@@ -165,7 +172,9 @@ let ada = '';
 
 describe('connecting a system (PEO-072)', () => {
   it('is a People administrator’s, and the token is shown once', async () => {
-    expect((await rest('POST', '/v1/scim/connections', { system: 'Okta' }, ['hr'])).status).toBe(403);
+    expect((await rest('POST', '/v1/scim/connections', { system: 'Okta' }, ['hr'])).status).toBe(
+      403,
+    );
     const made = await rest('POST', '/v1/scim/connections', { system: 'Okta' });
     expect(made.status).toBe(201);
     okta = (await made.json()) as typeof okta;
@@ -207,7 +216,13 @@ describe('connecting a system (PEO-072)', () => {
         peopleIntegrations: {
           scim: {
             url: 'https://api.acme.test/scim/v2',
-            connections: [{ id: okta.id, system: 'Okta', mapping: expect.arrayContaining([{ path: 'name.givenName', key: 'given_name' }]) }],
+            connections: [
+              {
+                id: okta.id,
+                system: 'Okta',
+                mapping: expect.arrayContaining([{ path: 'name.givenName', key: 'given_name' }]),
+              },
+            ],
           },
         },
       },
@@ -215,7 +230,9 @@ describe('connecting a system (PEO-072)', () => {
   });
 
   it('keeps one owner per attribute: a second system cannot take what Okta keeps', async () => {
-    const workday = (await json(await rest('POST', '/v1/scim/connections', { system: 'Workday' }))) as {
+    const workday = (await json(
+      await rest('POST', '/v1/scim/connections', { system: 'Workday' }),
+    )) as {
       id: string;
     };
     const taken = await rest('PUT', `/v1/scim/connections/${workday.id}/mapping`, {
@@ -251,7 +268,10 @@ describe('authenticating a provider', () => {
     expect(config).toMatchObject({ patch: { supported: true }, filter: { supported: true } });
     const schemas = await json(await scim(okta.token, 'GET', '/Schemas'));
     expect(schemas['Resources']).toEqual([
-      expect.objectContaining({ id: KITHENA, attributes: [expect.objectContaining({ name: 't_shirt_size' })] }),
+      expect.objectContaining({
+        id: KITHENA,
+        attributes: [expect.objectContaining({ name: 't_shirt_size' })],
+      }),
     ]);
   });
 });
@@ -288,20 +308,38 @@ describe('/Users', () => {
     const [row] = await admin.execute(
       sql`SELECT status, source_of_record, given_name FROM people.person WHERE id = ${ada}::uuid`,
     );
-    expect(row).toMatchObject({ status: 'provisional', source_of_record: 'external', given_name: 'Ada' });
+    expect(row).toMatchObject({
+      status: 'provisional',
+      source_of_record: 'external',
+      given_name: 'Ada',
+    });
     const [updated] = await events('people.person.profile_updated');
-    expect(updated?.actor).toEqual({ kind: 'integration', integrationId: okta.id, provider: 'Okta' });
+    expect(updated?.actor).toEqual({
+      kind: 'integration',
+      integrationId: okta.id,
+      provider: 'Okta',
+    });
     const [synced] = await events('people.person.synced_from_external');
     expect(synced?.payload).toEqual({
       personId: ada,
       provider: 'Okta',
       externalId: '00uAda',
-      fieldsChanged: expect.arrayContaining(['given_name', 'family_name', 'work_email', 't_shirt_size', 'userName']),
+      fieldsChanged: expect.arrayContaining([
+        'given_name',
+        'family_name',
+        'work_email',
+        't_shirt_size',
+        'userName',
+      ]),
     });
   });
 
   it('refuses a second user with the same userName, in any case', async () => {
-    const again = await scim(okta.token, 'POST', '/Users', { ...oktaAda, userName: 'ADA@acme.test', externalId: 'x' });
+    const again = await scim(okta.token, 'POST', '/Users', {
+      ...oktaAda,
+      userName: 'ADA@acme.test',
+      externalId: 'x',
+    });
     expect(again.status).toBe(409);
     expect(await json(again)).toMatchObject({ status: '409', scimType: 'uniqueness' });
   });
@@ -315,8 +353,13 @@ describe('/Users', () => {
       Resources: [{ id: ada }],
     });
     expect(await found('externalId eq "00uAda"')).toMatchObject({ totalResults: 1 });
-    expect(await found('name.givenName sw "Ad" and active eq true')).toMatchObject({ totalResults: 1 });
-    expect(await found('userName eq "grace@acme.test"')).toMatchObject({ totalResults: 0, Resources: [] });
+    expect(await found('name.givenName sw "Ad" and active eq true')).toMatchObject({
+      totalResults: 1,
+    });
+    expect(await found('userName eq "grace@acme.test"')).toMatchObject({
+      totalResults: 0,
+      Resources: [],
+    });
     const bad = await scim(okta.token, 'GET', `/Users?filter=${encodeURIComponent('userName eq')}`);
     expect(bad.status).toBe(400);
     expect(await json(bad)).toMatchObject({ scimType: 'invalidFilter' });
@@ -369,7 +412,9 @@ describe('/Users', () => {
   it('refuses a value the record’s own rules refuse, as SCIM says it', async () => {
     const bad = await scim(okta.token, 'PATCH', `/Users/${ada}`, {
       schemas: [PATCH_OP],
-      Operations: [{ op: 'replace', value: { name: { givenName: '' }, [`${ENTERPRISE}:department`]: 'x' } }],
+      Operations: [
+        { op: 'replace', value: { name: { givenName: '' }, [`${ENTERPRISE}:department`]: 'x' } },
+      ],
     });
     // An empty given name is a cleared value, which this attribute allows;
     // the unmapped department is dropped without a refusal.
@@ -377,7 +422,9 @@ describe('/Users', () => {
     const syntax = await scim(okta.token, 'PATCH', `/Users/${ada}`, { Operations: [] });
     expect(syntax.status).toBe(400);
     expect(await json(syntax)).toMatchObject({ scimType: 'invalidSyntax' });
-    expect((await scim(okta.token, 'GET', '/Users/00000000-0000-4000-8000-000000000999')).status).toBe(404);
+    expect(
+      (await scim(okta.token, 'GET', '/Users/00000000-0000-4000-8000-000000000999')).status,
+    ).toBe(404);
   });
 });
 
@@ -387,7 +434,9 @@ describe('mirror mode: every other writer is refused, naming Okta (PEO-073)', ()
       schemas: [PATCH_OP],
       Operations: [{ op: 'replace', path: 'name.givenName', value: 'Ada' }],
     });
-    const patched = await rest('PATCH', `/v1/people/${ada}`, { attributes: { given_name: 'Adeline' } });
+    const patched = await rest('PATCH', `/v1/people/${ada}`, {
+      attributes: { given_name: 'Adeline' },
+    });
     expect(patched.status).toBe(403);
     expect(await json(patched)).toMatchObject({
       error: {
@@ -397,7 +446,9 @@ describe('mirror mode: every other writer is refused, naming Okta (PEO-073)', ()
       },
     });
     // What Kithena owns stays Kithena's.
-    expect((await rest('PATCH', `/v1/people/${ada}`, { attributes: { job_title: 'Engineer' } })).status).toBe(200);
+    expect(
+      (await rest('PATCH', `/v1/people/${ada}`, { attributes: { job_title: 'Engineer' } })).status,
+    ).toBe(200);
   });
 
   it('refuses a correction', async () => {
@@ -417,14 +468,39 @@ describe('mirror mode: every other writer is refused, naming Okta (PEO-073)', ()
 
   it('refuses the screens through GraphQL, and draws the field read-only with Okta named', async () => {
     const saved = await graphql(
-      `mutation ($id: ID!) { savePersonSection(personId: $id, changed: [{ key: "given_name", text: "Adeline" }], idempotencyKey: "gq1") { ok } }`,
+      `
+        mutation ($id: ID!) {
+          savePersonSection(
+            personId: $id
+            changed: [{ key: "given_name", text: "Adeline" }]
+            idempotencyKey: "gq1"
+          ) {
+            ok
+          }
+        }
+      `,
       { id: ada },
     );
     expect(saved['errors']).toEqual([
-      expect.objectContaining({ extensions: expect.objectContaining({ code: 'SOURCE_OF_RECORD_EXTERNAL' }) }),
+      expect.objectContaining({
+        extensions: expect.objectContaining({ code: 'SOURCE_OF_RECORD_EXTERNAL' }),
+      }),
     ]);
     const profile = await graphql(
-      `query ($id: ID!) { peopleProfile(personId: $id) { sections { fields { key readOnly ownedBy keptIn } } } }`,
+      `
+        query ($id: ID!) {
+          peopleProfile(personId: $id) {
+            sections {
+              fields {
+                key
+                readOnly
+                ownedBy
+                keptIn
+              }
+            }
+          }
+        }
+      `,
       { id: ada },
     );
     const fields = (
@@ -436,7 +512,10 @@ describe('mirror mode: every other writer is refused, naming Okta (PEO-073)', ()
       ownedBy: 'Okta',
       keptIn: 'Okta',
     });
-    expect(fields.find((f) => f['key'] === 'job_title')).toMatchObject({ readOnly: false, keptIn: null });
+    expect(fields.find((f) => f['key'] === 'job_title')).toMatchObject({
+      readOnly: false,
+      keptIn: null,
+    });
   });
 });
 
@@ -458,17 +537,25 @@ describe('/Groups', () => {
     const body = await json(made);
     group = String(body['id']);
     expect(body).toMatchObject({ displayName: 'Engineering', members: [{ value: ada }] });
-    expect((await scim(okta.token, 'POST', '/Groups', { displayName: 'engineering' })).status).toBe(409);
+    expect((await scim(okta.token, 'POST', '/Groups', { displayName: 'engineering' })).status).toBe(
+      409,
+    );
   });
 
   it('finds, patches membership as Entra does, and leaves members out when asked', async () => {
     const found = await json(
-      await scim(okta.token, 'GET', `/Groups?filter=${encodeURIComponent('displayName eq "Engineering"')}&excludedAttributes=members`),
+      await scim(
+        okta.token,
+        'GET',
+        `/Groups?filter=${encodeURIComponent('displayName eq "Engineering"')}&excludedAttributes=members`,
+      ),
     );
     expect(found).toMatchObject({ totalResults: 1, Resources: [{ id: group }] });
     expect((found['Resources'] as Record<string, unknown>[])[0]).not.toHaveProperty('members');
 
-    const users = (await json(await scim(okta.token, 'GET', '/Users'))) as { Resources: { id: string }[] };
+    const users = (await json(await scim(okta.token, 'GET', '/Users'))) as {
+      Resources: { id: string }[];
+    };
     const grace = users.Resources.find((u) => u.id !== ada)?.id ?? '';
     const patched = await json(
       await scim(okta.token, 'PATCH', `/Groups/${group}`, {
@@ -491,31 +578,45 @@ describe('/Groups', () => {
 
 describe('rotating, deleting and revoking', () => {
   it('rotates with a day’s overlap', async () => {
-    const rotated = (await json(await rest('POST', `/v1/scim/connections/${okta.id}/rotate`, {}))) as {
+    const rotated = (await json(
+      await rest('POST', `/v1/scim/connections/${okta.id}/rotate`, {}),
+    )) as {
       token: string;
     };
     expect((await scim(rotated.token, 'GET', '/Users')).status).toBe(200);
     expect((await scim(okta.token, 'GET', '/Users')).status).toBe(200);
     okta = { ...okta, token: rotated.token };
-    const changes = (await events('people.scim.connection_changed')).map((e) => e.payload['change']);
+    const changes = (await events('people.scim.connection_changed')).map(
+      (e) => e.payload['change'],
+    );
     expect(changes).toContain('token_rotated');
   });
 
   it('unlinks on DELETE: the record stays, and is Kithena’s to write again', async () => {
     expect((await scim(okta.token, 'DELETE', `/Users/${ada}`)).status).toBe(204);
     expect((await scim(okta.token, 'GET', `/Users/${ada}`)).status).toBe(404);
-    const [row] = await admin.execute(sql`SELECT status FROM people.person WHERE id = ${ada}::uuid`);
+    const [row] = await admin.execute(
+      sql`SELECT status FROM people.person WHERE id = ${ada}::uuid`,
+    );
     expect(row?.['status']).toBe('provisional');
-    expect((await rest('PATCH', `/v1/people/${ada}`, { attributes: { given_name: 'Adeline' } })).status).toBe(200);
+    expect(
+      (await rest('PATCH', `/v1/people/${ada}`, { attributes: { given_name: 'Adeline' } })).status,
+    ).toBe(200);
   });
 
   it('revokes: the token stops at once and nothing is kept in Okta any more', async () => {
-    const users = (await json(await scim(okta.token, 'GET', '/Users'))) as { Resources: { id: string }[] };
+    const users = (await json(await scim(okta.token, 'GET', '/Users'))) as {
+      Resources: { id: string }[];
+    };
     const grace = users.Resources[0]?.id ?? '';
-    expect((await rest('PATCH', `/v1/people/${grace}`, { attributes: { given_name: 'G' } })).status).toBe(403);
+    expect(
+      (await rest('PATCH', `/v1/people/${grace}`, { attributes: { given_name: 'G' } })).status,
+    ).toBe(403);
     expect((await rest('POST', `/v1/scim/connections/${okta.id}/revoke`, {})).status).toBe(200);
     expect((await scim(okta.token, 'GET', '/Users')).status).toBe(401);
-    expect((await rest('PATCH', `/v1/people/${grace}`, { attributes: { given_name: 'G' } })).status).toBe(200);
+    expect(
+      (await rest('PATCH', `/v1/people/${grace}`, { attributes: { given_name: 'G' } })).status,
+    ).toBe(200);
     const revoked = (await events('people.scim.connection_changed')).at(-1);
     expect(revoked?.payload).toMatchObject({ change: 'revoked', ownedKeys: [] });
   });

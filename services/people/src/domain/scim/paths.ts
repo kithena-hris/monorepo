@@ -38,7 +38,10 @@ export function getCI(object: unknown, name: string): unknown {
  * `extension` is the URN when the path is an extension's; `rest` is empty
  * when the path names the extension's object itself.
  */
-export function splitSchema(path: string): { readonly extension: string | null; readonly rest: string } {
+export function splitSchema(path: string): {
+  readonly extension: string | null;
+  readonly rest: string;
+} {
   if (!path.toLowerCase().startsWith('urn:')) return { extension: null, rest: path };
   const lower = path.toLowerCase();
   for (const urn of EXTENSIONS) {

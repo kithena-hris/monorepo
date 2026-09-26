@@ -86,7 +86,8 @@ const Taken = (what: string) =>
   err(failure('SCIM_UNIQUENESS', `Another resource already has this ${what}`, [what]));
 const Missing = () => err(failure('NOT_FOUND', 'No such resource'));
 
-const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+const text = (v: unknown): string | null =>
+  typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 /** Entra sends booleans as "True" and "False". */
 const flag = (v: unknown): boolean | undefined =>
   v === undefined || v === null ? undefined : v === true || String(v).toLowerCase() === 'true';
@@ -153,11 +154,20 @@ export function scimProvisioning(deps: ScimDeps) {
       externalId: link.externalId,
       active: link.active,
       values,
-      meta: { created: link.createdAt, lastModified: link.updatedAt, location: location('Users', link.personId) },
+      meta: {
+        created: link.createdAt,
+        lastModified: link.updatedAt,
+        location: location('Users', link.personId),
+      },
     });
   }
 
-  async function readUser(tx: Tx, asking: Asking, mapping: readonly MappingEntry[], link: ScimLink) {
+  async function readUser(
+    tx: Tx,
+    asking: Asking,
+    mapping: readonly MappingEntry[],
+    link: ScimLink,
+  ) {
     const view = await service.access.read(tx, { ...asking, personId: link.personId });
     return view.ok ? ok(userOf(link, mapping, view.value)) : view;
   }
@@ -178,10 +188,12 @@ export function scimProvisioning(deps: ScimDeps) {
     mode: 'replace' | 'merge',
   ): Promise<Result<Json>> {
     const userName = text(getCI(next, 'userName'));
-    if (userName === null || userName.length > 320) return Invalid('userName is required', 'userName');
+    if (userName === null || userName.length > 320)
+      return Invalid('userName is required', 'userName');
     const externalRaw = getCI(next, 'externalId');
     const externalId = externalRaw === undefined ? link.externalId : text(externalRaw);
-    if (externalId !== null && externalId.length > 256) return Invalid('externalId is too long', 'externalId');
+    if (externalId !== null && externalId.length > 256)
+      return Invalid('externalId is too long', 'externalId');
     const active = flag(getCI(next, 'active')) ?? link.active;
 
     const clash = await store.clash(tx, caller.tenantId, caller.connectionId, {
@@ -192,7 +204,9 @@ export function scimProvisioning(deps: ScimDeps) {
     if (clash !== null) return Taken(clash);
 
     const wanted = changesFor(valuesOf(next), mapping, mode);
-    const changes = Object.fromEntries(Object.entries(wanted).filter(([key, value]) => !same(held[key], value)));
+    const changes = Object.fromEntries(
+      Object.entries(wanted).filter(([key, value]) => !same(held[key], value)),
+    );
     const linkChanged = [
       ...(userName !== link.userName ? ['userName'] : []),
       ...(externalId !== link.externalId ? ['externalId'] : []),
@@ -224,7 +238,9 @@ export function scimProvisioning(deps: ScimDeps) {
   ) => run(service, caller.tenantId, async (tx) => fn(tx, await writerFor(tx, caller)));
 
   const linked = async (tx: Tx, caller: ScimCaller, id: string) =>
-    /^[0-9a-f-]{36}$/iu.test(id) ? store.link(tx, caller.tenantId, caller.connectionId, id.toLowerCase()) : null;
+    /^[0-9a-f-]{36}$/iu.test(id)
+      ? store.link(tx, caller.tenantId, caller.connectionId, id.toLowerCase())
+      : null;
 
   function groupOf(group: ScimGroup): Json {
     return {
@@ -232,7 +248,11 @@ export function scimProvisioning(deps: ScimDeps) {
       id: group.id,
       ...(group.externalId === null ? {} : { externalId: group.externalId }),
       displayName: group.displayName,
-      members: group.members.map((value) => ({ value, $ref: location('Users', value), type: 'User' })),
+      members: group.members.map((value) => ({
+        value,
+        $ref: location('Users', value),
+        type: 'User',
+      })),
       meta: {
         resourceType: 'Group',
         created: group.createdAt,
@@ -243,7 +263,12 @@ export function scimProvisioning(deps: ScimDeps) {
   }
 
   /** A Group's state from a body, checked: members are people this connection provisions. */
-  async function groupFrom(tx: Tx, caller: ScimCaller, body: Json, base: ScimGroup): Promise<Result<ScimGroup>> {
+  async function groupFrom(
+    tx: Tx,
+    caller: ScimCaller,
+    body: Json,
+    base: ScimGroup,
+  ): Promise<Result<ScimGroup>> {
     const displayName = text(getCI(body, 'displayName'));
     if (displayName === null || displayName.length > 256) {
       return Invalid('displayName is required', 'displayName');
@@ -257,9 +282,12 @@ export function scimProvisioning(deps: ScimDeps) {
       if (value === null) return Invalid('Each member names a value', 'members');
       members.add(value);
     }
-    const known = new Set((await store.links(tx, caller.tenantId, caller.connectionId)).map((l) => l.personId));
+    const known = new Set(
+      (await store.links(tx, caller.tenantId, caller.connectionId)).map((l) => l.personId),
+    );
     const stranger = [...members].find((m) => !known.has(m));
-    if (stranger !== undefined) return Invalid(`${stranger} is not a user this connection provisions`, 'members');
+    if (stranger !== undefined)
+      return Invalid(`${stranger} is not a user this connection provisions`, 'members');
     const clash = (await store.groups(tx, caller.tenantId, caller.connectionId)).find(
       (g) => g.id !== base.id && g.displayName.toLowerCase() === displayName.toLowerCase(),
     );
@@ -272,7 +300,10 @@ export function scimProvisioning(deps: ScimDeps) {
 
   return {
     /** The connection a bearer token belongs to, if it is live and its company has People. */
-    async authenticate(authorization: string | undefined, correlationId: string): Promise<Result<ScimCaller>> {
+    async authenticate(
+      authorization: string | undefined,
+      correlationId: string,
+    ): Promise<Result<ScimCaller>> {
       const token = /^Bearer\s+(\S+)$/iu.exec(authorization ?? '')?.[1];
       const claims = token === undefined ? null : tokenClaims(token);
       if (token === undefined || claims === null) return Unauthenticated();
@@ -290,12 +321,20 @@ export function scimProvisioning(deps: ScimDeps) {
       if (!entitled.includes('module.people')) {
         return err(failure('NOT_ENTITLED', 'This workspace does not include People'));
       }
-      return ok({ tenantId: claims.tenantId, connectionId: found.id, system: found.system, correlationId });
+      return ok({
+        tenantId: claims.tenantId,
+        connectionId: found.id,
+        system: found.system,
+        correlationId,
+      });
     },
 
     listUsers: (caller: ScimCaller, query: ListQuery) =>
       inTenant(caller, async (tx, { asking, mapping }): Promise<Result<Json>> => {
-        const filter = query.filter === undefined || query.filter.trim() === '' ? null : parseFilter(query.filter);
+        const filter =
+          query.filter === undefined || query.filter.trim() === ''
+            ? null
+            : parseFilter(query.filter);
         if (filter !== null && !filter.ok) return filter;
         const links = await store.links(tx, caller.tenantId, caller.connectionId);
         // A lookup by the link's own fields — what Okta and Entra send before
@@ -384,7 +423,16 @@ export function scimProvisioning(deps: ScimDeps) {
         if (link === null) return Missing();
         const held = await service.access.read(tx, { ...asking, personId: link.personId });
         if (!held.ok) return held;
-        return sync(tx, caller, asking, mapping, link, held.value.attributes, body.value, 'replace');
+        return sync(
+          tx,
+          caller,
+          asking,
+          mapping,
+          link,
+          held.value.attributes,
+          body.value,
+          'replace',
+        );
       }),
 
     patchUser: (caller: ScimCaller, id: string, raw: unknown) =>
@@ -398,7 +446,16 @@ export function scimProvisioning(deps: ScimDeps) {
         const patched = applyPatch(userOf(link, mapping, held.value), ops.value);
         if (!patched.ok) return patched;
         // The patched User is the whole state: a mapped value it lost was removed.
-        return sync(tx, caller, asking, mapping, link, held.value.attributes, patched.value, 'replace');
+        return sync(
+          tx,
+          caller,
+          asking,
+          mapping,
+          link,
+          held.value.attributes,
+          patched.value,
+          'replace',
+        );
       }),
 
     /** Unlinked: the system stops mirroring them. Their record stays, HR's to end. */
@@ -419,7 +476,10 @@ export function scimProvisioning(deps: ScimDeps) {
 
     listGroups: (caller: ScimCaller, query: ListQuery) =>
       inTenant(caller, async (tx): Promise<Result<Json>> => {
-        const filter = query.filter === undefined || query.filter.trim() === '' ? null : parseFilter(query.filter);
+        const filter =
+          query.filter === undefined || query.filter.trim() === ''
+            ? null
+            : parseFilter(query.filter);
         if (filter !== null && !filter.ok) return filter;
         const all = (await store.groups(tx, caller.tenantId, caller.connectionId)).map(groupOf);
         const matched = filter === null ? all : all.filter((g) => matches(filter.value, g));
@@ -494,7 +554,9 @@ export function scimProvisioning(deps: ScimDeps) {
     extensionSchema: (caller: ScimCaller) =>
       inTenant(caller, async (tx, { mapping }): Promise<Result<Json>> => {
         const version = await service.schemas.current(tx, caller.tenantId);
-        const byKey = new Map((version?.document.attributes ?? []).map((d) => [d.key as string, d]));
+        const byKey = new Map(
+          (version?.document.attributes ?? []).map((d) => [d.key as string, d]),
+        );
         return ok({
           schemas: ['urn:ietf:params:scim:schemas:core:2.0:Schema'],
           id: KITHENA_USER,
@@ -508,7 +570,12 @@ export function scimProvisioning(deps: ScimDeps) {
               : [
                   {
                     name: d.key,
-                    type: d.dataType === 'boolean' ? 'boolean' : d.dataType === 'number' ? 'decimal' : 'string',
+                    type:
+                      d.dataType === 'boolean'
+                        ? 'boolean'
+                        : d.dataType === 'number'
+                          ? 'decimal'
+                          : 'string',
                     multiValued: d.dataType === 'multi_select',
                     description: d.label.default,
                     required: false,

@@ -18,7 +18,12 @@ export type Filter =
   | { readonly kind: 'and' | 'or'; readonly left: Filter; readonly right: Filter }
   | { readonly kind: 'not'; readonly filter: Filter }
   | { readonly kind: 'present'; readonly path: string }
-  | { readonly kind: 'compare'; readonly path: string; readonly op: CompareOp; readonly value: Literal }
+  | {
+      readonly kind: 'compare';
+      readonly path: string;
+      readonly op: CompareOp;
+      readonly value: Literal;
+    }
   | { readonly kind: 'within'; readonly path: string; readonly filter: Filter };
 
 const OPS = new Set<string>(['eq', 'ne', 'co', 'sw', 'ew', 'gt', 'ge', 'lt', 'le']);
@@ -171,7 +176,8 @@ function compare(actual: unknown, op: CompareOp, expected: Literal, exact: boole
     if (op === 'ew') return a.endsWith(e);
     return ordered(a, op, e);
   }
-  if (typeof actual === 'number' && typeof expected === 'number') return ordered(actual, op, expected);
+  if (typeof actual === 'number' && typeof expected === 'number')
+    return ordered(actual, op, expected);
   if (op === 'eq') return actual === expected;
   if (op === 'ne') return actual !== expected;
   return false;

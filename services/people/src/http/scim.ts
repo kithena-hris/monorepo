@@ -71,7 +71,11 @@ function scimError(error: DomainFailure): ScimResponse {
   };
 }
 
-const answer = (status: number, body: Json | null, headers: Record<string, string> = {}): ScimResponse => ({
+const answer = (
+  status: number,
+  body: Json | null,
+  headers: Record<string, string> = {},
+): ScimResponse => ({
   status,
   body,
   headers: { 'content-type': MEDIA, ...headers },
@@ -81,9 +85,12 @@ const answer = (status: number, body: Json | null, headers: Record<string, strin
 function excluding(resource: Json, excluded: readonly string[]): Json {
   if (excluded.length === 0) return resource;
   const drop = new Set(excluded.filter((a) => !['id', 'schemas'].includes(a)));
-  const strip = (r: Json) => Object.fromEntries(Object.entries(r).filter(([k]) => !drop.has(k.toLowerCase())));
+  const strip = (r: Json) =>
+    Object.fromEntries(Object.entries(r).filter(([k]) => !drop.has(k.toLowerCase())));
   const listed = resource['Resources'];
-  return Array.isArray(listed) ? { ...resource, Resources: (listed as Json[]).map(strip) } : strip(resource);
+  return Array.isArray(listed)
+    ? { ...resource, Resources: (listed as Json[]).map(strip) }
+    : strip(resource);
 }
 
 function serviceProviderConfig(base: string): Json {
@@ -154,7 +161,9 @@ export function scimHandler(
     const correlation = header('x-correlation-id');
     const caller = await scim.authenticate(
       header('authorization'),
-      correlation !== undefined && /^[0-9a-f-]{36}$/iu.test(correlation) ? correlation : randomUUID(),
+      correlation !== undefined && /^[0-9a-f-]{36}$/iu.test(correlation)
+        ? correlation
+        : randomUUID(),
     );
     if (!caller.ok) return scimError(caller.error);
 
@@ -168,11 +177,16 @@ export function scimHandler(
     }
     const query = {
       filter: url.searchParams.get('filter') ?? undefined,
-      startIndex: url.searchParams.has('startIndex') ? Number(url.searchParams.get('startIndex')) : undefined,
+      startIndex: url.searchParams.has('startIndex')
+        ? Number(url.searchParams.get('startIndex'))
+        : undefined,
       count: url.searchParams.has('count') ? Number(url.searchParams.get('count')) : undefined,
     };
     if (Number.isNaN(query.startIndex) || Number.isNaN(query.count)) {
-      return scimError({ code: 'SCIM_INVALID_VALUE', message: 'startIndex and count are integers' });
+      return scimError({
+        code: 'SCIM_INVALID_VALUE',
+        message: 'startIndex and count are integers',
+      });
     }
     const excluded = (url.searchParams.get('excludedAttributes') ?? '')
       .split(',')
@@ -200,7 +214,11 @@ async function route(
   method: string,
   path: string,
   body: unknown,
-  query: { filter?: string | undefined; startIndex?: number | undefined; count?: number | undefined },
+  query: {
+    filter?: string | undefined;
+    startIndex?: number | undefined;
+    count?: number | undefined;
+  },
   base: string,
   done: (result: Result<Json>, status?: number) => ScimResponse,
   gone: (result: Result<null>) => ScimResponse,
@@ -210,17 +228,22 @@ async function route(
   const bare = id === undefined || id === '';
   const ok = (value: Json) => done({ ok: true, value });
 
-  if (method === 'GET' && kind === 'ServiceProviderConfig' && bare) return ok(serviceProviderConfig(base));
+  if (method === 'GET' && kind === 'ServiceProviderConfig' && bare)
+    return ok(serviceProviderConfig(base));
   if (method === 'GET' && kind === 'ResourceTypes') {
     const types = resourceTypes(base);
     if (bare) return ok(list(types));
     const found = types.find((t) => t['id'] === one);
-    return found === undefined ? done({ ok: false, error: { code: 'NOT_FOUND', message: 'No such resource type' } }) : ok(found);
+    return found === undefined
+      ? done({ ok: false, error: { code: 'NOT_FOUND', message: 'No such resource type' } })
+      : ok(found);
   }
   if (method === 'GET' && kind === 'Schemas') {
     const schema = await scim.extensionSchema(caller);
     if (!schema.ok || bare) return schema.ok ? ok(list([schema.value])) : done(schema);
-    return one === KITHENA_USER ? ok(schema.value) : done({ ok: false, error: { code: 'NOT_FOUND', message: 'No such schema' } });
+    return one === KITHENA_USER
+      ? ok(schema.value)
+      : done({ ok: false, error: { code: 'NOT_FOUND', message: 'No such schema' } });
   }
 
   if (kind === 'Users') {

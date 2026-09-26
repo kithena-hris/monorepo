@@ -76,7 +76,9 @@ describe('reading a User', () => {
   });
 
   it('takes the primary email when none is typed work', () => {
-    const values = valuesOf({ emails: [{ value: 'a@x.test' }, { value: 'b@x.test', primary: true }] });
+    const values = valuesOf({
+      emails: [{ value: 'a@x.test' }, { value: 'b@x.test', primary: true }],
+    });
     expect(values['emails[type eq "work"].value']).toBe('b@x.test');
   });
 

@@ -20,7 +20,11 @@ const uuidOf = (bytes: Buffer) => {
 };
 
 export function issueToken(tenantId: string, connectionId: string): string {
-  const raw = Buffer.concat([uuidBytes(tenantId), uuidBytes(connectionId), randomBytes(SECRET_BYTES)]);
+  const raw = Buffer.concat([
+    uuidBytes(tenantId),
+    uuidBytes(connectionId),
+    randomBytes(SECRET_BYTES),
+  ]);
   return `${PREFIX}${raw.toString('base64url')}`;
 }
 
@@ -32,7 +36,8 @@ export function tokenClaims(token: string): { tenantId: string; connectionId: st
   return { tenantId: uuidOf(raw.subarray(0, 16)), connectionId: uuidOf(raw.subarray(16, 32)) };
 }
 
-export const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
+export const hashToken = (token: string): string =>
+  createHash('sha256').update(token).digest('hex');
 
 /** Whether a token matches a stored hash, in constant time. */
 export function tokenMatches(token: string, hash: string | null): boolean {

@@ -28,7 +28,10 @@ const MAX_OPERATIONS = 1000;
 export function parsePatch(body: unknown): Result<readonly PatchOperation[]> {
   if (!isObject(body)) return Syntax('A PATCH body is a PatchOp message');
   const schemas = body['schemas'];
-  if (!Array.isArray(schemas) || !schemas.some((s) => String(s).toLowerCase() === PATCH_OP.toLowerCase())) {
+  if (
+    !Array.isArray(schemas) ||
+    !schemas.some((s) => String(s).toLowerCase() === PATCH_OP.toLowerCase())
+  ) {
     return Syntax(`A PATCH body names the schema ${PATCH_OP}`);
   }
   const operations = body['Operations'] ?? body['operations'];
@@ -84,10 +87,15 @@ function parseTarget(rest: string): Result<Target> {
   const close = rest.lastIndexOf(']');
   if (close < open) return BadPath(`${rest} has an unclosed filter`);
   const after = rest.slice(close + 1);
-  if (after !== '' && !/^\.[^.[\]]+$/u.test(after)) return BadPath(`${rest} is not a path this service reads`);
+  if (after !== '' && !/^\.[^.[\]]+$/u.test(after))
+    return BadPath(`${rest} is not a path this service reads`);
   const filter = parseFilter(rest.slice(open + 1, close));
   if (!filter.ok) return BadPath(filter.error.message);
-  return ok({ attr: rest.slice(0, open), filter: filter.value, sub: after === '' ? null : after.slice(1) });
+  return ok({
+    attr: rest.slice(0, open),
+    filter: filter.value,
+    sub: after === '' ? null : after.slice(1),
+  });
 }
 
 function set(object: Json, name: string, value: unknown): void {
@@ -136,7 +144,11 @@ function applyAt(doc: Json, op: PatchOperation['op'], path: string, value: unkno
     if (op === 'remove' && Array.isArray(existing) && Array.isArray(value)) {
       const gone = (e: unknown) =>
         value.some((v) => same(v, e) || (isObject(v) && isObject(e) && v['value'] === e['value']));
-      set(holder, attr, existing.filter((e) => !gone(e)));
+      set(
+        holder,
+        attr,
+        existing.filter((e) => !gone(e)),
+      );
     } else if (op === 'remove') remove(holder, attr);
     else if (Array.isArray(existing) && op === 'add') {
       const added = Array.isArray(value) ? value : [value];
@@ -176,7 +188,11 @@ function applyAt(doc: Json, op: PatchOperation['op'], path: string, value: unkno
   const written = (item: unknown) =>
     sub === null ? (isObject(value) ? merge(item, value) : value) : merge(item, { [sub]: value });
   if (picked.some(Boolean)) {
-    set(holder, attr, items.map((item, i) => (picked[i] ? written(item) : item)));
+    set(
+      holder,
+      attr,
+      items.map((item, i) => (picked[i] ? written(item) : item)),
+    );
     return ok(undefined);
   }
   // Nothing matched: `emails[type eq "work"].value` on a user with no work

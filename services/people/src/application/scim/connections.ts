@@ -206,18 +206,26 @@ export function scimConnections(deps: ConnectionDeps) {
         const keys = new Set<string>();
         for (const { path, key } of entries) {
           if (!isMappablePath(path)) {
-            return err(failure('VALUE_INVALID', `${path} is not a SCIM attribute People maps`, ['mapping']));
+            return err(
+              failure('VALUE_INVALID', `${path} is not a SCIM attribute People maps`, ['mapping']),
+            );
           }
           const extension = extensionKeyOf(path);
           if (extension !== null && extension !== key) {
             return err(
-              failure('VALUE_INVALID', `${path} maps to the attribute it names, ${extension}`, ['mapping']),
+              failure('VALUE_INVALID', `${path} maps to the attribute it names, ${extension}`, [
+                'mapping',
+              ]),
             );
           }
           const why = unmappable(byKey.get(key));
           if (why !== null) return err(failure('VALUE_INVALID', `${key} ${why}`, ['mapping']));
           if (paths.has(path) || keys.has(key)) {
-            return err(failure('VALUE_INVALID', `${paths.has(path) ? path : key} is mapped twice`, ['mapping']));
+            return err(
+              failure('VALUE_INVALID', `${paths.has(path) ? path : key} is mapped twice`, [
+                'mapping',
+              ]),
+            );
           }
           paths.add(path);
           keys.add(key);
@@ -230,7 +238,9 @@ export function scimConnections(deps: ConnectionDeps) {
           if (m.connectionId === id || !keys.has(m.key)) continue;
           const owner = others.find((c) => c.id === m.connectionId)?.system ?? 'another system';
           return err(
-            failure('SOURCE_OF_RECORD_EXTERNAL', `${m.key} is already kept in ${owner}`, ['mapping']),
+            failure('SOURCE_OF_RECORD_EXTERNAL', `${m.key} is already kept in ${owner}`, [
+              'mapping',
+            ]),
           );
         }
         await store.setMapping(tx, asking.tenantId, id, entries);

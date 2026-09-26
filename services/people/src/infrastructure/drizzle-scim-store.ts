@@ -117,7 +117,10 @@ export function drizzleScimStore(): ScimStore {
          WHERE l.tenant_id = ${tenantId}::uuid AND l.person_id = ${personId}::uuid
            AND c.revoked_at IS NULL`);
       return new Map<string, ExternalSource>(
-        rows.map((r) => [String(r['attribute_key']), { connectionId: String(r['id']), system: String(r['system']) }]),
+        rows.map((r) => [
+          String(r['attribute_key']),
+          { connectionId: String(r['id']), system: String(r['system']) },
+        ]),
       );
     },
 
@@ -184,16 +187,14 @@ export function drizzleScimStore(): ScimStore {
          WHERE g.tenant_id = ${tenantId}::uuid AND g.connection_id = ${connectionId}::uuid
          GROUP BY g.tenant_id, g.id
          ORDER BY g.created_at, g.id`);
-      return rows.map(
-        (r): ScimGroup => ({
-          id: String(r['id']),
-          displayName: String(r['display_name']),
-          externalId: textOrNull(r['external_id']),
-          members: (r['members'] as unknown[]).map(String),
-          createdAt: iso(r['created_at']),
-          updatedAt: iso(r['updated_at']),
-        }),
-      );
+      return rows.map((r): ScimGroup => ({
+        id: String(r['id']),
+        displayName: String(r['display_name']),
+        externalId: textOrNull(r['external_id']),
+        members: (r['members'] as unknown[]).map(String),
+        createdAt: iso(r['created_at']),
+        updatedAt: iso(r['updated_at']),
+      }));
     },
 
     async putGroup(tx, tenantId, connectionId, group) {

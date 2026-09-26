@@ -45,7 +45,10 @@ export interface ScimGroup {
 export interface ScimStore {
   connection(tx: Tx, tenantId: string, id: string): Promise<ScimConnection | null>;
   /** Every connection, revoked ones included, with how many people each provisions. */
-  connections(tx: Tx, tenantId: string): Promise<readonly (ScimConnection & { readonly linked: number })[]>;
+  connections(
+    tx: Tx,
+    tenantId: string,
+  ): Promise<readonly (ScimConnection & { readonly linked: number })[]>;
   createConnection(
     tx: Tx,
     tenantId: string,
@@ -63,8 +66,16 @@ export interface ScimStore {
   /** Serialise mapping changes in a tenant until the transaction ends. */
   lockMappings(tx: Tx, tenantId: string): Promise<void>;
   /** Every mapping row in the tenant, by connection. */
-  mappings(tx: Tx, tenantId: string): Promise<readonly (MappingEntry & { readonly connectionId: string })[]>;
-  setMapping(tx: Tx, tenantId: string, connectionId: string, entries: readonly MappingEntry[]): Promise<void>;
+  mappings(
+    tx: Tx,
+    tenantId: string,
+  ): Promise<readonly (MappingEntry & { readonly connectionId: string })[]>;
+  setMapping(
+    tx: Tx,
+    tenantId: string,
+    connectionId: string,
+    entries: readonly MappingEntry[],
+  ): Promise<void>;
 
   /**
    * The attributes an external system owns on this person: the mapping of
