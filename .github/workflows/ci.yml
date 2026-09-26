@@ -213,9 +213,22 @@ jobs:
         run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). It runs in full on main."
 
 
-  integration:
+  # Four streams at once. People's suite is most of the time and runs its files
+  # one after another (each starts its own containers), so it is split three
+  # ways with Vitest's `--shard`; every other package's suite is the fourth.
+  # A shard is a whole file, so a file's containers never span two runners.
+  integration-shard:
+    name: integration (${{ matrix.stream }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { stream: 'people 1/3', filter: '@kithena/people', shard: '1/3' }
+          - { stream: 'people 2/3', filter: '@kithena/people', shard: '2/3' }
+          - { stream: 'people 3/3', filter: '@kithena/people', shard: '3/3' }
+          - { stream: 'the rest', filter: '!@kithena/people', shard: '' }
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -226,8 +239,32 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - name: install
         run: pnpm install --frozen-lockfile
+      # Through turbo, so each package's dependencies are built first.
       - name: integration tests, real postgres
-        run: pnpm test:integration
+        env:
+          FILTER: ${{ matrix.filter }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          args=(--filter "$FILTER")
+          if [ -n "$SHARD" ]; then
+            pnpm turbo run test:integration "${args[@]}" -- --shard="$SHARD"
+          else
+            pnpm turbo run test:integration "${args[@]}"
+          fi
+
+  # The required check keeps its name: green only when every stream is.
+  integration:
+    needs: integration-shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every stream passed
+        env:
+          RESULT: ${{ needs.integration-shard.result }}
+        run: |
+          echo "streams: $RESULT"
+          [ "$RESULT" = success ]
 
   standalone:
     runs-on: ubuntu-latest
