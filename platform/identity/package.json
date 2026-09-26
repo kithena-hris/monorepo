@@ -30,7 +30,6 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
-    "@vercel/node": "^14.0.0",
     "vitest": "^4.1.11"
   }
 }

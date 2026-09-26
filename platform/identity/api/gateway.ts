@@ -1,6 +1,17 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { compose, type RequestHandler } from '../src/composition.js';
+
+/*
+ * The one field Vercel's Node runtime adds that this file reads: the parsed
+ * query string. Declared here rather than imported from `@vercel/node`, which
+ * is only types and `vercel dev` helpers and pinned an undici 5 that has no
+ * fixed release. The runtime adds `query` whether or not that package is
+ * installed.
+ */
+type VercelRequest = IncomingMessage & {
+  query: Partial<Record<string, string | string[]>>;
+};
 
 /**
  * The identity service, as a Vercel function.
@@ -116,7 +127,7 @@ function originalUrl(request: VercelRequest): string {
 
 export default async function handler(
   request: VercelRequest,
-  response: VercelResponse,
+  response: ServerResponse,
 ): Promise<void> {
   request.url = originalUrl(request);
 
