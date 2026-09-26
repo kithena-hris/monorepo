@@ -22,7 +22,7 @@ import type { Outcome } from '../load';
 import type { PublishPreview } from './model';
 
 /**
- * The three change markers, each a glyph and a word (§9.3, screen 4).
+ * The change markers, each a glyph and a word (§9.3, screen 4).
  *
  * The glyph is the scan, the word is the meaning, and the tone is the least of
  * the three: colour alone never tells an added field from an archived one.
@@ -31,6 +31,8 @@ const MARKER = {
   added: { glyph: '+', word: 'Added', tone: 'success' },
   tightened: { glyph: '~', word: 'Tightened', tone: 'warning' },
   loosened: { glyph: '~', word: 'Loosened', tone: 'info' },
+  // Who may read it, or the conditions it is required under (PEO-065, PEO-066).
+  changed: { glyph: '~', word: 'Changed', tone: 'warning' },
   archived: { glyph: '−', word: 'Archived', tone: 'neutral' },
 } as const;
 

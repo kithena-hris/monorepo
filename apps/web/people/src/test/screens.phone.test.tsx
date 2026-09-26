@@ -13,6 +13,7 @@ import { ImportFlow } from '../import/import-flow';
 import { Onboarding } from '../onboarding/onboarding';
 import { Profile } from '../profile/profile';
 import type { RecordField } from '../record/model';
+import { FieldEditor } from '../settings/field-editor';
 import { FieldRegistry } from '../settings/field-registry';
 import { Integrations } from '../settings/integrations/integrations';
 import { Organisation } from '../settings/organisation';
@@ -132,8 +133,10 @@ describe('at 390×844, with a finger', () => {
                 dataType: 'select',
                 options: ['ENG-204'],
                 requiredness: 'always',
+                requiredWhen: null,
                 ownership: ['hr'],
                 visibility: ['hr'],
+                visibilityRules: [],
                 collectAt: 'hr_only',
                 classification: 'internal',
                 piiKind: 'none',
@@ -141,6 +144,7 @@ describe('at 390×844, with a finger', () => {
                 pending: 'added',
               },
             ],
+            choices: { legalEntities: [], countries: [] },
           },
         }}
         today="2026-09-22"
@@ -153,6 +157,62 @@ describe('at 390×844, with a finger', () => {
         onPublish={ok}
       />,
     );
+  });
+
+  it('the predicate editor and custom visibility rules, on steps two and three (PEO-065, PEO-066)', async () => {
+    const when = {
+      combine: 'all' as const,
+      clauses: [
+        { operand: 'country' as const, in: ['ES'] },
+        { operand: 'attribute' as const, key: 'grade', is: 'equals' as const, equals: 'senior' },
+      ],
+    };
+    mount(
+      <FieldEditor
+        open
+        onOpenChange={vi.fn()}
+        section={{
+          key: 'hr',
+          label: 'HR information',
+          visibility: ['hr'],
+          ownership: ['hr'],
+          origin: 'core',
+          fixed: false,
+        }}
+        field={{
+          key: 'permit',
+          sectionKey: 'hr',
+          label: 'Permit',
+          description: null,
+          dataType: 'text',
+          options: [],
+          requiredness: 'conditional',
+          requiredWhen: when,
+          ownership: ['hr'],
+          visibility: ['hr'],
+          visibilityRules: [{ scopes: ['manager'], when }],
+          collectAt: 'hr_only',
+          classification: 'internal',
+          piiKind: 'none',
+          origin: 'tenant',
+          pending: null,
+        }}
+        takenKeys={[]}
+        choices={{ legalEntities: [], countries: [{ value: 'ES', label: 'Spain' }] }}
+        fields={[{ key: 'grade', label: 'Grade', options: [] }]}
+        advise={never}
+        onSave={ok}
+      />,
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Edit Permit' });
+    for (let step = 1; step <= 2; step += 1) {
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Next' }));
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      // The conditions and the rules; the stepper above them is Reach's, and
+      // measured where Reach is.
+      for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
+    }
   });
 
   it('publishing, as a sheet from the bottom', async () => {
@@ -273,14 +333,25 @@ describe('at 390×844, with a finger', () => {
   });
 
   it('the organisation settings, and a dialog over them', async () => {
-    const entity = { id: 'e1', name: 'Acme Iberia SL', country: 'ES', timeZone: 'Europe/Madrid', archived: false };
+    const entity = {
+      id: 'e1',
+      name: 'Acme Iberia SL',
+      country: 'ES',
+      timeZone: 'Europe/Madrid',
+      archived: false,
+    };
     await checked(
       <Organisation
         load={{
           status: 'ready',
           data: {
             canManage: true,
-            settings: { defaultTimeZone: 'Europe/Madrid', cohortMinimum: 10, slug: 'acme', displayName: 'Acme' },
+            settings: {
+              defaultTimeZone: 'Europe/Madrid',
+              cohortMinimum: 10,
+              slug: 'acme',
+              displayName: 'Acme',
+            },
             legalEntities: [entity],
             locations: [
               {
@@ -297,7 +368,13 @@ describe('at 390×844, with a finger', () => {
             countries: [{ code: 'ES', name: 'Spain' }],
             timeZones: ['Etc/UTC', 'Europe/Madrid'],
             retentionFloors: [
-              { floor: 'es-labour', months: 48, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
+              {
+                floor: 'es-labour',
+                months: 48,
+                status: 'unreviewed',
+                reviewedBy: null,
+                reviewedOn: null,
+              },
             ],
           },
         }}
@@ -533,7 +610,8 @@ describe('at 390×844, with a finger', () => {
                   {
                     level: 'mismatch',
                     code: 'check_mismatch',
-                    message: 'Matches the national format, but the control letter does not compute.',
+                    message:
+                      'Matches the national format, but the control letter does not compute.',
                   },
                 ],
                 enteredAt: '2026-09-24T09:00:00.000Z',

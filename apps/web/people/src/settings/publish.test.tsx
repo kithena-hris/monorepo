@@ -23,6 +23,12 @@ const preview: PublishPreview = {
       specialCategory: false,
     },
     {
+      kind: 'changed',
+      key: 'contract_end',
+      summary: 'contract_end is shown or required under different rules',
+      specialCategory: false,
+    },
+    {
       kind: 'archived',
       key: 'shirt_size',
       summary: 'Shirt size archived. Existing answers are kept.',
@@ -85,6 +91,7 @@ describe('PublishDialog', () => {
     expect(items.map((li) => li.textContent)).toEqual([
       '+ AddedCost centre added to HR information, required for everyone',
       '~ TightenedHome address now required for employees in Spain',
+      '~ Changedcontract_end is shown or required under different rules',
       '− ArchivedShirt size archived. Existing answers are kept.',
       '+ AddedAccommodation notes added to Health & safetySpecial category',
     ]);

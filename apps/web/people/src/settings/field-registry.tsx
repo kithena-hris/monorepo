@@ -266,6 +266,8 @@ function Registry({
           section={section}
           field={editing?.field ?? null}
           takenKeys={draft.fields.map((f) => f.key)}
+          choices={draft.choices}
+          fields={draft.fields}
           advise={advise}
           onSave={(input) => onSaveField(input, editing?.field?.key ?? null)}
         />
