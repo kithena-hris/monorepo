@@ -108,7 +108,7 @@ describe('renderNotice: scheduled_report', () => {
     expect(result.value.subject).toBe('Acme Corp: your weekly People report is ready');
     expect(result.value.text).toContain('weekly Excel report');
     expect(result.value.text).toContain('24 hours');
-    expect(result.value.html).toContain(`href="${EXPORT.replace('&', '&amp;')}"`);
+    expect(result.value.html).toContain(`href="${EXPORT.replaceAll('&', '&amp;')}"`);
   });
 
   it('sends a summary to the numbers rather than with them', () => {

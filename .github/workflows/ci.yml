@@ -111,8 +111,13 @@ jobs:
         run: pnpm build
 
       # Cheap rules first, then the type-aware pass. ESLint resolves against
-      # the pinned TypeScript 6 API until 7.1 ships a stable one.
+      # the pinned TypeScript 6 API until 7.1 ships a stable one. The
+      # type-aware pass holds the whole program in memory and outgrew Node's
+      # default heap (about 4 GB) with the People Phase 2/3 code; the runner
+      # has 16 GB.
       - name: lint
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
         run: pnpm lint
 
       # Architectural boundaries. A cross-module import fails here, which is
