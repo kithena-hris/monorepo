@@ -24,6 +24,18 @@ just dev              # compose up, migrate, seed, run everything
 The gateway comes up on `http://localhost:4000`. Temporal UI is on `:8233`,
 Mailpit on `:8025`, the SeaweedFS (local S3) admin UI on `:9001`.
 
+The seed (`pnpm db:seed`) leaves a company to sign in to: **Acme**, with
+`ada@acme.example` invited (it prints her enrolment link), named People's
+administrator, People's employee fields published as version 1, and eight
+sample employees in the directory, six active, one starting in a fortnight and
+one not hired yet. Identity's seed writes the company, Ada and her naming the
+way the back office does, events included. Debezium does not run locally, so
+`pnpm --filter @kithena/identity events` prints identity's outbox and the seed
+pipes it into People's (`services/people/src/seed-local.ts`), which hands each
+event to People's consumer and then acts as Ada through People's own
+endpoints. It is idempotent, and only fills a fresh
+database: `just reset` for one.
+
 ### Working on a screen
 
 `just dev` starts the whole infrastructure stack — Redpanda, Temporal, OpenFGA,

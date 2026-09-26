@@ -92,7 +92,7 @@ export interface PersonReader {
     where?: Readonly<Record<string, string>>,
     search?: PersonSearch,
     leavers?: boolean,
-  ): Promise<{ readonly all: number; readonly active: number }>;
+  ): Promise<PersonCount>;
 
   /** Which person signs in as this account, if any: "my profile" starts here. */
   personOf(tx: PostgresJsDatabase, tenantId: string, accountId: string): Promise<string | null>;
@@ -214,4 +214,11 @@ export interface Asking {
 /** What an encrypted value reads as. The plaintext has its own, audited, path. */
 export interface SealedValue {
   readonly last4: string | null;
+}
+
+/** How many people a list matches, by status. `notStarted`: provisional or pre-hire. */
+export interface PersonCount {
+  readonly all: number;
+  readonly active: number;
+  readonly notStarted: number;
 }

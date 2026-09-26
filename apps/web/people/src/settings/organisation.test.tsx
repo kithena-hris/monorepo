@@ -175,12 +175,20 @@ describe('People home (PEO-119)', () => {
       <PeopleHome load={{ status: 'ready', data: { hr: false, admin: true, finance: false } }} />,
     );
     const settings = screen.getByRole('navigation', { name: 'Settings' });
-    for (const name of ['Employee fields', 'Roles', 'Integrations', 'Legal entities, locations and numbering']) {
+    for (const name of ['Employee fields', 'Roles', 'Integrations', 'Organisation']) {
       expect(within(settings).getByRole('link', { name })).toBeInTheDocument();
     }
     unmount();
+    const hr = render(
+      <PeopleHome load={{ status: 'ready', data: { hr: true, admin: false, finance: false } }} />,
+    );
+    // Add employee is the host's, beside every screen, and never repeated here.
+    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Approvals' })).toBeInTheDocument();
+    hr.unmount();
     render(<PeopleHome load={{ status: 'ready', data: { hr: false, admin: false, finance: false } }} />);
     expect(screen.queryByRole('link', { name: 'Integrations' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Directory' })).toHaveAttribute('href', '/people/directory');
   });
 

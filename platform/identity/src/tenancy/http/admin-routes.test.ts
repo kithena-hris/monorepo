@@ -32,6 +32,7 @@ function detailOf(overrides: Partial<TenantDetail> = {}): TenantDetail {
     people: [],
     entitlements: null,
     effectiveEntitlements: [],
+    administrators: {},
     ...overrides,
   };
 }
@@ -112,7 +113,12 @@ describe('recording the modules a company bought (PEO-114)', () => {
     const setEntitlements = vi.fn(() =>
       Promise.resolve({
         ok: true as const,
-        value: { entitlements: ['module.people' as const], changed: true, named: [] },
+        value: {
+          entitlements: ['module.people' as const],
+          changed: true,
+          named: [],
+          removed: [],
+        },
       }),
     );
     const { response, status, body } = fakeResponse();
@@ -131,6 +137,33 @@ describe('recording the modules a company bought (PEO-114)', () => {
     });
     expect(status()).toBe(200);
     expect(body()).toMatchObject({ entitlements: ['module.people'] });
+  });
+
+  it('passes on each module’s administrators, as a list or the older single id', async () => {
+    const setEntitlements = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        value: { entitlements: [], changed: false, named: [], removed: [] },
+      }),
+    );
+    const { response } = fakeResponse();
+    await routes(() => Promise.resolve(detailOf()), { setEntitlements })(
+      put(path, {
+        entitlements: ['module.people', 'module.timeoff'],
+        administrators: {
+          'module.people': ['a', 'b'],
+          'module.timeoff': 'c',
+          'module.nope': [1],
+        },
+        operatorId: '00000000-0000-4000-8000-0000000000f1',
+      }),
+      response,
+    );
+    expect(setEntitlements).toHaveBeenCalledWith(ID, {
+      entitlements: ['module.people', 'module.timeoff'],
+      administrators: { 'module.people': ['a', 'b'], 'module.timeoff': 'c' },
+      namedBy: '00000000-0000-4000-8000-0000000000f1',
+    });
   });
 
   it('refuses a body that is not a list of strings', async () => {

@@ -41,6 +41,22 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 
 /* ------------------------------------------------------------- records -- */
 
+/**
+ * One person added by hand (HR only): the new record's id, for the screen to
+ * move on to, or People's reason for refusing. A `hireDate` hires them from
+ * it; the rest are attributes.
+ */
+export async function addPerson(
+  person: Readonly<Record<string, string>>,
+): Promise<{ readonly ok: true; readonly personId: string } | { readonly ok: false; readonly message: string }> {
+  const { hireDate = null, ...attributes } = person;
+  const a = await people<{ id: string }>('CreatePerson', {
+    attributes: Object.entries(attributes).map(([key, text]) => ({ key, text })),
+    hireDate,
+  });
+  return a.ok ? { ok: true, personId: a.data.id } : { ok: false, message: a.message };
+}
+
 /** What People's checks warned about on a national identifier (PEO-125). Never the value. */
 type Finding = Readonly<Record<string, string>>;
 /**

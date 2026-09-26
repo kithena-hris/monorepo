@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createYoga } from 'graphql-yoga';
 import { ok } from '@kithena/domain-kit';
 
-import { inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
+import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { PeopleService } from '../application/person/service.js';
 import { inMemoryIdempotency } from '../http/idempotency.js';
@@ -22,7 +22,14 @@ const MARCO = '00000000-0000-4000-8000-0000000000a3';
 const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
 
 function wire(account: string, roles: string[] = []) {
-  const store = inMemoryPeople([versionOf(1, [])]);
+  const store = inMemoryPeople([
+    versionOf(
+      1,
+      ['given_name', 'family_name', 'work_email'].map((key) =>
+        define({ key, visibility: ['self', 'hr'] }),
+      ),
+    ),
+  ]);
   store.seed(MARCO, { account: MARCO_ACCOUNT });
   store.seed(ADA, { fields: { managerId: MARCO } });
   store.seed(NEW);
@@ -153,6 +160,34 @@ describe('the lifecycle mutations', () => {
     );
     const back = await mutate(`mutation { withdrawNotice(personId: "${ADA}", idempotencyKey: "${randomUUID()}") { status } }`);
     expect(back.data?.['withdrawNotice']).toEqual({ status: 'active' });
+  });
+
+  it('adds one person by hand, as HR alone', async () => {
+    const add = `mutation { createPerson(idempotencyKey: "${randomUUID()}", attributes: [{ key: "given_name", text: "Lena" }]) { status } }`;
+    const store = wire(MARCO_ACCOUNT);
+    const refused = await mutate(add);
+    expect(refused.errors?.[0]?.extensions['code']).toBe('FORBIDDEN');
+    expect(store.rows.size).toBe(3);
+
+    const hr = wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
+    const answer = await mutate(add);
+    expect(answer.errors).toBeUndefined();
+    expect(answer.data?.['createPerson']).toEqual({ status: 'provisional' });
+    expect(hr.rows.size).toBe(4);
+  });
+
+  it('adds and hires one person, through the REST write, when given a start date', async () => {
+    wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
+    const hire = (date: string) =>
+      mutate(
+        `mutation { createPerson(idempotencyKey: "${randomUUID()}", hireDate: "${date}", attributes: [{ key: "given_name", text: "Lena" }, { key: "family_name", text: "Moreau" }, { key: "work_email", text: "lena@acme.test" }]) { status } }`,
+      );
+    const started = await hire('2026-09-01');
+    expect(started.errors).toBeUndefined();
+    expect(started.data?.['createPerson']).toEqual({ status: 'active' });
+    expect((await hire('2026-12-01')).data?.['createPerson']).toEqual({ status: 'pre_hire' });
+    // The body schema REST parses: a date is a calendar date.
+    expect((await hire('soon')).errors?.[0]?.extensions['code']).toBe('BAD_REQUEST');
   });
 
   it('discards a provisional record', async () => {

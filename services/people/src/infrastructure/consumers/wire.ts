@@ -65,24 +65,8 @@ export async function startConsumers(
 
   const client = postgres(databaseUrl, { max: 5 });
   const inTenant = tenantTransaction(drizzle(client));
-  const authz = openFgaFrom(env);
   const approvals = await pendingChanges(env, inTenant);
-  const handle = peopleConsumer({
-    ...(authz === null ? {} : { authz }),
-    ...(approvals === null ? {} : { approvals }),
-    inTenant,
-    provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
-    recompute: recomputeCompleteness({
-      schema: drizzleSchemaRepository(),
-      people: drizzlePeopleFacts(),
-      store: drizzleCompletenessStore(),
-      clock: systemClock,
-      newEventId: uuidv7,
-      calendars: drizzleOrgStore(),
-    }),
-    org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
-    roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
-  });
+  const handle = consumerFrom(env, inTenant, approvals);
 
   const consumer = new Kafka(kafka).consumer({
     groupId: 'people',
@@ -118,6 +102,36 @@ export async function startConsumers(
       await client.end();
     },
   };
+}
+
+/**
+ * The handler every message goes through, wired to this database and, when
+ * `OPENFGA_URL` is set, OpenFGA. Also what the local seed delivers events to
+ * (`scripts/seed-local.ts`), so a laptop with no Debezium applies them exactly
+ * as a deployment does.
+ */
+export function consumerFrom(
+  env: NodeJS.ProcessEnv,
+  inTenant: ReturnType<typeof tenantTransaction>,
+  approvals: PendingChangeRunner | null = null,
+): ReturnType<typeof peopleConsumer> {
+  const authz = openFgaFrom(env);
+  return peopleConsumer({
+    ...(authz === null ? {} : { authz }),
+    ...(approvals === null ? {} : { approvals }),
+    inTenant,
+    provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
+    recompute: recomputeCompleteness({
+      schema: drizzleSchemaRepository(),
+      people: drizzlePeopleFacts(),
+      store: drizzleCompletenessStore(),
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: drizzleOrgStore(),
+    }),
+    org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
+    roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
+  });
 }
 
 /**

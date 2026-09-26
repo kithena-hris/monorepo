@@ -617,7 +617,7 @@ describe('the directory at 50,000 people', () => {
     const byHr = await inTenantResult(inTenant, PERF, (tx) =>
       people.count(tx, { ...asking(hr, PERF), search: 'family204' }),
     );
-    expect(byHr).toEqual(ok({ all: 50, active: 43 }));
+    expect(byHr).toEqual(ok({ all: 50, active: 43, notStarted: 0 }));
 
     const seen = [...first.value.items];
     let next = first.value.next;
@@ -840,7 +840,7 @@ describe('a custom-field filter under row-level security', () => {
           people.count(tx, { ...asking(hr, tenantId), where: TAIL }),
         );
         expect(work, 'person rows read for the count').toBeLessThan(1000);
-        expect(counted.ok && counted.value).toEqual({ all: 50, active: 43 });
+        expect(counted.ok && counted.value).toEqual({ all: 50, active: 43, notStarted: 0 });
       });
 
       it('narrows a text search by the filter, reading its matches only', async () => {

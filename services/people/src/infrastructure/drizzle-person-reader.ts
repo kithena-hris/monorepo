@@ -220,10 +220,15 @@ export function drizzlePersonReader(): PersonReader {
         .select({
           all: sql<number>`count(*)::int`,
           active: sql<number>`(count(*) FILTER (WHERE ${person.status} = 'active'))::int`,
+          notStarted: sql<number>`(count(*) FILTER (WHERE ${person.status} IN ('provisional', 'pre_hire')))::int`,
         })
         .from(person)
         .where(matching(tenantId, where, search, undefined, leavers));
-      return { all: rows[0]?.all ?? 0, active: rows[0]?.active ?? 0 };
+      return {
+        all: rows[0]?.all ?? 0,
+        active: rows[0]?.active ?? 0,
+        notStarted: rows[0]?.notStarted ?? 0,
+      };
     },
 
     async personOf(tx, tenantId, accountId) {

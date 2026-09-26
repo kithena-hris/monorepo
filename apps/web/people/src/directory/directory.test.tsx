@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
-import { Directory, type DirectoryProps, type DirectoryState } from './directory';
+import { Directory, summaryOf, type DirectoryProps, type DirectoryState } from './directory';
 
 const state: DirectoryState = {
+  total: 420,
   active: 412,
+  notStarted: 5,
   incomplete: 88,
   columns: [
     { key: 'job_title', label: 'Job title' },
@@ -54,10 +56,28 @@ function props(over: Partial<DirectoryProps> = {}): DirectoryProps {
   };
 }
 
+describe('summaryOf', () => {
+  it('counts everybody, then the statuses HR is shown, never a misleading zero active', () => {
+    // Two added by hand and not hired: people, none active, both not started.
+    expect(summaryOf({ ...state, total: 2, active: 0, notStarted: 2, incomplete: null })).toBe(
+      '2 people · 0 active · 2 not started',
+    );
+    expect(summaryOf({ ...state, total: 1, active: 1, notStarted: 0, incomplete: null })).toBe(
+      '1 person · 1 active',
+    );
+    // Outside HR: how many, and nothing about anybody's status.
+    expect(summaryOf({ ...state, total: 7, active: 7, notStarted: null, incomplete: null })).toBe(
+      '7 people',
+    );
+  });
+});
+
 describe('Directory', () => {
   it('draws columns from the schema and completeness as a count', async () => {
     const { container } = render(<Directory {...props()} />);
-    expect(screen.getByText('412 active · 88 incomplete')).toBeInTheDocument();
+    expect(
+      screen.getByText('420 people · 412 active · 5 not started · 88 incomplete'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /Cost centre/ })).toBeInTheDocument();
     expect(screen.getByText('2 missing')).toBeInTheDocument();
     expect(screen.getByText('Complete')).toBeInTheDocument();
@@ -102,10 +122,33 @@ describe('Directory', () => {
     rerender(<Directory {...props({ load: { status: 'error', message: 'Timed out' } })} />);
     expect(screen.getByText('Timed out')).toBeInTheDocument();
     rerender(
-      <Directory {...props({ load: { status: 'ready', data: { ...state, people: [] } } })} />,
+      <Directory
+        {...props({ search: 'zz', load: { status: 'ready', data: { ...state, people: [] } } })}
+      />,
     );
     expect(screen.getByText('Nobody matches')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says there is nobody yet, with one Import and no Add employee of its own', async () => {
+    const user = fast();
+    const onImport = vi.fn();
+    const empty = { status: 'ready', data: { ...state, people: [] } } as const;
+    const { container, rerender } = render(<Directory {...props({ load: empty, onImport })} />);
+    expect(screen.getByText('No employees yet')).toBeInTheDocument();
+    expect(screen.getByText(/one at a time with Add employee/)).toBeInTheDocument();
+    // Adding one person is the host's manifest action beside the screen, never a copy here.
+    expect(screen.queryByRole('button', { name: 'Add employee' })).toBeNull();
+    const imports = screen.getAllByRole('button', { name: 'Import' });
+    expect(imports).toHaveLength(1);
+    await user.click(imports[0] as HTMLElement);
+    expect(onImport).toHaveBeenCalledOnce();
+    expect(await axeViolations(container)).toEqual([]);
+
+    // Anybody else: the same news, and nothing to press.
+    rerender(<Directory {...props({ load: empty })} />);
+    expect(screen.getByText('Nobody has been added to People yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('asks the shell for the next page and back to the first, never paging itself', async () => {

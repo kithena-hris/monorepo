@@ -22,7 +22,7 @@
     "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages platform services",
     "codegen": "turbo run codegen",
     "db:migrate": "atlas migrate apply --env local --allow-dirty",
-    "db:seed": "pnpm --filter @kithena/identity seed",
+    "db:seed": "pnpm --filter @kithena/identity seed && pnpm --silent --filter @kithena/identity events | pnpm --filter @kithena/people seed",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "turbo run build && changeset publish",

@@ -84,6 +84,9 @@ async function eventually<T>(
   return last;
 }
 
+/** People's own navigation, beside every People screen on a wide window. */
+const sections = (page: Page) => page.getByRole('navigation', { name: 'People sections' });
+
 const person = (id: string) =>
   stack.sql<{ given_name: string | null; family_name: string | null; status: string }[]>`
     SELECT given_name, family_name, status FROM people.person WHERE id = ${id}`;
@@ -561,9 +564,9 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
 
-    // Reached from People's home, not typed.
+    // Reached from People's own navigation, not typed.
     await page.goto(`${stack.shell}/people`);
-    await page.getByRole('link', { name: 'Legal entities, locations and numbering' }).click();
+    await sections(page).getByRole('link', { name: 'Organisation' }).click();
     await page.waitForURL(/\/people\/settings\/organisation$/);
     await page.waitForLoadState('networkidle');
 
@@ -686,7 +689,7 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const asks = await finance.newPage();
     await asks.goto(`${stack.shell}/people`);
-    await asks.getByRole('link', { name: 'Full values' }).click();
+    await sections(asks).getByRole('link', { name: 'Full values' }).click();
     await asks.waitForURL(/\/people\/full-values$/);
     await asks.waitForLoadState('networkidle');
     await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
@@ -945,7 +948,7 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
     // HR sees what the checks found, reveals the value, and accepts it.
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
-    await reviews.getByRole('link', { name: 'Identifiers to review' }).click();
+    await sections(reviews).getByRole('link', { name: 'Identifiers to review' }).click();
     await reviews.waitForURL(/\/people\/identifier-reviews$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('table', { name: 'Identifiers to review' });
@@ -1045,5 +1048,148 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     const left = await stack.sql`SELECT 1 FROM people.import_upload WHERE tenant_id = ${TENANT}`;
     expect(left).toHaveLength(0);
     await context.close();
+  });
+});
+
+describe('People inside the shell: its sections, and always a way to add somebody', () => {
+  /** A second company with nobody in People yet, and one person holding HR and People admin. */
+  const GLOBEX = {
+    tenant: '00000000-0000-4000-8000-00000000bb00',
+    identity: '00000000-0000-4000-8000-0000000000c9',
+    account: '00000000-0000-4000-8000-0000000000b9',
+    session: '00000000-0000-4000-8000-0000000000d9',
+  };
+
+  it('takes HR from an empty directory to a new employee without leaving the shell', async () => {
+    await stack.sql`INSERT INTO platform.tenant (id, slug, display_name, address_line1, address_city, address_country)
+                    VALUES (${GLOBEX.tenant}, 'globex', 'Globex', 'Gran Vía 1', 'Madrid', 'ES')`;
+    await stack.sql`INSERT INTO platform.identity (id) VALUES (${GLOBEX.identity})`;
+    await stack.sql`INSERT INTO platform.account (id, tenant_id, identity_id, status, work_email, time_zone,
+                                                  employment_start, session_limit, given_name, family_name)
+                    VALUES (${GLOBEX.account}, ${GLOBEX.tenant}, ${GLOBEX.identity}, 'active', 'mia@globex.example',
+                            'Europe/Madrid', '2026-01-01', 4, 'Mia', 'Lind')`;
+    await stack.sql`INSERT INTO platform.session (id, tenant_id, account_id, slot, expires_at, amr)
+                    VALUES (${GLOBEX.session}, ${GLOBEX.tenant}, ${GLOBEX.account}, 1, now() + interval '1 day', ARRAY['hwk'])`;
+    await stack.sql`INSERT INTO people.role_grant (tenant_id, account_id, role)
+                    VALUES (${GLOBEX.tenant}, ${GLOBEX.account}, 'people_admin'), (${GLOBEX.tenant}, ${GLOBEX.account}, 'hr')`;
+    await stack.writeTuples([
+      { user: `user:${GLOBEX.account}`, relation: 'people_admin', object: `tenant:${GLOBEX.tenant}` },
+      { user: `user:${GLOBEX.account}`, relation: 'hr', object: `tenant:${GLOBEX.tenant}` },
+    ]);
+    const shell = stack.shell.replace('//acme.', '//globex.');
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addCookies([
+      {
+        name: '__Host-ksession',
+        value: GLOBEX.session,
+        domain: new URL(shell).hostname,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+    const page = await context.newPage();
+
+    // Nothing published: the administrator is taken to the wizard, not left
+    // on a directory that cannot load.
+    await page.goto(`${shell}/people/directory`);
+    await page.waitForURL(/\/people\/setup$/);
+    await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/Spain: \d+ sections?, \d+ fields/).waitFor();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Publish version 1' }).click();
+    await eventually(
+      'version 1',
+      () => stack.sql`SELECT 1 FROM people.schema_version WHERE tenant_id = ${GLOBEX.tenant}`,
+      (rows) => rows.length === 1,
+    );
+
+    // The shell's sidebar and People's sections, both on screen, around the screen.
+    await page.goto(`${shell}/people`);
+    await page.waitForLoadState('networkidle');
+    expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
+    const nav = sections(page);
+    expect(await nav.isVisible()).toBe(true);
+    expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+
+    // A marker on the window: it survives a client-side move and not a reload.
+    await page.evaluate(() => {
+      (window as unknown as { kept?: boolean }).kept = true;
+    });
+    const kept = () => page.evaluate(() => (window as unknown as { kept?: boolean }).kept === true);
+
+    await nav.getByRole('link', { name: 'Directory' }).click();
+    await page.waitForURL(/\/people\/directory$/);
+    await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
+    expect(await kept()).toBe(true);
+
+    // One Add employee on the screen, beside the sections: never repeated in
+    // the header or the empty state.
+    await page.waitForLoadState('networkidle');
+    const add = page.getByRole('main').getByRole('link', { name: 'Add employee' });
+    expect(await add.count()).toBe(1);
+    expect(await page.getByRole('main').getByRole('button', { name: 'Add employee' }).count()).toBe(0);
+    await add.click();
+    await page.waitForURL(/\/people\/new$/);
+    expect(await kept()).toBe(true);
+    const form = page.getByRole('form', { name: 'Add employee' });
+    await form.waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    // On its own screen the form's button is the only Add employee, and no
+    // section is current.
+    expect(await add.count()).toBe(0);
+    expect(await nav.locator('[aria-current="page"]').count()).toBe(0);
+    await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
+    await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
+    await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
+    // Starting today: hired, and active, rather than provisional.
+    await form.getByRole('button', { name: /Start date/ }).click();
+    await page.getByRole('dialog').locator('[aria-current="date"]').click();
+    await form.getByRole('button', { name: 'Add employee' }).click();
+
+    // Her record, to fill in the rest, under the Directory; and she is in it.
+    await page.waitForURL(/\/people\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    expect(await nav.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    const [lena] = await stack.sql<{ status: string; hire_date: string | null }[]>`
+      SELECT status, hire_date::text FROM people.person
+       WHERE tenant_id = ${GLOBEX.tenant} AND work_email = 'lena@globex.example'`;
+    expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
+    await nav.getByRole('link', { name: 'Directory' }).click();
+    await page.waitForURL(/\/people\/directory$/);
+    await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
+    // Counts that say what the list holds: everybody, then who is active.
+    await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
+    expect(await kept()).toBe(true);
+
+    // Every section stays inside the shell: a client-side move, the sidebar
+    // still there, and never another origin.
+    const hrefs = await nav
+      .getByRole('link')
+      .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+    expect(hrefs).toContain('/people/import');
+    for (const href of hrefs) {
+      await nav.locator(`a[href="${href}"]`).click();
+      await page.waitForURL((url) => url.pathname === href);
+      expect(new URL(page.url()).origin).toBe(new URL(shell).origin);
+      expect(await kept()).toBe(true);
+      expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
+    }
+    await context.close();
+
+    // Anybody else: the sections their roles open, and no way to add anybody.
+    const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
+    const theirs = await employee.newPage();
+    await theirs.goto(`${stack.shell}/people/directory`);
+    await sections(theirs).waitFor();
+    expect(await sections(theirs).getByRole('link', { name: 'Import' }).count()).toBe(0);
+    expect(await theirs.getByRole('link', { name: 'Add employee' }).count()).toBe(0);
+    expect(await theirs.getByRole('button', { name: 'Add employee' }).count()).toBe(0);
+    await employee.close();
   });
 });

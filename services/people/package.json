@@ -13,6 +13,7 @@
     "test:integration": "vitest run --config vitest.integration.ts",
     "test:standalone": "vitest run --config vitest.standalone.ts",
     "upload-bucket": "tsx src/configure-upload-bucket.ts",
+    "seed": "tsx --env-file-if-exists=../../.env src/seed-local.ts",
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {

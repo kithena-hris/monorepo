@@ -473,7 +473,8 @@ export async function compose(config: Config): Promise<RequestHandler> {
       | 'identity.tenant.provisioned'
       | 'identity.tenant.amended'
       | 'identity.tenant.entitlements_changed'
-      | 'identity.tenant.administrator_named',
+      | 'identity.tenant.administrator_named'
+      | 'identity.tenant.administrator_removed',
     process: string,
     payload: Record<string, unknown>,
   ): Promise<void> => {
@@ -1106,6 +1107,49 @@ export async function compose(config: Config): Promise<RequestHandler> {
       ),
   });
 
+  /**
+   * Who the back office has named to administer each module (PEO-112), in
+   * `tx` inside the tenant: only accounts that can still sign in, because a
+   * leaver administers nothing and is not somebody to show or to count.
+   */
+  const namedAdministrators = async (
+    tx: PostgresJsDatabase,
+    tenantId: string,
+  ): Promise<Record<string, string[]>> => {
+    const rows = await tx.execute(sql`
+      SELECT a.entitlement, a.account_id
+        FROM platform.tenant_administrator a
+        JOIN platform.account acc ON acc.id = a.account_id
+       WHERE a.tenant_id = ${tenantId}::uuid
+         AND acc.status IN ('provisioned', 'invited', 'active')
+       ORDER BY a.named_at, a.account_id
+    `);
+    const out: Record<string, string[]> = {};
+    for (const row of rows) (out[text(row['entitlement'])] ??= []).push(text(row['account_id']));
+    return out;
+  };
+
+  /** A named administrator: the row that remembers it and the event that tells the module. */
+  const nameAdministratorIn = async (
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    administrator: { entitlement: string; accountId: string },
+    namedBy: string | null,
+    process: string,
+  ): Promise<void> => {
+    await tx.execute(sql`
+      INSERT INTO platform.tenant_administrator (tenant_id, entitlement, account_id, named_by)
+      VALUES (${tenantId}::uuid, ${administrator.entitlement}, ${administrator.accountId}::uuid,
+              ${namedBy}::uuid)
+      ON CONFLICT DO NOTHING
+    `);
+    await tenantEvent(tx, tenantId, 'identity.tenant.administrator_named', process, {
+      entitlement: administrator.entitlement,
+      accountId: administrator.accountId,
+      namedBy,
+    });
+  };
+
   const modules: ModulesDeps = {
     inTenant: (tenantId, fn) =>
       db.transaction(async (tx) => {
@@ -1148,12 +1192,24 @@ export async function compose(config: Config): Promise<RequestHandler> {
               { entitlements },
             );
           },
+          administrators: () => namedAdministrators(tx, tenantId),
           name: (administrator, namedBy) =>
-            tenantEvent(tx, tenantId, 'identity.tenant.administrator_named', 'name-administrator', {
-              entitlement: administrator.entitlement,
-              accountId: administrator.accountId,
-              namedBy,
-            }),
+            nameAdministratorIn(tx, tenantId, administrator, namedBy, 'name-administrator'),
+          remove: async (administrator, removedBy) => {
+            await tx.execute(sql`
+              DELETE FROM platform.tenant_administrator
+               WHERE tenant_id = ${tenantId}::uuid
+                 AND entitlement = ${administrator.entitlement}
+                 AND account_id = ${administrator.accountId}::uuid
+            `);
+            await tenantEvent(
+              tx,
+              tenantId,
+              'identity.tenant.administrator_removed',
+              'name-administrator',
+              { ...administrator, removedBy },
+            );
+          },
         });
       }),
   };
@@ -1250,13 +1306,18 @@ export async function compose(config: Config): Promise<RequestHandler> {
       // connection this returns zero rows for every company — not an error, an
       // empty list, which renders as "nobody can sign in" on a company that has
       // three administrators.
-      const people = await inTenantTransaction(id, (tx) =>
-        tx.execute(sql`
-          SELECT id, work_email, status, created_at
-            FROM platform.account
-           WHERE tenant_id = ${id}::uuid
-           ORDER BY created_at
-        `),
+      const [people, administrators] = await inTenantTransaction(
+        id,
+        async (tx) =>
+          [
+            await tx.execute(sql`
+              SELECT id, work_email, status, created_at
+                FROM platform.account
+               WHERE tenant_id = ${id}::uuid
+               ORDER BY created_at
+            `),
+            await namedAdministrators(tx, id),
+          ] as const,
       );
 
       const address =
@@ -1287,6 +1348,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
           modulesOrNull(row['entitlements']),
           config.defaultEntitlements ?? [],
         ),
+        administrators,
         people: [...people].map((person) => ({
           id: String(person['id']),
           email: String(person['work_email']),
@@ -1457,13 +1519,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
             announce: (tenantId, tenant) =>
               tenantEvent(tx, tenantId, 'identity.tenant.provisioned', 'provision-tenant', tenant),
             nameAdministrator: (tenantId, administrator, namedBy) =>
-              tenantEvent(
-                tx,
-                tenantId,
-                'identity.tenant.administrator_named',
-                'provision-tenant',
-                { ...administrator, namedBy },
-              ),
+              nameAdministratorIn(tx, tenantId, administrator, namedBy, 'provision-tenant'),
             announceEntitlements: (tenantId, entitlements) =>
               tenantEvent(
                 tx,

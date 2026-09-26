@@ -439,7 +439,9 @@ export const TenantEntitlementsChanged = defineEvent(
  * names an existing account, when the module is switched on or afterwards —
  * the recovery path when a company has lost every administrator. The module
  * decides what administering means; People grants `people_admin` and `hr`.
- * Nobody is an administrator because they happened to arrive first.
+ * Nobody is an administrator because they happened to arrive first. A module
+ * may have several: one event per account, and `administrator_removed` takes
+ * one back.
  */
 export const TenantAdministratorNamed = defineEvent(
   'identity.tenant.administrator_named',
@@ -449,6 +451,27 @@ export const TenantAdministratorNamed = defineEvent(
     accountId: AccountId,
     /** The back-office operator who named them; not an account at the company. */
     namedBy: z.uuid().nullable().register(policy, asInternal()),
+  }),
+);
+
+/**
+ * The back office stopped naming somebody as a module's administrator.
+ *
+ * The reverse of `administrator_named`, raised only for an account the back
+ * office had named: the module takes back what naming gave (People revokes
+ * `people_admin` and `hr`, never the last `people_admin`). Every role the
+ * company granted itself stays the company's business. Identity refuses to
+ * remove a module's last named administrator, so there is always somebody the
+ * back office can point at.
+ */
+export const TenantAdministratorRemoved = defineEvent(
+  'identity.tenant.administrator_removed',
+  1,
+  z.object({
+    entitlement: ModuleEntitlement,
+    accountId: AccountId,
+    /** The back-office operator who removed them; not an account at the company. */
+    removedBy: z.uuid().nullable().register(policy, asInternal()),
   }),
 );
 
@@ -471,4 +494,5 @@ export const identityEvents = [
   TenantAmended,
   TenantEntitlementsChanged,
   TenantAdministratorNamed,
+  TenantAdministratorRemoved,
 ] as const;

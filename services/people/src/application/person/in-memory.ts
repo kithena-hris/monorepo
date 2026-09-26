@@ -230,6 +230,9 @@ export function inMemoryPeople(
         return Promise.resolve({
           all: found.length,
           active: found.filter((r) => r.snapshot.status === 'active').length,
+          notStarted: found.filter(
+            (r) => r.snapshot.status === 'provisional' || r.snapshot.status === 'pre_hire',
+          ).length,
         });
       },
       personOf: (_tx, _tenant, accountId) =>

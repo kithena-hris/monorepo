@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.ts",
     "seed": "tsx scripts/seed-auth.ts",
+    "events": "tsx scripts/outbox-events.ts",
     "start": "node dist/src/main.js",
     "seed:operator": "tsx scripts/seed-operator.ts"
   },

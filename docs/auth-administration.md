@@ -262,16 +262,24 @@ tab (`PUT /api/internal/admin/tenants/<id>/entitlements`, the whole list).
   it is in it.
 - **The database refuses a malformed list** (`tenant_entitlements_shape`: the
   shape, no repeats), so a path that skips identity cannot store nonsense.
-- **Switching People on names its administrator (PEO-112).** People is in
-  `ADMINISTERED_MODULES`: the wizard asks which invited administrator runs it,
-  and the company page which existing account, and identity refuses the change
-  without one that can still sign in (`ADMINISTRATOR_REQUIRED`,
-  `ADMINISTRATOR_UNUSABLE`). The naming is `identity.tenant.administrator_named
-  { entitlement, accountId, namedBy }`, the operator in `namedBy`; People grants
-  `people_admin` and `hr` from it. `POST /api/internal/admin/tenants/<id>/administrators`
-  names another for a company that already has People — the recovery path when
-  a company has lost every administrator. Nobody is an administrator for having
-  been invited first, and every later role is the company's own to grant.
+- **Switching a module on names its administrators (PEO-112).** People and
+  Time off are in `ADMINISTERED_MODULES`: the wizard asks which invited
+  administrators run each, and the company page which existing accounts — one
+  or several, the same people for every module or different ones — and
+  identity refuses the change without somebody who can still sign in
+  (`ADMINISTRATOR_REQUIRED`, `ADMINISTRATOR_UNUSABLE`). Identity remembers who
+  it named in `platform.tenant_administrator`; `PUT …/entitlements` takes
+  `administrators: { module: [accountId, …] }` as each module's whole list and
+  raises `identity.tenant.administrator_named { entitlement, accountId, namedBy }`
+  for each added and `identity.tenant.administrator_removed { entitlement,
+  accountId, removedBy }` for each removed, the operator in both. A module
+  never loses its last named administrator (`LAST_ADMINISTRATOR`). People grants
+  `people_admin` and `hr` on naming and revokes them on removal — never the
+  last `people_admin`, which it leaves to the company. Time off ignores both
+  until it has roles to grant. `POST /api/internal/admin/tenants/<id>/administrators`
+  names one again — the recovery path when a company has lost every
+  administrator. Nobody is an administrator for having been invited first, and
+  every other role is the company's own to grant.
 
 ### Separation of duties at tenant creation
 

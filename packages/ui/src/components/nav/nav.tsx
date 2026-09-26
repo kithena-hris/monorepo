@@ -3,7 +3,15 @@
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
 import { Slot } from '@radix-ui/react-slot';
 import { ChevronRight } from 'lucide-react';
-import { useId, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
+import {
+  Children,
+  cloneElement,
+  useId,
+  type ComponentPropsWithoutRef,
+  type JSX,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
@@ -109,6 +117,11 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
    * Render something else, a framework `Link`. The default is an `<a>`
    * because navigation is a link, and a `<button>` that navigates breaks
    * middle-click, right-click, and opening in a new tab.
+   *
+   * The child is the link and its children are the label:
+   * `<NavItem asChild icon={…}><Link href="/people">People</Link></NavItem>`.
+   * The icon, badge and action are drawn inside it as they are inside the
+   * `<a>`, so a client-side route looks and reads exactly like a plain one.
    */
   asChild?: boolean;
   /** Trailing control: a pin, an overflow menu. */
@@ -134,6 +147,14 @@ export function NavItem({
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
   const Comp = asChild ? Slot : 'a';
+  /*
+   * With `asChild` the one child is the link, and the label is its children.
+   * `Slot` takes exactly one element, so the icon, label and badge are put
+   * inside that element rather than beside it — which is what they are inside
+   * the `<a>`.
+   */
+  const child = asChild ? (Children.only(children) as ReactElement<{ children?: ReactNode }>) : null;
+  const label = child === null ? children : child.props.children;
   // Only a level-1 item with an icon can survive as a rail.
   const asIcon = collapsed && level === 1 && Boolean(icon);
   /*
@@ -146,6 +167,41 @@ export function NavItem({
    * collapse control implies.
    */
   if (collapsed && !asIcon) return <></>;
+
+  const inside = (
+    <>
+      {icon ? (
+        <span
+          aria-hidden
+          className={cn('shrink-0', level === 1 ? '[&_svg]:size-4' : '[&_svg]:size-3.5')}
+        >
+          {icon}
+        </span>
+      ) : null}
+
+      {/*
+       * The label is never removed, only hidden. A rail whose items have no
+       * accessible name is a rail nobody can navigate with a screen reader,
+       * and `sr-only` costs nothing.
+       */}
+      <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
+
+      {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
+
+      {/*
+       * A count still has to reach someone using the rail. It becomes a dot on
+       * the icon, and the number stays in the accessible name.
+       */}
+      {badge && asIcon ? (
+        <span
+          aria-hidden
+          className="absolute end-2 top-2 size-1.5 rounded-full bg-accent ring-2 ring-surface"
+        />
+      ) : null}
+
+      {action && !asIcon ? <span className="shrink-0">{action}</span> : null}
+    </>
+  );
 
   const link = (
     <Comp
@@ -164,36 +220,7 @@ export function NavItem({
       )}
       {...props}
     >
-      {icon ? (
-        <span
-          aria-hidden
-          className={cn('shrink-0', level === 1 ? '[&_svg]:size-4' : '[&_svg]:size-3.5')}
-        >
-          {icon}
-        </span>
-      ) : null}
-
-      {/*
-       * The label is never removed, only hidden. A rail whose items have no
-       * accessible name is a rail nobody can navigate with a screen reader,
-       * and `sr-only` costs nothing.
-       */}
-      <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{children}</span>
-
-      {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
-
-      {/*
-       * A count still has to reach someone using the rail. It becomes a dot on
-       * the icon, and the number stays in the accessible name.
-       */}
-      {badge && asIcon ? (
-        <span
-          aria-hidden
-          className="absolute end-2 top-2 size-1.5 rounded-full bg-accent ring-2 ring-surface"
-        />
-      ) : null}
-
-      {action && !asIcon ? <span className="shrink-0">{action}</span> : null}
+      {child === null ? inside : cloneElement(child, undefined, inside)}
     </Comp>
   );
 
@@ -205,13 +232,13 @@ export function NavItem({
         content={
           badge ? (
             <span className="flex items-center gap-1.5">
-              {children}
+              {label}
               <Badge size="sm" tone="accent">
                 {badge}
               </Badge>
             </span>
           ) : (
-            children
+            label
           )
         }
         side="right"

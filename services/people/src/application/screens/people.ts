@@ -841,8 +841,12 @@ export async function duplicatesView(
 /* ---------------------------------------------------------- directory -- */
 
 export interface DirectoryView {
-  /** Active people among everybody the search and filters match, not only this page. */
+  /** Everybody the search and filters match, not only this page. */
+  readonly total: number;
+  /** Active people among them. */
   readonly active: number;
+  /** Provisional or pre-hire among them; null when this viewer is not shown statuses. */
+  readonly notStarted: number | null;
   readonly incomplete: number | null;
   readonly columns: readonly { readonly key: string; readonly label: string }[];
   readonly filterable: readonly {
@@ -941,7 +945,9 @@ export async function directoryView(
     }
 
     return ok({
+      total: counted.value.all,
       active: counted.value.active,
+      notStarted: everyone.isHr ? counted.value.notStarted : null,
       incomplete: null,
       columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
       filterable: selects.map((d) => ({

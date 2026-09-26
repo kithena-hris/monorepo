@@ -130,6 +130,22 @@ export function PeopleScreen({
             go('/people/me');
           },
         };
+      // One person by hand; then their record, to fill in the rest.
+      case 'AddPerson':
+        return {
+          today,
+          onAdd: async (person: Readonly<Record<string, string>>) => {
+            const added = await actions.addPerson(person);
+            if (added.ok) go(`/people/${added.personId}`);
+            return added;
+          },
+          onCancel: () => {
+            go('/people/directory');
+          },
+          onImport: () => {
+            go('/people/import');
+          },
+        };
       case 'Onboarding':
         return {
           load: loadable,
@@ -546,5 +562,5 @@ export function PeopleScreen({
     }
   })();
 
-  return <RemoteScreen name="people" area="People" route={route} props={props} />;
+  return <RemoteScreen name="people" area="People" route={route} props={props} onNavigate={go} />;
 }

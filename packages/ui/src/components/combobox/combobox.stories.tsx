@@ -127,6 +127,16 @@ const meta = {
         category: 'Behaviour',
       },
     },
+    chips: {
+      description:
+        'With `multiple`, also shows the selection under the trigger as chips, each with its own remove button.',
+      control: 'boolean',
+      table: {
+        type: { summary: 'boolean' },
+        defaultValue: { summary: 'false' },
+        category: 'Behaviour',
+      },
+    },
     label: {
       description: 'Required. Names the trigger, the search input and the listbox.',
       control: 'text',
@@ -218,6 +228,7 @@ const meta = {
     placeholder: 'Select a manager',
     searchPlaceholder: 'Search 912 people',
     multiple: false,
+    chips: false,
     clearable: true,
     size: 'md',
     disabled: false,
@@ -283,6 +294,36 @@ export const MultiSelect: Story = {
             ))
           )}
         </div>
+      </div>
+    );
+  },
+};
+
+export const Chips: Story = {
+  name: 'Multiple, with removable chips',
+  args: {
+    multiple: true,
+    chips: true,
+    label: 'Approvers',
+    placeholder: 'Add approvers',
+    searchPlaceholder: 'Search by name',
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'For a choice read back as often as it is made. The chips under the trigger say who, not how many, and each has its own remove button naming what it removes. Removing one moves focus to the chip that took its place, or back to the trigger, and says so through a live region.',
+      },
+    },
+  },
+  render: function ChipsStory(args) {
+    const [value, setValue] = useState<string | readonly string[] | null>([
+      'mhamilton',
+      'alovelace',
+    ]);
+    return (
+      <div className="w-80">
+        <Combobox {...args} value={value} onChange={setValue} />
       </div>
     );
   },

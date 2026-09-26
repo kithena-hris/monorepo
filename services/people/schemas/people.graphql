@@ -877,6 +877,17 @@ type Mutation {
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
   """
+  Add one person by hand: a provisional record with its first values, hired from `hireDate` when one is given; HR only. `POST /v1/people`.
+  """
+  createPerson(
+    attributes: [AttributeValueInput!]!
+    """
+    A calendar date: hire them from it, active once it has begun on their calendar.
+    """
+    hireDate: String
+    idempotencyKey: String!
+  ): Person
+  """
   Schedule a report. Each run is built as each recipient, so each gets only what they may see.
   """
   createReportSchedule(
@@ -1178,10 +1189,12 @@ type PeopleDirectory {
   filterable: [DirectoryFilter!]
   incomplete: Int
   next: String
+  notStarted: Int
   people: [DirectoryPerson!]
   segment: PeopleSegmentRef
   """The saved segments this viewer could apply here."""
   segments: [PeopleSegmentRef!]
+  total: Int
 }
 
 """
