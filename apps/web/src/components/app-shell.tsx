@@ -25,6 +25,8 @@ import {
   TooltipProvider,
 } from '@reach/ui';
 import { icons } from '@reach/ui';
+import type { Route } from 'next';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
@@ -232,19 +234,32 @@ export function AppShell({
             */}
             <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
               <NavList>
-                {areas.map((area) => (
-                  <NavItem
-                    key={area.label}
-                    href={area.href}
-                    icon={area.icon}
-                    current={isCurrent(area.href, pathname)}
-                    // Not yet built. Disabled rather than absent: a link that
-                    // 404s is worse than one that says "not yet".
-                    {...(area.built ? {} : { 'aria-disabled': true, tabIndex: -1 })}
-                  >
-                    {area.label}
-                  </NavItem>
-                ))}
+                {areas.map((area) =>
+                  area.built ? (
+                    // A Next `Link`: moving between areas keeps the page, as
+                    // moving within one does.
+                    <NavItem
+                      key={area.label}
+                      asChild
+                      icon={area.icon}
+                      current={isCurrent(area.href, pathname)}
+                    >
+                      <Link href={area.href as Route}>{area.label}</Link>
+                    </NavItem>
+                  ) : (
+                    <NavItem
+                      key={area.label}
+                      href={area.href}
+                      icon={area.icon}
+                      // Not yet built. Disabled rather than absent: a link that
+                      // 404s is worse than one that says "not yet".
+                      aria-disabled
+                      tabIndex={-1}
+                    >
+                      {area.label}
+                    </NavItem>
+                  ),
+                )}
               </NavList>
             </Nav>
 
@@ -413,9 +428,9 @@ function MobileTabs({
   return (
     <nav aria-label="Main, compact" className="flex">
       {areas.map((area) => (
-        <a
+        <Link
           key={area.label}
-          href={area.href}
+          href={area.href as Route}
           aria-current={isCurrent(area.href, pathname) ? 'page' : undefined}
           // Not yet built, like the sidebar's copy of the same list.
           {...(area.built ? {} : { 'aria-disabled': true, tabIndex: -1 })}
@@ -427,7 +442,7 @@ function MobileTabs({
             {area.icon}
           </span>
           {area.label}
-        </a>
+        </Link>
       ))}
 
       <Sheet>

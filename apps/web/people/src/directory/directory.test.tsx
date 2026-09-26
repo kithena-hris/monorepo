@@ -102,10 +102,36 @@ describe('Directory', () => {
     rerender(<Directory {...props({ load: { status: 'error', message: 'Timed out' } })} />);
     expect(screen.getByText('Timed out')).toBeInTheDocument();
     rerender(
-      <Directory {...props({ load: { status: 'ready', data: { ...state, people: [] } } })} />,
+      <Directory
+        {...props({ search: 'zz', load: { status: 'ready', data: { ...state, people: [] } } })}
+      />,
     );
     expect(screen.getByText('Nobody matches')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('says there is nobody yet, and offers HR adding and importing people', async () => {
+    const user = fast();
+    const onAdd = vi.fn();
+    const onImport = vi.fn();
+    const empty = { status: 'ready', data: { ...state, people: [] } } as const;
+    const { container, rerender } = render(
+      <Directory {...props({ load: empty, onAdd, onImport })} />,
+    );
+    expect(screen.getByText('No employees yet')).toBeInTheDocument();
+    // In the header and in the empty state: always a way to add somebody.
+    const adds = screen.getAllByRole('button', { name: 'Add employee' });
+    expect(adds).toHaveLength(2);
+    await user.click(adds[1] as HTMLElement);
+    expect(onAdd).toHaveBeenCalledOnce();
+    await user.click(screen.getAllByRole('button', { name: 'Import' })[1] as HTMLElement);
+    expect(onImport).toHaveBeenCalledOnce();
+    expect(await axeViolations(container)).toEqual([]);
+
+    // Anybody else: the same news, and nothing to press.
+    rerender(<Directory {...props({ load: empty })} />);
+    expect(screen.getByText('No employees yet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add employee' })).toBeNull();
   });
 
   it('asks the shell for the next page and back to the first, never paging itself', async () => {

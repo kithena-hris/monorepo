@@ -22,6 +22,8 @@ export type ScreenLoad =
   | {
       readonly status: 'error';
       readonly message: string;
+      /** People's code for it: `SCHEMA_NOT_PUBLISHED` is a tenant not set up yet. */
+      readonly code?: string;
       /** Nothing answered at the router's address: the VM may be asleep. */
       readonly unreachable?: true;
     }
@@ -44,7 +46,7 @@ async function read(
     ? { status: 'ready', data: view(answer.data) }
     : answer.code === 'UNREACHABLE'
       ? { status: 'error', message: answer.message, unreachable: true }
-      : { status: 'error', message: answer.message };
+      : { status: 'error', message: answer.message, code: answer.code };
 }
 
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
