@@ -2378,8 +2378,9 @@ JSX runtime and Reach, plus `ssr/people.css`.
   stores — uploads (§14.2), export files and reports (§15.1) — and the nightly
   backups are in Amazon S3, reached through the instance's IAM role with no
   access key. People's own REST
-  routes (§13.2), the schema artifact (§13.4) and SCIM (§13.5) are not routed
-  publicly yet; the signed export links are. `docs/environments.md` "Hosting"
+  routes (§13.2), the schema artifact (§13.4) and SCIM (§13.5, served at
+  `/scim/v2` and awaiting its tunnel rule) are not routed publicly yet; the
+  signed export links are. `docs/environments.md` "Hosting"
   has the rest, including what moves where at scale.
 
 ### 13.3 Webhooks (Phase 1)
@@ -2410,6 +2411,90 @@ than a moving target.
 extension and mapped by the approved mapping from §12.4. Okta and Entra as the
 first two verified providers.
 
+**As built (PEO-072).**
+
+- **A connection** is one upstream system — Okta, Entra, an HRIS — made by a
+  People administrator on the integrations screen: what the tenant calls it,
+  a bearer token and an approved mapping. `people.scim_connection`,
+  `_mapping`, `_link`, `_group` (20260926160000). The token is `kps_` +
+  the tenant's id, the connection's id and 32 random bytes; only its SHA-256
+  is stored, it is shown once, a rotation keeps the old one valid for 24
+  hours, and a revocation stops it at once. Every change is
+  `people.scim.connection_changed` with the administrator as the actor — the
+  audit record — and never carries the token. The mapping is set by a
+  person and never drafted automatically; the TypeSafe draft of §12.4 is
+  not built.
+- **Where it is served.** `/scim/v2/*` on People's port, authenticated by
+  People itself with the connection's token: an identity provider holds no
+  user token, so the router cannot front it. Every request, discovery
+  included, needs a live token of a company entitled to People. Not routed
+  publicly yet: the tunnel rule is an operator's checklist item in
+  `docs/environments.md` "Hosting".
+- **What it answers.** `ServiceProviderConfig`, `ResourceTypes`, `Schemas`
+  (Kithena's extension, `urn:kithena:scim:schemas:extension:people:2.0:User`,
+  as the mapping fills it; a tenant attribute is `<extension>:<key>`),
+  `/Users` and `/Groups` with GET, POST, PUT, PATCH and DELETE. Filters take
+  the RFC's grammar — `eq ne co sw ew gt ge lt le pr`, `and`/`or`/`not`,
+  parentheses and value filters — with `userName` case-insensitive and `id`
+  and `externalId` exact; paging is `startIndex` from 1 and `count` up to
+  200; `excludedAttributes` drops top-level attributes. PATCH is applied to
+  the resource as JSON in both providers' shapes (Okta's pathless value
+  objects, Entra's capitalised ops, `"False"` booleans, value filters on
+  emails and remove-by-value on members); a path nothing maps is dropped, not
+  refused. PUT replaces whole. Errors are the RFC's, `scimType` included;
+  `userName` (per connection, case-insensitively) and `externalId` are
+  unique. Not supported, and said so in `ServiceProviderConfig`: bulk,
+  sorting, ETags, password change.
+- **What a User is.** The link — `id` is the person's id, `userName`,
+  `externalId`, `active` — and the mapped attributes, from a fixed list of
+  core and enterprise paths (`name.*`, `nickName`, `title`, work email, work
+  and mobile phone, `employeeNumber`, `department`, …) or Kithena's
+  extension. A mapping may not name a sealed or special-category attribute,
+  a lifecycle date, a person reference (the manager) or a placement (legal
+  entity, location): those are HR's moves, and the first two never leave
+  People through SCIM.
+- **One write path.** A POST creates a provisional record through
+  `PersonAccess.create`, as the integration, with `sourceOfRecord: external`;
+  every later change goes through `update` as that integration. So a SCIM
+  write is held to the identifier checks, uniqueness, validation, history
+  and events every writer gets, **effective now** on the person's calendar,
+  with `{ kind: 'integration' }` as the actor. A value the provider sends
+  that the record already holds is not a change — Okta pushes a whole
+  profile on every update — and a PUT that changes nothing writes nothing.
+  `people.person.synced_from_external` names the fields that changed,
+  attribute keys and `userName`/`externalId`/`active`, never values. A hire
+  of a record SCIM made says `sourceOfRecord: external`.
+- **Reads return what the connection owns.** A User is read through
+  `PersonAccess.read` as the integration, which sees only its mapped
+  attributes and never a sealed or special-category value, however the
+  field's classification later changes.
+- **`active: false` and DELETE end nothing.** Deactivation is recorded on the
+  link and raises `synced_from_external` naming `active`; DELETE unlinks the
+  person, so the system stops mirroring them and their attributes are
+  Kithena's again. Whether employment ends is HR's decision (§8.1); neither
+  terminates, anonymises nor deletes a record. Retention's erasure of a
+  leaver deletes their links.
+- **Groups carry no authorization.** They are stored and answered so a
+  provider pushing groups works; members must be people the connection
+  provisions; nothing in People reads a group to decide anything. Mapping a
+  group to a tenant role or an org unit would let the identity provider
+  grant access, and is a decision nobody has taken.
+- **Known gaps.** Okta and Entra are built to their documented shapes and
+  proven by the conformance subset in `http/scim.integration.test.ts`, not
+  yet by a live tenant of either. A POST for somebody already in People —
+  created by HR, or provisioned by identity — is not matched to them: it
+  creates a second record, or is refused `uniqueness` where the mapping
+  writes a unique field such as the work email; adopting an existing record
+  is a decision for HR, not built. A list filtered on anything but the
+  link's fields reads every linked record (fine at thousands, not at
+  50,000).
+- **Not identity's SCIM.** `docs/authentication.md` (decision 6) buys SAML
+  and SCIM as Phase 8 connectors at the edge of `platform/identity`, for
+  accounts. This is People's inbound SCIM, for person records: it owns no
+  account, session or credential, and provisions nobody's sign-in. The two
+  would be one provider app pointed at two base URLs; whether they converge
+  is open.
+
 ### 13.6 Mirror mode (Phase 3)
 
 `sourceOfRecord: external`. A customer's HRIS owns the records; People holds the
@@ -2418,6 +2503,36 @@ fires on every change, carrying field names and never values. Per-attribute
 source ownership, so a customer can keep names and jobs upstream while owning
 emergency contacts in Kithena. Every other writer to an externally-owned
 attribute is refused, and the refusal names the owning system.
+
+**As built (PEO-073).** The approved mapping of a SCIM connection (§13.5)
+*is* the declaration: every attribute it names is owned by that system. One
+owner per attribute in a tenant, held by a constraint
+(`scim_mapping_one_owner`); mapping a field another system owns is refused
+naming it.
+
+- **Where it holds.** On the records the system provisions — the people it
+  is linked to. A record it does not know is Kithena's in full, because
+  nobody upstream could write it; a field refused to everybody there would
+  be a field nobody can fill.
+- **How.** `canWrite` in the domain refuses every other writer
+  `SOURCE_OF_RECORD_EXTERNAL`, "given_name is kept in Okta; change it
+  there" (REST 403, a GraphQL error with that code, SCIM `mutability`), and
+  lets the owning integration write exactly what it owns and nothing else.
+  The relations resolver adds each person's sources beside their facts
+  (`withSources`), so every transport that resolves relations holds it:
+  REST, GraphQL, the screens' saves, corrections, the completeness grid and
+  imports, which all write through `PersonAccess`. People's own scheduled
+  job (§8.5) is not a writer here and is not refused.
+- **How it shows.** A mirrored field is read-only on every record form, with
+  "Kept in Okta; change it there." (`keptIn` on `RecordField`). The
+  integrations screen lists what each system keeps and warns, before a
+  mapping is saved, that the fields become read-only here.
+- **Conflict and drift.** There is no second writer to conflict with: the
+  upstream value is the value, written when it is sent. A value HR scheduled
+  ahead (§8.5) before the field was mapped still comes into force on its day,
+  and the upstream system's next push overwrites it. Revoking a connection,
+  or DELETE of a user, ends the ownership at once and hands the fields back
+  to Kithena's own writers with the last values the system sent.
 
 This is what makes the module genuinely sellable to a Workday shop, and it is
 Phase 3 because it is worth nothing until the registry and the API beneath it are
