@@ -16,7 +16,7 @@ import {
 } from '@reach/ui';
 import { useState, useTransition, type JSX } from 'react';
 
-import { MODULE_CHOICES, roleLabel, type ModuleRoles } from '../lib/modules';
+import { MODULE_CHOICES, roleLabel, rolePhrase, type ModuleRoles } from '../lib/modules';
 import { ModulesEditor, type ModulesDraft } from './modules-editor';
 import { ModuleRolesDrift, rolesLeftWithNobody, type GrantAgainResult } from './module-roles-drift';
 
@@ -88,7 +88,8 @@ export function CompanyModules({
   moduleRoles = {},
   accounts,
   save,
-  grantAgain,
+  name,
+  companyName = 'The company',
 }: {
   readonly recorded: readonly string[] | null;
   readonly effective: readonly string[];
@@ -107,8 +108,18 @@ export function CompanyModules({
     administrators: Record<string, string[]>,
     options?: { confirmLast: true },
   ) => Promise<SaveModulesResult>;
-  /** Name somebody again, so the module grants what naming gives. */
-  readonly grantAgain?: (entitlement: string, accountId: string) => Promise<GrantAgainResult>;
+  /**
+   * Add somebody to a module's list. `grant`: also tell the module, so it
+   * grants what naming gives. Grant again does; Add to list never does,
+   * because the person already holds the roles there.
+   */
+  readonly name?: (
+    entitlement: string,
+    accountId: string,
+    grant: boolean,
+  ) => Promise<GrantAgainResult>;
+  /** What the operator knows the company by, for the warning before a last removal. */
+  readonly companyName?: string;
 }): JSX.Element {
   const [saved, setSaved] = useState<ModulesDraft>({ on: effective, administrators });
   const [draft, setDraft] = useState<ModulesDraft>(saved);
@@ -165,6 +176,8 @@ export function CompanyModules({
           },
         ];
   });
+
+  const leavesNoAdministrator = leftWithNobody.some((m) => m.roles.includes('people_admin'));
 
   function proceed(from: 'save' | 'last'): void {
     if (from === 'save' && leftWithNobody.length > 0) {
@@ -251,9 +264,29 @@ export function CompanyModules({
               set={saved.administrators[choice.key] ?? []}
               report={report}
               email={email}
-              grantAgain={
-                grantAgain ?? (() => Promise.resolve({ ok: false, message: 'Not available here.' }))
-              }
+              name={async (entitlement, accountId, grant) => {
+                if (!name) return { ok: false, message: 'Not available here.' };
+                const result = await name(entitlement, accountId, grant);
+                // On the list now: shown as set here, and kept by the next save.
+                if (result.ok) {
+                  const add = (was: ModulesDraft): ModulesDraft => {
+                    const list = was.administrators[entitlement] ?? [];
+                    return list.includes(accountId)
+                      ? was
+                      : {
+                          ...was,
+                          administrators: {
+                            ...was.administrators,
+                            [entitlement]: [...list, accountId],
+                          },
+                        };
+                  };
+                  setSaved(add);
+                  setDraft(add);
+                  setEdition((n) => n + 1);
+                }
+                return result;
+              }}
             />
           );
         })}
@@ -325,14 +358,22 @@ export function CompanyModules({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {leftWithNobody
-                .map((m) => `${m.label} will have no ${m.roles.map(roleLabel).join(' and no ')}`)
-                .join('; ')}
+              {companyName} will be left without{' '}
+              {[...new Set(leftWithNobody.flatMap((m) => m.roles))].map(rolePhrase).join(' or ')}
             </DialogTitle>
             <DialogDescription>
-              Removing an administrator takes back every role naming them gave. Nobody else at the
-              company holds what they would lose, so until somebody is named again, nobody can do
-              what it allows.
+              {leavesNoAdministrator
+                ? `Nobody at ${companyName} will then be able to manage ${leftWithNobody
+                    .map((m) => m.label)
+                    .join(
+                      ' or ',
+                    )} or name a new administrator themselves. The back office has to be contacted to set one up again.`
+                : `Nobody at ${companyName} will hold ${leftWithNobody
+                    .flatMap((m) => m.roles)
+                    .map(roleLabel)
+                    .join(
+                      ' or ',
+                    )} until an administrator grants it again or the back office names somebody.`}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -341,10 +382,11 @@ export function CompanyModules({
                 <li key={m.label}>
                   {m.label}: {m.removed.map(email).join(', ')}{' '}
                   {m.removed.length === 1 ? 'is' : 'are'} the only{' '}
-                  {m.roles.map(roleLabel).join(' and ')}
+                  {m.roles.map(roleLabel).join(' and ')}.
                 </li>
               ))}
             </ul>
+            <p className="text-fg mt-3 text-sm font-medium">Do you want to confirm?</p>
           </DialogBody>
           <DialogFooter>
             <Button

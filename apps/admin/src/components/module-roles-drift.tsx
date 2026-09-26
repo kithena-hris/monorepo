@@ -45,7 +45,10 @@ export function rolesLeftWithNobody(report: ModuleRoles, removed: readonly strin
  * module, with the differences called out. Never synced: the company grants
  * and revokes its own roles, and the operator decides whether a difference
  * matters. "Grant again" names somebody again, so the module gives back what
- * naming gives; anybody the module has that was not set here is only shown.
+ * naming gives, and is offered only to somebody whose roles were taken away
+ * there. "Add to list" records somebody the module already has as set here,
+ * and tells the module nothing: they hold the roles, so there is nothing to
+ * grant.
  */
 export function ModuleRolesDrift({
   entitlement,
@@ -53,7 +56,7 @@ export function ModuleRolesDrift({
   set,
   report,
   email,
-  grantAgain,
+  name,
 }: {
   readonly entitlement: string;
   readonly label: string;
@@ -61,7 +64,12 @@ export function ModuleRolesDrift({
   readonly set: readonly string[];
   readonly report: ModuleRoles;
   readonly email: (accountId: string) => string;
-  readonly grantAgain: (entitlement: string, accountId: string) => Promise<GrantAgainResult>;
+  /** Add to the list; `grant` also tells the module to grant (Grant again only). */
+  readonly name: (
+    entitlement: string,
+    accountId: string,
+    grant: boolean,
+  ) => Promise<GrantAgainResult>;
 }): JSX.Element {
   const { missing, unlisted } = rolesDrift(set, report);
   const [asked, setAsked] = useState<Record<string, GrantAgainResult>>({});
@@ -106,7 +114,7 @@ export function ModuleRolesDrift({
                   aria-label={`Grant again to ${email(accountId)}`}
                   onClick={() => {
                     start(async () => {
-                      const result = await grantAgain(entitlement, accountId);
+                      const result = await name(entitlement, accountId, true);
                       setAsked((was) => ({ ...was, [accountId]: result }));
                     });
                   }}
@@ -122,13 +130,35 @@ export function ModuleRolesDrift({
             </li>
           );
         })}
-        {unlisted.map(({ accountId, roles: held }) => (
-          <li key={accountId} className="flex flex-wrap items-center gap-2">
-            <span className="break-all">{email(accountId)}</span>
-            <Badge tone="info">{`${roles(held)} in ${label}`}</Badge>
-            <span className="text-fg-muted text-sm">not set here</span>
-          </li>
-        ))}
+        {unlisted.map(({ accountId, roles: held }) => {
+          const outcome = asked[accountId];
+          return (
+            <li key={accountId} className="flex flex-wrap items-center gap-2">
+              <span className="break-all">{email(accountId)}</span>
+              <Badge tone="info">{`${roles(held)} in ${label}`}</Badge>
+              <span className="text-fg-muted text-sm">not set here</span>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={pending}
+                aria-label={`Add to list: ${email(accountId)}`}
+                onClick={() => {
+                  start(async () => {
+                    const result = await name(entitlement, accountId, false);
+                    setAsked((was) => ({ ...was, [accountId]: result }));
+                  });
+                }}
+              >
+                Add to list
+              </Button>
+              {outcome?.ok === false ? (
+                <span className="text-danger-fg text-sm" role="alert">
+                  {outcome.message}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
     </Alert>
   );

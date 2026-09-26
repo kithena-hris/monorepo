@@ -33,8 +33,8 @@ function registry(defaults: ModuleEntitlement[] = []) {
           writes.push(entitlements);
           return Promise.resolve();
         },
-        name: (a, by) => {
-          named.push(`${a.entitlement} ${a.accountId} ${String(by)}`);
+        name: (a, by, announce = true) => {
+          named.push(`${a.entitlement} ${a.accountId} ${String(by)}${announce ? '' : ' listed'}`);
           const list = (held[a.entitlement] ??= []);
           if (!list.includes(a.accountId)) list.push(a.accountId);
           return Promise.resolve();
@@ -211,5 +211,26 @@ describe('naming who administers People (PEO-112)', () => {
 
     const timeoff = await on.name(ACME, { entitlement: 'module.timeoff', accountId: ADA });
     expect(timeoff.ok ? null : timeoff.error.code).toBe('MODULE_NOT_ENABLED');
+  });
+
+  it('adds somebody to the list without a grant only when asked not to grant', async () => {
+    const r = registry(['module.people']);
+    await r.name(ACME, {
+      entitlement: 'module.people',
+      accountId: ADA,
+      namedBy: OPERATOR,
+      grant: false,
+    });
+    await r.name(ACME, {
+      entitlement: 'module.people',
+      accountId: GRACE,
+      namedBy: OPERATOR,
+      grant: true,
+    });
+    expect(r.named).toEqual([
+      `module.people ${ADA} ${OPERATOR} listed`,
+      `module.people ${GRACE} ${OPERATOR}`,
+    ]);
+    expect(r.held['module.people']).toEqual([ADA, GRACE]);
   });
 });

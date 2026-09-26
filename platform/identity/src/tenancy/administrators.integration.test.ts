@@ -235,6 +235,47 @@ describe('naming who administers People', () => {
   });
 });
 
+describe('adding somebody to the list', () => {
+  it('records them with the operator and raises nothing, unless asked to grant', async () => {
+    const created = await identity.call(
+      'POST',
+      tenants,
+      companyRequest('listed', {
+        admins: ['ada@listed.example', 'grace@listed.example', 'alan@listed.example'],
+        entitlements: ['module.people'],
+        administrators: { 'module.people': ['ada@listed.example'] },
+      }),
+    );
+    const id = String(created.body['tenantId']);
+    const ada = await accountOf(id, 'ada@listed.example');
+    const grace = await accountOf(id, 'grace@listed.example');
+    const alan = await accountOf(id, 'alan@listed.example');
+    const before = (await named(id)).length;
+    const add = (accountId: string, grant?: boolean) =>
+      identity.call('POST', `${tenants}/${id}/administrators`, {
+        entitlement: 'module.people',
+        accountId,
+        operatorId: OPERATOR,
+        ...(grant === undefined ? {} : { grant }),
+      });
+
+    expect((await add(grace, false)).status).toBe(201);
+    expect(await named(id)).toHaveLength(before);
+    const [row] = await identity.sql<{ named_by: string }[]>`
+      SELECT named_by FROM platform.tenant_administrator
+       WHERE tenant_id = ${id}::uuid AND account_id = ${grace}::uuid`;
+    expect(row?.named_by).toBe(OPERATOR);
+
+    expect((await add(alan, true)).status).toBe(201);
+    expect((await named(id)).slice(before).map((r) => r.payload)).toEqual([
+      { entitlement: 'module.people', accountId: alan, namedBy: OPERATOR },
+    ]);
+    expect((await identity.call('GET', `${tenants}/${id}`)).body['administrators']).toEqual({
+      'module.people': [ada, grace, alan],
+    });
+  });
+});
+
 describe('what People reports it actually has', () => {
   const report = (
     tenantId: string,

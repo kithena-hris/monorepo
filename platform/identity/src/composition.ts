@@ -1161,6 +1161,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     administrator: { entitlement: string; accountId: string },
     namedBy: string | null,
     process: string,
+    announce = true,
   ): Promise<void> => {
     await tx.execute(sql`
       INSERT INTO platform.tenant_administrator (tenant_id, entitlement, account_id, named_by)
@@ -1168,6 +1169,15 @@ export async function compose(config: Config): Promise<RequestHandler> {
               ${namedBy}::uuid)
       ON CONFLICT DO NOTHING
     `);
+    if (!announce) {
+      // "Add to list": the row, with its operator and time, is the record;
+      // the module is not told, so it grants nothing.
+      logger.info(
+        { tenantId, ...administrator, namedBy },
+        'administrator added to the list without a grant',
+      );
+      return;
+    }
     await tenantEvent(tx, tenantId, 'identity.tenant.administrator_named', process, {
       entitlement: administrator.entitlement,
       accountId: administrator.accountId,
@@ -1218,8 +1228,15 @@ export async function compose(config: Config): Promise<RequestHandler> {
             );
           },
           administrators: () => namedAdministrators(tx, tenantId),
-          name: (administrator, namedBy) =>
-            nameAdministratorIn(tx, tenantId, administrator, namedBy, 'name-administrator'),
+          name: (administrator, namedBy, announce) =>
+            nameAdministratorIn(
+              tx,
+              tenantId,
+              administrator,
+              namedBy,
+              'name-administrator',
+              announce,
+            ),
           remove: async (administrator, removedBy, confirmedLast) => {
             await tx.execute(sql`
               DELETE FROM platform.tenant_administrator

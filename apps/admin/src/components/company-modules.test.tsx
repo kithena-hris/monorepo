@@ -33,6 +33,7 @@ function renderModules(over: Partial<Parameters<typeof CompanyModules>[0]> = {})
         { id: MARCO, email: 'marco@acme.example' },
       ]}
       save={save}
+      companyName="Acme"
       {...over}
     />,
   );
@@ -252,8 +253,9 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
     const u = user();
     await u.click(screen.getByRole('button', { name: 'Remove priya@acme.example' }));
     await u.click(saveButton());
-    const dialog = screen.getByRole('dialog', { name: 'People will have no HR' });
+    const dialog = screen.getByRole('dialog', { name: 'Acme will be left without HR' });
     expect(within(dialog).getByText(/priya@acme.example is the only HR/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Do you want to confirm?')).toBeInTheDocument();
     expect(await axeViolations()).toEqual([]);
     await u.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(save).not.toHaveBeenCalled();
@@ -281,7 +283,7 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
   });
 
   it('shows where People differs from what was set here, and grants again on request', async () => {
-    const grantAgain = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const name = vi.fn(() => Promise.resolve({ ok: true as const }));
     renderModules({
       recorded: [PEOPLE],
       effective: [PEOPLE],
@@ -295,7 +297,7 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
         { accountId: MARCO, roles: ['hr'] },
         { accountId: ALAN, roles: BOTH },
       ]),
-      grantAgain,
+      name,
     });
     const differences = screen.getByRole('list', { name: 'Differences in People' });
     expect(within(differences).getByText('Set here, not in People')).toBeInTheDocument();
@@ -308,7 +310,7 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
     expect(await axeViolations()).toEqual([]);
 
     await user().click(screen.getByRole('button', { name: 'Grant again to priya@acme.example' }));
-    expect(grantAgain).toHaveBeenCalledWith(PEOPLE, PRIYA);
+    expect(name).toHaveBeenCalledWith(PEOPLE, PRIYA, true);
     expect(
       await within(differences).findByText(
         'Asked People to grant People administrator and HR again.',
@@ -325,5 +327,64 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
     });
     expect(screen.getByText(/People matches/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Grant again/ })).not.toBeInTheDocument();
+  });
+
+  it('says the company is left without an administrator and the back office must set one up', async () => {
+    const save = renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA, MARCO] },
+      moduleRoles: report([{ accountId: PRIYA, roles: BOTH }]),
+    });
+    const u = user();
+    await u.click(screen.getByRole('button', { name: 'Remove priya@acme.example' }));
+    await u.click(saveButton());
+    const dialog = screen.getByRole('dialog', {
+      name: 'Acme will be left without a People administrator or HR',
+    });
+    expect(
+      within(dialog).getByText(
+        /Nobody at Acme will then be able to manage People or name a new administrator themselves\. The back office has to be contacted to set one up again\./,
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('Do you want to confirm?')).toBeInTheDocument();
+    expect(await axeViolations()).toEqual([]);
+    await u.click(within(dialog).getByRole('button', { name: 'Remove anyway' }));
+    expect(save).toHaveBeenCalledWith([PEOPLE], { [PEOPLE]: [MARCO] }, { confirmLast: true });
+  });
+
+  it('adds somebody People already has to the list, granting nothing and asking nothing', async () => {
+    const name = vi.fn(() => Promise.resolve({ ok: true as const }));
+    renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA] },
+      accounts: [
+        { id: PRIYA, email: 'priya@acme.example' },
+        { id: ALAN, email: 'alan@acme.example' },
+      ],
+      moduleRoles: report([
+        { accountId: PRIYA, roles: BOTH },
+        { accountId: ALAN, roles: BOTH },
+      ]),
+      name,
+    });
+    // They hold the roles, so there is nothing to grant again: no such offer.
+    expect(
+      screen.queryByRole('button', { name: 'Grant again to alan@acme.example' }),
+    ).not.toBeInTheDocument();
+    await user().click(screen.getByRole('button', { name: 'Add to list: alan@acme.example' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(name).toHaveBeenCalledWith(PEOPLE, ALAN, false);
+    // On the list now, so no longer a difference, and nothing left to save.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Add to list: alan@acme.example' }),
+      ).not.toBeInTheDocument();
+    });
+    expect(await screen.findByText(/People matches/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument();
+    expect(await axeViolations()).toEqual([]);
   });
 });
