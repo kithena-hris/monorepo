@@ -1,5 +1,7 @@
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
+import { timelineOf, valueAsOf, type HistoryEntry } from './history.js';
+
 /**
  * Duplicate detection and merge (PEO-074; PRD §12.4). Pure.
  *
@@ -19,7 +21,12 @@ import { err, failure, ok, type DomainFailure, type Result } from '@kithena/doma
  * employed records are refused until that decision has an owner.
  */
 
-export type DuplicateSignal = 'unique_value' | 'work_email' | 'name_and_birth_date';
+export type DuplicateSignal =
+  | 'unique_value'
+  | 'work_email'
+  /** A record a SCIM connection provisioned, and another holding its work email (PEO-072). */
+  | 'scim_work_email'
+  | 'name_and_birth_date';
 
 /** One reason two records look alike, as a query finds it. Ids in either order. */
 export interface SignalRow {
@@ -48,6 +55,7 @@ export interface Candidate {
 const STRENGTH: Record<DuplicateSignal, number> = {
   unique_value: 3,
   work_email: 2,
+  scim_work_email: 2,
   name_and_birth_date: 1,
 };
 
@@ -145,4 +153,94 @@ export function valuesTaken(
     );
   }
   return ok(Object.fromEntries(take.map((k) => [k, absorbed[k]])));
+}
+
+/** What an undo reads of each record; a `PersonSnapshot` is one. */
+interface UnmergeParty extends MergeParty {
+  readonly mergedInto?: string | null;
+}
+
+/**
+ * Why the merge that made `absorbed` a tombstone of `survivor` may not be
+ * undone, or null when it may.
+ *
+ * A survivor that has since been merged away or discarded is refused rather
+ * than followed: its values can no longer be corrected, so the undo that
+ * comes first is the later one. An erased tombstone has nothing left to give
+ * back, and bringing an empty record back to life would be a second person
+ * made of nothing.
+ */
+export function unmergeRefusal(
+  absorbed: UnmergeParty,
+  survivor: UnmergeParty,
+  erased: boolean,
+): DomainFailure | null {
+  if (absorbed.status !== 'merged' || absorbed.mergedInto !== survivor.id) {
+    return failure('UNMERGE_NOT_MERGED', 'This record is not merged into that one');
+  }
+  if (erased) {
+    return failure(
+      'UNMERGE_ERASED',
+      'The merged record has since been erased under retention; there is nothing to bring back',
+    );
+  }
+  if (TOMBSTONES.has(survivor.status)) {
+    return failure(
+      'UNMERGE_SURVIVOR_GONE',
+      'The record it was merged into has itself been merged or discarded since; undo that first',
+    );
+  }
+  return null;
+}
+
+export interface UnmergePlan {
+  /** Corrections to write on the survivor: each supersedes the merge's row. */
+  readonly reverse: readonly {
+    readonly key: string;
+    readonly supersedes: string;
+    readonly value: unknown;
+  }[];
+  /** Keys the merge wrote that have changed since: kept as they stand. */
+  readonly kept: readonly string[];
+}
+
+/**
+ * What undoing a merge does to the survivor's values, from the history rows
+ * the merge wrote (`taken`, key to row id), the survivor's history now, and
+ * the keys the survivor held nothing for before the merge (`emptyBefore`).
+ *
+ * A row still last on its key's timeline is reversed: corrected, from the
+ * day it took effect, to what stood before it — the row in force then, or
+ * nothing for a key in `emptyBefore`. A value held before with no row to say
+ * what (a record written before history was) is kept: it cannot be guessed. A row
+ * anything has come after since (an edit, a correction of it, a change
+ * scheduled ahead) is **kept**, not clobbered: somebody decided that value
+ * after the merge, and an undo is not a licence to overrule them. A change
+ * recorded since but dated before the merge is simply what stood before.
+ */
+export function unmergePlan(
+  taken: Readonly<Record<string, string>>,
+  history: readonly HistoryEntry[],
+  emptyBefore: ReadonlySet<string>,
+): UnmergePlan {
+  const reverse: UnmergePlan['reverse'][number][] = [];
+  const kept: string[] = [];
+  for (const [key, id] of Object.entries(taken)) {
+    const row = history.find((e) => e.id === id);
+    if (row === undefined || timelineOf(history, key).at(-1)?.id !== id) {
+      kept.push(key);
+      continue;
+    }
+    const before = valueAsOf(
+      history.filter((e) => e.id !== id),
+      key,
+      row.effectiveFrom,
+    );
+    if (before === undefined && !emptyBefore.has(key)) {
+      kept.push(key);
+      continue;
+    }
+    reverse.push({ key, supersedes: id, value: before?.value ?? null });
+  }
+  return { reverse, kept };
 }

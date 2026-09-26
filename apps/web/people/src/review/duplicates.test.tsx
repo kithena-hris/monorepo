@@ -38,6 +38,35 @@ const props = {
   onBack: vi.fn(),
   onMerge: vi.fn(done),
   onDismiss: vi.fn(done),
+  onUnmerge: vi.fn(done),
+};
+
+const withMerges: DuplicatesState = {
+  ...queue,
+  merges: [
+    {
+      absorbedId: 'p3',
+      survivorId: 'p4',
+      absorbedName: 'Gracie Hopper',
+      survivorName: 'Grace Hopper',
+      mergedAt: '2026-09-27T10:00:00.000Z',
+      reversed: ['Legal first name'],
+      kept: ['Legal family name'],
+      account: 'returned',
+      refusal: null,
+    },
+    {
+      absorbedId: 'p5',
+      survivorId: 'p6',
+      absorbedName: 'Yan',
+      survivorName: 'Xan',
+      mergedAt: '2026-09-26T10:00:00.000Z',
+      reversed: [],
+      kept: [],
+      account: null,
+      refusal: 'The record it was merged into has itself been merged or discarded since; undo that first',
+    },
+  ],
 };
 
 describe('HR’s duplicate review (PEO-074)', () => {
@@ -77,6 +106,30 @@ describe('HR’s duplicate review (PEO-074)', () => {
     render(<Duplicates {...props} onDismiss={onDismiss} load={{ status: 'ready', data: compared }} />);
     await fast().click(screen.getByRole('button', { name: 'Not the same person' }));
     expect(onDismiss).toHaveBeenCalledWith('p1', 'p2');
+  });
+
+  it('undoes a merge only with a reason, saying first what goes back and what is kept', async () => {
+    const onUnmerge = vi.fn(done);
+    const { baseElement } = render(
+      <Duplicates {...props} onUnmerge={onUnmerge} load={{ status: 'ready', data: withMerges }} />,
+    );
+    expect(screen.getByText(/undo that first/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Undo merge of/ })).toHaveLength(1);
+
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Undo merge of Gracie Hopper into Grace Hopper' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await axeViolations(baseElement)).toEqual([]);
+    expect(dialog).toHaveTextContent('Legal first name');
+    expect(dialog).toHaveTextContent('Legal family name, changed since the merge');
+    expect(dialog).toHaveTextContent('with its sign-in');
+
+    await user.click(screen.getByRole('button', { name: 'Undo merge' }));
+    expect(onUnmerge).not.toHaveBeenCalled();
+    expect(screen.getByText('Say why.')).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: /Why was the merge wrong/ }), 'Two people');
+    await user.click(screen.getByRole('button', { name: 'Undo merge' }));
+    expect(onUnmerge).toHaveBeenCalledWith('p3', 'Two people');
   });
 
   it('shows why a pair cannot be merged here, and offers no merge', () => {

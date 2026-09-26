@@ -35,6 +35,8 @@ export default ModuleManifest.parse({
     'people.person.profile_incomplete',
     'people.person.profile_completed',
     'people.person.merged',
+    'people.person.unmerged',
+    'people.person.adopted_by_external',
     'people.person.anonymised',
     'people.person.synced_from_external',
     'people.unique_claim.conflict',

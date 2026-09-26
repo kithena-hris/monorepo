@@ -8,6 +8,7 @@ import { getCI, isObject, splitSchema, type Json } from '../../domain/scim/paths
 import {
   CORE_GROUP,
   KITHENA_USER,
+  WORK_EMAIL,
   changesFor,
   extensionKeyOf,
   userResource,
@@ -36,6 +37,15 @@ import { tokenClaims, tokenMatches } from './token.js';
  * `userName`, `externalId`, `active`) and the mapped attributes, read
  * through `PersonAccess.read` as the integration, which sees only those and
  * never a sealed or special-category value.
+ *
+ * **Somebody People already has is adopted, once, when it is certain.** A
+ * POST whose work email (or, without one, an email-shaped `userName`)
+ * matches exactly one live record that no connection links takes that
+ * record: linked, the owned attributes written over it as on any sync, and
+ * `adopted_by_external` said first. Anything less certain — several matches,
+ * or the one match linked elsewhere — creates a record as before, and the
+ * duplicate queue offers the pair ("SCIM provisioned, same work email") for
+ * HR to merge. A merged or discarded record is never a match.
  *
  * **`active: false` and DELETE end nothing.** Whether somebody's employment
  * ends is HR's decision (§8.1). Deactivation is recorded on the link and
@@ -209,6 +219,7 @@ export function scimProvisioning(deps: ScimDeps): ScimProvisioning {
     held: Readonly<Record<string, unknown>>,
     next: Json,
     mode: 'replace' | 'merge',
+    adopted?: { readonly matchedOn: 'work_email' },
   ): Promise<Result<Json>> {
     const userName = text(getCI(next, 'userName'));
     if (userName === null || userName.length > 320)
@@ -251,6 +262,7 @@ export function scimProvisioning(deps: ScimDeps): ScimProvisioning {
       changes,
       linkChanged,
       externalId: externalId ?? userName,
+      ...(adopted === undefined ? {} : { adopted }),
     });
     return synced.ok ? ok(userOf(after, mapping, synced.value)) : synced;
   }
@@ -422,9 +434,29 @@ export function scimProvisioning(deps: ScimDeps): ScimProvisioning {
           except: null,
         });
         if (clash !== null) return Taken(clash);
+        const at = now();
+        const email =
+          text(valuesOf(body.value)[WORK_EMAIL]) ?? (userName.includes('@') ? userName : null);
+        const holders =
+          email === null ? [] : await store.byWorkEmail(tx, caller.tenantId, email);
+        const only = holders.length === 1 ? holders[0] : undefined;
+        if (only !== undefined && !only.linked) {
+          const held = await service.access.read(tx, { ...asking, personId: only.personId });
+          if (!held.ok) return held;
+          const link: ScimLink = {
+            personId: only.personId,
+            userName: '',
+            externalId: null,
+            active: true,
+            createdAt: at,
+            updatedAt: at,
+          };
+          return sync(tx, caller, asking, mapping, link, held.value.attributes, body.value, 'merge', {
+            matchedOn: 'work_email',
+          });
+        }
         const created = await service.access.create(tx, { ...asking, attributes: {} });
         if (!created.ok) return created;
-        const at = now();
         // An empty link: `sync` writes it with everything the body says and
         // names each field on the one event.
         const blank: ScimLink = {

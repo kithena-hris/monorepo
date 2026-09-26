@@ -17,6 +17,7 @@ import type {
   ComparedPerson,
   ComparedRow,
   DuplicatesView,
+  MergedPair,
   OnboardingView,
   PickerView,
   ProfileView,
@@ -300,10 +301,31 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         rows: t.field({ type: [ComparedRowRef], resolve: (c) => list(c.rows) }),
       }),
     });
+  const MergedPairRef = builder.objectRef<MergedPair>('MergedPair').implement({
+    description: 'A merge still standing, and what undoing it would reverse and keep. Labels, never values.',
+    fields: (t) => ({
+      absorbedId: t.exposeID('absorbedId'),
+      survivorId: t.exposeID('survivorId'),
+      absorbedName: t.exposeString('absorbedName'),
+      survivorName: t.exposeString('survivorName'),
+      mergedAt: t.exposeString('mergedAt'),
+      reversed: t.stringList({ resolve: (m) => list(m.reversed) }),
+      kept: t.stringList({ resolve: (m) => list(m.kept) }),
+      account: t.exposeString('account', {
+        nullable: true,
+        description: 'The sign-in the merge moved: returned, kept, or null when none moved.',
+      }),
+      refusal: t.exposeString('refusal', {
+        nullable: true,
+        description: 'Why this merge cannot be undone; null when it can.',
+      }),
+    }),
+  });
   const DuplicatesRef = builder.objectRef<DuplicatesView>('PeopleDuplicates').implement({
     description: 'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
     fields: (t) => ({
       items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
+      merges: t.field({ type: [MergedPairRef], resolve: (v) => list(v.merges) }),
       comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
     }),
   });

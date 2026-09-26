@@ -149,6 +149,14 @@ export async function mergePerson(
   );
 }
 
+/**
+ * HR undoes a merge, for a reason (PEO-074 follow-up): People decides what
+ * goes back and what is kept because it changed since.
+ */
+export async function unmergePerson(absorbedPersonId: string, reason: string): Promise<Outcome> {
+  return outcome(people('UnmergePerson', { personId: absorbedPersonId, reason }));
+}
+
 /** HR says two records are two people; the queue stops offering them. */
 export async function dismissDuplicate(personIds: readonly [string, string]): Promise<Outcome> {
   return outcome(people('DismissDuplicate', { personIds: [...personIds] }));

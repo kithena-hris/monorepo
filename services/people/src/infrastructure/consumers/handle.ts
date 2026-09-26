@@ -14,6 +14,7 @@ import {
   PersonProvisioned,
   PersonStatusChanged,
   PersonTerminated,
+  PersonUnmerged,
   RoleGranted,
   RoleRevoked,
   SchemaPublished,
@@ -93,6 +94,7 @@ const RELATIONAL: readonly { readonly name: string; readonly schema: z.ZodType }
   PersonHired,
   PersonManagerChanged,
   PersonMerged,
+  PersonUnmerged,
   PersonOrgChanged,
   PersonStatusChanged,
   PersonTerminated,
@@ -309,10 +311,13 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
 
       /*
        * A merge (PEO-074): the absorbed record's `status_changed` already
-       * dropped its tuples; the survivor may have gained its account.
+       * dropped its tuples; the survivor may have gained its account. An
+       * undo moves the account back: both records are read again either way.
        */
-      case PersonMerged.name: {
-        const event = parse(PersonMerged, raw);
+      case PersonMerged.name:
+      case PersonUnmerged.name: {
+        const event =
+          name === PersonMerged.name ? parse(PersonMerged, raw) : parse(PersonUnmerged, raw);
         if (!event) return 'rejected';
         const { authz } = deps;
         if (!authz) return 'ignored';

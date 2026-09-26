@@ -714,12 +714,32 @@ export interface ComparedRow {
   readonly takeable: readonly [boolean, boolean];
 }
 
+/** A merge HR may undo, and what the undo would reverse and keep, by label. */
+export interface MergedPair {
+  readonly absorbedId: string;
+  readonly survivorId: string;
+  readonly absorbedName: string;
+  readonly survivorName: string;
+  readonly mergedAt: string;
+  readonly reversed: readonly string[];
+  readonly kept: readonly string[];
+  /** The sign-in the merge moved: given back, kept, or none moved. */
+  readonly account: 'returned' | 'kept' | null;
+  /** Why it cannot be undone; null when it can. */
+  readonly refusal: string | null;
+}
+
 export interface DuplicatesView {
   readonly items: readonly {
     readonly personIds: readonly [string, string];
     readonly names: readonly [string, string];
     readonly reasons: readonly string[];
   }[];
+  /**
+   * Merges still standing, newest first, each with what undoing it would
+   * do; empty beside a comparison.
+   */
+  readonly merges: readonly MergedPair[];
   /** The pair asked about, side by side; null when none was. */
   readonly comparison: {
     readonly people: readonly [ComparedPerson, ComparedPerson];
@@ -729,6 +749,7 @@ export interface DuplicatesView {
 
 const SIGNAL_WORDS = {
   work_email: 'Same work email',
+  scim_work_email: 'SCIM provisioned, same work email',
   name_and_birth_date: 'Same name and date of birth',
 } as const;
 
@@ -783,7 +804,27 @@ export async function duplicatesView(
         ),
       });
     }
-    if (pair === null) return ok<DuplicatesView>({ items, comparison: null });
+    if (pair === null) {
+      const standing = await access.merges(tx, asking);
+      if (!standing.ok) return standing;
+      const merges: MergedPair[] = [];
+      for (const m of standing.value) {
+        const undo = await access.unmergeOptions(tx, { ...asking, personId: m.absorbedId });
+        if (!undo.ok) return undo;
+        merges.push({
+          absorbedId: m.absorbedId,
+          survivorId: m.survivorId,
+          absorbedName: await nameFor(m.absorbedId),
+          survivorName: await nameFor(m.survivorId),
+          mergedAt: m.decidedAt,
+          reversed: undo.value.reversed.map(labelOf),
+          kept: undo.value.kept.map(labelOf),
+          account: undo.value.account,
+          refusal: undo.value.refusal?.message ?? null,
+        });
+      }
+      return ok<DuplicatesView>({ items, merges, comparison: null });
+    }
 
     const [a, b] = pair;
     const readA = await access.read(tx, { ...asking, personId: a });
@@ -836,6 +877,7 @@ export async function duplicatesView(
     });
     return ok({
       items,
+      merges: [],
       comparison: {
         people: [
           person(readA.value, intoA.value.refusal),

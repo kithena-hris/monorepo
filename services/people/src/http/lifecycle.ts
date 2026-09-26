@@ -79,6 +79,16 @@ export const MergeBody = z.strictObject({
     .describe('Attribute keys whose value comes from the duplicate. Sealed and placement keys never do.'),
 });
 
+/** Undoing a merge (PEO-074 follow-up): the person in the path is the record it absorbed. */
+export const UnmergeBody = z.strictObject({
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .describe('Why the merge was wrong. Kept on the decision and the event.'),
+});
+
 const nullableId = z.uuid().nullable().optional();
 
 /** Where a person sits (PEO-123). An absent field is not changed; null clears it. */
@@ -262,5 +272,13 @@ export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
     body: MergeBody,
     run: (access, tx, on, input) =>
       access.merge(tx, { ...on, absorbedPersonId: input.absorbedPersonId, take: input.take ?? [] }),
+  }),
+  action({
+    path: 'unmerge',
+    name: 'unmergePerson',
+    summary:
+      'Undo the merge that absorbed this record: it is provisional again with its sign-in back, and the values the merge copied onto the survivor are corrected back unless changed since; HR only',
+    body: UnmergeBody,
+    run: (access, tx, on, input) => access.unmerge(tx, { ...on, reason: input.reason }),
   }),
 ];

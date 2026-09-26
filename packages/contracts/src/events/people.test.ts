@@ -199,6 +199,27 @@ describe('the events a person record produces', () => {
     ]);
   });
 
+  it('says which merge an undo reverses, why, and which keys it reversed or kept', () => {
+    expect(payloadKeys('people.person.unmerged')).toEqual([
+      'survivingPersonId',
+      'absorbedPersonId',
+      'supersedes',
+      'reason',
+      'attributesReversed',
+      'attributesKept',
+      'identityAccountId',
+    ]);
+  });
+
+  it('says a system adopted an existing record, and on what', () => {
+    expect(payloadKeys('people.person.adopted_by_external')).toEqual([
+      'personId',
+      'provider',
+      'externalId',
+      'matchedOn',
+    ]);
+  });
+
   it('says which schema version a hire was written under', () => {
     expect(payloadKeys('people.person.hired')).toEqual(
       expect.arrayContaining(['schemaVersion', 'sourceOfRecord']),

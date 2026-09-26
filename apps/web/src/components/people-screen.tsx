@@ -448,6 +448,12 @@ export function PeopleScreen({
             if (dismissed.ok) go('/people/duplicates');
             return dismissed;
           },
+          // Afterwards the restored record, as People now holds it.
+          onUnmerge: async (absorbedId: string, reason: string) => {
+            const undone = await actions.unmergePerson(absorbedId, reason);
+            if (undone.ok) go(`/people/${encodeURIComponent(absorbedId)}`);
+            return undone;
+          },
         };
       case 'WebhookLog': {
         const next =
