@@ -112,6 +112,25 @@ type ClassificationAdvice {
   reason: String
 }
 
+type ComparedPerson {
+  id: ID
+  name: String
+  """Why this record may not absorb the other; null when it may."""
+  refusal: String
+  status: String
+}
+
+"""
+One attribute side by side, as the viewer may read it. A sealed value is its last four.
+"""
+type ComparedRow {
+  key: String
+  label: String
+  same: Boolean
+  takeable: [Boolean!]
+  values: [String]!
+}
+
 type CompletenessField {
   key: String
   label: String
@@ -188,6 +207,23 @@ input DraftFieldInput {
   requiredness: String!
   sectionKey: String!
   visibility: [String!]!
+}
+
+type DuplicateComparison {
+  people: [ComparedPerson!]
+  rows: [ComparedRow!]
+}
+
+type DuplicateDismissed {
+  decision: String
+  personIds: [ID!]
+}
+
+"""Two records that look like one human, and why. Never a value."""
+type DuplicatePair {
+  names: [String!]
+  personIds: [ID!]
+  reasons: [String!]
 }
 
 """An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`."""
@@ -656,6 +692,8 @@ type Mutation {
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
+  """HR says a pair are two people; the queue stops offering it."""
+  dismissDuplicate(idempotencyKey: String!, personIds: [ID!]!): DuplicateDismissed
   """
   The five counts and the blocked rows. Changes nothing, so takes no key.
   """
@@ -674,6 +712,10 @@ type Mutation {
   people_admin only, never to oneself. A role already held changes nothing.
   """
   grantRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
+  """
+  Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.
+  """
+  mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
   """
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
@@ -801,6 +843,14 @@ type PeopleDirectory {
   incomplete: Int
   next: String
   people: [DirectoryPerson!]
+}
+
+"""
+HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.
+"""
+type PeopleDuplicates {
+  comparison: DuplicateComparison
+  items: [DuplicatePair!]
 }
 
 type PeopleExport {
@@ -1051,6 +1101,10 @@ type Query {
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(after: ID, filter: String, search: String): PeopleDirectory
+  """
+  Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
+  """
+  peopleDuplicates(a: ID, b: ID): PeopleDuplicates
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder: PeopleExportBuilder

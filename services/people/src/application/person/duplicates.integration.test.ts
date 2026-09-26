@@ -8,6 +8,8 @@ import { fixedClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { inTenantResult, personAccess, type Asking } from './person-access.js';
+import { duplicatesView } from '../screens/people.js';
+import type { ScreenDeps } from '../screens/record.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { utcCalendars } from '../org/org.js';
 import { Person, type PersonState } from '../../domain/person/person.js';
@@ -252,6 +254,43 @@ describe('merging', () => {
     expect(options.ok && options.value.takeable).toContain('given_name');
     expect(options.ok && options.value.takeable).not.toContain('es_nif');
     expect(options.ok && options.value.takeable).not.toContain('employee_number');
+  });
+
+  it('shows HR the pair side by side: which way it may go, and a sealed value as its last four', async () => {
+    const deps: ScreenDeps = {
+      service: { access: people, schemas: drizzleSchemaVersions(), inTenant },
+      relations: drizzleRelations(),
+      clock,
+      personOf: (tx, tenantId, accountId) => drizzlePersonReader().personOf(tx, tenantId, accountId),
+      calendars: utcCalendars,
+      gapTotals: () => Promise.resolve({ waiting: 0, staff: [] }),
+    };
+    const view = await duplicatesView(deps, as(hr), [HR_RECORD, SIGNED_UP]);
+    expect(view.ok).toBe(true);
+    if (!view.ok) return;
+    expect(view.value.items).toEqual([
+      {
+        personIds: [HR_RECORD, SIGNED_UP],
+        names: ['Ada Lovelace', 'Augusta Lovelace'],
+        reasons: ['Same work email'],
+      },
+    ]);
+    const compared = view.value.comparison;
+    expect(compared?.people.map((p) => [p.id, p.refusal === null])).toEqual([
+      [HR_RECORD, true],
+      [SIGNED_UP, false],
+    ]);
+    expect(compared?.rows).toContainEqual({
+      key: 'given_name',
+      label: 'Legal first name',
+      values: ['Ada', 'Augusta'],
+      same: false,
+      takeable: [false, true],
+    });
+    expect(compared?.rows.find((r) => r.key === 'es_nif')).toMatchObject({
+      values: [null, '•••• 678Z'],
+      takeable: [false, false],
+    });
   });
 
   it('leaves a tombstone pointing at the survivor, with its account and the chosen value moved', async () => {

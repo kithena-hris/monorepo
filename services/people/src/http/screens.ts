@@ -24,6 +24,7 @@ import {
   directoryView,
   historyView,
   identifierReviewsView,
+  duplicatesView,
   onboardingView,
   pickerView,
   profileView,
@@ -316,6 +317,20 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'GET',
       pattern: /^\/v1\/views\/identifier-reviews$/,
       handle: async (asking) => answer(await identifierReviewsView(deps, asking)),
+    },
+    // Suspected duplicates, and one pair side by side when `a` and `b` name it (PEO-074).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/duplicates$/,
+      handle: async (asking, _r, _p, query) => {
+        const a = query.get('a');
+        const b = query.get('b');
+        const id = new RegExp(`^${UUID}$`);
+        if ((a === null) !== (b === null) || (a !== null && (!id.test(a) || !id.test(b ?? '')))) {
+          return refused(failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']));
+        }
+        return answer(await duplicatesView(deps, asking, a === null || b === null ? null : [a, b]));
+      },
     },
     {
       method: 'POST',

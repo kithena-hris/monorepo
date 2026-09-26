@@ -15,6 +15,8 @@ import {
   ErrorBody,
   HistoryEntryBody,
   CorrectionWriteBody,
+  DuplicateBody,
+  DuplicateDismissalBody,
   IdentifierDecidedBody,
   IdentifierRevealBody,
   IdentifierRevealedBody,
@@ -70,6 +72,8 @@ const components = {
   PersonWrite: PersonWriteBody,
   PersonPage: PersonPageBody,
   IdentifierReviews: z.object({ items: z.array(IdentifierReviewBody) }),
+  Duplicates: z.object({ items: z.array(DuplicateBody) }),
+  DuplicateDismissal: DuplicateDismissalBody,
   IdentifierReviewDecision: IdentifierReviewDecisionBody,
   IdentifierDecided: IdentifierDecidedBody,
   IdentifierReveal: IdentifierRevealBody,
@@ -416,6 +420,27 @@ export function openApiDocument(): Record<string, unknown> {
                 'The person after, with what the checks found on each national identifier written; a doubted one is saved and goes to HR’s review',
               ...json('PersonWrite'),
             },
+            ...failure,
+          },
+        },
+      },
+      '/v1/duplicates': {
+        get: {
+          summary:
+            'Pairs of records that look like one human, strongest first, with why and never a value (PEO-074); HR only. Merging is POST /v1/people/{id}/merge',
+          responses: {
+            200: { description: 'Undecided pairs', ...json('Duplicates') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/duplicates/dismissals': {
+        post: {
+          summary: 'HR says a pair are two people; the queue stops offering it',
+          parameters: [idempotencyKey],
+          requestBody: { required: true, ...json('DuplicateDismissal') },
+          responses: {
+            200: { description: 'The decision', ...json('DuplicateDismissal') },
             ...failure,
           },
         },
