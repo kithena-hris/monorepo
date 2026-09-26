@@ -66,6 +66,21 @@ const title = define({
   ownership: ['hr'],
   effectiveDated: true,
 });
+// Sealed, so held by default; the country checks it (PEO-125).
+const nif = define({
+  key: 'es_nif',
+  dataType: 'national_id',
+  typeConfig: { kind: 'national_id', country: 'ES', scheme: 'nif' },
+  encrypted: true,
+  visibility: ['self', 'hr'],
+  ownership: ['employee', 'hr'],
+  classification: {
+    classification: 'confidential',
+    piiKind: 'identity',
+    exportable: true,
+    aiEligible: false,
+  },
+});
 
 const viewer = (accountId: string, ...roles: string[]): Viewer => ({
   accountId,
@@ -84,7 +99,7 @@ const money = { amountMinor: 5_500_000, currency: 'EUR' };
 const IBAN = 'DE89370400440532013000';
 
 function setup() {
-  const store = inMemoryPeople([versionOf(3, [salary, iban, title])]);
+  const store = inMemoryPeople([versionOf(3, [salary, iban, title, nif])]);
   store.seed(ADA, { account: ADA_ACCOUNT });
   store.seed(HANNA, { account: HANNA_ACCOUNT });
   let current = fixedClock('2026-09-22T09:00:00.000Z');
@@ -106,17 +121,24 @@ function setup() {
     newId: store.deps.newId,
   };
   const access = personAccess({ ...store.deps, approvals: holding });
+  // Who holds `hr` by the role rows; a test grants a second member by adding one.
+  const hrHolders = new Set([HR_ACCOUNT, HANNA_ACCOUNT]);
   const deps: PendingChangeDeps = {
     ...holding,
     access,
     schemas: store.deps.schemas,
     reader: store.deps.reader,
     relations: store.deps.relations,
+    roles: {
+      holdings: () =>
+        Promise.resolve(new Map([...hrHolders].map((a) => [a, new Set(['hr'])] as const))),
+    },
+    ...(store.deps.reviews === undefined ? {} : { reviews: store.deps.reviews }),
   };
   const later = (iso: string) => {
     current = fixedClock(iso);
   };
-  return { store, access, deps, pending, published, later };
+  return { store, access, deps, pending, published, later, hrHolders };
 }
 
 const named = (events: readonly PendingEvent[], name: string) =>
@@ -350,6 +372,226 @@ describe('deciding a held change', () => {
   });
 });
 
+describe('the only HR member (PEO-077)', () => {
+  /** HR alone in the tenant, changing Ada's pay. */
+  async function alone() {
+    const s = setup();
+    s.hrHolders.delete(HANNA_ACCOUNT);
+    const written = await s.access.update(tx, {
+      ...asking(hr),
+      personId: ADA,
+      changes: { base_salary: money },
+    });
+    const id = written.ok ? (written.value.held?.[0]?.changeId ?? '') : '';
+    return { ...s, id };
+  }
+
+  it('may approve their own change alone, once they confirm it, and it says so', async () => {
+    const s = await alone();
+    const shown = await pendingFor(tx, s.deps, { ...asking(hr), personId: ADA });
+    expect(shown.ok && shown.value.map((p) => [p.canDecide, p.canSelfApprove])).toEqual([
+      [false, true],
+    ]);
+
+    const unconfirmed = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+    });
+    expect(!unconfirmed.ok && unconfirmed.error.code).toBe('FORBIDDEN');
+
+    const decided = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+      soleApprover: true,
+    });
+    expect(decided.ok && decided.value).toMatchObject({
+      approval: { state: 'approved', decidedBy: HR_ACCOUNT },
+      decidedAs: 'sole_hr',
+    });
+    expect(s.store.history.map((e) => e.attributeKey)).toEqual(['base_salary']);
+    const [event] = named(s.published, 'people.person.change_decided');
+    expect(event?.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
+    expect(event?.actor).toEqual({ kind: 'user', userId: HR_ACCOUNT });
+  });
+
+  it('may not, the moment a second HR member is granted: they decide', async () => {
+    const s = await alone();
+    s.hrHolders.add(HANNA_ACCOUNT);
+    const shown = await pendingFor(tx, s.deps, { ...asking(hr), personId: ADA });
+    expect(shown.ok && shown.value.map((p) => p.canSelfApprove)).toEqual([false]);
+    const refused = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+      soleApprover: true,
+    });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+    const second = await decidePendingChange(tx, s.deps, {
+      ...asking(hanna),
+      changeId: s.id,
+      approve: true,
+    });
+    expect(second.ok && second.value.decidedAs).toBeNull();
+  });
+
+  it('is never let in without the role rows to ask', async () => {
+    const s = await alone();
+    const { roles: _roles, ...blind } = s.deps;
+    const refused = await decidePendingChange(tx, blind, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+      soleApprover: true,
+    });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+  });
+});
+
+describe('a doubted national identifier held for approval (PEO-077, PEO-125)', () => {
+  const DOUBTED = '12345678A'; // 12345678 mod 23 is Z
+  const RIGHT = '12345678Z';
+
+  async function held(value = DOUBTED) {
+    const s = setup();
+    const written = await s.access.update(tx, {
+      ...asking(ada),
+      personId: ADA,
+      changes: { es_nif: value },
+    });
+    const id = written.ok ? (written.value.held?.[0]?.changeId ?? '') : '';
+    return { ...s, id };
+  }
+
+  it('is reviewed first: the review opens on the held value, and nobody approves it yet', async () => {
+    const s = await held();
+    expect(s.store.reviews).toMatchObject([
+      { attributeKey: 'es_nif', historyId: null, pendingChangeId: s.id, state: 'pending' },
+    ]);
+    expect(s.store.secrets.has(`${ADA}:es_nif`)).toBe(false);
+    const [requested] = named(s.published, 'people.person.change_requested');
+    expect(requested?.payload).toMatchObject({ reviewId: s.store.reviews[0]?.id });
+    expect(JSON.stringify(requested)).not.toContain('12345678');
+
+    const inbox = await approvalsInbox(tx, s.deps, asking(hr));
+    expect(inbox.ok && inbox.value.items[0]).toMatchObject({
+      awaitingReview: true,
+      findings: [expect.objectContaining({ code: 'check_mismatch' })],
+    });
+    const early = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+    });
+    expect(!early.ok && early.error.code).toBe('AWAITING_REVIEW');
+  });
+
+  it('shows HR its last four and reveals it from the change, audited, before it is written', async () => {
+    const s = await held();
+    const queue = await s.access.identifierReviews(tx, asking(hr));
+    expect(queue.ok && queue.value.map((r) => [r.last4, r.pendingChangeId])).toEqual([
+      ['678A', s.id],
+    ]);
+    const shown = await s.access.revealIdentifier(tx, {
+      ...asking(hr),
+      personId: ADA,
+      attributeKey: 'es_nif',
+    });
+    expect(shown.ok && shown.value).toBe(DOUBTED);
+  });
+
+  it('is approved once the review accepts it, and written without a second review', async () => {
+    const s = await held();
+    const accepted = await s.access.reviewIdentifier(tx, {
+      ...asking(hr),
+      personId: ADA,
+      attributeKey: 'es_nif',
+      decision: 'accept',
+    });
+    expect(accepted.ok && accepted.value.state).toBe('accepted');
+    const inbox = await approvalsInbox(tx, s.deps, asking(hr));
+    expect(inbox.ok && inbox.value.items[0]?.awaitingReview).toBe(false);
+
+    const decided = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+    });
+    expect(decided.ok && decided.value.approval.state).toBe('approved');
+    expect(s.store.secrets.get(`${ADA}:es_nif`)).toBe(DOUBTED);
+    expect(s.store.reviews.map((r) => r.state)).toEqual(['accepted']);
+  });
+
+  it('is declined by a review that finds errors, with a reason, and the next value answers it', async () => {
+    const s = await held();
+    const silent = await s.access.reviewIdentifier(tx, {
+      ...asking(hr),
+      personId: ADA,
+      attributeKey: 'es_nif',
+      decision: 'send_back',
+    });
+    expect(!silent.ok && silent.error.code).toBe('REASON_REQUIRED');
+
+    const sent = await s.access.reviewIdentifier(tx, {
+      ...asking(hr),
+      personId: ADA,
+      attributeKey: 'es_nif',
+      decision: 'send_back',
+      note: 'The letter on your card is Z',
+    });
+    expect(sent.ok && sent.value.state).toBe('sent_back');
+    const change = await s.pending.find(tx, TENANT, s.id);
+    expect(change).toMatchObject({
+      approval: { state: 'rejected', decidedBy: HR_ACCOUNT, note: 'The letter on your card is Z' },
+      decidedAs: 'identifier_review',
+    });
+    const [decided] = named(s.published, 'people.person.change_decided');
+    expect(decided?.payload).toMatchObject({
+      decision: 'rejected',
+      decidedAs: 'identifier_review',
+      note: 'The letter on your card is Z',
+    });
+    expect(s.store.secrets.has(`${ADA}:es_nif`)).toBe(false);
+    // Ada sees it on her record, with the reason.
+    const mine = await s.access.personReviews(tx, { ...asking(ada), personId: ADA });
+    expect(mine.ok && mine.value).toMatchObject([
+      { state: 'sent_back', note: 'The letter on your card is Z' },
+    ]);
+
+    // Her corrected value answers it: no doubt, so approval only.
+    const fixed = await s.access.update(tx, {
+      ...asking(ada),
+      personId: ADA,
+      changes: { es_nif: RIGHT },
+    });
+    expect(fixed.ok && fixed.value.held?.length).toBe(1);
+    expect(s.store.reviews.map((r) => r.state)).toEqual(['superseded']);
+    const requested = named(s.published, 'people.person.change_requested');
+    expect(requested.at(-1)?.payload).toMatchObject({ supersedesReview: s.store.reviews[0]?.id });
+    expect(requested.at(-1)?.payload).not.toHaveProperty('reviewId');
+  });
+
+  it('closes its open review when the change closes some other way', async () => {
+    const s = await held();
+    const withdrawn = await withdrawPendingChange(tx, s.deps, { ...asking(ada), changeId: s.id });
+    expect(withdrawn.ok).toBe(true);
+    expect(s.store.reviews.map((r) => r.state)).toEqual(['superseded']);
+  });
+
+  it('is approval only when the checks doubt nothing', async () => {
+    const s = await held(RIGHT);
+    expect(s.store.reviews).toEqual([]);
+    const decided = await decidePendingChange(tx, s.deps, {
+      ...asking(hr),
+      changeId: s.id,
+      approve: true,
+    });
+    expect(decided.ok && decided.value.approval.state).toBe('approved');
+    expect(s.store.reviews).toEqual([]);
+  });
+});
+
 describe('a correction to a field that requires approval', () => {
   it('is held with what it supersedes, and applied as a correction once approved', async () => {
     const s = setup();
@@ -407,7 +649,7 @@ describe('the inbox and who is told', () => {
     ]);
   });
 
-  it('emails every HR member but the requester and the subject', async () => {
+  it('emails every HR member but the requester and the subject, and knows both', async () => {
     const s = setup();
     const written = await s.access.update(tx, {
       ...asking(hr),
@@ -446,6 +688,7 @@ describe('the inbox and who is told', () => {
     expect(told).toEqual({
       approvers: [{ accountId: ADA_ACCOUNT, email: 'ada@acme.test' }],
       requester: 'hr@acme.test',
+      subject: 'hanna@acme.test',
     });
   });
 });

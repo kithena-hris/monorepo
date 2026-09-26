@@ -51,6 +51,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
+    '20260926230000_people_pending_change_decided_as.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -94,6 +95,7 @@ function change(id: string, over: Partial<PendingChange> = {}): PendingChange {
     sealed: true,
     value: null,
     last4: '3000',
+    decidedAs: null,
     ...over,
   };
 }
@@ -186,6 +188,50 @@ describe('a held change, stored', () => {
         }),
       ),
     ).rejects.toThrow();
+  });
+
+  it('lets the requester approve alone only as the only HR member, recorded so (PEO-077)', async () => {
+    const held = change(ID);
+    await inTenant(ACME, ({ tx }) => store.insert(tx, held, JSON.stringify(IBAN)));
+    const own = (state: 'approved' | 'rejected', decidedAs: PendingChange['decidedAs']) =>
+      inTenant(ACME, ({ tx }) =>
+        store.close(tx, held, {
+          ...held,
+          approval: {
+            ...held.approval,
+            state,
+            decidedBy: ASKER,
+            decidedAt: '2026-09-23T09:00:00.000Z',
+          },
+          decidedAs,
+        }),
+      );
+    // Never rejected alone as if HR: they withdraw it instead.
+    await expect(own('rejected', 'sole_hr')).rejects.toThrow();
+    expect(await own('approved', 'sole_hr')).toBe(true);
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, ID))).toMatchObject({
+      approval: { state: 'approved', decidedBy: ASKER },
+      decidedAs: 'sole_hr',
+    });
+  });
+
+  it('lets a review that found errors decline the requester’s own change (PEO-125)', async () => {
+    const held = change(ID);
+    await inTenant(ACME, ({ tx }) => store.insert(tx, held, JSON.stringify(IBAN)));
+    const declined = await inTenant(ACME, ({ tx }) =>
+      store.close(tx, held, {
+        ...held,
+        approval: {
+          ...held.approval,
+          state: 'rejected',
+          decidedBy: ASKER,
+          decidedAt: '2026-09-23T09:00:00.000Z',
+          note: 'The letter on your card is Z',
+        },
+        decidedAs: 'identifier_review',
+      }),
+    );
+    expect(declined).toBe(true);
   });
 
   it('is invisible to another tenant', async () => {

@@ -597,8 +597,8 @@ export const PersonRehireOverride = defineEvent(
  * the reviewer saw. **Never the value** — an identifier is sealed in
  * `people.person_secret` and no event carries it — and never the finding
  * messages, which a consumer can look up by code. `accepted` is final: the
- * value is not flagged again. `sent_back` asks the employee to correct it.
- * The note is what the reviewer typed, so it is free text.
+ * value is not flagged again. `sent_back` asks the employee to correct it,
+ * and always says why. The note is what the reviewer typed, so it is free text.
  */
 export const PersonIdentifierReviewed = defineEvent(
   'people.person.identifier_reviewed',
@@ -610,6 +610,12 @@ export const PersonIdentifierReviewed = defineEvent(
     decision: z.enum(['accepted', 'sent_back']).register(policy, asPublic()),
     findingCodes: z.array(z.string().min(1).max(64)).register(policy, asInternal()),
     note: z.string().max(500).nullable().register(policy, asFreeText()),
+    /**
+     * The change holding the value for approval, when it was reviewed before
+     * being written (PEO-077): `sent_back` declines it. Absent for a value
+     * already written.
+     */
+    changeId: z.uuid().optional().register(policy, asPublic()),
   }),
 );
 
@@ -1028,9 +1034,27 @@ export const PersonChangeRequested = defineEvent(
     reason: z.string().max(500).nullable().register(policy, asFreeText()),
     /** Undecided by then, it expires. */
     expiresAt: Instant,
+    /**
+     * A national identifier our checks doubt (PEO-125): the review opened on
+     * the held value, which is decided before the change may be approved.
+     * Absent when nothing was doubted.
+     */
+    reviewId: z.uuid().optional().register(policy, asPublic()),
+    /**
+     * The review that sent the previous value back, which this one answers
+     * and closes. Absent when none was waiting on the employee.
+     */
+    supersedesReview: z.uuid().optional().register(policy, asPublic()),
   }),
 );
 
+/**
+ * `decidedAs` says how, when it was not another HR member's approval or
+ * rejection: `sole_hr`, the requester approving alone as the tenant's only
+ * HR member after confirming it; `identifier_review`, declined because the
+ * review of the doubted identifier it held found errors (the note is the
+ * reviewer's reason). Absent for an ordinary decision.
+ */
 export const PersonChangeDecided = defineEvent(
   'people.person.change_decided',
   1,
@@ -1040,6 +1064,7 @@ export const PersonChangeDecided = defineEvent(
     attributeKey: AttributeKey,
     decision: z.enum(['approved', 'rejected']).register(policy, asPublic()),
     note: z.string().max(500).nullable().register(policy, asFreeText()),
+    decidedAs: z.enum(['sole_hr', 'identifier_review']).optional().register(policy, asPublic()),
   }),
 );
 

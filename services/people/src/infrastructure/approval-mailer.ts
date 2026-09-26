@@ -15,7 +15,9 @@ import type { ReminderCompany } from '../application/completeness/reminders.js';
 export type ApprovalNotice =
   | { readonly kind: 'approval_requested' }
   | { readonly kind: 'approval_decided'; readonly decision: 'approved' | 'rejected' }
-  | { readonly kind: 'approval_expired' };
+  | { readonly kind: 'approval_expired' }
+  /** A review of the identifier they gave found errors: correct it on your profile (PEO-125). */
+  | { readonly kind: 'correction_requested' };
 
 export interface ApprovalMailer {
   send(
@@ -29,6 +31,12 @@ export interface ApprovalMailer {
 
 /** Where the button goes: the inbox, on the company's own origin. */
 export const inboxUrl = (origin: string): string => new URL('/people/approvals', origin).toString();
+
+/** A correction is made on one's own profile, not in the inbox. */
+const urlFor = (notice: ApprovalNotice, origin: string): string =>
+  notice.kind === 'correction_requested'
+    ? new URL('/people/me', origin).toString()
+    : inboxUrl(origin);
 
 export function httpApprovalMailer(config: {
   readonly baseUrl: string;
@@ -44,7 +52,7 @@ export function httpApprovalMailer(config: {
         body: JSON.stringify({
           tenantId,
           email,
-          url: inboxUrl(company.origin),
+          url: urlFor(notice, company.origin),
           companyName: company.name,
           dedupeKey,
           notice,

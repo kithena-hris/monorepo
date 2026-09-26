@@ -12,7 +12,16 @@ import {
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import { expire, openApproval, stateAt, type Approval } from '../../domain/approval/approval.js';
-import { approversOf, decideChange, withdrawChange } from '../../domain/approval/pending-change.js';
+import {
+  approversOf,
+  declineForReview,
+  decideChange,
+  mayApproveAlone,
+  withdrawChange,
+  type DecidedAs,
+} from '../../domain/approval/pending-change.js';
+import type { ReviewFinding } from '../../domain/person/identifier-review.js';
+import type { IdentifierReviews } from './identifier-review.js';
 import { LIFECYCLE_KEYS } from './core.js';
 import type {
   Asking,
@@ -35,7 +44,13 @@ import type {
  *
  * - **HR decides**, within seven days, and never the requester nor the person
  *   the change is about (`domain/approval/pending-change.ts`). HR's own change
- *   needs a second HR member.
+ *   needs a second HR member — unless there is none: the tenant's only HR
+ *   member approves their own change alone, once they confirm it
+ *   (`soleApprover`), and the decision says `sole_hr`.
+ * - **A doubted national identifier is reviewed first** (PEO-125): holding it
+ *   opens its review against the held value, nobody approves it until the
+ *   review is accepted, and a review that finds errors declines it with the
+ *   reviewer's reason (`declineHeldForReview`).
  * - **An approval applies the value** through the same `update` or `correct`,
  *   with the `effectiveFrom` the write asked for — so a raise entered on the
  *   15th and effective on the 1st is still effective on the 1st, however long
@@ -75,6 +90,8 @@ export interface PendingChange {
   /** As the write path took it; null when sealed, or for a value being cleared. */
   readonly value: unknown;
   readonly last4: string | null;
+  /** How it was decided, when not by another HR member: null until then, and for them. */
+  readonly decidedAs: Exclude<DecidedAs, 'approver'> | null;
 }
 
 export interface PendingChangeStore {
@@ -139,6 +156,13 @@ export interface PendingChangeDeps extends Holding {
   readonly schemas: SchemaVersions;
   readonly reader: PersonReader;
   readonly relations: RelationsResolver;
+  /**
+   * Who holds `hr`, as the role rows say (PEO-112): whether a requester is the
+   * only HR member. Absent, nobody is — and nobody approves alone.
+   */
+  readonly roles?: Pick<RoleReads, 'holdings'>;
+  /** A held identifier's review (PEO-125). Absent, no change waits on one. */
+  readonly reviews?: IdentifierReviews;
 }
 
 /* ------------------------------------------------- the approved write -- */
@@ -217,6 +241,8 @@ export async function holdChange(
     readonly kind: ChangeKind;
     readonly supersedes: string | null;
     readonly reason: string | null;
+    /** A doubted identifier's review, opened against this change; the review it answers. */
+    readonly review?: { readonly id: string | null; readonly supersedes: string | null };
   },
 ): Promise<Result<PendingChange>> {
   const now = deps.clock.instant();
@@ -244,6 +270,7 @@ export async function holdChange(
     sealed,
     value: sealed ? null : input.value,
     last4: sealed && display.length > 0 ? display.slice(-4) : null,
+    decidedAs: null,
   };
   await deps.store.insert(tx, change, sealed ? JSON.stringify(input.value) : null);
   await deps.publish(tx, [
@@ -261,6 +288,8 @@ export async function holdChange(
         supersedes: change.supersedes,
         reason: change.approval.reason === '' ? null : change.approval.reason,
         expiresAt: change.approval.expiresAt,
+        ...(input.review?.id == null ? {} : { reviewId: input.review.id }),
+        ...(input.review?.supersedes == null ? {} : { supersedesReview: input.review.supersedes }),
       }),
       1,
     ),
@@ -274,11 +303,52 @@ const NotFound = () => failure('NOT_FOUND', 'No such pending change');
 const user = (userId: string): Actor => ({ kind: 'user', userId });
 const SETTLE: Actor = { kind: 'system', process: 'people-pending-change' };
 
+/** Every account holding `hr` now, as the role rows say; none when they cannot be read. */
+async function hrHolders(
+  tx: Tx,
+  deps: Pick<PendingChangeDeps, 'roles'>,
+  tenantId: string,
+): Promise<readonly string[]> {
+  if (!deps.roles) return [];
+  const held = await deps.roles.holdings(tx, tenantId);
+  return [...held].flatMap(([account, roles]) => (roles.has('hr') ? [account] : []));
+}
+
+/** The review a held identifier waits on, while it is not accepted (PEO-125). */
+async function openReviewOf(
+  tx: Tx,
+  deps: Pick<PendingChangeDeps, 'reviews'>,
+  change: PendingChange,
+) {
+  const review = await deps.reviews?.forChange(tx, change.tenantId, change.approval.id);
+  return review === undefined || review === null || review.state === 'accepted' ? null : review;
+}
+
+/**
+ * Close the review this change's value was waiting on: nobody reviews a value
+ * that will never be written. One already sent back stays: it is the
+ * employee's to answer, and their next value supersedes it.
+ */
+async function closeReviewOf(
+  tx: Tx,
+  deps: Pick<PendingChangeDeps, 'reviews'>,
+  change: PendingChange,
+): Promise<void> {
+  const review = await openReviewOf(tx, deps, change);
+  if (review?.state === 'pending') {
+    await deps.reviews?.supersede(tx, change.tenantId, change.personId, change.attributeKey);
+  }
+}
+
 /**
  * HR approves or rejects. An approval applies the value in this transaction,
  * so a value the write path would now refuse — a unique value somebody else
  * took meanwhile, a field since archived — refuses the approval with the
  * write's own reason, and the change stays pending for HR to reject.
+ *
+ * The tenant's only HR member approves their own change with `soleApprover`,
+ * asked of who holds `hr` now, in this transaction: a second member granted
+ * a moment ago is the approver instead.
  */
 export async function decidePendingChange(
   tx: Tx,
@@ -287,6 +357,8 @@ export async function decidePendingChange(
     readonly changeId: string;
     readonly approve: boolean;
     readonly note?: string | null;
+    /** The requester confirmed they approve it alone, as the only HR member. */
+    readonly soleApprover?: boolean;
   },
 ): Promise<Result<PendingChange>> {
   const prior = await deps.store.find(tx, asking.tenantId, asking.changeId);
@@ -306,11 +378,15 @@ export async function decidePendingChange(
     approve: asking.approve,
     at: deps.clock.instant(),
     note: asking.note ?? null,
+    hr: await hrHolders(tx, deps, asking.tenantId),
+    soleApprover: asking.soleApprover === true,
+    awaitingReview: (await openReviewOf(tx, deps, prior)) !== null,
   });
   if (!decided.ok) return decided;
+  const { approval, decidedAs } = decided.value;
 
   // Opened before the row is closed: closing drops the ciphertext.
-  const approved = decided.value.state === 'approved';
+  const approved = approval.state === 'approved';
   let value = prior.value;
   if (approved && prior.sealed) {
     const plaintext = await deps.store.unseal(tx, prior.tenantId, prior.approval.id);
@@ -318,7 +394,30 @@ export async function decidePendingChange(
     value = JSON.parse(plaintext) as unknown;
   }
 
-  const next: PendingChange = { ...prior, approval: decided.value };
+  const next: PendingChange = {
+    ...prior,
+    approval,
+    decidedAs: decidedAs === 'approver' ? null : decidedAs,
+  };
+  const decisionId = await closeDecided(tx, deps, prior, next, asking);
+  if (!decisionId.ok) return decisionId;
+  if (!approved) {
+    await closeReviewOf(tx, deps, prior);
+    return ok(next);
+  }
+
+  const applied = await apply(tx, deps, next, value, decisionId.value, asking.correlationId);
+  return applied.ok ? ok(next) : applied;
+}
+
+/** Record a decision: the guarded close, then `change_decided`. Its event id causes the write. */
+async function closeDecided(
+  tx: Tx,
+  deps: Holding,
+  prior: PendingChange,
+  next: PendingChange,
+  asking: { readonly viewer: { readonly accountId: string }; readonly correlationId: string },
+): Promise<Result<string>> {
   if (!(await deps.store.close(tx, prior, next))) {
     return err(failure('APPROVAL_DECIDED', 'Somebody closed this change first'));
   }
@@ -334,17 +433,44 @@ export async function decidePendingChange(
         changeId: next.approval.id,
         personId: next.personId,
         attributeKey: next.attributeKey,
-        decision: decided.value.state,
-        note: decided.value.note,
+        decision: next.approval.state,
+        note: next.approval.note,
+        ...(next.decidedAs === null ? {} : { decidedAs: next.decidedAs }),
       }),
       2,
       decisionId,
     ),
   ]);
-  if (!approved) return ok(next);
+  return ok(decisionId);
+}
 
-  const applied = await apply(tx, deps, next, value, decisionId, asking.correlationId);
-  return applied.ok ? ok(next) : applied;
+/**
+ * The review of a held identifier found errors (PEO-125): the change is
+ * declined, in the review's transaction, with the reviewer's reason as its
+ * note; the requester and the employee are told as for any rejection, and
+ * the employee sees the reason on their record. Nothing to do when the change
+ * already closed — it expired, or was withdrawn — and the review stands alone.
+ */
+export async function declineHeldForReview(
+  tx: Tx,
+  deps: Holding,
+  input: Asking & { readonly changeId: string; readonly note: string | null },
+): Promise<Result<PendingChange | null>> {
+  const prior = await deps.store.find(tx, input.tenantId, input.changeId);
+  if (!prior) return ok(null);
+  const declined = declineForReview(prior.approval, {
+    by: input.viewer.accountId,
+    at: deps.clock.instant(),
+    note: input.note,
+  });
+  if (!declined.ok) return declined.error.code === 'REASON_REQUIRED' ? declined : ok(null);
+  const next: PendingChange = {
+    ...prior,
+    approval: declined.value.approval,
+    decidedAs: 'identifier_review',
+  };
+  const closed = await closeDecided(tx, deps, prior, next, input);
+  return closed.ok ? ok(next) : closed;
 }
 
 async function apply(
@@ -402,6 +528,7 @@ export async function withdrawPendingChange(
   if (!(await deps.store.close(tx, prior, next))) {
     return err(failure('APPROVAL_DECIDED', 'Somebody closed this change first'));
   }
+  await closeReviewOf(tx, deps, prior);
   await deps.publish(tx, [
     event(
       deps,
@@ -432,7 +559,7 @@ export type Settled = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'expir
  */
 export async function settlePendingChange(
   tx: Tx,
-  deps: Holding,
+  deps: Holding & Pick<PendingChangeDeps, 'reviews'>,
   where: { readonly tenantId: string; readonly changeId: string; readonly correlationId: string },
 ): Promise<Result<{ state: Settled; change: PendingChange; expiredNow: boolean }>> {
   const prior = await deps.store.find(tx, where.tenantId, where.changeId);
@@ -454,6 +581,7 @@ export async function settlePendingChange(
       expiredNow: false,
     });
   }
+  await closeReviewOf(tx, deps, prior);
   await deps.publish(tx, [
     event(
       deps,
@@ -489,6 +617,40 @@ export interface PendingValue {
   readonly mine: boolean;
   /** The viewer holds HR and is neither the requester nor the subject. */
   readonly canDecide: boolean;
+  /**
+   * The viewer asked, and is the tenant's only HR member: they may approve it
+   * alone, once they confirm it (PEO-077).
+   */
+  readonly canSelfApprove: boolean;
+  /** A doubted identifier whose review is not accepted yet: nobody approves it (PEO-125). */
+  readonly awaitingReview: boolean;
+  /** What the checks doubted, while it waits on its review. Never the value. */
+  readonly findings: readonly ReviewFinding[];
+}
+
+/** What a viewer may do with a change, and what it waits on. */
+async function standing(
+  tx: Tx,
+  deps: Pick<PendingChangeDeps, 'reviews'>,
+  change: PendingChange,
+  may: {
+    readonly me: string;
+    readonly isHr: boolean;
+    readonly subject: string | null;
+    readonly hr: readonly string[];
+  },
+): Promise<
+  Pick<PendingValue, 'mine' | 'canDecide' | 'canSelfApprove' | 'awaitingReview' | 'findings'>
+> {
+  const review = await openReviewOf(tx, deps, change);
+  const requester = change.approval.requestedBy;
+  return {
+    mine: requester === may.me,
+    canDecide: may.isHr && requester !== may.me && may.subject !== may.me,
+    canSelfApprove: may.isHr && mayApproveAlone(may.hr, change.approval, may.me),
+    awaitingReview: review !== null,
+    findings: review === null ? [] : review.findings.filter((f) => f.level !== 'ok'),
+  };
 }
 
 const shown = (change: PendingChange): unknown =>
@@ -501,7 +663,10 @@ const shown = (change: PendingChange): unknown =>
  */
 export async function pendingFor(
   tx: Tx,
-  deps: Pick<PendingChangeDeps, 'store' | 'schemas' | 'reader' | 'relations' | 'clock'>,
+  deps: Pick<
+    PendingChangeDeps,
+    'store' | 'schemas' | 'reader' | 'relations' | 'clock' | 'roles' | 'reviews'
+  >,
   asking: Asking & { readonly personId: string },
 ): Promise<Result<readonly PendingValue[]>> {
   const version = await deps.schemas.current(tx, asking.tenantId);
@@ -522,28 +687,26 @@ export async function pendingFor(
     personId: asking.personId,
     limit: 100,
   });
-  return ok(
-    open.flatMap((c) => {
-      const definition = byKey.get(c.attributeKey);
-      if (definition === undefined || stateAt(c.approval, now) !== 'pending') return [];
-      if (!visibleTo(definition, relations)) return [];
-      return [
-        {
-          id: c.approval.id,
-          attributeKey: c.attributeKey,
-          kind: c.kind,
-          value: shown(c),
-          effectiveFrom: c.effectiveFrom,
-          requestedAt: c.approval.requestedAt,
-          expiresAt: c.approval.expiresAt,
-          requestedBy: c.approval.requestedBy,
-          reason: c.approval.reason === '' ? null : c.approval.reason,
-          mine: c.approval.requestedBy === me,
-          canDecide: relations.isHr && c.approval.requestedBy !== me && subject !== me,
-        },
-      ];
-    }),
-  );
+  const hr = await hrHolders(tx, deps, asking.tenantId);
+  const found: PendingValue[] = [];
+  for (const c of open) {
+    const definition = byKey.get(c.attributeKey);
+    if (definition === undefined || stateAt(c.approval, now) !== 'pending') continue;
+    if (!visibleTo(definition, relations)) continue;
+    found.push({
+      id: c.approval.id,
+      attributeKey: c.attributeKey,
+      kind: c.kind,
+      value: shown(c),
+      effectiveFrom: c.effectiveFrom,
+      requestedAt: c.approval.requestedAt,
+      expiresAt: c.approval.expiresAt,
+      requestedBy: c.approval.requestedBy,
+      reason: c.approval.reason === '' ? null : c.approval.reason,
+      ...(await standing(tx, deps, c, { me, isHr: relations.isHr, subject, hr })),
+    });
+  }
+  return ok(found);
 }
 
 /** One change in the inbox; `value` is null where the viewer may not read the field. */
@@ -564,7 +727,10 @@ const INBOX = 200;
  */
 export async function approvalsInbox(
   tx: Tx,
-  deps: Pick<PendingChangeDeps, 'store' | 'schemas' | 'reader' | 'relations' | 'clock'>,
+  deps: Pick<
+    PendingChangeDeps,
+    'store' | 'schemas' | 'reader' | 'relations' | 'clock' | 'roles' | 'reviews'
+  >,
   asking: Asking,
 ): Promise<Result<{ readonly isHr: boolean; readonly items: readonly InboxItem[] }>> {
   const version = await deps.schemas.current(tx, asking.tenantId);
@@ -577,6 +743,7 @@ export async function approvalsInbox(
   });
   const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
   const now = deps.clock.instant();
+  const hr = await hrHolders(tx, deps, asking.tenantId);
   const items: InboxItem[] = [];
   for (const c of open) {
     const definition = byKey.get(c.attributeKey);
@@ -603,8 +770,7 @@ export async function approvalsInbox(
       expiresAt: c.approval.expiresAt,
       requestedBy: c.approval.requestedBy,
       reason: c.approval.reason === '' ? null : c.approval.reason,
-      mine: c.approval.requestedBy === me,
-      canDecide: everyone.isHr && c.approval.requestedBy !== me && subject !== me,
+      ...(await standing(tx, deps, c, { me, isHr: everyone.isHr, subject, hr })),
     });
   }
   return ok({ isHr: everyone.isHr, items });
@@ -623,7 +789,7 @@ export interface RoleReads {
 
 /**
  * The addresses to tell about a change: every approver (HR, less the
- * requester and the subject), and the requester. An account with no current
+ * requester and the subject), the requester, and the person it is about. An account with no current
  * record, or no work email, is not told — the inbox still lists the change.
  */
 export async function whoToTell(
@@ -633,6 +799,8 @@ export async function whoToTell(
 ): Promise<{
   readonly approvers: readonly { readonly accountId: string; readonly email: string }[];
   readonly requester: string | null;
+  /** The person the change is about, when they have an account and a work email. */
+  readonly subject: string | null;
 }> {
   const held = await deps.roles.holdings(tx, change.tenantId);
   const people = await deps.roles.candidates(tx, change.tenantId);
@@ -648,5 +816,10 @@ export async function whoToTell(
     const to = email.get(accountId);
     return to === undefined ? [] : [{ accountId, email: to }];
   });
-  return { approvers, requester: email.get(change.approval.requestedBy) ?? null };
+  const subject = person?.snapshot.identityAccountId ?? null;
+  return {
+    approvers,
+    requester: email.get(change.approval.requestedBy) ?? null,
+    subject: subject === null ? null : (email.get(subject) ?? null),
+  };
 }

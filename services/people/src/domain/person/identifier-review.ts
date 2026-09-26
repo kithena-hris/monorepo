@@ -7,7 +7,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  * is saved, and a finding worse than `ok` opens a review. The reviewer
  * decides, and **the decision is final**: an accepted value is never flagged
  * again, whatever a later check says, and a sent-back one waits for the
- * employee to write a new value, which supersedes it.
+ * employee to write a new value, which supersedes it, and always says why.
  *
  * Pure: the caller brings the clock and says whether the value being written
  * is the one the latest review was about (it holds the plaintext; this does
@@ -28,8 +28,13 @@ export interface IdentifierReview {
   readonly id: string;
   readonly personId: string;
   readonly attributeKey: string;
-  /** The history row that wrote the value under review. Never changed. */
-  readonly historyId: string;
+  /**
+   * What the value under review is: the history row that wrote it, or the
+   * change holding it for approval (PEO-077), which is reviewed before it is
+   * approved. Exactly one; never changed.
+   */
+  readonly historyId: string | null;
+  readonly pendingChangeId: string | null;
   /**
    * A keyed hash of the value under review and the master key it was taken
    * under: how a later write tells the same value from another without
@@ -86,6 +91,10 @@ export function decideReview(
     return err(failure('REVIEW_DECIDED', 'This value has already been reviewed'));
   }
   const note = input.note?.trim() ?? '';
+  // Sent back with no reason, the employee cannot tell what to correct.
+  if (input.decision === 'send_back' && note === '') {
+    return err(failure('REASON_REQUIRED', 'Say what is wrong; the employee is shown it', ['note']));
+  }
   if (note.length > NOTE_MAX) {
     return err(
       failure('VALUE_INVALID', `A note is at most ${String(NOTE_MAX)} characters`, ['note']),
