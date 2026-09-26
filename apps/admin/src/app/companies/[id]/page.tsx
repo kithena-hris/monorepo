@@ -63,6 +63,8 @@ interface Detail {
   /** The modules recorded for the company, or null for none recorded (PEO-114). */
   entitlements: string[] | null;
   effectiveEntitlements: string[];
+  /** Module → the accounts named to administer it (PEO-112); absent from an older identity. */
+  administrators?: Record<string, string[]>;
 }
 
 export default async function Company({
@@ -269,10 +271,13 @@ export default async function Company({
     };
   }
 
-  /** The modules the company bought, the whole list (PEO-114), and People's administrator (PEO-112). */
+  /**
+   * The modules the company bought, the whole list (PEO-114), and who
+   * administers each: module → its whole list of account ids (PEO-112).
+   */
   async function saveModules(
     entitlements: string[],
-    administrators: Record<string, string>,
+    administrators: Record<string, string[]>,
   ): Promise<SaveModulesResult> {
     'use server';
 
@@ -291,27 +296,6 @@ export default async function Company({
       ok: false,
       message:
         typeof failed.message === 'string' ? failed.message : 'The modules could not be saved.',
-    };
-  }
-
-  /** Another People administrator, for a company that has People (PEO-112). */
-  async function nameAdministrator(accountId: string): Promise<SaveModulesResult> {
-    'use server';
-
-    const operator = await currentOperator();
-    if (!operator) return { ok: false, message: 'Your session has expired.' };
-    const { status, body } = await callIdentity(
-      `/api/internal/admin/tenants/${id}/administrators`,
-      {
-        method: 'POST',
-        body: { entitlement: 'module.people', accountId, operatorId: operator.operatorId },
-      },
-    );
-    if (status === 201) return { ok: true };
-    const failed = (body ?? {}) as { message?: unknown };
-    return {
-      ok: false,
-      message: typeof failed.message === 'string' ? failed.message : 'Nobody was named.',
     };
   }
 
@@ -564,12 +548,12 @@ export default async function Company({
             <CompanyModules
               recorded={company.entitlements}
               effective={company.effectiveEntitlements}
+              administrators={company.administrators ?? {}}
               // Anybody who can still sign in, or will once they enrol.
               accounts={company.people
                 .filter((p) => ['provisioned', 'invited', 'active'].includes(p.status))
                 .map((p) => ({ id: p.id, email: p.email }))}
               save={saveModules}
-              nameAdministrator={nameAdministrator}
             />
           }
         />

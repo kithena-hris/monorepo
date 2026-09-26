@@ -1,4 +1,4 @@
-import { OFFERED_MODULES, type ModuleEntitlement } from '@kithena/contracts';
+import { ADMINISTERED_MODULES, OFFERED_MODULES, type ModuleEntitlement } from '@kithena/contracts';
 
 /**
  * What an operator reads beside each module they can switch on (PEO-114).
@@ -19,10 +19,13 @@ export const MODULE_CHOICES: readonly {
   readonly key: ModuleEntitlement;
   readonly label: string;
   readonly description: string;
+  /** Switching it on names who administers it (PEO-112). */
+  readonly administered: boolean;
 }[] = OFFERED_MODULES.map((key) => ({
   key,
   label: WORDS[key]?.label ?? key,
   description: WORDS[key]?.description ?? '',
+  administered: ADMINISTERED_MODULES.includes(key),
 }));
 
 /** The name an operator knows a module by. */
