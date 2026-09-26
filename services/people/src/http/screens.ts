@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { failure, ok, type Result } from '@kithena/domain-kit';
+import { RequirednessPredicate, VisibilityRule } from '@kithena/contracts';
 
 import {
   analyticsView,
@@ -96,10 +97,14 @@ export const Field = z.strictObject({
     description: z.string().max(2000).nullable(),
     dataType: z.string().max(40),
     options: z.array(z.string().max(200)).max(200),
-    requiredness: z.enum(['never', 'always']),
+    requiredness: z.enum(['never', 'always', 'conditional']),
+    // The contract's own schemas (PEO-065, PEO-066): the closed grammar is
+    // refused here, at the boundary, and again by the draft.
+    requiredWhen: RequirednessPredicate.nullable().default(null),
     ownership: z.array(z.string()).max(10),
     collectAt: z.string().max(20),
     visibility: z.array(z.string()).max(10),
+    visibilityRules: z.array(VisibilityRule).max(5).default([]),
     classification: z.string().max(20),
     piiKind: z.string().max(20),
     classificationSource: z.enum(['suggested', 'human', 'section_default']),

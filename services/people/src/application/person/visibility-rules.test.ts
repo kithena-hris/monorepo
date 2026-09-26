@@ -54,6 +54,7 @@ async function setup() {
   store.seed(BEN, { fields: { managerId: MARCO, employmentType: 'permanent' } });
   const people = personAccess(store.deps);
   for (const personId of [ANA, BEN]) {
+    // eslint-disable-next-line no-await-in-loop -- one transaction's writes, in order
     const written = await people.update(tx, {
       ...hr,
       personId,
@@ -134,12 +135,12 @@ describe('the facts a rule reads', () => {
     store.seed(ANA, { fields: { employmentType: 'contractor' } });
     const record = await store.deps.reader.record(tx, TENANT, ANA);
     if (record === null) throw new Error('seeded');
-    const viewer = { accountId: MARCO_ACCOUNT, roles: new Set<string>() };
+    const asMarco = { accountId: MARCO_ACCOUNT, roles: new Set<string>() };
     const read = await relationsToMany(
       reaching,
       tx,
       TENANT,
-      viewer,
+      asMarco,
       [ANA, BEN],
       new Map([[ANA, factsOf(record)]]),
     );
@@ -151,11 +152,11 @@ describe('the facts a rule reads', () => {
     const store = inMemoryPeople([versionOf(1, [contractEnd])]);
     store.seed(ANA, { fields: { employmentType: 'contractor' } });
     const wired = withSubjects(reaching, store.deps.reader);
-    const viewer = { accountId: MARCO_ACCOUNT, roles: new Set<string>() };
-    expect((await wired.relations(tx, TENANT, viewer, ANA)).subject?.employmentType).toBe(
+    const asMarco = { accountId: MARCO_ACCOUNT, roles: new Set<string>() };
+    expect((await wired.relations(tx, TENANT, asMarco, ANA)).subject?.employmentType).toBe(
       'contractor',
     );
-    expect((await wired.relations(tx, TENANT, viewer, BEN)).subject).toBeUndefined();
-    expect(wired.reach).toBeDefined();
+    expect((await wired.relations(tx, TENANT, asMarco, BEN)).subject).toBeUndefined();
+    expect('reach' in wired).toBe(true);
   });
 });

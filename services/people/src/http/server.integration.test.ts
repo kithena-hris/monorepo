@@ -397,6 +397,84 @@ describe('the screens over GraphQL', () => {
     expect(filtered.status).toBe(403);
   });
 
+  it('saves a predicate and a custom rule through GraphQL, and refuses a rule that discloses (PEO-065, PEO-066)', async () => {
+    const admin = headers(HR_ACCOUNT, ['people_admin']);
+    const section = await graph(
+      admin,
+      `mutation { addDraftSection(label: "Contracts", idempotencyKey: "rules-section") { ok } }`,
+    );
+    expect(section.errors).toBeUndefined();
+    const SAVE = `mutation ($input: DraftFieldInput!, $key: String!) {
+      saveDraftField(input: $input, idempotencyKey: $key) { ok }
+    }`;
+    const when = {
+      combine: 'all',
+      clauses: [{ operand: 'employmentType', in: ['contractor'] }],
+    };
+    const input = (key: string, over: Record<string, unknown> = {}) => ({
+      key,
+      sectionKey: 'contracts',
+      label: key,
+      dataType: 'text',
+      options: [],
+      requiredness: 'never',
+      ownership: ['hr'],
+      collectAt: 'hr_only',
+      visibility: ['hr'],
+      classification: 'internal',
+      piiKind: 'none',
+      classificationSource: 'human',
+      ...over,
+    });
+    expect(
+      (
+        await graph(admin, SAVE, {
+          key: 'rules-1',
+          input: input('agency', {
+            requiredness: 'conditional',
+            requiredWhen: when,
+            visibilityRules: [{ scopes: ['manager'], when }],
+          }),
+        })
+      ).errors,
+    ).toBeUndefined();
+
+    const REGISTRY = `{ peopleRegistry {
+      fields { key requiredness requiredWhen { combine clauses { operand in } }
+               visibilityRules { scopes when { clauses { operand in } } } }
+      choices { countries { value } }
+    } }`;
+    const registry = await graph(admin, REGISTRY);
+    const registered = registry.data?.['peopleRegistry'] as {
+      fields: { key: string }[];
+      choices: { countries: { value: string }[] };
+    };
+    expect(registered.fields.find((f) => f.key === 'agency')).toEqual({
+      key: 'agency',
+      requiredness: 'conditional',
+      requiredWhen: { combine: 'all', clauses: [{ operand: 'employmentType', in: ['contractor'] }] },
+      visibilityRules: [
+        { scopes: ['manager'], when: { clauses: [{ operand: 'employmentType', in: ['contractor'] }] } },
+      ],
+    });
+    expect(registered.choices.countries.map((c) => c.value)).toContain('ES');
+
+    // "Managers see this when `agency` is Acme" would tell them every
+    // contractor's agency: `agency` is HR's.
+    const discloses = await graph(admin, SAVE, {
+      key: 'rules-2',
+      input: input('agency_notes', {
+        visibilityRules: [
+          {
+            scopes: ['manager'],
+            when: { combine: 'all', clauses: [{ operand: 'attribute', key: 'agency', is: 'set' }] },
+          },
+        ],
+      }),
+    });
+    expect(discloses.errors?.[0]?.extensions.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
   it('writes a section with a key, and answers a retry of that key without writing again', async () => {
     const SAVE = `mutation ($id: ID!, $key: String!) {
       savePersonSection(personId: $id, changed: [{ key: "job_title", text: "Staff Engineer" }], idempotencyKey: $key) { ok }

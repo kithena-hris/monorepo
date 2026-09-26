@@ -185,9 +185,11 @@ input DraftFieldInput {
   options: [String!]!
   ownership: [String!]!
   piiKind: String!
+  requiredWhen: PersonPredicateInput
   requiredness: String!
   sectionKey: String!
   visibility: [String!]!
+  visibilityRules: [VisibilityRuleInput!]
 }
 
 """An entity’s employee numbering: `ES-` and 5 digits write `ES-00042`."""
@@ -876,6 +878,7 @@ type PeopleProfile {
 }
 
 type PeopleRegistry {
+  choices: RegistryChoices
   fields: [RegistryField!]
   published: RegistryPublished
   sections: [RegistrySection!]
@@ -933,10 +936,36 @@ type PersonPage {
   nodes: [Person!]
 }
 
+type PersonPredicate {
+  clauses: [PredicateClause!]
+  combine: String
+}
+
+input PersonPredicateInput {
+  clauses: [PredicateClauseInput!]!
+  combine: String!
+}
+
 type PlacementLocation {
   label: String
   legalEntityId: String
   value: String
+}
+
+type PredicateClause {
+  equals: String
+  in: [String!]
+  is: String
+  key: String
+  operand: String
+}
+
+input PredicateClauseInput {
+  equals: String
+  in: [String!]
+  is: String
+  key: String
+  operand: String!
 }
 
 type ProfileEmployment {
@@ -1079,6 +1108,16 @@ type RecordSection {
   visibility: [String!]
 }
 
+type RegistryChoice {
+  label: String
+  value: String
+}
+
+type RegistryChoices {
+  countries: [RegistryChoice!]
+  legalEntities: [RegistryChoice!]
+}
+
 type RegistryField {
   classification: String
   collectAt: String
@@ -1092,9 +1131,13 @@ type RegistryField {
   """added, changed or archived since the published version; null for none."""
   pending: String
   piiKind: String
+  """When a conditional field is required; null unless it is conditional."""
+  requiredWhen: PersonPredicate
   requiredness: String
   sectionKey: String
   visibility: [String!]
+  """Scopes that may also read it, on the records each predicate holds for."""
+  visibilityRules: [VisibilityRule!]
 }
 
 type RegistryPublished {
@@ -1209,6 +1252,16 @@ type TextAttribute {
 type TextEntry {
   key: String
   text: String
+}
+
+type VisibilityRule {
+  scopes: [String!]
+  when: PersonPredicate
+}
+
+input VisibilityRuleInput {
+  scopes: [String!]!
+  when: PersonPredicateInput!
 }
 
 type WebhookDeliveries {

@@ -165,7 +165,9 @@ describe("a tenant's own attribute", () => {
   it('may be loosened, archived and relaxed freely', () => {
     const d = draft();
     expect(d.addAttribute(own).ok).toBe(true);
-    expect(d.updateAttribute('works_council_id', { requiredness: { mode: 'never' } }).ok).toBe(true);
+    expect(d.updateAttribute('works_council_id', { requiredness: { mode: 'never' } }).ok).toBe(
+      true,
+    );
     expect(d.archiveAttribute('works_council_id', clock).ok).toBe(true);
   });
 
@@ -197,7 +199,8 @@ describe('a required attribute', () => {
   it('is fine when at least one owner can read it', () => {
     const d = draft();
     expect(
-      d.updateAttribute('employee_number', { ownership: ['employee', 'hr'], visibility: ['hr'] }).ok,
+      d.updateAttribute('employee_number', { ownership: ['employee', 'hr'], visibility: ['hr'] })
+        .ok,
     ).toBe(true);
   });
 
@@ -289,48 +292,60 @@ describe('the draft itself', () => {
   it('orders sections and their attributes for rendering', () => {
     const d = draft();
     d.addSection({ ...section, key: 'public_profile', order: 1 });
-    d.addAttribute({ ...attribute, key: 'bio', sectionKey: 'public_profile', origin: 'tenant', order: 2 });
-    d.addAttribute({ ...attribute, key: 'skills', sectionKey: 'public_profile', origin: 'tenant', order: 1 });
+    d.addAttribute({
+      ...attribute,
+      key: 'bio',
+      sectionKey: 'public_profile',
+      origin: 'tenant',
+      order: 2,
+    });
+    d.addAttribute({
+      ...attribute,
+      key: 'skills',
+      sectionKey: 'public_profile',
+      origin: 'tenant',
+      order: 1,
+    });
 
     expect(d.liveSections().map((s) => s.key)).toEqual(['hr_information', 'public_profile']);
     expect(d.attributesIn('public_profile').map((a) => a.key)).toEqual(['skills', 'bio']);
   });
 });
 
-describe('a custom visibility rule (PEO-066)', () => {
-  /** A tenant field managers may see for people on a given grade. */
-  const onGrade = (key: string, scopes: string[] = ['manager']): AttributeDefinitionInput => ({
-    ...attribute,
-    key: 'bonus_band',
-    origin: 'tenant',
-    requiredness: { mode: 'never' },
-    visibility: ['hr'],
-    visibilityRules: [
-      {
-        scopes: scopes as never,
-        when: {
-          combine: 'all',
-          clauses: [{ operand: 'attribute', key, is: 'equals', equals: 'senior' }],
-        },
+/** A tenant field managers may see for people on a given grade. */
+const onGrade = (key: string, scopes: string[] = ['manager']): AttributeDefinitionInput => ({
+  ...attribute,
+  key: 'bonus_band',
+  origin: 'tenant',
+  requiredness: { mode: 'never' },
+  visibility: ['hr'],
+  visibilityRules: [
+    {
+      scopes: scopes as never,
+      when: {
+        combine: 'all',
+        clauses: [{ operand: 'attribute', key, is: 'equals', equals: 'senior' }],
       },
-    ],
-  });
-  const grade = (visibility: string[], over: Partial<AttributeDefinitionInput> = {}) => ({
-    ...attribute,
-    key: 'grade',
-    origin: 'tenant' as const,
-    requiredness: { mode: 'never' as const },
-    visibility: visibility as never,
-    ...over,
-  });
+    },
+  ],
+});
+const grade = (visibility: string[], over: Partial<AttributeDefinitionInput> = {}) => ({
+  ...attribute,
+  key: 'grade',
+  origin: 'tenant' as const,
+  requiredness: { mode: 'never' as const },
+  visibility: visibility as never,
+  ...over,
+});
 
+describe('a custom visibility rule (PEO-066)', () => {
   it('may depend on a field everybody it shows to can already read', () => {
     const d = draft();
     expect(d.addAttribute(grade(['manager', 'hr'])).ok).toBe(true);
     expect(d.addAttribute(onGrade('grade')).ok).toBe(true);
   });
 
-  it('counts a manager as in their own report\'s chain, and everybody as the directory', () => {
+  it("counts a manager as in their own report's chain, and everybody as the directory", () => {
     const d = draft();
     expect(d.addAttribute(grade(['manager_chain'])).ok).toBe(true);
     expect(d.addAttribute(onGrade('grade')).ok).toBe(true);

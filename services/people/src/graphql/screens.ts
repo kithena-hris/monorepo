@@ -482,6 +482,51 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         fixed: t.exposeBoolean('fixed'),
       }),
     });
+  /*
+   * The closed predicate (PEO-065) and custom visibility rules (PEO-066). One
+   * clause type rather than a union per operand: `in` for the five that list
+   * values, `key`/`is`/`equals` for another field, and REST's Zod — the
+   * contract's own schema — refuses any mix the grammar does not allow.
+   */
+  type Field = RegistryView['fields'][number];
+  type Clause = NonNullable<Field['requiredWhen']>['clauses'][number];
+  const Clause = builder.objectRef<Clause>('PredicateClause').implement({
+    fields: (t) => ({
+      operand: t.exposeString('operand'),
+      in: t.stringList({
+        nullable: true,
+        resolve: (c) => ('in' in c ? list<string>(c.in) : null),
+      }),
+      key: t.string({ nullable: true, resolve: (c) => ('key' in c ? c.key : null) }),
+      is: t.string({ nullable: true, resolve: (c) => ('is' in c ? c.is : null) }),
+      equals: t.string({ nullable: true, resolve: (c) => ('equals' in c ? c.equals : null) }),
+    }),
+  });
+  const Predicate = builder
+    .objectRef<NonNullable<Field['requiredWhen']>>('PersonPredicate')
+    .implement({
+      fields: (t) => ({
+        combine: t.exposeString('combine'),
+        clauses: t.field({ type: [Clause], resolve: (p) => list(p.clauses) }),
+      }),
+    });
+  const Rule = builder.objectRef<Field['visibilityRules'][number]>('VisibilityRule').implement({
+    fields: (t) => ({
+      scopes: t.stringList({ resolve: (r) => list<string>(r.scopes) }),
+      when: t.field({ type: Predicate, resolve: (r) => r.when }),
+    }),
+  });
+  const Choice = builder
+    .objectRef<RegistryView['choices']['countries'][number]>('RegistryChoice')
+    .implement({
+      fields: (t) => ({ value: t.exposeString('value'), label: t.exposeString('label') }),
+    });
+  const Choices = builder.objectRef<RegistryView['choices']>('RegistryChoices').implement({
+    fields: (t) => ({
+      legalEntities: t.field({ type: [Choice], resolve: (c) => list(c.legalEntities) }),
+      countries: t.field({ type: [Choice], resolve: (c) => list(c.countries) }),
+    }),
+  });
   const RegistryField = builder
     .objectRef<RegistryView['fields'][number]>('RegistryField')
     .implement({
@@ -493,8 +538,19 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         dataType: t.exposeString('dataType'),
         options: t.stringList({ resolve: (f) => list(f.options) }),
         requiredness: t.exposeString('requiredness'),
+        requiredWhen: t.field({
+          type: Predicate,
+          nullable: true,
+          description: 'When a conditional field is required; null unless it is conditional.',
+          resolve: (f) => f.requiredWhen,
+        }),
         ownership: t.stringList({ resolve: (f) => list(f.ownership) }),
         visibility: t.stringList({ resolve: (f) => list(f.visibility) }),
+        visibilityRules: t.field({
+          type: [Rule],
+          description: 'Scopes that may also read it, on the records each predicate holds for.',
+          resolve: (f) => list(f.visibilityRules),
+        }),
         collectAt: t.exposeString('collectAt'),
         classification: t.exposeString('classification'),
         piiKind: t.exposeString('piiKind'),
@@ -511,6 +567,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       unpublishedChanges: t.exposeInt('unpublishedChanges'),
       sections: t.field({ type: [RegistrySection], resolve: (v) => list(v.sections) }),
       fields: t.field({ type: [RegistryField], resolve: (v) => list(v.fields) }),
+      choices: t.field({ type: Choices, resolve: (v) => v.choices }),
     }),
   });
 
@@ -1180,6 +1237,27 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       values: t.field({ type: [CellInput], required: true }),
     }),
   });
+  const ClauseInput = builder.inputType('PredicateClauseInput', {
+    fields: (t) => ({
+      operand: t.string({ required: true }),
+      in: t.stringList(),
+      key: t.string(),
+      is: t.string(),
+      equals: t.string(),
+    }),
+  });
+  const PredicateInput = builder.inputType('PersonPredicateInput', {
+    fields: (t) => ({
+      combine: t.string({ required: true }),
+      clauses: t.field({ type: [ClauseInput], required: true }),
+    }),
+  });
+  const RuleInput = builder.inputType('VisibilityRuleInput', {
+    fields: (t) => ({
+      scopes: t.stringList({ required: true }),
+      when: t.field({ type: PredicateInput, required: true }),
+    }),
+  });
   const DraftField = builder.inputType('DraftFieldInput', {
     fields: (t) => ({
       key: t.string({ required: true }),
@@ -1189,9 +1267,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       dataType: t.string({ required: true }),
       options: t.stringList({ required: true }),
       requiredness: t.string({ required: true }),
+      requiredWhen: t.field({ type: PredicateInput }),
       ownership: t.stringList({ required: true }),
       collectAt: t.string({ required: true }),
       visibility: t.stringList({ required: true }),
+      visibilityRules: t.field({ type: [RuleInput] }),
       classification: t.string({ required: true }),
       piiKind: t.string({ required: true }),
       classificationSource: t.string({ required: true }),
