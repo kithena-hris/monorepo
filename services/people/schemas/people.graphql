@@ -1165,6 +1165,9 @@ type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
   schemaVersion: Int
+  """
+  Employment status: HR’s, and the person’s own. Null for anybody else (§6.3).
+  """
   status: String
 }
 

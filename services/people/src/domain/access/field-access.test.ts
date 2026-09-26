@@ -5,6 +5,7 @@ import {
   canWrite,
   readable,
   readableHistory,
+  statusVisibleTo,
   visibleTo,
   type ViewerRelations,
 } from './field-access.js';
@@ -112,6 +113,23 @@ describe('who may read what', () => {
     ]) {
       expect(visibleTo(ethnicity, viewer)).toBe(false);
     }
+  });
+});
+
+describe('who may read employment status', () => {
+  // Status is not an attribute and no visibility setting reaches it: HR's, and
+  // the person's own (§6.3). "On leave" or "on notice" told to a manager or a
+  // peer is the disclosure §7 refuses a visibility rule for.
+  it.each([
+    ['HR', relations({ isHr: true }), true],
+    ['the person', relations({ isSelf: true }), true],
+    ['their manager', relations({ isManager: true, isInManagerChain: true }), false],
+    ['the chain above', relations({ isInManagerChain: true }), false],
+    ['finance', relations({ isFinance: true }), false],
+    ['an administrator', relations({ isAdmin: true }), false],
+    ['a peer', relations(), false],
+  ])('%s', (_who, viewer, sees) => {
+    expect(statusVisibleTo(viewer)).toBe(sees);
   });
 });
 

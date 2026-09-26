@@ -15,6 +15,7 @@ import {
   partitionWrites,
   readable,
   readableHistory,
+  statusVisibleTo,
   visibleTo,
   type ViewerRelations,
 } from '../../domain/access/field-access.js';
@@ -151,7 +152,8 @@ export interface Asking {
 
 export interface PersonView {
   readonly id: string;
-  readonly status: string;
+  /** HR's, and the person's own (`statusVisibleTo`); absent for anybody else. */
+  readonly status?: string;
   readonly schemaVersion: number | null;
   /** Only what this viewer may read. A withheld key is absent, never null. */
   readonly attributes: Readonly<Record<string, unknown>>;
@@ -607,6 +609,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
   }
 
   /**
+   * Who the viewer is to nobody in particular: their tenant-wide relations,
+   * with self and manager false. The resolver answers that for an id no
+   * person has. A list is shown under these: leavers, and every status, are
+   * HR's (§6.3), and a filter or search reads only what is readable on all.
+   */
+  const everyoneTo = (tx: Tx, asking: Asking) =>
+    deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+
+  /**
    * A list's `where` and `search`, authorized: each filtered key readable on
    * everybody (`filterable`), a search only over what is (`searchable`).
    * Both read today, so neither combines with `asOf`.
@@ -619,6 +630,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       readonly search?: string;
     },
     version: PublishedVersion,
+    everyone: ViewerRelations,
   ): Promise<
     Result<{ where: Readonly<Record<string, string>>; search: PersonSearch | undefined }>
   > {
@@ -630,10 +642,6 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         failure('FILTER_WITH_AS_OF', 'A filter reads today; it cannot be combined with asOf'),
       );
     }
-    // Who the viewer is to nobody in particular: their tenant-wide relations,
-    // with self and manager false. The resolver answers that for an id no
-    // person has.
-    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     const allowed = filterable(version.document.attributes, Object.keys(where), everyone);
     if (!allowed.ok) return allowed;
     if (text === '') return ok({ where, search: undefined });
@@ -674,7 +682,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
     return {
       id: person.snapshot.id,
-      status: person.snapshot.status,
+      ...(statusVisibleTo(relations) ? { status: person.snapshot.status } : {}),
       schemaVersion: person.schemaVersion,
       attributes: readable(definitions, Object.fromEntries(values), relations),
     };
@@ -1652,11 +1660,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const query = await narrowing(tx, asking, version);
+      const everyone = await everyoneTo(tx, asking);
+      const query = await narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
-      if (asking.gaps !== undefined) {
-        const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-        if (!everyone.isHr) return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
+      if (asking.gaps !== undefined && !everyone.isHr) {
+        return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
       }
       const rows = await deps.reader.page(
         tx,
@@ -1666,6 +1674,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         query.value.where,
         query.value.search,
         asking.gaps,
+        everyone.isHr,
       );
       const related = await relationsToMany(
         deps.relations,
@@ -1688,11 +1697,18 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     async count(tx, asking) {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
-      const query = await narrowing(tx, asking, version);
+      const everyone = await everyoneTo(tx, asking);
+      const query = await narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
-      return ok(
-        await deps.reader.count(tx, asking.tenantId, query.value.where, query.value.search),
+      const counted = await deps.reader.count(
+        tx,
+        asking.tenantId,
+        query.value.where,
+        query.value.search,
+        everyone.isHr,
       );
+      // "Active" is a status; outside HR it is everybody listed, none of them leavers.
+      return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all });
     },
 
     update: (tx, asking) => update(tx, asking),

@@ -6,6 +6,7 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
+import { LEAVERS } from '../person/ports.js';
 import { segmentFor, segmentsFor } from './segments.js';
 import type {
   FormValue,
@@ -294,9 +295,12 @@ export async function profileView(
       .filter((l) => l.archived !== true || l.id === at('location_id'))
       .map((l) => ({ value: l.id, label: l.name, legalEntityId: l.legalEntityId }));
     const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
+    // HR reads the status, so `status` is here whenever `isHr` is (§6.3).
+    const status = view.status ?? null;
     const placeable =
       relations.isHr &&
-      !['terminated', 'discarded', 'merged'].includes(view.status) &&
+      status !== null &&
+      !(LEAVERS as readonly string[]).includes(status) &&
       sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
     const named = sections.map((s) => ({
       ...s,
@@ -321,7 +325,8 @@ export async function profileView(
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,
-      employment: periods?.ok ? { status: view.status, periods: periods.value } : null,
+      employment:
+        periods?.ok && status !== null ? { status, periods: periods.value } : null,
       sections: named.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, named),
       placement: placeable
@@ -682,7 +687,8 @@ export async function duplicatesView(
     const person = (view: PersonView, refusal: DomainFailure | null): ComparedPerson => ({
       id: view.id,
       name: nameOf(view.attributes) ?? 'Unnamed',
-      status: view.status,
+      // The queue is HR's alone (`duplicates`), and HR reads every status.
+      status: view.status ?? '',
       refusal: refusal?.message ?? null,
     });
     return ok({

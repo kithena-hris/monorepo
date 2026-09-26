@@ -64,7 +64,10 @@ const Attributes = z
 
 export const PersonBody = z.object({
   id: z.uuid(),
-  status: z.string(),
+  status: z
+    .string()
+    .optional()
+    .describe('Employment status: HR’s, and the person’s own. Absent for anybody else.'),
   schemaVersion: z.int().nullable(),
   attributes: Attributes,
 });
