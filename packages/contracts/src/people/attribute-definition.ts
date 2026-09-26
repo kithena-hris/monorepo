@@ -136,6 +136,15 @@ const shape = z.object({
   origin: AttributeOrigin,
   /** Hidden from forms, still exported, still in history. */
   deprecatedAt: Instant.nullable().default(null),
+  /**
+   * Whether a change waits for HR's approval before it is applied (PEO-077).
+   * Absent is the default, which `requiresApproval` computes from the policy,
+   * so a sensitive field a tenant adds tomorrow is held without anybody
+   * remembering a checkbox. Absent rather than defaulted, like
+   * `visibilityRules`: a document published before this existed keeps its
+   * checksum and its "nothing changed" answer.
+   */
+  requiresApproval: z.boolean().optional().register(policy, asPublic()),
 });
 
 /**
@@ -237,6 +246,22 @@ export const AttributeDefinition = shape
   });
 
 export type AttributeDefinition = z.infer<typeof AttributeDefinition>;
+
+/**
+ * Whether a change to this attribute is held for approval (PEO-077): what the
+ * tenant chose, else on for financial or encrypted data — the bank account,
+ * the salary, the national identifiers — and off for everything else.
+ */
+export function requiresApproval(definition: {
+  readonly requiresApproval?: boolean | undefined;
+  readonly encrypted: boolean;
+  readonly classification: { readonly piiKind: string };
+}): boolean {
+  return (
+    definition.requiresApproval ??
+    (definition.classification.piiKind === 'financial' || definition.encrypted)
+  );
+}
 
 /**
  * The definition as a draft, before the defaults are applied.
