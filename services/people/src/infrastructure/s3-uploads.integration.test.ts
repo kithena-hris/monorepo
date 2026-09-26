@@ -169,13 +169,21 @@ describe('an import upload, browser to bucket', () => {
     const first = randomBytes(10);
     const put = await started(ACME, MARCO, first);
     expect((await send(put, first)).status).toBe(200);
-    await started(ACME, MARCO, randomBytes(20));
+    const second = randomBytes(20);
+    const next = await started(ACME, MARCO, second);
     expect(await store.read(`${ACME}/import/${put.uploadId}`, 10)).toBeNull();
+    // The second upload's object exists, so the sweep below has something of
+    // this test's own to remove, whatever other tests left in the bucket.
+    expect((await send(next, second)).status).toBe(200);
 
     now += UPLOAD_LIFETIME_MS;
     const expired = await readUpload(deps(), inTx(ACME), { tenantId: ACME, actorId: PRIYA }, put.uploadId);
     expect(expired.ok).toBe(false);
-    expect(await store.purge(new Date(now + UPLOAD_LIFETIME_MS * 2).toISOString(), UPLOAD_LIFETIME_MS, 100)).toBeGreaterThan(0);
+    // The bucket stamps LastModified with the wall clock, not the test's clock,
+    // so the sweep's cutoff is taken from the wall clock too: two lifetimes
+    // from now, every object this test wrote is stale.
+    expect(await store.purge(new Date(Date.now() + UPLOAD_LIFETIME_MS * 2).toISOString(), UPLOAD_LIFETIME_MS, 100)).toBeGreaterThan(0);
+    expect(await store.read(`${ACME}/import/${next.uploadId}`, 20)).toBeNull();
   });
 
   it('configures the bucket for the app origins alone, over the S3 API', async () => {
