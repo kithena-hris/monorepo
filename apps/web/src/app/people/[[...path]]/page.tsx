@@ -3,11 +3,13 @@ import type { JSX } from 'react';
 
 import { AppShell } from '../../../components/app-shell';
 import { PeopleScreen } from '../../../components/people-screen';
+import { WorkspaceAsleep } from '../../../components/workspace-asleep';
 import { currentTenant } from '../../../lib/branding';
 import { loadScreen, today } from '../../../lib/people-screens';
 import { prepareRemoteSsr } from '../../../lib/remote-code';
 import { peopleRoute } from '../../../lib/remotes';
 import { currentPerson, displayName } from '../../../lib/session';
+import { workspaceConfig } from '../../../lib/workspace';
 
 /**
  * Everything under `/people`, rendered by the People remote.
@@ -64,21 +66,26 @@ export default async function People({
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
     >
-      <PeopleScreen
-        route={
-          route === null
-            ? null
-            : {
-                entry: route.entry,
-                component: route.component,
-                ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
-              }
-        }
-        load={load}
-        params={route?.params ?? {}}
-        search={search}
-        today={today()}
-      />
+      {/* Nothing answered at the router and the VM can be woken: wake it. */}
+      {load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
+        <WorkspaceAsleep />
+      ) : (
+        <PeopleScreen
+          route={
+            route === null
+              ? null
+              : {
+                  entry: route.entry,
+                  component: route.component,
+                  ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
+                }
+          }
+          load={load}
+          params={route?.params ?? {}}
+          search={search}
+          today={today()}
+        />
+      )}
     </AppShell>
   );
 }

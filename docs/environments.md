@@ -491,10 +491,143 @@ IPv4 is not optional: GitHub and GHCR are not reachable over IPv6.
 
 | Host | Shape | About | Notes |
 | --- | --- | --- | --- |
-| **Hetzner CX22 / CX23** (recommended) | 2 vCPU (x86), 4 GB, 40 GB SSD | €4–5 a month with the IPv4 address | `VM_PLATFORM=linux/amd64`. Falkenstein, Nuremberg or Helsinki. Hetzner's backups are +20% of the server price and optional: the nightly `backup.sh` to Oracle is the one relied on. |
+| **AWS EC2 `c7i-flex.large`** (in use) | 2 vCPU (x86), 4 GB, 30 GB gp3 | ~$10 a month stopped when idle, ~$68 always on; paid from Free-plan credits | `VM_PLATFORM=linux/amd64`. Sleeps when idle and wakes when the People pages are opened: "The AWS host" below. |
+| **Hetzner CX22 / CX23** | 2 vCPU (x86), 4 GB, 40 GB SSD | €4–5 a month with the IPv4 address | `VM_PLATFORM=linux/amd64`. Falkenstein, Nuremberg or Helsinki. Hetzner's backups are +20% of the server price and optional: the nightly `backup.sh` to Oracle is the one relied on. |
 | Hetzner CAX11 | 2 vCPU (Ampere, arm64), 4 GB, 40 GB | ~€4 + €0.50 IPv4 | `VM_PLATFORM=linux/arm64`. Often out of stock; the same scripts when it is not. |
 | DigitalOcean Basic, 4 GB | 2 vCPU (x86), 4 GB, 80 GB | $24 a month | `VM_PLATFORM=linux/amd64`. The fallback where Hetzner has no capacity. |
 | Oracle Always Free, `VM.Standard.A1.Flex` | 1 OCPU / 6 GB or more (arm64), up to the grant's 2 OCPU / 12 GB | $0 | `VM_PLATFORM=linux/arm64`. When A1 capacity exists, which in popular regions it often does not. An instance idle under 20% CPU, network *and* memory for 7 days may be reclaimed unless the account is Pay As You Go. |
+
+#### The AWS host
+
+**Production runs on one EC2 `c7i-flex.large` in an account on AWS's Free
+plan, and the instance is stopped whenever nobody is using it.** A stopped
+instance bills no compute and no public IPv4 address; only its 30 GB volume is
+charged. The VM stops itself when idle and the People pages start it again, so
+the credits pay for the hours somebody works rather than for every hour.
+
+**The Free plan** (accounts opened since July 2025): up to $200 of credits —
+$100 at sign-up and up to $100 more for trying services — spent against normal
+usage, for 6 months or until the credits run out, whichever comes first.
+Within it only some instance types may be launched: `t3.micro`, `t3.small`,
+`t4g.micro`, `t4g.small`, `c7i-flex.large` and `m7i-flex.large`.
+**`c7i-flex.large` is the one that fits**: 2 vCPU and 4 GB, which is what the
+memory budget above was measured for; the `t3`/`t4g` types are 1–2 GB and
+cannot hold the stack. `m7i-flex.large` (8 GB, ~13% more an hour) is the step
+up when staging should share the VM.
+
+**What it costs** (us-east-1 on-demand; other regions a little more):
+
+| | Always on (730 h) | Stopped when idle (~4 h each weekday, ~90 h) |
+| --- | --- | --- |
+| `c7i-flex.large`, ~$0.085/h | ~$62 | ~$7.60 |
+| Public IPv4, $0.005/h while running | ~$3.65 | ~$0.45 |
+| 30 GB gp3, $0.08/GB-month, running or not | $2.40 | $2.40 |
+| **A month** | **~$68** | **~$10.50** |
+
+Always on, $200 of credits last under three months; stopped when idle, they
+cover the whole six. Egress is inside AWS's 100 GB a month free, and EventBridge
+Scheduler and Budgets cost nothing at this size.
+
+**While it is stopped:**
+
+- **Identity works.** Signing in, the back-office, email: all Vercel and Neon,
+  always on.
+- **The People pages wait.** A request through the tunnel finds nobody
+  (Cloudflare answers 530, error 1033), and the shell shows "Your workspace is
+  asleep — Starting… (usually about 90 s)" instead of the screen
+  (`components/workspace-asleep.tsx`). It asks `POST /api/workspace` once to
+  start the instance, polls `GET /api/workspace` until EC2 says running and the
+  router answers `/health/ready` through the tunnel, then reloads the view.
+  Both routes want a signed-in person at a company that bought People; start
+  is idempotent and sent at most once a minute per function instance.
+- **Jobs catch up.** Nothing is lost by stopping: Kafka offsets, BullMQ's
+  queue (Valkey's append-only file) and Temporal's timers are on the volume.
+  Hourly and daily jobs run at their next tick after boot, the nightly backup
+  runs at boot if it was missed (`Persistent=true`), and a full-values request
+  whose week ran out while asleep expires when Temporal next runs.
+- **A backup is taken before every stop.** `idle-stop.sh` runs `backup.sh`,
+  retries once, and refuses to stop after two failures unless the last good
+  backup is under 24 hours old — so `backup.env` must exist for the VM to
+  sleep at all.
+- **A deploy wakes it.** The production workflow assumes `kithena-deploy-wake`
+  through GitHub's OIDC token, starts the instance, and waits for its tailnet
+  node before copying anything. A deploy counts as activity.
+
+**What idle means** (`deploy/vm/idle-stop.sh`, every 5 minutes from
+`kithena-idle-stop.timer`, every decision in `journalctl -u kithena-idle-stop`):
+for `IDLE_STOP_MINUTES` (30 by default) no authenticated `/graphql` request in
+the router's access log — the router logs only `/graphql`, never `/health`,
+and a request without a valid token is a 401, which is the internet knocking,
+not a person — no kithena container started and nothing deployed, nobody
+logged in, no export job queued, running or retrying in BullMQ, no pending
+Temporal activity on `people-full-values`, and the VM up for more than 15
+minutes. Then `backup.sh`, `docker compose stop` (People drains on SIGTERM) and
+`shutdown -h now`, which `InstanceInitiatedShutdownBehavior=stop` turns into a
+stop rather than a terminate. `compose stop` leaves `unless-stopped`
+containers stopped, so `kithena-start.service` starts each project at boot.
+
+**Waking needs no AWS key anywhere.** The tenant app's functions carry a Vercel
+OIDC token, which `@vercel/oidc-aws-credentials-provider` exchanges for the
+`kithena-workspace-wake` role through the IAM identity provider
+`oidc.vercel.com/<team>`, trusted only for `sub =
+owner:<team>:project:kithena-web-production:environment:production`. The role:
+
+```json
+{ "Statement": [
+  { "Effect": "Allow", "Action": "ec2:StartInstances",
+    "Resource": "arn:aws:ec2:<region>:<account>:instance/<id>" },
+  { "Effect": "Allow", "Action": ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus"],
+    "Resource": "*" } ] }
+```
+
+`Describe*` cannot be narrower: EC2 has no resource-level permissions for
+describe calls. It reveals instance metadata in the account, which holds
+nothing else. No stop permission: only the VM stops itself. The volume is
+encrypted with the account's `aws/ebs` key, whose key policy already lets EC2
+use it on behalf of any principal in the account, so starting needs no KMS
+grant. With `WORKSPACE_INSTANCE_ID`, `AWS_ROLE_ARN` or `AWS_REGION` unset the
+routes answer 404 and the page shows People's error as before — local dev and
+any other host are unchanged.
+
+**The checklist:**
+
+1. Open the AWS account on the **Free plan**, and turn on **IAM Identity
+   Center** for the operator (one user, `AdministratorAccess` permission set)
+   so the CLI signs in with `aws sso login` and no access key exists. Leave the
+   root user with MFA and no keys.
+2. Run `deploy/aws/provision.sh --region <r> --vercel-team <team slug>
+   --budget-email <you> --operator-ip <your IP>` and read what it prints; then
+   again with `--apply`. It creates the instance (Canonical's Ubuntu 24.04
+   amd64 AMI through the SSM parameter, 30 GB gp3 encrypted, IMDSv2 only,
+   termination protection, `InstanceInitiatedShutdownBehavior=stop`, a public
+   IPv4 released while stopped), a security group with no inbound rule but SSH
+   from that IP, the two OIDC providers and wake roles, and a $50 monthly
+   budget alerting at $1, $10 and $50 of usage before credits. Add
+   `--start-hour 8 --stop-hour 20 --timezone <tz>` for an EventBridge Scheduler
+   pair that starts it on weekday mornings and stops it nightly, through a role
+   that may do only that. Pass `--key-name` for an existing key pair, or use EC2
+   Instance Connect for the one SSH that follows.
+3. Bootstrap it: `ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=… IDLE_STOP_MINUTES=30
+   bash -s' < deploy/vm/bootstrap.sh`, write `/etc/kithena/backup.env`, then
+   close SSH: `provision.sh … --close-ssh --apply`.
+4. Enable OIDC on the Vercel project (Settings → Security → Secure backend
+   access, team issuer mode), and set the repository variables below:
+   `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`,
+   `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION`, `VM_PLATFORM=linux/amd64`. The
+   production deploy passes the first two and the region to the shell as
+   `WORKSPACE_INSTANCE_ID`, `AWS_ROLE_ARN` and `AWS_REGION`.
+5. Deploy. Then leave it alone for 45 minutes and check
+   `journalctl -u kithena-idle-stop` said `stop:` and the console says stopped;
+   open `/people` and watch it wake.
+
+**Leaving the Free plan.** Before the six months or the credits end, either
+upgrade the account to the Paid plan in the billing console — nothing is
+recreated, the same instance keeps running and the budget alerts start meaning
+real money — or move hosts: any 4 GB VM in the table above, `bootstrap.sh`
+without `IDLE_STOP_MINUTES`, the backup restored, `VM_TAILSCALE_HOST`
+unchanged, and the three wake variables unset, which turns waking off. A Free
+plan account that is not upgraded is closed when the plan ends, and its
+resources go with it: take a last backup first.
 
 #### The bill of materials
 
@@ -699,6 +832,8 @@ presigns against Oracle.
 | --- | --- |
 | `VM_TAILSCALE_HOST` | The VM's tailnet name, `kithena-vm`. |
 | `VM_PLATFORM` | The VM's platform, `linux/amd64` (unset means this) or `linux/arm64`. Picks the native runner the images are built on; anything else fails the images job. |
+| `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION` | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off. |
+| `AWS_DEPLOY_ROLE_ARN` | `kithena-deploy-wake`, which the production deploy assumes to start the VM before deploying to it. Unset: the deploy assumes the VM is up. |
 | `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION` | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`. |
 | `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION` | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token. |
 | `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION` | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`. |

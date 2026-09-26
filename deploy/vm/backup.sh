@@ -63,4 +63,7 @@ for dir in "$root"/*/; do
   docker exec "$rp" rpk topic consume $topics --offset :end --format '%t %k{base64} %v{base64}\n' \
     | gzip | upload "$env/$date/topics.txt.gz" || { echo "::error::$env topics" >&2; status=1; }
 done
+# When the last clean run finished: `idle-stop.sh` will stop the VM after a
+# failed backup only if this is under a day old.
+[ "$status" = 0 ] && touch "$root/.last-backup"
 exit "$status"
