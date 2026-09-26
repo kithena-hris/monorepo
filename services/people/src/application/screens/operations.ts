@@ -13,6 +13,8 @@ import {
   PersonStatusChanged,
   PersonTerminated,
   SchemaPublished,
+  requiresApproval,
+  type AttributeDefinition,
 } from '@kithena/contracts';
 
 import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhooks/list.js';
@@ -46,6 +48,7 @@ import {
 } from '../import/upload.js';
 import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
+import { holds } from '../person/pending-changes.js';
 import { relationsToMany, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { NOBODY, personOfViewer, tenantToday, type ScreenDeps, type Tx } from './record.js';
@@ -232,7 +235,12 @@ export type ImportStageView =
       readonly step: 'map';
       readonly file: ImportFileView;
       readonly columns: readonly ColumnMapping[];
-      readonly fields: readonly { readonly key: string; readonly label: string }[];
+      /** `sensitive`: a change to it waits for HR's approval (PEO-077). */
+      readonly fields: readonly {
+        readonly key: string;
+        readonly label: string;
+        readonly sensitive: boolean;
+      }[];
     }
   | {
       readonly step: 'review';
@@ -276,6 +284,14 @@ export type ImportStageView =
           readonly level: 'attention' | 'mismatch';
           readonly message: string;
         }[];
+        /**
+         * Mapped fields a change to which waits for HR's approval (PEO-077),
+         * and how many values the rows to be written carry for them.
+         */
+        readonly sensitive: {
+          readonly fields: readonly string[];
+          readonly values: number;
+        };
       };
       /**
        * The blocked rows as a file that imports once fixed: a signed link
@@ -294,6 +310,10 @@ export type ImportStageView =
       readonly reportUrl: string;
       /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
       readonly forReview: number;
+      /** Values waiting for HR's approval rather than written (PEO-077). */
+      readonly held: number;
+      /** HR chose to apply values that need approval without it. */
+      readonly appliedWithoutApproval: boolean;
     };
 
 /** A step after the upload: which upload, and the mapping once there is one. */
@@ -301,6 +321,8 @@ export interface ImportStep {
   readonly uploadId: string;
   /** Column index → attribute key, or null to ignore it. Absent before mapping. */
   readonly mapping?: Readonly<Record<number, string | null>>;
+  /** On commit: HR's "apply sensitive values without approval" (PEO-077). */
+  readonly applySensitiveWithoutApproval?: boolean;
 }
 
 /** Where the browser puts the file, and how (§14.2). */
@@ -309,6 +331,31 @@ export type ImportUploadView = PresignedPut & {
   /** When the PUT stops working. */
   readonly expiresAt: string;
 };
+
+/** Mapped fields that require approval, and the values written rows carry for them (PEO-077). */
+function sensitiveOf(
+  rows: readonly {
+    readonly outcome: string;
+    readonly changes: Readonly<Record<string, unknown>>;
+  }[],
+  byKey: ReadonlyMap<string, AttributeDefinition>,
+): { fields: string[]; values: number } {
+  const keys = new Set<string>();
+  let values = 0;
+  for (const row of rows) {
+    if (row.outcome !== 'create' && row.outcome !== 'update') continue;
+    for (const key of Object.keys(row.changes)) {
+      const d = byKey.get(key);
+      if (d === undefined || !holds(d)) continue;
+      keys.add(key);
+      values += 1;
+    }
+  }
+  return {
+    fields: [...keys].map((k) => byKey.get(k)?.label.default ?? k),
+    values,
+  };
+}
 
 const column = (index: number): string => {
   let n = index + 1;
@@ -423,10 +470,10 @@ export async function completeImportUpload(
       fields: [
         ...Object.keys(SYSTEM_COLUMNS)
           .filter((k) => !k.startsWith('_'))
-          .map((key) => ({ key, label: key.replaceAll('_', ' ') })),
+          .map((key) => ({ key, label: key.replaceAll('_', ' '), sensitive: false })),
         ...version.document.attributes
           .filter((d) => d.deprecatedAt === null && visibleTo(d, everyone))
-          .map((d) => ({ key: d.key, label: d.label.default })),
+          .map((d) => ({ key: d.key, label: d.label.default, sensitive: requiresApproval(d) })),
       ],
     });
   });
@@ -528,6 +575,7 @@ export async function dryRunImport(
             message: f.message,
           };
         }),
+        sensitive: sensitiveOf(plan.rows, byKey),
       },
       report:
         blocked.length + plan.blockedItems.length === 0
@@ -591,10 +639,12 @@ export async function commitImportView(
     return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
   });
   if (!planned.ok) return planned;
+  const bypass = step.applySensitiveWithoutApproval === true;
   const committed = await commitImportRetrying(deps.service.inTenant, importDeps(deps), {
     ...asking,
     file: planned.value.file,
     mapping: planned.value.mapping,
+    ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
   });
   if (!committed.ok) return committed;
   // Imported, or found imported already: either way the upload has done its
@@ -623,6 +673,8 @@ export async function commitImportView(
     blocked: counts.blocked + counts.duplicate,
     reportUrl,
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
+    held: bypass ? 0 : committed.value.held,
+    appliedWithoutApproval: bypass,
   });
 }
 

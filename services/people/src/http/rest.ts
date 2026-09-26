@@ -16,6 +16,13 @@ import {
   type FullValuesDeps,
 } from '../application/export/full-values.js';
 import type { Asking } from '../application/person/person-access.js';
+import {
+  approvalsInbox,
+  decidePendingChange,
+  pendingFor,
+  withdrawPendingChange,
+  type PendingValue,
+} from '../application/person/pending-changes.js';
 import { run, type PeopleService } from '../application/person/service.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
@@ -123,18 +130,62 @@ export const IdentifierFindingsBody = z.object({
 });
 
 /** A person after a write, with what the checks found on each national identifier it carried. */
+/**
+ * A change held for approval (PEO-077): a value that is **not** in the
+ * record's attributes until HR approves it. `value` is masked as the field is
+ * (`{ last4 }` for a sealed one), and absent from the inbox where the viewer
+ * may not read the field.
+ */
+export const PendingChangeBody = z.object({
+  id: z.uuid(),
+  personId: z.uuid().optional(),
+  attributeKey: z.string(),
+  kind: z.enum(['value', 'correction']),
+  value: z.unknown(),
+  effectiveFrom: z.iso.date(),
+  requestedAt: z.string(),
+  expiresAt: z.string().describe('Undecided by then, it expires.'),
+  requestedBy: z.uuid(),
+  reason: z.string().nullable(),
+  mine: z.boolean().describe('The caller asked for it, and may withdraw it.'),
+  canDecide: z
+    .boolean()
+    .describe('The caller holds hr and is neither the requester nor the subject.'),
+  /** On a single change read: where it stands, and who closed it. */
+  state: z.enum(['pending', 'approved', 'rejected', 'withdrawn', 'expired']).optional(),
+  decidedBy: z.uuid().nullable().optional(),
+  note: z.string().nullable().optional(),
+});
+
+export const PendingChangesBody = z.object({ items: z.array(PendingChangeBody) });
+
+export const PendingChangeDecisionBody = z.strictObject({
+  approve: z.boolean(),
+  note: z.string().max(500).optional(),
+});
+
 export const PersonWriteBody = PersonBody.extend({
   identifierFindings: z
     .array(IdentifierFindingsBody)
     .describe(
       'One entry per national identifier in the request. A warning, never a refusal: the value was saved.',
     ),
+  pendingChanges: z
+    .array(PendingChangeBody)
+    .describe(
+      'Changes to this person waiting for HR, this one’s included: a field that requires approval is held, not written, and `attributes` still reads what is in force.',
+    ),
 });
 
 /** A correction's new row, with what the checks found if it was a national identifier. */
-export const CorrectionWriteBody = HistoryEntryBody.extend({
-  identifierFindings: z.array(IdentifierFindingsBody),
-});
+export const CorrectionWriteBody = z.union([
+  HistoryEntryBody.extend({
+    identifierFindings: z.array(IdentifierFindingsBody),
+  }),
+  z
+    .object({ pendingChange: PendingChangeBody })
+    .describe('The field requires approval: the correction waits for HR and nothing was written.'),
+]);
 
 export const IdentifierReviewBody = z.object({
   id: z.uuid(),
@@ -562,13 +613,67 @@ export function restRoutes(deps: RestDeps): Route[] {
     const found = await run(service, asking.tenantId, (tx) =>
       service.access.checkIdentifiers(tx, { ...asking, personId, values: attributes }),
     );
+    const pending = await pendingOn(asking, personId);
     return {
       ...person,
       body: {
         ...(person.body as Record<string, unknown>),
         identifierFindings: found.ok ? found.value : [],
+        pendingChanges: pending,
       },
     };
+  };
+
+  /** A person's changes waiting for HR, as this caller may see them (PEO-077). */
+  const pendingOn = async (asking: Asking, personId: string): Promise<PendingValue[]> => {
+    const deps = service.pending;
+    if (!deps) return [];
+    const found = await run(service, asking.tenantId, (tx) =>
+      pendingFor(tx, deps, { ...asking, personId }),
+    );
+    return found.ok ? [...found.value] : [];
+  };
+
+  /** One pending change, as the inbox shows it to this caller; anybody it is not shown to gets NOT_FOUND. */
+  const readChange = async (asking: Asking, changeId: string): Promise<RestResponse> => {
+    const deps = service.pending;
+    if (!deps) return refused(failure('UNAVAILABLE', 'Approvals are not configured'));
+    const found = await run<Record<string, unknown>>(service, asking.tenantId, async (tx) => {
+      const change = await deps.store.find(tx, asking.tenantId, changeId);
+      if (!change) return err(failure('NOT_FOUND', 'No such pending change'));
+      const open = await pendingFor(tx, deps, { ...asking, personId: change.personId });
+      const shown = open.ok ? open.value.find((c) => c.id === changeId) : undefined;
+      if (shown) return ok({ ...shown, personId: change.personId, state: 'pending' });
+      // Closed, or not this caller's to see: only its requester and HR learn the outcome.
+      const everyone = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        change.personId,
+      );
+      if (change.approval.requestedBy !== asking.viewer.accountId && !everyone.isHr) {
+        return err(failure('NOT_FOUND', 'No such pending change'));
+      }
+      return ok({
+        id: change.approval.id,
+        personId: change.personId,
+        attributeKey: change.attributeKey,
+        kind: change.kind,
+        // Closed: its value is either in force now or never was.
+        value: null,
+        effectiveFrom: change.effectiveFrom,
+        requestedAt: change.approval.requestedAt,
+        expiresAt: change.approval.expiresAt,
+        requestedBy: change.approval.requestedBy,
+        reason: change.approval.reason === '' ? null : change.approval.reason,
+        mine: change.approval.requestedBy === asking.viewer.accountId,
+        canDecide: false,
+        state: change.approval.state,
+        decidedBy: change.approval.decidedBy,
+        note: change.approval.note,
+      });
+    });
+    return respond(found, 200, (c) => c);
   };
 
   /** A legal entity, location or settings use case, in its own transaction. */
@@ -712,7 +817,94 @@ export function restRoutes(deps: RestDeps): Route[] {
     );
   };
 
+  const approvals = () => service.pending;
+  const noApprovals = () => refused(failure('UNAVAILABLE', 'Approvals are not configured'));
+
   return [
+    /* ------------------------------------------ held changes (PEO-077) -- */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/pending-changes$/,
+      handle: async (asking) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        return respond(
+          await run(service, asking.tenantId, (tx) => approvalsInbox(tx, pending, asking)),
+          200,
+          ({ items }) => ({
+            items: items.map(({ readable: _readable, ...item }) => item),
+          }),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}$`),
+      handle: (asking, _request, params) => readChange(asking, params['id'] ?? ''),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/decision$`),
+      handle: async (asking, request, params) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        const body = json(request.body);
+        const input = body.ok ? parse(PendingChangeDecisionBody, body.value) : body;
+        if (!input.ok) return refused(input.error);
+        const changeId = params['id'] ?? '';
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const decided = await decidePendingChange(tx, pending, {
+              ...asking,
+              changeId,
+              approve: input.value.approve,
+              note: input.value.note ?? null,
+            });
+            return decided.ok ? ok(changeId) : decided;
+          },
+          (id) => readChange(asking, id),
+        );
+      },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/withdrawal$`),
+      handle: async (asking, request, params) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        const changeId = params['id'] ?? '';
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const withdrawn = await withdrawPendingChange(tx, pending, { ...asking, changeId });
+            return withdrawn.ok ? ok(changeId) : withdrawn;
+          },
+          (id) => readChange(asking, id),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/people/${UUID}/pending-changes$`),
+      handle: async (asking, _request, params) => {
+        const pending = approvals();
+        if (!pending) return noApprovals();
+        return respond(
+          await run(service, asking.tenantId, (tx) =>
+            pendingFor(tx, pending, { ...asking, personId: params['id'] ?? '' }),
+          ),
+          200,
+          (items) => ({ items }),
+        );
+      },
+    },
     {
       method: 'POST',
       pattern: /^\/v1\/exports\/full-values$/,
@@ -1118,9 +1310,18 @@ export function restRoutes(deps: RestDeps): Route[] {
               value: input.value.value,
               reason: input.value.reason ?? null,
             });
-            return entry.ok ? ok(entry.value.id) : entry;
+            if (!entry.ok) return entry;
+            // Held for approval (PEO-077): the resource is the pending change.
+            return ok('held' in entry.value ? entry.value.held.changeId : entry.value.id);
           },
-          (id) => readEntry(asking, personId, id),
+          async (id) => {
+            const entry = await readEntry(asking, personId, id);
+            if (entry.status !== 404) return entry;
+            const change = await readChange(asking, id);
+            return change.status < 300
+              ? { ...change, body: { pendingChange: change.body } }
+              : entry;
+          },
         );
       },
     },

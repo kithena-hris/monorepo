@@ -10,6 +10,9 @@ import {
   CreateFullValuesBody,
   FullValuesBody,
   FullValuesDecisionBody,
+  PendingChangeBody,
+  PendingChangeDecisionBody,
+  PendingChangesBody,
   CreatePersonBody,
   ExportBody,
   ErrorBody,
@@ -101,6 +104,9 @@ const components = {
   CreateFullValues: CreateFullValuesBody,
   FullValuesDecision: FullValuesDecisionBody,
   FullValues: FullValuesBody,
+  PendingChange: PendingChangeBody,
+  PendingChanges: PendingChangesBody,
+  PendingChangeDecision: PendingChangeDecisionBody,
   // The screens' writes (PEO-098, keyed and documented in PEO-116).
   SectionChanges: Sections,
   CompletenessChanges: Grid,
@@ -532,6 +538,50 @@ export function openApiDocument(): Record<string, unknown> {
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('FullValuesDecision') },
           responses: { 200: { description: 'The request', ...json('FullValues') }, ...failure },
+        },
+      },
+      '/v1/pending-changes': {
+        get: {
+          summary:
+            'Changes waiting for approval: every one in the tenant for HR, the caller’s own otherwise; oldest first',
+          responses: {
+            200: { description: 'Open changes', ...json('PendingChanges') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/pending-changes/{id}': {
+        get: {
+          summary: 'One change, to its requester, HR, or a reader of the field while it waits',
+          parameters: [id],
+          responses: { 200: { description: 'The change', ...json('PendingChange') }, ...failure },
+        },
+      },
+      '/v1/pending-changes/{id}/decision': {
+        post: {
+          summary:
+            'HR approves or rejects; never the requester or the subject. An approval applies the value from its effectiveFrom',
+          parameters: [id, idempotencyKey],
+          requestBody: { required: true, ...json('PendingChangeDecision') },
+          responses: { 200: { description: 'The change', ...json('PendingChange') }, ...failure },
+        },
+      },
+      '/v1/pending-changes/{id}/withdrawal': {
+        post: {
+          summary: 'The requester takes it back while it waits',
+          parameters: [id, idempotencyKey],
+          responses: { 200: { description: 'The change', ...json('PendingChange') }, ...failure },
+        },
+      },
+      '/v1/people/{id}/pending-changes': {
+        get: {
+          summary:
+            'This person’s changes waiting for HR, on fields the caller reads, masked as the field is; never in attributes',
+          parameters: [id],
+          responses: {
+            200: { description: 'Open changes', ...json('PendingChanges') },
+            ...failure,
+          },
         },
       },
       '/v1/exports/{id}': {

@@ -138,6 +138,21 @@ beforeAll(async () => {
           },
         }),
         define({ key: 'job_title', visibility: ['manager', 'hr'] }),
+        // PEO-077: switched on by the tenant, so a change waits for a second HR member.
+        define({
+          key: 'bonus',
+          dataType: 'money',
+          typeConfig: { kind: 'money' },
+          visibility: ['hr'],
+          effectiveDated: true,
+          requiresApproval: true,
+          classification: {
+            classification: 'confidential',
+            piiKind: 'none',
+            exportable: true,
+            aiEligible: false,
+          },
+        }),
         // PEO-066: a manager reads a contractor's end date, and a note that
         // only an intern's manager would.
         ...(['contract_end', 'intern_note'] as const).map((key) =>
@@ -301,6 +316,57 @@ describe('the booted service', () => {
       ['people.role.granted', 'Runs payroll'],
       ['people.role.revoked', 'Moved team'],
     ]);
+  });
+
+  it('holds a change that requires approval until a second HR member approves it (PEO-077)', async () => {
+    const SECOND_HR = '00000000-0000-4000-8000-0000000000b4';
+    const bonus = { amountMinor: 250_000, currency: 'EUR' };
+    const patched = await fetch(`${base}/v1/people/${ADA}`, {
+      method: 'PATCH',
+      headers: { ...headers(HR_ACCOUNT, ['hr']), 'idempotency-key': 'bonus' },
+      body: JSON.stringify({ attributes: { bonus }, effectiveFrom: '2026-09-01' }),
+    });
+    expect(patched.status).toBe(200);
+    const written = (await patched.json()) as {
+      attributes: Record<string, unknown>;
+      pendingChanges: { id: string; attributeKey: string; value: unknown; mine: boolean }[];
+    };
+    expect(written.attributes).not.toHaveProperty('bonus');
+    expect(written.pendingChanges).toEqual([
+      expect.objectContaining({ attributeKey: 'bonus', value: bonus, mine: true, canDecide: false }),
+    ]);
+    const changeId = written.pendingChanges[0]?.id ?? '';
+
+    const inbox = await fetch(`${base}/v1/pending-changes`, {
+      headers: headers(SECOND_HR, ['hr']),
+    });
+    expect(((await inbox.json()) as { items: { id: string; canDecide: boolean }[] }).items).toEqual([
+      expect.objectContaining({ id: changeId, canDecide: true }),
+    ]);
+
+    const decide = (account: string, key: string) =>
+      fetch(`${base}/v1/pending-changes/${changeId}/decision`, {
+        method: 'POST',
+        headers: { ...headers(account, ['hr']), 'idempotency-key': key },
+        body: JSON.stringify({ approve: true }),
+      });
+    expect((await decide(HR_ACCOUNT, 'own')).status).toBe(403);
+    const approved = await decide(SECOND_HR, 'second');
+    expect(approved.status).toBe(200);
+    expect(await approved.json()).toMatchObject({ id: changeId, state: 'approved' });
+
+    const read = await fetch(`${base}/v1/people/${ADA}`, { headers: headers(HR_ACCOUNT, ['hr']) });
+    expect(((await read.json()) as { attributes: Record<string, unknown> }).attributes).toMatchObject(
+      { bonus },
+    );
+    const history = await fetch(`${base}/v1/people/${ADA}/history?attribute=bonus`, {
+      headers: headers(HR_ACCOUNT, ['hr']),
+    });
+    expect(
+      ((await history.json()) as { items: { effectiveFrom: string }[] }).items.map(
+        (e) => e.effectiveFrom,
+      ),
+    ).toEqual(['2026-09-01']);
   });
 
   it('serves its OpenAPI document', async () => {
@@ -564,7 +630,8 @@ describe('the screens over GraphQL', () => {
     expect(asHr.errors).toBeUndefined();
     const seen = asHr.data?.['peopleHistory'] as History;
     expect(seen.asOf).toBe('2026-04-15');
-    expect(seen.dated).toEqual(['base_salary']);
+    // `bonus` is dated too (PEO-077's field); what matters here is the salary.
+    expect(seen.dated).toEqual(['base_salary', 'bonus']);
     // March as corrected, not as typed: no pay cut followed by a raise.
     expect(seen.values).toContainEqual({
       __typename: 'MoneyEntry',

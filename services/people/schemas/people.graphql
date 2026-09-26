@@ -72,6 +72,29 @@ type AnalyticsPoint {
   value: Float
 }
 
+type ApprovalItem {
+  canDecide: Boolean
+  """What is in force now, masked the same way."""
+  current: FormEntry
+  effectiveFrom: String
+  expiresAt: String
+  id: ID
+  key: String
+  kind: String
+  label: String
+  mine: Boolean
+  name: String
+  personId: ID
+  """
+  False where the viewer may not read the field: value and current are empty.
+  """
+  readable: Boolean
+  reason: String
+  requestedAt: String
+  requestedBy: String
+  value: FormEntry
+}
+
 """
 One attribute the viewer may read. A withheld attribute is absent from the list.
 """
@@ -118,6 +141,8 @@ type CompletenessField {
   options: [FieldOption!]
   """A person reference: picked with peoplePicker, not from options"""
   person: Boolean
+  """A change to it waits for HR approval (PEO-077)."""
+  sensitive: Boolean
 }
 
 type CompletenessRow {
@@ -187,6 +212,8 @@ input DraftFieldInput {
   piiKind: String!
   requiredWhen: PersonPredicateInput
   requiredness: String!
+  """Whether a change waits for HR approval; null keeps the default."""
+  requiresApproval: Boolean
   sectionKey: String!
   visibility: [String!]!
   visibilityRules: [VisibilityRuleInput!]
@@ -334,6 +361,8 @@ type GridIdentifierCheck {
 
 type GridSaved {
   findings: [GridCellFinding!]
+  """Cells sent to HR for approval rather than saved (PEO-077)."""
+  held: Int
   ok: Boolean
 }
 
@@ -469,11 +498,14 @@ type ImportCounts {
 }
 
 type ImportDoneStage {
+  appliedWithoutApproval: Boolean
   blocked: Int
   created: Int
   file: ImportFile
   """Doubted national identifiers that imported and went to HR’s review."""
   forReview: Int
+  """Values waiting for HR approval rather than written (PEO-077)."""
+  held: Int
   """The same report, stored sealed; a signed link that expires in a day."""
   reportUrl: String
   step: String
@@ -490,6 +522,7 @@ type ImportDryRun {
   findings: [ImportCellFinding!]
   ignoredColumns: [String!]
   incomplete: ImportIncomplete
+  sensitive: ImportSensitive
   sheets: [ImportSheet!]
 }
 
@@ -533,6 +566,14 @@ type ImportReviewStage {
 }
 
 """
+Mapped fields a change to which waits for HR approval, and how many values the rows carry for them (PEO-077).
+"""
+type ImportSensitive {
+  fields: [String!]
+  values: Int
+}
+
+"""
 A repeating attribute’s sheet; one not imported is listed, never dropped.
 """
 type ImportSheet {
@@ -546,6 +587,8 @@ union ImportStage = ImportDoneStage | ImportMapStage | ImportReviewStage
 type ImportTarget {
   key: String
   label: String
+  """A change to it waits for HR approval (PEO-077)."""
+  sensitive: Boolean
 }
 
 type ImportUploadHeader {
@@ -644,7 +687,15 @@ type Mutation {
   """
   Import. A retry of the same key is refused ALREADY_IMPORTED: the report is not kept.
   """
-  commitImport(idempotencyKey: String!, mapping: [ImportColumnInput!]!, uploadId: ID!): ImportStage
+  commitImport(
+    """
+    HR only: write values that require approval without it; each row’s event says so (PEO-077).
+    """
+    applySensitiveWithoutApproval: Boolean
+    idempotencyKey: String!
+    mapping: [ImportColumnInput!]!
+    uploadId: ID!
+  ): ImportStage
   """
   The file is uploaded: check it, then the proposed mapping. Changes nothing else.
   """
@@ -656,6 +707,10 @@ type Mutation {
   createWebhookEndpoint(alertEmail: String!, allowlist: [String!]!, events: [String!]!, idempotencyKey: String!, url: String!): WebhookEndpointSecret
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
+  """
+  HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.
+  """
+  decidePendingChange(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): WriteOutcome
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
   """
@@ -747,6 +802,8 @@ type Mutation {
   Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only.
   """
   withdrawNotice(idempotencyKey: String!, personId: ID!): Person
+  """The requester takes a held change back while it waits (PEO-077)."""
+  withdrawPendingChange(id: ID!, idempotencyKey: String!): WriteOutcome
 }
 
 type NumberAttribute {
@@ -769,6 +826,29 @@ type OrgCountry {
 }
 
 """
+A value waiting for HR approval. Never the field’s value, which stays what is in force.
+"""
+type PendingField {
+  canDecide: Boolean
+  effectiveFrom: String
+  expiresAt: String
+  id: ID
+  key: String
+  """value, or a correction of a recorded one"""
+  kind: String
+  label: String
+  """The viewer asked; they may withdraw it."""
+  mine: Boolean
+  reason: String
+  requestedAt: String
+  requestedBy: String
+  """
+  Masked as the field is: a sealed one is a SealedEntry with its last four.
+  """
+  value: FormEntry
+}
+
+"""
 A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).
 """
 type PeopleAnalytics {
@@ -782,6 +862,14 @@ type PeopleAnalytics {
   movement: AnalyticsMovement
   source: String
   sourceNote: String
+}
+
+"""
+Changes waiting for approval: every one for HR, the viewer’s own otherwise.
+"""
+type PeopleApprovals {
+  isHr: Boolean
+  items: [ApprovalItem!]
 }
 
 type PeopleCompleteness {
@@ -895,6 +983,10 @@ type PeopleProfile {
   calendar: PersonCalendar
   """HR’s alone: their status and every employment period (PEO-120)."""
   employment: ProfileEmployment
+  """
+  Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.
+  """
+  pending: [PendingField!]
   person: ProfilePerson
   """
   Null unless the viewer is HR and there is somewhere to place the person.
@@ -1077,6 +1169,10 @@ type Query {
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage
   peopleAnalytics: PeopleAnalytics
+  """
+  Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
+  """
+  peopleApprovals: PeopleApprovals
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(after: ID, filter: String, search: String): PeopleDirectory
@@ -1134,6 +1230,10 @@ type RecordField {
   ownedBy: String
   readOnly: Boolean
   required: Boolean
+  """
+  A change to it waits for HR approval (PEO-077); mark it wherever it is drawn.
+  """
+  sensitive: Boolean
 }
 
 type RecordSection {
@@ -1169,6 +1269,10 @@ type RegistryField {
   """When a conditional field is required; null unless it is conditional."""
   requiredWhen: PersonPredicate
   requiredness: String
+  """
+  Whether a change waits for HR approval: the tenant’s choice, else the default.
+  """
+  requiresApproval: Boolean
   sectionKey: String
   visibility: [String!]
   """Scopes that may also read it, on the records each predicate holds for."""
@@ -1239,6 +1343,10 @@ type SectionSaved {
   Warnings on national identifiers the save carried (PEO-125); saved all the same.
   """
   findings: [IdentifierFindingNotice!]
+  """
+  Labels of the fields sent to HR for approval rather than saved (PEO-077); empty on a retry.
+  """
+  held: [String!]
   ok: Boolean
 }
 

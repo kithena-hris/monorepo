@@ -25,6 +25,7 @@ import {
   directoryView,
   historyView,
   identifierReviewsView,
+  approvalsView,
   onboardingView,
   pickerView,
   profileView,
@@ -144,6 +145,8 @@ export const UploadStart = z.strictObject({
 export const ImportStepBody = z.strictObject({
   uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
+  /** On commit only: HR writes values that require approval without it (PEO-077). */
+  applySensitiveWithoutApproval: z.boolean().optional(),
 });
 
 const answer = <T>(result: Result<T>, status = 200): RestResponse =>
@@ -156,6 +159,7 @@ function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
 
 const importStep = (input: z.infer<typeof ImportStepBody>) => ({
   uploadId: input.uploadId,
+  ...(input.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
   ...(input.mapping === undefined
     ? {}
     : {
@@ -323,6 +327,12 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'GET',
       pattern: /^\/v1\/views\/identifier-reviews$/,
       handle: async (asking) => answer(await identifierReviewsView(deps, asking)),
+    },
+    // The approvals inbox (PEO-077).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/approvals$/,
+      handle: async (asking) => answer(await approvalsView(deps, asking)),
     },
     {
       method: 'POST',

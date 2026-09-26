@@ -34,7 +34,12 @@ import {
   drizzleRelations,
   drizzleSchemaVersions,
 } from '../infrastructure/drizzle-person-reader.js';
-import { keysFrom, staticKeyRing } from '../infrastructure/envelope.js';
+import { keysFrom, open, seal, staticKeyRing } from '../infrastructure/envelope.js';
+import type { Holding } from '../application/person/pending-changes.js';
+import {
+  drizzlePendingChangeStore,
+  outboxPendingChanges,
+} from '../application/person/pending-store.js';
 import { exportStoreFrom, startExportRunner } from '../infrastructure/export-queue.js';
 import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
@@ -206,31 +211,46 @@ export function peopleService(
   const org = drizzleOrgStore();
   const numbers = drizzleEmployeeNumbers();
   const secrets = drizzleSecretStore(ring, logger);
-  return {
-    access: personAccess({
-      people: drizzlePersonRepository(),
-      reader: drizzlePersonReader(),
-      schemas,
-      relations: relationsFrom(process.env),
-      secrets,
-      // Doubted national identifiers, queued for HR (PEO-125).
-      reviews: drizzleIdentifierReviews(ring, secrets),
-      uniques: drizzleUniqueClaims(ring),
-      clock: systemClock,
-      newId: uuidv7,
-      calendars: org,
-      numbering: numbers,
-      // A leaver's tenant roles go when their access does (PEO-113's lane).
-      roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
-      completeness: recomputePerson({
-        schema: drizzleSchemaRepository(),
-        people: drizzlePeopleFacts(),
-        store: drizzleCompletenessStore(),
-        clock: systemClock,
-        newEventId: uuidv7,
-        calendars: org,
-      }),
+  // Changes held for approval (PEO-077), a sealed one under the secrets' ring.
+  const holding: Holding = {
+    store: drizzlePendingChangeStore({
+      seal: (plaintext) => seal(plaintext, ring),
+      open: (sealed) => open(sealed, ring),
     }),
+    publish: outboxPendingChanges,
+    clock: systemClock,
+    newId: uuidv7,
+  };
+  const reader = drizzlePersonReader();
+  const relations = relationsFrom(process.env);
+  const access = personAccess({
+    people: drizzlePersonRepository(),
+    reader,
+    schemas,
+    relations,
+    approvals: holding,
+    secrets,
+    // Doubted national identifiers, queued for HR (PEO-125).
+    reviews: drizzleIdentifierReviews(ring, secrets),
+    uniques: drizzleUniqueClaims(ring),
+    clock: systemClock,
+    newId: uuidv7,
+    calendars: org,
+    numbering: numbers,
+    // A leaver's tenant roles go when their access does (PEO-113's lane).
+    roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
+    completeness: recomputePerson({
+      schema: drizzleSchemaRepository(),
+      people: drizzlePeopleFacts(),
+      store: drizzleCompletenessStore(),
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: org,
+    }),
+  });
+  return {
+    access,
+    pending: { ...holding, access, schemas, reader, relations },
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
