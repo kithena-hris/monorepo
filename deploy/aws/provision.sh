@@ -68,6 +68,8 @@ usage() {
   --vercel-project P    default kithena-web-production
   --vercel-env E        default production
   --github-repo O/R     default kithena-hris/monorepo
+  --github-sub-prefix P the OIDC subject prefix, e.g. repo:owner@123/repo@456;
+                        default: read from GitHub (gh), else repo:O/R
   --start-hour H        start weekdays at H:00 (with --stop-hour)
   --stop-hour H         stop every day at H:00
   --timezone TZ         for the schedule, default UTC
@@ -89,6 +91,7 @@ while [ $# -gt 0 ]; do
     --vercel-project) project="$2"; shift 2 ;;
     --vercel-env) vercel_env="$2"; shift 2 ;;
     --github-repo) repo="$2"; shift 2 ;;
+    --github-sub-prefix) sub_prefix="$2"; shift 2 ;;
     --start-hour) start_hour="$2"; shift 2 ;;
     --stop-hour) stop_hour="$2"; shift 2 ;;
     --timezone) tz="$2"; shift 2 ;;
@@ -354,7 +357,19 @@ deploy_policy="$(cat <<EOF
 EOF
 )"
 
+# GitHub's OIDC subject for this repository. A repository on the immutable
+# subject format sends `repo:<owner>@<owner id>/<repo>@<repo id>:…`, not
+# `repo:<owner>/<repo>:…`; a trust policy written for the classic form refuses
+# every token ("Not authorized to perform sts:AssumeRoleWithWebIdentity").
+# Asked of GitHub, so the policy matches whichever the repository uses.
+if [ -z "${sub_prefix:-}" ]; then
+  sub_prefix=$(gh api "repos/$repo/actions/oidc/customization/sub" \
+    --jq 'if .use_immutable_subject and .sub_claim_prefix then .sub_claim_prefix else empty end' 2>/dev/null || true)
+  sub_prefix=${sub_prefix:-repo:$repo}
+fi
+
 say "deploy role for the workflows ($repo, environments staging and production)"
+echo "  OIDC subject prefix: $sub_prefix"
 oidc_provider "$GITHUB_ISSUER" sts.amazonaws.com
 role kithena-deploy-wake "$(cat <<EOF
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow",
@@ -362,7 +377,7 @@ role kithena-deploy-wake "$(cat <<EOF
  "Action":"sts:AssumeRoleWithWebIdentity",
  "Condition":{"StringEquals":{
   "$GITHUB_ISSUER:aud":"sts.amazonaws.com",
-  "$GITHUB_ISSUER:sub":["repo:$repo:environment:staging","repo:$repo:environment:production"]}}}]}
+  "$GITHUB_ISSUER:sub":["$sub_prefix:environment:staging","$sub_prefix:environment:production"]}}}]}
 EOF
 )" "$deploy_policy"
 
