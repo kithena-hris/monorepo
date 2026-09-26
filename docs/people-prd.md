@@ -1172,6 +1172,40 @@ is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
   a retry with the same Idempotency-Key answers as the first request did. The
   grid, like a form, warns per cell before it saves and then saves anyway.
 
+#### Bulk edit beyond the grid (PEO-071)
+
+The grid fills gaps. Bulk edit sets the **same values on a set of people**
+whether or not anything is missing — a new cost centre for a team, a job
+title after a re-levelling — and it is HR's alone.
+
+- **Chosen in the directory.** HR ticks people on a directory page (filters and
+  search narrow it first) and edits them together at `/people/bulk-edit`: one
+  or more fields HR may write (never a lifecycle date, never a file), and one
+  `effectiveFrom` chosen for the batch. A field kept without dates changes on
+  the day, and the screen says so.
+- **Nothing is bypassed.** Each person is one ordinary write through the
+  single write path — field-level write authorization, custom visibility
+  rules (§6.6), validation, uniqueness, the identifier checks and HR's review
+  gate above, the lifecycle refusal, the transfer rule (§8.5) and the
+  completeness re-judge — so it raises what that person's own save would: one
+  `profile_updated` with the actor and the request's correlation id on its
+  envelope, which is the audit. A value that already stands as of the date is
+  not written again.
+- **Atomic per person.** Each person's write is its own savepoint: a refusal
+  rolls back that person alone, and the rest stand.
+- **Previewed exactly.** Before anything is kept, the preview makes the same
+  writes in the same order in one transaction and throws it away. So each
+  person's row says what changes from what to what as of the date, or the
+  refusal the commit would give and why — including a value two people in the
+  batch would both claim, refused for the second. Changing a value or the date
+  sets the preview aside; Apply writes only what was last shown, and answers
+  per person the same way.
+- **Bounded.** At most 50 people a request (a directory page), one after
+  another in one transaction; the screen sends a larger selection a page at a
+  time and says how far it got if one fails. A retry with the same
+  Idempotency-Key writes nothing twice. `peopleBulkEdit`,
+  `peopleBulkEditPreview` and `bulkEditPeople` over GraphQL.
+
 ### 8.5 Effective dating and corrections
 
 Per the repository rule, and it is load-bearing here rather than decorative:
@@ -2257,6 +2291,9 @@ GET    /v1/views/history[/{id}]?asOf=  one record as of a date, and every change
 POST   /v1/views/me/sections           save one section of my own record
 POST   /v1/views/people/{id}/sections  save one section of somebody's record
 POST   /v1/views/completeness          HR's grid: one write, and one event, per person
+GET    /v1/views/bulk-edit?people=     the people chosen and the fields HR may set on them (§8.4)
+POST   /v1/views/bulk-edit/preview     what a page of a bulk edit would change and refuse; rolled back
+POST   /v1/views/bulk-edit             a page of a bulk edit: one write per person, each atomic, each answered
 POST   /v1/views/setup/entity          confirm the legal entity: rename the first in that country, or create one
 POST   /v1/views/setup/publish         the core fields + a country pack, published as version 1
 POST   /v1/schema/draft/sections       add a section to the draft
@@ -3288,7 +3325,7 @@ PDF exports — the employee record and the roster — and the DSAR pack. Docume
 import with filename matching. The TypeSafe classification suggestion and
 column mapping. The effective-dated history UI ("what did this look like in
 March"). Custom visibility rules beyond the presets (built: §6.6); the full
-predicate editor for conditional requiredness (built: §6.5); bulk edit grids. The rest of the chart set:
+predicate editor for conditional requiredness (built: §6.5); bulk edit grids (built: §8.4). The rest of the chart set:
 movement waterfall, attrition, tenure, span of control, onboarding funnel,
 joiner heatmap. Saved segments and scheduled reports. The aggregate reporting
 surface for voluntary self-ID.

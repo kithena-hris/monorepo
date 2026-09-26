@@ -82,6 +82,18 @@ describe('Directory', () => {
     expect(onOpen).toHaveBeenCalledWith('l');
   });
 
+  it('lets HR choose people and edit them together, and nobody else choose at all (PEO-071)', async () => {
+    const user = fast();
+    const onBulkEdit = vi.fn();
+    const { rerender } = render(<Directory {...props()} />);
+    expect(screen.queryByRole('checkbox', { name: 'Select Adam Reyes' })).toBeNull();
+    rerender(<Directory {...props({ onBulkEdit })} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Select Adam Reyes' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select Lena Moreau' }));
+    await user.click(screen.getByRole('button', { name: 'Edit together' }));
+    expect(onBulkEdit).toHaveBeenCalledWith(['a', 'l']);
+  });
+
   it('has loading, error and empty states', async () => {
     const { container, rerender } = render(
       <Directory {...props({ load: { status: 'loading' } })} />,

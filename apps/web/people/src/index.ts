@@ -12,6 +12,7 @@ export { Profile } from './profile/profile';
 export { PersonHistory } from './profile/history';
 export { Directory } from './directory/directory';
 export { CompletenessGrid } from './completeness/completeness-grid';
+export { BulkEdit } from './bulk/bulk-edit';
 export { Integrations } from './settings/integrations/integrations';
 export { RoleSettings } from './settings/roles';
 export { Organisation } from './settings/organisation';

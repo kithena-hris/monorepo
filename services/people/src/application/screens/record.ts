@@ -201,7 +201,7 @@ export function fromForm(definition: AttributeDefinition | undefined, value: unk
 }
 
 /** A form's changed values as the write path takes them, and the definitions they name. */
-async function formChanges(
+export async function formChanges(
   deps: ScreenDeps,
   tx: Tx,
   tenantId: string,
@@ -219,7 +219,7 @@ async function formChanges(
 }
 
 /** The findings worth a warning: anything worse than `ok`, labelled for a form (PEO-125). */
-function warnings(
+export function warnings(
   byKey: ReadonlyMap<string, AttributeDefinition>,
   found: readonly AttributeFindings[],
 ): IdentifierFindingView[] {

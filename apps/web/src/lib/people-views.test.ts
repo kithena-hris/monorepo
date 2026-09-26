@@ -66,6 +66,27 @@ describe('a record back from GraphQL', () => {
   });
 });
 
+describe('a bulk edit back from GraphQL (PEO-071)', () => {
+  it('puts each change’s two values back as form values', () => {
+    const result = VIEWS.BulkEditResult({
+      committed: false,
+      rows: [
+        {
+          personId: 'a',
+          changes: [
+            {
+              key: 'job_title',
+              before: { __typename: 'EmptyEntry', key: 'job_title' },
+              after: { __typename: 'TextEntry', key: 'job_title', text: 'Lead' },
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.rows[0]?.changes[0]).toMatchObject({ before: null, after: 'Lead' });
+  });
+});
+
 describe('the shell', () => {
   it('has no direct way into People: no address, no token, no REST path, no principal', async () => {
     const root = join(import.meta.dirname, '..');

@@ -986,7 +986,22 @@ Ordered, but none of it blocks Phase 1 shipping.
       default still to be confirmed — see PEO-045 under *Blocked*); a withheld
       question carries no number at all, only the minimum. Never a manager's,
       never under a segment._
-- [ ] **PEO-071** Bulk edit beyond the completeness grid. _(PRD §8.4)_
+- [x] **PEO-071** Bulk edit beyond the completeness grid. _(PRD §8.4)_
+      _As built: `application/screens/bulk-edit.ts` — HR only, at most
+      `BULK_PAGE` (50) people a request, the same values from one
+      `effectiveFrom`. Each person is one `PersonAccess.update` in its own
+      savepoint, so nothing the single path enforces is skipped and a refusal
+      rolls back that person alone; a value already standing as of the date
+      is skipped. The preview is the same writes in one transaction thrown
+      away, so it answers as the commit will, in-batch uniqueness clashes
+      included. REST `/v1/views/bulk-edit[/preview]` (the commit keyed),
+      GraphQL `peopleBulkEdit`, `peopleBulkEditPreview`, `bulkEditPeople`.
+      The directory's rows are selectable for HR ("Edit together"); the
+      `BulkEdit` screen at `/people/bulk-edit` previews and applies a page at
+      a time. No migration. Not yet: selecting across directory pages or
+      "everyone matching this filter", and choosing people from the phone
+      layout's cards; a person field's before/after shows the id, not the
+      name._
 
 ## Phase 3
 

@@ -32,6 +32,7 @@ import {
   saveGrid,
   saveSection,
 } from '../application/screens/people.js';
+import { BULK_PAGE, bulkEdit, bulkEditView } from '../application/screens/bulk-edit.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
@@ -127,6 +128,12 @@ export const Grid = z.strictObject({
   changes: z
     .array(z.object({ personId: z.uuid(), values: z.record(z.string(), z.string()) }))
     .max(500),
+});
+/** A page of a bulk edit (PEO-071): the same values for these people, from one date. */
+export const BulkEditBody = z.strictObject({
+  personIds: z.array(z.uuid()).min(1).max(BULK_PAGE),
+  values: z.record(z.string().max(64), z.unknown()),
+  effectiveFrom: z.iso.date(),
 });
 export const EndpointBody = z.strictObject({
   url: z.string().max(2000),
@@ -428,6 +435,35 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: /^\/v1\/views\/completeness\/identifier-check$/,
       safe: true,
       handle: compute(Grid, (asking, input) => checkGrid(deps, asking, input.changes)),
+    },
+
+    /* bulk edit (PEO-071): the screen, the preview that keeps nothing, the commit */
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/bulk-edit$/,
+      handle: async (asking, _r, _p, query) => {
+        const ids = (query.get('people') ?? '').split(',').filter((id) => id !== '');
+        if (!ids.every((id) => new RegExp(`^${UUID}$`).test(id))) {
+          return refused(failure('BAD_REQUEST', 'people is person ids, comma-separated', ['people']));
+        }
+        return answer(await bulkEditView(deps, asking, ids));
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/bulk-edit\/preview$/,
+      safe: true,
+      handle: compute(BulkEditBody, (asking, input) => bulkEdit(deps, asking, input, 'preview')),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/bulk-edit$/,
+      handle: write(BulkEditBody, (asking, input) => bulkEdit(deps, asking, input, 'commit'), {
+        // A retry is answered from what stands now: what the first request
+        // wrote reads as unchanged, and nothing is written twice.
+        again: async (asking, _resource, input) =>
+          answer(await bulkEdit(deps, asking, input, 'preview')),
+      }),
     },
 
     /* roles (PEO-112): the view here, the writes at /v1/roles/* */

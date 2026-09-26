@@ -77,6 +77,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       );
     case 'Onboarding':
       return read('Onboarding', {}, VIEWS.Onboarding);
+    case 'BulkEdit':
+      return read(
+        'BulkEdit',
+        { personIds: (query.search['people'] ?? '').split(',').filter((id) => id !== '') },
+        VIEWS.BulkEdit,
+      );
     case 'CompletenessGrid':
       return read('Completeness', { after: given(query.search['after']) });
     case 'FieldRegistry':
