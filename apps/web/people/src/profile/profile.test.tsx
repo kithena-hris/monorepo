@@ -105,6 +105,31 @@ describe('Profile', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('downloads the record as a PDF where offered, and says why People refused', async () => {
+    const user = fast();
+    const onDownloadRecord = vi.fn(() =>
+      Promise.resolve({ ok: false as const, message: 'No such person' }),
+    );
+    const { container, rerender } = render(
+      <Profile load={{ status: 'ready', data: asHr }} onSave={vi.fn()} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).toBeNull();
+    rerender(
+      <Profile
+        load={{ status: 'ready', data: asHr }}
+        onSave={vi.fn()}
+        onDownloadRecord={onDownloadRecord}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Reason' }), 'Grievance file');
+    await user.click(within(dialog).getByRole('button', { name: 'Download' }));
+    expect(onDownloadRecord).toHaveBeenCalledWith('Grievance file');
+    expect(await within(dialog).findByText('No such person')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('prints no heading for a section that arrives with nothing readable in it', () => {
     const emptied: ProfileState = {
       ...asManager,

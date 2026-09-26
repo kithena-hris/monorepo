@@ -451,8 +451,8 @@ export const OPERATIONS = {
     commitImport(uploadId: $uploadId, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
   }${STAGE}`,
 
-  RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $key: String!) {
-    requestExport(format: $format, fields: $fields, asOf: $asOf, idempotencyKey: $key) {
+  RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $recordOf: ID, $reason: String, $key: String!) {
+    requestExport(format: $format, fields: $fields, asOf: $asOf, recordOf: $recordOf, reason: $reason, idempotencyKey: $key) {
       id status rowCount expiresAt links { name url }
     }
   }`,

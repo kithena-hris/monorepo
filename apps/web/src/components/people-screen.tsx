@@ -62,6 +62,19 @@ function putFile(
 
 type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
 
+/**
+ * A small export is ready now: open its file. A queued one is announced when
+ * it is ready, as the screen says.
+ */
+function download(
+  made: { ok: true; links: readonly { url: string }[] } | { ok: false; message: string },
+): Outcome {
+  if (!made.ok) return made;
+  const first = made.links[0];
+  if (first !== undefined) window.location.assign(first.url);
+  return { ok: true };
+}
+
 export function PeopleScreen({
   route,
   load,
@@ -147,6 +160,9 @@ export function PeopleScreen({
                   (placement: Parameters<typeof actions.placePerson>[1]) =>
                     actions.placePerson(id, placement),
                 ),
+                // The employee record as a PDF (PEO-061), as this viewer reads it.
+                onDownloadRecord: async (reason: string) =>
+                  download(await actions.exportRecord(id, reason)),
               }),
           searchPeople: actions.searchPeople,
         };
@@ -349,15 +365,8 @@ export function PeopleScreen({
       case 'ExportBuilder':
         return {
           load: loadable,
-          onExport: async (choice: Parameters<typeof actions.requestExport>[0]) => {
-            const made = await actions.requestExport(choice);
-            if (!made.ok) return made;
-            // A small export is ready now: open its file. A queued one is
-            // announced when it is ready, as the screen says.
-            const first = made.links[0];
-            if (first !== undefined) window.location.assign(first.url);
-            return { ok: true };
-          },
+          onExport: async (choice: Parameters<typeof actions.requestExport>[0]) =>
+            download(await actions.requestExport(choice)),
         };
       case 'ImportFlow': {
         const stage = importing.stages.at(-1) ?? { step: 'upload' };
