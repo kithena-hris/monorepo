@@ -1060,6 +1060,19 @@ builder.mutationFields((t) => ({
     args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
     resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}, args.idempotencyKey),
   }),
+  mergePerson: t.field({
+    type: Person,
+    description:
+      'Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      absorbedPersonId: t.arg.id({ required: true }),
+      take: t.arg.stringList(),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
+      move(ctx, 'mergePerson', personId, sent(rest), key),
+  }),
 }));
 
 /* -------------------------------------------------------------- roles -- */

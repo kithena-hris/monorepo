@@ -55,10 +55,11 @@ export interface CompletenessVerdict {
  * The states that have nothing to be complete about.
  *
  * A provisional record is an account with nobody's details in it yet, and a
- * discarded one is a mistake somebody withdrew. Counting either as incomplete
+ * discarded one is a mistake somebody withdrew, and a merged one is a tombstone
+ * whose survivor is judged instead (PEO-074). Counting any as incomplete
  * would nag a person on day zero for fields nobody has asked them for.
  */
-const NOT_APPLICABLE = new Set(['provisional', 'discarded']);
+const NOT_APPLICABLE = new Set(['provisional', 'discarded', 'merged']);
 
 /**
  * What a pre-hire is asked for (PRD §8.1): what is collected before the first

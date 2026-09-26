@@ -94,6 +94,7 @@ beforeAll(async () => {
     '20260926140000_people_visibility_rules.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260924150000_people_unique_hash.sql',
     '20260923110000_people_completeness.sql',

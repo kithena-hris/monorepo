@@ -76,6 +76,13 @@ import {
 } from './identifier-review.js';
 import type { IdentifierReview, ReviewDecision } from '../../domain/person/identifier-review.js';
 import type { NationalIdCheck } from '../../country-packs/national-id.js';
+import {
+  candidates,
+  mergeRefusal,
+  valuesTaken,
+  type Candidate,
+} from '../../domain/person/merge.js';
+import { shownTo, takeable, type DuplicateStore } from './duplicates.js';
 
 /**
  * Reading and writing a person, for every transport.
@@ -132,6 +139,8 @@ export interface PersonAccessDeps {
    * still returns its findings and nothing is queued.
    */
   readonly reviews?: IdentifierReviews;
+  /** Duplicate candidates and decisions (PEO-074). Absent, the queue is empty and nothing merges. */
+  readonly duplicates?: DuplicateStore;
 }
 
 export interface Asking {
@@ -336,6 +345,45 @@ export interface PersonAccess {
   ): Promise<Result<IdentifierReview>>;
   /** The value under review in full, for HR deciding it: audited. */
   revealIdentifier(tx: Tx, asking: On<{ readonly attributeKey: string }>): Promise<Result<string>>;
+  /**
+   * HR's queue of suspected duplicates (PEO-074), strongest first, with only
+   * the signals HR may read. A ranking, never a merge.
+   */
+  duplicates(
+    tx: Tx,
+    asking: Asking & { readonly limit?: number },
+  ): Promise<Result<readonly Candidate[]>>;
+  /** HR says two records are two people: the queue stops offering the pair. */
+  dismissDuplicate(
+    tx: Tx,
+    asking: Asking & { readonly personIds: readonly [string, string] },
+  ): Promise<Result<void>>;
+  /**
+   * Whether `personId` may absorb `absorbedPersonId`, and what the viewer
+   * could copy across: the comparison screen asks this, and `merge` applies
+   * the same rules. `sameSealed` names the sealed values both hold, compared
+   * by keyed hash.
+   */
+  mergeOptions(
+    tx: Tx,
+    asking: On<{ readonly absorbedPersonId: string }>,
+  ): Promise<
+    Result<{
+      readonly refusal: DomainFailure | null;
+      readonly takeable: readonly string[];
+      readonly sameSealed: readonly string[];
+    }>
+  >;
+  /**
+   * HR merges `absorbedPersonId` into `personId` (PEO-074): the absorbed
+   * record becomes a tombstone pointing at the survivor, its account moves
+   * across, and the values named in `take` are written onto the survivor as
+   * ordinary, correctable history. Audited by its events and a decision row.
+   */
+  merge(
+    tx: Tx,
+    asking: On<{ readonly absorbedPersonId: string; readonly take: readonly string[] }>,
+  ): Promise<Result<PersonView>>;
 }
 
 /** A correction's new row, and what the checks found if it was a national identifier (PEO-125). */
@@ -1177,6 +1225,65 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return ok({ review: review.value, reviews, definition, person });
   }
 
+  /**
+   * The two records of a merge, as HR, and what HR could copy across (PEO-074).
+   * Locked in id order when a merge will follow, so two reviewers merging the
+   * same pair in opposite directions queue rather than deadlock.
+   */
+  async function mergePair(
+    tx: Tx,
+    asking: On<{ readonly absorbedPersonId: string }>,
+    lock: boolean,
+  ) {
+    const version = await deps.schemas.current(tx, asking.tenantId);
+    if (!version) return err(NotPublished());
+    const records = new Map<string, PersonRecord>();
+    for (const id of [asking.personId, asking.absorbedPersonId].toSorted()) {
+      const found = await deps.reader.record(tx, asking.tenantId, id, lock);
+      if (!found) return err(PersonNotFound());
+      records.set(id, found);
+    }
+    const survivor = records.get(asking.personId);
+    const absorbed = records.get(asking.absorbedPersonId);
+    if (!survivor || !absorbed) return err(PersonNotFound());
+    const onSurvivor = await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId);
+    const onAbsorbed = await deps.relations.relations(
+      tx,
+      asking.tenantId,
+      asking.viewer,
+      asking.absorbedPersonId,
+    );
+    // HR moves a person (§8.1); a merge is the largest move there is.
+    if (!onSurvivor.isHr || !onAbsorbed.isHr) {
+      return err(failure('FORBIDDEN', 'Only HR merges records'));
+    }
+    const keys = takeable(version.document.attributes, onSurvivor, onAbsorbed);
+    return ok({ version, survivor, absorbed, keys });
+  }
+
+  /** Why this merge may not happen: the domain's rule, then the two that need a read. */
+  async function refusalOf(
+    tx: Tx,
+    asking: Asking,
+    survivor: PersonRecord,
+    absorbed: PersonRecord,
+  ): Promise<DomainFailure | null> {
+    const refused = mergeRefusal(survivor.snapshot, absorbed.snapshot);
+    if (refused !== null) return refused;
+    const own = await deps.reader.personOf(tx, asking.tenantId, asking.viewer.accountId);
+    if (own === survivor.snapshot.id || own === absorbed.snapshot.id) {
+      return failure('FORBIDDEN', 'Nobody merges their own record; another HR colleague has to');
+    }
+    const reports = (await deps.duplicates?.reports(tx, asking.tenantId, absorbed.snapshot.id)) ?? 0;
+    if (reports > 0) {
+      return failure(
+        'MERGE_HAS_REPORTS',
+        `${String(reports)} ${reports === 1 ? 'person reports' : 'people report'} to the record being absorbed; move them first`,
+      );
+    }
+    return null;
+  }
+
   const api: PersonAccess = {
     giveNotice: (tx, asking) => {
       const day = lastDayOf(asking);
@@ -1397,6 +1504,119 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         (s) => s.status === 'discarded',
         (p, _zone, ctx) => p.discard(ctx),
       ),
+
+    async duplicates(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
+      const store = deps.duplicates;
+      if (!store) return ok([]);
+      const limit = Math.min(asking.limit ?? 50, 200);
+      // ponytail: a pair of signals per candidate at most, so four times the page is enough rows.
+      const rows = await store.signals(tx, asking.tenantId, limit * 4);
+      const ranked = candidates(rows, await store.decided(tx, asking.tenantId));
+      return ok(shownTo(ranked, version.document.attributes, everyone).slice(0, limit));
+    },
+
+    async dismissDuplicate(tx, asking) {
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
+      const [a, b] = asking.personIds;
+      if (a === b) return err(failure('SAME_PERSON', 'A record cannot be a duplicate of itself'));
+      for (const id of asking.personIds) {
+        if (!(await deps.reader.record(tx, asking.tenantId, id))) return err(PersonNotFound());
+      }
+      await deps.duplicates?.record(tx, asking.tenantId, {
+        id: deps.newId(),
+        personIds: [a, b],
+        decision: 'not_duplicate',
+        decidedBy: asking.viewer.accountId,
+        decidedAt: deps.clock.instant(),
+      });
+      return ok(undefined);
+    },
+
+    async mergeOptions(tx, asking) {
+      const pair = await mergePair(tx, asking, false);
+      if (!pair.ok) return pair;
+      const { survivor, absorbed, keys } = pair.value;
+      const sameSealed = deps.duplicates
+        ? await deps.duplicates.sameClaims(tx, asking.tenantId, survivor.snapshot.id, absorbed.snapshot.id)
+        : [];
+      return ok({
+        refusal: await refusalOf(tx, asking, survivor, absorbed),
+        takeable: [...keys],
+        sameSealed,
+      });
+    },
+
+    async merge(tx, asking) {
+      const store = deps.duplicates;
+      if (!store) return err(failure('NOT_FOUND', 'Duplicate review is not available'));
+      const pair = await mergePair(tx, asking, true);
+      if (!pair.ok) return pair;
+      const { survivor, absorbed, keys, version } = pair.value;
+      const refused = await refusalOf(tx, asking, survivor, absorbed);
+      if (refused !== null) return err(refused);
+      const taken = valuesTaken(asking.take, absorbed.values, keys);
+      if (!taken.ok) return taken;
+      const survivorId = survivor.snapshot.id;
+      const absorbedId = absorbed.snapshot.id;
+
+      // The tombstone first: it gives up its claims and its account before
+      // the survivor takes either, so neither is ever held twice.
+      await store.releaseClaims(tx, asking.tenantId, absorbedId);
+      const tomb = Person.rehydrate(absorbed.snapshot);
+      const moved = tomb.absorbInto(survivor.snapshot, Object.keys(taken.value), contextFor(asking));
+      if (!moved.ok) return moved;
+      await deps.people.save(tx, tomb, { fields: { identityAccountId: null } });
+      for (const review of (await deps.reviews?.open(tx, asking.tenantId, absorbedId)) ?? []) {
+        await deps.reviews?.supersede(tx, asking.tenantId, absorbedId, review.attributeKey);
+      }
+      await rejudge(tx, asking, absorbedId, null);
+
+      const account = moved.value;
+      if (account !== null) {
+        const heir = Person.rehydrate(survivor.snapshot);
+        const adopted = heir.adoptAccount(account);
+        if (!adopted.ok) return adopted;
+        await deps.people.save(tx, heir, { fields: { identityAccountId: account } });
+      }
+      if (Object.keys(taken.value).length > 0) {
+        const written = await update(
+          tx,
+          { ...asking, personId: survivorId, changes: taken.value },
+          false,
+        );
+        if (!written.ok) return written;
+      } else {
+        await rejudge(tx, asking, survivorId, null);
+      }
+      // Identity caches a name and a start per account: the account that
+      // moved now signs in as the survivor, so it learns the survivor's.
+      const after = await deps.reader.record(tx, asking.tenantId, survivorId, true);
+      if (!after) return err(PersonNotFound());
+      const told = Person.rehydrate(after.snapshot);
+      const named = Object.keys(taken.value).some((k) => IDENTITY_FACT_KEYS.has(k));
+      if (account !== null || named) {
+        shareIdentityFacts(told, asking, after.values, null);
+        await deps.people.save(tx, told);
+      }
+
+      await store.record(tx, asking.tenantId, {
+        id: deps.newId(),
+        personIds: [survivorId, absorbedId],
+        decision: 'merged',
+        survivorId,
+        absorbedId,
+        attributesTaken: Object.keys(taken.value),
+        decidedBy: asking.viewer.accountId,
+        decidedAt: deps.clock.instant(),
+      });
+      const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, survivorId);
+      return ok(await view(tx, asking, after, version, relations));
+    },
 
     async read(
       tx: Tx,
@@ -2104,7 +2324,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         (await calendarOf(tx, tenantId, values)).day;
       if (!version || !person) return ok({ day: await today({}), applied: 0 });
       const status = person.snapshot.status;
-      if (status === 'terminated' || status === 'discarded') {
+      if (status === 'terminated' || status === 'discarded' || status === 'merged') {
         return ok({ day: await today(person.values), applied: 0 });
       }
 

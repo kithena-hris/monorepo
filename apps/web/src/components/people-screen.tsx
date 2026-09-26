@@ -340,6 +340,27 @@ export function PeopleScreen({
           onDecide: thenRefresh(actions.reviewIdentifier),
           onReveal: actions.revealIdentifier,
         };
+      case 'Duplicates':
+        return {
+          load: loadable,
+          onCompare: (a: string, b: string) => {
+            go(`/people/duplicates?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+          },
+          onBack: () => {
+            go('/people/duplicates');
+          },
+          // Afterwards the survivor's record: the merge's answer, as People now holds it.
+          onMerge: async (survivorId: string, absorbedId: string, take: readonly string[]) => {
+            const merged = await actions.mergePerson(survivorId, absorbedId, take);
+            if (merged.ok) go(`/people/${encodeURIComponent(survivorId)}`);
+            return merged;
+          },
+          onDismiss: async (a: string, b: string) => {
+            const dismissed = await actions.dismissDuplicate([a, b]);
+            if (dismissed.ok) go('/people/duplicates');
+            return dismissed;
+          },
+        };
       case 'WebhookLog': {
         const next =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null

@@ -832,6 +832,10 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
   customers. Retention and anonymisation act on this state, on a schedule.
 - **discarded** — a provisional record that was never a person. The only state
   that permits a hard delete, and only before confirmation.
+- **merged** — a provisional record HR found to be a duplicate and absorbed
+  into another (§12.4, PEO-074). A tombstone pointing at the survivor
+  (`merged_into`): never deleted, never edited, not counted anywhere a
+  discarded record is not.
 
 **A corrected date re-reads the state; it never ends employment.** The two
 definitions above are about dates, so a correction to one of those dates
@@ -1557,7 +1561,7 @@ New:
 | `people.person.status_changed` v1 | Previous and next state, reason |
 | `people.person.profile_incomplete` v1 | Missing attribute keys and their owners |
 | `people.person.profile_completed` v1 | The inverse. Both exist so a consumer can drive a task list |
-| `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids |
+| `people.person.merged` v1 | Two records became one. Carries the surviving and absorbed ids, the keys taken (never values) and the account that moved to the survivor, null when none. Raised on the absorbed record after its `status_changed` (reason `merged`); the taken values travel on the survivor's own `profile_updated` |
 | `people.person.anonymised` v1 | Retention executed. Carries which classes were cleared |
 | `people.person.access_ended` v1 | A leaver's access ended (§5): once, at the end of the last working day on their calendar (on notice or terminated) or at once by HR. `endedAt`, the last working day, the trigger; the account id, null when there is none. Identity suspends on it |
 | `people.person.rehire_override` v1 | HR rehired somebody marked not eligible for rehire (§8.1): the person, the new period, HR's reason (free text); who did it is the envelope's actor. The audit record of overriding that judgement |
@@ -2014,6 +2018,43 @@ module boots and functions with no TypeSafe key configured.
 | **Duplicate detection**            | `Noul`: are these two records the same human? Code supplies the pairs from cheap blocking on name, email and date of birth                                | A merge is **always** a human decision. The judgment ranks candidates; it never merges                        |
 | **Legacy free-text normalisation** | Code finds candidate values in an imported blob; `Choice` selects the intended one. The pre-parsed extraction pattern — select, never generate            | Every selection is shown in the import dry-run diff before anything is written                                |
 | **Directory safety screen**        | `Noul`: does this bio or public field contain a third party's personal data, or special-category data about the author?                                   | ≥ 0.5 warns the employee before publishing. Advisory. It never blocks somebody from describing themselves     |
+
+**Duplicates and merge, as built (PEO-074).** Blocking is equality on what the
+records already hold, per tenant, among live records: the same work email
+(case and spacing ignored), the same legal name with the same
+`date_of_birth`, and a unique value two records hold under the same keyed hash
+(a claim the key rotation found in conflict, PEO-082). Nothing is decrypted: a
+sealed value is compared by its HMAC or not at all. HR's queue shows a signal
+only when HR may read every attribute it is read from, and names the reason,
+never the value. The `Noul` judgment is not wired yet; code ranks by signal
+strength (a unique value, then an email, then a name with a birth date).
+
+The merge is HR's alone, and nobody merges their own record. HR picks the
+survivor and ticks, per field, the values to take from the other record.
+The rules, all in the application and domain layers:
+
+- **Only a record never hired is absorbed.** An employment period is payroll
+  history, and two on one human need somebody to decide which start date,
+  number and pay line are true. The employed record survives; two employed
+  records are refused (`MERGE_ABSORBS_EMPLOYMENT`) until payroll owns that
+  decision.
+- **Two records that each sign in are refused** (`MERGE_TWO_ACCOUNTS`): which
+  login survives is the back office's call. Otherwise the absorbed record's
+  account moves to the survivor, and identity is sent the survivor's name and
+  start date for it.
+- **A record people report to is refused** until they are moved.
+- **What may be taken**: a live attribute HR may read on the absorbed record
+  and write on the survivor — never a sealed one (copying it would need its
+  plaintext), and never a lifecycle date, the employee number, a placement or
+  the manager, each of which moves through its own use case with its own
+  events. Taken values are written through the ordinary write path, as
+  history rows a correction can supersede. A merge never clears a value.
+- **Additive**: the absorbed record becomes `merged`, pointing at the
+  survivor; its history, values and secrets stay where they were written; its
+  unique claims are released so the survivor may hold the same value. The
+  decision — survivor, absorbed, keys taken, who, when — is an append-only
+  row, and "not the same person" is one too, which takes the pair out of the
+  queue.
 
 **What no judgment ever decides**: whether a field is required, who may see it,
 who may write it, what a salary is, or whether a record may be merged. Those are

@@ -218,6 +218,7 @@ beforeAll(async () => {
     '20260922140000_people_bootstrap.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
+    '20260926143000_people_duplicates.sql',
     '20260924220200_people_employment_period.sql',
     '20260923100000_people_snapshot.sql',
     '20260923180000_people_published_breakdown.sql',

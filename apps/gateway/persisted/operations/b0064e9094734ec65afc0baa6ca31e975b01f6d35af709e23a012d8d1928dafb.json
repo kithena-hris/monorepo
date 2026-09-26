@@ -1,0 +1,1 @@
+{"version":1,"body":"query Duplicates($a: ID, $b: ID) {\n    peopleDuplicates(a: $a, b: $b) {\n      items { personIds names reasons }\n      comparison {\n        people { id name status refusal }\n        rows { key label values same takeable }\n      }\n    }\n  }"}

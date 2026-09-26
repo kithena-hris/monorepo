@@ -147,6 +147,25 @@ export const IdentifierReviewBody = z.object({
   last4: z.string().nullable().describe('What a screen shows. The value only through /reveal.'),
 });
 
+/** A suspected duplicate (PEO-074): two ids and why, never a value. */
+export const DuplicateBody = z.object({
+  personIds: z.tuple([z.uuid(), z.uuid()]),
+  signals: z.array(
+    z.object({
+      signal: z.enum(['unique_value', 'work_email', 'name_and_birth_date']),
+      attributeKey: z
+        .string()
+        .nullable()
+        .describe('The unique attribute whose keyed hash both hold; null for the others.'),
+    }),
+  ),
+});
+
+/** HR says a pair are two people: the queue stops offering it. */
+export const DuplicateDismissalBody = z.strictObject({
+  personIds: z.tuple([z.uuid(), z.uuid()]),
+});
+
 export const IdentifierReviewDecisionBody = z.strictObject({
   attributeKey: z.string().max(64),
   decision: z.enum(['accept', 'send_back']),
@@ -357,6 +376,11 @@ const STATUS: Record<string, number> = {
   UNIQUE_VALUE_TAKEN: 409,
   INVALID_TRANSITION: 409,
   ALREADY_CORRECTED: 409,
+  // PEO-074: a merge the records' states refuse.
+  MERGE_ABSORBS_EMPLOYMENT: 409,
+  MERGE_TOMBSTONE: 409,
+  MERGE_TWO_ACCOUNTS: 409,
+  MERGE_HAS_REPORTS: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
   // PEO-112: a grant to oneself, and the last administrator.
   SELF_GRANT: 403,
@@ -1000,6 +1024,37 @@ export function restRoutes(deps: RestDeps): Route[] {
             return updated.ok ? ok(personId) : updated;
           },
           (id) => writtenPerson(asking, id, input.value.attributes),
+        );
+      },
+    },
+    // Suspected duplicates, for HR (PEO-074). A ranking; the merge is its own write.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/duplicates$/,
+      handle: async (asking) =>
+        respond(
+          await run(service, asking.tenantId, (tx) => service.access.duplicates(tx, asking)),
+          200,
+          (items) => ({ items }),
+        ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/duplicates\/dismissals$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(DuplicateDismissalBody, request);
+        if (!input.ok) return refused(input.error);
+        const { personIds } = input.value;
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const dismissed = await service.access.dismissDuplicate(tx, { ...asking, personIds });
+            return dismissed.ok ? ok(personIds[0]) : dismissed;
+          },
+          () => Promise.resolve({ status: 200, body: { personIds, decision: 'not_duplicate' } }),
         );
       },
     },

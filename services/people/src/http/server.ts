@@ -39,6 +39,7 @@ import { exportStoreFrom, startExportRunner } from '../infrastructure/export-que
 import { startFullValues } from '../infrastructure/temporal/full-values.js';
 import { drizzleSecretStore } from '../infrastructure/secret-store.js';
 import { drizzleIdentifierReviews } from '../infrastructure/drizzle-identifier-reviews.js';
+import { drizzleDuplicates } from '../infrastructure/drizzle-duplicates.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
@@ -215,6 +216,7 @@ export function peopleService(
       secrets,
       // Doubted national identifiers, queued for HR (PEO-125).
       reviews: drizzleIdentifierReviews(ring, secrets),
+      duplicates: drizzleDuplicates(),
       uniques: drizzleUniqueClaims(ring),
       clock: systemClock,
       newId: uuidv7,

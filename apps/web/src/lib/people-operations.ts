@@ -117,6 +117,16 @@ export const OPERATIONS = {
     }
   }`,
 
+  Duplicates: `query Duplicates($a: ID, $b: ID) {
+    peopleDuplicates(a: $a, b: $b) {
+      items { personIds names reasons }
+      comparison {
+        people { id name status refusal }
+        rows { key label values same takeable }
+      }
+    }
+  }`,
+
   GridCheck: `query GridCheck($changes: [GridChangeInput!]!) {
     peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
   }`,
@@ -455,6 +465,14 @@ export const OPERATIONS = {
 
   RehirePerson: `mutation RehirePerson($personId: ID!, $startDate: String!, $overrideReason: String, $key: String!) {
     rehirePerson(personId: $personId, startDate: $startDate, overrideReason: $overrideReason, idempotencyKey: $key) { id }
+  }`,
+
+  MergePerson: `mutation MergePerson($personId: ID!, $absorbedPersonId: ID!, $take: [String!], $key: String!) {
+    mergePerson(personId: $personId, absorbedPersonId: $absorbedPersonId, take: $take, idempotencyKey: $key) { id }
+  }`,
+
+  DismissDuplicate: `mutation DismissDuplicate($personIds: [ID!]!, $key: String!) {
+    dismissDuplicate(personIds: $personIds, idempotencyKey: $key) { decision }
   }`,
 
   StartImportUpload: `mutation StartImportUpload($name: String!, $size: Int!) {

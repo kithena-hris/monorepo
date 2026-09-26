@@ -151,7 +151,7 @@ facts AS (
     ${replay('work_location')}
     ${replay('employment_type')}
    WHERE p.tenant_id = ${tenantId}::uuid
-     AND p.status NOT IN ('provisional', 'discarded')
+     AND p.status NOT IN ('provisional', 'discarded', 'merged')
      AND p.hire_date IS NOT NULL
 ),
 scoped AS (
@@ -302,7 +302,7 @@ SELECT DISTINCT p.id::text AS person_id, e.kind, e.on_day AS day,
                FROM jsonb_path_query(p.custom, 'lax $.*[*].certification_expiry') AS x
        ) AS e
  WHERE p.tenant_id = ${tenantId}::uuid
-   AND p.status NOT IN ('provisional', 'discarded')
+   AND p.status NOT IN ('provisional', 'discarded', 'merged')
    AND p.hire_date <= d.day
    AND (p.last_working_day IS NULL OR p.last_working_day >= d.day)
    AND ${inChain}

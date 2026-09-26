@@ -12,6 +12,9 @@ import type {
   HistoryChange,
   HistoryView,
   IdentifierReviewsView,
+  ComparedPerson,
+  ComparedRow,
+  DuplicatesView,
   OnboardingView,
   PickerView,
   ProfileView,
@@ -238,6 +241,92 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
       }),
     });
+  /* ------------------------------------------------- duplicates (PEO-074) -- */
+
+  const DuplicateItemRef = builder
+    .objectRef<DuplicatesView['items'][number]>('DuplicatePair')
+    .implement({
+      description: 'Two records that look like one human, and why. Never a value.',
+      fields: (t) => ({
+        personIds: t.idList({ resolve: (d) => [...d.personIds] }),
+        names: t.stringList({ resolve: (d) => [...d.names] }),
+        reasons: t.stringList({ resolve: (d) => list(d.reasons) }),
+      }),
+    });
+  const ComparedPersonRef = builder.objectRef<ComparedPerson>('ComparedPerson').implement({
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      status: t.exposeString('status'),
+      refusal: t.exposeString('refusal', {
+        nullable: true,
+        description: 'Why this record may not absorb the other; null when it may.',
+      }),
+    }),
+  });
+  const ComparedRowRef = builder.objectRef<ComparedRow>('ComparedRow').implement({
+    description: 'One attribute side by side, as the viewer may read it. A sealed value is its last four.',
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      values: t.field({ type: ['String'], nullable: { items: true, list: false }, resolve: (r) => [...r.values] }),
+      same: t.exposeBoolean('same'),
+      takeable: t.field({ type: ['Boolean'], resolve: (r) => [...r.takeable] }),
+    }),
+  });
+  const ComparisonRef = builder
+    .objectRef<NonNullable<DuplicatesView['comparison']>>('DuplicateComparison')
+    .implement({
+      fields: (t) => ({
+        people: t.field({ type: [ComparedPersonRef], resolve: (c) => [...c.people] }),
+        rows: t.field({ type: [ComparedRowRef], resolve: (c) => list(c.rows) }),
+      }),
+    });
+  const DuplicatesRef = builder.objectRef<DuplicatesView>('PeopleDuplicates').implement({
+    description: 'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
+    fields: (t) => ({
+      items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
+      comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
+    }),
+  });
+  const DismissedRef = builder
+    .objectRef<{ personIds: readonly string[]; decision: string }>('DuplicateDismissed')
+    .implement({
+      fields: (t) => ({
+        personIds: t.idList({ resolve: (d) => [...d.personIds] }),
+        decision: t.exposeString('decision'),
+      }),
+    });
+  builder.queryField('peopleDuplicates', (t) =>
+    t.field({
+      type: DuplicatesRef,
+      description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
+      args: { a: t.arg.id(), b: t.arg.id() },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.a) query.set('a', args.a);
+        if (args.b) query.set('b', args.b);
+        const qs = query.toString();
+        return viaRest<DuplicatesView>(ctx, 'GET', `/v1/views/duplicates${qs === '' ? '' : `?${qs}`}`);
+      },
+    }),
+  );
+  builder.mutationField('dismissDuplicate', (t) =>
+    t.field({
+      type: DismissedRef,
+      description: 'HR says a pair are two people; the queue stops offering it.',
+      args: {
+        personIds: t.arg.idList({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ personIds: string[]; decision: string }>(ctx, 'POST', '/v1/duplicates/dismissals', {
+          body: { personIds: args.personIds.map(String) },
+          key: args.idempotencyKey,
+        }),
+    }),
+  );
+
   const FindingsRef = builder
     .objectRef<{ findings: readonly IdentifierFindingView[] }>('IdentifierCheck')
     .implement({
