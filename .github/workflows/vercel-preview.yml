@@ -23,6 +23,8 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
+      # Changes which previews are built, so it previews all of them.
+      - '.github/workflows/vercel-preview.yml'
 
 permissions:
   contents: read
@@ -99,34 +101,22 @@ jobs:
       # Parallelising would not have helped. A matrix runs the same six builds
       # at once; the cap counts builds, not minutes.
       #
-      # So this asks turbo, which already knows the dependency graph, rather
-      # than matching paths by hand: `...[base]` means "packages changed since
-      # base, and everything that depends on them". A change to `packages/ui`
-      # correctly brings Storybook, docs, the back-office and the tenant app
-      # with it; a change to `apps/admin` brings only the back-office. Editing
-      # a workflow file touches the root package and brings nothing, which is
-      # the right answer.
-      #
-      # Same instinct as the story sweep in `ci.yml`: narrow what runs by what
-      # changed, and let the shared-code case fan back out on its own.
+      # So this asks the same script production and staging ask
+      # (`tools/scripts/src/affected-targets.ts`), with the pull request's
+      # merge base standing in for the deploy tags: turbo's graph for which
+      # apps a changed package reaches — a change to `packages/ui` brings
+      # Storybook, docs, the back-office, the auth origin and the tenant app;
+      # a change to `apps/admin` brings only the back-office — plus the root
+      # files every build reads. docs/environments.md, "What a deploy ships".
       - name: pick affected apps
         id: scope
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          packages="$(pnpm turbo run build --filter="...[${BASE_SHA}]" --dry=json | jq -r '.packages[]')"
-          echo "affected packages:"
-          echo "$packages" | sed 's/^/  /'
-          has() { grep -qx "$1" <<<"$packages" && echo true || echo false; }
-          {
-            echo "web=$(has '@kithena/web')"
-            echo "admin=$(has '@kithena/admin')"
-            echo "auth=$(has '@kithena/auth-shell')"
-            echo "identity=$(has '@kithena/identity')"
-            echo "messaging=$(has '@kithena/messaging')"
-            echo "docs=$(has '@reach/docs')"
-            echo "storybook=$(has '@reach/storybook')"
-          } >> "$GITHUB_OUTPUT"
+          base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          pnpm exec tsx tools/scripts/src/affected-targets.ts \
+            --env preview --base "$base" --head "$HEAD_SHA"
 
       # Built here and uploaded, rather than through `vercel pull` + `vercel
       # build` + `--prebuilt`.
@@ -155,7 +145,7 @@ jobs:
       # the `Module not found: Can't resolve '@kithena/contracts'` failure
       # `vercel-staging.yml` already documents.
       - name: build web
-        if: steps.scope.outputs.web == 'true'
+        if: steps.scope.outputs.shell == 'true'
         run: pnpm turbo run build --filter=@kithena/web...
       - name: build back-office
         if: steps.scope.outputs.admin == 'true'
@@ -206,7 +196,7 @@ jobs:
       # `vercel-staging.yml` and `vercel-production.yml` already ship them.
       - name: deploy web
         id: web
-        if: steps.scope.outputs.web == 'true'
+        if: steps.scope.outputs.shell == 'true'
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
         run: |
