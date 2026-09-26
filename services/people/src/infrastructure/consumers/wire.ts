@@ -15,6 +15,7 @@ import { drizzleCompletenessStore } from '../drizzle-completeness-store.js';
 import { drizzleOrgStore } from '../drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
 import { openFgaFrom } from '../openfga.js';
+import { roleReportFrom } from '../role-report.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { approvalMailerFrom } from '../approval-mailer.js';
 import { drizzlePersonReader } from '../drizzle-person-reader.js';
@@ -116,8 +117,10 @@ export function consumerFrom(
   approvals: PendingChangeRunner | null = null,
 ): ReturnType<typeof peopleConsumer> {
   const authz = openFgaFrom(env);
+  const reportRoles = roleReportFrom(env, inTenant, systemClock);
   return peopleConsumer({
     ...(authz === null ? {} : { authz }),
+    ...(reportRoles === null ? {} : { reportRoles }),
     ...(approvals === null ? {} : { approvals }),
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),

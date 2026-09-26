@@ -33,6 +33,7 @@ function detailOf(overrides: Partial<TenantDetail> = {}): TenantDetail {
     entitlements: null,
     effectiveEntitlements: [],
     administrators: {},
+    moduleRoles: {},
     ...overrides,
   };
 }
@@ -134,6 +135,7 @@ describe('recording the modules a company bought (PEO-114)', () => {
       entitlements: ['module.people'],
       administrators: {},
       namedBy: null,
+      confirmLast: false,
     });
     expect(status()).toBe(200);
     expect(body()).toMatchObject({ entitlements: ['module.people'] });
@@ -156,6 +158,7 @@ describe('recording the modules a company bought (PEO-114)', () => {
           'module.nope': [1],
         },
         operatorId: '00000000-0000-4000-8000-0000000000f1',
+        confirmLast: true,
       }),
       response,
     );
@@ -163,12 +166,16 @@ describe('recording the modules a company bought (PEO-114)', () => {
       entitlements: ['module.people', 'module.timeoff'],
       administrators: { 'module.people': ['a', 'b'], 'module.timeoff': 'c' },
       namedBy: '00000000-0000-4000-8000-0000000000f1',
+      confirmLast: true,
     });
   });
 
   it('refuses a body that is not a list of strings', async () => {
     const { response, status } = fakeResponse();
-    await routes(() => Promise.resolve(detailOf()))(put(path, { entitlements: 'module.people' }), response);
+    await routes(() => Promise.resolve(detailOf()))(
+      put(path, { entitlements: 'module.people' }),
+      response,
+    );
     expect(status()).toBe(400);
   });
 
@@ -204,7 +211,10 @@ describe('the company detail route', () => {
 
   it('answers 404 only when the company is genuinely not there', async () => {
     const { response, status } = fakeResponse();
-    await routes(() => Promise.resolve(null))(request(`/api/internal/admin/tenants/${ID}`), response);
+    await routes(() => Promise.resolve(null))(
+      request(`/api/internal/admin/tenants/${ID}`),
+      response,
+    );
 
     expect(status()).toBe(404);
   });

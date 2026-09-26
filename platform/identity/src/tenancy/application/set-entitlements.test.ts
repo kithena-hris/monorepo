@@ -39,8 +39,10 @@ function registry(defaults: ModuleEntitlement[] = []) {
           if (!list.includes(a.accountId)) list.push(a.accountId);
           return Promise.resolve();
         },
-        remove: (a, by) => {
-          removed.push(`${a.entitlement} ${a.accountId} ${String(by)}`);
+        remove: (a, by, confirmedLast) => {
+          removed.push(
+            `${a.entitlement} ${a.accountId} ${String(by)}${confirmedLast ? ' confirmed' : ''}`,
+          );
           held[a.entitlement] = (held[a.entitlement] ?? []).filter((id) => id !== a.accountId);
           return Promise.resolve();
         },
@@ -150,7 +152,10 @@ describe('naming who administers People (PEO-112)', () => {
 
   it('adds and removes administrators of a module already on, with the operator', async () => {
     const r = registry(['module.people']);
-    await r.set(ACME, { entitlements: ['module.people'], administrators: { 'module.people': [ADA] } });
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ADA] },
+    });
     const set = await r.set(ACME, {
       entitlements: ['module.people'],
       administrators: { 'module.people': [GRACE] },
@@ -164,9 +169,27 @@ describe('naming who administers People (PEO-112)', () => {
     expect(r.held['module.people']).toEqual([GRACE]);
   });
 
+  it('carries the operator confirming a removal that leaves no role holder', async () => {
+    const r = registry(['module.people']);
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ADA, GRACE] },
+    });
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [GRACE] },
+      namedBy: OPERATOR,
+      confirmLast: true,
+    });
+    expect(r.removed).toEqual([`module.people ${ADA} ${OPERATOR} confirmed`]);
+  });
+
   it('refuses to remove the last administrator, and writes nothing', async () => {
     const r = registry(['module.people']);
-    await r.set(ACME, { entitlements: ['module.people'], administrators: { 'module.people': [ADA] } });
+    await r.set(ACME, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ADA] },
+    });
     const writes = r.writes.length;
     const set = await r.set(ACME, {
       entitlements: ['module.people', 'module.timeoff'],

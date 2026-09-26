@@ -7,10 +7,19 @@ import { CompanyModules, type SaveModulesResult } from './company-modules';
 
 const PRIYA = '00000000-0000-4000-8000-0000000000a1';
 const MARCO = '00000000-0000-4000-8000-0000000000a2';
+const ALAN = '00000000-0000-4000-8000-0000000000a3';
+const BOTH = ['people_admin', 'hr'];
+const report = (holders: { accountId: string; roles: string[] }[]) => ({
+  [PEOPLE]: { asOf: '2026-09-26T12:00:00.000Z', administratorRoles: BOTH, holders },
+});
 const PEOPLE = 'module.people';
 const TIMEOFF = 'module.timeoff';
 
-type Save = (e: string[], a: Record<string, string[]>) => Promise<SaveModulesResult>;
+type Save = (
+  e: string[],
+  a: Record<string, string[]>,
+  o?: { confirmLast: true },
+) => Promise<SaveModulesResult>;
 
 function renderModules(over: Partial<Parameters<typeof CompanyModules>[0]> = {}) {
   const save = vi.fn<Save>(() => Promise.resolve({ ok: true }));
@@ -57,7 +66,9 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
   it('switches two modules on for the same people in one save', async () => {
     const save = renderModules();
     const u = user();
-    expect(screen.getByRole('switch', { name: 'Same administrators for every module' })).toBeChecked();
+    expect(
+      screen.getByRole('switch', { name: 'Same administrators for every module' }),
+    ).toBeChecked();
     await u.click(on('People'));
     await u.click(on('Time off'));
     expect(saveButton()).toBeDisabled();
@@ -65,7 +76,9 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
 
     await choose(u, 'Administrators', 'priya@acme.example');
     await choose(u, 'Administrators', 'marco@acme.example');
-    expect(screen.getByText('People: switched on; adds priya@acme.example, marco@acme.example')).toBeInTheDocument();
+    expect(
+      screen.getByText('People: switched on; adds priya@acme.example, marco@acme.example'),
+    ).toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
 
     await u.click(saveButton());
@@ -193,7 +206,11 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
   });
 
   it('discards the draft', async () => {
-    renderModules({ recorded: [PEOPLE], effective: [PEOPLE], administrators: { [PEOPLE]: [PRIYA] } });
+    renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA] },
+    });
     const u = user();
     await u.click(on('Time off'));
     await u.click(screen.getByRole('button', { name: 'Discard' }));
@@ -220,5 +237,93 @@ describe('the modules tab (PEO-114, PEO-112)', () => {
     await u.click(on('Time off'));
     await u.click(saveButton());
     expect(await axeViolations()).toEqual([]);
+  });
+
+  it('warns before removing People’s only HR, and tells identity the operator confirmed', async () => {
+    const save = renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA, MARCO] },
+      moduleRoles: report([
+        { accountId: PRIYA, roles: BOTH },
+        { accountId: MARCO, roles: ['people_admin'] },
+      ]),
+    });
+    const u = user();
+    await u.click(screen.getByRole('button', { name: 'Remove priya@acme.example' }));
+    await u.click(saveButton());
+    const dialog = screen.getByRole('dialog', { name: 'People will have no HR' });
+    expect(within(dialog).getByText(/priya@acme.example is the only HR/)).toBeInTheDocument();
+    expect(await axeViolations()).toEqual([]);
+    await u.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(save).not.toHaveBeenCalled();
+
+    await u.click(saveButton());
+    await u.click(screen.getByRole('button', { name: 'Remove anyway' }));
+    expect(save).toHaveBeenCalledWith([PEOPLE], { [PEOPLE]: [MARCO] }, { confirmLast: true });
+  });
+
+  it('asks nothing when somebody else still holds each role', async () => {
+    const save = renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA, MARCO] },
+      moduleRoles: report([
+        { accountId: PRIYA, roles: BOTH },
+        { accountId: MARCO, roles: BOTH },
+      ]),
+    });
+    const u = user();
+    await u.click(screen.getByRole('button', { name: 'Remove priya@acme.example' }));
+    await u.click(saveButton());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(save).toHaveBeenCalledWith([PEOPLE], { [PEOPLE]: [MARCO] });
+  });
+
+  it('shows where People differs from what was set here, and grants again on request', async () => {
+    const grantAgain = vi.fn(() => Promise.resolve({ ok: true as const }));
+    renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA, MARCO] },
+      accounts: [
+        { id: PRIYA, email: 'priya@acme.example' },
+        { id: MARCO, email: 'marco@acme.example' },
+        { id: ALAN, email: 'alan@acme.example' },
+      ],
+      moduleRoles: report([
+        { accountId: MARCO, roles: ['hr'] },
+        { accountId: ALAN, roles: BOTH },
+      ]),
+      grantAgain,
+    });
+    const differences = screen.getByRole('list', { name: 'Differences in People' });
+    expect(within(differences).getByText('Set here, not in People')).toBeInTheDocument();
+    expect(within(differences).getByText('Set here, only HR')).toBeInTheDocument();
+    expect(
+      within(differences).getByText('People administrator and HR in People'),
+    ).toBeInTheDocument();
+    // Only shown: nothing offers to change who People has that was not set here.
+    expect(within(differences).getAllByRole('button', { name: /^Grant again/ })).toHaveLength(2);
+    expect(await axeViolations()).toEqual([]);
+
+    await user().click(screen.getByRole('button', { name: 'Grant again to priya@acme.example' }));
+    expect(grantAgain).toHaveBeenCalledWith(PEOPLE, PRIYA);
+    expect(
+      await within(differences).findByText(
+        'Asked People to grant People administrator and HR again.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('says so when People matches what was set here', () => {
+    renderModules({
+      recorded: [PEOPLE],
+      effective: [PEOPLE],
+      administrators: { [PEOPLE]: [PRIYA] },
+      moduleRoles: report([{ accountId: PRIYA, roles: BOTH }]),
+    });
+    expect(screen.getByText(/People matches/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Grant again/ })).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decideGrant, decideRevoke, type Holdings } from './roles.js';
+import { backOfficeRemoval, decideGrant, decideRevoke, type Holdings } from './roles.js';
 
 const PRIYA = 'priya';
 const MARCO = 'marco';
@@ -68,5 +68,42 @@ describe('revoking a tenant role (PEO-112)', () => {
   it('changes nothing when the role is not held', () => {
     const held = holdings({ [PRIYA]: ['people_admin'] });
     expect(decideRevoke(held, change({ target: ADAM }))).toEqual({ ok: true, value: 'unchanged' });
+  });
+});
+
+describe('the back office removing an administrator it named', () => {
+  it('takes back people_admin and hr while somebody else holds each', () => {
+    const held = holdings({
+      [PRIYA]: ['people_admin', 'hr', 'finance'],
+      [MARCO]: ['people_admin', 'hr'],
+    });
+    expect(backOfficeRemoval(held, PRIYA, false)).toEqual({
+      revoke: ['people_admin', 'hr'],
+      last: [],
+    });
+  });
+
+  it('keeps both when it would leave nobody holding one, unless the operator confirmed', () => {
+    const onlyHr = holdings({ [PRIYA]: ['people_admin', 'hr'], [MARCO]: ['people_admin'] });
+    expect(backOfficeRemoval(onlyHr, PRIYA, false)).toEqual({ revoke: [], last: ['hr'] });
+    expect(backOfficeRemoval(onlyHr, PRIYA, true)).toEqual({
+      revoke: ['people_admin', 'hr'],
+      last: ['hr'],
+    });
+
+    const onlyAdmin = holdings({ [PRIYA]: ['people_admin'], [MARCO]: ['hr'] });
+    expect(backOfficeRemoval(onlyAdmin, PRIYA, false)).toEqual({
+      revoke: [],
+      last: ['people_admin'],
+    });
+    expect(backOfficeRemoval(onlyAdmin, PRIYA, true).revoke).toEqual(['people_admin']);
+  });
+
+  it('has nothing to take from somebody holding neither', () => {
+    expect(backOfficeRemoval(holdings({ [MARCO]: ['finance'] }), MARCO, true)).toEqual({
+      revoke: [],
+      last: [],
+    });
+    expect(backOfficeRemoval(holdings({}), ADAM, false)).toEqual({ revoke: [], last: [] });
   });
 });

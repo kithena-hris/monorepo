@@ -32,3 +32,20 @@ export const MODULE_CHOICES: readonly {
 export function moduleLabel(key: string): string {
   return WORDS[key]?.label ?? key;
 }
+
+/** A module's administrator role, as an operator reads it; the key when unknown. */
+const ROLE_WORDS: Record<string, string> = {
+  people_admin: 'People administrator',
+  hr: 'HR',
+};
+
+export function roleLabel(role: string): string {
+  return ROLE_WORDS[role] ?? role;
+}
+
+/** Who holds a module's administrator roles, as the module last reported it. */
+export interface ModuleRoles {
+  readonly asOf: string;
+  readonly administratorRoles: readonly string[];
+  readonly holders: readonly { readonly accountId: string; readonly roles: readonly string[] }[];
+}
