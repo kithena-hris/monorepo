@@ -266,7 +266,7 @@ jobs:
     # created in it first. See the `atlas dev roles` step for why that matters.
     services:
       atlas-dev:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_USER: dev
           POSTGRES_PASSWORD: dev

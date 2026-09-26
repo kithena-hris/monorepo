@@ -275,7 +275,7 @@ local-db:
 # again afterwards starting from `just admin-seed`.
 local-reset:
     docker compose rm -sfv postgres
-    docker volume rm -f kithena_pgdata
+    docker volume rm -f kithena_pgdata18
     just local-db
 
 # The tenant app on its own, on 3000. Reach it as acme.app.localhost:3000 —

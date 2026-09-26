@@ -1037,6 +1037,25 @@ as owner and FORCE'd RLS on all 30 tables, then People healthy on it and
 OpenFGA's store and Temporal's namespaces intact; and records round-tripped
 through the line format.
 
+**Postgres 17 to 18.** 18 cannot open a 17 data directory, so `compose.yaml`
+gives it a new volume, `postgres18` (mounted at `/var/lib/postgresql`, where
+18's image keeps `18/docker`), and the first `deploy.sh` of any service on a
+VM whose `postgres` volume still holds a 17 cluster moves the data before
+anything starts: `backup.sh <env>` to S3 (the upgrade stops, having changed
+nothing, if that fails), every other service stopped, `pg_dumpall` of the old
+cluster to `/etc/kithena/<env>/`, 18 started on the new volume, the dump
+restored, the roles with their password hashes and the row count of every
+table compared side by side, and only then a marker written on the new volume
+and the stopped services started again. The marker makes every later deploy a
+no-op; a run that failed part way leaves no marker, and the next one discards
+the half-made volume and starts over. The old volume is never removed:
+`docker volume rm kithena-<env>_postgres` once 18 has run long enough to
+trust. A retry always dumps from 17 on the old volume, never from the
+half-restored 18. Rehearsed locally against a 17 volume holding People's
+migrated schema, roles and rows: a failed backup changed nothing, a restore cut
+short left 18 stopped and unmarked, the retry restored everything with every
+password login working, and a second run did nothing.
+
 #### Scaling later
 
 Everything above is a set of containers, S3 buckets and URLs, so each move is a

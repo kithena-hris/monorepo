@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Nightly: the VM's own state, to the backups bucket on Amazon S3.
 #
-# Run as root by `kithena-backup.timer` (installed by `bootstrap.sh`). For each
+# Run as root by `kithena-backup.timer` (installed by `bootstrap.sh`), and by
+# `deploy.sh` before the Postgres 18 upgrade as `backup.sh <env>`, which backs
+# up that one environment and fails if it is not running. For each
 # environment running on this VM:
 #
 #   <env>/<date>/people.dump       pg_dump -Fc of People's database, `kithena`:
@@ -46,11 +48,13 @@ upload() {
 }
 
 status=0
-for dir in "$root"/*/; do
+for dir in "$root"/${1:-*}/; do
   env="$(basename "$dir")"
   # Compose names the containers `<project>-<service>-1`.
   pg="kithena-$env-postgres-1" rp="kithena-$env-redpanda-1"
-  docker container inspect "$pg" "$rp" >/dev/null 2>&1 || continue
+  if [ -z "${1:-}" ]; then
+    docker container inspect "$pg" "$rp" >/dev/null 2>&1 || continue
+  fi
   echo "backing up $env"
   # Custom format: compressed, and `pg_restore` can take one table back out.
   if docker exec "$pg" psql -U kithena -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'kithena'" | grep -q 1; then

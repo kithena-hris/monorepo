@@ -33,7 +33,7 @@ env "local" {
   // `sslmode=disable` forced on, because `.env`'s DATABASE_URL has no sslmode,
   // Atlas then asks for TLS, and the compose Postgres has none. Local only.
   url     = urlqueryset(var.url != "" ? var.url : "postgres://kithena:kithena@localhost:5432/kithena", "sslmode", "disable")
-  dev     = var.dev_url != "" ? var.dev_url : "docker://postgres/17/dev?search_path=public"
+  dev     = var.dev_url != "" ? var.dev_url : "docker://postgres/18/dev?search_path=public"
 
   migration {
     dir = "file://migrations"

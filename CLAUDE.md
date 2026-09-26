@@ -22,8 +22,11 @@ than quietly working around it.
   the JSON Schema for the Redpanda registry, the OpenAPI spec, the GraphQL
   input validation, and the form resolver. Never hand-write a derived artifact.
 - **Redpanda** with a transactional outbox and Debezium CDC. No dual writes.
-- **Postgres 17**, schema-per-module, RLS for tenant isolation, Drizzle for
-  queries, Atlas for migrations.
+- **Postgres 18**, schema-per-module, RLS for tenant isolation, Drizzle for
+  queries, Atlas for migrations. 18 because Neon, where identity lives, already
+  runs it, and one major version everywhere (Neon, the VM, local, tests, the
+  Atlas dev database) means a query or migration proven in one place behaves
+  the same in the others.
 - **OpenFGA** for authorization. Org charts are graphs, not role tables.
 - **Temporal** for long-running human-in-the-loop workflows. BullMQ for
   fire-and-forget jobs.
