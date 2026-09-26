@@ -18,6 +18,7 @@ import {
   scheduleRuns,
   sendDueReports,
   setPaused,
+  updateSchedule,
   type ReportDeps,
   type ReportMail,
 } from './scheduled.js';
@@ -282,6 +283,50 @@ describe('a scheduled summary', () => {
       [`${ORIGIN}/people/analytics`, 'summary', 'daily'],
       [`${ORIGIN}/people/analytics`, 'summary', 'daily'],
     ]);
+  });
+});
+
+describe('changing a schedule', () => {
+  it('starts again from the current period, keeps it paused, and belongs to whoever saved it', async () => {
+    const { deps, clock, mail, schedules, sweep, make } = setup();
+    const schedule = await make();
+    await setPaused(deps, tx, asking(HR), schedule.id, true);
+    clock.set('2026-10-06T10:00:00.000Z');
+    const other = { ...HR, accountId: '00000000-0000-4000-8000-0000000000fd' };
+    const changed = await updateSchedule(deps, tx, asking(other), schedule.id, {
+      name: 'Daily roster',
+      audience: { filter: {} },
+      report: { kind: 'export', format: 'pdf', fields: null, reason: null },
+      cadence: { every: 'day', hour: 7 },
+      legalEntityId: null,
+      recipients: [HR.accountId],
+    });
+    expect(changed).toMatchObject({
+      ok: true,
+      value: {
+        name: 'Daily roster',
+        paused: true,
+        lastPeriod: '2026-10-06',
+        ownerAccountId: other.accountId,
+      },
+    });
+    expect(schedules.held.get(schedule.id)?.cadence).toEqual({ every: 'day', hour: 7 });
+    await sweep(TENANT);
+    expect(mail).toHaveLength(0);
+  });
+
+  it('is refused to anybody but HR and People administrators', async () => {
+    const { deps, make } = setup();
+    const schedule = await make();
+    const refused = await updateSchedule(deps, tx, asking(MANAGER), schedule.id, {
+      name: 'Mine',
+      audience: { filter: {} },
+      report: { kind: 'summary' },
+      cadence: { every: 'day', hour: 7 },
+      legalEntityId: null,
+      recipients: [MANAGER.accountId],
+    });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
   });
 });
 

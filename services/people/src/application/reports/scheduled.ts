@@ -76,6 +76,8 @@ export interface RecipientOutcome {
 export interface ScheduleStore {
   all(tx: Tx, tenantId: string): Promise<readonly Schedule[]>;
   insert(tx: Tx, tenantId: string, schedule: Schedule): Promise<void>;
+  /** Replace everything the owner chose, the owner and the last period; runs are kept. */
+  update(tx: Tx, tenantId: string, schedule: Schedule): Promise<void>;
   setPaused(
     tx: Tx,
     tenantId: string,
@@ -182,6 +184,54 @@ export async function createSchedule(
   asking: Asking,
   input: ScheduleInput,
 ): Promise<Result<Schedule>> {
+  const checked = await admissible(deps, tx, asking, input);
+  if (!checked.ok) return checked;
+  const schedule: Schedule = {
+    ...checked.value.input,
+    id: deps.newId(),
+    ownerAccountId: asking.viewer.accountId,
+    paused: false,
+    lastPeriod: checked.value.current,
+  };
+  await deps.schedules.insert(tx, asking.tenantId, schedule);
+  return ok(schedule);
+}
+
+/**
+ * Change a schedule: everything but whether it is paused. Whoever saves it
+ * owns it from then on — its segment is checked as them, and its runs lapse
+ * with their role — and it starts again from the period current now, so an
+ * edit never sends on the spot.
+ */
+export async function updateSchedule(
+  deps: ScheduleAdminDeps,
+  tx: Tx,
+  asking: Asking,
+  id: string,
+  input: ScheduleInput,
+): Promise<Result<Schedule>> {
+  const found = await findSchedule(deps, tx, asking, id);
+  if (!found.ok) return found;
+  const checked = await admissible(deps, tx, asking, input);
+  if (!checked.ok) return checked;
+  const schedule: Schedule = {
+    ...checked.value.input,
+    id,
+    ownerAccountId: asking.viewer.accountId,
+    paused: found.value.paused,
+    lastPeriod: checked.value.current,
+  };
+  await deps.schedules.update(tx, asking.tenantId, schedule);
+  return ok(schedule);
+}
+
+/** A schedule the viewer may save, and the period current for it now. */
+async function admissible(
+  deps: ScheduleAdminDeps,
+  tx: Tx,
+  asking: Asking,
+  input: ScheduleInput,
+): Promise<Result<{ input: ScheduleInput; current: string }>> {
   if (!mayManage(asking.viewer.roles)) return err(Forbidden);
   const checked = checkSchedule(input);
   if (!checked.ok) return checked;
@@ -211,20 +261,8 @@ export async function createSchedule(
   if (value.legalEntityId !== null && !calendar.entities.has(value.legalEntityId)) {
     return err(failure('NOT_FOUND', 'There is no such legal entity', ['legalEntityId']));
   }
-
-  const schedule: Schedule = {
-    ...value,
-    id: deps.newId(),
-    ownerAccountId: asking.viewer.accountId,
-    paused: false,
-    lastPeriod: latestPeriod(
-      value.cadence,
-      entityZone(calendar, value.legalEntityId),
-      deps.clock.instant(),
-    ),
-  };
-  await deps.schedules.insert(tx, asking.tenantId, schedule);
-  return ok(schedule);
+  const zone = entityZone(calendar, value.legalEntityId);
+  return ok({ input: value, current: latestPeriod(value.cadence, zone, deps.clock.instant()) });
 }
 
 /**

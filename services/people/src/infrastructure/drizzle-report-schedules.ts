@@ -98,6 +98,25 @@ export function drizzleReportSchedules(): ScheduleStore {
                 ${s.lastPeriod}::date)`);
     },
 
+    async update(tx, tenantId, s) {
+      const report = s.report;
+      const c = s.cadence;
+      await tx.execute(sql`
+        UPDATE people.report_schedule
+           SET name = ${s.name}, owner_account_id = ${s.ownerAccountId}::uuid,
+               segment_id = ${'segmentId' in s.audience ? s.audience.segmentId : null}::uuid,
+               filter = ${JSON.stringify('filter' in s.audience ? s.audience.filter : {})}::jsonb,
+               kind = ${report.kind}, format = ${report.kind === 'export' ? report.format : null},
+               fields = ${report.kind === 'export' && report.fields !== null ? textArray(report.fields) : null},
+               reason = ${report.kind === 'export' ? report.reason : null},
+               every = ${c.every}, weekday = ${c.every === 'week' ? c.weekday : null},
+               day_of_month = ${c.every === 'month' ? c.day : null}, hour = ${c.hour},
+               legal_entity_id = ${s.legalEntityId}::uuid,
+               recipients = ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(s.recipients)}::jsonb)::uuid),
+               paused = ${s.paused}, last_period = ${s.lastPeriod}::date
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${s.id}::uuid`);
+    },
+
     async setPaused(tx, tenantId, id, paused, lastPeriod) {
       await tx.execute(sql`
         UPDATE people.report_schedule SET paused = ${paused}, last_period = ${lastPeriod}::date
@@ -166,6 +185,10 @@ export function inMemoryReportSchedules(): ScheduleStore & {
     all: () => Promise.resolve([...held.values()]),
     insert(_tx, _tenantId, s) {
       held.set(s.id, s);
+      return Promise.resolve();
+    },
+    update(_tx, _tenantId, s) {
+      if (held.has(s.id)) held.set(s.id, s);
       return Promise.resolve();
     },
     setPaused(_tx, _tenantId, id, paused, lastPeriod) {

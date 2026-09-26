@@ -48,8 +48,10 @@ import {
   listSchedules,
   scheduleRuns,
   setPaused,
+  updateSchedule,
   type ScheduleAdminDeps,
 } from '../application/reports/scheduled.js';
+import { reportRunsView, reportSchedulesView } from '../application/screens/reports.js';
 import {
   addSection,
   adviseClassification,
@@ -831,6 +833,27 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         { resource: (_asking, id) => id },
       ),
     })),
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/report-schedules/${UUID}$`),
+      handle: write(
+        ScheduleBody,
+        (asking, input, id) =>
+          scheduled(asking, (d, tx) => updateSchedule(d, tx, asking, id, input)),
+        { resource: (_asking, id) => id },
+      ),
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/report-schedules$/,
+      handle: async (asking) => answer(await reportSchedulesView(deps, asking)),
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/report-schedules/${UUID}$`),
+      handle: async (asking, _r, params) =>
+        answer(await reportRunsView(deps, asking, params['id'] ?? '')),
+    },
     {
       method: 'DELETE',
       pattern: new RegExp(`^/v1/report-schedules/${UUID}$`),

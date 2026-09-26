@@ -108,6 +108,22 @@ describe('the schedule store', () => {
     ]);
   });
 
+  it('replaces a schedule on update and keeps its runs', async () => {
+    const changed: Schedule = {
+      ...schedule,
+      name: 'Daily roster',
+      ownerAccountId: MARCO,
+      audience: { filter: {} },
+      report: { kind: 'export', format: 'xlsx', fields: null, reason: 'Payroll check' },
+      cadence: { every: 'day', hour: 9 },
+      recipients: [MARCO],
+      lastPeriod: '2026-10-06',
+    };
+    await inTenant(ACME, ({ tx }) => store.update(tx, ACME, changed));
+    expect(await inTenant(ACME, ({ tx }) => store.all(tx, ACME))).toEqual([changed]);
+    expect(await inTenant(ACME, ({ tx }) => store.runs(tx, ACME, schedule.id, 10))).toHaveLength(1);
+  });
+
   it('pauses, and deletes a schedule with its history', async () => {
     await inTenant(ACME, ({ tx }) => store.setPaused(tx, ACME, schedule.id, true, '2026-09-28'));
     expect((await inTenant(ACME, ({ tx }) => store.all(tx, ACME)))[0]?.paused).toBe(true);
