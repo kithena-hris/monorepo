@@ -27,7 +27,6 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
-    "drizzle-kit": "^0.31.11",
     "vitest": "^4.1.11"
   }
 }
