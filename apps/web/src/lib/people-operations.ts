@@ -158,9 +158,11 @@ export const OPERATIONS = {
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID) {
-    peopleDirectory(search: $search, filter: $filter, after: $after) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment) {
       active incomplete
+      segment { id name }
+      segments { id name }
       columns { key label }
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } missing }
@@ -242,16 +244,23 @@ export const OPERATIONS = {
     }
   }`,
 
-  Analytics: `query Analytics {
-    peopleAnalytics {
+  Analytics: `query Analytics($segment: ID) {
+    peopleAnalytics(segment: $segment) {
       asOf source sourceNote
+      segment { id name }
+      segments { id name }
       headcount { value change trend { label value } }
-      attrition { percent leavers formula }
+      attrition { percent leavers formula trend { label value } }
       complete { percent incomplete }
       expiringIn90Days
       expiries { today items { kind personId name day } }
       movement { period opening joiners moves leavers closing }
       completenessBySection { label value }
+      tenure { label headcount leavers }
+      span { label value }
+      joiners { months departments cells { row column value } }
+      composition { categories series { label values } }
+      selfId { key label status minimum publishedAsOf total note cells { label value } }
     }
   }`,
 
@@ -466,10 +475,20 @@ export const OPERATIONS = {
     commitImport(uploadId: $uploadId, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
   }${STAGE}`,
 
-  RequestExport: `mutation RequestExport($format: String!, $fields: [String!], $asOf: String, $key: String!) {
-    requestExport(format: $format, fields: $fields, asOf: $asOf, idempotencyKey: $key) {
+  RequestExport: `mutation RequestExport(
+    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $key: String!
+  ) {
+    requestExport(
+      format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, idempotencyKey: $key
+    ) {
       id status rowCount expiresAt links { name url }
     }
+  }`,
+
+  SaveSegment: `mutation SaveSegment(
+    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $shared: Boolean!, $key: String!
+  ) {
+    savePeopleSegment(name: $name, filter: $filter, shared: $shared, idempotencyKey: $key) { id }
   }`,
 } as const;
 

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RequestExport(\n    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $key: String!\n  ) {\n    requestExport(\n      format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, idempotencyKey: $key\n    ) {\n      id status rowCount expiresAt links { name url }\n    }\n  }"}

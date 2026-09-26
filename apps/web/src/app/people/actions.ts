@@ -470,10 +470,30 @@ export async function requestExport(choice: {
   { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }
 > {
   // The links are signed and expire (PEO-089); they carry their own authority.
+  // A saved segment is an audience (PEO-068): People applies it as this person.
+  const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
   const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', {
     format: choice.format,
     fields: [...choice.fields],
     asOf: choice.asOf,
+    segmentId,
   });
   return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+}
+
+/* ------------------------------------------------------------ segments -- */
+
+/** Save the directory's filters as a named segment (PEO-068). */
+export async function saveSegment(segment: {
+  name: string;
+  shared: boolean;
+  filter: Readonly<Record<string, string>>;
+}): Promise<Outcome> {
+  return outcome(
+    people('SaveSegment', {
+      name: segment.name,
+      shared: segment.shared,
+      filter: Object.entries(segment.filter).map(([key, value]) => ({ key, value })),
+    }),
+  );
 }

@@ -1,7 +1,7 @@
 import { TooltipProvider } from '@reach/ui';
 import { render as mount, screen, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
@@ -150,6 +150,139 @@ describe('Analytics', () => {
   it('says when a date was replayed from history rather than a snapshot', () => {
     render(<Analytics load={{ status: 'ready', data: { ...workforce, source: 'history' } }} />);
     expect(screen.getByText(/replayed from history/)).toBeInTheDocument();
+  });
+
+  const remaining: AnalyticsState = {
+    ...workforce,
+    attrition: {
+      ...(workforce.attrition as NonNullable<AnalyticsState['attrition']>),
+      trend: [
+        { label: '2026-07', value: 10.2 },
+        { label: '2026-08', value: 11.4 },
+      ],
+    },
+    tenure: [
+      { label: 'Under 6 months', headcount: 120, leavers: 4 },
+      { label: '6 to 12 months', headcount: 90, leavers: 19 },
+    ],
+    span: [
+      { label: '1 report', value: 12 },
+      { label: '6 reports', value: 30 },
+    ],
+    joiners: {
+      months: ['2026-07', '2026-08'],
+      departments: ['Engineering', 'Sales'],
+      cells: [
+        { row: 'Engineering', column: '2026-07', value: 4 },
+        { row: 'Sales', column: '2026-08', value: 2 },
+      ],
+    },
+    composition: {
+      categories: ['Engineering', 'Sales'],
+      series: [
+        { label: 'Permanent', values: [300, 120] },
+        { label: 'Contractor', values: [40, 5] },
+      ],
+    },
+    selfId: [
+      {
+        key: 'ethnicity',
+        label: 'Ethnicity',
+        status: 'ok',
+        minimum: null,
+        publishedAsOf: '2026-09-01',
+        total: 910,
+        note: 'Counts are rounded to the nearest 5.',
+        cells: [
+          { label: 'A', value: 455 },
+          { label: 'Prefer not to say', value: 455 },
+        ],
+      },
+      {
+        key: 'disability',
+        label: 'Disability',
+        status: 'insufficient_data',
+        minimum: 10,
+        publishedAsOf: '2026-09-01',
+        total: null,
+        note: 'Counts are rounded to the nearest 5.',
+        cells: [],
+      },
+    ],
+  };
+
+  it('draws attrition, composition, tenure, span and joiners, each with its numbers (PEO-067)', async () => {
+    const user = fast();
+    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
+    for (const title of [
+      'Are people leaving faster',
+      'What we are made of',
+      'Who is at risk of leaving',
+      'Is the org shaped sensibly',
+      'When people join',
+    ]) {
+      const section = screen.getByRole('heading', { name: title }).closest('section');
+      if (section === null) throw new Error(`no section for ${title}`);
+      await user.click(within(section).getByRole('button', { name: 'Show the numbers' }));
+      expect(within(section).getByRole('table', { name: `${title}: the numbers` })).toBeVisible();
+    }
+    expect(
+      screen.getByRole('table', { name: 'Who is at risk of leaving: the numbers' }),
+    ).toHaveTextContent('6 to 12 months: left19');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows a withheld self-ID question as insufficient data, with no number to read (PEO-070)', async () => {
+    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
+    const withheld = screen.getByRole('heading', { name: 'Disability' }).closest('section');
+    if (withheld === null) throw new Error('no section for Disability');
+    expect(within(withheld).getByText('Insufficient data')).toBeInTheDocument();
+    expect(within(withheld).queryByRole('button', { name: 'Show the numbers' })).toBeNull();
+    // The minimum and the publication date are the only numbers in it.
+    expect(withheld.textContent.replace('2026-09-01', '').replace('Fewer than 10', '')).not.toMatch(
+      /\d/,
+    );
+    // A served one says its total was rounded on its own.
+    const served = screen.getByRole('heading', { name: 'Ethnicity' }).closest('section');
+    expect(served?.textContent).toContain('rounded to the nearest 5');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('applies a segment through the shell and says what it leaves out (PEO-068)', async () => {
+    const user = fast();
+    const onSegmentChange = vi.fn();
+    const { rerender } = render(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: { ...remaining, segments: [{ id: 'seg-1', name: 'Engineering' }] },
+        }}
+        onSegmentChange={onSegmentChange}
+      />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Segment' }));
+    await user.click(await screen.findByRole('option', { name: 'Segment: Engineering' }));
+    expect(onSegmentChange).toHaveBeenCalledWith('seg-1');
+
+    rerender(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: {
+            ...remaining,
+            span: null,
+            selfId: null,
+            expiries: null,
+            segment: { id: 'seg-1', name: 'Engineering' },
+            segments: [{ id: 'seg-1', name: 'Engineering' }],
+          },
+        }}
+        segmentId="seg-1"
+        onSegmentChange={onSegmentChange}
+      />,
+    );
+    expect(screen.getByText(/Showing the people you may see in Engineering/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Is the org shaped sensibly' })).toBeNull();
   });
 
   it('has loading and error states', async () => {
