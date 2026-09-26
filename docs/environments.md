@@ -68,6 +68,15 @@ affected targets after a merge to `main`, and that is the only automatic deploy:
 
 Restore the automatic triggers when the projects move off Hobby.
 
+**Deploying by hand.** Actions → "deploy to production" → Run workflow, from
+`main`. Tick "Everything" or any of People (service, screens, router and
+migrations), Tenant app, Back office, Identity (and the sign-in pages),
+Messaging, and Reach docs and Storybook. It deploys exactly what is ticked;
+"Also deploy anything else that changed" adds what differs from production.
+It runs the same jobs as the deploy after a merge (`vercel-production.yml`,
+called with `only`), so migrations, smoke tests, rollbacks and the
+`deployed/production/*` markers behave the same.
+
 **Targets.** Each deploy workflow knows these, one gated group of steps each:
 
 | Target          | Ships                         | Affected by                                                               |

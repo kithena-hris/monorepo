@@ -185,7 +185,7 @@ function changeBetween(
 export function plan(
   env: Env,
   head: string,
-  opts: { base?: string; force?: Set<Target> },
+  opts: { base?: string; force?: Set<Target>; only?: boolean },
 ): Map<Target, string | null> {
   const workspace = turboLs([]);
   const cache = new Map<string, Change | null>();
@@ -193,6 +193,11 @@ export function plan(
   for (const target of ENV_TARGETS[env]) {
     if (opts.force?.has(target)) {
       result.set(target, 'forced');
+      continue;
+    }
+    // A hand-picked deploy: what was asked for and nothing it did not name.
+    if (opts.only === true) {
+      result.set(target, null);
       continue;
     }
     const base = opts.base ?? tagged(env, target);
@@ -211,12 +216,13 @@ function main(argv: string[]): void {
   const head = arg('head');
   if (!env || !(env in ENV_TARGETS) || !head) {
     throw new Error(
-      'usage: affected-targets --env production|staging|preview --head <sha> [--base <sha>] [--force all|a,b]',
+      'usage: affected-targets --env production|staging|preview --head <sha> [--base <sha>] [--force all|a,b] [--only]',
     );
   }
   const base = arg('base');
   const force = parseForce(arg('force') ?? '', env);
-  const decided = plan(env, head, { ...(base ? { base } : {}), force });
+  const only = argv.includes('--only');
+  const decided = plan(env, head, { ...(base ? { base } : {}), force, only });
 
   const lines: string[] = [];
   const chosen: Target[] = [];
