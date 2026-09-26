@@ -373,6 +373,9 @@ const STATUS: Record<string, number> = {
   // A request missing what every webhook endpoint must carry. No route
   // creates endpoints yet; this is the answer when one does (PEO-093).
   BAD_WEBHOOK_ALERT_EMAIL: 400,
+  // An upstream system is the source of record for it (PEO-073): change it there.
+  SOURCE_OF_RECORD_EXTERNAL: 403,
+  SCIM_CONNECTION_REVOKED: 409,
   UNAVAILABLE: 503,
 };
 

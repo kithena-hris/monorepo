@@ -1024,6 +1024,29 @@ const RoleChange = z.object({
 export const RoleGranted = defineEvent('people.role.granted', 1, RoleChange);
 export const RoleRevoked = defineEvent('people.role.revoked', 1, RoleChange);
 
+/**
+ * A SCIM connection changed (PEO-072, PEO-073; PRD §13.5, §13.6): created,
+ * its token rotated, revoked, or its approved mapping set. The audit record
+ * of who let which system provision people and own which attributes — the
+ * envelope's actor is the People administrator who did it.
+ *
+ * Never the token, nor its hash. `ownedKeys` is every attribute the system
+ * is the source of record for after the change: empty once revoked.
+ */
+export const ScimConnectionChanged = defineEvent(
+  'people.scim.connection_changed',
+  1,
+  z.object({
+    connectionId: z.uuid().register(policy, asPublic()),
+    change: z
+      .enum(['created', 'token_rotated', 'revoked', 'mapping_set'])
+      .register(policy, asPublic()),
+    /** What the tenant calls the system, as refusals name it. */
+    system: z.string().min(1).max(80).register(policy, asInternal()),
+    ownedKeys: z.array(AttributeKey).register(policy, asInternal()),
+  }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -1075,4 +1098,5 @@ export const peopleEvents = [
   WebhookEndpointDisabled,
   RoleGranted,
   RoleRevoked,
+  ScimConnectionChanged,
 ] as const;

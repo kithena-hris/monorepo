@@ -1,5 +1,7 @@
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { EmploymentType, WorkModel } from '@kithena/contracts';
 
+import type { ExternalSource } from '../../domain/access/field-access.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 import type { PersonReader, PersonRecord, RelationsResolver } from './ports.js';
 
@@ -40,6 +42,39 @@ export function countryOf(values: Readonly<Record<string, unknown>>): string | n
   }
   const direct = values['country'];
   return typeof direct === 'string' ? direct : null;
+}
+
+/** Which external systems own which attributes on a person (PEO-073); `ScimStore` has it. */
+export interface ExternalSources {
+  sources(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personId: string,
+  ): Promise<ReadonlyMap<string, ExternalSource>>;
+}
+
+const NOBODY = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * A resolver whose per-person answer names the attributes an upstream
+ * system owns on that person (PEO-073, PRD §13.6), so `canWrite` refuses
+ * every other writer and every screen shows them read-only, naming the
+ * system — on every path that resolves relations through it, which is every
+ * transport's. A question about nobody in particular has no sources.
+ */
+export function withSources(resolver: RelationsResolver, external: ExternalSources): RelationsResolver {
+  const reach = resolver.reach?.bind(resolver);
+  return {
+    ...(reach === undefined ? {} : { reach }),
+    async relations(tx, tenantId, viewer, personId) {
+      if (personId === NOBODY) return resolver.relations(tx, tenantId, viewer, personId);
+      const [relations, sources] = await Promise.all([
+        resolver.relations(tx, tenantId, viewer, personId),
+        external.sources(tx, tenantId, personId),
+      ]);
+      return sources.size === 0 ? relations : { ...relations, sources };
+    },
+  };
 }
 
 /**

@@ -183,14 +183,16 @@ export interface HireFacts {
  *
  * §14.4: a person with no legal name or work email is a record nobody can
  * find, match or invite, so a hire without them is refused rather than
- * published half-empty. `sourceOfRecord` is `own` because a hire through
- * People is People's own record; a mirrored one arrives as
- * `synced_from_external` instead.
+ * published half-empty. `sourceOfRecord` is the record's: `external` when an
+ * upstream system provisioned it (PEO-072), whose changes also arrive as
+ * `synced_from_external`.
  */
 export function hireFactsOf(
   values: Readonly<Record<string, unknown>>,
   legalEntityId: string | null,
   schemaVersion: number,
+  /** `external` for a record an upstream system provisioned (PEO-072). */
+  sourceOfRecord: 'own' | 'external' = 'own',
 ): Result<HireFacts> {
   const given = text(values['given_name']);
   const family = text(values['family_name']);
@@ -210,7 +212,7 @@ export function hireFactsOf(
     managerId: text(values['manager_id']),
     orgUnitId: text(values['org_unit_id']),
     schemaVersion,
-    sourceOfRecord: 'own',
+    sourceOfRecord,
   });
 }
 
@@ -837,6 +839,38 @@ export class Person extends AggregateRoot<string> {
       ctx,
       effectiveFrom,
     );
+  }
+
+  /**
+   * The upstream system that is the source of record changed this person
+   * (PEO-073, PRD §13.6): which fields, never their values. Raised beside
+   * the write's own events on every change the integration makes, so a
+   * consumer can tell a mirrored change from one made in Kithena. Refused on
+   * a discarded record, which holds nothing.
+   */
+  syncedFromExternal(
+    sync: {
+      readonly provider: string;
+      readonly externalId: string;
+      readonly fieldsChanged: readonly string[];
+    },
+    ctx: EventContext,
+    /** Today on the person's calendar: an upstream change is effective now. */
+    effectiveFrom: string,
+  ): Result<void> {
+    if (this.#status === 'discarded') return err(InvalidTransition(this.#status, 'synced'));
+    this.#raise(
+      'people.person.synced_from_external',
+      {
+        personId: this.id,
+        provider: sync.provider,
+        externalId: sync.externalId,
+        fieldsChanged: [...sync.fieldsChanged],
+      },
+      ctx,
+      effectiveFrom,
+    );
+    return ok(undefined);
   }
 
   /**

@@ -653,6 +653,7 @@ type Mutation {
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
+  createScimConnection(idempotencyKey: String!, system: String!): ScimConnectionToken
   createWebhookEndpoint(alertEmail: String!, allowlist: [String!]!, events: [String!]!, idempotencyKey: String!, url: String!): WebhookEndpointSecret
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
@@ -719,6 +720,8 @@ type Mutation {
   reviewIdentifier(attributeKey: String!, decision: IdentifierReviewDecision!, idempotencyKey: String!, note: String, personId: ID!): IdentifierDecision
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
+  revokeScimConnection(id: ID!, idempotencyKey: String!): WriteOutcome
+  rotateScimToken(id: ID!, idempotencyKey: String!): ScimConnectionToken
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
   """Add or change a field in the draft; the draft decides whether it may."""
@@ -729,6 +732,7 @@ type Mutation {
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
+  setScimMapping(id: ID!, idempotencyKey: String!, mapping: [ScimMappingInput!]!): WriteOutcome
   """
   Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
   """
@@ -871,6 +875,7 @@ type PeopleIntegrations {
   events: [String!]
   fields: [IntegrationField!]
   schemaVersion: Int
+  scim: PeopleScim
 }
 
 type PeopleOnboarding {
@@ -939,6 +944,16 @@ type PeopleSchema {
   checksum: String
   publishedAt: String
   version: Int
+}
+
+type PeopleScim {
+  connections: [ScimConnection!]
+  """The schema a tenant attribute is mapped under, as `<extension>:<key>`."""
+  extension: String
+  mappable: [ScimMappableAttribute!]
+  paths: [String!]
+  """The SCIM base URL to give the provider."""
+  url: String
 }
 
 type PeopleSettings {
@@ -1139,6 +1154,10 @@ type RecordField {
   currency: String
   dataType: String
   description: String
+  """
+  The upstream system that is the source of record for this field on this person (PEO-073); change it there.
+  """
+  keptIn: String
   key: String
   label: String
   options: [FieldOption!]
@@ -1232,6 +1251,40 @@ type RoleSettingsPerson {
   personId: ID
   roles: [String!]
   workEmail: String
+}
+
+"""An upstream system provisioning people over SCIM (PEO-072)."""
+type ScimConnection {
+  createdAt: String
+  id: ID
+  """How many people it provisions."""
+  linked: Int
+  """The approved mapping: every attribute it names is kept in this system."""
+  mapping: [ScimMappingEntry!]
+  revokedAt: String
+  system: String
+  tokenRotatedAt: String
+}
+
+type ScimConnectionToken {
+  id: ID
+  """Shown once. Null when a retry of the same key answers: rotate again."""
+  token: String
+}
+
+type ScimMappableAttribute {
+  key: String
+  label: String
+}
+
+type ScimMappingEntry {
+  key: String
+  path: String
+}
+
+input ScimMappingInput {
+  key: String!
+  path: String!
 }
 
 """An encrypted value. Only its last four characters are ever served."""

@@ -16,6 +16,7 @@ import {
   readable,
   readableHistory,
   visibleTo,
+  type ExternalSource,
   type ViewerRelations,
 } from '../../domain/access/field-access.js';
 import { assessCompleteness, type CompletenessVerdict } from '../../domain/person/completeness.js';
@@ -336,6 +337,23 @@ export interface PersonAccess {
   ): Promise<Result<IdentifierReview>>;
   /** The value under review in full, for HR deciding it: audited. */
   revealIdentifier(tx: Tx, asking: On<{ readonly attributeKey: string }>): Promise<Result<string>>;
+  /**
+   * An upstream system's change to a record it mirrors (PEO-072, PEO-073):
+   * the attributes it owns written through `update`, effective now, and
+   * `synced_from_external` naming them and anything else the link changed
+   * (`active`, `userName`). Only an integration asks; nothing written and
+   * nothing named is no event at all.
+   */
+  syncExternal(
+    tx: Tx,
+    asking: On<{
+      readonly changes: Readonly<Record<string, unknown>>;
+      /** Fields of the link itself that changed, named on the event. */
+      readonly linkChanged: readonly string[];
+      /** How the upstream system identifies the person. */
+      readonly externalId: string;
+    }>,
+  ): Promise<Result<PersonView>>;
 }
 
 /** A correction's new row, and what the checks found if it was a national identifier (PEO-125). */
@@ -489,6 +507,50 @@ const SYSTEM_RELATIONS: ViewerRelations = {
 };
 const EFFECTIVE_ACTOR: Actor = { kind: 'system', process: 'people-effective' };
 
+/**
+ * An integration writing (PEO-072, PEO-073): a SCIM connection whose token
+ * the transport has already checked. Like `AS_SYSTEM` a symbol, so nothing
+ * parsed from a request body can claim to be one.
+ *
+ * It holds no role and reads no scope. It writes and reads exactly the
+ * attributes it owns — its approved mapping — and `canWrite` refuses the
+ * rest; every other writer is refused those same attributes on the records
+ * it mirrors (`sources` on their relations, `withSources`).
+ */
+const AS_INTEGRATION = Symbol('people.integration');
+export interface IntegrationWriter {
+  readonly connectionId: string;
+  /** What the tenant calls the system; the envelope's `provider`. */
+  readonly system: string;
+  /** Every attribute the connection is the source of record for. */
+  readonly owned: ReadonlyMap<string, ExternalSource>;
+}
+type IntegrationAsking = Asking & { readonly [AS_INTEGRATION]?: IntegrationWriter };
+const integrationOf = (asking: Asking): IntegrationWriter | undefined =>
+  (asking as IntegrationAsking)[AS_INTEGRATION];
+const NO_RELATIONS: ViewerRelations = {
+  isSelf: false,
+  isManager: false,
+  isInManagerChain: false,
+  isHr: false,
+  isFinance: false,
+  isAdmin: false,
+};
+
+/** The asking of an integration the SCIM transport authenticated. Nobody else builds one. */
+export function asIntegration(
+  on: { readonly tenantId: string; readonly correlationId: string },
+  writer: IntegrationWriter,
+): Asking {
+  const asking: IntegrationAsking = {
+    tenantId: on.tenantId,
+    correlationId: on.correlationId,
+    viewer: { accountId: NOBODY, roles: new Set() },
+    [AS_INTEGRATION]: writer,
+  };
+  return asking;
+}
+
 const NotPublished = () =>
   failure('SCHEMA_NOT_PUBLISHED', 'This workspace has not published a People schema yet');
 const PersonNotFound = () => failure('NOT_FOUND', 'No such person');
@@ -528,8 +590,48 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const zone = personZone(await calendars.load(tx, tenantId), placementOf(values), at);
     return { zone, day: localDate(at, zone) };
   }
-  const actorOf = (asking: Asking): Actor =>
-    systemOf(asking) ?? { kind: 'user', userId: asking.viewer.accountId };
+  const actorOf = (asking: Asking): Actor => {
+    const integration = integrationOf(asking);
+    return (
+      systemOf(asking) ??
+      (integration === undefined
+        ? { kind: 'user', userId: asking.viewer.accountId }
+        : {
+            kind: 'integration',
+            integrationId: integration.connectionId,
+            provider: integration.system,
+          })
+    );
+  };
+
+  /**
+   * Who is asking, to this person: People itself, an integration (which
+   * holds only what it owns), or a person, as the resolver answers.
+   */
+  async function relationsOf(tx: Tx, asking: Asking, personId: string): Promise<ViewerRelations> {
+    if (systemOf(asking) !== undefined) return SYSTEM_RELATIONS;
+    const integration = integrationOf(asking);
+    if (integration !== undefined) {
+      return { ...NO_RELATIONS, integrationId: integration.connectionId, sources: integration.owned };
+    }
+    return deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
+  }
+
+  /** The refusal of a write, naming who owns it when a mirrored attribute is why (§13.6). */
+  function refusalOf(
+    definitions: ReadonlyMap<string, AttributeDefinition>,
+    refused: readonly string[],
+    relations: ViewerRelations,
+  ): DomainFailure {
+    for (const key of refused) {
+      const definition = definitions.get(key);
+      const decided = definition === undefined ? null : canWrite(definition, relations);
+      if (decided !== null && !decided.ok && decided.error.code === 'SOURCE_OF_RECORD_EXTERNAL') {
+        return decided.error;
+      }
+    }
+    return failure('FIELD_NOT_WRITABLE', `Not yours to change: ${refused.join(', ')}`, refused);
+  }
 
   /** After a write: the record's completeness, judged again in the same transaction. */
   async function rejudge(
@@ -824,10 +926,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
     if (!person) return err(PersonNotFound());
 
-    const relations =
-      systemOf(asking) === undefined
-        ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
-        : SYSTEM_RELATIONS;
+    const relations = await relationsOf(tx, asking, asking.personId);
 
     if (asking.effectiveFrom !== undefined && !CALENDAR_DATE.test(asking.effectiveFrom)) {
       return err(failure('VALUE_INVALID', 'effectiveFrom is a calendar date', ['effectiveFrom']));
@@ -845,14 +944,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     }
 
     const definitions = version.document.attributes;
-    const { allowed, refused } = partitionWrites(definitions, asking.changes, relations);
-    if (refused.length > 0) {
-      return err(
-        failure('FIELD_NOT_WRITABLE', `Not yours to change: ${refused.join(', ')}`, refused),
-      );
-    }
-
     const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+    const { allowed, refused } = partitionWrites(definitions, asking.changes, relations);
+    if (refused.length > 0) return err(refusalOf(byKey, refused, relations));
+
     const { day } = await calendarOf(tx, asking.tenantId, { ...person.values, ...allowed });
     const effectiveFrom = asking.effectiveFrom ?? day;
 
@@ -1076,10 +1171,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // the relations that hold after it, not the ones that held before.
     const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
     if (!after) return err(PersonNotFound());
-    const now =
-      systemOf(asking) === undefined
-        ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, asking.personId)
-        : SYSTEM_RELATIONS;
+    const now = await relationsOf(tx, asking, asking.personId);
     return ok({ ...(await view(tx, asking, after, version, now)), findings });
   }
 
@@ -1260,7 +1352,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         );
       }
       const entity = asking.legalEntityId ?? person.legalEntityId;
-      const facts = hireFactsOf(person.values, entity, version.version);
+      const facts = hireFactsOf(person.values, entity, version.version, person.sourceOfRecord);
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
@@ -1406,12 +1498,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!version) return err(NotPublished());
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!person) return err(PersonNotFound());
-      const relations = await deps.relations.relations(
-        tx,
-        asking.tenantId,
-        asking.viewer,
-        asking.personId,
-      );
+      const relations = await relationsOf(tx, asking, asking.personId);
       return ok(await view(tx, asking, person, version, relations, asking.asOf));
     },
 
@@ -1491,8 +1578,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!version) return err(NotPublished());
 
       const id = deps.newId();
-      const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id);
-      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR creates a person record'));
+      // HR creates records, and so does an integration the tenant connected
+      // to provision them (PEO-072): a record it creates is its mirror.
+      const integration = integrationOf(asking);
+      if (integration === undefined) {
+        const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id);
+        if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR creates a person record'));
+      }
 
       await deps.people.create(
         tx,
@@ -1504,8 +1596,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           hireDate: null,
           lastWorkingDay: null,
         }),
-        { schemaVersion: version.version },
+        {
+          schemaVersion: version.version,
+          ...(integration === undefined ? {} : { sourceOfRecord: 'external' as const }),
+        },
       );
+      // An integration may provision somebody it holds nothing about yet.
+      if (integration !== undefined && Object.keys(asking.attributes).length === 0) {
+        return api.read(tx, { ...asking, personId: id });
+      }
       return update(tx, { ...asking, personId: id, changes: asking.attributes });
     },
 
@@ -1572,9 +1671,14 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       }
 
       const definition = version.document.attributes.find((d) => d.key === target.attributeKey);
+      // A mirrored attribute is corrected where it is kept (§13.6).
+      const writable = definition === undefined ? null : canWrite(definition, relations);
+      if (writable !== null && !writable.ok && writable.error.code === 'SOURCE_OF_RECORD_EXTERNAL') {
+        return writable;
+      }
       // The same refusal as an unwritable field, so a probe cannot tell an
       // archived attribute from one it may not touch.
-      if (!definition || !canWrite(definition, relations).ok) {
+      if (!definition || writable === null || !writable.ok) {
         return err(
           failure('FIELD_NOT_WRITABLE', `Not yours to change: ${target.attributeKey}`, [
             target.attributeKey,
@@ -1916,7 +2020,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       );
       if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR hires a person'));
 
-      const facts = hireFactsOf(person.values, person.legalEntityId, version.version);
+      const facts = hireFactsOf(
+        person.values,
+        person.legalEntityId,
+        version.version,
+        person.sourceOfRecord,
+      );
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
@@ -2071,6 +2180,33 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!after) return err(PersonNotFound());
       return ok(await view(tx, asking, after, version, relations));
+    },
+
+    async syncExternal(tx, asking) {
+      const integration = integrationOf(asking);
+      if (integration === undefined) {
+        return err(failure('FORBIDDEN', 'Only the system a record is mirrored from syncs it'));
+      }
+      const keys = Object.keys(asking.changes);
+      if (keys.length > 0) {
+        const written = await update(tx, asking);
+        if (!written.ok) return written;
+      }
+      const fields = [...keys, ...asking.linkChanged];
+      if (fields.length > 0) {
+        const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+        if (!person) return err(PersonNotFound());
+        const aggregate = Person.rehydrate(person.snapshot);
+        const { day } = await calendarOf(tx, asking.tenantId, person.values);
+        const synced = aggregate.syncedFromExternal(
+          { provider: integration.system, externalId: asking.externalId, fieldsChanged: fields },
+          contextFor(asking),
+          day,
+        );
+        if (!synced.ok) return synced;
+        await deps.people.save(tx, aggregate);
+      }
+      return api.read(tx, asking);
     },
 
     /**

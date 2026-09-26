@@ -38,6 +38,8 @@ export interface PersonRecord {
   readonly legalEntityId: string | null;
   readonly employmentType: string | null;
   readonly workModel: string | null;
+  /** `external` when an upstream system provisioned it (PEO-072); absent reads as `own`. */
+  readonly sourceOfRecord?: 'own' | 'external';
 }
 
 /** A directory search: the text, and the core keys it may be matched against. */
