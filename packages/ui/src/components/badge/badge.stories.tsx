@@ -24,6 +24,7 @@ const meta = {
           '| `warning` | Needs a human: awaiting approval, balance exceeded. |',
           '| `danger` | A terminal bad outcome: rejected, failed, expired. |',
           '| `info` | Metadata about the record: superseded, imported, synced. |',
+          '| `sensitive` | Not a state but a property: handled with more care, a change waits for somebody else. Outlined, and always with its glyph. |',
           '',
           'A badge is not a button. If it can be pressed. It is a `Button` with `variant="subtle"`.',
         ].join('\n'),
@@ -34,9 +35,11 @@ const meta = {
     tone: {
       description: 'Semantic meaning. Reinforces the label; never replaces it.',
       control: 'inline-radio',
-      options: ['neutral', 'accent', 'success', 'warning', 'danger', 'info'],
+      options: ['neutral', 'accent', 'success', 'warning', 'danger', 'info', 'sensitive'],
       table: {
-        type: { summary: "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info'" },
+        type: {
+          summary: "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive'",
+        },
         defaultValue: { summary: 'neutral' },
         category: 'Appearance',
       },
@@ -107,6 +110,27 @@ export const Tones: Story = {
       <Badge {...args} tone="info">
         Superseded
       </Badge>
+      <Badge {...args} tone="sensitive">
+        Sensitive
+      </Badge>
+    </div>
+  ),
+};
+
+export const Sensitive: Story = {
+  args: { tone: 'sensitive', children: 'Sensitive' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A property of what it marks rather than a state it is in: a value handled with more care, whose change waits for somebody else. Beside a status it stays distinct, because it is outlined rather than washed and carries its own glyph.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge {...args} />
+      <Badge tone="warning">Pending approval</Badge>
     </div>
   ),
 };

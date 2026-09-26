@@ -98,6 +98,7 @@ import {
   Settings,
   Share2,
   Shield,
+  ShieldAlert,
   SlidersHorizontal,
   Star,
   Sun,
@@ -179,6 +180,8 @@ export const iconGroups = {
     favourite: Heart,
     approve: ThumbsUp,
     reject: ThumbsDown,
+    /** Handled with more care than most: a change to it waits for a second person. */
+    sensitive: ShieldAlert,
   },
   /** Getting around. */
   navigation: {
