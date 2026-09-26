@@ -121,6 +121,22 @@ export const OPERATIONS = {
     peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
   }`,
 
+  /** The people chosen for a bulk edit, and what HR may set on them (PEO-071). */
+  BulkEdit: `query BulkEdit($personIds: [ID!]!) {
+    peopleBulkEdit(personIds: $personIds) {
+      people { id name }
+      sections { key label visibility fields { ...RecordFieldParts } }
+      today limit
+    }
+  }${RECORD_FIELD}`,
+
+  /** What a page of a bulk edit would change and refuse; nothing is kept. */
+  BulkEditPreview: `query BulkEditPreview($personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!) {
+    peopleBulkEditPreview(personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom) {
+      committed rows { personId name outcome changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
   IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
     peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
   }`,
@@ -165,7 +181,7 @@ export const OPERATIONS = {
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } missing }
       next
-      can { import export }
+      can { import export bulkEdit }
     }
   }`,
 
@@ -303,6 +319,12 @@ export const OPERATIONS = {
   PlacePerson: `mutation PlacePerson($personId: ID!, $legalEntityId: ID, $locationId: ID, $effectiveFrom: String, $key: String!) {
     placePerson(personId: $personId, legalEntityId: $legalEntityId, locationId: $locationId, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
   }`,
+
+  BulkEditPeople: `mutation BulkEditPeople($personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $key: String!) {
+    bulkEditPeople(personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom, idempotencyKey: $key) {
+      committed rows { personId name outcome changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
 
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
     saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok ${GRID_FINDINGS} }

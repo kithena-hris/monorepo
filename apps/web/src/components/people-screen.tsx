@@ -198,7 +198,7 @@ export function PeopleScreen({
         const data =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? (load.data as {
-                can?: { import?: boolean; export?: boolean };
+                can?: { import?: boolean; export?: boolean; bulkEdit?: boolean };
                 next?: string | null;
               })
             : {};
@@ -228,6 +228,13 @@ export function PeopleScreen({
             ? {
                 onImport: () => {
                   go('/people/import');
+                },
+              }
+            : {}),
+          ...(can.bulkEdit === true
+            ? {
+                onBulkEdit: (ids: readonly string[]) => {
+                  go(`/people/bulk-edit?people=${ids.join(',')}`);
                 },
               }
             : {}),
@@ -274,6 +281,17 @@ export function PeopleScreen({
               }),
         };
       }
+      // Previewed and applied a page of people at a time (PEO-071).
+      case 'BulkEdit':
+        return {
+          load: loadable,
+          onPreview: actions.previewBulkEdit,
+          onCommit: actions.commitBulkEdit,
+          searchPeople: actions.searchPeople,
+          onBack: () => {
+            go('/people/directory');
+          },
+        };
       case 'FieldRegistry':
         return {
           load: loadable,

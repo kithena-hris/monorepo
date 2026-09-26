@@ -139,6 +139,43 @@ const gridChanges = (changes: GridChanges) =>
     values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
   }));
 
+/* ----------------------------------------------------------- bulk edit -- */
+
+/** A page of a bulk edit (PEO-071): the same values for these people, from one date. */
+export interface BulkEditPage {
+  readonly personIds: readonly string[];
+  readonly values: Values;
+  readonly effectiveFrom: string;
+}
+export type BulkEdited =
+  | { readonly ok: true; readonly committed: boolean; readonly rows: readonly unknown[] }
+  | { readonly ok: false; readonly message: string };
+
+const bulk = async (answer: Promise<PeopleAnswer<never>>): Promise<BulkEdited> => {
+  const a = await answer;
+  if (!a.ok) return { ok: false, message: a.message };
+  const result = VIEWS.BulkEditResult(a.data) as {
+    committed: boolean;
+    rows: unknown[];
+  };
+  return { ok: true, committed: result.committed, rows: result.rows };
+};
+const bulkVariables = (page: BulkEditPage) => ({
+  personIds: [...page.personIds],
+  values: formInputs(page.values),
+  effectiveFrom: page.effectiveFrom,
+});
+
+/** What this page would change and refuse, per person; nothing is kept. */
+export async function previewBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
+  return bulk(people('BulkEditPreview', bulkVariables(page)));
+}
+
+/** This page, written: one ordinary, effective-dated write per person. */
+export async function commitBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
+  return bulk(people('BulkEditPeople', bulkVariables(page)));
+}
+
 /**
  * People a person field may name, found by name over everybody, as the
  * person signed in may read them (PEO-122). The picker's first page: typing

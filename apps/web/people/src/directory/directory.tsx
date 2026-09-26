@@ -65,6 +65,8 @@ export interface DirectoryProps {
   /** Present only when the viewer may do each. */
   readonly onExport?: () => void;
   readonly onImport?: () => void;
+  /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
+  readonly onBulkEdit?: (personIds: readonly string[]) => void;
   /** Present when People has a page after this one. */
   readonly onNextPage?: () => void;
   /** Present when this is not the first page. */
@@ -121,6 +123,7 @@ function Table({
   filters,
   onFiltersChange,
   onOpen,
+  onBulkEdit,
   onNextPage,
   onFirstPage,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
@@ -201,6 +204,22 @@ function Table({
           onRowClick={(p) => {
             onOpen(p.id);
           }}
+          {...(onBulkEdit === undefined
+            ? {}
+            : {
+                selectable: true,
+                bulkActions: (rows: DirectoryPerson[]) => (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      onBulkEdit(rows.map((p) => p.id));
+                    }}
+                  >
+                    Edit together
+                  </Button>
+                ),
+              })}
           stickyHeader
           empty={
             <EmptyState

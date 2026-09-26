@@ -89,6 +89,18 @@ export const VIEWS = {
       values: Object.fromEntries(p.values.map((cell) => [cell.key, cell.value])),
     })),
   }),
+  BulkEdit: (v: Json & { sections: (Json & { fields: Json[] })[] }) => ({
+    ...v,
+    sections: v.sections.map(section),
+  }),
+  // Each change's two values as form values, as a record's are.
+  BulkEditResult: (v: Json & { rows: (Json & { changes: (Json & { before: Entry; after: Entry })[] })[] }) => ({
+    ...v,
+    rows: v.rows.map((r) => ({
+      ...r,
+      changes: r.changes.map((c) => ({ ...c, before: formValue(c.before), after: formValue(c.after) })),
+    })),
+  }),
   PeopleSetup: (v: Json & { profile: WithRecord | null }) => ({
     ...absentIfNull(v, ['legalEntity']),
     profile: v.profile === null ? null : record(v.profile),
