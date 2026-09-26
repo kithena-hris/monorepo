@@ -19,7 +19,8 @@
 #     it, so there is no state here to lose.
 #   - no kithena container started, and nothing deployed, inside the window:
 #     a boot, a deploy or a restart counts as activity.
-#   - nobody logged in (`who`): an operator's session keeps it up.
+#   - nobody logged in (`who`) and no Session Manager session open (an
+#     `ssm-session-worker` process): an operator's session keeps it up.
 #   - no export job queued, running or waiting to retry in BullMQ, and no
 #     pending Temporal activity on `people-full-values`. A full-values request
 #     waiting a week for HR's decision is a timer, not work: Temporal fires it
@@ -169,7 +170,11 @@ check() {
   UPTIME_SECONDS="$(cut -d. -f1 /proc/uptime)"
   REQUESTS="$(requests)"
   NEWEST_START_SECONDS="$(newest_start)"
-  SESSIONS="$(who | wc -l)"
+  # `who` sees an SSH login, tunnelled through SSM or not, but a Session
+  # Manager shell never writes utmp: each open session is an
+  # `ssm-session-worker` process instead. (`pgrep -c` prints 0 and exits 1
+  # when there is none.)
+  SESSIONS=$(($(who | wc -l) + $(pgrep -c -f ssm-session-worker || true)))
   JOBS="$(queued)"
   ACTIVITIES="$(activities)"
   export UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES

@@ -2,21 +2,29 @@
 # The EC2 instance `deploy/aws/provision.sh` made (Ubuntu 24.04, amd64; arm64
 # works the same), made ready for `deploy.sh`.
 #
-#   ssh ubuntu@<public ip> 'sudo TS_AUTHKEY=tskey-auth-… IDLE_STOP_MINUTES=30 bash -s' \
+#   ssh -o ProxyCommand='aws ssm start-session --target %h
+#       --document-name AWS-StartSSHSession --parameters portNumber=%p' ubuntu@<instance id> \
+#     "sudo DEPLOY_SSH_PUBLIC_KEY='$(cat kithena-deploy.pub)' IDLE_STOP_MINUTES=30 bash -s" \
 #     < deploy/vm/bootstrap.sh
 #
-# `IDLE_STOP_MINUTES` makes the VM stop itself after that long unused
-# (`idle-stop.sh`). Left unset on a later run, it is removed again, and the VM
-# stays up.
+# `DEPLOY_SSH_PUBLIC_KEY` is the public half of `VM_DEPLOY_SSH_KEY`, the key
+# the deploy workflows sign in as `deploy` with; required, and replaces what
+# `deploy` had. `IDLE_STOP_MINUTES` makes the VM stop itself after that long
+# unused (`idle-stop.sh`). Left unset on a later run, it is removed again, and
+# the VM stays up.
 #
 # Idempotent: every step checks or overwrites, so running it again is how a
-# setting here reaches a VM that already exists. After the first run the VM
-# takes no inbound traffic at all — Tailscale for SSH, Cloudflare Tunnel for
-# the router, both dialling out — so close the security group's SSH rule:
-# `deploy/aws/provision.sh --close-ssh --apply`.
+# setting here reaches a VM that already exists. The VM takes no inbound
+# traffic at all — SSH rides a Session Manager tunnel, Cloudflare Tunnel
+# carries the router, both dialled out — and the security group has no inbound
+# rule (`deploy/aws/provision.sh --close-ssh --apply` if one was ever opened).
 # `docs/environments.md` "The AWS host" has the whole checklist.
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
+case "${DEPLOY_SSH_PUBLIC_KEY:-}" in
+  ssh-ed25519\ *) ;;
+  *) echo "set DEPLOY_SSH_PUBLIC_KEY to the deploy key's ssh-ed25519 public half" >&2; exit 1 ;;
+esac
 export DEBIAN_FRONTEND=noninteractive
 
 # Ubuntu's own Docker and Compose rather than Docker's apt repository: they
@@ -53,17 +61,14 @@ fi
 sysctl -q -w vm.swappiness=10
 echo 'vm.swappiness=10' > /etc/sysctl.d/90-kithena.conf
 
-# Tailscale: the deploy workflows and the founder reach the VM through it, as
-# `deploy`, with Tailscale SSH checking the tailnet policy instead of a key.
-command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh
-if ! tailscale status >/dev/null 2>&1; then
-  : "${TS_AUTHKEY:?set TS_AUTHKEY to a Tailscale auth key tagged tag:vm}"
-  tailscale up --ssh --authkey "$TS_AUTHKEY" --advertise-tags=tag:vm --hostname kithena-vm
-fi
+# The SSM agent: the operator and the deploy workflows reach the VM through
+# Session Manager, which the agent dials out for. Canonical's AMI ships it as a
+# snap; install it if an image ever does not.
+snap list amazon-ssm-agent >/dev/null 2>&1 || snap install amazon-ssm-agent --classic
+systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service
 
-# SSH by key only, never as root — and only once Tailscale is up, so a first
-# run that failed before this point can be rerun as root over the public
-# address. From here on the way in is Tailscale SSH as `deploy`.
+# SSH by key only, never as root. sshd listens, but nothing reaches it except
+# a Session Manager tunnel (AWS-StartSSHSession connects to localhost:22).
 cat > /etc/ssh/sshd_config.d/10-kithena.conf <<'EOF'
 PasswordAuthentication no
 KbdInteractiveAuthentication no
@@ -71,21 +76,27 @@ PermitRootLogin no
 EOF
 systemctl reload ssh
 
-# Nothing inbound except on the tailnet, behind a security group that allows
-# nothing either. Published Docker ports would bypass this; `compose.yaml`
-# publishes none. Reset first, so a rule an earlier hand added does not survive.
+# Nothing inbound at all, behind a security group that allows nothing either:
+# the SSM agent and cloudflared both dial out, and the SSH tunnel arrives on
+# loopback, which ufw never filters. Published Docker ports would bypass this;
+# `compose.yaml` publishes none. Reset first, so a rule an earlier hand added
+# does not survive.
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow in on tailscale0
 ufw --force enable
 
-# The deploy user. It runs `docker` through sudo, which is root in all but
-# name: the separation is who may log in (the tailnet policy says `deploy`),
-# not what they may do once in.
+# The deploy user, signing in with the one key the workflows hold. It runs
+# `docker` through sudo, which is root in all but name: the separation is who
+# may sign in (the deploy role's SSM permission and that key), not what they
+# may do once in.
 id deploy >/dev/null 2>&1 || useradd --create-home --shell /bin/bash deploy
 echo 'deploy ALL=(root) NOPASSWD:ALL' > /etc/sudoers.d/90-deploy
 chmod 440 /etc/sudoers.d/90-deploy
+install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+printf '%s\n' "$DEPLOY_SSH_PUBLIC_KEY" > /home/deploy/.ssh/authorized_keys
+chown deploy:deploy /home/deploy/.ssh/authorized_keys
+chmod 600 /home/deploy/.ssh/authorized_keys
 install -d -m 700 -o root -g root /etc/kithena
 
 # Nightly backups to S3, through the instance role. `backup.sh` is the copy
@@ -158,5 +169,5 @@ else
 fi
 
 # The architecture is what the `VM_PLATFORM` repository variable must say.
-echo "bootstrapped: $(tailscale ip -4 2>/dev/null || echo 'tailscale not up')," \
+echo "bootstrapped: ssm agent $(systemctl is-active snap.amazon-ssm-agent.amazon-ssm-agent.service)," \
   "VM_PLATFORM=linux/$(dpkg --print-architecture)"
