@@ -12,6 +12,9 @@ default:
 dev:
     docker compose up -d --wait
     pnpm db:migrate
+    # The seeds import workspace packages through their built `dist/`, which a
+    # fresh clone does not have and an old checkout has stale.
+    pnpm turbo run build --filter='./packages/*' --output-logs=errors-only
     pnpm db:seed
     pnpm --filter @kithena/people upload-bucket
     pnpm turbo run dev --parallel --env-mode=loose --concurrency=20
