@@ -3,14 +3,19 @@
 #
 #   ssh root@<public ip> 'TS_AUTHKEY=tskey-auth-… bash -s' < deploy/vm/bootstrap.sh
 #
-# As root on Hetzner and DigitalOcean; on Oracle, where the image's user is
-# `ubuntu`, `ssh ubuntu@<ip> 'sudo TS_AUTHKEY=… bash -s' < …` instead.
+# As root on Hetzner and DigitalOcean; on Oracle and AWS, where the image's user
+# is `ubuntu`, `ssh ubuntu@<ip> 'sudo TS_AUTHKEY=… bash -s' < …` instead.
+#
+# `IDLE_STOP_MINUTES=30` beside `TS_AUTHKEY` makes the VM stop itself after
+# that long unused (`idle-stop.sh`): the AWS host wants it, a VM billed flat
+# does not. Left unset on a later run, it is removed again.
 #
 # Idempotent: every step checks or overwrites, so running it again is how a
 # setting here reaches a VM that already exists. After the first run the VM
 # takes no inbound traffic at all — Tailscale for SSH, Cloudflare Tunnel for
 # the router, both dialling out — so remove the provider firewall's SSH rule
-# (Hetzner and DigitalOcean: the Cloud Firewall; Oracle: the security list).
+# (Hetzner and DigitalOcean: the Cloud Firewall; Oracle: the security list;
+# AWS: the security group, `deploy/aws/provision.sh --close-ssh`).
 # `docs/environments.md` "Hosting" has the whole checklist.
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
@@ -101,6 +106,7 @@ cat > /etc/systemd/system/kithena-backup.service <<'EOF'
 Description=Back up the VM Postgres and the kithena topics
 ConditionPathExists=/etc/kithena/backup.env
 ConditionPathExists=/home/deploy/kithena/backup.sh
+After=kithena-start.service
 [Service]
 Type=oneshot
 ExecStart=/bin/bash /home/deploy/kithena/backup.sh
@@ -116,6 +122,52 @@ WantedBy=timers.target
 EOF
 systemctl daemon-reload
 systemctl enable --now kithena-backup.timer
+
+# Stop when idle, and start the stack at boot (`idle-stop.sh` says what idle
+# is). The boot unit is half of it: `compose stop` leaves every
+# `unless-stopped` container stopped until something starts it again.
+if [ -n "${IDLE_STOP_MINUTES:-}" ]; then
+  [[ "$IDLE_STOP_MINUTES" =~ ^[0-9]+$ ]] || { echo "IDLE_STOP_MINUTES must be a number" >&2; exit 1; }
+  printf 'IDLE_STOP_MINUTES=%s\n' "$IDLE_STOP_MINUTES" > /etc/kithena/idle-stop.env
+  cat > /etc/systemd/system/kithena-start.service <<'EOF'
+[Unit]
+Description=Start the kithena Compose projects at boot
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+ConditionPathExists=/home/deploy/kithena/idle-stop.sh
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/deploy/kithena/idle-stop.sh start
+[Install]
+WantedBy=multi-user.target
+EOF
+  cat > /etc/systemd/system/kithena-idle-stop.service <<'EOF'
+[Unit]
+Description=Stop the VM when nobody is using it
+ConditionPathExists=/home/deploy/kithena/idle-stop.sh
+After=kithena-start.service
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/kithena/idle-stop.env
+ExecStart=/bin/bash /home/deploy/kithena/idle-stop.sh
+EOF
+  cat > /etc/systemd/system/kithena-idle-stop.timer <<'EOF'
+[Unit]
+Description=Check every five minutes whether the VM is idle
+[Timer]
+OnCalendar=*:0/5
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload
+  systemctl enable kithena-start.service
+  systemctl enable --now kithena-idle-stop.timer
+else
+  systemctl disable --now kithena-idle-stop.timer kithena-start.service 2>/dev/null || true
+  rm -f /etc/systemd/system/kithena-idle-stop.service /etc/systemd/system/kithena-idle-stop.timer \
+    /etc/systemd/system/kithena-start.service /etc/kithena/idle-stop.env
+  systemctl daemon-reload
+fi
 
 # The architecture is what the `VM_PLATFORM` repository variable must say.
 echo "bootstrapped: $(tailscale ip -4 2>/dev/null || echo 'tailscale not up')," \

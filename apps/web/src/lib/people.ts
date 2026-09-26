@@ -23,6 +23,13 @@ import { SESSION_COOKIE } from './session-cookie';
  *
  * Fails closed: no session, no tenant, no token or no answer is an
  * `ok: false` with a sentence, never an exception a screen has to catch.
+ *
+ * `UNREACHABLE` is the one failure the shell acts on: nothing answered at the
+ * router's address — a network error, or Cloudflare's own page for a tunnel
+ * with nobody behind it (530, error 1033) or an origin that refused (502-504).
+ * That is what a VM asleep looks like (`deploy/vm/idle-stop.sh`), and the
+ * People pages offer to wake it (`components/workspace-asleep.tsx`). A timeout
+ * is not it: something answered, slowly.
  */
 
 export type PeopleAnswer<T> =
@@ -30,6 +37,13 @@ export type PeopleAnswer<T> =
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 const signedOut = { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again' } as const;
+const unreachable = {
+  ok: false,
+  code: 'UNREACHABLE',
+  message: 'People could not be reached',
+} as const;
+/** Statuses only a gateway in front of the router gives: the router never answers them. */
+const GATEWAY_DOWN = new Set([502, 503, 504, 521, 522, 523, 530]);
 
 /** One token per request: React's `cache` is scoped to the render or the action. */
 const accessToken = cache(async (): Promise<string | null> => {
@@ -104,6 +118,7 @@ export async function people<T>(
       signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
     });
     if (response.status === 401) return signedOut;
+    if (GATEWAY_DOWN.has(response.status)) return unreachable;
     const answer = (await response.json().catch(() => null)) as {
       data?: Record<string, unknown> | null;
       errors?: { message?: string; extensions?: { code?: unknown } }[];
@@ -119,7 +134,9 @@ export async function people<T>(
     }
     // Every operation asks for one root field.
     return { ok: true, data: Object.values(answer.data)[0] as T };
-  } catch {
-    return { ok: false, code: 'UNAVAILABLE', message: 'People could not be reached' };
+  } catch (cause) {
+    return cause instanceof Error && cause.name === 'TimeoutError'
+      ? { ok: false, code: 'UNAVAILABLE', message: 'People could not be reached' }
+      : unreachable;
   }
 }

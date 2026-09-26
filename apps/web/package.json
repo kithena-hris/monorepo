@@ -12,11 +12,13 @@
     "test:acceptance": "vitest run --config vitest.acceptance.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2": "^3.1141.0",
     "@hookform/resolvers": "^5.9.1",
     "@kithena/contracts": "workspace:*",
     "@module-federation/runtime": "2.9.1",
     "@reach/ui": "workspace:*",
     "@simplewebauthn/browser": "^14.0.0",
+    "@vercel/oidc-aws-credentials-provider": "^3.3.9",
     "next": "^16.3.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -26,9 +28,12 @@
   "devDependencies": {
     "@kithena/testing": "workspace:*",
     "@tailwindcss/postcss": "^4.1.12",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "axe-core": "^4.13.0",
     "esbuild": "^0.28.2",
+    "jsdom": "^30.1.1",
     "playwright": "^1.63.0",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.1.12",

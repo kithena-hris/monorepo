@@ -169,6 +169,9 @@ jobs:
       contents: read
       pull-requests: write
       packages: read
+      # GitHub's OIDC token, exchanged for the role that may start the VM
+      # (`deploy/aws/provision.sh`). Only the "wake the VM" step asks for one.
+      id-token: write
     # 30, not 25: the VM deploy waits for People and the router to be healthy.
     timeout-minutes: 30
     # A GitHub Environment, for three reasons: the secrets here are production's
@@ -440,6 +443,26 @@ jobs:
             exit 1
           fi
 
+      # The VM stops itself when idle (`deploy/vm/idle-stop.sh`), so a deploy
+      # starts it first. A no-op when it is running; skipped on a host that is
+      # not EC2 (`AWS_DEPLOY_ROLE_ARN` unset). The deploy itself then counts as
+      # activity, so the VM stays up at least `IDLE_STOP_MINUTES` after it.
+      - name: aws credentials for the VM
+        if: vars.ROUTER_URL_PRODUCTION != '' && vars.AWS_DEPLOY_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: wake the VM
+        if: vars.ROUTER_URL_PRODUCTION != '' && vars.AWS_DEPLOY_ROLE_ARN != ''
+        env:
+          INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
+        run: |
+          aws ec2 start-instances --instance-ids "$INSTANCE" \
+            --query 'StartingInstances[0].[PreviousState.Name,CurrentState.Name]' --output text
+          aws ec2 wait instance-running --instance-ids "$INSTANCE"
+
       # An ephemeral node tagged `tag:ci`, gone when the job ends. The tailnet
       # policy lets `tag:ci` reach `tag:vm` as `deploy` and nothing else.
       - name: tailscale
@@ -471,10 +494,12 @@ jobs:
           mkdir -p ~/.ssh
           printf 'Host vm\n  HostName %s\n  User deploy\n  StrictHostKeyChecking accept-new\n' \
             "$VM_HOST" > ~/.ssh/config
+          # A VM that was just woken needs a minute before its tailnet node is up.
+          for _ in $(seq 1 36); do ssh -o ConnectTimeout=5 vm true && break; sleep 5; done
           # `migrations/` replaced whole, so the copy is exactly this commit's.
           ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
           scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
-            deploy/vm/deploy.sh deploy/vm/backup.sh atlas.hcl migrations vm:kithena/
+            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh atlas.hcl migrations vm:kithena/
           ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/production
           put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/production/$1"; }
           printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN" | put people.env
@@ -664,6 +689,11 @@ jobs:
           PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_PRODUCTION }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
           ROUTER_URL: ${{ vars.ROUTER_URL_PRODUCTION }}
+          # Waking the VM from the People pages (`apps/web/src/lib/workspace.ts`):
+          # all three, or the feature stays off.
+          WORKSPACE_INSTANCE_ID: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN_PRODUCTION }}
+          WAKE_REGION: ${{ vars.AWS_REGION }}
         run: |
           # `pipefail`, because this pipes into `tail`: without it the status
           # reported is `tail`'s, so a deploy that failed exits 0 here and
@@ -673,6 +703,10 @@ jobs:
           [ -n "$PEOPLE_REMOTE_URL" ] && args+=(--env "PEOPLE_REMOTE_URL=$PEOPLE_REMOTE_URL")
           [ -n "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "PEOPLE_REMOTE_SSR_PUBLIC_KEY=$PEOPLE_REMOTE_SSR_PUBLIC_KEY")
           [ -n "$ROUTER_URL" ] && args+=(--env "ROUTER_URL=$ROUTER_URL")
+          if [ -n "$WORKSPACE_INSTANCE_ID" ] && [ -n "$AWS_ROLE_ARN" ] && [ -n "$WAKE_REGION" ]; then
+            args+=(--env "WORKSPACE_INSTANCE_ID=$WORKSPACE_INSTANCE_ID" \
+              --env "AWS_ROLE_ARN=$AWS_ROLE_ARN" --env "AWS_REGION=$WAKE_REGION")
+          fi
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"

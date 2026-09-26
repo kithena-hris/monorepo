@@ -19,7 +19,12 @@ import { VIEWS } from './people-views';
 
 export type ScreenLoad =
   | { readonly status: 'ready'; readonly data: unknown }
-  | { readonly status: 'error'; readonly message: string }
+  | {
+      readonly status: 'error';
+      readonly message: string;
+      /** Nothing answered at the router's address: the VM may be asleep. */
+      readonly unreachable?: true;
+    }
   /** Nothing to fetch: the screen starts from its own first state. */
   | { readonly status: 'none' };
 
@@ -37,7 +42,9 @@ async function read(
   const answer = await people<never>(name, variables);
   return answer.ok
     ? { status: 'ready', data: view(answer.data) }
-    : { status: 'error', message: answer.message };
+    : answer.code === 'UNREACHABLE'
+      ? { status: 'error', message: answer.message, unreachable: true }
+      : { status: 'error', message: answer.message };
 }
 
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
