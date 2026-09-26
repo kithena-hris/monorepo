@@ -1696,6 +1696,20 @@ it is written down here rather than left in a PR description.
       audit record. No migration.* *Still open:* no transport calls a manual
       `anonymiseDue` yet — HR's by-hand erasure needs a route and a control
       on the profile when PEO-075 is built.
+- [x] Employment status leaked to anybody who could read the person:
+      `Person.status` over GraphQL, `status` on `GET /v1/people[/{id}]`, every
+      row of a list, the directory's `active` count (a one-person search
+      answering "0 active" names them as away), and a manager's charts by
+      status. Found beside PEO-065/066, whose guard assumes status is HR's.
+      *(PRD §6.3)* *Landed as `statusVisibleTo` in
+      `domain/access/field-access.ts` — HR, and the person's own — applied
+      once in `PersonAccess`'s view, so REST leaves `status` out, GraphQL
+      answers null, and the screens follow; lists and counts leave out
+      leavers (`LEAVERS`) for anybody but HR, whose `active` is then the
+      listed count; `authorizeFields` serves `status` to HR only. §6.3 no
+      longer lists status under HR information.* *Still open:* a record
+      read by its id is answered for a leaver, status withheld; hiding it
+      from a peer altogether is a product call.
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*
