@@ -387,17 +387,19 @@ jobs:
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
     #
-    # Sharded four ways. The sweep renders every entry in two themes and two
-    # pointer profiles — 468 x 4 renders in series took 34 minutes, which was
-    # the whole pipeline; everything else here finishes inside three. The shards
-    # are a round-robin over a sorted index, verified to partition it exactly,
-    # so four runners cover the same set in roughly a quarter of the time.
+    # Sharded six ways, and each shard renders on six pages at once. The sweep
+    # renders every entry in two themes and two pointer profiles — 468 x 4
+    # renders in series took 34 minutes, which was the whole pipeline. The
+    # shards are a round-robin over a sorted index, verified to partition it
+    # exactly. Four shards on one page each took about 9 minutes; four on four
+    # pages about 5. The required check is `design-system`, below, so the shard
+    # count can change without touching the branch ruleset.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: checkout
         if: needs.changes.outputs.ui == 'true'
@@ -444,13 +446,17 @@ jobs:
           STORY_FILTER: ${{ steps.scope.outputs.filters }}
           SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
           STORYBOOK_URL: http://localhost:6006
-          SHARD: ${{ matrix.shard }}/4
+          SHARD: ${{ matrix.shard }}/6
+          # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs).
+          # Above the 4 vCPUs on purpose: much of each render is networkidle's
+          # idle wait, not CPU.
+          CONTRAST_WORKERS: 6
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
 
           # The drift gates describe the whole design system rather than any
-          # subset of it, so they run once rather than four times.
+          # subset of it, so they run once rather than once per shard.
           if [ "${{ matrix.shard }}" = "1" ]; then
             # The manager cannot reference a Reach custom property (it is a
             # separate document from the preview and does not load the
@@ -480,7 +486,7 @@ jobs:
             # set resolved to. An affected set is not necessarily small — a
             # change to a shared component reached 362 of 479 entries, which on
             # one runner took 24.6 minutes against the full sweep's 8 per shard,
-            # while the other three shards idled. The four runners are paid for
+            # while the other shards idled. The runners are paid for
             # either way, and a shard left with nothing exits clean.
             node tools/a11y/affected-contrast.mjs
           else
@@ -512,3 +518,17 @@ jobs:
         if: needs.changes.outputs.ui != 'true'
         run: echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). It runs in full on main."
 
+  # The required check: green only when every design-system shard is.
+  design-system-all:
+    name: design-system
+    needs: design-system
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every shard passed
+        env:
+          RESULT: ${{ needs.design-system.result }}
+        run: |
+          echo "shards: $RESULT"
+          [ "$RESULT" = success ]
