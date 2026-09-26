@@ -14,8 +14,13 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { expire, openApproval, stateAt, type Approval } from '../../domain/approval/approval.js';
 import { approversOf, decideChange, withdrawChange } from '../../domain/approval/pending-change.js';
 import { LIFECYCLE_KEYS } from './core.js';
-import type { Asking, PersonAccess, SealedValue } from './person-access.js';
-import type { PersonReader, RelationsResolver, SchemaVersions } from './ports.js';
+import type {
+  Asking,
+  PersonReader,
+  RelationsResolver,
+  SchemaVersions,
+  SealedValue,
+} from './ports.js';
 
 /**
  * Changes held for approval (PEO-077; PRD §8.6).
@@ -105,8 +110,32 @@ export interface Holding {
   readonly newId: () => string;
 }
 
+/**
+ * The two `PersonAccess` writes an approved change goes through. A port here
+ * rather than `PersonAccess` itself, which imports this file.
+ */
+export interface ApprovedWriter {
+  update(
+    tx: Tx,
+    asking: Asking & {
+      readonly personId: string;
+      readonly changes: Readonly<Record<string, unknown>>;
+      readonly effectiveFrom?: string;
+    },
+  ): Promise<Result<unknown>>;
+  correct(
+    tx: Tx,
+    asking: Asking & {
+      readonly personId: string;
+      readonly supersedes: string;
+      readonly value: unknown;
+      readonly reason: string | null;
+    },
+  ): Promise<Result<unknown>>;
+}
+
 export interface PendingChangeDeps extends Holding {
-  readonly access: PersonAccess;
+  readonly access: ApprovedWriter;
   readonly schemas: SchemaVersions;
   readonly reader: PersonReader;
   readonly relations: RelationsResolver;

@@ -1,7 +1,5 @@
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
-import type { PersonSnapshot } from './person.js';
-
 /**
  * Duplicate detection and merge (PEO-074; PRD §12.4). Pure.
  *
@@ -36,7 +34,10 @@ export interface Candidate {
   /** Lower id first, so a pair has one name. */
   readonly personIds: readonly [string, string];
   /** Strongest first. */
-  readonly signals: readonly { readonly signal: DuplicateSignal; readonly attributeKey: string | null }[];
+  readonly signals: readonly {
+    readonly signal: DuplicateSignal;
+    readonly attributeKey: string | null;
+  }[];
 }
 
 /**
@@ -55,12 +56,18 @@ export const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : 
 
 /** The rows grouped into pairs, the decided ones left out, strongest first. */
 export function candidates(rows: readonly SignalRow[], decided: ReadonlySet<string>): Candidate[] {
-  const pairs = new Map<string, { ids: [string, string]; signals: Candidate['signals'][number][] }>();
+  const pairs = new Map<
+    string,
+    { ids: [string, string]; signals: Candidate['signals'][number][] }
+  >();
   for (const row of rows) {
     if (row.a === row.b) continue;
     const key = pairKey(row.a, row.b);
     if (decided.has(key)) continue;
-    const pair = pairs.get(key) ?? { ids: row.a < row.b ? [row.a, row.b] : [row.b, row.a], signals: [] };
+    const pair = pairs.get(key) ?? {
+      ids: row.a < row.b ? [row.a, row.b] : [row.b, row.a],
+      signals: [],
+    };
     if (!pair.signals.some((s) => s.signal === row.signal && s.attributeKey === row.attributeKey)) {
       pair.signals.push({ signal: row.signal, attributeKey: row.attributeKey });
     }
@@ -75,14 +82,22 @@ export function candidates(rows: readonly SignalRow[], decided: ReadonlySet<stri
     }))
     .toSorted(
       (x, y) =>
-        score(y.signals) - score(x.signals) || pairKey(...x.personIds).localeCompare(pairKey(...y.personIds)),
+        score(y.signals) - score(x.signals) ||
+        pairKey(...x.personIds).localeCompare(pairKey(...y.personIds)),
     );
 }
 
 const TOMBSTONES = new Set(['merged', 'discarded']);
 
+/** What a merge decision reads of each record; a `PersonSnapshot` is one. */
+interface MergeParty {
+  readonly id: string;
+  readonly status: string;
+  readonly identityAccountId: string | null;
+}
+
 /** Why `survivor` may not absorb `absorbed`, or null when it may. */
-export function mergeRefusal(survivor: PersonSnapshot, absorbed: PersonSnapshot): DomainFailure | null {
+export function mergeRefusal(survivor: MergeParty, absorbed: MergeParty): DomainFailure | null {
   if (survivor.id === absorbed.id) {
     return failure('SAME_PERSON', 'A record cannot be merged into itself');
   }
@@ -119,7 +134,9 @@ export function valuesTaken(
 ): Result<Record<string, unknown>> {
   const refused = take.filter((k) => !takeable.has(k));
   if (refused.length > 0) {
-    return err(failure('FIELD_NOT_WRITABLE', `Not yours to choose: ${refused.join(', ')}`, refused));
+    return err(
+      failure('FIELD_NOT_WRITABLE', `Not yours to choose: ${refused.join(', ')}`, refused),
+    );
   }
   const empty = take.filter((k) => absorbed[k] === undefined || absorbed[k] === null);
   if (empty.length > 0) {

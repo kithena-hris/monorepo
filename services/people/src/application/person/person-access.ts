@@ -63,6 +63,9 @@ import type {
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
 import { approvedOf, holdChange, holds, type Holding } from './pending-changes.js';
+import type { Asking, SealedValue } from './ports.js';
+
+export type { Asking, SealedValue } from './ports.js';
 import { countryOf, factsOf } from './subject.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 import {
@@ -152,19 +155,6 @@ export interface PersonAccessDeps {
   readonly duplicates?: DuplicateStore;
 }
 
-export interface Asking {
-  readonly tenantId: string;
-  readonly viewer: Viewer;
-  readonly correlationId: string;
-  /**
-   * Write values that require approval straight through, recorded on the
-   * event as applied without it (PEO-077): the import's "apply sensitive
-   * values without approval", and bulk edit's. HR's alone; anybody else
-   * asking is refused.
-   */
-  readonly applySensitiveWithoutApproval?: boolean;
-}
-
 export interface PersonView {
   readonly id: string;
   /** HR's, and the person's own (`statusVisibleTo`); absent for anybody else. */
@@ -188,11 +178,6 @@ export interface PersonView {
 export interface HeldChange {
   readonly changeId: string;
   readonly attributeKey: string;
-}
-
-/** What an encrypted value reads as. The plaintext has its own, audited, path. */
-export interface SealedValue {
-  readonly last4: string | null;
 }
 
 type Tx = PostgresJsDatabase;

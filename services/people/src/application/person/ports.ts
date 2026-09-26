@@ -197,3 +197,21 @@ export interface Uniques {
 
 /** Whoever has left, or was never a person: listed to HR alone (§6.3). */
 export const LEAVERS = ['terminated', 'discarded', 'merged'] as const;
+
+export interface Asking {
+  readonly tenantId: string;
+  readonly viewer: Viewer;
+  readonly correlationId: string;
+  /**
+   * Write values that require approval straight through, recorded on the
+   * event as applied without it (PEO-077): the import's "apply sensitive
+   * values without approval", and bulk edit's. HR's alone; anybody else
+   * asking is refused.
+   */
+  readonly applySensitiveWithoutApproval?: boolean;
+}
+
+/** What an encrypted value reads as. The plaintext has its own, audited, path. */
+export interface SealedValue {
+  readonly last4: string | null;
+}
