@@ -216,7 +216,7 @@ export const OPERATIONS = {
 
   Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID) {
     peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment) {
-      active incomplete
+      total active notStarted incomplete
       segment { id name }
       segments { id name }
       columns { key label }
@@ -572,8 +572,8 @@ export const OPERATIONS = {
     endLeave(personId: $personId, idempotencyKey: $key) { id }
   }`,
 
-  CreatePerson: `mutation CreatePerson($attributes: [AttributeValueInput!]!, $key: String!) {
-    createPerson(attributes: $attributes, idempotencyKey: $key) { id }
+  CreatePerson: `mutation CreatePerson($attributes: [AttributeValueInput!]!, $hireDate: String, $key: String!) {
+    createPerson(attributes: $attributes, hireDate: $hireDate, idempotencyKey: $key) { id }
   }`,
 
   DiscardPerson: `mutation DiscardPerson($personId: ID!, $key: String!) {

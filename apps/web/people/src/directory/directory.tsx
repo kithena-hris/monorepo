@@ -48,7 +48,11 @@ export interface DirectoryFilter {
 }
 
 export interface DirectoryState {
+  /** Everybody the search and filters match, not only this page. */
+  readonly total: number;
   readonly active: number;
+  /** Provisional or pre-hire; null for a viewer who is not shown statuses. */
+  readonly notStarted: number | null;
   readonly incomplete: number | null;
   readonly columns: readonly DirectoryColumn[];
   readonly filterable: readonly DirectoryFilter[];
@@ -70,8 +74,11 @@ export interface DirectoryProps {
   /** Save the filters in force as a segment. */
   readonly onSaveSegment?: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
   readonly onOpen: (personId: string) => void;
-  /** Present only when the viewer may do each. */
-  readonly onAdd?: () => void;
+  /**
+   * Present only when the viewer may do each. Adding one employee is not
+   * here: it is People's manifest action, which the host draws beside every
+   * People screen, so a screen never repeats it.
+   */
   readonly onExport?: () => void;
   readonly onImport?: () => void;
   /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
@@ -85,6 +92,23 @@ export interface DirectoryProps {
 const ANY = '__any';
 
 /**
+ * "12 people · 9 active · 3 not started · 4 incomplete": everybody matched,
+ * then what HR is shown of their statuses. Somebody on leave or on notice is
+ * among the people and in neither count. Without statuses, only how many.
+ */
+export function summaryOf(state: DirectoryState): string {
+  const { total, notStarted, incomplete } = state;
+  return [
+    `${String(total)} ${total === 1 ? 'person' : 'people'}`,
+    notStarted === null ? null : `${String(state.active)} active`,
+    notStarted === null || notStarted === 0 ? null : `${String(notStarted)} not started`,
+    incomplete === null ? null : `${String(incomplete)} incomplete`,
+  ]
+    .filter((x) => x !== null)
+    .join(' · ');
+}
+
+/**
  * The directory (PRD §13.1, design screen 7).
  *
  * Columns come from the published schema rather than from this file, so a
@@ -96,15 +120,7 @@ const ANY = '__any';
  */
 export function Directory(props: DirectoryProps): JSX.Element {
   const { load } = props;
-  const summary =
-    load.status === 'ready'
-      ? [
-          `${String(load.data.active)} active`,
-          load.data.incomplete === null ? null : `${String(load.data.incomplete)} incomplete`,
-        ]
-          .filter((x) => x !== null)
-          .join(' · ')
-      : undefined;
+  const summary = load.status === 'ready' ? summaryOf(load.data) : undefined;
 
   return (
     <Stack gap={6}>
@@ -115,11 +131,6 @@ export function Directory(props: DirectoryProps): JSX.Element {
           <span className="flex gap-2">
             {props.onExport === undefined ? null : <Button onClick={props.onExport}>Export</Button>}
             {props.onImport === undefined ? null : <Button onClick={props.onImport}>Import</Button>}
-            {props.onAdd === undefined ? null : (
-              <Button variant="primary" onClick={props.onAdd}>
-                Add employee
-              </Button>
-            )}
           </span>
         }
       />
@@ -140,14 +151,16 @@ function Table({
   onSegmentChange,
   onSaveSegment,
   onOpen,
-  onAdd,
   onImport,
   onBulkEdit,
   onNextPage,
   onFirstPage,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const wide = useBreakpoint('md');
-  // Nobody at all, rather than nobody matching: say so, and how to add them.
+  // Nobody at all, rather than nobody matching: say so, and where adding
+  // happens. No buttons of its own: Import is in the header and Add employee
+  // is People's manifest action beside every screen, and a second copy of
+  // either on one screen is noise.
   const narrowed =
     search.trim() !== '' ||
     Object.keys(filters).length > 0 ||
@@ -158,21 +171,9 @@ function Table({
       <EmptyState
         title="No employees yet"
         description={
-          onAdd === undefined && onImport === undefined
+          onImport === undefined
             ? 'Nobody has been added to People yet.'
-            : 'Add people one at a time, or import a spreadsheet of everybody.'
-        }
-        action={
-          onAdd === undefined && onImport === undefined ? undefined : (
-            <span className="flex flex-wrap justify-center gap-2">
-              {onAdd === undefined ? null : (
-                <Button variant="primary" onClick={onAdd}>
-                  Add employee
-                </Button>
-              )}
-              {onImport === undefined ? null : <Button onClick={onImport}>Import</Button>}
-            </span>
-          )
+            : 'Add people one at a time with Add employee, or import a spreadsheet of everybody.'
         }
       />
     );

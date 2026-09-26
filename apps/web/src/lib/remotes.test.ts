@@ -22,6 +22,7 @@ describe('matchRoute', () => {
   it('reads a parameter out of a pattern', () => {
     expect(matchRoute(manifest, '/people/0190a3c4-0000-7000-8000-000000000001')).toMatchObject({
       component: 'Profile',
+      path: '/people/:id',
       params: { id: '0190a3c4-0000-7000-8000-000000000001' },
     });
   });

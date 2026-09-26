@@ -1,4 +1,4 @@
-import { Button, Nav, NavItem, NavList, PageHeader, PageSection, Stack } from '@reach/ui';
+import { Nav, NavItem, NavList, PageHeader, PageSection, Stack } from '@reach/ui';
 import type { JSX } from 'react';
 
 import manifest from '../../public/routes.json';
@@ -65,24 +65,11 @@ export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
           (p) => p.path !== '/people' && opens(p, can),
         );
         const groups = [...new Set(open.map((p) => p.group ?? 'People'))];
-        const actions = (manifest.actions as readonly Place[]).filter((a) => opens(a, can));
+        // No actions here: the manifest's actions (Add employee) are the
+        // host's to draw beside every People screen, this one included.
         return (
           <Stack gap={6}>
-            <PageHeader
-              title="People"
-              description="Everybody’s records, and how People is set up."
-              actions={
-                actions.length === 0 ? undefined : (
-                  <span className="flex gap-2">
-                    {actions.map((a) => (
-                      <Button key={a.path} variant="primary" asChild>
-                        <a href={a.path}>{a.label}</a>
-                      </Button>
-                    ))}
-                  </span>
-                )
-              }
-            />
+            <PageHeader title="People" description="Everybody’s records, and how People is set up." />
             {groups.map((group) => (
               <Places
                 key={group}

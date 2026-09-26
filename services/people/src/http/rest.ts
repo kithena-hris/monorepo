@@ -84,7 +84,15 @@ export const PersonPageBody = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const CreatePersonBody = z.strictObject({ attributes: Attributes });
+export const CreatePersonBody = z.strictObject({
+  attributes: Attributes,
+  hireDate: z.iso
+    .date()
+    .optional()
+    .describe(
+      'Hire them from this date, on their own calendar: active once it has begun, pre-hire until then. Absent, the record is provisional.',
+    ),
+});
 
 export const PatchPersonBody = z.strictObject({
   attributes: Attributes,
@@ -1200,6 +1208,7 @@ export function restRoutes(deps: RestDeps): Route[] {
             const created = await service.access.create(tx, {
               ...asking,
               attributes: input.value.attributes,
+              ...(input.value.hireDate === undefined ? {} : { hireDate: input.value.hireDate }),
             });
             return created.ok ? ok(created.value.id) : created;
           },

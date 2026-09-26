@@ -1,1 +1,0 @@
-{"version":1,"body":"mutation CreatePerson($attributes: [AttributeValueInput!]!, $key: String!) {\n    createPerson(attributes: $attributes, idempotencyKey: $key) { id }\n  }"}

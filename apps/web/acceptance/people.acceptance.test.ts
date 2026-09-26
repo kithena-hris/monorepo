@@ -1126,27 +1126,44 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
 
-    // In the empty state, as in the header and beside the sections.
+    // One Add employee on the screen, beside the sections: never repeated in
+    // the header or the empty state.
     await page.waitForLoadState('networkidle');
-    await page.getByRole('main').getByRole('button', { name: 'Add employee' }).last().click();
+    const add = page.getByRole('main').getByRole('link', { name: 'Add employee' });
+    expect(await add.count()).toBe(1);
+    expect(await page.getByRole('main').getByRole('button', { name: 'Add employee' }).count()).toBe(0);
+    await add.click();
     await page.waitForURL(/\/people\/new$/);
     expect(await kept()).toBe(true);
+    // On its own screen the action is the current place, and no section is.
+    expect(await add.getAttribute('aria-current')).toBe('page');
+    expect(await nav.locator('[aria-current="page"]').count()).toBe(0);
     const form = page.getByRole('form', { name: 'Add employee' });
     await form.waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');
     await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
     await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
     await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
+    // Starting today: hired, and active, rather than provisional.
+    await form.getByRole('button', { name: /Start date/ }).click();
+    await page.getByRole('dialog').locator('[aria-current="date"]').click();
     await form.getByRole('button', { name: 'Add employee' }).click();
 
-    // Her record, to fill in the rest; and she is in the directory.
+    // Her record, to fill in the rest, under the Directory; and she is in it.
     await page.waitForURL(/\/people\/[0-9a-f-]{36}$/, { timeout: 30_000 });
-    const [lena] = await stack.sql<{ status: string }[]>`
-      SELECT status FROM people.person WHERE tenant_id = ${GLOBEX.tenant} AND work_email = 'lena@globex.example'`;
-    expect(lena?.status).toBe('provisional');
+    await page.waitForLoadState('networkidle');
+    expect(await nav.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
+    const [lena] = await stack.sql<{ status: string; hire_date: string | null }[]>`
+      SELECT status, hire_date::text FROM people.person
+       WHERE tenant_id = ${GLOBEX.tenant} AND work_email = 'lena@globex.example'`;
+    expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
     await nav.getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory$/);
     await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
+    // Counts that say what the list holds: everybody, then who is active.
+    await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
     expect(await kept()).toBe(true);
 
     // Every section stays inside the shell: a client-side move, the sidebar

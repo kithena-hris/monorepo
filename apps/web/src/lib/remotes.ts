@@ -20,12 +20,17 @@ import { z } from 'zod';
  * these — the remote says what exists, the host decides what the chrome looks
  * like — and the remote refuses a screen to whoever may not use it whatever
  * any navigation shows.
+ *
+ * `owns` lists the other routes, as the manifest writes them (`/people/:id`),
+ * that belong to a section: on those it is the current one too. The remote
+ * says which screens are under which place; the host never guesses from a URL.
  */
 const Place = z.object({
   path: z.string().startsWith('/'),
   label: z.string().min(1),
   group: z.string().min(1).optional(),
   for: z.array(z.string().min(1)).optional(),
+  owns: z.array(z.string().startsWith('/')).optional(),
 });
 export type Place = z.infer<typeof Place>;
 
@@ -51,6 +56,8 @@ export interface RemoteRoute {
   readonly base: string;
   /** The export of the remote's `index.ts` that renders this path. */
   readonly component: string;
+  /** The manifest route that matched, as written there: `/people/:id`. */
+  readonly path: string;
   /** `:name` segments of the manifest path, as matched: `/people/:id` → `{ id }`. */
   readonly params: Readonly<Record<string, string>>;
   /** Every section and action the manifest lists, for the host's navigation. */
@@ -59,6 +66,7 @@ export interface RemoteRoute {
 
 export interface Matched {
   readonly component: string;
+  readonly path: string;
   readonly params: Readonly<Record<string, string>>;
   readonly nav: RemoteRoute['nav'];
 }
@@ -80,7 +88,9 @@ export function matchRoute(manifest: unknown, path: string): Matched | null | un
   const { routes, sections, actions } = parsed.data;
   const nav = { sections, actions };
   const literal = routes.find((route) => route.path === path);
-  if (literal !== undefined) return { component: literal.component, params: {}, nav };
+  if (literal !== undefined) {
+    return { component: literal.component, path: literal.path, params: {}, nav };
+  }
 
   const segments = path.split('/');
   for (const route of routes) {
@@ -94,7 +104,7 @@ export function matchRoute(manifest: unknown, path: string): Matched | null | un
       params[part.slice(1)] = actual;
       return true;
     });
-    if (fits) return { component: route.component, params, nav };
+    if (fits) return { component: route.component, path: route.path, params, nav };
   }
   return undefined;
 }

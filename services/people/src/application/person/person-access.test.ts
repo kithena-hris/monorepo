@@ -688,6 +688,59 @@ describe('hiring', () => {
     expect(store.events).toEqual([]);
   });
 
+  describe('adding somebody by hand (create)', () => {
+    const fresh = () => {
+      // 09:00 UTC on 2026-09-22.
+      const store = inMemoryPeople([versionOf(3, [title, ...nameKeys])]);
+      return { store, people: personAccess(store.deps) };
+    };
+    const lena = { given_name: 'Lena', family_name: 'Moreau', work_email: 'lena@acme.test' };
+
+    it('without a start date: a provisional record, and nobody hired', async () => {
+      const { store, people } = fresh();
+      const made = await people.create(tx, { ...asking(hr), attributes: lena });
+      expect(made.ok && made.value.status).toBe('provisional');
+      expect(store.events.map((e) => e.eventName)).not.toContain('people.person.hired');
+    });
+
+    it('with a start date that has begun: hired, active, effective from that date', async () => {
+      const { store, people } = fresh();
+      const made = await people.create(tx, {
+        ...asking(hr),
+        attributes: lena,
+        hireDate: '2026-09-01',
+      });
+      expect(made.ok && made.value.status).toBe('active');
+      const hired = store.events.find((e) => e.eventName === 'people.person.hired');
+      expect(hired?.payload).toMatchObject({ employment: { from: '2026-09-01', to: null } });
+      // Entered on the 22nd, in force from the 1st: both dates, never one.
+      expect(hired?.effectiveFrom).toBe('2026-09-01');
+      expect(hired?.occurredAt).toBe('2026-09-22T09:00:00.000Z');
+    });
+
+    it('with a start date ahead: hired, pre-hire until then', async () => {
+      const { people } = fresh();
+      const made = await people.create(tx, {
+        ...asking(hr),
+        attributes: lena,
+        hireDate: '2026-10-01',
+      });
+      expect(made.ok && made.value.status).toBe('pre_hire');
+    });
+
+    it('refuses a start date that is not a calendar date, and a hire without a name', async () => {
+      const { people } = fresh();
+      const bad = await people.create(tx, { ...asking(hr), attributes: lena, hireDate: '1/10/26' });
+      expect(!bad.ok && bad.error.code).toBe('VALUE_INVALID');
+      const nameless = await people.create(tx, {
+        ...asking(hr),
+        attributes: { work_email: 'x@acme.test' },
+        hireDate: '2026-09-01',
+      });
+      expect(!nameless.ok && nameless.error.code).toBe('HIRE_INCOMPLETE');
+    });
+  });
+
   it('refuses a hire nobody could find or invite', async () => {
     const { store, people } = provisional(ADA_ACCOUNT, { workEmail: null });
     const refused = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });
@@ -835,8 +888,20 @@ describe('searching the directory (PEO-117)', () => {
     const people = directory();
     expect(await found(people, ada, 'ada LOVE')).toEqual([ADA]);
     expect(await people.count(tx, { ...asking(ada), search: 'o' })).toEqual(
-      ok({ all: 2, active: 2 }),
+      ok({ all: 2, active: 2, notStarted: 0 }),
     );
+  });
+
+  it('counts, for HR, who has not started yet: provisional and pre-hire', async () => {
+    const store = inMemoryPeople([versionOf(4, [given, family, email])]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT, fields: { givenName: 'Marco' } });
+    store.seed(ADA, { account: ADA_ACCOUNT, fields: { givenName: 'Ada' }, status: 'pre_hire' });
+    store.seed('00000000-0000-4000-8000-0000000000a9', {
+      fields: { givenName: 'Adam' },
+      status: 'provisional',
+    });
+    const people = personAccess(store.deps);
+    expect(await people.count(tx, asking(hr))).toEqual(ok({ all: 3, active: 1, notStarted: 2 }));
   });
 
   it('counts nobody’s status for a viewer who may not read it', async () => {
@@ -851,10 +916,10 @@ describe('searching the directory (PEO-117)', () => {
     });
     const people = personAccess(store.deps);
     expect(await people.count(tx, { ...asking(marco), search: 'Ada' })).toEqual(
-      ok({ all: 1, active: 1 }),
+      ok({ all: 1, active: 1, notStarted: 0 }),
     );
     expect(await people.count(tx, { ...asking(hr), search: 'Ada' })).toEqual(
-      ok({ all: 2, active: 0 }),
+      ok({ all: 2, active: 0, notStarted: 0 }),
     );
   });
 

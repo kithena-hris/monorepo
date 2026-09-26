@@ -63,7 +63,7 @@ import type {
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
 import { approvedOf, holdChange, holds, type Holding } from './pending-changes.js';
-import type { Asking, SealedValue } from './ports.js';
+import type { Asking, PersonCount, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
 import { countryOf, factsOf } from './subject.js';
@@ -211,7 +211,7 @@ export interface PersonAccess {
       readonly where?: Readonly<Record<string, string>>;
       readonly search?: string;
     },
-  ): Promise<Result<{ readonly all: number; readonly active: number }>>;
+  ): Promise<Result<PersonCount>>;
   update(
     tx: Tx,
     asking: On<{
@@ -222,7 +222,11 @@ export interface PersonAccess {
   ): Promise<Result<PersonView>>;
   create(
     tx: Tx,
-    asking: Asking & { readonly attributes: Readonly<Record<string, unknown>> },
+    asking: Asking & {
+      readonly attributes: Readonly<Record<string, unknown>>;
+      /** Hire them too, from this calendar date: `hire`, in the same transaction. */
+      readonly hireDate?: string;
+    },
   ): Promise<Result<PersonView>>;
   history(
     tx: Tx,
@@ -1919,8 +1923,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         query.value.search,
         everyone.isHr,
       );
-      // "Active" is a status; outside HR it is everybody listed, none of them leavers.
-      return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all });
+      // Statuses are HR's; outside HR everybody listed counts as active.
+      return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all, notStarted: 0 });
     },
 
     update: (tx, asking) => update(tx, asking),
@@ -1930,10 +1934,18 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
      *
      * The values go through `update`, so creating somebody is held to exactly
      * the ownership rules editing them is: an HR creator sets what HR owns.
+     *
+     * With a `hireDate`, the new record is then hired from that date through
+     * `hire`, exactly as the import hires a new row (§14.5): active when the
+     * date has begun on their calendar, pre-hire until it has, the hire
+     * effective from it whenever it was entered. Refused, nothing is created.
      */
     async create(
       tx: Tx,
-      asking: Asking & { readonly attributes: Readonly<Record<string, unknown>> },
+      asking: Asking & {
+        readonly attributes: Readonly<Record<string, unknown>>;
+        readonly hireDate?: string;
+      },
     ): Promise<Result<PersonView>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
@@ -1966,7 +1978,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (integration !== undefined && Object.keys(asking.attributes).length === 0) {
         return api.read(tx, { ...asking, personId: id });
       }
-      return update(tx, { ...asking, personId: id, changes: asking.attributes });
+      const { hireDate, attributes, ...rest } = asking;
+      const created = await update(tx, { ...rest, personId: id, changes: attributes });
+      if (!created.ok || hireDate === undefined) return created;
+      return api.hire(tx, { ...rest, personId: id, hireDate });
     },
 
     /** Dated facts, for the attributes this viewer may read now; a sealed one's without values. */

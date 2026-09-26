@@ -27,8 +27,6 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
-  /** What this person is in People, for the actions only some may be offered. */
-  readonly roles?: { readonly hr: boolean };
 }
 
 /**
@@ -83,7 +81,6 @@ export function PeopleScreen({
   params,
   search,
   today,
-  roles = { hr: false },
 }: PeopleScreenProps): JSX.Element {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -136,6 +133,7 @@ export function PeopleScreen({
       // One person by hand; then their record, to fill in the rest.
       case 'AddPerson':
         return {
+          today,
           onAdd: async (person: Readonly<Record<string, string>>) => {
             const added = await actions.addPerson(person);
             if (added.ok) go(`/people/${added.personId}`);
@@ -264,14 +262,6 @@ export function PeopleScreen({
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          // Adding somebody is HR's, as importing them is (People refuses anybody else).
-          ...(roles.hr
-            ? {
-                onAdd: () => {
-                  go('/people/new');
-                },
-              }
-            : {}),
           ...(can.export === true
             ? {
                 onExport: () => {

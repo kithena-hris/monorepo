@@ -92,7 +92,11 @@ export default async function People({
       ) : (
         // The shell's sidebar, then People's own sections, then the screen.
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-          <PeopleNav sections={places.sections} actions={places.actions} />
+          <PeopleNav
+            sections={places.sections}
+            actions={places.actions}
+            route={route?.path ?? null}
+          />
           <div className="min-w-0 flex-1">
             <PeopleScreen
               route={
@@ -108,7 +112,6 @@ export default async function People({
               params={route?.params ?? {}}
               search={search}
               today={today()}
-              roles={roles}
             />
           </div>
         </div>

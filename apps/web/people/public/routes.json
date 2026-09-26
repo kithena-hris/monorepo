@@ -29,8 +29,18 @@
   "actions": [{ "path": "/people/new", "label": "Add employee", "for": ["hr"] }],
   "sections": [
     { "path": "/people", "label": "Overview", "group": "People" },
-    { "path": "/people/directory", "label": "Directory", "group": "People" },
-    { "path": "/people/me", "label": "My profile", "group": "People" },
+    {
+      "path": "/people/directory",
+      "label": "Directory",
+      "group": "People",
+      "owns": ["/people/:id", "/people/:id/history", "/people/bulk-edit"]
+    },
+    {
+      "path": "/people/me",
+      "label": "My profile",
+      "group": "People",
+      "owns": ["/people/me/history", "/people/onboarding"]
+    },
     { "path": "/people/approvals", "label": "Approvals", "group": "People" },
     { "path": "/people/completeness", "label": "Missing information", "group": "People", "for": ["hr"] },
     { "path": "/people/identifier-reviews", "label": "Identifiers to review", "group": "People", "for": ["hr"] },
@@ -39,10 +49,28 @@
     { "path": "/people/export", "label": "Export", "group": "People" },
     { "path": "/people/full-values", "label": "Full values", "group": "People", "for": ["finance", "hr"] },
     { "path": "/people/analytics", "label": "Analytics", "group": "Reporting", "for": ["hr"] },
-    { "path": "/people/reports", "label": "Scheduled reports", "group": "Reporting", "for": ["hr", "admin"] },
-    { "path": "/people/settings/fields", "label": "Employee fields", "group": "Settings", "for": ["admin"] },
+    {
+      "path": "/people/reports",
+      "label": "Scheduled reports",
+      "group": "Reporting",
+      "for": ["hr", "admin"],
+      "owns": ["/people/reports/:id"]
+    },
+    {
+      "path": "/people/settings/fields",
+      "label": "Employee fields",
+      "group": "Settings",
+      "for": ["admin"],
+      "owns": ["/people/setup"]
+    },
     { "path": "/people/settings/organisation", "label": "Organisation", "group": "Settings" },
     { "path": "/people/settings/roles", "label": "Roles", "group": "Settings", "for": ["hr", "admin"] },
-    { "path": "/people/settings/integrations", "label": "Integrations", "group": "Settings", "for": ["admin"] }
+    {
+      "path": "/people/settings/integrations",
+      "label": "Integrations",
+      "group": "Settings",
+      "for": ["admin"],
+      "owns": ["/people/settings/integrations/:id"]
+    }
   ]
 }

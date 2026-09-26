@@ -605,16 +605,19 @@ builder.mutationType({
     createPerson: t.field({
       type: Person,
       description:
-        'Add one person by hand: a provisional record with its first values; HR only. `POST /v1/people`.',
+        'Add one person by hand: a provisional record with its first values, hired from `hireDate` when one is given; HR only. `POST /v1/people`.',
       args: {
         attributes: t.arg({ type: [AttributeValueInput], required: true }),
+        hireDate: t.arg.string({
+          description: 'A calendar date: hire them from it, active once it has begun on their calendar.',
+        }),
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: async (_root, args, ctx) => {
         const attributes: Record<string, unknown> = {};
         for (const input of args.attributes) attributes[input.key] = unwrap(valueOf(input));
         const view = await viaRest<PersonView>(ctx, 'POST', '/v1/people', {
-          body: { attributes },
+          body: { attributes, ...sent({ hireDate: args.hireDate }) },
           key: args.idempotencyKey,
         });
         return asPerson(ctx, view);

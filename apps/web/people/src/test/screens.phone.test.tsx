@@ -457,7 +457,9 @@ describe('at 390×844, with a finger', () => {
         load={{
           status: 'ready',
           data: {
+            total: 2,
             active: 2,
+            notStarted: 0,
             incomplete: 1,
             columns: [{ key: 'job_title', label: 'Job title' }],
             filterable: [

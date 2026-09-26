@@ -16,7 +16,7 @@ import {
 } from '@reach/ui';
 import type { Route } from 'next';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { JSX } from 'react';
 
 import type { Place } from '../lib/remotes';
@@ -39,17 +39,17 @@ import type { Place } from '../lib/remotes';
 export interface PeopleNavProps {
   readonly sections: readonly Place[];
   readonly actions: readonly Place[];
+  /** The manifest route this screen matched, as written there: `/people/:id`. */
+  readonly route: string | null;
 }
 
-/** The section this path is in: the longest that holds it; the overview only for itself. */
-export function currentSection(sections: readonly Place[], pathname: string): Place | undefined {
-  return sections
-    .filter((s) =>
-      s.path === '/people'
-        ? pathname === s.path
-        : pathname === s.path || pathname.startsWith(`${s.path}/`),
-    )
-    .sort((a, b) => b.path.length - a.path.length)[0];
+/**
+ * The place this screen is under: the one at its route, or the one whose
+ * `owns` lists it. The manifest decides, so a profile is the Directory's
+ * because People says so, not because of what its URL looks like.
+ */
+export function currentPlace(places: readonly Place[], route: string | null): Place | undefined {
+  return places.find((p) => p.path === route || p.owns?.includes(route ?? '') === true);
 }
 
 function groupsOf(sections: readonly Place[]): [string, Place[]][] {
@@ -61,18 +61,21 @@ function groupsOf(sections: readonly Place[]): [string, Place[]][] {
   return [...groups];
 }
 
-export function PeopleNav({ sections, actions }: PeopleNavProps): JSX.Element | null {
-  const pathname = usePathname();
+export function PeopleNav({ sections, actions, route }: PeopleNavProps): JSX.Element | null {
   const router = useRouter();
   if (sections.length === 0 && actions.length === 0) return null;
-  const current = currentSection(sections, pathname);
+  const current = currentPlace(sections, route);
+  const acting = currentPlace(actions, route);
   const groups = groupsOf(sections);
 
   return (
     <div className="flex flex-col gap-4 lg:sticky lg:top-8 lg:w-56 lg:shrink-0">
+      {/* The one Add employee on any People screen: screens never repeat an action. */}
       {actions.map((a) => (
         <Button key={a.path} variant="primary" fullWidth asChild>
-          <Link href={a.path as Route}>{a.label}</Link>
+          <Link href={a.path as Route} aria-current={a === acting ? 'page' : undefined}>
+            {a.label}
+          </Link>
         </Button>
       ))}
 

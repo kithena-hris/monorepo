@@ -23,7 +23,12 @@ const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
 
 function wire(account: string, roles: string[] = []) {
   const store = inMemoryPeople([
-    versionOf(1, [define({ key: 'given_name', visibility: ['self', 'hr'] })]),
+    versionOf(
+      1,
+      ['given_name', 'family_name', 'work_email'].map((key) =>
+        define({ key, visibility: ['self', 'hr'] }),
+      ),
+    ),
   ]);
   store.seed(MARCO, { account: MARCO_ACCOUNT });
   store.seed(ADA, { fields: { managerId: MARCO } });
@@ -169,6 +174,20 @@ describe('the lifecycle mutations', () => {
     expect(answer.errors).toBeUndefined();
     expect(answer.data?.['createPerson']).toEqual({ status: 'provisional' });
     expect(hr.rows.size).toBe(4);
+  });
+
+  it('adds and hires one person, through the REST write, when given a start date', async () => {
+    wire('00000000-0000-4000-8000-0000000000ff', ['hr']);
+    const hire = (date: string) =>
+      mutate(
+        `mutation { createPerson(idempotencyKey: "${randomUUID()}", hireDate: "${date}", attributes: [{ key: "given_name", text: "Lena" }, { key: "family_name", text: "Moreau" }, { key: "work_email", text: "lena@acme.test" }]) { status } }`,
+      );
+    const started = await hire('2026-09-01');
+    expect(started.errors).toBeUndefined();
+    expect(started.data?.['createPerson']).toEqual({ status: 'active' });
+    expect((await hire('2026-12-01')).data?.['createPerson']).toEqual({ status: 'pre_hire' });
+    // The body schema REST parses: a date is a calendar date.
+    expect((await hire('soon')).errors?.[0]?.extensions['code']).toBe('BAD_REQUEST');
   });
 
   it('discards a provisional record', async () => {

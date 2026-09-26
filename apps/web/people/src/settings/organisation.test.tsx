@@ -178,13 +178,12 @@ describe('People home (PEO-119)', () => {
     for (const name of ['Employee fields', 'Roles', 'Integrations', 'Organisation']) {
       expect(within(settings).getByRole('link', { name })).toBeInTheDocument();
     }
-    // Adding somebody is HR's, not the administrator's.
-    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     unmount();
     const hr = render(
       <PeopleHome load={{ status: 'ready', data: { hr: true, admin: false, finance: false } }} />,
     );
-    expect(screen.getByRole('link', { name: 'Add employee' })).toHaveAttribute('href', '/people/new');
+    // Add employee is the host's, beside every screen, and never repeated here.
+    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Approvals' })).toBeInTheDocument();
     hr.unmount();
     render(<PeopleHome load={{ status: 'ready', data: { hr: false, admin: false, finance: false } }} />);
