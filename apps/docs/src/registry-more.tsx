@@ -53,6 +53,10 @@ import {
   Inline,
   Kbd,
   ListDetail,
+  Nav,
+  NavGroup,
+  NavItem,
+  NavList,
   Money,
   NumberField,
   Pagination,
@@ -822,6 +826,49 @@ const clipboard: DocPage = {
   ],
 };
 
+const navPage: DocPage = {
+  slug: 'nav',
+  title: 'Nav',
+  description: 'Navigation: a landmark, a list, and one item per destination.',
+  when: 'An app sidebar or the sections of one area beside its content. A screen marks where the reader is with `current`, which renders `aria-current="page"` rather than only a colour.',
+  importLine: "import { Nav, NavGroup, NavItem, NavList } from '@reach/ui';",
+  sections: [
+    {
+      id: 'sections',
+      title: 'Sections, grouped',
+      blurb:
+        "`NavGroup` labels a run of destinations. `asChild` makes the one child the link — a router's link component — and draws the icon, label and badge inside it, so a client-side route reads exactly like a plain anchor.",
+      render: () => (
+        <Nav label="Sections" className="w-56">
+          <NavList>
+            {[
+              { group: 'Records', items: ['Overview', 'Directory', 'Approvals'] },
+              { group: 'Reporting', items: ['Analytics', 'Scheduled reports'] },
+            ].map((g) => (
+              <NavGroup key={g.group} label={g.group}>
+                {g.items.map((item) => (
+                  <NavItem key={item} asChild level={2} current={item === 'Directory'}>
+                    <a href={`#${item.toLowerCase().replaceAll(' ', '-')}`}>{item}</a>
+                  </NavItem>
+                ))}
+              </NavGroup>
+            ))}
+          </NavList>
+        </Nav>
+      ),
+      code: `<Nav label="Sections">
+  <NavList>
+    <NavGroup label="Records">
+      <NavItem asChild level={2} current>
+        <Link href="/people/directory">Directory</Link>
+      </NavItem>
+    </NavGroup>
+  </NavList>
+</Nav>`,
+    },
+  ],
+};
+
 const kbd: DocPage = {
   slug: 'kbd',
   title: 'Kbd',
@@ -1161,6 +1208,7 @@ export const MORE_PAGES: readonly DocPage[] = [
   feedback,
   kbd,
   layout,
+  navPage,
   listDetail,
   money,
   numberField,
