@@ -140,6 +140,24 @@ export interface TenantDetail {
    * that can still sign in (PEO-112). A module missing has nobody named.
    */
   readonly administrators: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Module → who holds its administrator roles, as the module last reported
+   * it (`ModuleRoleReport`). A module missing has not reported. May differ
+   * from `administrators`, and is only ever shown beside it.
+   */
+  readonly moduleRoles: Readonly<
+    Record<
+      string,
+      {
+        readonly asOf: string;
+        readonly administratorRoles: readonly string[];
+        readonly holders: readonly {
+          readonly accountId: string;
+          readonly roles: readonly string[];
+        }[];
+      }
+    >
+  >;
 }
 
 export interface TenantCursor {
@@ -245,6 +263,7 @@ export function adminRoutes({
         entitlements: list as string[],
         administrators: administratorMap(asked?.['administrators']),
         namedBy: operatorOf(asked),
+        confirmLast: asked?.['confirmLast'] === true,
       });
       if (!set.ok) {
         return json(set.error.code === 'TENANT_UNKNOWN' ? 404 : 422, {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { companyRequest, composed, type Composed } from '../testing/composed.js';
+import { INTERNAL_TOKEN, companyRequest, composed, type Composed } from '../testing/composed.js';
 
 /**
  * PEO-112: the back office is the only way anybody first administers People.
@@ -11,9 +11,10 @@ import { companyRequest, composed, type Composed } from '../testing/composed.js'
 let identity: Composed;
 const OPERATOR = '00000000-0000-4000-8000-0000000000f1';
 const tenants = '/api/internal/admin/tenants';
+const PEOPLE_TOKEN = 'people-integration-token';
 
 beforeAll(async () => {
-  identity = await composed({ defaultEntitlements: [] });
+  identity = await composed({ defaultEntitlements: [], peopleToken: PEOPLE_TOKEN });
 });
 
 afterAll(async () => {
@@ -142,7 +143,10 @@ describe('naming who administers People', () => {
         string,
         string[]
       >;
-    expect(await detail()).toEqual({ 'module.people': [ada, grace], 'module.timeoff': [ada, grace] });
+    expect(await detail()).toEqual({
+      'module.people': [ada, grace],
+      'module.timeoff': [ada, grace],
+    });
 
     const put = (administrators: Record<string, unknown>) =>
       identity.call('PUT', `${tenants}/${id}/entitlements`, {
@@ -162,7 +166,7 @@ describe('naming who administers People', () => {
       SELECT envelope -> 'payload' AS payload FROM platform.outbox
        WHERE tenant_id = ${id}::uuid AND event_name = 'identity.tenant.administrator_removed'`;
     expect(removed.map((r) => r.payload)).toEqual([
-      { entitlement: 'module.people', accountId: grace, removedBy: OPERATOR },
+      { entitlement: 'module.people', accountId: grace, removedBy: OPERATOR, confirmedLast: false },
     ]);
 
     // Sending the same list again raises nothing.
@@ -194,13 +198,100 @@ describe('naming who administers People', () => {
     );
     const id = String(created.body['tenantId']);
     const grace = await accountOf(id, 'grace@withdrawn.example');
-    const gone = await identity.call(
-      'DELETE',
-      `${tenants}/${id}/accounts/${grace}/invitation`,
-    );
+    const gone = await identity.call('DELETE', `${tenants}/${id}/accounts/${grace}/invitation`);
     expect(gone.status).toBe(204);
     expect((await identity.call('GET', `${tenants}/${id}`)).body['administrators']).toEqual({
       'module.people': [await accountOf(id, 'ada@withdrawn.example')],
+    });
+  });
+
+  it('carries the operator confirming a removal that leaves the module without a role holder', async () => {
+    const created = await identity.call(
+      'POST',
+      tenants,
+      companyRequest('confirmed', {
+        admins: ['ada@confirmed.example', 'grace@confirmed.example'],
+        entitlements: ['module.people'],
+        administrators: { 'module.people': ['ada@confirmed.example', 'grace@confirmed.example'] },
+      }),
+    );
+    const id = String(created.body['tenantId']);
+    const [ada, grace] = await Promise.all(
+      ['ada', 'grace'].map((who) => accountOf(id, `${who}@confirmed.example`)),
+    );
+    const put = await identity.call('PUT', `${tenants}/${id}/entitlements`, {
+      entitlements: ['module.people'],
+      administrators: { 'module.people': [ada] },
+      operatorId: OPERATOR,
+      confirmLast: true,
+    });
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
+    const removed = await identity.sql<{ payload: Record<string, unknown> }[]>`
+      SELECT envelope -> 'payload' AS payload FROM platform.outbox
+       WHERE tenant_id = ${id}::uuid AND event_name = 'identity.tenant.administrator_removed'`;
+    expect(removed.map((r) => r.payload)).toEqual([
+      { entitlement: 'module.people', accountId: grace, removedBy: OPERATOR, confirmedLast: true },
+    ]);
+  });
+});
+
+describe('what People reports it actually has', () => {
+  const report = (
+    tenantId: string,
+    body: unknown,
+    token = PEOPLE_TOKEN,
+    module = 'module.people',
+  ) =>
+    fetch(`${identity.url}/api/internal/tenants/${tenantId}/module-roles/${module}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', 'x-internal-token': token },
+      body: JSON.stringify(body),
+    });
+
+  it('keeps the newest report per module and shows it beside what the back office set', async () => {
+    const created = await identity.call(
+      'POST',
+      tenants,
+      companyRequest('reported', {
+        admins: ['ada@reported.example', 'grace@reported.example'],
+        entitlements: ['module.people'],
+        administrators: { 'module.people': ['ada@reported.example'] },
+      }),
+    );
+    const id = String(created.body['tenantId']);
+    const [ada, grace] = await Promise.all(
+      ['ada', 'grace'].map((who) => accountOf(id, `${who}@reported.example`)),
+    );
+    const administratorRoles = ['people_admin', 'hr'];
+    const newer = {
+      asOf: '2026-09-26T12:00:00.000Z',
+      administratorRoles,
+      holders: [{ accountId: grace, roles: ['hr'] }],
+    };
+
+    // Only People's own secret, only for People.
+    expect((await report(id, newer, INTERNAL_TOKEN)).status).toBe(401);
+    expect((await report(id, newer, PEOPLE_TOKEN, 'module.timeoff')).status).toBe(401);
+    expect((await report(id, { holders: 'everyone' })).status).toBe(400);
+    expect((await report('00000000-0000-4000-8000-00000000dead', newer)).status).toBe(404);
+
+    expect((await report(id, newer)).status).toBe(204);
+    // An older report arriving late changes nothing.
+    const older = {
+      ...newer,
+      asOf: '2026-09-26T11:00:00.000Z',
+      holders: [{ accountId: ada, roles: administratorRoles }],
+    };
+    expect((await report(id, older)).status).toBe(204);
+
+    const detail = (await identity.call('GET', `${tenants}/${id}`)).body;
+    expect(detail['administrators']).toEqual({ 'module.people': [ada] });
+    expect(detail['moduleRoles']).toEqual({
+      'module.people': {
+        asOf: '2026-09-26T12:00:00.000Z',
+        administratorRoles,
+        holders: [{ accountId: grace, roles: ['hr'] }],
+      },
     });
   });
 });

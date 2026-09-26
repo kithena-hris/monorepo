@@ -35,7 +35,12 @@ export interface ModulesScope {
   administrators(): Promise<Readonly<Record<string, readonly string[]>>>;
   save(entitlements: readonly ModuleEntitlement[]): Promise<void>;
   name(administrator: NamedAdministrator, namedBy: string | null): Promise<void>;
-  remove(administrator: NamedAdministrator, removedBy: string | null): Promise<void>;
+  /** `confirmedLast`: the operator was warned it leaves the module without a role holder. */
+  remove(
+    administrator: NamedAdministrator,
+    removedBy: string | null,
+    confirmedLast: boolean,
+  ): Promise<void>;
 }
 
 export interface ModulesDeps {
@@ -54,6 +59,12 @@ export type SetEntitlements = (
     readonly administrators?: Readonly<Record<string, AskedAdministrators>>;
     /** The back-office operator making the change. */
     readonly namedBy?: string | null;
+    /**
+     * The operator was warned that a removal leaves a module with nobody
+     * holding one of its administrator roles, and went ahead. Carried on each
+     * `administrator_removed`; the module decides what it means.
+     */
+    readonly confirmLast?: boolean;
   },
 ) => Promise<
   Result<{
@@ -115,7 +126,7 @@ export function setEntitlements({ inTenant }: ModulesDeps): SetEntitlements {
       if (changed) await scope.save(checked.value);
       for (const administrator of named) await scope.name(administrator, asked.namedBy ?? null);
       for (const administrator of removed) {
-        await scope.remove(administrator, asked.namedBy ?? null);
+        await scope.remove(administrator, asked.namedBy ?? null, asked.confirmLast === true);
       }
       return ok({ entitlements: checked.value, changed, named, removed });
     });
