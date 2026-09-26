@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "npx --yes turbo-ignore @kithena/admin"
+  "ignoreCommand": "npx --yes turbo-ignore @kithena/admin",
+  "git": {
+    "deploymentEnabled": false
+  }
 }
