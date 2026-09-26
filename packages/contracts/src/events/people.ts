@@ -1038,6 +1038,32 @@ const RoleChange = z.object({
 export const RoleGranted = defineEvent('people.role.granted', 1, RoleChange);
 export const RoleRevoked = defineEvent('people.role.revoked', 1, RoleChange);
 
+/**
+ * A pay band set or corrected (PEO-078): minimum, midpoint and maximum for one
+ * grade in one currency, from a day. People maintains them until a
+ * Compensation module takes them over, and this is what it would replay to do
+ * so. A band is company policy, not a person's pay, and names nobody.
+ *
+ * `set` is a band from a new day; `corrected` replaces what was recorded for
+ * the same grade, currency and day, and names the row it `supersedes`. The
+ * envelope's `effectiveFrom` is the band's day, its actor who changed it.
+ */
+const PayBandPayload = z.object({
+  bandId: z.uuid().register(policy, asPublic()),
+  grade: z.string().min(1).max(64).register(policy, asInternal()),
+  minimum: Money,
+  midpoint: Money,
+  maximum: Money,
+  effectiveFrom: CalendarDate,
+});
+
+export const PayBandSet = defineEvent('people.pay_band.set', 1, PayBandPayload);
+export const PayBandCorrected = defineEvent(
+  'people.pay_band.corrected',
+  1,
+  PayBandPayload.extend({ supersedes: z.uuid().register(policy, asPublic()) }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -1089,4 +1115,6 @@ export const peopleEvents = [
   WebhookEndpointDisabled,
   RoleGranted,
   RoleRevoked,
+  PayBandSet,
+  PayBandCorrected,
 ] as const;

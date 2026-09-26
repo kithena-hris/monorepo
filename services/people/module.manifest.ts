@@ -56,6 +56,8 @@ export default ModuleManifest.parse({
     'people.webhook.endpoint_disabled',
     'people.role.granted',
     'people.role.revoked',
+    'people.pay_band.set',
+    'people.pay_band.corrected',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its
