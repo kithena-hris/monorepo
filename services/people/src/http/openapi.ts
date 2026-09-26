@@ -53,6 +53,7 @@ import {
   SetupChoice,
   ImportStepBody,
   SegmentBody,
+  ScheduleBody,
   UploadStart,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
@@ -121,6 +122,7 @@ const components = {
   ImportUploadStart: UploadStart,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
+  ReportSchedule: ScheduleBody,
   RoleHolder: RoleHolderBody,
   RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
   RoleChange: RoleChangeBody,
@@ -309,6 +311,31 @@ function screenPaths(): Record<string, unknown> {
     },
     '/v1/segments/{id}': {
       delete: screenWrite('Delete a segment you saved', null, 200, 'Deleted', { path: 'id' }),
+    },
+    '/v1/report-schedules': {
+      post: screenWrite(
+        'Schedule a report (PEO-069): an export file or the analytics summary, built as each recipient on every run and emailed as a link; HR or people_admin',
+        'ReportSchedule',
+        201,
+        'The schedule. It first runs at the next period, not now',
+      ),
+    },
+    '/v1/report-schedules/{id}/pause': {
+      post: screenWrite('Pause a scheduled report', null, 200, 'The schedule', { path: 'id' }),
+    },
+    '/v1/report-schedules/{id}/resume': {
+      post: screenWrite(
+        'Resume a scheduled report from the next period; what it was paused through is not sent',
+        null,
+        200,
+        'The schedule',
+        { path: 'id' },
+      ),
+    },
+    '/v1/report-schedules/{id}': {
+      delete: screenWrite('Delete a scheduled report and its run history', null, 200, 'Deleted', {
+        path: 'id',
+      }),
     },
     '/v1/imports/uploads': {
       post: screenWrite(

@@ -70,6 +70,9 @@ import {
 } from '../infrastructure/drizzle-schema-repository.js';
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
 import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
+import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedules.js';
+import { reportMailerFrom } from '../infrastructure/report-mailer.js';
+import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { callerWithEntitlements, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
@@ -103,7 +106,11 @@ export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
 export function peopleService(
   databaseUrl: string,
   secretKeys: string | undefined,
-): PeopleService & { readonly webhooks: WebhookService; close(): Promise<void> } {
+): PeopleService & {
+  readonly webhooks: WebhookService;
+  tenants(): Promise<string[]>;
+  close(): Promise<void>;
+} {
   const client = postgres(databaseUrl);
   const db = drizzle(client);
   const ring = staticKeyRing(keysFrom(secretKeys));
@@ -249,6 +256,7 @@ export function peopleService(
       return result;
     },
     webhooks: hooks,
+    tenants: () => knownTenants(db),
     /** The poller and the retry timers stop, the passes in hand finish, then the pool (PEO-118). */
     async close() {
       closed = true;
@@ -424,6 +432,7 @@ function screenDeps(
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
     segments: { store: drizzleSegments(), newId: uuidv7 },
+    schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
     publisher: publishSchema({
@@ -449,6 +458,78 @@ function screenDeps(
     },
     // The bucket the browser uploads an import to (§14.2), and who may.
     uploads: { store: uploads, intents: drizzleUploadIntents() },
+  };
+}
+
+/** Scheduled reports as HR's screens manage them (PEO-069). */
+function scheduleAdmin(): ScheduleAdminDeps {
+  return {
+    schedules: drizzleReportSchedules(),
+    segments: drizzleSegments(),
+    accounts: drizzleRoleStore(),
+    calendars: drizzleOrgStore(),
+    clock: systemClock,
+    newId: uuidv7,
+  };
+}
+
+const REPORTS_EVERY_MS = 60 * 60 * 1000;
+
+/**
+ * Scheduled reports (PEO-069): every known tenant's due runs, on boot and
+ * hourly. In this process rather than `background.ts` because a report is an
+ * export, and an export's file has to land in the store this process's
+ * download route opens — in development that store is memory.
+ *
+ * On boot is the point: the VM sleeps when idle and nothing wakes it at 07:00
+ * on a Monday, so the first tick after a wake sends whatever came due while
+ * it slept, once (`duePeriod`). Only with a mailer and a safe tenant app
+ * base, as reminders: a run without them would claim a period and send
+ * nothing.
+ */
+function startReports(
+  service: ReturnType<typeof peopleService>,
+  exports: ExportJobDeps,
+): () => Promise<void> {
+  const mailer = reportMailerFrom(process.env);
+  const base = tenantAppBase(process.env);
+  if (mailer === undefined || base === null) {
+    logger.info('no report mailer or no tenant app base; scheduled reports not sent');
+    return () => Promise.resolve();
+  }
+  const sweep = sendDueReports({
+    ...scheduleAdmin(),
+    inTenant: service.inTenant,
+    exports,
+    company: tenantCompanies(base, drizzleOrgStore()),
+    mailer,
+  });
+  let running: Promise<void> | null = null;
+  const tick = (): void => {
+    running ??= (async () => {
+      for (const tenantId of await service.tenants()) {
+        try {
+          // eslint-disable-next-line no-await-in-loop -- one tenant at a time is the bound
+          const { runs, waiting } = await sweep(tenantId);
+          if (runs > 0) logger.info({ tenantId, runs }, 'scheduled reports run');
+          if (waiting) logger.info({ tenantId }, 'company not known yet; reports wait');
+        } catch (cause) {
+          logger.error({ err: cause, tenantId }, 'scheduled reports failed for a tenant');
+        }
+      }
+    })()
+      .catch((cause: unknown) => {
+        logger.error({ err: cause }, 'scheduled report sweep failed');
+      })
+      .finally(() => {
+        running = null;
+      });
+  };
+  tick();
+  const timer = setInterval(tick, REPORTS_EVERY_MS).unref();
+  return async () => {
+    clearInterval(timer);
+    await running;
   };
 }
 
@@ -502,6 +583,7 @@ export function wirePeople(server: Server): void {
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
   const exports = wireExports(service);
+  const stopReports = startReports(service, exports.deps);
   const uploads = uploadStoreFrom(process.env);
   const stopSweep = sweepUploads(uploads);
   const idempotency = drizzleIdempotency();
@@ -520,6 +602,7 @@ export function wirePeople(server: Server): void {
   onShutdown('requests, exports and the service pool', async () => {
     await drain(server);
     stopSweep();
+    await stopReports();
     await exports.close();
     await service.close();
   });
