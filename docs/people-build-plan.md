@@ -906,9 +906,35 @@ Ordered, but none of it blocks Phase 1 shipping.
       list, **never onto the nearest-looking person**. _(PRD §14.1)_
 - [ ] **PEO-064** Effective-dated history UI — "what did this look like in
       March", per attribute. _(PRD §8.5)_
-- [ ] **PEO-065** The full predicate editor for conditional requiredness.
+- [x] **PEO-065** The full predicate editor for conditional requiredness.
       _(PRD §6.5)_
-- [ ] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
+      _As built: the field editor's second step is Optional / Required for
+      everyone / Required when…, the last opening `PredicateEditor`
+      (`apps/web/people/src/settings/predicate-editor.tsx`): all-or-any over
+      up to ten rows, each a fact with a multi-select of its values, or
+      another field set or equal to one of its option keys. Reach's `Select`,
+      `Combobox` (multiple) and `Button`; nothing new in the design system.
+      The field input carries the predicate as the contract's
+      `RequirednessPredicate`, parsed at the REST boundary, so GraphQL, REST
+      and the draft refuse the same things. Editing a conditional field used
+      to save it as optional; it keeps its predicate now. The evaluator is
+      shared with PEO-066 (`evaluatePredicate`)._
+- [x] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
+      _As built: `visibilityRules` on the definition — up to five, each
+      preset scopes plus the same closed predicate, granting those scopes on
+      the records it holds for. Absent when none, so documents published
+      before keep their checksum; the draft keeps them in
+      `attribute_definition.visibility_rules` (20260926140000, nullable).
+      Enforced in `visibleTo`, so every read path decides alike: the relations
+      carry the person's facts (`withSubjects` at the wiring, the rows' own
+      facts for a page), and a question about everybody — a filter, a search,
+      a directory column, an analytics population — has none, so no rule
+      holds there. Safety: never for special-category data (contract and
+      read side); never on a field a granted scope cannot already read
+      outright, or on an archived one (`VISIBILITY_RULE_DISCLOSES`, on save
+      and again at publish); rules never count towards "a required field
+      somebody can read". The publish preview names a field whose readers or
+      conditions changed (`changed`)._
 - [ ] **PEO-067** The remaining charts — attrition, tenure, span of control,
       joiner heatmap, composition stacked. _(PRD §16.2)_
 - [ ] **PEO-068** Saved segments shared across directory, export and analytics.
