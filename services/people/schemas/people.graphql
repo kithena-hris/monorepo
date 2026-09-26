@@ -250,6 +250,12 @@ type BulkEditRow {
 input BulkHireInput {
   """On the person’s own calendar."""
   hireDate: String!
+  """
+  For somebody placed nowhere on their start date, placed from it; somebody placed keeps theirs.
+  """
+  legalEntityId: ID
+  """Their work location; it names its legal entity."""
+  locationId: ID
   personId: ID!
 }
 
@@ -1188,6 +1194,10 @@ type PeopleBulkEdit {
   """People per request."""
   limit: Int
   people: [BulkEditPerson!]
+  """
+  Where a bulk hire may place somebody placed nowhere: the live entities and locations. Null when there is nowhere to place anybody.
+  """
+  placement: ProfilePlacement
   sections: [RecordSection!]
   today: String
 }

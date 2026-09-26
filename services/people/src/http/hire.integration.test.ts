@@ -33,6 +33,9 @@ const OMAR = '00000000-0000-4000-8000-0000000000a2';
 const PIA = '00000000-0000-4000-8000-0000000000a3';
 const RUI = '00000000-0000-4000-8000-0000000000a4';
 const ANA = '00000000-0000-4000-8000-0000000000a5';
+const NOA = '00000000-0000-4000-8000-0000000000a6';
+const KAI = '00000000-0000-4000-8000-0000000000a7';
+const ZOE = '00000000-0000-4000-8000-0000000000a8';
 const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
 const OTHER_ACCOUNT = '00000000-0000-4000-8000-0000000000b4';
 
@@ -78,6 +81,7 @@ beforeAll(async () => {
     '20260924220200_people_employment_period.sql',
     '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
+    '20260926231500_people_bulk_answer.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924200000_people_employee_numbering.sql',
@@ -125,8 +129,8 @@ beforeAll(async () => {
       '2000-01-01',
     ),
   );
-  // Lena is placed nowhere; Omar and Pia are in Madrid; Rui was added
-  // without a work email; Ana is already an employee.
+  // Lena, Noa, Kai and Zoe are placed nowhere; Omar and Pia are in Madrid;
+  // Rui was added without a work email; Ana is already an employee.
   await admin.execute(sql`
     INSERT INTO people.person
       (tenant_id, id, status, hire_date, legal_entity_id, location_id,
@@ -141,7 +145,13 @@ beforeAll(async () => {
       (${ACME}::uuid, ${RUI}::uuid, 'provisional', NULL, ${ES}::uuid, ${MAD}::uuid,
        'Rui', 'Costa', NULL, '{}'::jsonb, 1),
       (${ACME}::uuid, ${ANA}::uuid, 'active', '2024-01-08', ${ES}::uuid, ${MAD}::uuid,
-       'Ana', 'García', 'ana@acme.test', '{}'::jsonb, 1)`);
+       'Ana', 'García', 'ana@acme.test', '{}'::jsonb, 1),
+      (${ACME}::uuid, ${NOA}::uuid, 'provisional', NULL, NULL, NULL,
+       'Noa', 'Berg', 'noa@acme.test', '{}'::jsonb, 1),
+      (${ACME}::uuid, ${KAI}::uuid, 'provisional', NULL, NULL, NULL,
+       'Kai', 'Sato', 'kai@acme.test', '{}'::jsonb, 1),
+      (${ACME}::uuid, ${ZOE}::uuid, 'provisional', NULL, NULL, NULL,
+       'Zoe', 'Park', 'zoe@acme.test', '{}'::jsonb, 1)`);
   await admin.execute(sql`
     INSERT INTO people.employment_period (tenant_id, person_id, period, legal_entity_id, started_on)
     VALUES (${ACME}::uuid, ${ANA}::uuid, 1, ${ES}::uuid, '2024-01-08')`);
@@ -190,6 +200,26 @@ const events = async (personId: string) =>
     )
   ).map((e) => [e.event_name, e.envelope.effectiveFrom]);
 
+/** Where somebody was placed, as history: the value, the day it takes effect, and whether it was recorded today. */
+const placements = async (personId: string) =>
+  (
+    await superuser().unsafe<{ attribute_key: string; value: unknown; effective_from: string; today: boolean }[]>(
+      `SELECT attribute_key, value, effective_from::text, recorded_at::date = now()::date AS today
+         FROM people.person_attribute_history
+        WHERE person_id = '${personId}' AND attribute_key IN ('legal_entity_id', 'location_id')
+        ORDER BY attribute_key`,
+    )
+  ).map((h) => [h.attribute_key, h.value, h.effective_from, h.today]);
+
+/** The legal entity each `hired` named. */
+const hiredInto = async (personId: string) =>
+  (
+    await superuser().unsafe<{ entity: string | null }[]>(
+      `SELECT envelope->'payload'->>'legalEntityId' AS entity FROM people.outbox
+        WHERE aggregate_id = '${personId}' AND event_name = 'people.person.hired'`,
+    )
+  ).map((e) => e.entity);
+
 const counts = async () => {
   const response = await fetch(`${base}/v1/views/directory`, { headers: hr });
   const view = (await response.json()) as { total: number; active: number; notStarted: number };
@@ -198,7 +228,7 @@ const counts = async () => {
 
 describe('hiring somebody added without a start date, from their profile', () => {
   it('is HR’s, needs a placement where there is one to give, and hires once per key', async () => {
-    expect(await counts()).toEqual([5, 1, 4]);
+    expect(await counts()).toEqual([8, 1, 7]);
 
     const notHr = await post(`/v1/people/${LENA}/hire`, { hireDate: '2020-03-02' }, 'p0', headers(OTHER_ACCOUNT));
     expect([notHr.status, (notHr.body['error'] as { code: string }).code]).toEqual([403, 'FORBIDDEN']);
@@ -232,7 +262,25 @@ describe('hiring somebody added without a start date, from their profile', () =>
     expect(twice.status).toBe(409);
     expect(twice.body['error']).toMatchObject({ code: 'INVALID_TRANSITION' });
 
-    expect(await counts()).toEqual([5, 2, 3]);
+    expect(await counts()).toEqual([8, 2, 6]);
+  });
+
+  it('places somebody from a start date ahead, recorded now, and hires them on it', async () => {
+    const hired = await post(
+      `/v1/people/${NOA}/hire`,
+      { hireDate: '2099-01-04', locationId: MAD },
+      'p4',
+    );
+    expect(hired.status).toBe(200);
+    expect(hired.body['status']).toBe('pre_hire');
+    expect(await placements(NOA)).toEqual([
+      ['legal_entity_id', ES, '2099-01-04', true],
+      ['location_id', MAD, '2099-01-04', true],
+    ]);
+    expect(await events(NOA)).toContainEqual(['people.person.hired', '2099-01-04']);
+    // The placement is not in force until then, and the hire reads it all the same.
+    expect(await hiredInto(NOA)).toEqual([ES]);
+    expect(await counts()).toEqual([8, 2, 6]);
   });
 });
 
@@ -245,6 +293,9 @@ describe('bulk hire', () => {
       { personId: PIA, hireDate: '2099-01-04' },
       { personId: RUI, hireDate: '2020-03-02' },
       { personId: ANA, hireDate: '2020-03-02' },
+      // Placed nowhere: Kai placed here, from his start date; Zoe given nowhere.
+      { personId: KAI, hireDate: '2099-01-04', locationId: MAD },
+      { personId: ZOE, hireDate: '2020-03-02' },
     ],
   };
   const expected = [
@@ -252,6 +303,8 @@ describe('bulk hire', () => {
     [PIA, 'changed', null],
     [RUI, 'refused', 'HIRE_INCOMPLETE'],
     [ANA, 'refused', 'INVALID_TRANSITION'],
+    [KAI, 'changed', null],
+    [ZOE, 'refused', 'PLACEMENT_REQUIRED'],
   ];
 
   it('previews who is hired and who is skipped and why, keeping nothing', async () => {
@@ -273,8 +326,35 @@ describe('bulk hire', () => {
     expect(await events(OMAR)).toContainEqual(['people.person.hired', '2020-03-02']);
     expect(await events(PIA)).toContainEqual(['people.person.hired', '2099-01-04']);
     expect(await events(RUI)).toEqual([]);
-    // Lena from the profile, Omar here: three active; Pia pre-hire and Rui still not started.
-    expect(await counts()).toEqual([5, 3, 2]);
+    // Kai placed and hired in one: the placement said, from his start date.
+    const kai = rows[4]?.changes.map((c) => [c.key, c.after]);
+    expect(kai).toEqual([
+      ['hire_date', '2099-01-04'],
+      ['status', 'Starting soon'],
+      ['legal_entity_id', 'Acme Spain'],
+      ['location_id', 'Madrid'],
+    ]);
+    expect(await placements(KAI)).toEqual([
+      ['legal_entity_id', ES, '2099-01-04', true],
+      ['location_id', MAD, '2099-01-04', true],
+    ]);
+    expect(await hiredInto(KAI)).toEqual([ES]);
+    // Omar kept where he was.
+    expect(await placements(OMAR)).toEqual([]);
+    // Zoe skipped for want of a placement, and why.
+    expect(rows[5]?.refusal?.message).toMatch(/legal entity/i);
+    expect(await events(ZOE)).toEqual([]);
+    // Lena from the profile, Omar here: three active; Noa, Pia and Kai
+    // pre-hire, Rui and Zoe still not started.
+    expect(await counts()).toEqual([8, 3, 5]);
+
+    // A retry with the key is the first answer, not a recomputation where
+    // those just hired read as already employed.
+    const again = await post('/v1/views/bulk-hire', batch, 'bulk-hire-1');
+    expect(again).toEqual(done);
+    expect(await events(OMAR)).toContainEqual(['people.person.hired', '2020-03-02']);
+    expect((await events(OMAR)).filter(([name]) => name === 'people.person.hired')).toHaveLength(1);
+    expect(await counts()).toEqual([8, 3, 5]);
   });
 
   it('is HR’s', async () => {

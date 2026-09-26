@@ -4,7 +4,8 @@ import { canWrite } from '../../domain/access/field-access.js';
 import { LIFECYCLE_KEYS } from '../person/core.js';
 import { inTenantResult, type Asking } from '../person/person-access.js';
 import { run, type PeopleService } from '../person/service.js';
-import { DIRECTORY_PAGE } from './people.js';
+import { DIRECTORY_PAGE, type PlacementView } from './people.js';
+import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { FormValue, IdentifierFindingView, RecordSection } from './model.js';
 import {
   formChanges,
@@ -105,6 +106,12 @@ export interface BulkEditView {
   readonly today: string;
   /** People per request. */
   readonly limit: number;
+  /**
+   * Where a bulk hire may place somebody placed nowhere: the live entities
+   * and locations, nobody's own. Null when the schema places nobody or the
+   * tenant has no live entity.
+   */
+  readonly placement: PlacementView | null;
 }
 
 /** Types with no control a batch can fill in: a file is attached per person. */
@@ -153,8 +160,30 @@ export async function bulkEditView(
       ),
       today: await tenantToday(deps, tx, asking.tenantId),
       limit: BULK_PAGE,
+      placement: await placeable(deps, tx, asking.tenantId, version),
     });
   });
+}
+
+/** Where a bulk hire may place somebody: live entities and locations, or null for nowhere. */
+async function placeable(
+  deps: ScreenDeps,
+  tx: Tx,
+  tenantId: string,
+  version: PublishedVersion,
+): Promise<PlacementView | null> {
+  const defines = (key: string) =>
+    version.document.attributes.some((d) => d.key === key && d.deprecatedAt === null);
+  if (!defines('legal_entity_id') && !defines('location_id')) return null;
+  const org = await deps.calendars.load(tx, tenantId);
+  const entities = [...org.entities.values()]
+    .filter((e) => e.archived !== true)
+    .map((e) => ({ value: e.id, label: e.name }));
+  if (entities.length === 0) return null;
+  const locations = [...org.locations.values()]
+    .filter((l) => l.archived !== true)
+    .map((l) => ({ value: l.id, label: l.name, legalEntityId: l.legalEntityId }));
+  return { legalEntityId: null, locationId: null, entities, locations };
 }
 
 /**
@@ -267,16 +296,25 @@ async function rows(
  * person where HR set one). The batch around `PersonAccess.hireExisting`,
  * exactly as bulk edit is the batch around `update`: HR only, a savepoint per
  * person so one refused leaves the others hired, and the preview the same
- * hires rolled back. Nobody is placed here: somebody with no legal entity is
- * refused with why, and placed on their profile first.
+ * hires rolled back.
  *
- * The answer is a bulk edit's: a hired row is `changed`, its start date and
- * the status it lands on (active once the date has begun on their calendar,
- * pre-hire until then) as the two changes; a skipped row is `refused`, with
- * the reason `hireExisting` gave.
+ * A placement given with a hire is for somebody placed nowhere on their
+ * start date, placed from it in the same savepoint as the hire; somebody
+ * placed keeps theirs. Somebody placed nowhere with none given is refused,
+ * with why, where the tenant has a legal entity to place them in.
+ *
+ * The answer is a bulk edit's: a hired row is `changed`, its start date, the
+ * status it lands on (active once the date has begun on their calendar,
+ * pre-hire until then) and any placement as the changes; a skipped row is
+ * `refused`, with the reason `hireExisting` gave.
  */
 export interface BulkHire {
-  readonly hires: readonly { readonly personId: string; readonly hireDate: string }[];
+  readonly hires: readonly {
+    readonly personId: string;
+    readonly hireDate: string;
+    readonly legalEntityId?: string | undefined;
+    readonly locationId?: string | undefined;
+  }[];
 }
 
 const STATUS_WORD: Readonly<Record<string, string>> = {
@@ -299,7 +337,7 @@ export async function bulkHire(
     const savepoint = <R>(_tenant: string, fn: (scope: { tx: Tx }) => Promise<R>) =>
       tx.transaction((sp) => fn({ tx: sp }));
     const out: BulkRow[] = [];
-    for (const { personId, hireDate } of hires) {
+    for (const { personId, hireDate, legalEntityId, locationId } of hires) {
       const before = await deps.service.access.read(tx, { ...asking, personId });
       if (!before.ok) {
         out.push(refusedRow(personId, 'Unknown person', before.error));
@@ -307,13 +345,22 @@ export async function bulkHire(
       }
       const name = nameOf(before.value.attributes) ?? 'Unnamed';
       const hired = await inTenantResult(savepoint, asking.tenantId, (sp) =>
-        deps.service.access.hireExisting(sp, { ...asking, personId, hireDate }),
+        deps.service.access.hireExisting(sp, {
+          ...asking,
+          personId,
+          hireDate,
+          ...(legalEntityId === undefined ? {} : { legalEntityId }),
+          ...(locationId === undefined ? {} : { locationId }),
+        }),
       );
       if (!hired.ok) {
         out.push(refusedRow(personId, name, hired.error));
         continue;
       }
-      const status = hired.value.status ?? 'pre_hire';
+      const status = hired.value.view.status ?? 'pre_hire';
+      const { placed } = hired.value;
+      const placedAt = (key: string, label: string, after: string | null): BulkChange[] =>
+        after === null ? [] : [{ key, label, dated: true, before: null, after }];
       out.push({
         personId,
         name,
@@ -327,6 +374,8 @@ export async function bulkHire(
             before: STATUS_WORD['provisional'] ?? null,
             after: STATUS_WORD[status] ?? status,
           },
+          ...placedAt('legal_entity_id', 'Legal entity', placed?.legalEntity ?? null),
+          ...placedAt('location_id', 'Work location', placed?.location ?? null),
         ],
         held: [],
         refusal: null,
@@ -341,6 +390,33 @@ export async function bulkHire(
   }
   const seen = await rolledBack(deps.service, asking.tenantId, apply);
   return seen.ok ? ok({ committed: false, rows: seen.value }) : seen;
+}
+
+/** A bulk answer as kept for a replay: everything but the names, which are read again. */
+export type KeptRow = Omit<BulkRow, 'name'>;
+export const keptRows = (result: BulkResult): KeptRow[] =>
+  result.rows.map(({ name: _name, ...row }) => row);
+
+/**
+ * A kept bulk answer, given back as it was first given: each name read again,
+ * as this viewer may read it now, so nobody's name is kept a second time.
+ */
+export async function replayed(
+  deps: ScreenDeps,
+  asking: Asking,
+  rows: readonly KeptRow[],
+): Promise<Result<BulkResult>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const out: BulkRow[] = [];
+    for (const row of rows) {
+      const read = await deps.service.access.read(tx, { ...asking, personId: row.personId });
+      out.push({
+        ...row,
+        name: read.ok ? (nameOf(read.value.attributes) ?? 'Unnamed') : 'Unknown person',
+      });
+    }
+    return ok({ committed: true, rows: out });
+  });
 }
 
 const same = (a: FormValue, b: FormValue): boolean => JSON.stringify(a) === JSON.stringify(b);
