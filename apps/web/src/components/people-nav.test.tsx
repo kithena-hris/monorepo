@@ -77,21 +77,18 @@ describe('currentPlace', () => {
     expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add employee');
   });
 
-  it('marks the section of a profile, and Add employee on its own screen', () => {
+  it('marks the section of a profile, and leaves Add employee off its own screen', () => {
     const hr = placesFor(nav, { hr: true, admin: false, finance: false });
     const { unmount } = render(<PeopleNav {...hr} route="/people/:id" />);
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
     expect(links.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe('page');
-    expect(
-      screen.getByRole('link', { name: 'Add employee' }).hasAttribute('aria-current'),
-    ).toBe(false);
+    expect(screen.getByRole('link', { name: 'Add employee' })).toBeTruthy();
     unmount();
 
+    // Its form's own Add employee is the only one there; no section is current.
     render(<PeopleNav {...hr} route="/people/new" />);
-    expect(screen.getByRole('link', { name: 'Add employee' }).getAttribute('aria-current')).toBe(
-      'page',
-    );
-    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
+    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
   });
 
   it('is nothing for a route no place claims', () => {
@@ -102,7 +99,7 @@ describe('currentPlace', () => {
   it('lets every route of the manifest be claimed by at most one section', () => {
     for (const { path } of manifest.routes) {
       const owners = manifest.sections.filter(
-        (s) => s.path === path || ('owns' in s && (s.owns as string[]).includes(path)),
+        (s) => s.path === path || ('owns' in s && s.owns.includes(path)),
       );
       expect(owners.length, path).toBeLessThanOrEqual(1);
     }

@@ -65,19 +65,19 @@ export function PeopleNav({ sections, actions, route }: PeopleNavProps): JSX.Ele
   const router = useRouter();
   if (sections.length === 0 && actions.length === 0) return null;
   const current = currentPlace(sections, route);
-  const acting = currentPlace(actions, route);
   const groups = groupsOf(sections);
 
   return (
     <div className="flex flex-col gap-4 lg:sticky lg:top-8 lg:w-56 lg:shrink-0">
-      {/* The one Add employee on any People screen: screens never repeat an action. */}
-      {actions.map((a) => (
-        <Button key={a.path} variant="primary" fullWidth asChild>
-          <Link href={a.path as Route} aria-current={a === acting ? 'page' : undefined}>
-            {a.label}
-          </Link>
-        </Button>
-      ))}
+      {/* The one Add employee on any People screen: screens never repeat an
+          action, and on the action's own screen its form is the only copy. */}
+      {actions
+        .filter((a) => currentPlace([a], route) === undefined)
+        .map((a) => (
+          <Button key={a.path} variant="primary" fullWidth asChild>
+            <Link href={a.path as Route}>{a.label}</Link>
+          </Button>
+        ))}
 
       <Nav label="People sections" className="hidden lg:block">
         <NavList>

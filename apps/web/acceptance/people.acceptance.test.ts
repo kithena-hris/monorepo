@@ -1135,12 +1135,13 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await add.click();
     await page.waitForURL(/\/people\/new$/);
     expect(await kept()).toBe(true);
-    // On its own screen the action is the current place, and no section is.
-    expect(await add.getAttribute('aria-current')).toBe('page');
-    expect(await nav.locator('[aria-current="page"]').count()).toBe(0);
     const form = page.getByRole('form', { name: 'Add employee' });
     await form.waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');
+    // On its own screen the form's button is the only Add employee, and no
+    // section is current.
+    expect(await add.count()).toBe(0);
+    expect(await nav.locator('[aria-current="page"]').count()).toBe(0);
     await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
     await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
     await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
