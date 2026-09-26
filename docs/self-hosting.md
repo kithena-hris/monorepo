@@ -72,16 +72,8 @@ decides the answer.
 | GKE                        | One zonal **control plane**. Nodes are billed.               |
 | AKS                        | Control plane. Nodes are billed.                             |
 | EKS                        | Nothing — the control plane is charged by the hour.          |
-| DigitalOcean, Linode, Civo | No permanent free tier.                                      |
-| Oracle Cloud Always Free   | Genuinely free and genuinely capable: 4 Ampere cores, 24 GB. |
 
-Oracle is the only one that could carry all six containers for nothing. Two
-caveats decide it: Ampere capacity is frequently unavailable in popular regions,
-and free accounts are reclaimed for inactivity. That is an acceptable risk for a
-side project and not an acceptable one for the service that holds a customer's
-authentication.
-
-So the realistic shape is **one small VM running k3s, roughly $5–12 a month** —
+None carries six containers for nothing. So the realistic shape is **one small VM running k3s, roughly $5–12 a month** —
 which is fine, but it is a VM we are buying, not a free tier we are using.
 
 Free-tier terms move. Anyone acting on this table should re-check it.

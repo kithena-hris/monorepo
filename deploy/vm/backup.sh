@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Nightly: the VM's own state, to the backups bucket (Oracle Object Storage
-# through its S3 Compatibility API; any S3 endpoint works).
+# Nightly: the VM's own state, to the backups bucket on Amazon S3.
 #
 # Run as root by `kithena-backup.timer` (installed by `bootstrap.sh`). For each
 # environment running on this VM:
@@ -14,30 +13,36 @@
 # Nightly is the recovery point: there is no point-in-time restore for People's
 # data on this VM. Identity's data is Neon's, which keeps its own history.
 # Retention is the bucket's lifecycle rule, not this script.
-# `docs/environments.md` "Backups" has the restore.
+# `docs/environments.md` "Backups and restore" has the restore.
 #
-# `/etc/kithena/backup.env` (0600, written once by hand) holds
-# BACKUP_S3_ENDPOINT, BACKUP_S3_REGION, BACKUP_S3_BUCKET, AWS_ACCESS_KEY_ID and
-# AWS_SECRET_ACCESS_KEY (an OCI Customer Secret Key).
+# No key anywhere: the AWS CLI runs in a container and takes the instance
+# role from IMDSv2 — the hop limit of 2 that `provision.sh` sets is what lets
+# a container reach it. The bucket is `kithena-<account>-backups` in the
+# instance's own region, both read from the instance identity document.
+# `/etc/kithena/backup.env` is optional and may set BACKUP_S3_BUCKET and
+# BACKUP_S3_REGION instead.
 set -euo pipefail
 
 root="${KITHENA_ETC:-/etc/kithena}"
-set -a # exported, for `docker run -e NAME`
-# shellcheck source=/dev/null
-. "$root/backup.env"
-set +a
-: "${BACKUP_S3_ENDPOINT:?}" "${BACKUP_S3_REGION:?}" "${BACKUP_S3_BUCKET:?}" "${AWS_ACCESS_KEY_ID:?}" "${AWS_SECRET_ACCESS_KEY:?}"
+if [ -f "$root/backup.env" ]; then
+  # shellcheck source=/dev/null
+  . "$root/backup.env"
+fi
+if [ -z "${BACKUP_S3_BUCKET:-}" ] || [ -z "${BACKUP_S3_REGION:-}" ]; then
+  imds=http://169.254.169.254/latest
+  token="$(curl -fsS -X PUT "$imds/api/token" -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')"
+  identity="$(curl -fsS -H "X-aws-ec2-metadata-token: $token" "$imds/dynamic/instance-identity/document")"
+  # One `"key" : "value"` a line.
+  field() { printf '%s\n' "$identity" | sed -n "s/.*\"$1\" *: *\"\([^\"]*\)\".*/\1/p"; }
+  BACKUP_S3_BUCKET="${BACKUP_S3_BUCKET:-kithena-$(field accountId)-backups}"
+  BACKUP_S3_REGION="${BACKUP_S3_REGION:-$(field region)}"
+fi
 date="$(date -u +%Y-%m-%d)"
 
-# The checksum settings: the CLI's default trailing checksums are newer than
-# most S3-compatible stores, Oracle's included.
 upload() {
-  docker run --rm -i \
-    -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e "AWS_DEFAULT_REGION=$BACKUP_S3_REGION" \
-    -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
-    -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
-    amazon/aws-cli:2.31.0@sha256:3b018ce74732c98acf6f1de59b3a89587cb7f9eb6ea0d1447d1779091b2bf057 s3 cp - "s3://$BACKUP_S3_BUCKET/$1" \
-    --endpoint-url "$BACKUP_S3_ENDPOINT" --only-show-errors
+  docker run --rm -i -e "AWS_REGION=$BACKUP_S3_REGION" \
+    amazon/aws-cli:2.31.0@sha256:3b018ce74732c98acf6f1de59b3a89587cb7f9eb6ea0d1447d1779091b2bf057 \
+    s3 cp - "s3://$BACKUP_S3_BUCKET/$1" --only-show-errors
 }
 
 status=0

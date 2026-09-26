@@ -15,20 +15,19 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logger } from '@kithena/telemetry';
 
 import type { UploadStore } from '../application/import/upload.js';
-import { s3ConfigFrom, type S3Config } from './s3-blobs.js';
+import { clientConfig, s3ConfigFrom, type S3Config } from './s3-blobs.js';
 
 /**
- * Import uploads in an S3-compatible bucket the browser writes to directly:
- * Cloudflare R2 in production, SeaweedFS (or whatever serves S3 locally) on
- * a laptop. Its own bucket, credentials and endpoint (`PEOPLE_UPLOAD_*`),
+ * Import uploads in an S3 bucket the browser writes to directly: Amazon S3
+ * in production, SeaweedFS (or whatever serves S3 locally) on a laptop. Its own bucket, credentials and endpoint (`PEOPLE_UPLOAD_*`),
  * separate from the export store's, because the two are different trust
  * boundaries: this one takes bytes from a browser, the other only from People.
  *
  * **What storage enforces**, signed into the presigned PUT (SigV4, host plus
  * these headers) so a request that changes any of them fails the signature:
  *
- * - `content-length`: exactly the declared size. S3 has no length range on a
- *   presigned PUT and R2 has no POST policy, so the length is pinned instead.
+ * - `content-length`: exactly the declared size. a presigned PUT has no length
+ *   range (only a POST policy does), so the length is pinned instead.
  * - `content-type`: `application/octet-stream`, whatever the file claims.
  * - `if-none-match: *`: the key is written once. A second PUT with the same
  *   URL is refused (412), so the URL cannot replace a file after it is checked.
@@ -41,7 +40,7 @@ import { s3ConfigFrom, type S3Config } from './s3-blobs.js';
  *
  * With `PEOPLE_UPLOAD_SSE=AES256` (the default) `x-amz-server-side-encryption`
  * is signed in too, so the browser must ask for SSE-S3; `none` leaves it out
- * for a provider that encrypts at rest on its own and refuses the header. A
+ * for a store that refuses the header. A
  * browser cannot hold an application key, so nothing here is sealed by People.
  */
 
@@ -51,12 +50,9 @@ const MAX_PAGES = 10;
 
 export function s3Uploads(config: S3Config): UploadStore & { readonly client: S3Client } {
   const client = new S3Client({
-    region: config.region,
-    ...(config.endpoint ? { endpoint: config.endpoint } : {}),
-    forcePathStyle: config.forcePathStyle ?? true,
-    credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    ...clientConfig(config),
     // Otherwise SDK v3 presigns a PUT with `x-amz-checksum-crc32` of an EMPTY
-    // body, and S3, R2 and SeaweedFS refuse the browser's real body with
+    // body, and S3 and SeaweedFS refuse the browser's real body with
     // BadDigest. Checksums only where an operation requires one.
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',

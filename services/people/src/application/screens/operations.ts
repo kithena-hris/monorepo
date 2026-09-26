@@ -434,11 +434,12 @@ export async function completeImportUpload(
 
 /**
  * Where a dry run's blocked rows are kept: under the upload, in the export's
- * store, sealed. Not under `/imports/`, so the export sweep gives it an export
- * file's day rather than a committed report's week (`lifetimeOf`).
+ * store, sealed. Under `dry-runs/`, not `imports/`, so the export sweep and the
+ * bucket's lifecycle rule give it an export file's day rather than a committed
+ * report's week (`lifetimeOf`).
  */
 export const dryRunReportKey = (tenantId: string, uploadId: string): string =>
-  `${tenantId}/uploads/${uploadId}/blocked-rows.csv`;
+  `dry-runs/${tenantId}/${uploadId}/blocked-rows.csv`;
 
 /** How many blocked rows, and blocked items, the review lists (§14.2). */
 const SHOWN = 20;

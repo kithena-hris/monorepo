@@ -77,8 +77,12 @@ export interface SealingConfig {
  */
 export const REPORT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** An import's report, by its key (`reportKey` in `import/commit.ts`). */
-export const isImportReport = (key: string): boolean => key.includes('/imports/');
+/**
+ * An import's report, by its key (`reportKey` in `import/commit.ts`). Every
+ * key starts with its lifetime — `exports/`, `dry-runs/` or `imports/` — so
+ * the bucket's lifecycle rules, which filter by prefix, can match it too.
+ */
+export const isImportReport = (key: string): boolean => key.startsWith('imports/');
 
 /** How long an object lives: a report its week, an export file its link's day. */
 export const lifetimeOf = (key: string): number =>

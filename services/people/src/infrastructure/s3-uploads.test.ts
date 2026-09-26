@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { s3ConfigFrom, sseFrom } from './s3-blobs.js';
+import { clientConfig, s3ConfigFrom, sseFrom } from './s3-blobs.js';
 import { s3Uploads } from './s3-uploads.js';
 
 /**
@@ -9,8 +9,8 @@ import { s3Uploads } from './s3-uploads.js';
  */
 
 const config = {
-  endpoint: 'https://acct.r2.cloudflarestorage.com',
-  region: 'auto',
+  endpoint: 'http://localhost:9000',
+  region: 'us-east-1',
   bucket: 'uploads',
   accessKeyId: 'AKIDEXAMPLE',
   secretAccessKey: 'secret',
@@ -53,6 +53,29 @@ describe('the presigned PUT', () => {
     expect(signedHeaders(put.url)).not.toContain('x-amz-server-side-encryption');
     expect(put.headers).not.toHaveProperty('x-amz-server-side-encryption');
     expect(new URL(put.url).searchParams.has('x-amz-server-side-encryption')).toBe(false);
+  });
+});
+
+describe('a store on Amazon S3', () => {
+  it('is S3 itself with no endpoint, virtual-hosted, and the default credential chain with no keys', () => {
+    const aws = s3ConfigFrom({ PEOPLE_UPLOAD_S3_REGION: 'us-east-1' }, 'PEOPLE_UPLOAD', 'uploads');
+    expect(aws).toEqual({ bucket: 'uploads', region: 'us-east-1', sse: 'AES256' });
+    const options = clientConfig(aws);
+    expect(options.forcePathStyle).toBe(false);
+    expect(options).not.toHaveProperty('credentials');
+    expect(options).not.toHaveProperty('endpoint');
+  });
+
+  it('presigns against the bucket’s own S3 host', async () => {
+    const put = await s3Uploads({ region: 'us-east-1', bucket: 'uploads', accessKeyId: 'AKIDEXAMPLE', secretAccessKey: 'secret' }).presignPut(KEY, 10, 300);
+    expect(new URL(put.url).host).toBe('uploads.s3.us-east-1.amazonaws.com');
+    expect(new URL(put.url).pathname).toBe(`/${KEY}`);
+  });
+
+  it('takes an access key pair only whole', () => {
+    expect(clientConfig(s3ConfigFrom({ S3_ACCESS_KEY_ID: 'a', S3_SECRET_ACCESS_KEY: 's' }, 'PEOPLE_UPLOAD', 'u')))
+      .toHaveProperty('credentials', { accessKeyId: 'a', secretAccessKey: 's' });
+    expect(() => s3ConfigFrom({ S3_ACCESS_KEY_ID: 'a' }, 'PEOPLE_UPLOAD', 'u')).toThrow(/go together/);
   });
 });
 

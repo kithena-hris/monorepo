@@ -2306,12 +2306,15 @@ JSX runtime and Reach, plus `ssr/people.css`.
   `https://*.app.kithena.com` and `*.staging.app.kithena.com`, which the
   stylesheet now needs, being fetched with `crossorigin` for its integrity
   check. The subgraph and the router the remote reads through do not run on
-  Vercel: they run on one 4 GB VM (an AWS EC2 `c7i-flex.large` paid from
-  Free-plan credits, stopped when idle and woken by the shell when the People
-  pages are opened; any 4 GB VM runs the same files) under Docker Compose,
-  with Redpanda, Temporal, OpenFGA, Valkey and People's own Postgres beside
-  them (identity's data stays on Neon), and only the router
-  is public (`api.<domain>`, through a Cloudflare Tunnel). People's own REST
+  Vercel: AWS is the only backend host. They run on one EC2
+  `c7i-flex.large` in `us-east-1` (paid from Free-plan credits, stopped when
+  idle and woken by the shell when the People pages are opened) under Docker
+  Compose, with Redpanda, Temporal, OpenFGA, Valkey and People's own Postgres
+  beside them (identity's data stays on Neon), and only the router
+  is public (`api.<domain>`, through a Cloudflare Tunnel). Every object People
+  stores — uploads (§14.2), export files and reports (§15.1) — and the nightly
+  backups are in Amazon S3, reached through the instance's IAM role with no
+  access key. People's own REST
   routes (§13.2), the schema artifact (§13.4) and SCIM (§13.5) are not routed
   publicly yet; the signed export links are. `docs/environments.md` "Hosting"
   has the rest, including what moves where at scale.
@@ -2428,7 +2431,7 @@ What storage enforces, and what People verifies, are deliberately two lists:
 | Enforced by storage (signed into the PUT, SigV4)                                   | Verified by People (on completion, and on every later read)      |
 | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | The key, which People chose, under the tenant                                     | The intent is this person's, in this tenant (RLS), and unexpired |
-| `Content-Length` exactly the declared size — S3 has no length range on a presigned PUT and R2 no POST policy, so the length is pinned | The object exists and is exactly the declared size; a read stops one byte past it |
+| `Content-Length` exactly the declared size — a presigned PUT has no length range (only a POST policy does), so the length is pinned | The object exists and is exactly the declared size; a read stops one byte past it |
 | `Content-Type: application/octet-stream`, whatever the file claims                | The SHA-256 of what was stored, and that it has not changed since |
 | `If-None-Match: *`: the key is written once; a second PUT is refused (412)         | What the file *is*, from its bytes, exactly as before: the ZIP signature, the zip-bomb check, encoding and delimiter detection, 50,000 rows |
 | SSE-S3 where the store takes it (`PEOPLE_UPLOAD_SSE`), and no checksum header — the SDK’s default would be a CRC32 of an empty body | |

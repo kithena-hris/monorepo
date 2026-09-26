@@ -100,17 +100,17 @@ describe('the bucket adapter', () => {
       blobs,
     );
 
-    await store.put('t/exports/1/people.csv', new TextEncoder().encode('Grace,Hopper'), 'text/csv');
+    await store.put('exports/t/1/people.csv', new TextEncoder().encode('Grace,Hopper'), 'text/csv');
     const head = await blobs.client.send(
-      new HeadObjectCommand({ Bucket: 'exports-a', Key: 't/exports/1/people.csv' }),
+      new HeadObjectCommand({ Bucket: 'exports-a', Key: 'exports/t/1/people.csv' }),
     );
     expect(head.ServerSideEncryption).toBe('AES256');
     const raw = await blobs.client.send(
-      new GetObjectCommand({ Bucket: 'exports-a', Key: 't/exports/1/people.csv' }),
+      new GetObjectCommand({ Bucket: 'exports-a', Key: 'exports/t/1/people.csv' }),
     );
     expect(new TextDecoder().decode(await raw.Body?.transformToByteArray())).not.toContain('Grace');
 
-    const link = await store.sign('t/exports/1/people.csv', '2026-09-23T09:00:00.000Z');
+    const link = await store.sign('exports/t/1/people.csv', '2026-09-23T09:00:00.000Z');
     const opened = await store.open(link);
     expect(opened.ok && new TextDecoder().decode(opened.value.bytes)).toBe('Grace,Hopper');
     expect(opened.ok && opened.value.mediaType).toBe('text/csv');
@@ -120,15 +120,15 @@ describe('the bucket adapter', () => {
     expect(!expired.ok && expired.error.code).toBe('LINK_EXPIRED');
   });
 
-  it('asks for no SSE header when the store is set to none, as Oracle needs', async () => {
+  it('asks for no SSE header when the store is set to none, for a store that refuses it', async () => {
     const blobs = bucket('exports-none', 'none');
     await blobs.client.send(new CreateBucketCommand({ Bucket: 'exports-none' }));
-    await blobs.put('t/exports/2/people.csv', new Uint8Array([1, 2, 3]), 'text/csv');
+    await blobs.put('exports/t/2/people.csv', new Uint8Array([1, 2, 3]), 'text/csv');
     const head = await blobs.client.send(
-      new HeadObjectCommand({ Bucket: 'exports-none', Key: 't/exports/2/people.csv' }),
+      new HeadObjectCommand({ Bucket: 'exports-none', Key: 'exports/t/2/people.csv' }),
     );
     expect(head.ServerSideEncryption).toBeUndefined();
-    expect((await blobs.get('t/exports/2/people.csv'))?.body).toEqual(new Uint8Array([1, 2, 3]));
+    expect((await blobs.get('exports/t/2/people.csv'))?.body).toEqual(new Uint8Array([1, 2, 3]));
   });
 
   it('sweeps by upload time, bounded by the limit', async () => {

@@ -143,7 +143,7 @@ export async function checkReason(
 }
 
 const keyFor = (tenantId: string, exportId: string, name: string) =>
-  `${tenantId}/exports/${exportId}/${name}`;
+  `exports/${tenantId}/${exportId}/${name}`;
 
 /** The links of a completed export, signed again: nothing stores a link. */
 export async function linksOf(

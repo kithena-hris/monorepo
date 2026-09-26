@@ -114,9 +114,9 @@ describe('the sweep', () => {
 
   it('keeps an import’s report its 7 days, a day past an export file, and deletes it then', async () => {
     const { objects } = setup();
-    const report = 't/imports/abc/blocked-rows.csv';
+    const report = 'imports/t/abc/blocked-rows.csv';
     await objects.put(report, new Uint8Array([1]), 'text/csv');
-    await objects.put('t/exports/x/people.csv', new Uint8Array([1]), 'text/csv');
+    await objects.put('exports/t/x/people.csv', new Uint8Array([1]), 'text/csv');
     // Stored 2026-09-22T09:00: the export file goes after a day, the report
     // stays until its week is out.
     expect(await objects.purge('2026-09-29T08:59:59.000Z', 10)).toBe(1);
