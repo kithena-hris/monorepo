@@ -24,3 +24,5 @@ export { Duplicates } from './review/duplicates';
 export { ImportFlow } from './import/import-flow';
 export { ExportBuilder } from './export/export-builder';
 export { Analytics } from './analytics/analytics';
+export { ReportSchedules } from './reports/report-schedules';
+export { ReportRuns } from './reports/report-runs';

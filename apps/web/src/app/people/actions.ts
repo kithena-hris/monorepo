@@ -637,3 +637,59 @@ export async function saveSegment(segment: {
     }),
   );
 }
+
+/* ---------------------------------------------------- scheduled reports -- */
+
+/** A schedule as the screen's form holds it (PEO-069); People checks every part again. */
+export interface ScheduleDraft {
+  readonly name: string;
+  readonly segmentId: string | null;
+  /** A filter somebody saved over the API; kept as it is, not edited here. */
+  readonly filter: readonly { readonly key: string; readonly value: string }[];
+  readonly kind: 'export' | 'summary';
+  readonly format: 'xlsx' | 'pdf';
+  readonly fields: readonly string[] | null;
+  readonly reason: string | null;
+  readonly every: 'day' | 'week' | 'month';
+  readonly weekday: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly legalEntityId: string | null;
+  readonly recipients: readonly string[];
+}
+
+const scheduleVariables = (d: ScheduleDraft): Record<string, unknown> => ({
+  name: d.name,
+  segmentId: d.segmentId,
+  filter: d.segmentId === null ? d.filter : null,
+  kind: d.kind,
+  format: d.kind === 'export' ? d.format : null,
+  fields: d.kind === 'export' ? d.fields : null,
+  reason: d.kind === 'export' ? d.reason : null,
+  every: d.every,
+  weekday: d.every === 'week' ? d.weekday : null,
+  day: d.every === 'month' ? d.day : null,
+  hour: d.hour,
+  legalEntityId: d.legalEntityId,
+  recipients: d.recipients,
+});
+
+export async function createReportSchedule(draft: ScheduleDraft): Promise<Outcome> {
+  return outcome(people('CreateReportSchedule', scheduleVariables(draft)));
+}
+
+export async function updateReportSchedule(id: string, draft: ScheduleDraft): Promise<Outcome> {
+  return outcome(people('UpdateReportSchedule', { id, ...scheduleVariables(draft) }));
+}
+
+export async function pauseReportSchedule(id: string): Promise<Outcome> {
+  return outcome(people('PauseReportSchedule', { id }));
+}
+
+export async function resumeReportSchedule(id: string): Promise<Outcome> {
+  return outcome(people('ResumeReportSchedule', { id }));
+}
+
+export async function deleteReportSchedule(id: string): Promise<Outcome> {
+  return outcome(people('DeleteReportSchedule', { id }));
+}

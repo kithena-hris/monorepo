@@ -108,6 +108,10 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         endpointId: query.params['id'] ?? '',
         after: given(query.search['after']),
       });
+    case 'ReportSchedules':
+      return read('ReportSchedules');
+    case 'ReportRuns':
+      return read('ReportRuns', { id: query.params['id'] ?? '' });
     case 'ExportBuilder': {
       const builder = await read('ExportBuilder');
       // A scheduled report's email links here with its export (PEO-069).

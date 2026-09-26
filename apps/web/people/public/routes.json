@@ -20,6 +20,8 @@
     { "path": "/people/approvals", "component": "Approvals" },
     { "path": "/people/duplicates", "component": "Duplicates" },
     { "path": "/people/analytics", "component": "Analytics" },
+    { "path": "/people/reports", "component": "ReportSchedules" },
+    { "path": "/people/reports/:id", "component": "ReportRuns" },
     { "path": "/people/:id", "component": "Profile" },
     { "path": "/people/:id/history", "component": "PersonHistory" }
   ]

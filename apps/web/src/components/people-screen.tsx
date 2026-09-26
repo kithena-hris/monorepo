@@ -366,6 +366,17 @@ export function PeopleScreen({
             onSetMapping: thenRefresh(actions.setScimMapping),
           },
         };
+      case 'ReportSchedules':
+        return {
+          load: loadable,
+          onCreate: thenRefresh(actions.createReportSchedule),
+          onUpdate: thenRefresh(actions.updateReportSchedule),
+          onPause: thenRefresh(actions.pauseReportSchedule),
+          onResume: thenRefresh(actions.resumeReportSchedule),
+          onDelete: thenRefresh(actions.deleteReportSchedule),
+        };
+      case 'ReportRuns':
+        return { load: loadable };
       case 'RoleSettings':
         return {
           load: loadable,
