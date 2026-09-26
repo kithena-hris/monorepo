@@ -187,6 +187,7 @@ beforeAll(async () => {
     '20260923100000_people_snapshot.sql',
     '20260923180000_people_published_breakdown.sql',
     '20260924340000_people_person_key_lookup.sql',
+    '20260926200000_people_status_idx_skip_scan.sql',
     '20260926190000_people_pay.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
