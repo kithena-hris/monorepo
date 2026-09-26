@@ -58,7 +58,8 @@ push and every preview spent that before the day was out.
 **Nothing deploys from a pull request while on Hobby.** Production ships the
 affected targets after a merge to `main`, and that is the only automatic deploy:
 
-- `vercel-preview` runs only when a pull request gets the `preview` label.
+- `vercel-preview` runs only on a pull request labelled `preview`: adding the
+  label and every push after it deploy the apps that push affected.
 - `vercel-staging` runs only by hand (`gh workflow run vercel-staging.yml --ref
   <branch> -f targets=all`).
 - Vercel's own Git deploys are off for the one project connected to the
