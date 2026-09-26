@@ -102,6 +102,25 @@ export async function revealIdentifier(
   return answer.ok ? { ok: true, value: answer.data.value } : { ok: false, message: answer.message };
 }
 
+/**
+ * HR merges a duplicate into the record that survives (PEO-074): People
+ * decides who may, which way, and which values may be taken.
+ */
+export async function mergePerson(
+  survivorId: string,
+  absorbedPersonId: string,
+  take: readonly string[],
+): Promise<Outcome> {
+  return outcome(
+    people('MergePerson', { personId: survivorId, absorbedPersonId, take: [...take] }),
+  );
+}
+
+/** HR says two records are two people; the queue stops offering them. */
+export async function dismissDuplicate(personIds: readonly [string, string]): Promise<Outcome> {
+  return outcome(people('DismissDuplicate', { personIds: [...personIds] }));
+}
+
 /** Move a person to a legal entity and location from a date (PEO-123); People decides who may. */
 export async function placePerson(
   personId: string,

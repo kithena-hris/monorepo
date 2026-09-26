@@ -21,6 +21,7 @@ import { WebhookLog } from '../settings/integrations/webhook-log';
 import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
 import { IdentifierReviews } from '../review/identifier-reviews';
+import { Duplicates } from '../review/duplicates';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
 
@@ -599,6 +600,38 @@ describe('at 390×844, with a finger', () => {
         }}
         onDecide={ok}
         onReveal={() => Promise.resolve({ ok: true as const, value: '12345678A' })}
+      />,
+    );
+  });
+
+  it('two possible duplicates side by side, for HR (PEO-074)', async () => {
+    await checked(
+      <Duplicates
+        load={{
+          status: 'ready',
+          data: {
+            items: [],
+            comparison: {
+              people: [
+                { id: 'p1', name: 'Ada Lovelace', status: 'active', refusal: null },
+                { id: 'p2', name: 'Augusta Lovelace', status: 'provisional', refusal: 'Never hired.' },
+              ],
+              rows: [
+                {
+                  key: 'given_name',
+                  label: 'Legal first name',
+                  values: ['Ada', 'Augusta'],
+                  same: false,
+                  takeable: [false, true],
+                },
+              ],
+            },
+          },
+        }}
+        onCompare={vi.fn()}
+        onBack={vi.fn()}
+        onMerge={ok}
+        onDismiss={ok}
       />,
     );
   });

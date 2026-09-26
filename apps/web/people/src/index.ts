@@ -18,6 +18,7 @@ export { Organisation } from './settings/organisation';
 export { WebhookLog } from './settings/integrations/webhook-log';
 export { FullValues } from './export/full-values';
 export { IdentifierReviews } from './review/identifier-reviews';
+export { Duplicates } from './review/duplicates';
 export { ImportFlow } from './import/import-flow';
 export { ExportBuilder } from './export/export-builder';
 export { Analytics } from './analytics/analytics';
