@@ -1103,8 +1103,9 @@ Ordered, but none of it blocks Phase 1 shipping.
       from its original `effectiveFrom`. Withdrawal, expiry, notices through
       messaging, the approvals inbox, the Sensitive marker in Reach, and HR's
       "apply without approval" on import and bulk edit. SCIM writes are not
-      held: the connection is the source of record for what it writes. A DSAR
-      does not yet include pending changes._
+      held: the connection is the source of record for what it writes. The
+      subject access pack carries a person's held changes, and the secret
+      rotation re-wraps sealed pending values._
 - [x] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
       _Landed as migration 20260926190000 with the three decisions §16.2

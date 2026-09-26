@@ -111,6 +111,14 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
       return [...rows].map(fromRow);
     },
 
+    async forPerson(tx, tenantId, personId) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT ${COLUMNS} FROM people.pending_change
+         WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid
+         ORDER BY requested_at, id`);
+      return [...rows].map(fromRow);
+    },
+
     async unseal(tx, tenantId, id) {
       const rows = await tx.execute<{ ciphertext: Buffer | null; key_id: string | null }>(sql`
         SELECT ciphertext, key_id FROM people.pending_change
@@ -167,6 +175,12 @@ export function inMemoryPendingChangeStore(): PendingChangeStore & {
           )
           .toSorted((a, b) => (a.approval.requestedAt < b.approval.requestedAt ? -1 : 1))
           .slice(0, where.limit),
+      ),
+    forPerson: (_tx, tenantId, personId) =>
+      Promise.resolve(
+        [...rows.values()]
+          .filter((c) => c.tenantId === tenantId && c.personId === personId)
+          .toSorted((a, b) => (a.approval.requestedAt < b.approval.requestedAt ? -1 : 1)),
       ),
     unseal: (_tx, tenantId, id) =>
       Promise.resolve(
