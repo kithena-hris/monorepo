@@ -96,6 +96,7 @@ function toRecord(row: Row): PersonRecord {
     legalEntityId: row.fields.legalEntityId ?? null,
     employmentType: row.fields.employmentType ?? null,
     workModel: row.fields.workModel ?? null,
+    sourceOfRecord: row.fields.sourceOfRecord ?? 'own',
   };
 }
 

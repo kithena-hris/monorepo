@@ -15,6 +15,10 @@ import {
   replayDelivery,
   rotateEndpoint,
   updateEndpoint,
+  createScimConnection,
+  revokeScimConnection,
+  rotateScimToken,
+  setScimMapping,
   type ImportDeps,
   type IntegrationDeps,
 } from '../application/screens/operations.js';
@@ -142,6 +146,14 @@ export const EndpointBody = z.strictObject({
   alertEmail: z.string().max(320),
 });
 export const EndpointPatch = EndpointBody.partial().extend({ enabled: z.boolean().optional() });
+/** A SCIM connection (PEO-072): what the tenant calls the upstream system. */
+export const ScimConnectionBody = z.strictObject({ system: z.string().max(80) });
+/** The approved mapping, whole (PEO-073): each SCIM path and the attribute it owns. */
+export const ScimMappingBody = z.strictObject({
+  mapping: z
+    .array(z.strictObject({ path: z.string().max(200), key: z.string().max(64) }))
+    .max(200),
+});
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
 export const UploadStart = z.strictObject({
   name: z.string().max(255),
@@ -584,6 +596,38 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: write(NoBody, (asking, _input, id) => rotateEndpoint(deps, asking, id), {
         resource: (_asking, id) => id,
         again: endpoint,
+      }),
+    },
+    // SCIM connections (PEO-072, PEO-073): people_admin's, audited by event.
+    {
+      method: 'POST',
+      pattern: /^\/v1\/scim\/connections$/,
+      handle: write(ScimConnectionBody, (asking, input) => createScimConnection(deps, asking, input.system), {
+        status: 201,
+        resource: (_asking, _id, made) => made.id,
+        again: (_asking, id) => Promise.resolve({ status: 201, body: { id } }),
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/scim/connections/${UUID}/rotate$`),
+      handle: write(NoBody, (asking, _input, id) => rotateScimToken(deps, asking, id), {
+        resource: (_asking, id) => id,
+        again: endpoint,
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/scim/connections/${UUID}/revoke$`),
+      handle: write(NoBody, (asking, _input, id) => revokeScimConnection(deps, asking, id), {
+        resource: (_asking, id) => id,
+      }),
+    },
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/scim/connections/${UUID}/mapping$`),
+      handle: write(ScimMappingBody, (asking, input, id) => setScimMapping(deps, asking, id, input.mapping), {
+        resource: (_asking, id) => id,
       }),
     },
     {

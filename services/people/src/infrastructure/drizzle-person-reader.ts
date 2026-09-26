@@ -87,6 +87,7 @@ function toRecord(row: Row & { employment: Record<string, unknown> | null }): Pe
     legalEntityId: row.legalEntityId,
     employmentType: row.employmentType,
     workModel: row.workModel,
+    sourceOfRecord: row.sourceOfRecord === 'external' ? 'external' : 'own',
   };
 }
 

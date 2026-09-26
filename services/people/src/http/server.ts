@@ -22,7 +22,10 @@ import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { RelationsResolver } from '../application/person/ports.js';
-import { withSubjects } from '../application/person/subject.js';
+import { withSources, withSubjects } from '../application/person/subject.js';
+import { scimConnections } from '../application/scim/connections.js';
+import { scimProvisioning } from '../application/scim/provisioning.js';
+import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
@@ -76,6 +79,7 @@ import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestDeps, type RestResponse } from './rest.js';
+import { SCIM_PREFIX, scimHandler } from './scim.js';
 
 /**
  * The composition root for People's transports, called once from `main.ts`.
@@ -96,8 +100,12 @@ const POLL_MS = 60_000;
  */
 export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
   // Each answer about one person carries that person's facts, for custom
-  // visibility rules (PEO-066) on every path that reads through it.
-  return withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), drizzlePersonReader());
+  // visibility rules (PEO-066), and the attributes an upstream system owns
+  // on them (PEO-073), on every path that reads through it.
+  return withSources(
+    withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), drizzlePersonReader()),
+    drizzleScimStore(),
+  );
 }
 
 export function peopleService(
@@ -418,6 +426,14 @@ function screenDeps(
   const calendars = drizzleOrgStore();
   return {
     service,
+    scim: scimConnections({
+      service,
+      relations: relationsFrom(process.env),
+      store: drizzleScimStore(),
+      clock: systemClock,
+      newId: uuidv7,
+    }),
+    scimUrl: scimUrl(),
     relations: relationsFrom(process.env),
     clock: systemClock,
     calendars,
@@ -450,6 +466,23 @@ function screenDeps(
     // The bucket the browser uploads an import to (§14.2), and who may.
     uploads: { store: uploads, intents: drizzleUploadIntents() },
   };
+}
+
+/** Where SCIM is served publicly (§13.5): what an administrator pastes into Okta or Entra. */
+function scimUrl(): string {
+  const explicit = process.env['PEOPLE_SCIM_URL'];
+  const base = (process.env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
+  return (explicit ?? `${base}${SCIM_PREFIX}`).replace(/\/$/, '');
+}
+
+/** The deployment's module list, for a company whose own is not recorded; none when unset. */
+function deploymentEntitlements(): readonly string[] {
+  try {
+    const parsed: unknown = JSON.parse(process.env['KITHENA_ENTITLEMENTS'] ?? '[]');
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 const SWEEP_UPLOADS_EVERY_MS = 60 * 60 * 1000;
@@ -524,6 +557,20 @@ export function wirePeople(server: Server): void {
     await service.close();
   });
   const document = JSON.stringify(openApiDocument());
+  // SCIM (PEO-072): its own bearer tokens, not the router's principal.
+  const scim = scimHandler(
+    scimProvisioning({
+      service,
+      store: drizzleScimStore(),
+      clock: systemClock,
+      newId: uuidv7,
+      baseUrl: scimUrl(),
+      entitlements: (tenantId) =>
+        service.inTenant(tenantId, ({ tx }) => recordedEntitlements(tx, tenantId)),
+      fallbackEntitlements: deploymentEntitlements(),
+    }),
+    scimUrl(),
+  );
   const [graphql] = server.listeners('request') as ((
     request: IncomingMessage,
     response: ServerResponse,
@@ -532,6 +579,38 @@ export function wirePeople(server: Server): void {
 
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
     const path = request.url ?? '/';
+    if (path === SCIM_PREFIX || path.startsWith(`${SCIM_PREFIX}/`)) {
+      void (async () => {
+        try {
+          const body = await bodyOf(request, BODY_LIMIT);
+          if (body === null) {
+            send(response, { status: 413, body: { error: { code: 'TOO_LARGE', message: 'Body too large' } } });
+            return;
+          }
+          const answer = await scim({
+            method: request.method ?? 'GET',
+            url: path,
+            headers: request.headers,
+            body,
+          });
+          response.writeHead(answer.status, answer.headers);
+          response.end(answer.body === null ? undefined : JSON.stringify(answer.body));
+        } catch (cause) {
+          logger.error({ err: cause }, 'people SCIM request failed');
+          if (!response.headersSent) {
+            response.writeHead(500, { 'content-type': 'application/scim+json' });
+            response.end(
+              JSON.stringify({
+                schemas: ['urn:ietf:params:scim:api:messages:2.0:Error'],
+                status: '500',
+                detail: 'Something went wrong',
+              }),
+            );
+          }
+        }
+      })();
+      return;
+    }
     if (!path.startsWith('/v1/')) {
       graphql?.(request, response);
       return;

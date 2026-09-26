@@ -34,6 +34,11 @@ export interface RecordField {
   readonly readOnly: boolean;
   readonly currency?: string;
   readonly ownedBy?: string;
+  /**
+   * The upstream system that is the source of record for it on this person
+   * (PEO-073): read-only for everybody here, changed there.
+   */
+  readonly keptIn?: string;
 }
 
 export interface RecordSection {

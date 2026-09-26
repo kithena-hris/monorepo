@@ -132,6 +132,7 @@ function fieldOf(
         ? people
         : [];
   const readOnly = !canWrite(d, relations).ok;
+  const keptIn = relations.sources?.get(d.key)?.system;
   return {
     key: d.key,
     label: label(d),
@@ -141,7 +142,8 @@ function fieldOf(
     required: d.requiredness.mode === 'always' || missing.has(d.key),
     readOnly,
     ...(config.kind === 'money' && config.currency !== null ? { currency: config.currency } : {}),
-    ...(readOnly ? { ownedBy: ownedBy(d) } : {}),
+    ...(readOnly ? { ownedBy: keptIn ?? ownedBy(d) } : {}),
+    ...(keptIn === undefined ? {} : { keptIn }),
   };
 }
 

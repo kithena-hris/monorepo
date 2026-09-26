@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required readOnly currency ownedBy
+    key label description dataType options { value label } required readOnly currency ownedBy keptIn
   }`;
 
 const ENTRY = `
@@ -266,6 +266,11 @@ export const OPERATIONS = {
       endpoints {
         id url enabled events allowlist alertEmail retrying problem lastDelivery secretRotated
       }
+      scim {
+        url paths extension
+        mappable { key label }
+        connections { id system createdAt tokenRotatedAt revokedAt linked mapping { path key } }
+      }
     }
   }`,
 
@@ -397,6 +402,22 @@ export const OPERATIONS = {
 
   RotateWebhookSecret: `mutation RotateWebhookSecret($id: ID!, $key: String!) {
     rotateWebhookSecret(id: $id, idempotencyKey: $key) { id secret }
+  }`,
+
+  CreateScimConnection: `mutation CreateScimConnection($system: String!, $key: String!) {
+    createScimConnection(system: $system, idempotencyKey: $key) { id token }
+  }`,
+
+  RotateScimToken: `mutation RotateScimToken($id: ID!, $key: String!) {
+    rotateScimToken(id: $id, idempotencyKey: $key) { id token }
+  }`,
+
+  RevokeScimConnection: `mutation RevokeScimConnection($id: ID!, $key: String!) {
+    revokeScimConnection(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  SetScimMapping: `mutation SetScimMapping($id: ID!, $mapping: [ScimMappingInput!]!, $key: String!) {
+    setScimMapping(id: $id, mapping: $mapping, idempotencyKey: $key) { ok }
   }`,
 
   ReplayWebhookDelivery: `mutation ReplayWebhookDelivery($deliveryId: ID!, $key: String!) {

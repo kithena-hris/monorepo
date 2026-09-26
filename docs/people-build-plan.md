@@ -1030,11 +1030,21 @@ Ordered, but none of it blocks Phase 1 shipping.
 
 ## Phase 3
 
-- [ ] **PEO-072** SCIM 2.0 `/Users` and `/Groups` with an extension for
+- [x] **PEO-072** SCIM 2.0 `/Users` and `/Groups` with an extension for
       tenant-defined attributes; Okta and Entra verified first. _(PRD §13.5)_
-- [ ] **PEO-073** Mirror mode — `sourceOfRecord: external`, per-attribute
+      _Landed at `/scim/v2` on People's port, authenticated per connection
+      by a hashed, rotatable, revocable bearer token, every change audited as
+      `people.scim.connection_changed` (20260926160000). Writes go through
+      `PersonAccess` as an integration, effective now. Built to Okta's and
+      Entra's documented shapes and proven by `scim.integration.test.ts`;
+      not yet tried against a live tenant of either. `active: false` and
+      DELETE end nothing; groups carry no authorization. Public routing is
+      an operator's checklist in `docs/environments.md`._
+- [x] **PEO-073** Mirror mode — `sourceOfRecord: external`, per-attribute
       ownership, every other writer refused with the owning system named.
-      _(PRD §13.6)_
+      _(PRD §13.6)_ _Landed: the approved mapping is the declaration, one
+      owner per attribute by constraint, enforced in `canWrite` on the
+      records the system provisions, shown read-only as "Kept in Okta"._
 - [x] **PEO-074** Duplicate detection and merge. A merge is **always** a human
       decision, and it is additive — both histories survive, the absorbed
       record becomes a tombstone pointing at the survivor. _(PRD §12.4)_
@@ -1724,6 +1734,19 @@ it is written down here rather than left in a PR description.
       longer lists status under HR information.* *Still open:* a record
       read by its id is answered for a leaver, status withheld; hiding it
       from a peer altogether is a product call.
+- [ ] Route `/scim/v2/*` through the Cloudflare Tunnel to People
+      (`docs/environments.md` "Hosting" has the rule and the API call), and
+      decide whether a tenant relying on SCIM keeps the VM awake. Found in
+      PEO-072. *(PRD §13.5)*
+- [ ] Verify SCIM against a live Okta and a live Entra tenant (the provider
+      test suites: Okta's SCIM 2.0 spec tests, Entra's SCIM validator), and
+      record what each sent that the build did not expect. Found in PEO-072.
+      *(PRD §13.5)*
+- [ ] A SCIM POST for somebody already in People (HR-created, or provisioned
+      by identity) creates a second record or is refused `uniqueness`. HR
+      adopting the existing record into the connection — and whether that
+      should ever be automatic — needs deciding; PEO-074's duplicate
+      detection is the nearest thing. Found in PEO-072. *(PRD §13.5, §12.4)*
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*

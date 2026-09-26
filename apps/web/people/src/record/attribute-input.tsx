@@ -182,7 +182,11 @@ export function AttributeInput({
   // A field this viewer reads but may not change is shown read-only with its
   // owner named, not hidden (§8.3).
   const owner =
-    field.readOnly && field.ownedBy !== undefined ? `Changed by ${field.ownedBy}.` : null;
+    field.keptIn !== undefined
+      ? `Kept in ${field.keptIn}; change it there.`
+      : field.readOnly && field.ownedBy !== undefined
+        ? `Changed by ${field.ownedBy}.`
+        : null;
   const note = [field.description, owner].filter((x) => x !== null).join(' ');
   // A caution about a value that was accepted (PEO-125) is read with the
   // field's own help, in the one description the control points at.
@@ -207,9 +211,7 @@ export function AttributeInput({
             onChange(next);
           }}
         />
-        {field.description === null ? null : (
-          <p className="text-xs text-fg-muted">{field.description}</p>
-        )}
+        {note === '' ? null : <p className="text-xs text-fg-muted">{note}</p>}
         {invalid ? <p className="text-xs text-danger-fg">{problem}</p> : null}
       </div>
     );

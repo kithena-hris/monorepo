@@ -380,6 +380,41 @@ describe('a value dated in the future, on its day (PEO-124)', () => {
   });
 });
 
+describe('a record mirrored from an external system (PEO-073, PRD §13.6)', () => {
+  it('says which fields the upstream system changed, never their values', () => {
+    const p = person({ status: 'active' });
+    const synced = p.syncedFromExternal(
+      { provider: 'Okta', externalId: '00u1abcd', fieldsChanged: ['given_name', 'job_title'] },
+      ctx,
+      '2026-09-22',
+    );
+    expect(synced.ok).toBe(true);
+    expect(p.drainEvents()).toEqual([
+      expect.objectContaining({
+        eventName: 'people.person.synced_from_external',
+        effectiveFrom: '2026-09-22',
+        payload: {
+          personId: PERSON,
+          provider: 'Okta',
+          externalId: '00u1abcd',
+          fieldsChanged: ['given_name', 'job_title'],
+        },
+      }),
+    ]);
+  });
+
+  it('refuses a sync to a discarded record, which holds nothing', () => {
+    const gone = person({ status: 'discarded' });
+    const synced = gone.syncedFromExternal(
+      { provider: 'Okta', externalId: 'x', fieldsChanged: ['active'] },
+      ctx,
+      '2026-09-22',
+    );
+    expect(synced.ok).toBe(false);
+    expect(gone.drainEvents()).toEqual([]);
+  });
+});
+
 describe('hiring', () => {
   const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
 

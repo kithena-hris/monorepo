@@ -39,7 +39,9 @@ import {
 } from '../import/upload.js';
 import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
-import type { Asking } from '../person/person-access.js';
+import { relationsToMany, type Asking } from '../person/person-access.js';
+import { unmappable, type ConnectionView, type ScimConnections } from '../scim/connections.js';
+import { KITHENA_USER, USER_PATHS } from '../../domain/scim/resource.js';
 import { run } from '../person/service.js';
 import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
 import { segmentsFor } from './segments.js';
@@ -85,6 +87,10 @@ export interface IntegrationDeps extends ScreenDeps {
     endpointId: string,
     after: string | null,
   ) => Promise<{ deliveries: readonly ListedDelivery[]; next: string | null }>;
+  /** SCIM connections (PEO-072, PEO-073). Absent, the screen shows none and they cannot be made. */
+  readonly scim?: ScimConnections;
+  /** Where SCIM is served publicly: what an administrator pastes into their provider. */
+  readonly scimUrl?: string;
 }
 
 async function admin(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Result<void>> {
@@ -104,12 +110,24 @@ export interface IntegrationsView {
     readonly refused: 'special-category' | 'encrypted' | null;
   }[];
   readonly endpoints: readonly ListedEndpoint[];
+  /** Provisioning from an upstream system (PEO-072) and what it owns (PEO-073). */
+  readonly scim: {
+    readonly url: string;
+    /** The core SCIM paths a mapping may name; a tenant attribute is `<extension>:<key>`. */
+    readonly paths: readonly string[];
+    readonly extension: string;
+    /** The attributes an upstream system may be the source of record for. */
+    readonly mappable: readonly { readonly key: string; readonly label: string }[];
+    readonly connections: readonly ConnectionView[];
+  };
 }
 
 export async function integrationsView(
   deps: IntegrationDeps,
   asking: Asking,
 ): Promise<Result<IntegrationsView>> {
+  const connections = deps.scim === undefined ? ok([]) : await deps.scim.list(asking);
+  if (!connections.ok) return connections;
   return run(deps.service, asking.tenantId, async (tx) => {
     const allowed = await admin(deps, tx, asking);
     if (!allowed.ok) return allowed;
@@ -134,9 +152,39 @@ export async function integrationsView(
                 : null,
         })),
       endpoints: listed.endpoints,
+      scim: {
+        url: deps.scimUrl ?? '',
+        paths: USER_PATHS,
+        extension: KITHENA_USER,
+        mappable: version.document.attributes
+          .filter((d) => unmappable(d) === null)
+          .map((d) => ({ key: d.key, label: d.label.default })),
+        connections: connections.value,
+      },
     });
   });
 }
+
+/* --------------------------------------------------------------- SCIM -- */
+
+const noScim = () =>
+  Promise.resolve(err(failure('UNAVAILABLE', 'Provisioning is not configured here')));
+
+export const createScimConnection = (deps: IntegrationDeps, asking: Asking, system: string) =>
+  deps.scim === undefined ? noScim() : deps.scim.create(asking, { system });
+
+export const rotateScimToken = (deps: IntegrationDeps, asking: Asking, id: string) =>
+  deps.scim === undefined ? noScim() : deps.scim.rotate(asking, id);
+
+export const revokeScimConnection = (deps: IntegrationDeps, asking: Asking, id: string) =>
+  deps.scim === undefined ? noScim() : deps.scim.revoke(asking, id);
+
+export const setScimMapping = (
+  deps: IntegrationDeps,
+  asking: Asking,
+  id: string,
+  mapping: readonly { readonly path: string; readonly key: string }[],
+) => (deps.scim === undefined ? noScim() : deps.scim.setMapping(asking, id, mapping));
 
 export interface DeliveriesView {
   readonly endpoint: { readonly id: string; readonly url: string; readonly enabled: boolean };

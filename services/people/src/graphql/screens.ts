@@ -97,6 +97,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Who changes a read-only field; null when the viewer does.',
         resolve: (f) => f.ownedBy ?? null,
       }),
+      keptIn: t.string({
+        nullable: true,
+        description:
+          'The upstream system that is the source of record for this field on this person (PEO-073); change it there.',
+        resolve: (f) => f.keptIn ?? null,
+      }),
     }),
   });
 
@@ -833,6 +839,46 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       secretRotated: t.exposeString('secretRotated', { nullable: true }),
     }),
   });
+  type Scim = IntegrationsView['scim'];
+  const ScimMappingEntry = builder
+    .objectRef<Scim['connections'][number]['mapping'][number]>('ScimMappingEntry')
+    .implement({
+      fields: (t) => ({ path: t.exposeString('path'), key: t.exposeString('key') }),
+    });
+  const ScimConnectionRef = builder
+    .objectRef<Scim['connections'][number]>('ScimConnection')
+    .implement({
+      description: 'An upstream system provisioning people over SCIM (PEO-072).',
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        system: t.exposeString('system'),
+        createdAt: t.exposeString('createdAt'),
+        tokenRotatedAt: t.exposeString('tokenRotatedAt', { nullable: true }),
+        revokedAt: t.exposeString('revokedAt', { nullable: true }),
+        linked: t.exposeInt('linked', { description: 'How many people it provisions.' }),
+        mapping: t.field({
+          type: [ScimMappingEntry],
+          description: 'The approved mapping: every attribute it names is kept in this system.',
+          resolve: (c) => list(c.mapping),
+        }),
+      }),
+    });
+  const ScimAttribute = builder
+    .objectRef<Scim['mappable'][number]>('ScimMappableAttribute')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
+    });
+  const ScimRef = builder.objectRef<Scim>('PeopleScim').implement({
+    fields: (t) => ({
+      url: t.exposeString('url', { description: 'The SCIM base URL to give the provider.' }),
+      paths: t.stringList({ resolve: (s) => list(s.paths) }),
+      extension: t.exposeString('extension', {
+        description: 'The schema a tenant attribute is mapped under, as `<extension>:<key>`.',
+      }),
+      mappable: t.field({ type: [ScimAttribute], resolve: (s) => list(s.mappable) }),
+      connections: t.field({ type: [ScimConnectionRef], resolve: (s) => list(s.connections) }),
+    }),
+  });
   const Integrations = builder.objectRef<IntegrationsView>('PeopleIntegrations').implement({
     fields: (t) => ({
       schemaVersion: t.exposeInt('schemaVersion'),
@@ -840,6 +886,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       events: t.stringList({ resolve: (v) => list(v.events) }),
       fields: t.field({ type: [IntegrationField], resolve: (v) => list(v.fields) }),
       endpoints: t.field({ type: [Endpoint], resolve: (v) => list(v.endpoints) }),
+      scim: t.field({ type: ScimRef, resolve: (v) => v.scim }),
     }),
   });
 
@@ -1592,6 +1639,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
       }),
     });
+  const ScimToken = builder
+    .objectRef<{ id: string; token: string | null }>('ScimConnectionToken')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        token: t.exposeString('token', {
+          nullable: true,
+          description: 'Shown once. Null when a retry of the same key answers: rotate again.',
+        }),
+      }),
+    });
+  const ScimMappingInput = builder.inputType('ScimMappingInput', {
+    fields: (t) => ({
+      path: t.string({ required: true }),
+      key: t.string({ required: true }),
+    }),
+  });
   const Replayed = builder.objectRef<{ deliveryId: string }>('WebhookReplay').implement({
     fields: (t) => ({ deliveryId: t.exposeID('deliveryId') }),
   });
@@ -2049,6 +2113,56 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           { body: {}, key: args.idempotencyKey },
         );
         return { id, secret: rotated.secret ?? null };
+      },
+    }),
+    createScimConnection: t.field({
+      type: ScimToken,
+      args: { system: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        const made = await viaRest<{ id: string; token?: string }>(ctx, 'POST', '/v1/scim/connections', {
+          body: { system: args.system },
+          key: args.idempotencyKey,
+        });
+        return { id: made.id, token: made.token ?? null };
+      },
+    }),
+    rotateScimToken: t.field({
+      type: ScimToken,
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        const rotated = await viaRest<{ token?: string }>(
+          ctx,
+          'POST',
+          `/v1/scim/connections/${encodeURIComponent(args.id)}/rotate`,
+          { body: {}, key: args.idempotencyKey },
+        );
+        return { id: args.id, token: rotated.token ?? null };
+      },
+    }),
+    revokeScimConnection: t.field({
+      type: Outcome,
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/scim/connections/${encodeURIComponent(args.id)}/revoke`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    setScimMapping: t.field({
+      type: Outcome,
+      args: {
+        id: t.arg.id({ required: true }),
+        mapping: t.arg({ type: [ScimMappingInput], required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'PUT', `/v1/scim/connections/${encodeURIComponent(args.id)}/mapping`, {
+          body: { mapping: args.mapping.map((m) => ({ path: m.path, key: m.key })) },
+          key: args.idempotencyKey,
+        });
+        return done();
       },
     }),
     replayWebhookDelivery: t.field({

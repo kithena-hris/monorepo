@@ -314,6 +314,39 @@ export async function replayDelivery(deliveryId: string): Promise<Outcome> {
   return outcome(people('ReplayWebhookDelivery', { deliveryId }));
 }
 
+/* --------------------------------------------------------------- SCIM -- */
+
+export type WithToken =
+  { readonly ok: true; readonly token: string } | { readonly ok: false; readonly message: string };
+
+const withToken = (answer: PeopleAnswer<{ token: string | null }>): WithToken =>
+  !answer.ok
+    ? { ok: false, message: answer.message }
+    : answer.data.token === null
+      ? { ok: false, message: 'Done, but the token was not shown. Rotate it to see a new one.' }
+      : { ok: true, token: answer.data.token };
+
+export async function createScimConnection(system: string): Promise<WithToken> {
+  return withToken(await people('CreateScimConnection', { system }));
+}
+
+export async function rotateScimToken(id: string): Promise<WithToken> {
+  return withToken(await people('RotateScimToken', { id }));
+}
+
+export async function revokeScimConnection(id: string): Promise<Outcome> {
+  return outcome(people('RevokeScimConnection', { id }));
+}
+
+export async function setScimMapping(
+  id: string,
+  mapping: readonly { readonly path: string; readonly key: string }[],
+): Promise<Outcome> {
+  return outcome(
+    people('SetScimMapping', { id, mapping: mapping.map((m) => ({ path: m.path, key: m.key })) }),
+  );
+}
+
 /* --------------------------------------------------------- full values -- */
 
 /** Finance asks for sealed fields in full, with a reason (PEO-088); HR decides. */
