@@ -60,9 +60,17 @@ export interface IdentifierFinding {
   readonly review: 'pending' | 'accepted' | 'sent_back' | 'none';
 }
 
-/** What every async action a screen is handed resolves to. A save may carry findings. */
+/**
+ * What every async action a screen is handed resolves to. A save may carry
+ * findings, and the labels of the fields it sent to HR for approval rather
+ * than saved (PEO-077).
+ */
 export type Outcome =
-  | { readonly ok: true; readonly findings?: readonly IdentifierFinding[] }
+  | {
+      readonly ok: true;
+      readonly findings?: readonly IdentifierFinding[];
+      readonly held?: readonly string[];
+    }
   | { readonly ok: false; readonly message: string };
 
 /** The warning a form asks for before it saves: nothing is kept. */

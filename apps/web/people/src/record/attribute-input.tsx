@@ -30,6 +30,7 @@ import {
 } from 'react';
 
 import type { AttributeValue, RecordField } from './model';
+import { SensitiveMark } from './pending';
 
 /** The `type` a plain text input takes for each data type that is one. */
 const INPUT_TYPE: Partial<Record<RecordField['dataType'], HTMLInputTypeAttribute>> = {
@@ -199,6 +200,7 @@ export function AttributeInput({
   if (field.dataType === 'date') {
     return (
       <div className="flex flex-col gap-1.5">
+        <SensitiveMark field={field} />
         <DatePicker
           label={field.required ? `${field.label} (required)` : field.label}
           value={typeof value === 'string' && value !== '' ? value : null}
@@ -217,6 +219,8 @@ export function AttributeInput({
   if (field.dataType === 'multi_select' || field.dataType === 'tags') {
     const allowed = new Set(field.options.map((o) => o.value));
     return (
+      <div className="flex flex-col gap-1.5">
+      <SensitiveMark field={field} />
       <TagsInput
         label={field.required ? `${field.label} (required)` : field.label}
         value={Array.isArray(value) ? (value as readonly string[]) : []}
@@ -228,6 +232,7 @@ export function AttributeInput({
           : {})}
         onChange={onChange}
       />
+      </div>
     );
   }
 
@@ -239,6 +244,7 @@ export function AttributeInput({
         invalid={invalid}
         disabled={disabled}
         required={field.required}
+        sensitive={field.sensitive === true}
       >
         <FieldLabel>{field.label}</FieldLabel>
         <FieldControl>
@@ -250,7 +256,8 @@ export function AttributeInput({
     );
   } else if (field.dataType === 'person_ref') {
     return (
-      <Field invalid={invalid} disabled={disabled} required={field.required}>
+      <Field invalid={invalid} disabled={disabled} required={field.required}
+        sensitive={field.sensitive === true}>
         <FieldLabel>{field.label}</FieldLabel>
         <FieldControl>
           <PersonPicker
@@ -267,7 +274,8 @@ export function AttributeInput({
     );
   } else if (PICKED.has(field.dataType)) {
     return (
-      <Field invalid={invalid} disabled={disabled} required={field.required}>
+      <Field invalid={invalid} disabled={disabled} required={field.required}
+        sensitive={field.sensitive === true}>
         <FieldLabel>{field.label}</FieldLabel>
         <Select
           value={text(value)}
@@ -355,7 +363,8 @@ export function AttributeInput({
   }
 
   return (
-    <Field invalid={invalid} disabled={disabled} required={field.required}>
+    <Field invalid={invalid} disabled={disabled} required={field.required}
+        sensitive={field.sensitive === true}>
       <FieldLabel>{field.label}</FieldLabel>
       <FieldControl>{control}</FieldControl>
       {described}

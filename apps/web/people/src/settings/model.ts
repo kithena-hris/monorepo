@@ -114,6 +114,11 @@ export interface RegistryField {
   readonly collectAt: CollectAt;
   readonly classification: Classification;
   readonly piiKind: PiiKind;
+  /**
+   * A change to it waits for HR's approval (PEO-077): the tenant's choice, or
+   * the default — on for financial or encrypted data.
+   */
+  readonly requiresApproval?: boolean;
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;
@@ -150,6 +155,8 @@ export interface FieldInput {
   readonly piiKind: PiiKind;
   /** Whether the admin took the suggestion as given. */
   readonly classificationSource: 'suggested' | 'human' | 'section_default';
+  /** Whether a change waits for HR's approval (PEO-077); null keeps the default. */
+  readonly requiresApproval: boolean | null;
 }
 
 /**

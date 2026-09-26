@@ -35,6 +35,32 @@ export interface RecordField {
   readonly currency?: string;
   /** Who may change it, named when this viewer may not (§8.3): "HR". */
   readonly ownedBy?: string;
+  /** A change to it waits for HR's approval (PEO-077): marked wherever it is drawn. */
+  readonly sensitive?: boolean;
+}
+
+/**
+ * A value waiting for HR's approval (PEO-077). Never the field's value, which
+ * stays what is in force until it is approved; masked as the field is.
+ */
+export interface PendingValue {
+  readonly id: string;
+  readonly key: string;
+  readonly label: string;
+  readonly kind: 'value' | 'correction';
+  readonly value: AttributeValue;
+  /** When it takes effect once approved. */
+  readonly effectiveFrom: string;
+  readonly requestedAt: string;
+  /** Undecided by then, it lapses. */
+  readonly expiresAt: string;
+  /** Who asked, in words the viewer may read. */
+  readonly requestedBy: string;
+  readonly reason: string | null;
+  /** The viewer asked, so may withdraw it. */
+  readonly mine: boolean;
+  /** The viewer may approve or reject it. */
+  readonly canDecide: boolean;
 }
 
 export interface RecordSection {

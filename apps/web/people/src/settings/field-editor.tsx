@@ -110,6 +110,8 @@ interface Draft {
   visibilityRules: readonly VisibilityRule[];
   classification: Classification | null;
   confirmedSpecial: boolean;
+  /** Whether a change waits for HR's approval (PEO-077); null until the admin says. */
+  requiresApproval: boolean | null;
 }
 
 function draftFrom(section: RegistrySection, field: RegistryField | null): Draft {
@@ -128,6 +130,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
       visibilityRules: field.visibilityRules,
       classification: field.classification,
       confirmedSpecial: field.classification === 'special-category',
+      requiresApproval: field.requiresApproval ?? null,
     };
   }
   return {
@@ -146,7 +149,16 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     visibilityRules: [],
     classification: null,
     confirmedSpecial: false,
+    requiresApproval: null,
   };
+}
+
+/**
+ * What a field defaults to when nobody chose (PEO-077), as People computes
+ * it: on for financial data and for anything stored encrypted.
+ */
+export function approvalByDefault(dataType: DataType, piiKind: string): boolean {
+  return piiKind === 'financial' || dataType === 'bank_account' || dataType === 'national_id';
 }
 
 /** What stops each step from moving on, or null when it may. */
@@ -347,6 +359,7 @@ export function FieldEditor({
       classification: draft.classification,
       piiKind: judged?.piiKind ?? 'none',
       classificationSource: suggested === draft.classification ? 'suggested' : 'human',
+      requiresApproval: draft.requiresApproval,
     });
     setSaving(false);
     if (outcome.ok) onOpenChange(false);
@@ -666,6 +679,30 @@ export function FieldEditor({
               </Stack>
             ) : null}
 
+            {step === 3 ? (
+              <Field orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Checkbox
+                    checked={
+                      draft.requiresApproval ??
+                      approvalByDefault(
+                        draft.dataType,
+                        typeof advice === 'object' && advice !== null ? advice.piiKind : 'none',
+                      )
+                    }
+                    onCheckedChange={(on) => {
+                      set({ requiresApproval: on === true });
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>Changes need a second person to approve them</FieldLabel>
+                <FieldDescription>
+                  Sensitive: a new value is held until another HR member approves it, within seven
+                  days, and is marked Sensitive wherever it is shown. On by default for financial
+                  and encrypted data.
+                </FieldDescription>
+              </Field>
+            ) : null}
             {step === 3 ? (
               <Classify
                 advice={advice}

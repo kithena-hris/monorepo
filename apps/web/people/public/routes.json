@@ -16,6 +16,7 @@
     { "path": "/people/export", "component": "ExportBuilder" },
     { "path": "/people/full-values", "component": "FullValues" },
     { "path": "/people/identifier-reviews", "component": "IdentifierReviews" },
+    { "path": "/people/approvals", "component": "Approvals" },
     { "path": "/people/analytics", "component": "Analytics" },
     { "path": "/people/:id", "component": "Profile" },
     { "path": "/people/:id/history", "component": "PersonHistory" }
