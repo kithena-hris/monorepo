@@ -92,6 +92,7 @@ const STATUS: Record<string, string> = {
   notice: 'On notice',
   terminated: 'Left',
   discarded: 'Discarded',
+  merged: 'Merged into another record',
 };
 
 const REASONS: readonly { readonly value: LeavingReason; readonly label: string }[] = [

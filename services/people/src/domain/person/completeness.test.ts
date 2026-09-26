@@ -65,7 +65,7 @@ describe('a provisional record', () => {
   });
 
   it('is not applicable once discarded, or merged into a survivor', () => {
-    for (const status of ['discarded', 'merged']) {
+    for (const status of ['discarded', 'merged'] as const) {
       expect(
         assessCompleteness(
           [define({ key: 'cost_centre' })],

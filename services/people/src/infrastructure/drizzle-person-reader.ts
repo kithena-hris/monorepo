@@ -64,6 +64,7 @@ function toRecord(row: Row & { employment: Record<string, unknown> | null }): Pe
       lastWorkingDay: row.lastWorkingDay,
       accessEndedAt: row.accessEndedAt?.toISOString() ?? null,
       employment: toEmployment(row.employment),
+      mergedInto: row.mergedInto,
     },
     values,
     custom,
@@ -285,7 +286,7 @@ export function drizzleScheduled(): Scheduled {
            AND h.effective_from <= ${onOrBefore}::date
            AND h.attribute_key NOT IN ('hire_date', 'last_working_day')
            AND (p.applied_through IS NULL OR h.effective_from > p.applied_through)
-           AND p.status NOT IN ('terminated', 'discarded')
+           AND p.status NOT IN ('terminated', 'discarded', 'merged')
          GROUP BY h.person_id
          ORDER BY min(h.effective_from), h.person_id
          LIMIT ${limit}`);

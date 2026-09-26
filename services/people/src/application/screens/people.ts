@@ -295,7 +295,7 @@ export async function profileView(
     const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
     const placeable =
       relations.isHr &&
-      !['terminated', 'discarded'].includes(view.status) &&
+      !['terminated', 'discarded', 'merged'].includes(view.status) &&
       sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
     const named = sections.map((s) => ({
       ...s,

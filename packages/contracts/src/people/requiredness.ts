@@ -77,6 +77,7 @@ export const PersonStatus = z.enum([
   'notice',
   'terminated',
   'discarded',
+  'merged',
 ]);
 export type PersonStatus = z.infer<typeof PersonStatus>;
 
