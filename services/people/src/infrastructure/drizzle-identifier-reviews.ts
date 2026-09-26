@@ -47,7 +47,8 @@ type Row = {
   id: string;
   person_id: string;
   attribute_key: string;
-  history_id: string;
+  history_id: string | null;
+  pending_change_id: string | null;
   value_hash: string;
   key_id: string;
   findings: IdentifierReview['findings'] | string;
@@ -66,6 +67,7 @@ function fromRow(r: Row): IdentifierReview {
     personId: r.person_id,
     attributeKey: r.attribute_key,
     historyId: r.history_id,
+    pendingChangeId: r.pending_change_id,
     valueHash: r.value_hash,
     keyId: r.key_id,
     findings:
@@ -80,8 +82,8 @@ function fromRow(r: Row): IdentifierReview {
   };
 }
 
-const COLUMNS = sql`id, person_id, attribute_key, history_id, value_hash, key_id, findings, state,
-                    created_at, decided_by, decided_at, note`;
+const COLUMNS = sql`id, person_id, attribute_key, history_id, pending_change_id, value_hash, key_id,
+                    findings, state, created_at, decided_by, decided_at, note`;
 
 const same = (a: string, b: string): boolean => {
   const x = Buffer.from(a, 'base64');
@@ -153,13 +155,23 @@ export function drizzleIdentifierReviews(
       return [...rows].map(fromRow);
     },
 
+    async forChange(tx, tenantId, changeId) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT ${COLUMNS} FROM people.identifier_review
+         WHERE tenant_id = ${tenantId}::uuid AND pending_change_id = ${changeId}::uuid
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1`);
+      const row = [...rows][0];
+      return row ? fromRow(row) : null;
+    },
+
     async insert(tx, tenantId, r) {
       await tx.execute(sql`
         INSERT INTO people.identifier_review
-               (tenant_id, id, person_id, attribute_key, history_id, value_hash, key_id,
-                findings, state, created_at)
+               (tenant_id, id, person_id, attribute_key, history_id, pending_change_id, value_hash,
+                key_id, findings, state, created_at)
         VALUES (${tenantId}::uuid, ${r.id}::uuid, ${r.personId}::uuid, ${r.attributeKey},
-                ${r.historyId}::uuid, ${r.valueHash}, ${r.keyId},
+                ${r.historyId}::uuid, ${r.pendingChangeId}::uuid, ${r.valueHash}, ${r.keyId},
                 ${JSON.stringify(r.findings)}::jsonb, ${r.state}, ${r.createdAt}::timestamptz)`);
     },
 

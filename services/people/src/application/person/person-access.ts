@@ -63,7 +63,13 @@ import type {
   Viewer,
 } from './ports.js';
 import { valueSchemaFor } from './values.js';
-import { approvedOf, holdChange, holds, type Holding } from './pending-changes.js';
+import {
+  approvedOf,
+  declineHeldForReview,
+  holdChange,
+  holds,
+  type Holding,
+} from './pending-changes.js';
 import type { Asking, PersonCount, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
@@ -76,8 +82,10 @@ import {
   gateIdentifiers,
   reveal as revealIdentifier,
   reviewable,
+  reviewHeld,
   type AttributeFindings,
   type Carried,
+  type HeldValues,
   type IdentifierReviews,
   type ReviewItem,
 } from './identifier-review.js';
@@ -1089,7 +1097,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     // Every value checked before anything is written, so a bad sixth field
     // does not leave five claims behind.
     const accepted: [AttributeDefinition, unknown][] = [];
-    const heldBack: [AttributeDefinition, unknown][] = [];
+    const heldBack: [AttributeDefinition, unknown, NationalIdCheck | null][] = [];
     const checks: Carried[] = [];
     for (const [key, proposed] of Object.entries(allowed)) {
       const definition = byKey.get(key);
@@ -1099,7 +1107,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // Held for approval (PEO-077): checked like every value, then recorded
       // apart and left out of everything below — no claim, no review, no row.
       if (mode.value === 'hold' && holds(definition)) {
-        heldBack.push([definition, valid.value.value]);
+        heldBack.push([definition, valid.value.value, valid.value.check]);
         continue;
       }
       checks.push([definition, valid.value.check]);
@@ -1109,7 +1117,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       mode.value === 'bypass' ? accepted.filter(([d]) => holds(d)).map(([d]) => d.key) : [];
 
     const held: HeldChange[] = [];
-    for (const [definition, value] of heldBack) {
+    for (const [definition, value, check] of heldBack) {
+      // A doubted identifier is reviewed before it is approved (PEO-125).
+      const review = await reviewHeld(tx, deps, asking.tenantId, asking.personId, [
+        definition,
+        check,
+      ]);
       const kept = await holdChange(tx, deps.approvals as Holding, {
         tenantId: asking.tenantId,
         personId: asking.personId,
@@ -1122,8 +1135,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         kind: 'value',
         supersedes: null,
         reason: null,
+        review,
       });
       if (!kept.ok) return kept;
+      await review.open(tx, kept.value.approval.id);
       held.push({ changeId: kept.value.approval.id, attributeKey: definition.key });
     }
     // Everything this write carried is waiting on HR: the record is as it was.
@@ -1418,6 +1433,23 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     CALENDAR_DATE.test(asking.lastWorkingDay)
       ? ok(asking.lastWorkingDay)
       : err(failure('VALUE_INVALID', 'lastWorkingDay is a calendar date', ['lastWorkingDay']));
+
+  /** What a held identifier carries, from its change: it is not in the record yet (PEO-077). */
+  const heldValues: HeldValues = {
+    async last4(tx, tenantId, changeId) {
+      const change = await deps.approvals?.store.find(tx, tenantId, changeId);
+      if (!change) return null;
+      return change.sealed ? change.last4 : typeof change.value === 'string' ? change.value.slice(-4) : null;
+    },
+    async value(tx, tenantId, changeId) {
+      const change = await deps.approvals?.store.find(tx, tenantId, changeId);
+      if (change?.approval.state !== 'pending') return null;
+      if (!change.sealed) return typeof change.value === 'string' ? change.value : null;
+      const plaintext = await deps.approvals?.store.unseal(tx, tenantId, changeId);
+      const parsed = plaintext == null ? null : (JSON.parse(plaintext) as unknown);
+      return typeof parsed === 'string' ? parsed : null;
+    },
+  };
 
   /** The open review a reviewer asks about, if they may decide it (PEO-125). */
   async function reviewTarget(tx: Tx, asking: On<{ readonly attributeKey: string }>) {
@@ -2104,6 +2136,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       // Held for approval (PEO-077): recorded with what it supersedes and why,
       // applied through here again once HR approves, from the date it corrects.
       if (mode.value === 'hold' && holds(definition)) {
+        const review = await reviewHeld(tx, deps, asking.tenantId, asking.personId, [
+          definition,
+          admitted.value.check,
+        ]);
         const kept = await holdChange(tx, deps.approvals as Holding, {
           tenantId: asking.tenantId,
           personId: asking.personId,
@@ -2116,8 +2152,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           kind: 'correction',
           supersedes: asking.supersedes,
           reason: asking.reason,
+          review,
         });
         if (!kept.ok) return kept;
+        await review.open(tx, kept.value.approval.id);
         return ok({ held: { changeId: kept.value.approval.id, attributeKey: definition.key } });
       }
       // A correction is a write like any other: a doubted identifier is
@@ -2341,10 +2379,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           review.personId,
         );
         if (!definition || !visibleTo(definition, relations)) continue;
-        const sealed = definition.encrypted
-          ? await deps.secrets.list(tx, asking.tenantId, review.personId)
-          : [];
-        const last4 = sealed.find((s) => s.attributeKey === review.attributeKey)?.last4 ?? null;
+        // A held value is not in the record yet: its last four are the change's.
+        const last4 =
+          review.pendingChangeId !== null
+            ? await heldValues.last4(tx, asking.tenantId, review.pendingChangeId)
+            : definition.encrypted
+              ? ((await deps.secrets.list(tx, asking.tenantId, review.personId)).find(
+                  (s) => s.attributeKey === review.attributeKey,
+                )?.last4 ?? null)
+              : null;
         items.push({ ...review, label: definition.label.default, last4 });
       }
       return ok(items);
@@ -2374,13 +2417,29 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const target = await reviewTarget(tx, asking);
       if (!target.ok) return target;
       const { review, reviews } = target.value;
-      return decideIdentifier(tx, { reviews, clock: deps.clock, newId: deps.newId }, review, {
-        tenantId: asking.tenantId,
-        by: asking.viewer.accountId,
-        correlationId: asking.correlationId,
-        decision: asking.decision,
-        note: asking.note ?? null,
+      const decided = await decideIdentifier(
+        tx,
+        { reviews, clock: deps.clock, newId: deps.newId },
+        review,
+        {
+          tenantId: asking.tenantId,
+          by: asking.viewer.accountId,
+          correlationId: asking.correlationId,
+          decision: asking.decision,
+          note: asking.note ?? null,
+        },
+      );
+      // A held value the review found errors in is declined with the reason
+      // (PEO-125): the employee corrects it; nobody approves it. Accepted, it
+      // simply becomes approvable.
+      if (!decided.ok || decided.value.state !== 'sent_back') return decided;
+      if (review.pendingChangeId === null || !deps.approvals) return decided;
+      const declined = await declineHeldForReview(tx, deps.approvals, {
+        ...asking,
+        changeId: review.pendingChangeId,
+        note: decided.value.note,
       });
+      return declined.ok ? decided : declined;
     },
 
     async revealIdentifier(tx, asking) {
@@ -2393,6 +2452,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         correlationId: asking.correlationId,
         definition,
         values: person.values,
+        held: heldValues,
       });
     },
 

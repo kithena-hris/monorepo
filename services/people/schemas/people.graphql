@@ -155,11 +155,14 @@ type AnalyticsTenureBand {
 }
 
 type ApprovalItem {
+  awaitingReview: Boolean
   canDecide: Boolean
+  canSelfApprove: Boolean
   """What is in force now, masked the same way."""
   current: FormEntry
   effectiveFrom: String
   expiresAt: String
+  findings: [IdentifierFinding!]
   id: ID
   key: String
   kind: String
@@ -618,6 +621,10 @@ type IdentifierReviewItem {
   attributeKey: String
   enteredAt: String
   findings: [IdentifierFinding!]
+  """
+  Held for approval, not yet written: reviewed first; sending it back declines the change.
+  """
+  held: Boolean
   label: String
   last4: String
   name: String
@@ -925,9 +932,18 @@ type Mutation {
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
   """
-  HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.
+  HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s — unless the requester is the only member of HR and confirms it with soleApprover.
   """
-  decidePendingChange(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): WriteOutcome
+  decidePendingChange(
+    approve: Boolean!
+    id: ID!
+    idempotencyKey: String!
+    note: String
+    """
+    The requester approves their own change alone, as the only member of HR. Recorded as such.
+    """
+    soleApprover: Boolean
+  ): WriteOutcome
   """Delete a segment you saved."""
   deletePeopleSegment(id: ID!, idempotencyKey: String!): WriteOutcome
   deleteReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
@@ -1129,9 +1145,18 @@ type PayBand {
 A value waiting for HR approval. Never the field’s value, which stays what is in force.
 """
 type PendingField {
+  """
+  A national identifier the checks doubt: nobody approves it until HR accepts its review.
+  """
+  awaitingReview: Boolean
   canDecide: Boolean
+  """
+  The viewer asked and is the only member of HR: they approve it alone, once they confirm it.
+  """
+  canSelfApprove: Boolean
   effectiveFrom: String
   expiresAt: String
+  findings: [IdentifierFinding!]
   id: ID
   key: String
   """value, or a correction of a recorded one"""
@@ -1939,6 +1964,7 @@ type SetupPackSection {
 }
 
 type SetupProfile {
+  pending: [PendingField!]
   sections: [RecordSection!]
   values: [FormEntry!]
 }

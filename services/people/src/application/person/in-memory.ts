@@ -328,6 +328,8 @@ function inMemoryReviews(rows: IdentifierReview[]): IdentifierReviews {
       Promise.resolve(rows.filter((r) => r.personId === personId && open(r))),
     pending: (_tx, _tenant, limit) =>
       Promise.resolve(rows.filter((r) => r.state === 'pending').slice(0, limit)),
+    forChange: (_tx, _tenant, changeId) =>
+      Promise.resolve(rows.findLast((r) => r.pendingChangeId === changeId) ?? null),
     insert(_tx, _tenant, review) {
       rows.push(review);
       return Promise.resolve();

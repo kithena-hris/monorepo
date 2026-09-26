@@ -12,7 +12,8 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  * - PEO-049: a fresh tenant's administrator reaches a published version 1
  *   and a complete first profile from the setup wizard, at 390×844 with a
  *   software keyboard raised, and abandoning half way leaves a partial record.
- *   Her NIF requires approval, so a second member of HR approves it (PEO-077).
+ *   Her NIF requires approval, and as the only member of HR she approves it
+ *   herself, once a dialog says what that means (PEO-077).
  * - PEO-055: an admin takes a broken file, fixes the blocked rows from the
  *   downloaded CSV, and imports them without re-mapping.
  * - PEO-112: the People administrator grants a role on the roles screen, with
@@ -27,11 +28,6 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  * `stack.ts` has what is real: all of it.
  */
 
-/**
- * A second member of HR, with no session: approves what Priya may not, a
- * change to her own record (PEO-077). Over People's REST, as the router sends it.
- */
-const SECOND_HR = '00000000-0000-4000-8000-0000000000b3';
 
 let stack: Stack;
 let browser: Browser;
@@ -257,21 +253,35 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       (rows) => rows.length === 1,
     );
     const decision = `/v1/pending-changes/${held?.id ?? ''}/decision`;
-    // Nobody approves a change to their own record, HR or not.
+    // Nobody approves a change to their own record without saying so, HR or not.
     expect((await stack.writeAsPeople(ADMIN.account, decision, { approve: true })).status).toBe(
       403,
     );
-    // A second member of HR does, and it is written.
-    await stack.writeTuples([
-      { user: `user:${SECOND_HR}`, relation: 'hr', object: `tenant:${TENANT}` },
-    ]);
-    expect((await stack.writeAsPeople(SECOND_HR, decision, { approve: true })).status).toBe(200);
+    // She is the only member of HR, so nobody else can: she approves it
+    // herself, once the dialog says there is no other approver and that the
+    // audit trail records it as hers alone.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await identification
+      .getByRole('button', { name: 'Approve the change to NIF / NIE yourself' })
+      .click();
+    const alone = page.getByRole('dialog');
+    await alone.getByText(/no other member to approve it/).waitFor({ timeout: 30_000 });
+    await alone.getByText(/audit trail will show that you approved your own change/).waitFor();
+    await alone.getByRole('button', { name: 'Approve it myself' }).click();
     await eventually(
       'the NIF',
       () => stack.sql`SELECT 1 FROM people.person_secret WHERE person_id = ${ADMIN.person}`,
       (rows) => rows.length === 1,
     );
-    await page.setViewportSize({ width: 390, height: 844 });
+    const [decided] = await stack.sql<{ decided_by: string; decided_as: string }[]>`
+      SELECT decided_by::text, decided_as FROM people.pending_change WHERE id = ${held?.id ?? ''}`;
+    expect(decided).toEqual({ decided_by: ADMIN.account, decided_as: 'sole_hr' });
+    const [audit] = await stack.sql<{ envelope: { payload: unknown; actor: unknown } }[]>`
+      SELECT envelope FROM people.outbox
+       WHERE event_name = 'people.person.change_decided'
+         AND envelope -> 'payload' ->> 'changeId' = ${held?.id ?? ''}`;
+    expect(audit?.envelope.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
+    expect(audit?.envelope.actor).toEqual({ kind: 'user', userId: ADMIN.account });
     await page.reload();
     await page.getByText('Complete', { exact: true }).waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Finish' }).click();
@@ -955,8 +965,8 @@ describe('PEO-122: what is about to expire, to whom', () => {
   });
 });
 
-describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by HR', () => {
-  it('warns the employee before saving, still saves it, and HR’s acceptance is final and audited', async () => {
+describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () => {
+  it('warns the employee, holds it, and HR reviews it before approving it; both audited', async () => {
     // 12345678 mod 23 is Z; A is the wrong control letter.
     const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const own = await employee.newPage();
@@ -982,48 +992,47 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
     expect(before).toHaveLength(0);
 
     // Submitted anyway. A NIF requires approval (PEO-077), so it is held, not
-    // yet written: no secret, and no review until the approval applies it.
+    // yet written — and because the checks doubt it, HR reviews it first: the
+    // review opens now, against the held value.
     await form.getByRole('button', { name: 'Save anyway' }).click();
     // The form closes; the section says where the value went.
     await own
       .getByText(/NIF \/ NIE is not changed until HR approves/)
       .waitFor({ timeout: 30_000 });
-    await eventually(
+    const [heldNif] = await eventually(
       'the held NIF',
-      () => stack.sql<{ state: string }[]>`
-        SELECT state FROM people.pending_change
+      () => stack.sql<{ id: string; state: string }[]>`
+        SELECT id::text, state FROM people.pending_change
          WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
       (rows) => rows.length === 1 && rows[0]?.state === 'pending',
     );
-    const unreviewed = await stack.sql`
-      SELECT 1 FROM people.identifier_review
+    const [pending] = await stack.sql<
+      { state: string; findings: { code: string }[]; history_id: string | null; change: string }[]
+    >`
+      SELECT state, findings, history_id::text, pending_change_id::text AS change
+        FROM people.identifier_review
        WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`;
-    expect(unreviewed).toHaveLength(0);
+    expect(pending).toMatchObject({ state: 'pending', history_id: null, change: heldNif?.id });
+    expect(pending?.findings.map((f) => f.code)).toEqual(['check_mismatch']);
+    await own.reload();
+    await own.getByText('NIF / NIE is with HR for review').waitFor({ timeout: 30_000 });
+    await own.getByText('Awaiting identifier review').waitFor();
+    await employee.close();
 
-    // HR approves it; applied through the one write path, it meets the review gate.
+    // HR's inbox shows it waiting on its review, with what the checks found,
+    // and offers no approval yet.
     const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const approvals = await hr.newPage();
     await approvals.goto(`${stack.shell}/people/approvals`);
     await approvals.waitForLoadState('networkidle');
-    await approvals
-      .getByRole('table', { name: 'Changes waiting for approval' })
-      .getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ })
-      .click();
-    await approvals.getByRole('dialog').getByRole('button', { name: 'Approve', exact: true }).click();
-    const [pending] = await eventually(
-      'the review',
-      () => stack.sql<{ state: string; findings: { code: string }[] }[]>`
-        SELECT state, findings FROM people.identifier_review
-         WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
-      (rows) => rows.length === 1,
-    );
-    expect(pending?.state).toBe('pending');
-    expect(pending?.findings.map((f) => f.code)).toEqual(['check_mismatch']);
-    await own.reload();
-    await own.getByText('NIF / NIE is with HR for review').waitFor({ timeout: 30_000 });
-    await employee.close();
+    const inbox = approvals.getByRole('table', { name: 'Changes waiting for approval' });
+    await inbox.getByText('Awaiting identifier review').waitFor({ timeout: 30_000 });
+    await inbox.getByText(/control letter does not compute/).waitFor();
+    expect(
+      await inbox.getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ }).count(),
+    ).toBe(0);
 
-    // HR sees what the checks found, reveals the value, and accepts it.
+    // HR sees what the checks found, reveals the held value, and accepts it.
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
     await sections(reviews).getByRole('link', { name: 'Identifiers to review' }).click();
@@ -1044,6 +1053,26 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
       ([row]) => row?.state === 'accepted',
     );
     await reviews.getByText('Nothing to review').waitFor({ timeout: 30_000 });
+    expect(
+      await stack.sql`SELECT 1 FROM people.person_secret
+                       WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
+    ).toHaveLength(0);
+
+    // Now it can be approved, and the approval writes it — without a second review.
+    await approvals.reload();
+    await approvals.waitForLoadState('networkidle');
+    await inbox.getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ }).click();
+    await approvals.getByRole('dialog').getByRole('button', { name: 'Approve', exact: true }).click();
+    await eventually(
+      'the NIF',
+      () => stack.sql`SELECT 1 FROM people.person_secret
+                       WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`,
+      (rows) => rows.length === 1,
+    );
+    const after = await stack.sql<{ state: string }[]>`
+      SELECT state FROM people.identifier_review
+       WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`;
+    expect(after.map((r) => r.state)).toEqual(['accepted']);
     await hr.close();
 
     // Audited by codes, never by value; the reveal is audited too.
@@ -1058,8 +1087,89 @@ describe('PEO-125: a NIF our checks doubt, warned about, saved, and accepted by 
     ]);
     expect(JSON.stringify(audit)).not.toContain('12345678');
     const reviewed = audit[1]?.envelope as { payload: Record<string, unknown>; actor: unknown };
-    expect(reviewed.payload).toMatchObject({ decision: 'accepted', findingCodes: ['check_mismatch'] });
+    expect(reviewed.payload).toMatchObject({
+      decision: 'accepted',
+      findingCodes: ['check_mismatch'],
+      changeId: heldNif?.id,
+    });
     expect(reviewed.actor).toEqual({ kind: 'user', userId: ADMIN.account });
+  });
+
+  it('tells the employee why when HR’s review finds errors, and lets them correct it', async () => {
+    // 87654321 mod 23 is X; A is the wrong control letter.
+    const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
+    const own = await employee.newPage();
+    await own.goto(`${stack.shell}/people/me`);
+    await own.waitForLoadState('networkidle');
+    await own.getByRole('button', { name: 'Edit Identification & right to work' }).click();
+    const form = own.getByRole('form', { name: 'Identification & right to work' });
+    await form.getByRole('textbox', { name: /NIF \/ NIE/ }).fill('87654321A');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await form.getByRole('button', { name: 'Save anyway' }).click();
+    const [heldNif] = await eventually(
+      'the held NIF',
+      () => stack.sql<{ id: string }[]>`
+        SELECT id::text FROM people.pending_change
+         WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif' AND state = 'pending'`,
+      (rows) => rows.length === 1,
+    );
+
+    // HR's review finds the letter wrong, and says so; the reason is required.
+    const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const reviews = await hr.newPage();
+    await reviews.goto(`${stack.shell}/people/identifier-reviews`);
+    await reviews.waitForLoadState('networkidle');
+    const table = reviews.getByRole('table', { name: 'Identifiers to review' });
+    await table.getByText('Waiting for approval').waitFor({ timeout: 30_000 });
+    await table.getByRole('button', { name: /^Send .* NIF \/ NIE back$/ }).click();
+    const dialog = reviews.getByRole('dialog');
+    await dialog.getByRole('textbox', { name: /What is wrong/ }).fill('The letter on your card is X');
+    await dialog.getByRole('button', { name: 'Send back' }).click();
+    const [declined] = await eventually(
+      'the declined change',
+      () => stack.sql<{ state: string; decided_as: string | null; note: string | null }[]>`
+        SELECT state, decided_as, note FROM people.pending_change WHERE id = ${heldNif?.id ?? ''}`,
+      ([row]) => row?.state === 'rejected',
+    );
+    expect(declined).toEqual({
+      state: 'rejected',
+      decided_as: 'identifier_review',
+      note: 'The letter on your card is X',
+    });
+    await hr.close();
+    // Still what HR accepted before: nothing was written.
+    const [kept] = await stack.sql<{ last4: string }[]>`
+      SELECT last4 FROM people.person_secret
+       WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'`;
+    expect(kept?.last4).toBe('678A');
+
+    // The employee sees why on their record, and opens the field to correct it.
+    await own.reload();
+    await own.getByText('HR could not accept your NIF / NIE').waitFor({ timeout: 30_000 });
+    await own.getByText(/The letter on your card is X\. Please correct it\./).waitFor();
+    await own.getByRole('button', { name: 'Correct NIF / NIE' }).click();
+    await own.getByRole('form', { name: 'Identification & right to work' }).waitFor();
+
+    // Their corrected value answers the review, and waits for approval only.
+    const fix = own.getByRole('form', { name: 'Identification & right to work' });
+    await fix.getByRole('textbox', { name: /NIF \/ NIE/ }).fill('87654321X');
+    await fix.getByRole('button', { name: 'Save' }).click();
+    await eventually(
+      'the answered review',
+      () => stack.sql<{ state: string }[]>`
+        SELECT state FROM people.identifier_review
+         WHERE person_id = ${EMPLOYEE.person} AND attribute_key = 'es_nif'
+         ORDER BY created_at DESC LIMIT 1`,
+      ([row]) => row?.state === 'superseded',
+    );
+    const [answer] = await stack.sql<{ envelope: { payload: Record<string, unknown> } }[]>`
+      SELECT envelope FROM people.outbox
+       WHERE event_name = 'people.person.change_requested'
+         AND envelope -> 'payload' ->> 'personId' = ${EMPLOYEE.person}
+       ORDER BY created_at DESC LIMIT 1`;
+    expect(answer?.envelope.payload).toHaveProperty('supersedesReview');
+    expect(answer?.envelope.payload).not.toHaveProperty('reviewId');
+    await employee.close();
   });
 });
 

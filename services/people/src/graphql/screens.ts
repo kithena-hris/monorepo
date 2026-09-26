@@ -245,6 +245,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         last4: t.exposeString('last4', { nullable: true }),
         findings: t.field({ type: [FindingRef], resolve: (r) => list(r.findings) }),
         enteredAt: t.exposeString('enteredAt'),
+        held: t.exposeBoolean('held', {
+          description:
+            'Held for approval, not yet written: reviewed first; sending it back declines the change.',
+        }),
       }),
     });
   const ReviewsRef = builder
@@ -475,6 +479,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       reason: t.exposeString('reason', { nullable: true }),
       mine: t.exposeBoolean('mine', { description: 'The viewer asked; they may withdraw it.' }),
       canDecide: t.exposeBoolean('canDecide'),
+      canSelfApprove: t.exposeBoolean('canSelfApprove', {
+        description:
+          'The viewer asked and is the only member of HR: they approve it alone, once they confirm it.',
+      }),
+      awaitingReview: t.exposeBoolean('awaitingReview', {
+        description:
+          'A national identifier the checks doubt: nobody approves it until HR accepts its review.',
+      }),
+      findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
     }),
   });
   const ApprovalItemRef = builder
@@ -493,6 +506,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         reason: t.exposeString('reason', { nullable: true }),
         mine: t.exposeBoolean('mine'),
         canDecide: t.exposeBoolean('canDecide'),
+        canSelfApprove: t.exposeBoolean('canSelfApprove'),
+        awaitingReview: t.exposeBoolean('awaitingReview'),
+        findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
         personId: t.exposeID('personId'),
         name: t.exposeString('name'),
         readable: t.exposeBoolean('readable', {
@@ -874,6 +890,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       fields: (t) => ({
         sections: t.field({ type: [RecordSectionRef], resolve: (p) => list(p.sections) }),
         values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
+        pending: t.field({ type: [PendingFieldRef], resolve: (p) => list(p.pending) }),
       }),
     });
   const SetupRef = builder.objectRef<Setup>('PeopleSetup').implement({
@@ -2528,11 +2545,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     decidePendingChange: t.field({
       type: Outcome,
       description:
-        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.',
+        'HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s — unless the requester is the only member of HR and confirms it with soleApprover.',
       args: {
         id: t.arg.id({ required: true }),
         approve: t.arg.boolean({ required: true }),
         note: t.arg.string(),
+        soleApprover: t.arg.boolean({
+          description:
+            'The requester approves their own change alone, as the only member of HR. Recorded as such.',
+        }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: async (_root, { id, idempotencyKey, ...decision }, ctx) => {

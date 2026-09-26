@@ -126,6 +126,9 @@ export function PeopleScreen({
           onConfirmEntity: actions.confirmEntity,
           onPublish: thenRefresh(actions.publishSetup),
           onSaveProfile: thenRefresh(actions.saveOwnSection),
+          // The first administrator is the only HR member: they approve their own NIF (PEO-077).
+          onSelfApprove: thenRefresh(actions.approveAlone),
+          onWithdraw: thenRefresh(actions.withdrawPendingChange),
           onFinish: () => {
             go('/people/me');
           },
@@ -184,6 +187,7 @@ export function PeopleScreen({
             go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
           },
           onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onSelfApprove: thenRefresh(actions.approveAlone),
           onApprovals: () => {
             go('/people/approvals');
           },
@@ -419,6 +423,7 @@ export function PeopleScreen({
           load: loadable,
           onDecide: thenRefresh(actions.decidePendingChange),
           onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onSelfApprove: thenRefresh(actions.approveAlone),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },

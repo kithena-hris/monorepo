@@ -101,6 +101,8 @@ export interface ProfileProps {
   readonly onHistory?: () => void;
   /** Take back a change of one's own that waits for approval (PEO-077). */
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
+  /** The only HR member approving their own held change, once they confirm (PEO-077). */
+  readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
   /** Open the approvals inbox, where HR decides (PEO-077). */
   readonly onApprovals?: () => void;
   /** This record as a PDF, as the viewer may read it (PEO-061). Absent where not offered. */
@@ -126,6 +128,7 @@ export function Profile({
   searchPeople,
   onHistory,
   onWithdraw,
+  onSelfApprove,
   onApprovals,
   onDownloadRecord,
 }: ProfileProps): JSX.Element {
@@ -141,6 +144,7 @@ export function Profile({
             onPlace={onPlace}
             onHistory={onHistory}
             onWithdraw={onWithdraw}
+            onSelfApprove={onSelfApprove}
             onApprovals={onApprovals}
             onDownloadRecord={onDownloadRecord}
           />
@@ -158,6 +162,7 @@ function Record({
   onPlace,
   onHistory,
   onWithdraw,
+  onSelfApprove,
   onApprovals,
   onDownloadRecord,
 }: {
@@ -168,6 +173,7 @@ function Record({
   readonly onPlace: ProfileProps['onPlace'];
   readonly onHistory: ProfileProps['onHistory'];
   readonly onWithdraw: ProfileProps['onWithdraw'];
+  readonly onSelfApprove: ProfileProps['onSelfApprove'];
   readonly onApprovals: ProfileProps['onApprovals'];
   readonly onDownloadRecord: ProfileProps['onDownloadRecord'];
 }): JSX.Element {
@@ -206,7 +212,14 @@ function Record({
           )
         }
       />
-      <ReviewNotices reviews={state.reviews} />
+      <ReviewNotices
+        reviews={state.reviews}
+        onCorrect={(key) => {
+          // The section that asks for it, open to edit.
+          const at = sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly));
+          if (at) setEditing(at.key);
+        }}
+      />
       {decidable === 0 ? null : (
         <Alert
           tone="warning"
@@ -274,6 +287,7 @@ function Record({
                   values={values}
                   pending={pending}
                   {...(onWithdraw === undefined ? {} : { onWithdraw })}
+                  {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
                   {...(onCheck === undefined ? {} : { onCheck })}
                   footer={
                     <Button
@@ -319,6 +333,7 @@ function Record({
                               field={field}
                               pending={p}
                               onWithdraw={onWithdraw}
+                              onSelfApprove={onSelfApprove}
                             />
                           ))}
                       </dd>

@@ -405,15 +405,29 @@ export async function requestFullValues(fields: readonly string[], reason: strin
 
 /* ---------------------------------------------- approvals (PEO-077) -- */
 
-/** HR approves or rejects a change held for approval; People decides who may. */
+/**
+ * HR approves or rejects a change held for approval; People decides who may.
+ * `soleApprover`: the only HR member approving their own, having confirmed it.
+ */
 export async function decidePendingChange(
   id: string,
   approve: boolean,
   note: string | null,
+  soleApprover = false,
 ): Promise<Outcome> {
   return outcome(
-    people('DecidePendingChange', { id, approve, ...(note === null ? {} : { note }) }),
+    people('DecidePendingChange', {
+      id,
+      approve,
+      ...(note === null ? {} : { note }),
+      ...(soleApprover ? { soleApprover } : {}),
+    }),
   );
+}
+
+/** The only HR member approves their own held change, having confirmed it (PEO-077). */
+export async function approveAlone(id: string): Promise<Outcome> {
+  return decidePendingChange(id, true, null, true);
 }
 
 /** The requester takes their change back while it waits. */

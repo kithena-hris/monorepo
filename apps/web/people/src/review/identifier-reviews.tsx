@@ -13,6 +13,7 @@ import {
   Field,
   FieldControl,
   FieldDescription,
+  FieldError,
   FieldLabel,
   PageHeader,
   Stack,
@@ -36,8 +37,13 @@ import { Loaded, type Loadable, type Outcome } from '../load';
  * — "it matches the national format but the control letter does not compute",
  * "valid shape, but the holder is a company" — and decides. **Accept** is
  * final: the value is never flagged again. **Send back** asks the employee to
- * correct it, and their record says so. The value itself is shown only on
- * request, through People's audited reveal; the row shows its last four.
+ * correct it, always with a reason, and their record shows it. The value
+ * itself is shown only on request, through People's audited reveal; the row
+ * shows its last four.
+ *
+ * A value held for approval (PEO-077) is reviewed here before it is written:
+ * accepting it lets HR approve it; sending it back declines the change, and
+ * the employee sees the reason and corrects it.
  */
 
 export interface ReviewFinding {
@@ -55,6 +61,8 @@ export interface ReviewItem {
   readonly last4: string | null;
   readonly findings: readonly ReviewFinding[];
   readonly enteredAt: string;
+  /** Held for approval, not yet written: reviewed first, then approved. */
+  readonly held?: boolean;
 }
 
 export interface IdentifierReviewsState {
@@ -141,6 +149,11 @@ function Queue({
                   <span className="block text-fg-muted text-sm">
                     {item.label}, entered {day(item.enteredAt)}
                   </span>
+                  {item.held === true ? (
+                    <Badge tone="warning" size="sm">
+                      Waiting for approval
+                    </Badge>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   {shown[id(item)] !== undefined ? (
@@ -241,6 +254,8 @@ function Decide({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  // Sent back without a reason, the employee cannot tell what to correct.
+  const [unexplained, setUnexplained] = useState(false);
   const verb = accept ? 'Accept' : 'Send back';
 
   return (
@@ -257,8 +272,12 @@ function Decide({
           </DialogTitle>
           <DialogDescription>
             {accept
-              ? 'Final: this value will not be flagged again, whatever a later check says.'
-              : `${item.name} is asked to correct it, and their record shows it needs attention.`}
+              ? item.held === true
+                ? 'Final: this value will not be flagged again, and the change can now be approved.'
+                : 'Final: this value will not be flagged again, whatever a later check says.'
+              : item.held === true
+                ? `The change is declined, and ${item.name} is asked to correct it. They see your reason on their record and by email.`
+                : `${item.name} is asked to correct it, and their record shows it needs attention.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -268,22 +287,24 @@ function Decide({
                 <li key={f.code}>{f.message}</li>
               ))}
             </ul>
-            <Field>
-              <FieldLabel>Note</FieldLabel>
+            <Field required={!accept} invalid={!accept && unexplained}>
+              <FieldLabel>{accept ? 'Note' : 'What is wrong'}</FieldLabel>
               <FieldControl>
                 <Textarea
                   value={note}
                   maxLength={500}
                   onChange={(e) => {
                     setNote(e.target.value);
+                    setUnexplained(false);
                   }}
                 />
               </FieldControl>
               <FieldDescription>
                 {accept
                   ? 'Optional; kept with the decision.'
-                  : `Optional; ${item.name} sees it on their record.`}
+                  : `${item.name} sees it on their record, so they know what to correct.`}
               </FieldDescription>
+              <FieldError>Say what is wrong, so they know what to correct.</FieldError>
             </Field>
             {refused === null ? null : (
               <Alert tone="danger" title="Not decided">
@@ -299,6 +320,10 @@ function Decide({
             loading={busy}
             loadingLabel="Saving"
             onClick={() => {
+              if (!accept && note.trim() === '') {
+                setUnexplained(true);
+                return;
+              }
               setBusy(true);
               setRefused(null);
               void onDecide(

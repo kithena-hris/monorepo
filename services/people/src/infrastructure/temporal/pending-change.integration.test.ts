@@ -12,6 +12,7 @@ import {
 } from '../../application/person/in-memory.js';
 import {
   decidePendingChange,
+  declineHeldForReview,
   withdrawPendingChange,
   type Holding,
   type PendingChangeDeps,
@@ -194,6 +195,29 @@ describe('the pending-change workflow', () => {
     });
     expect(result).toBe('withdrawn');
     expect(s.sent.filter((m) => m.email === 'ada@acme.test')).toEqual([]);
+  });
+
+  it('asks the employee to correct a value HR’s review declined, once, and nothing else (PEO-125)', async () => {
+    const s = setup();
+    const result = await run(s, async (changeId) => {
+      for (let i = 0; i < 200 && s.sent.length < 2; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      const declined = await declineHeldForReview(tx, s.deps, {
+        tenantId: TENANT,
+        viewer: { accountId: HR_ACCOUNT, roles: new Set(['hr']) },
+        correlationId: 'c',
+        changeId,
+        note: 'The letter on your card is Z',
+      });
+      expect(declined.ok && declined.value?.decidedAs).toBe('identifier_review');
+      await env.client.workflow.getHandle(workflowId(changeId)).signal(closedSignal);
+    });
+    expect(result).toBe('rejected');
+    // Ada asked and it is her record: one email, to correct it, on her profile.
+    expect(s.sent.filter((m) => m.email === 'ada@acme.test')).toEqual([
+      expect.objectContaining({ notice: { kind: 'correction_requested' } }),
+    ]);
   });
 
   it('expires a change nobody decided within the week, and says so to the requester', async () => {

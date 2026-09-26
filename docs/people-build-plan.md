@@ -1125,6 +1125,19 @@ Ordered, but none of it blocks Phase 1 shipping.
       held: the connection is the source of record for what it writes. The
       subject access pack carries a person's held changes, and the secret
       rotation re-wraps sealed pending values._
+      _Later (product decision, 2026-09-26): **the only HR member approves
+      their own change alone**, once a dialog says there is no other
+      approver and that the audit trail records it as theirs. Allowed only
+      while the requester is the tenant's sole `hr` holder by the role rows,
+      asked at decision time in the decision's transaction, and only with
+      `soleApprover` on the request (`decideChange`, `mayApproveAlone`);
+      otherwise 403 as before. Recorded as `decided_as = 'sole_hr'` and
+      `change_decided.decidedAs` (migration 20260926230000, which widens
+      `pending_change_not_self_decided` for exactly this and the review's
+      decline). `canSelfApprove` on every pending value; "Approve it myself"
+      on the profile's pending note, the setup wizard's section and the
+      inbox. A doubted national identifier is reviewed before it is
+      approved: see PEO-125._
 - [x] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
       _Landed as migration 20260926190000 with the three decisions §16.2
@@ -1762,6 +1775,27 @@ it is written down here rather than left in a PR description.
       `people.person.identifier_reviewed` (codes, never the value). The
       import dry run lists doubted cells without blocking; the commit counts
       what went to review.*
+      *Later (product decision, 2026-09-26): **a doubted value held for
+      approval (PEO-077) is reviewed first, then approved.** Holding it opens
+      the review against the held change (`identifier_review.pending_change_id`,
+      `history_id` null; migration 20260926230100) by the same
+      `onIdentifierWritten` rule a write follows, so it also supersedes
+      whatever was open — a sent-back value is answered by the next one
+      (`change_requested.supersedesReview`; `reviewId` when it opens one).
+      Nobody approves the change while its review is not accepted
+      (`AWAITING_REVIEW`); the inbox shows *Awaiting identifier review* with
+      the findings and no Approve. HR's queue lists it with the change's last
+      four and reveals it from the held change, audited. Accepted, it becomes
+      approvable, and the approval writes it through the normal path, where
+      the accepted review of the same value asks nobody again. **Send back
+      now requires a reason**, always; on a held value it declines the change
+      in the same transaction (`change_decided`, `decidedAs:
+      identifier_review`, the reason as its note; `identifier_reviewed`
+      carries `changeId`), the employee's record shows "HR could not accept
+      your NIF: <reason>. Please correct it." with *Correct it*, and the
+      workflow emails them messaging's new `correction_requested` notice
+      (which names neither the field nor the reason). A change closed any
+      other way supersedes its pending review.*
 - [x] **PEO-126** Product decision: keep the statutory retention floors
       (es-labour 48 months, de-labour 72, eu-payroll 120) but mark each
       unreviewed, pending counsel, and block automated erasure until counsel

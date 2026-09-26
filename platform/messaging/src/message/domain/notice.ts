@@ -45,6 +45,12 @@ export type Notice =
   | { readonly kind: 'approval_requested' }
   | { readonly kind: 'approval_decided'; readonly decision: ApprovalDecision }
   | { readonly kind: 'approval_expired' }
+  /*
+   * HR's review found something wrong with a detail the employee gave, and
+   * asks them to correct it (PEO-125). Never which detail nor why: the
+   * reviewer's reason is free text, read on the profile, signed in.
+   */
+  | { readonly kind: 'correction_requested' }
   | {
       readonly kind: 'scheduled_report';
       readonly cadence: ReportCadence;
@@ -147,6 +153,13 @@ const COPY: {
       footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
     };
   },
+  correction_requested: (_notice, company) => ({
+    subject: `${company}: HR asked you to correct a detail`,
+    heading: 'A detail needs correcting',
+    lede: `HR at ${company} checked a detail you gave in People and could not accept it as it is, so it was not saved. Open your profile to see what they found and correct it.`,
+    action: 'Open your profile',
+    footer: `Sent by Kithena on behalf of ${company} because a detail in your People profile needs your correction.`,
+  }),
   approval_expired: (_notice, company) => ({
     subject: `${company}: your change expired without a decision`,
     heading: 'Your change expired',

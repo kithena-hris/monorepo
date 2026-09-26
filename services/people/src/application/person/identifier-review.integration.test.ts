@@ -8,6 +8,9 @@ import { fixedClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { inTenantResult, personAccess, type Asking } from './person-access.js';
+import { decidePendingChange, type Holding, type PendingChangeDeps } from './pending-changes.js';
+import { drizzlePendingChangeStore, outboxPendingChanges } from './pending-store.js';
+import { open, seal } from '../../infrastructure/envelope.js';
 import { publishSchema } from '../schema/publish-schema.js';
 import { utcCalendars } from '../org/org.js';
 import { Person } from '../../domain/person/person.js';
@@ -117,6 +120,7 @@ beforeAll(async () => {
     '20260922160000_people_registry.sql',
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
+    '20260926230000_people_pending_change_decided_as.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
     '20260926143000_people_duplicates.sql',
@@ -126,6 +130,7 @@ beforeAll(async () => {
     '20260924170000_people_calendar.sql',
     '20260924320000_people_effective_through.sql',
     '20260924330000_people_identifier_review.sql',
+    '20260926230100_people_identifier_review_held.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -404,5 +409,152 @@ describe('a key rotation', () => {
       after.update(tx, { ...as(hr), personId: MARTA, changes: { es_nif: 'b-12345678' } }),
     );
     expect(again.ok && again.value.findings?.[0]?.review).toBe('accepted');
+  });
+});
+
+describe('a doubted NIF held for approval: reviewed first, then approved (PEO-077)', () => {
+  const NUR = '00000000-0000-4000-8000-0000000000a3';
+  const nur = { accountId: '00000000-0000-4000-8000-0000000000b3', roles: new Set<string>() };
+  const holding: Holding = {
+    store: drizzlePendingChangeStore({
+      seal: (plaintext) => seal(plaintext, ring),
+      open: (sealed) => open(sealed, ring),
+    }),
+    publish: outboxPendingChanges,
+    clock,
+    newId,
+  };
+  const held = personAccess({
+    calendars: utcCalendars,
+    people: drizzlePersonRepository(),
+    reader: drizzlePersonReader(),
+    schemas: drizzleSchemaVersions(),
+    relations: drizzleRelations(),
+    secrets,
+    reviews: drizzleIdentifierReviews(ring, secrets),
+    uniques: drizzleUniqueClaims(ring),
+    approvals: holding,
+    clock,
+    newId,
+  });
+  const pending: PendingChangeDeps = {
+    ...holding,
+    access: held,
+    schemas: drizzleSchemaVersions(),
+    reader: drizzlePersonReader(),
+    relations: drizzleRelations(),
+    reviews: drizzleIdentifierReviews(ring, secrets),
+  };
+  const submit = async (value: string) => {
+    const written = await inTenantResult(inTenant, ACME, (tx) =>
+      held.update(tx, { ...as(nur), personId: NUR, changes: { es_nif: value } }),
+    );
+    return written.ok ? (written.value.held?.[0]?.changeId ?? '') : '';
+  };
+  const decideAs = (decision: 'accept' | 'send_back', note?: string) =>
+    inTenantResult(inTenant, ACME, (tx) =>
+      held.reviewIdentifier(tx, {
+        ...as(hr),
+        personId: NUR,
+        attributeKey: 'es_nif',
+        decision,
+        ...(note === undefined ? {} : { note }),
+      }),
+    );
+  const approve = (changeId: string) =>
+    inTenantResult(inTenant, ACME, (tx) =>
+      decidePendingChange(tx, pending, { ...as(hr), changeId, approve: true }),
+    );
+  const rows = async () =>
+    [
+      ...(await admin.execute(sql`
+        SELECT state, history_id, pending_change_id FROM people.identifier_review
+         WHERE person_id = ${NUR}::uuid ORDER BY created_at, id`)),
+    ] as { state: string; history_id: string | null; pending_change_id: string | null }[];
+  const secret = async () =>
+    [
+      ...(await admin.execute(sql`
+        SELECT 1 FROM people.person_secret WHERE person_id = ${NUR}::uuid AND attribute_key = 'es_nif'`)),
+    ].length;
+
+  beforeAll(async () => {
+    await inTenant(ACME, ({ tx }) =>
+      drizzlePersonRepository().create(
+        tx,
+        Person.rehydrate({
+          id: NUR,
+          tenantId: ACME,
+          status: 'active',
+          identityAccountId: nur.accountId,
+          hireDate: '2026-01-01',
+          lastWorkingDay: null,
+        }),
+        {},
+      ),
+    );
+  });
+
+  it('opens the review on the held value, lists and reveals it from the change, and refuses approval', async () => {
+    const changeId = await submit(WRONG_NIF);
+    expect(await rows()).toEqual([
+      { state: 'pending', history_id: null, pending_change_id: changeId },
+    ]);
+    expect(await secret()).toBe(0);
+    const listed = await inTenantResult(inTenant, ACME, (tx) => held.identifierReviews(tx, as(hr)));
+    expect(listed.ok && listed.value.find((r) => r.personId === NUR)).toMatchObject({
+      last4: '678A',
+      pendingChangeId: changeId,
+    });
+    const shown = await inTenantResult(inTenant, ACME, (tx) =>
+      held.revealIdentifier(tx, { ...as(hr), personId: NUR, attributeKey: 'es_nif' }),
+    );
+    expect(shown.ok && shown.value).toBe(WRONG_NIF);
+    const early = await approve(changeId);
+    expect(!early.ok && early.error.code).toBe('AWAITING_REVIEW');
+  });
+
+  it('declines the change when the review finds errors, with the reason, in one transaction', async () => {
+    const silent = await decideAs('send_back');
+    expect(!silent.ok && silent.error.code).toBe('REASON_REQUIRED');
+    const sent = await decideAs('send_back', 'The letter on your card is Z');
+    expect(sent.ok && sent.value.state).toBe('sent_back');
+    const [change] = [
+      ...(await admin.execute(sql`
+        SELECT state, decided_as, note FROM people.pending_change WHERE person_id = ${NUR}::uuid`)),
+    ];
+    expect(change).toEqual({
+      state: 'rejected',
+      decided_as: 'identifier_review',
+      note: 'The letter on your card is Z',
+    });
+    const decided = (await events('people.person.change_decided')).at(-1);
+    expect(decided?.payload).toMatchObject({ decision: 'rejected', decidedAs: 'identifier_review' });
+    const reviewed = (await events('people.person.identifier_reviewed')).at(-1);
+    expect(reviewed?.payload).toMatchObject({ decision: 'sent_back', changeId: SOME_ID });
+    expect(await secret()).toBe(0);
+  });
+
+  it('is answered by the corrected value, which needs approval only', async () => {
+    const changeId = await submit('12345678Z');
+    expect((await rows()).map((r) => r.state)).toEqual(['superseded']);
+    const approved = await approve(changeId);
+    expect(approved.ok).toBe(true);
+    expect(await secret()).toBe(1);
+  });
+
+  it('writes a doubted value HR accepted once approved, without a second review', async () => {
+    const changeId = await submit(WRONG_NIF);
+    expect((await decideAs('accept')).ok).toBe(true);
+    expect((await approve(changeId)).ok).toBe(true);
+    const all = await rows();
+    expect(all.map((r) => r.state)).toEqual(['superseded', 'accepted']);
+    expect(all.at(-1)?.pending_change_id).toBe(changeId);
+    const shown = await inTenantResult(inTenant, ACME, (tx) =>
+      held.read(tx, { ...as(hr), personId: NUR }),
+    );
+    expect(shown.ok && shown.value.attributes['es_nif']).toMatchObject({ last4: '678A' });
+    expect(JSON.stringify(await events('people.person.change_requested'))).not.toContain(
+      '12345678',
+    );
   });
 });

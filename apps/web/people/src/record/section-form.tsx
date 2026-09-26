@@ -34,6 +34,7 @@ export function SectionForm({
   footer,
   pending = [],
   onWithdraw,
+  onSelfApprove,
 }: {
   readonly section: RecordSection;
   readonly values: Values;
@@ -46,6 +47,8 @@ export function SectionForm({
   /** Values waiting for HR's approval, shown under their fields (PEO-077). */
   readonly pending?: readonly PendingValue[];
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
+  /** The only HR member approving their own held change, once they confirm (PEO-077). */
+  readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
 }): JSX.Element {
   const [draft, setDraft] = useState<Values>(values);
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
@@ -156,7 +159,13 @@ export function SectionForm({
             {pending
               .filter((p) => p.key === field.key)
               .map((p) => (
-                <PendingNote key={p.id} field={field} pending={p} onWithdraw={onWithdraw} />
+                <PendingNote
+                  key={p.id}
+                  field={field}
+                  pending={p}
+                  onWithdraw={onWithdraw}
+                  onSelfApprove={onSelfApprove}
+                />
               ))}
           </div>
         ))}
