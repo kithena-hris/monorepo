@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { randomBytes } from 'node:crypto';
@@ -84,6 +84,7 @@ let stopPg: (() => Promise<void>) | undefined;
 let clients: ReturnType<typeof postgres>[] = [];
 let admin: ReturnType<typeof drizzle>;
 let inTenant: ReturnType<typeof tenantTransaction>;
+let serviceDb: PostgresJsDatabase;
 
 const ring = staticKeyRing([{ id: 'k1', key: randomBytes(32) }]);
 let ids = 0;
@@ -136,7 +137,9 @@ beforeAll(async () => {
     '20260924170100_people_tenant_company.sql',
     '20260924320000_people_effective_through.sql',
     '20260924330000_people_identifier_review.sql',
+    '20260924340000_people_person_key_lookup.sql',
     '20260924370000_people_directory_search.sql',
+    '20260926120000_people_custom_filter.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -147,7 +150,8 @@ beforeAll(async () => {
   asService.password = 'svc_people';
   const serviceClient = postgres(asService.toString(), { max: 4 });
   clients.push(serviceClient);
-  inTenant = tenantTransaction(drizzle(serviceClient));
+  serviceDb = drizzle(serviceClient);
+  inTenant = tenantTransaction(serviceDb);
 
   // Grace manages Marco manages Ada: Grace is in Ada's chain, not her manager.
   const repo = drizzlePersonRepository();
@@ -718,5 +722,218 @@ describe('the directory at 50,000 people', () => {
       }),
     );
     expect(page.ok ? 'allowed' : page.error.code).toBe('FIELD_NOT_FILTERABLE');
+  });
+});
+
+/**
+ * Rows of `people.person` this transaction has read so far, by any scan, the
+ * candidates function's included: work rather than wall time, so a slow
+ * runner cannot flake it.
+ */
+async function rowsRead(tx: PostgresJsDatabase): Promise<number> {
+  const [row] = await tx.execute<{ n: number }>(sql`
+    SELECT (coalesce(seq_tup_read, 0) + coalesce(idx_tup_fetch, 0))::int AS n
+      FROM pg_stat_xact_user_tables WHERE relid = 'people.person'::regclass`);
+  return row?.n ?? 0;
+}
+
+/** `act` in the tenant, and how many person rows it read. */
+function measured<T>(
+  tenantId: string,
+  act: (tx: PostgresJsDatabase) => Promise<T>,
+): Promise<{ value: T; work: number }> {
+  return inTenant(tenantId, async ({ tx }) => {
+    const before = await rowsRead(tx);
+    const value = await act(tx);
+    return { value, work: (await rowsRead(tx)) - before };
+  });
+}
+
+/** What the exact predicate finds, read by the superuser: no RLS, no function. */
+async function exactly(tenantId: string, filter: Record<string, string>): Promise<string[]> {
+  const rows = await admin.execute<{ id: string }>(sql`
+    SELECT id::text AS id FROM people.person
+     WHERE tenant_id = ${tenantId}::uuid AND custom @> ${JSON.stringify(filter)}::jsonb
+     ORDER BY id`);
+  return [...rows].map((r) => r.id);
+}
+
+describe('a custom-field filter under row-level security', () => {
+  // Two 50,000-person tenants: one the statistics have seen, and one inserted
+  // after the ANALYZE, as every new tenant's first import is. Ids run in `i`
+  // order and the 50 people the selective filter finds are the last 50, so a
+  // walk of the tenant in id order meets them only at its very end.
+  const SEEN = '00000000-0000-4000-8000-0000000000f1';
+  const UNSEEN = '00000000-0000-4000-8000-0000000000f2';
+  const TAIL = { cost_centre: 'CC-TAIL' };
+  const costCentre = define({
+    key: 'cost_centre',
+    visibility: ['self', 'manager', 'hr'],
+    ownership: ['hr'],
+    indexed: true,
+  });
+  const site = define({ key: 'site', visibility: ['hr'], ownership: ['hr'], indexed: true });
+  const given = define({ key: 'given_name', visibility: ['directory'], ownership: ['hr'] });
+  const family = define({ key: 'family_name', visibility: ['directory'], ownership: ['hr'] });
+
+  beforeAll(async () => {
+    for (const [tenantId, prefix] of [
+      [SEEN, 'f1000000'],
+      [UNSEEN, 'f2000000'],
+    ] as const) {
+      await inTenant(tenantId, ({ tx }) =>
+        drizzleSchemaRepository().appendVersion(
+          tx,
+          tenantId,
+          versionOf(1, [costCentre, site, given, family]),
+          [],
+          '2026-09-01',
+        ),
+      );
+      await admin.execute(sql`
+        INSERT INTO people.person (id, tenant_id, status, hire_date, given_name, family_name, custom)
+        SELECT (${prefix} || '-0000-4000-8000-' || lpad(to_hex(i), 12, '0'))::uuid, ${tenantId}::uuid,
+               CASE WHEN i % 7 = 0 THEN 'terminated' ELSE 'active' END,
+               DATE '2015-01-01' + (i % 4000), 'Given' || i, 'Family' || (i % 1000),
+               jsonb_build_object(
+                 'cost_centre', CASE WHEN i > 49950 THEN 'CC-TAIL' ELSE 'CC-' || (i % 500) END,
+                 'site', CASE WHEN i % 2 = 0 THEN 'Lisbon' ELSE 'Leeds' END)
+          FROM generate_series(1, 50000) AS i`);
+      if (tenantId === SEEN) await admin.execute(sql`ANALYZE people.person`);
+    }
+  });
+
+  for (const [name, tenantId] of [
+    ['an analyzed tenant', SEEN],
+    ['a tenant the statistics have not seen', UNSEEN],
+  ] as const) {
+    describe(name, () => {
+      const pageAfter = (after: string | null) =>
+        measured(tenantId, (tx) =>
+          people.list(tx, { ...asking(hr, tenantId), after, limit: 20, where: TAIL }),
+        );
+
+      it('pages and counts a selective filter by reading its matches, not the tenant', async () => {
+        const seen: string[] = [];
+        let after: string | null = null;
+        do {
+          const { value: page, work } = await pageAfter(after);
+          if (!page.ok) throw new Error(page.error.message);
+          expect(work, 'person rows read for one page').toBeLessThan(1000);
+          seen.push(...page.value.items.map((p) => p.id));
+          after = page.value.next;
+        } while (after !== null);
+        expect(seen).toEqual(await exactly(tenantId, TAIL));
+
+        const { value: counted, work } = await measured(tenantId, (tx) =>
+          people.count(tx, { ...asking(hr, tenantId), where: TAIL }),
+        );
+        expect(work, 'person rows read for the count').toBeLessThan(1000);
+        expect(counted.ok && counted.value).toEqual({ all: 50, active: 43 });
+      });
+
+      it('narrows a text search by the filter, reading its matches only', async () => {
+        // Given49990 to Given49999 are in the tail; Given4999 is not.
+        const narrowing = { ...asking(hr, tenantId), search: 'Given4999', where: TAIL };
+        const { value: page, work } = await measured(tenantId, (tx) =>
+          people.list(tx, { ...narrowing, limit: 50 }),
+        );
+        expect(work).toBeLessThan(1000);
+        if (!page.ok) throw new Error(page.error.message);
+        expect(page.value.items.map((p) => p.attributes['given_name']).toSorted()).toEqual(
+          Array.from({ length: 10 }, (_, k) => `Given${String(49990 + k)}`),
+        );
+        const counted = await inTenantResult(inTenant, tenantId, (tx) =>
+          people.count(tx, narrowing),
+        );
+        expect(counted.ok && counted.value.all).toBe(10);
+      });
+
+      it("reads a broad filter and a broad search in proportion to this tenant's matches, not every tenant's", async () => {
+        // The other 50,000-person tenant matches each of these just as often,
+        // so reading every tenant's candidates would be twice this tenant's.
+        const where = { site: 'Lisbon' };
+        const search = 'Family1';
+        const counting = async (narrowing: { where?: typeof where; search?: string }) => {
+          const { value: counted, work } = await measured(tenantId, (tx) =>
+            people.count(tx, { ...asking(hr, tenantId), ...narrowing }),
+          );
+          if (!counted.ok) throw new Error(counted.error.message);
+          expect(counted.value.all, JSON.stringify(narrowing)).toBeGreaterThan(2000);
+          return { matches: counted.value.all, work };
+        };
+        const filtered = await counting({ where });
+        const searched = await counting({ search });
+        const both = await counting({ where, search });
+        // Each function reads this tenant's candidates once, and the count
+        // probes the ones it is handed.
+        expect(filtered.work).toBeLessThanOrEqual(2 * filtered.matches + 1000);
+        expect(searched.work).toBeLessThanOrEqual(2 * searched.matches + 1000);
+        expect(both.work).toBeLessThanOrEqual(
+          filtered.matches + searched.matches + both.matches + 1000,
+        );
+      });
+
+      it('finds exactly what the predicate finds, for filters narrow, broad, combined and empty', async () => {
+        for (const filter of [
+          TAIL,
+          { cost_centre: 'CC-7' },
+          { cost_centre: 'CC-7', site: 'Leeds' },
+          { site: 'Lisbon' },
+          { cost_centre: 'CC-nobody' },
+        ]) {
+          const want = await exactly(tenantId, filter);
+          const candidates = await inTenant(tenantId, async ({ tx }) => {
+            const [row] = await tx.execute<{ ids: string[] }>(sql`
+              SELECT coalesce(array_agg(c::text ORDER BY c), '{}') AS ids
+                FROM unnest(people.person_custom_candidates(${JSON.stringify(filter)}::jsonb)) AS c`);
+            return row?.ids ?? [];
+          });
+          expect(candidates, JSON.stringify(filter)).toEqual(want);
+          const counted = await inTenantResult(inTenant, tenantId, (tx) =>
+            people.count(tx, { ...asking(hr, tenantId), where: filter }),
+          );
+          expect(counted.ok && counted.value.all, JSON.stringify(filter)).toBe(want.length);
+        }
+      });
+    });
+  }
+
+  describe('the candidates function', () => {
+    const call = sql`
+      SELECT cardinality(people.person_custom_candidates(${JSON.stringify(TAIL)}::jsonb))::int AS n`;
+
+    it('returns nothing to a connection with no tenant set', async () => {
+      const [row] = await serviceDb.transaction((tx) => tx.execute<{ n: number }>(call));
+      expect(row?.n).toBe(0);
+    });
+
+    it("returns one tenant's people to nobody in another", async () => {
+      const [row] = await inTenant(ACME, ({ tx }) => tx.execute<{ n: number }>(call));
+      expect(row?.n).toBe(0);
+    });
+
+    it('is refused to another service', async () => {
+      // Another module's role, with the schema in reach, so the refusal is the function's.
+      await admin.execute(sql`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_timeoff') THEN
+            CREATE ROLE svc_timeoff NOLOGIN NOBYPASSRLS;
+          END IF;
+        END $$`);
+      await admin.execute(sql`GRANT USAGE ON SCHEMA people TO svc_timeoff`);
+      const [row] = await admin.execute<{ allowed: boolean }>(sql`
+        SELECT has_function_privilege('svc_timeoff', 'people.person_custom_candidates(jsonb)',
+                                      'EXECUTE') AS allowed`);
+      expect(row?.allowed).toBe(false);
+      await expect(
+        admin.transaction(async (tx) => {
+          await tx.execute(sql`SET LOCAL ROLE svc_timeoff`);
+          await tx.execute(call);
+        }),
+      ).rejects.toMatchObject({
+        cause: { message: 'permission denied for function person_custom_candidates' },
+      });
+    });
   });
 });

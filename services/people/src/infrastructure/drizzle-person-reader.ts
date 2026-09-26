@@ -90,10 +90,12 @@ function likePattern(text: string): string {
  * The directory's predicate: the tenant, `where` by containment, `search` by
  * substring.
  *
- * Containment is what `person_custom_idx` (GIN, jsonb_path_ops) answers, one
- * `@>` for every key at once. The search is `ILIKE` over at most four short
- * text columns and the two full names. Under RLS that predicate cannot use an
- * index, so the trigram index narrows it first, through
+ * Containment is what `person_tenant_directory_idx` (GIN) answers, one
+ * `@>` for every key at once, though under RLS only through
+ * `people.person_custom_candidates`, for the reason below. The search is
+ * `ILIKE` over at most four short text columns and the two full names. Under
+ * RLS that predicate cannot use an index, so the trigram index narrows it
+ * first, through
  * `people.person_search_candidates` (20260924370000_people_directory_search.sql
  * has why that is safe). The candidates only narrow: the predicate below is
  * still what decides a match. Under three characters there is no trigram to
@@ -117,11 +119,16 @@ function matching(
       );
     }
   }
+  const filter =
+    where === undefined || Object.keys(where).length === 0 ? undefined : JSON.stringify(where);
   return and(
     eq(person.tenantId, tenantId),
-    where === undefined || Object.keys(where).length === 0
+    filter === undefined ? undefined : sql`${person.custom} @> ${filter}::jsonb`,
+    // The same narrowing for the filter, through `person_tenant_directory_idx`
+    // (20260926120000_people_custom_filter.sql); the `@>` above still decides.
+    filter === undefined
       ? undefined
-      : sql`${person.custom} @> ${JSON.stringify(where)}::jsonb`,
+      : sql`${person.id} = ANY((SELECT people.person_custom_candidates(${filter}::jsonb))::uuid[])`,
     text === '' ? undefined : matches.length === 0 ? sql`false` : or(...matches),
     // A scalar subquery, so it runs once per statement and never at plan time;
     // the cast keeps `ANY` from reading it as `= ANY (subquery)`.
