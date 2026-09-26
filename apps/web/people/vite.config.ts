@@ -3,6 +3,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+import { containUtilities } from './src/contain-utilities';
+
 /*
  * One copy of React and of Reach on the page, and it is the shell's.
  *
@@ -46,5 +48,7 @@ export default defineConfig({
       bundleAllCSS: true,
     }),
   ],
+  // After Tailwind: this build's utilities stay off the host's chrome.
+  css: { postcss: { plugins: [containUtilities()] } },
   build: { target: 'es2022', rolldownOptions: { input: {} } },
 });

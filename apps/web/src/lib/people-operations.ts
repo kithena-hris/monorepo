@@ -572,6 +572,10 @@ export const OPERATIONS = {
     endLeave(personId: $personId, idempotencyKey: $key) { id }
   }`,
 
+  CreatePerson: `mutation CreatePerson($attributes: [AttributeValueInput!]!, $key: String!) {
+    createPerson(attributes: $attributes, idempotencyKey: $key) { id }
+  }`,
+
   DiscardPerson: `mutation DiscardPerson($personId: ID!, $key: String!) {
     discardPerson(personId: $personId, idempotencyKey: $key) { id }
   }`,

@@ -27,6 +27,8 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
+  /** What this person is in People, for the actions only some may be offered. */
+  readonly roles?: { readonly hr: boolean };
 }
 
 /**
@@ -81,6 +83,7 @@ export function PeopleScreen({
   params,
   search,
   today,
+  roles = { hr: false },
 }: PeopleScreenProps): JSX.Element {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -128,6 +131,21 @@ export function PeopleScreen({
           onSaveProfile: thenRefresh(actions.saveOwnSection),
           onFinish: () => {
             go('/people/me');
+          },
+        };
+      // One person by hand; then their record, to fill in the rest.
+      case 'AddPerson':
+        return {
+          onAdd: async (person: Readonly<Record<string, string>>) => {
+            const added = await actions.addPerson(person);
+            if (added.ok) go(`/people/${added.personId}`);
+            return added;
+          },
+          onCancel: () => {
+            go('/people/directory');
+          },
+          onImport: () => {
+            go('/people/import');
           },
         };
       case 'Onboarding':
@@ -246,6 +264,14 @@ export function PeopleScreen({
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
+          // Adding somebody is HR's, as importing them is (People refuses anybody else).
+          ...(roles.hr
+            ? {
+                onAdd: () => {
+                  go('/people/new');
+                },
+              }
+            : {}),
           ...(can.export === true
             ? {
                 onExport: () => {
@@ -546,5 +572,5 @@ export function PeopleScreen({
     }
   })();
 
-  return <RemoteScreen name="people" area="People" route={route} props={props} />;
+  return <RemoteScreen name="people" area="People" route={route} props={props} onNavigate={go} />;
 }

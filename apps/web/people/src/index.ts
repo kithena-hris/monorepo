@@ -8,6 +8,7 @@ export { PeopleHome } from './home/people-home';
 export { FieldRegistry } from './settings/field-registry';
 export { PeopleSetup } from './setup/people-setup';
 export { Onboarding } from './onboarding/onboarding';
+export { AddPerson } from './onboarding/add-person';
 export { Profile } from './profile/profile';
 export { PersonHistory } from './profile/history';
 export { Directory } from './directory/directory';

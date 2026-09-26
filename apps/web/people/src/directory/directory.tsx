@@ -71,6 +71,7 @@ export interface DirectoryProps {
   readonly onSaveSegment?: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
   readonly onOpen: (personId: string) => void;
   /** Present only when the viewer may do each. */
+  readonly onAdd?: () => void;
   readonly onExport?: () => void;
   readonly onImport?: () => void;
   /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
@@ -114,6 +115,11 @@ export function Directory(props: DirectoryProps): JSX.Element {
           <span className="flex gap-2">
             {props.onExport === undefined ? null : <Button onClick={props.onExport}>Export</Button>}
             {props.onImport === undefined ? null : <Button onClick={props.onImport}>Import</Button>}
+            {props.onAdd === undefined ? null : (
+              <Button variant="primary" onClick={props.onAdd}>
+                Add employee
+              </Button>
+            )}
           </span>
         }
       />
@@ -134,11 +140,43 @@ function Table({
   onSegmentChange,
   onSaveSegment,
   onOpen,
+  onAdd,
+  onImport,
   onBulkEdit,
   onNextPage,
   onFirstPage,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const wide = useBreakpoint('md');
+  // Nobody at all, rather than nobody matching: say so, and how to add them.
+  const narrowed =
+    search.trim() !== '' ||
+    Object.keys(filters).length > 0 ||
+    segmentId !== null ||
+    onFirstPage !== undefined;
+  if (state.people.length === 0 && !narrowed) {
+    return (
+      <EmptyState
+        title="No employees yet"
+        description={
+          onAdd === undefined && onImport === undefined
+            ? 'Nobody has been added to People yet.'
+            : 'Add people one at a time, or import a spreadsheet of everybody.'
+        }
+        action={
+          onAdd === undefined && onImport === undefined ? undefined : (
+            <span className="flex flex-wrap justify-center gap-2">
+              {onAdd === undefined ? null : (
+                <Button variant="primary" onClick={onAdd}>
+                  Add employee
+                </Button>
+              )}
+              {onImport === undefined ? null : <Button onClick={onImport}>Import</Button>}
+            </span>
+          )
+        }
+      />
+    );
+  }
   const columns: DataColumn<DirectoryPerson>[] = [
     {
       id: 'person',

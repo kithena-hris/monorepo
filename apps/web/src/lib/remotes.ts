@@ -13,9 +13,36 @@ import { z } from 'zod';
  * variable would be inlined at build time, and moving the remote would mean
  * rebuilding the shell.
  */
+/**
+ * A place the remote offers to navigate to: a section of the area, or an
+ * action such as adding somebody. `for` lists the roles any one of which
+ * opens it; without it, everybody. The host draws its own navigation from
+ * these — the remote says what exists, the host decides what the chrome looks
+ * like — and the remote refuses a screen to whoever may not use it whatever
+ * any navigation shows.
+ */
+const Place = z.object({
+  path: z.string().startsWith('/'),
+  label: z.string().min(1),
+  group: z.string().min(1).optional(),
+  for: z.array(z.string().min(1)).optional(),
+});
+export type Place = z.infer<typeof Place>;
+
 const RouteManifest = z.object({
   routes: z.array(z.object({ path: z.string().startsWith('/'), component: z.string().min(1) })),
+  sections: z.array(Place).default([]),
+  actions: z.array(Place).default([]),
 });
+
+/** The sections and actions this viewer's roles open, in the manifest's order. */
+export function placesFor(
+  nav: { readonly sections: readonly Place[]; readonly actions: readonly Place[] },
+  roles: Readonly<Record<string, boolean>>,
+): { readonly sections: readonly Place[]; readonly actions: readonly Place[] } {
+  const opens = (p: Place): boolean => p.for === undefined || p.for.some((r) => roles[r] === true);
+  return { sections: nav.sections.filter(opens), actions: nav.actions.filter(opens) };
+}
 
 export interface RemoteRoute {
   /** The remote's `remoteEntry.js`, loaded by the browser. */
@@ -26,11 +53,14 @@ export interface RemoteRoute {
   readonly component: string;
   /** `:name` segments of the manifest path, as matched: `/people/:id` → `{ id }`. */
   readonly params: Readonly<Record<string, string>>;
+  /** Every section and action the manifest lists, for the host's navigation. */
+  readonly nav: { readonly sections: readonly Place[]; readonly actions: readonly Place[] };
 }
 
 export interface Matched {
   readonly component: string;
   readonly params: Readonly<Record<string, string>>;
+  readonly nav: RemoteRoute['nav'];
 }
 
 /**
@@ -47,9 +77,10 @@ export interface Matched {
 export function matchRoute(manifest: unknown, path: string): Matched | null | undefined {
   const parsed = RouteManifest.safeParse(manifest);
   if (!parsed.success) return null;
-  const routes = parsed.data.routes;
+  const { routes, sections, actions } = parsed.data;
+  const nav = { sections, actions };
   const literal = routes.find((route) => route.path === path);
-  if (literal !== undefined) return { component: literal.component, params: {} };
+  if (literal !== undefined) return { component: literal.component, params: {}, nav };
 
   const segments = path.split('/');
   for (const route of routes) {
@@ -63,7 +94,7 @@ export function matchRoute(manifest: unknown, path: string): Matched | null | un
       params[part.slice(1)] = actual;
       return true;
     });
-    if (fits) return { component: route.component, params };
+    if (fits) return { component: route.component, params, nav };
   }
   return undefined;
 }
