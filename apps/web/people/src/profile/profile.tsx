@@ -4,6 +4,14 @@ import {
   Badge,
   Button,
   DatePicker,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   EmptyState,
   Field,
   FieldControl,
@@ -17,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
   Stack,
+  Textarea,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -92,6 +101,8 @@ export interface ProfileProps {
   readonly searchPeople?: SearchPeople;
   /** Open the record as of a date, and its changes (PEO-064). */
   readonly onHistory?: () => void;
+  /** This record as a PDF, as the viewer may read it (PEO-061). Absent where not offered. */
+  readonly onDownloadRecord?: (reason: string) => Promise<Outcome>;
 }
 
 /**
@@ -112,6 +123,7 @@ export function Profile({
   onPlace,
   searchPeople,
   onHistory,
+  onDownloadRecord,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
@@ -124,6 +136,7 @@ export function Profile({
             onMove={onMove}
             onPlace={onPlace}
             onHistory={onHistory}
+            onDownloadRecord={onDownloadRecord}
           />
         )}
       </Loaded>
@@ -138,6 +151,7 @@ function Record({
   onMove,
   onPlace,
   onHistory,
+  onDownloadRecord,
 }: {
   readonly state: ProfileState;
   readonly onSave: ProfileProps['onSave'];
@@ -145,6 +159,7 @@ function Record({
   readonly onMove: ProfileProps['onMove'];
   readonly onPlace: ProfileProps['onPlace'];
   readonly onHistory: ProfileProps['onHistory'];
+  readonly onDownloadRecord: ProfileProps['onDownloadRecord'];
 }): JSX.Element {
   const [editing, setEditing] = useState<string | null>(null);
   const [values, setValues] = useState<Values>(state.values);
@@ -164,7 +179,7 @@ function Record({
         }
         description={person.summary ?? undefined}
         actions={
-          person.missing === null && onHistory === undefined ? undefined : (
+          person.missing === null && onHistory === undefined && onDownloadRecord === undefined ? undefined : (
             <span className="flex items-center gap-2">
               {person.missing === null ? null : (
                 <Badge tone={person.missing === 0 ? 'success' : 'warning'}>
@@ -172,6 +187,7 @@ function Record({
                 </Badge>
               )}
               {onHistory === undefined ? null : <Button onClick={onHistory}>History</Button>}
+              {onDownloadRecord ? <RecordPdf onDownload={onDownloadRecord} /> : null}
             </span>
           )
         }
@@ -378,5 +394,96 @@ function PlacementSection({
         </Stack>
       </form>
     </PageSection>
+  );
+}
+
+/**
+ * The employee record as a PDF (PRD §15.5): what this viewer may read, the
+ * rest counted in its footer. An export with pay or bank details in it needs
+ * a reason, recorded with it (§15.1), so the reason is asked for up front
+ * rather than after a refusal.
+ */
+function RecordPdf({
+  onDownload,
+}: {
+  readonly onDownload: (reason: string) => Promise<Outcome>;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setReason('');
+          setRefused(null);
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm">Download PDF</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Download the employee record</DialogTitle>
+          <DialogDescription>
+            A PDF of what you can see here. Anything withheld from you is counted in its footer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap={4}>
+            <Field>
+              <FieldLabel>Reason</FieldLabel>
+              <FieldControl>
+                <Textarea
+                  value={reason}
+                  maxLength={500}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>
+                Needed when the record includes pay or bank details. Kept with the export.
+              </FieldDescription>
+            </Field>
+            {refused === null ? null : (
+              <Alert tone="danger" title="No PDF was made">
+                {refused}
+              </Alert>
+            )}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            loadingLabel="Preparing PDF"
+            onClick={() => {
+              setBusy(true);
+              setRefused(null);
+              void onDownload(reason.trim()).then((outcome) => {
+                setBusy(false);
+                if (outcome.ok) setOpen(false);
+                else setRefused(outcome.message);
+              });
+            }}
+          >
+            Download
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -34,12 +34,14 @@
     "graphql-yoga": "^5.24.1",
     "ioredis": "^6.0.0",
     "kafkajs": "^2.2.4",
+    "pdfkit": "0.20.2",
     "postgres": "^3.4.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
     "@temporalio/testing": "^1.24.0",
+    "@types/pdfkit": "^0.17.6",
     "fast-formula-parser": "1.0.19",
     "graphql": "^16.11.0",
     "jose": "^6.2.12",

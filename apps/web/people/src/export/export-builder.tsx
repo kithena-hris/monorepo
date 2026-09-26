@@ -22,7 +22,7 @@ import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 
-export type ExportFormat = 'xlsx' | 'csv';
+export type ExportFormat = 'xlsx' | 'csv' | 'pdf';
 
 export interface ExportState {
   readonly today: IsoDate;
@@ -58,6 +58,11 @@ export interface ExportBuilderProps {
 const FORMATS: readonly { value: ExportFormat; label: string; description: string }[] = [
   { value: 'xlsx', label: 'Excel (.xlsx)', description: 'For a person to read and edit.' },
   { value: 'csv', label: 'CSV', description: 'For another system, or to import back.' },
+  {
+    value: 'pdf',
+    label: 'PDF roster',
+    description: 'To print or file. Landscape, with the headers and the filter on every page.',
+  },
 ];
 
 /**

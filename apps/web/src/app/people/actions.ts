@@ -461,19 +461,26 @@ export async function commitImport(
 
 /* -------------------------------------------------------------- export -- */
 
+type Exported =
+  | { ok: true; links: readonly { name: string; url: string }[] }
+  | { ok: false; message: string };
+
+// The links are signed and expire (PEO-089); they carry their own authority.
+async function exported(variables: Record<string, unknown>): Promise<Exported> {
+  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', variables);
+  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+}
+
 export async function requestExport(choice: {
   who: string;
   fields: readonly string[];
   asOf: string;
-  format: 'xlsx' | 'csv';
-}): Promise<
-  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string }
-> {
-  // The links are signed and expire (PEO-089); they carry their own authority.
-  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', {
-    format: choice.format,
-    fields: [...choice.fields],
-    asOf: choice.asOf,
-  });
-  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+  format: 'xlsx' | 'csv' | 'pdf';
+}): Promise<Exported> {
+  return exported({ format: choice.format, fields: [...choice.fields], asOf: choice.asOf });
+}
+
+/** One person's employee record as a PDF (PEO-061): what this viewer may read of them. */
+export async function exportRecord(personId: string, reason: string): Promise<Exported> {
+  return exported({ format: 'pdf', recordOf: personId, ...(reason === '' ? {} : { reason }) });
 }

@@ -234,6 +234,26 @@ describe('exports', () => {
     expect(theirs.status).toBe(404);
   });
 
+  it('makes one person’s employee record as a PDF, and only as a PDF (PEO-061)', async () => {
+    const { call } = exportsSetup();
+    const post = (key: string, body: Record<string, unknown>) =>
+      call({
+        method: 'POST',
+        url: '/v1/exports',
+        headers: { 'idempotency-key': key },
+        body: JSON.stringify(body),
+      });
+    const made = await post('r2', { format: 'pdf', recordOf: ADA });
+    expect(made.status).toBe(201);
+    expect(made.body).toMatchObject({ status: 'completed', rowCount: 1 });
+    expect((made.body as { links: { name: string }[] }).links[0]?.name).toMatch(
+      /^record-.*\.pdf$/u,
+    );
+
+    const notPdf = await post('r3', { format: 'csv', recordOf: ADA });
+    expect(JSON.stringify(notPdf.body)).toContain('VALUE_INVALID');
+  });
+
   it('queues a large export once, however often the request is retried', async () => {
     const { call, enqueued } = exportsSetup();
     const request = {

@@ -1773,7 +1773,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: ExportRef,
       description: 'Over 2,000 rows the export is queued; ask `peopleExport` for its links.',
       args: {
-        format: t.arg.string({ required: true }),
+        format: t.arg.string({ required: true, description: 'csv, xlsx or pdf.' }),
+        recordOf: t.arg.id({
+          description: 'With pdf: this person’s employee record instead of a roster.',
+        }),
         fields: t.arg.stringList(),
         asOf: t.arg.string(),
         includeArchived: t.arg.boolean(),

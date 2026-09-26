@@ -76,6 +76,10 @@ describe('ExportBuilder', () => {
       format: 'csv',
     });
     expect(await screen.findByText(/Your export is being prepared/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /PDF roster/ }));
+    await user.click(screen.getByRole('button', { name: 'Export 412 people' }));
+    expect(onExport).toHaveBeenLastCalledWith(expect.objectContaining({ format: 'pdf' }));
   });
 
   it('cannot export with no fields, and says why People refused', async () => {
