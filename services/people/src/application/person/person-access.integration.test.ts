@@ -141,6 +141,7 @@ beforeAll(async () => {
     '20260924320000_people_effective_through.sql',
     '20260924330000_people_identifier_review.sql',
     '20260924340000_people_person_key_lookup.sql',
+    '20260926200000_people_status_idx_skip_scan.sql',
     '20260924370000_people_directory_search.sql',
     '20260926120000_people_custom_filter.sql',
   ]) {
