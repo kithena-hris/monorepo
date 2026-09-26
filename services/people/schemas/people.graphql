@@ -876,6 +876,29 @@ type Mutation {
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
+  """
+  Schedule a report. Each run is built as each recipient, so each gets only what they may see.
+  """
+  createReportSchedule(
+    """With month: 1 to 28."""
+    day: Int
+    every: ReportEvery!
+    """Absent is every field each recipient may read."""
+    fields: [String!]
+    filter: [ReportConditionInput!]
+    format: ReportFormat
+    hour: Int!
+    idempotencyKey: String!
+    kind: ReportKind!
+    legalEntityId: ID
+    name: String!
+    reason: String
+    recipients: [ID!]!
+    """Or filter; neither is everybody each recipient may list."""
+    segmentId: ID
+    """With week: 1 is Monday."""
+    weekday: Int
+  ): ReportScheduleSaved
   createScimConnection(idempotencyKey: String!, system: String!): ScimConnectionToken
   createWebhookEndpoint(alertEmail: String!, allowlist: [String!]!, events: [String!]!, idempotencyKey: String!, url: String!): WebhookEndpointSecret
   """HR approves or rejects; a retry answers the request as it now stands."""
@@ -886,6 +909,7 @@ type Mutation {
   decidePendingChange(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): WriteOutcome
   """Delete a segment you saved."""
   deletePeopleSegment(id: ID!, idempotencyKey: String!): WriteOutcome
+  deleteReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
   """HR says a pair are two people; the queue stops offering it."""
@@ -912,6 +936,7 @@ type Mutation {
   Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.
   """
   mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
+  pauseReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
@@ -948,6 +973,7 @@ type Mutation {
   ): PeopleExport
   """Finance asks for sealed fields in full, with a reason; HR decides."""
   requestFullValues(asOf: String, fields: [String!]!, filter: String, idempotencyKey: String!, personIds: [ID!], reason: String!): FullValuesRequest
+  resumeReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """The doubted value in full, for HR deciding it (PEO-125). Audited."""
   revealIdentifier(attributeKey: String!, personId: ID!): IdentifierRevealed
   """
@@ -1002,6 +1028,28 @@ type Mutation {
   updateLocation(archived: Boolean, id: ID!, idempotencyKey: String!, name: String): Location
   updatePeopleSettings(cohortMinimum: Int, defaultTimeZone: String, idempotencyKey: String!): PeopleSettings
   updatePerson(changes: [AttributeValueInput!]!, effectiveFrom: String, id: ID!, idempotencyKey: String!): Person
+  """Change a scheduled report; whoever saves it owns it."""
+  updateReportSchedule(
+    """With month: 1 to 28."""
+    day: Int
+    every: ReportEvery!
+    """Absent is every field each recipient may read."""
+    fields: [String!]
+    filter: [ReportConditionInput!]
+    format: ReportFormat
+    hour: Int!
+    id: ID!
+    idempotencyKey: String!
+    kind: ReportKind!
+    legalEntityId: ID
+    name: String!
+    reason: String
+    recipients: [ID!]!
+    """Or filter; neither is everybody each recipient may list."""
+    segmentId: ID
+    """With week: 1 is Monday."""
+    weekday: Int
+  ): ReportScheduleSaved
   updateWebhookEndpoint(alertEmail: String, allowlist: [String!], enabled: Boolean, events: [String!], id: ID!, idempotencyKey: String!, url: String): WriteOutcome
   """
   Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only.
@@ -1264,6 +1312,22 @@ type PeopleRegistry {
   unpublishedChanges: Int
 }
 
+type PeopleReportRuns {
+  id: ID
+  name: String
+  runs: [ReportRun!]
+}
+
+type PeopleReportSchedules {
+  canManage: Boolean
+  """What the viewer may export; a recipient who reads fewer gets fewer."""
+  fields: [ReportFieldChoice!]
+  legalEntities: [ReportLegalEntityChoice!]
+  people: [ReportPersonChoice!]
+  schedules: [ReportSchedule!]
+  segments: [ReportSegmentChoice!]
+}
+
 type PeopleRoleSettings {
   canManage: Boolean
   people: [RoleSettingsPerson!]
@@ -1516,6 +1580,10 @@ type Query {
   """What publishing the draft would do, from requiredFrom; rolled back."""
   peoplePublishPreview(requiredFrom: String!): PublishPreview
   peopleRegistry: PeopleRegistry
+  """One scheduled report’s last 50 runs, newest first."""
+  peopleReportRuns(id: ID!): PeopleReportRuns
+  """Scheduled reports and what their form may offer; HR and people_admin."""
+  peopleReportSchedules: PeopleReportSchedules
   peopleRoleSettings: PeopleRoleSettings
   """Who holds a tenant role; HR and people_admin only."""
   peopleRoles: [RoleHolder!]
@@ -1613,6 +1681,111 @@ type RegistrySection {
 type RepeatingAttribute {
   items: [PersonAttribute!]
   key: String
+}
+
+input ReportConditionInput {
+  key: String!
+  value: String!
+}
+
+enum ReportEvery {
+  day
+  month
+  week
+}
+
+type ReportFieldChoice {
+  key: String
+  label: String
+  section: String
+}
+
+enum ReportFormat {
+  pdf
+  xlsx
+}
+
+enum ReportKind {
+  export
+  summary
+}
+
+type ReportLegalEntityChoice {
+  id: ID
+  name: String
+}
+
+type ReportPersonChoice {
+  accountId: ID
+  name: String
+  workEmail: String
+}
+
+type ReportRun {
+  finishedAt: String
+  missed: Int
+  outcome: String
+  period: String
+  recipients: [ReportRunRecipient!]
+  startedAt: String
+}
+
+type ReportRunRecipient {
+  accountId: ID
+  name: String
+  """sent, failed, not_eligible, or why it was refused or skipped"""
+  outcome: String
+}
+
+type ReportSchedule {
+  day: Int
+  every: ReportEvery
+  fields: [String!]
+  filter: [ReportScheduleCondition!]
+  format: ReportFormat
+  hour: Int
+  id: ID
+  kind: ReportKind
+  lastRun: ReportScheduleLastRun
+  legalEntityId: ID
+  name: String
+  ownerName: String
+  paused: Boolean
+  reason: String
+  recipients: [ReportScheduleRecipient!]
+  segmentId: ID
+  segmentName: String
+  weekday: Int
+}
+
+type ReportScheduleCondition {
+  key: String
+  value: String
+}
+
+type ReportScheduleLastRun {
+  finishedAt: String
+  missed: Int
+  """sent, partial, failed or skipped; null while running or after a crash"""
+  outcome: String
+  period: String
+  startedAt: String
+}
+
+type ReportScheduleRecipient {
+  accountId: ID
+  name: String
+}
+
+type ReportScheduleSaved {
+  id: ID
+}
+
+type ReportSegmentChoice {
+  forExport: Boolean
+  forSummary: Boolean
+  id: ID
+  name: String
 }
 
 type RetentionFloor {

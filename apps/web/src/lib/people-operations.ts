@@ -633,6 +633,66 @@ export const OPERATIONS = {
   ) {
     savePeopleSegment(name: $name, filter: $filter, shared: $shared, idempotencyKey: $key) { id }
   }`,
+
+  /* Scheduled reports (PEO-069): HR's list, a schedule's history, and the five writes. */
+  ReportSchedules: `query ReportSchedules {
+    peopleReportSchedules {
+      canManage
+      schedules {
+        id name ownerName paused segmentId segmentName filter { key value }
+        kind format fields reason every weekday day hour legalEntityId
+        recipients { accountId name }
+        lastRun { period missed startedAt finishedAt outcome }
+      }
+      segments { id name forExport forSummary }
+      people { accountId name workEmail }
+      legalEntities { id name }
+      fields { key label section }
+    }
+  }`,
+
+  ReportRuns: `query ReportRuns($id: ID!) {
+    peopleReportRuns(id: $id) {
+      id name
+      runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }
+    }
+  }`,
+
+  CreateReportSchedule: `mutation CreateReportSchedule(
+    $name: String!, $segmentId: ID, $filter: [ReportConditionInput!], $kind: ReportKind!,
+    $format: ReportFormat, $fields: [String!], $reason: String, $every: ReportEvery!,
+    $weekday: Int, $day: Int, $hour: Int!, $legalEntityId: ID, $recipients: [ID!]!, $key: String!
+  ) {
+    createReportSchedule(
+      name: $name, segmentId: $segmentId, filter: $filter, kind: $kind, format: $format,
+      fields: $fields, reason: $reason, every: $every, weekday: $weekday, day: $day, hour: $hour,
+      legalEntityId: $legalEntityId, recipients: $recipients, idempotencyKey: $key
+    ) { id }
+  }`,
+
+  UpdateReportSchedule: `mutation UpdateReportSchedule(
+    $id: ID!, $name: String!, $segmentId: ID, $filter: [ReportConditionInput!], $kind: ReportKind!,
+    $format: ReportFormat, $fields: [String!], $reason: String, $every: ReportEvery!,
+    $weekday: Int, $day: Int, $hour: Int!, $legalEntityId: ID, $recipients: [ID!]!, $key: String!
+  ) {
+    updateReportSchedule(
+      id: $id, name: $name, segmentId: $segmentId, filter: $filter, kind: $kind, format: $format,
+      fields: $fields, reason: $reason, every: $every, weekday: $weekday, day: $day, hour: $hour,
+      legalEntityId: $legalEntityId, recipients: $recipients, idempotencyKey: $key
+    ) { id }
+  }`,
+
+  PauseReportSchedule: `mutation PauseReportSchedule($id: ID!, $key: String!) {
+    pauseReportSchedule(id: $id, idempotencyKey: $key) { id }
+  }`,
+
+  ResumeReportSchedule: `mutation ResumeReportSchedule($id: ID!, $key: String!) {
+    resumeReportSchedule(id: $id, idempotencyKey: $key) { id }
+  }`,
+
+  DeleteReportSchedule: `mutation DeleteReportSchedule($id: ID!, $key: String!) {
+    deleteReportSchedule(id: $id, idempotencyKey: $key) { id }
+  }`,
 } as const;
 
 export type OperationName = keyof typeof OPERATIONS;

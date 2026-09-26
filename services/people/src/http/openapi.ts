@@ -412,6 +412,13 @@ function screenPaths(): Record<string, unknown> {
       ),
     },
     '/v1/report-schedules/{id}': {
+      put: screenWrite(
+        'Change a scheduled report; whoever saves it owns it, and it starts again from the next period',
+        'ReportSchedule',
+        200,
+        'The schedule',
+        { path: 'id' },
+      ),
       delete: screenWrite('Delete a scheduled report and its run history', null, 200, 'Deleted', {
         path: 'id',
       }),

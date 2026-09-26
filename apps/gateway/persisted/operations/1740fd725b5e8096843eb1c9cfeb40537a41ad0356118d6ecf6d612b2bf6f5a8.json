@@ -1,0 +1,1 @@
+{"version":1,"body":"query ReportRuns($id: ID!) {\n    peopleReportRuns(id: $id) {\n      id name\n      runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }\n    }\n  }"}

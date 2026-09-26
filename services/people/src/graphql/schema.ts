@@ -23,6 +23,7 @@ import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
+import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 
@@ -1203,6 +1204,7 @@ builder.mutationFields((t) => ({
 }));
 
 defineScreens(builder, viaRest);
+defineReports(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',
