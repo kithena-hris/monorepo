@@ -762,6 +762,7 @@ database the bytes end up in.
 | HR information | HR | Hire, then on change | Typed columns plus history |
 | Employment terms | HR | Hire, then on change | Typed columns plus history |
 | Salary, variable pay | HR or finance | Hire, then effective-dated changes | Typed columns, encrypted where financial, plus history |
+| Pay bands: minimum, midpoint, maximum per grade and currency (§16.2) | HR or finance | Settings, any time, effective-dated | `people.pay_band`, and `people.pay_band.set`/`.corrected` events |
 | Bank account, tax identifiers | The employee | Onboarding | `people.person_secret` only |
 | Public profile | The employee | Any time | `people.person` plus history |
 | Employee number | People, from the legal entity's numbering scheme (§9.4); HR or an import where it has none, or to set one by hand | Hire | `people.person.employee_number`; the sequence in `people.employee_numbering` |
@@ -3053,6 +3054,58 @@ as "insufficient data" with the minimum and no number at all — no bar, no
 table, no total. A served one states its publication date and that the
 total was rounded on its own. Nobody else sees the section, and it is not
 drawn under a segment.
+
+**Pay distribution and compa-ratio, as built (PEO-078).** Three product
+decisions, taken for this ticket:
+
+1. **Pay bands are maintained in People.** Minimum, midpoint and maximum per
+   grade and currency, effective-dated, edited by HR or finance (either may;
+   nobody else sees them) on the Pay bands tab of the organisation settings.
+   `people.pay_band` is append-only: a band from a new day is a row, and
+   saving the same grade, currency and day again is a correction that
+   `supersedes` the row it replaces. Each is a `people.pay_band.set` or
+   `.corrected` event in the same transaction, amounts as `Money` in minor
+   units, so a future Compensation module can take the bands over by
+   replaying them. Postgres holds `numeric(19,4)`, arithmetic is
+   `decimal.js`. A band is matched to people by the stored value of the
+   `grade` field; compa-ratio is `base_salary` over the midpoint of the band
+   in force on the snapshot day for that grade **and currency**.
+2. **The nightly snapshot may decrypt salary in-process, for aggregates
+   only.** After the headcount snapshot, in its own transaction, it reads
+   each present person's grade, tenure band and salary — decrypting a sealed
+   `base_salary` in memory through `SecretStore.revealAll`, which logs the
+   attribute and a count and never a value — and writes quartiles per group
+   to `people.pay_snapshot`, never a per-person value, person id or grade
+   beside a person. Every run is a row in `people.pay_snapshot_audit`: the
+   day, when, by what (`system:people.snapshot`), how many salaries it read
+   and how many of those it decrypted, how many groups and how many
+   withheld. The redaction paths `just codegen` emits cover the band
+   event's amounts.
+3. **Finance sees quartiles only.** The 25th percentile, median and 75th
+   (interpolated as `PERCENTILE.INC`, salary rounded half-even to a whole
+   minor unit, compa-ratio to four places) per group, and how many people it
+   holds — never a minimum or a maximum, which are one person's salary.
+   Groups are grade (inside its band, drawn with `RangeChart`'s median and
+   middle half), tenure band (pay against tenure as a `TrendChart` of the
+   three quartiles by band, not a point per person — the `ScatterChart`
+   above is not used) and compa-ratio by grade (the band as ratios of its
+   midpoint). **A group is one currency**; nothing mixes two. A group under
+   the tenant's cohort minimum (default 10, the same setting as §16.1) is
+   stored with no count and no figure — a CHECK holds the floor of ten — and
+   shows "insufficient data" with no number in the chart, the table or the
+   CSV; there are no totals, because quartiles do not add up. The minimum
+   is applied again when read, so raising it withholds more at once.
+
+The charts need the **finance** role: HR without it, a People administrator
+and a manager see no pay section and are refused the query. They read the
+latest pay snapshot only, never a range or a segment — a month's median
+minus the last is whoever's pay changed, and a segment's beside the
+tenant's is everybody outside it. Full values stay where they were: finance
+asks, HR approves (§15.2, PEO-088). Known ceilings: `base_salary` is taken
+as it stands (a sealed value holds the latest write, so a raise dated ahead
+counts from when it was entered, not from its day), is not annualised by
+`pay_frequency` or scaled by `fte`, and a band is not ended except by a
+later one.
 
 ### 16.3 Segments, saved views and delivery
 
