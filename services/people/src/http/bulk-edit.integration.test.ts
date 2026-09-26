@@ -152,7 +152,7 @@ const post = async (path: string, body: unknown, as = hr, key: string | null = n
     headers: { ...as, ...(key === null ? {} : { 'idempotency-key': key }) },
     body: JSON.stringify(body),
   });
-  return { status: response.status, body: (await response.json()) as { rows: Row[] } & never };
+  return { status: response.status, body: (await response.json()) as { committed?: boolean; rows: Row[] } };
 };
 
 /** Every `profile_updated` People has raised, for one person. */
