@@ -262,6 +262,87 @@ async function rows(
   return ok(out);
 }
 
+/**
+ * Bulk hire: people added without a start date, hired from one (a date per
+ * person where HR set one). The batch around `PersonAccess.hireExisting`,
+ * exactly as bulk edit is the batch around `update`: HR only, a savepoint per
+ * person so one refused leaves the others hired, and the preview the same
+ * hires rolled back. Nobody is placed here: somebody with no legal entity is
+ * refused with why, and placed on their profile first.
+ *
+ * The answer is a bulk edit's: a hired row is `changed`, its start date and
+ * the status it lands on (active once the date has begun on their calendar,
+ * pre-hire until then) as the two changes; a skipped row is `refused`, with
+ * the reason `hireExisting` gave.
+ */
+export interface BulkHire {
+  readonly hires: readonly { readonly personId: string; readonly hireDate: string }[];
+}
+
+const STATUS_WORD: Readonly<Record<string, string>> = {
+  provisional: 'Not started',
+  pre_hire: 'Starting soon',
+  active: 'Active',
+};
+
+export async function bulkHire(
+  deps: ScreenDeps,
+  asking: Asking,
+  batch: BulkHire,
+  mode: 'preview' | 'commit',
+): Promise<Result<BulkResult>> {
+  const hires = [...new Map(batch.hires.map((h) => [h.personId, h])).values()];
+  if (hires.length > BULK_PAGE) return tooMany();
+  const apply = async (tx: Tx): Promise<Result<BulkRow[]>> => {
+    const everyone = await hrOnly(deps, tx, asking);
+    if (!everyone.ok) return everyone;
+    const savepoint = <R>(_tenant: string, fn: (scope: { tx: Tx }) => Promise<R>) =>
+      tx.transaction((sp) => fn({ tx: sp }));
+    const out: BulkRow[] = [];
+    for (const { personId, hireDate } of hires) {
+      const before = await deps.service.access.read(tx, { ...asking, personId });
+      if (!before.ok) {
+        out.push(refusedRow(personId, 'Unknown person', before.error));
+        continue;
+      }
+      const name = nameOf(before.value.attributes) ?? 'Unnamed';
+      const hired = await inTenantResult(savepoint, asking.tenantId, (sp) =>
+        deps.service.access.hireExisting(sp, { ...asking, personId, hireDate }),
+      );
+      if (!hired.ok) {
+        out.push(refusedRow(personId, name, hired.error));
+        continue;
+      }
+      const status = hired.value.status ?? 'pre_hire';
+      out.push({
+        personId,
+        name,
+        outcome: 'changed',
+        changes: [
+          { key: 'hire_date', label: 'Start date', dated: true, before: null, after: hireDate },
+          {
+            key: 'status',
+            label: 'Status',
+            dated: true,
+            before: STATUS_WORD['provisional'] ?? null,
+            after: STATUS_WORD[status] ?? status,
+          },
+        ],
+        held: [],
+        refusal: null,
+        findings: [],
+      });
+    }
+    return ok(out);
+  };
+  if (mode === 'commit') {
+    const done = await run(deps.service, asking.tenantId, apply);
+    return done.ok ? ok({ committed: true, rows: done.value }) : done;
+  }
+  const seen = await rolledBack(deps.service, asking.tenantId, apply);
+  return seen.ok ? ok({ committed: false, rows: seen.value }) : seen;
+}
+
 const same = (a: FormValue, b: FormValue): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 const refusedRow = (personId: string, name: string, error: DomainFailure): BulkRow => ({

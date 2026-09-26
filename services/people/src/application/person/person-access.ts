@@ -31,6 +31,7 @@ import {
 } from '../../domain/person/history.js';
 import {
   hireFactsOf,
+  hireRefusal,
   IDENTITY_FACT_KEYS,
   identityFactsOf,
   Person,
@@ -253,6 +254,21 @@ export interface PersonAccess {
       /** Values written with the hire, as `update` writes them. */
       readonly changes?: Readonly<Record<string, unknown>>;
       readonly effectiveFrom?: string;
+    }>,
+  ): Promise<Result<PersonView>>;
+  /**
+   * Hire somebody already on the books, provisional since they were added
+   * without a start date: placed first when they are not and a placement is
+   * given, then `hire`, as the import hires. HR only. Refused in words HR can
+   * act on (`hireRefusal`): already employed, left, discarded or merged, or
+   * placed nowhere when the tenant has a legal entity to place them in.
+   */
+  hireExisting(
+    tx: Tx,
+    asking: On<{
+      readonly hireDate: string;
+      readonly legalEntityId?: string;
+      readonly locationId?: string;
     }>,
   ): Promise<Result<PersonView>>;
   /**
@@ -2440,6 +2456,53 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const after = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!after) return err(PersonNotFound());
       return ok(await view(tx, asking, after, version, relations));
+    },
+
+    /**
+     * The status first, so an employee is never moved by a hire that is
+     * refused anyway. A placement given is dated from a start date already
+     * past, so the history agrees with the employment, and today otherwise:
+     * a date ahead would not be in force for the hire to read.
+     */
+    async hireExisting(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (!CALENDAR_DATE.test(asking.hireDate)) {
+        return err(failure('VALUE_INVALID', 'The start date is a calendar date', ['hireDate']));
+      }
+      const person = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!person) return err(PersonNotFound());
+      const relations = await deps.relations.relations(
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        asking.personId,
+      );
+      if (!relations.isHr) return err(failure('FORBIDDEN', 'Only HR hires a person'));
+      const employed = hireRefusal(person.snapshot.status, true);
+      if (employed) return err(employed);
+
+      const { hireDate, legalEntityId, locationId, ...on } = asking;
+      if (legalEntityId !== undefined || locationId !== undefined) {
+        const { day } = await calendarOf(tx, asking.tenantId, person.values);
+        const placed = await api.place(tx, {
+          ...on,
+          ...(legalEntityId === undefined ? {} : { legalEntityId }),
+          ...(locationId === undefined ? {} : { locationId }),
+          ...(hireDate < day ? { effectiveFrom: hireDate } : {}),
+        });
+        if (!placed.ok) return placed;
+      }
+      const after = await deps.reader.record(tx, asking.tenantId, asking.personId, true);
+      if (!after) return err(PersonNotFound());
+      const entities = [...(await calendars.load(tx, asking.tenantId)).entities.values()];
+      const needsEntity =
+        version.document.attributes.some(
+          (d) => d.key === 'legal_entity_id' && d.deprecatedAt === null,
+        ) && entities.some((e) => e.archived !== true);
+      const refusal = hireRefusal(after.snapshot.status, !needsEntity || after.legalEntityId !== null);
+      if (refusal) return err(refusal);
+      return api.hire(tx, { ...on, hireDate });
     },
 
     /**

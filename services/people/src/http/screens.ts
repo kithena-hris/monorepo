@@ -38,7 +38,7 @@ import {
   saveGrid,
   saveSection,
 } from '../application/screens/people.js';
-import { BULK_PAGE, bulkEdit, bulkEditView } from '../application/screens/bulk-edit.js';
+import { BULK_PAGE, bulkEdit, bulkEditView, bulkHire } from '../application/screens/bulk-edit.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
@@ -160,6 +160,13 @@ export const BulkEditBody = z.strictObject({
   effectiveFrom: z.iso.date(),
   /** HR writes values that require approval without it (PEO-077). */
   applySensitiveWithoutApproval: z.boolean().optional(),
+});
+/** A page of a bulk hire: provisional people, each from a start date on their own calendar. */
+export const BulkHireBody = z.strictObject({
+  hires: z
+    .array(z.strictObject({ personId: z.uuid(), hireDate: z.iso.date() }))
+    .min(1)
+    .max(BULK_PAGE),
 });
 export const EndpointBody = z.strictObject({
   url: z.string().max(2000),
@@ -570,6 +577,24 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         // wrote reads as unchanged, and nothing is written twice.
         again: async (asking, _resource, input) =>
           answer(await bulkEdit(deps, asking, input, 'preview')),
+      }),
+    },
+    /* bulk hire: provisional people hired from a start date, the same shape */
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/bulk-hire\/preview$/,
+      safe: true,
+      handle: compute(BulkHireBody, (asking, input) => bulkHire(deps, asking, input, 'preview')),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/bulk-hire$/,
+      handle: write(BulkHireBody, (asking, input) => bulkHire(deps, asking, input, 'commit'), {
+        // ponytail: a retry is answered from what stands now, so those the
+        // first request hired read as already employed; store the first
+        // answer if a lost response ever confuses anybody.
+        again: async (asking, _resource, input) =>
+          answer(await bulkHire(deps, asking, input, 'preview')),
       }),
     },
 

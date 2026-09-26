@@ -2049,6 +2049,43 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   );
 
+  const BulkHireInput = builder.inputType('BulkHireInput', {
+    fields: (t) => ({
+      personId: t.id({ required: true }),
+      hireDate: t.string({ required: true, description: 'On the person’s own calendar.' }),
+    }),
+  });
+  const hireBody = (hires: readonly { personId: string | number; hireDate: string }[]) => ({
+    hires: hires.map((h) => ({ personId: String(h.personId), hireDate: h.hireDate })),
+  });
+  builder.queryField('peopleBulkHirePreview', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description: 'Who a bulk hire would hire and who it would skip, and why; nothing is kept.',
+      args: { hires: t.arg({ type: [BulkHireInput], required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-hire/preview', {
+          body: hireBody(args.hires),
+        }),
+    }),
+  );
+  builder.mutationField('bulkHirePeople', (t) =>
+    t.field({
+      type: BulkResultRef,
+      description:
+        'A page of a bulk hire: provisional people hired from a start date, each atomic, each answered.',
+      args: {
+        hires: t.arg({ type: [BulkHireInput], required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<BulkResult>(ctx, 'POST', '/v1/views/bulk-hire', {
+          body: hireBody(args.hires),
+          key: args.idempotencyKey,
+        }),
+    }),
+  );
+
   const IdentifierDecisionEnum = builder.enumType('IdentifierReviewDecision', {
     values: ['accept', 'send_back'] as const,
   });

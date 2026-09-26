@@ -158,6 +158,34 @@ describe('the lifecycle routes', () => {
     expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
   });
 
+  it('hires a provisional person from a start date, once per key, and refuses anybody else', async () => {
+    const { post, store } = setup();
+    const fresh = store.rows.get(NEW);
+    if (fresh) {
+      fresh.fields = { ...fresh.fields, givenName: 'Lena', familyName: 'Moreau', workEmail: 'lena@acme.test' };
+    }
+    const notHr = await post(`${NEW}/hire`, { hireDate: '2026-10-01' }, 'h0', { 'x-roles': 'people_admin' });
+    expect([notHr.status, code(notHr)]).toEqual([403, 'FORBIDDEN']);
+    const bad = await post(`${NEW}/hire`, { hireDate: '1 Oct' }, 'h1');
+    expect([bad.status, code(bad)]).toEqual([422, 'BAD_REQUEST']);
+
+    const hired = await post(`${NEW}/hire`, { hireDate: '2026-10-01' }, 'h2');
+    expect([hired.status, status(hired)]).toEqual([200, 'pre_hire']);
+    expect(store.events.map((e) => e.eventName)).toEqual([
+      'people.person.status_changed',
+      'people.person.hired',
+    ]);
+    expect(store.events[1]?.effectiveFrom).toBe('2026-10-01');
+
+    const count = store.events.length;
+    expect(await post(`${NEW}/hire`, { hireDate: '2026-10-01' }, 'h2')).toEqual(hired);
+    expect(store.events).toHaveLength(count);
+
+    const employed = await post(`${ADA}/hire`, { hireDate: '2026-10-01' }, 'h3');
+    expect([employed.status, code(employed)]).toEqual([409, 'INVALID_TRANSITION']);
+    expect((employed.body as { error: { message: string } }).error.message).toMatch(/already/i);
+  });
+
   it('withdraws notice back to where it was given from (PEO-111)', async () => {
     const { post, store } = setup();
     await post(`${ADA}/notice`, { lastWorkingDay: '2026-09-30' }, 'w0');

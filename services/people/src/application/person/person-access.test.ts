@@ -741,6 +741,91 @@ describe('hiring', () => {
     });
   });
 
+  describe('hiring somebody already on the books (hireExisting)', () => {
+    const ENTITY = '00000000-0000-4000-8000-0000000000e1';
+    const entityKey = define({ key: 'legal_entity_id', ownership: ['hr'] });
+    const withEntities = (status: 'provisional' | 'active' = 'provisional') => {
+      const store = inMemoryPeople([versionOf(3, [title, ...nameKeys, entityKey])]);
+      store.seed(ADA, {
+        account: ADA_ACCOUNT,
+        status,
+        fields: { givenName: 'Ada', familyName: 'Lovelace', workEmail: 'ada@acme.test' },
+      });
+      const row = store.rows.get(ADA);
+      if (row && status === 'provisional') row.snapshot = { ...row.snapshot, hireDate: null };
+      const calendar: TenantCalendar = {
+        ...UTC_CALENDAR,
+        entities: new Map([
+          [ENTITY, { id: ENTITY, name: 'Acme GmbH', country: 'DE', timeZone: 'Europe/Berlin' }],
+        ]),
+      };
+      return { store, people: personAccess({ ...store.deps, calendars: fixedCalendars(calendar) }) };
+    };
+
+    it('hires a provisional record, effective from the start date and recorded now', async () => {
+      const { store, people } = provisional(ADA_ACCOUNT);
+      const hired = await people.hireExisting(tx, {
+        ...asking(hr),
+        personId: ADA,
+        hireDate: '2026-09-01',
+      });
+      expect(hired.ok && hired.value.status).toBe('active');
+      const hire = store.events.find((e) => e.eventName === 'people.person.hired');
+      expect(hire?.effectiveFrom).toBe('2026-09-01');
+      expect(hire?.occurredAt).toBe('2026-09-22T09:00:00.000Z');
+    });
+
+    it('leaves them pre-hire until a start date ahead', async () => {
+      const { people } = provisional(ADA_ACCOUNT);
+      const hired = await people.hireExisting(tx, {
+        ...asking(hr),
+        personId: ADA,
+        hireDate: '2026-10-01',
+      });
+      expect(hired.ok && hired.value.status).toBe('pre_hire');
+    });
+
+    it('refuses somebody already employed, and writes nothing', async () => {
+      const { store, people } = withEntities('active');
+      const refused = await people.hireExisting(tx, {
+        ...asking(hr),
+        personId: ADA,
+        hireDate: '2026-10-01',
+        legalEntityId: ENTITY,
+      });
+      expect(!refused.ok && refused.error.message).toMatch(/already employed/i);
+      expect(store.events).toEqual([]);
+    });
+
+    it('refuses a provisional record placed nowhere when there is an entity to place them in', async () => {
+      const { store, people } = withEntities();
+      const refused = await people.hireExisting(tx, {
+        ...asking(hr),
+        personId: ADA,
+        hireDate: '2026-10-01',
+      });
+      expect(!refused.ok && refused.error.code).toBe('PLACEMENT_REQUIRED');
+      expect(store.events).toEqual([]);
+    });
+
+    it('is HR’s, and a start date is a calendar date', async () => {
+      const { store, people } = provisional(ADA_ACCOUNT);
+      const self = await people.hireExisting(tx, {
+        ...asking(ada),
+        personId: ADA,
+        hireDate: '2026-10-01',
+      });
+      expect(!self.ok && self.error.code).toBe('FORBIDDEN');
+      const bad = await people.hireExisting(tx, {
+        ...asking(hr),
+        personId: ADA,
+        hireDate: '1/10/26',
+      });
+      expect(!bad.ok && bad.error.code).toBe('VALUE_INVALID');
+      expect(store.events).toEqual([]);
+    });
+  });
+
   it('refuses a hire nobody could find or invite', async () => {
     const { store, people } = provisional(ADA_ACCOUNT, { workEmail: null });
     const refused = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });
