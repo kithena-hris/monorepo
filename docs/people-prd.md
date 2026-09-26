@@ -2816,6 +2816,30 @@ the requester cannot read is not on the page — and the footer states how many
 fields were withheld, because a record that silently omits things is a record
 that misleads.
 
+How that is built:
+
+- **Both are an ordinary export.** `format: 'pdf'` is the roster;
+  `format: 'pdf'` with `recordOf: <personId>` is the record. Same read, same
+  financial-reason rule, same signed link, same `people.export.completed`
+  (format `pdf`). The profile's **Download PDF** asks for the reason up front,
+  since a record with pay on it needs one.
+- **What counts as withheld** is every field the page is about — the ones
+  asked for, or with none asked for every live field, special-category ones
+  included — that it does not show this viewer. It is counted **whether or
+  not a value is held**, so the number depends on who is looking and never on
+  what a person's record contains; a count of withheld *values* would say
+  "there is something here" about a self-ID answer, which is the disclosure
+  the profile screen refuses to make. On a roster it is summed over the rows,
+  and a cell the viewer cannot read on that person prints **Withheld**.
+- **Values print as a person reads them**: option labels, names for the
+  people, entities and locations a field points at (a person only as this
+  viewer may read them, else the id), money grouped with its currency,
+  sealed values masked.
+- **The type face is embedded** (Noto Sans: Latin, Greek, Cyrillic), because
+  the standard PDF fonts carry Latin-1 only and "Dvořák" would print wrong. A
+  character outside it prints as a visible box, never as a different letter.
+- **Not yet:** the signature block, which waits on a tenant setting for it.
+
 **The DSAR pack is a third thing and is stricter.** It runs as the subject, not
 as a viewer: every attribute with `exportable: true` including special-category
 ones, the full effective-dated history, and the event log for that person, as a

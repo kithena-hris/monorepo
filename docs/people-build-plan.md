@@ -896,11 +896,24 @@ check-strict` passes on the generated code.
 
 Ordered, but none of it blocks Phase 1 shipping.
 
-- [ ] **PEO-061** PDF employee record — per person, section headings matching
+- [x] **PEO-061** PDF employee record — per person, section headings matching
       the UI, **"Not provided"** rather than a blank, withheld-field count in
       the footer. _(PRD §15.5)_
-- [ ] **PEO-062** PDF roster — landscape, repeating headers, filter printed in
+      _Landed as `format: 'pdf'` with `recordOf` on the ordinary export
+      (`POST /v1/exports`, `requestExport`), so it is the same read, the same
+      reason rule, the same signed link and the same `people.export.completed`.
+      A **Download PDF** dialog on another person's profile asks the optional
+      reason up front. Rendered by `pdfkit` with Noto Sans embedded
+      (`application/export/pdf.ts`). Not built: the signature block, which
+      waits on a tenant setting that does not exist yet; one's own profile,
+      which has no person id in its view (the DSAR pack is the subject's
+      path)._
+- [x] **PEO-062** PDF roster — landscape, repeating headers, filter printed in
       the header so a printout is self-describing. _(PRD §15.5)_
+      _Landed as `format: 'pdf'` in the export builder: A4 landscape, the
+      builder's columns, the title, filter and as-of day and the column headers
+      redrawn on every page, "Withheld" in a cell the viewer cannot read on
+      that person, and the same footer as the record._
 - [ ] **PEO-063** Document import — a zip or folder matched to people by a
       filename pattern the admin confirms. An unmatched file goes to a review
       list, **never onto the nearest-looking person**. _(PRD §14.1)_
