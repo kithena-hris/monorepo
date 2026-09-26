@@ -1,4 +1,6 @@
-import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 
 /**
@@ -8,7 +10,8 @@ import PDFDocument from 'pdfkit';
  * how many were withheld — is decided in `export.ts` from the same read the
  * CSV and XLSX come from, so this file has no opinion about access.
  *
- * **Noto Sans, embedded**, not a standard PDF font: those carry Latin-1 only,
+ * **Noto Sans, embedded** from `assets/fonts` (vendored, OFL 1.1), not a
+ * standard PDF font: those carry Latin-1 only,
  * and "Łukasz Dvořák" would print as garbage on a record handed to a labour
  * inspector. Noto covers Latin, Greek and Cyrillic; a character outside it
  * prints as a visible box rather than a wrong letter. `ponytail:` CJK and
@@ -45,10 +48,15 @@ export interface RosterDocument extends Furniture {
 
 export const PDF_TYPE = 'application/pdf';
 
-const require = createRequire(import.meta.url);
+// `assets/fonts` at the package root: three levels up from `src/…/export`,
+// four from `dist/src/…/export`. `pnpm deploy` copies the package whole.
+const FONT_DIR = ['../../../assets/fonts/', '../../../../assets/fonts/']
+  .map((p) => fileURLToPath(new URL(p, import.meta.url)))
+  .find((dir) => existsSync(join(dir, 'OFL.txt')));
+if (FONT_DIR === undefined) throw new Error('services/people/assets/fonts is missing');
 const FONTS = {
-  body: require.resolve('@expo-google-fonts/noto-sans/400Regular/NotoSans_400Regular.ttf'),
-  bold: require.resolve('@expo-google-fonts/noto-sans/700Bold/NotoSans_700Bold.ttf'),
+  body: join(FONT_DIR, 'NotoSans_400Regular.ttf'),
+  bold: join(FONT_DIR, 'NotoSans_700Bold.ttf'),
 };
 const INK = '#111827';
 const MUTED = '#6b7280';

@@ -797,9 +797,6 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.1139.0
         version: 3.1139.0
-      '@expo-google-fonts/noto-sans':
-        specifier: 0.4.2
-        version: 0.4.2
       '@kithena/auth-kit':
         specifier: workspace:*
         version: link:../../packages/auth-kit
@@ -1694,9 +1691,6 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
-
-  '@expo-google-fonts/noto-sans@0.4.2':
-    resolution: {integrity: sha512-zYD8G2ijWLxqmquoQgghNh/x9p0yxWwArD0oxO1oXY1qx5vOd4t0Kbhnu/Cx8RTy08OgA8RtxuULZFaXwVPnPw==}
 
   '@fast-csv/format@4.3.5':
     resolution: {integrity: sha512-8iRn6QF3I8Ak78lNAa+Gdl5MJJBM5vRHivFtMRUWINdevNo00K7OXxS2PshawLKTejVwieIlPmK5YlLu6w4u8A==}
@@ -12349,8 +12343,6 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 1.8.0
 
-  '@expo-google-fonts/noto-sans@0.4.2': {}
-
   '@fast-csv/format@4.3.5':
     dependencies:
       '@types/node': 24.13.6
@@ -19944,7 +19936,7 @@ snapshots:
 
   magicast@0.5.4:
     dependencies:
-      '@babel/parser': 7.29.8
+      '@babel/parser': 7.29.9
       '@babel/types': 7.29.8
       source-map-js: 1.2.1
 

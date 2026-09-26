@@ -903,7 +903,7 @@ Ordered, but none of it blocks Phase 1 shipping.
       (`POST /v1/exports`, `requestExport`), so it is the same read, the same
       reason rule, the same signed link and the same `people.export.completed`.
       A **Download PDF** dialog on another person's profile asks the optional
-      reason up front. Rendered by `pdfkit` with Noto Sans embedded
+      reason up front. Rendered by `pdfkit` with Noto Sans (vendored in `assets/fonts`, OFL) embedded
       (`application/export/pdf.ts`). Not built: the signature block, which
       waits on a tenant setting that does not exist yet; one's own profile,
       which has no person id in its view (the DSAR pack is the subject's
