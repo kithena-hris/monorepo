@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
 import { Analytics } from '../analytics/analytics';
+import { BulkEdit } from '../bulk/bulk-edit';
 import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
@@ -544,6 +545,64 @@ describe('at 390×844, with a finger', () => {
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await userEvent.keyboard('{Tab}');
     expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
+  });
+
+  it('bulk edit, its preview as one card per person (PEO-071)', async () => {
+    await checked(
+      <BulkEdit
+        load={{
+          status: 'ready',
+          data: {
+            people: [
+              { id: 'l', name: 'Lena Moreau' },
+              { id: 'j', name: 'Joan Bosch' },
+            ],
+            sections: [
+              {
+                key: 'hr',
+                label: 'HR',
+                visibility: ['hr'],
+                fields: [field({ key: 'job_title', label: 'Job title' }), field({ key: 'desk', label: 'Desk' })],
+              },
+            ],
+            today: '2026-09-26',
+            limit: 50,
+          },
+        }}
+        onPreview={() =>
+          Promise.resolve({
+            ok: true,
+            committed: false,
+            rows: [
+              {
+                personId: 'l',
+                name: 'Lena Moreau',
+                outcome: 'changed',
+                changes: [{ key: 'job_title', label: 'Job title', dated: true, before: null, after: 'Lead' }],
+                refusal: null,
+                findings: [],
+              },
+              {
+                personId: 'j',
+                name: 'Joan Bosch',
+                outcome: 'refused',
+                changes: [],
+                refusal: { code: 'UNIQUE_VALUE_TAKEN', message: 'Somebody else holds that value' },
+                findings: [],
+              },
+            ],
+          })
+        }
+        onCommit={never}
+        onBack={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Preview changes' }));
+    const list = await screen.findByRole('list', { name: 'Per person' });
+    expect(within(list).getByText('Somebody else holds that value')).toBeVisible();
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    expect(underFloor(document.body)).toEqual([]);
   });
 
   it('integrations', async () => {

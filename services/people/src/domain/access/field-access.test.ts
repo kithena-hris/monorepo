@@ -5,6 +5,7 @@ import {
   canWrite,
   readable,
   readableHistory,
+  statusVisibleTo,
   visibleTo,
   type ViewerRelations,
 } from './field-access.js';
@@ -112,6 +113,23 @@ describe('who may read what', () => {
     ]) {
       expect(visibleTo(ethnicity, viewer)).toBe(false);
     }
+  });
+});
+
+describe('who may read employment status', () => {
+  // Status is not an attribute and no visibility setting reaches it: HR's, and
+  // the person's own (§6.3). "On leave" or "on notice" told to a manager or a
+  // peer is the disclosure §7 refuses a visibility rule for.
+  it.each([
+    ['HR', relations({ isHr: true }), true],
+    ['the person', relations({ isSelf: true }), true],
+    ['their manager', relations({ isManager: true, isInManagerChain: true }), false],
+    ['the chain above', relations({ isInManagerChain: true }), false],
+    ['finance', relations({ isFinance: true }), false],
+    ['an administrator', relations({ isAdmin: true }), false],
+    ['a peer', relations(), false],
+  ])('%s', (_who, viewer, sees) => {
+    expect(statusVisibleTo(viewer)).toBe(sees);
   });
 });
 
@@ -306,5 +324,60 @@ describe('custom visibility rules (PEO-066)', () => {
       visibilityRules: permit.visibilityRules ?? [],
     };
     expect(visibleTo(smuggled, relations({ isManager: true, subject: inSpain }))).toBe(false);
+  });
+});
+
+describe('an external source of record (PEO-073, PRD §13.6)', () => {
+  const OKTA = '00000000-0000-4000-8000-0000000000c5';
+  const WORKDAY = '00000000-0000-4000-8000-0000000000c6';
+  const given = define({ key: 'given_name', ownership: ['employee', 'hr'] });
+  const contact = define({ key: 'emergency_contact', ownership: ['employee'] });
+  const sources = new Map([['given_name', { connectionId: OKTA, system: 'Okta' }]]);
+
+  it('refuses every other writer, naming the system that owns it', () => {
+    for (const viewer of [relations({ isHr: true, sources }), relations({ isSelf: true, sources })]) {
+      const refused = canWrite(given, viewer);
+      expect(refused.ok).toBe(false);
+      if (refused.ok) continue;
+      expect(refused.error.code).toBe('SOURCE_OF_RECORD_EXTERNAL');
+      expect(refused.error.message).toContain('Okta');
+      expect(refused.error.path).toEqual(['given_name']);
+    }
+  });
+
+  it('leaves what Kithena owns to its own writers', () => {
+    expect(canWrite(contact, relations({ isSelf: true, sources })).ok).toBe(true);
+  });
+
+  it('lets the owning integration write exactly what it owns', () => {
+    const okta = relations({ integrationId: OKTA, sources });
+    expect(canWrite(given, okta).ok).toBe(true);
+    expect(canWrite(contact, okta).ok).toBe(false);
+    // Another integration is just another writer.
+    expect(canWrite(given, relations({ integrationId: WORKDAY, sources })).ok).toBe(false);
+  });
+
+  it('still refuses a deprecated field to its integration', () => {
+    const gone = define({ key: 'given_name', deprecatedAt: '2026-01-01T00:00:00.000Z' });
+    expect(canWrite(gone, relations({ integrationId: OKTA, sources })).ok).toBe(false);
+  });
+
+  it('shows an integration only what it owns, and never a sealed or special-category value', () => {
+    const okta = relations({ integrationId: OKTA, sources });
+    expect(visibleTo(given, okta)).toBe(true);
+    // `directory` is everybody in the tenant; an integration is nobody in it.
+    expect(visibleTo(title, okta)).toBe(false);
+    const mapped = (key: string) => new Map([[key, { connectionId: OKTA, system: 'Okta' }]]);
+    expect(
+      visibleTo(ethnicity, relations({ integrationId: OKTA, sources: mapped('ethnicity') })),
+    ).toBe(false);
+    const sealed = define({ key: 'national_id', encrypted: true, includeInEvents: false });
+    expect(
+      visibleTo(sealed, relations({ integrationId: OKTA, sources: mapped('national_id') })),
+    ).toBe(false);
+  });
+
+  it('changes nothing about who may read it', () => {
+    expect(visibleTo(given, relations({ isHr: true, sources }))).toBe(true);
   });
 });

@@ -53,11 +53,16 @@ export default ModuleManifest.parse({
     'people.export.full_values_expired',
     'people.export.full_values_issued',
     'people.export.full_values_downloaded',
+    'people.person.change_requested',
+    'people.person.change_decided',
+    'people.person.change_withdrawn',
+    'people.person.change_expired',
     'people.webhook.endpoint_disabled',
     'people.role.granted',
     'people.role.revoked',
     'people.pay_band.set',
     'people.pay_band.corrected',
+    'people.scim.connection_changed',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its
@@ -76,6 +81,10 @@ export default ModuleManifest.parse({
     'people.schema.published',
     'people.role.granted',
     'people.role.revoked',
+    // Its own again (PEO-077): a held change starts its approval workflow here.
+    'people.person.change_requested',
+    'people.person.change_decided',
+    'people.person.change_withdrawn',
   ],
   entitlement: 'module.people',
   requiresPeopleSource: 'own',

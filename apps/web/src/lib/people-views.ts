@@ -55,7 +55,9 @@ function absentIfNull<T extends Json>(value: T, keys: readonly string[]): T {
   ) as T;
 }
 
-const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy']);
+const field = (f: Json) => absentIfNull(f, ['currency', 'ownedBy', 'keptIn']);
+/** A change waiting for approval (PEO-077): its value from its entry, masked as it came. */
+const pending = (p: Json & { value: Entry }) => ({ ...p, value: formValue(p.value) });
 const section = (s: Json & { fields: Json[] }) => ({ ...s, fields: s.fields.map(field) });
 
 interface WithRecord {
@@ -76,7 +78,14 @@ function stage(s: Json): Json {
 /** Each screen's answer as its view model, by the component that draws it. */
 export const VIEWS = {
   Onboarding: (v: WithRecord & Json) => record(v),
-  Profile: (v: WithRecord & Json) => record(v),
+  Profile: (v: WithRecord & Json & { pending?: (Json & { value: Entry })[] }) => ({
+    ...record(v),
+    pending: (v.pending ?? []).map(pending),
+  }),
+  Approvals: (v: Json & { items: (Json & { value: Entry; current: Entry })[] }) => ({
+    ...v,
+    items: v.items.map((i) => ({ ...pending(i), current: formValue(i.current) })),
+  }),
   // Each change's value too, from its entry: a sealed one stays `{ last4: null }`.
   PersonHistory: (v: WithRecord & Json & { changes: (Json & { value: Entry })[] }) => ({
     ...record(v),
@@ -87,6 +96,18 @@ export const VIEWS = {
     people: v.people.map((p) => ({
       ...p,
       values: Object.fromEntries(p.values.map((cell) => [cell.key, cell.value])),
+    })),
+  }),
+  BulkEdit: (v: Json & { sections: (Json & { fields: Json[] })[] }) => ({
+    ...v,
+    sections: v.sections.map(section),
+  }),
+  // Each change's two values as form values, as a record's are.
+  BulkEditResult: (v: Json & { rows: (Json & { changes: (Json & { before: Entry; after: Entry })[] })[] }) => ({
+    ...v,
+    rows: v.rows.map((r) => ({
+      ...r,
+      changes: r.changes.map((c) => ({ ...c, before: formValue(c.before), after: formValue(c.after) })),
     })),
   }),
   PeopleSetup: (v: Json & { profile: WithRecord | null }) => ({

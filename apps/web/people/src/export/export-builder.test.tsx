@@ -106,4 +106,41 @@ describe('ExportBuilder', () => {
     expect(screen.getByText('Down')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('hands a scheduled report’s recipient their file, and says when it has gone', async () => {
+    const url = 'https://api.kithena.test/v1/exports/files/x?expires=e&sig=s';
+    const { container, rerender } = render(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: {
+            ...asManager,
+            ready: {
+              status: 'completed',
+              expiresAt: '2026-09-23T09:00:00.000Z',
+              links: [{ name: 'people-2026-09-22.xlsx', url }],
+            },
+          },
+        }}
+        onExport={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Download people-2026-09-22.xlsx' })).toHaveAttribute(
+      'href',
+      url,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+
+    rerender(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: { ...asManager, ready: { status: 'expired', expiresAt: null, links: [] } },
+        }}
+        onExport={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('This report is no longer available')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
 });

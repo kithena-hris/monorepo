@@ -1,7 +1,11 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
-import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
+import {
+  statusVisibleTo,
+  visibleTo,
+  type ViewerRelations,
+} from '../../domain/access/field-access.js';
 import { COHORT_FLOOR } from '../../domain/org/calendar.js';
 import { EXPIRIES, type ExpiryKind } from './snapshot.js';
 
@@ -77,6 +81,12 @@ export function authorizeFields(
   let special = false;
 
   for (const key of keys) {
+    // Status is not an attribute (§6.3): HR's to chart, and never a team's,
+    // whatever a tenant field of the same name says.
+    if (key === 'status') {
+      if (statusVisibleTo(relations)) continue;
+      return err(failure('FIELD_NOT_READABLE', `${key} is not a field you can chart`, [key]));
+    }
     const definition = byKey.get(key);
     if (definition === undefined) {
       return err(failure('FIELD_NOT_READABLE', `${key} is not a field you can chart`, [key]));

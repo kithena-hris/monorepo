@@ -440,10 +440,40 @@ Only the router is public, as `api.<domain>`, plus the one People path a
 browser has to open directly: the signed, expiring export links. Everything
 else — People's GraphQL and REST, Temporal, OpenFGA, Redpanda, Valkey, the VM
 Postgres — is reachable only on the Compose network. That includes People's
-REST API, the published schema artifact (`PEOPLE_PUBLIC_URL/v1/schema/versions/N`,
-§13.4) and, later, SCIM: a customer integration reaching `/v1/*` needs its own
-tunnel route when it is wanted, and deciding which paths are public is that
-change's job.
+REST API and the published schema artifact (`PEOPLE_PUBLIC_URL/v1/schema/versions/N`,
+§13.4): a customer integration reaching `/v1/*` needs its own tunnel route when
+it is wanted, and deciding which paths are public is that change's job.
+
+**SCIM (PEO-072) is the next public path, and it is not routed yet.** People
+serves it at `/scim/v2/*` on its own port and authenticates it itself, with
+each connection's bearer token — an identity provider holds no user token, so
+the router cannot front it. The integrations screen shows the base URL as
+`PEOPLE_SCIM_URL`, else `PEOPLE_PUBLIC_URL` + `/scim/v2`
+(`https://api.kithena.com/scim/v2` in production). Until the route below
+exists, a provider pointed at it reaches the router and gets its 401. To do,
+by an operator, not by a deploy:
+
+- [ ] Add the public hostname rule `api.kithena.com`, path `^/scim/v2/` →
+      `http://people:4001`, **above** the router's catch-all, on
+      `kithena-production` (and `api.staging.kithena.com` on
+      `kithena-staging`). In the dashboard (step 5 below), or through
+      Cloudflare's API for a remotely managed tunnel: read the current
+      ingress with `GET /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations`,
+      insert the rule before the last entry, and `PUT` the whole
+      `config.ingress` back — the PUT replaces the list, so the export-links
+      rule and the catch-all must be in it.
+- [ ] Check it from outside: `curl -i https://api.kithena.com/scim/v2/Users`
+      answers `401` with `content-type: application/scim+json` (People's),
+      not the router's.
+- [ ] Know that the VM sleeps (below). A provider that pushes while it is
+      stopped gets Cloudflare's 530 and retries on its own schedule — Okta
+      and Entra both do — but nothing wakes the VM for it. If a tenant needs
+      provisioning to land within minutes at any hour, the VM has to stay
+      up, which is a cost decision, not a code change.
+
+Companies without a recorded module list (PEO-114) are refused SCIM unless
+People's own environment carries `KITHENA_ENTITLEMENTS` (the same JSON array
+the router has); a SCIM request carries no forwarded list to fall back on.
 
 #### What ships, and how
 
@@ -804,6 +834,8 @@ lands.
    `kithena-staging` if wanted). Copy the token. Public hostnames, in this
    order:
    - `api.kithena.com`, path `^/v1/exports/files/` → `http://people:4001`
+   - `api.kithena.com`, path `^/scim/v2/` → `http://people:4001` (SCIM,
+     PEO-072; not yet added — see the checklist above)
    - `api.kithena.com` (no path) → `http://router:4000`
 
    (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.

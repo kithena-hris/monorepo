@@ -1,14 +1,29 @@
-import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { CORE_COLUMNS } from '../application/person/core.js';
-import type {
-  PersonReader,
-  PersonRecord,
-  PersonSearch,
-  RelationsResolver,
-  ScheduledRefusals,
-  SchemaVersions,
+import {
+  LEAVERS,
+  type PersonReader,
+  type PersonRecord,
+  type PersonSearch,
+  type RelationsResolver,
+  type ScheduledRefusals,
+  type SchemaVersions,
 } from '../application/person/ports.js';
 import type { Arrivals, Leavers, Scheduled } from '../application/person/start.js';
 import type { GapTotals } from '../application/screens/record.js';
@@ -72,6 +87,7 @@ function toRecord(row: Row & { employment: Record<string, unknown> | null }): Pe
     legalEntityId: row.legalEntityId,
     employmentType: row.employmentType,
     workModel: row.workModel,
+    sourceOfRecord: row.sourceOfRecord === 'external' ? 'external' : 'own',
   };
 }
 
@@ -107,6 +123,7 @@ function matching(
   where: Readonly<Record<string, string>> | undefined,
   search: PersonSearch | undefined,
   gaps?: readonly string[],
+  leavers = true,
 ): SQL | undefined {
   const text = search?.text.trim() ?? '';
   const keys = new Set(search?.keys ?? []);
@@ -124,6 +141,7 @@ function matching(
     where === undefined || Object.keys(where).length === 0 ? undefined : JSON.stringify(where);
   return and(
     eq(person.tenantId, tenantId),
+    leavers ? undefined : notInArray(person.status, [...LEAVERS]),
     filter === undefined ? undefined : sql`${person.custom} @> ${filter}::jsonb`,
     // The same narrowing for the filter, through `person_tenant_directory_idx`
     // (20260926120000_people_custom_filter.sql); the `@>` above still decides.
@@ -182,13 +200,13 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
-    async page(tx, tenantId, after, limit, where, search, gaps) {
+    async page(tx, tenantId, after, limit, where, search, gaps, leavers) {
       const rows = await tx
         .select(withEmployment)
         .from(person)
         .where(
           and(
-            matching(tenantId, where, search, gaps),
+            matching(tenantId, where, search, gaps, leavers),
             after === null ? undefined : gt(person.id, after),
           ),
         )
@@ -197,14 +215,14 @@ export function drizzlePersonReader(): PersonReader {
       return rows.map(toRecord);
     },
 
-    async count(tx, tenantId, where, search) {
+    async count(tx, tenantId, where, search, leavers) {
       const rows = await tx
         .select({
           all: sql<number>`count(*)::int`,
           active: sql<number>`(count(*) FILTER (WHERE ${person.status} = 'active'))::int`,
         })
         .from(person)
-        .where(matching(tenantId, where, search));
+        .where(matching(tenantId, where, search, undefined, leavers));
       return { all: rows[0]?.all ?? 0, active: rows[0]?.active ?? 0 };
     },
 

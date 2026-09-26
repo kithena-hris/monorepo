@@ -192,6 +192,22 @@ describe('the diff a publish produces', () => {
       'employee_number',
     ]);
   });
+
+  it('names a field whose approval setting changed, and not one set to its default (PEO-077)', () => {
+    const before = published(draft());
+    const on = draft();
+    on.updateAttribute('employee_number', { requiresApproval: true });
+    const after = publish(on, before, { clock: later, actor });
+    expect(after.ok && diff(before.document, after.value.document).changed).toEqual([
+      'employee_number',
+    ]);
+
+    // Off is what an internal field defaults to: saying so changes nothing held.
+    const same = draft();
+    same.updateAttribute('employee_number', { requiresApproval: false });
+    const again = publish(same, before, { clock: later, actor });
+    expect(again.ok && diff(before.document, again.value.document).changed).toEqual([]);
+  });
 });
 
 describe('custom visibility rules at publish (PEO-066)', () => {
@@ -281,5 +297,35 @@ describe('rolling back', () => {
     expect(pointless.ok).toBe(false);
     if (pointless.ok) return;
     expect(pointless.error.code).toBe('ALREADY_IN_FORCE');
+  });
+});
+
+describe('publishing a requiredness predicate (PEO-065)', () => {
+  const disability: AttributeDefinitionInput = { ...attribute, key: 'disability' };
+  const adjustment: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'workplace_adjustment',
+    requiredness: {
+      mode: 'conditional',
+      when: { combine: 'all', clauses: [{ operand: 'attribute', key: 'disability', is: 'set' }] },
+    },
+  };
+
+  it('refuses once the field it names has become special-category since it was saved', () => {
+    const d = draft();
+    d.addAttribute(disability);
+    expect(d.addAttribute(adjustment).ok).toBe(true);
+    const reclassified = d.updateAttribute('disability', {
+      includeInEvents: false,
+      classification: {
+        classification: 'special-category',
+        piiKind: 'health',
+        exportable: true,
+        aiEligible: false,
+      },
+    });
+    expect(reclassified.ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
   });
 });

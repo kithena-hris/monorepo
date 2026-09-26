@@ -6,6 +6,7 @@ import { createContext, useContext, useId } from 'react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { Badge } from '../badge/badge';
 
 /**
  * Form field wiring.
@@ -24,6 +25,7 @@ interface FieldContextValue {
   invalid: boolean;
   required: boolean;
   disabled: boolean;
+  sensitive: boolean;
 }
 
 const FieldContext = createContext<FieldContextValue | null>(null);
@@ -41,6 +43,12 @@ export interface FieldProps extends ComponentPropsWithoutRef<'div'> {
   invalid?: boolean;
   required?: boolean;
   disabled?: boolean;
+  /**
+   * Marks the field as handled with more care than most — a value whose
+   * change waits for somebody else. The label carries a `Sensitive` badge,
+   * in its accessible name as well as on screen.
+   */
+  sensitive?: boolean;
   /** Lay the label out beside the control instead of above it. */
   orientation?: 'vertical' | 'horizontal';
 }
@@ -50,6 +58,7 @@ export function Field({
   invalid = false,
   required = false,
   disabled = false,
+  sensitive = false,
   orientation = 'vertical',
   ...props
 }: FieldProps): JSX.Element {
@@ -64,6 +73,7 @@ export function Field({
         invalid,
         required,
         disabled,
+        sensitive,
       }}
     >
       <div
@@ -88,7 +98,7 @@ export function Field({
 export type FieldLabelProps = ComponentPropsWithoutRef<typeof LabelPrimitive.Root>;
 
 export function FieldLabel({ className, children, ...props }: FieldLabelProps): JSX.Element {
-  const { controlId, required, disabled } = useField('FieldLabel');
+  const { controlId, required, disabled, sensitive } = useField('FieldLabel');
 
   return (
     <LabelPrimitive.Root
@@ -109,6 +119,14 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
         </span>
       ) : null}
       {required ? <span className="sr-only">(required)</span> : null}
+      {sensitive ? (
+        <>
+          {/* A space, so the accessible name reads "Bank account Sensitive". */}{' '}
+          <Badge tone="sensitive" size="sm" className="ms-1">
+            Sensitive
+          </Badge>
+        </>
+      ) : null}
     </LabelPrimitive.Root>
   );
 }

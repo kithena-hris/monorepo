@@ -2,6 +2,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Result } from '@kithena/domain-kit';
 
 import type { OrgAdmin } from '../org/org.js';
+import type { PendingChangeDeps } from './pending-changes.js';
 import type { TenantRoles } from '../roles/roles.js';
 import { inTenantResult, type PersonAccess } from './person-access.js';
 import type { SchemaVersions } from './ports.js';
@@ -24,6 +25,12 @@ export interface PeopleService {
   readonly roles?: TenantRoles;
   /** Pay bands (PEO-078). Absent, those routes answer UNAVAILABLE. */
   readonly payBands?: PayBands;
+  /**
+   * Changes held for approval (PEO-077): deciding, withdrawing and reading
+   * them. The same store `access` holds them in. Absent, those routes answer
+   * UNAVAILABLE and nothing is held.
+   */
+  readonly pending?: PendingChangeDeps;
 }
 
 /** A use case in its own tenant transaction, rolled back when it refuses. */

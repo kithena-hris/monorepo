@@ -379,7 +379,7 @@ setting twenty rules by hand and how Marco avoids seeing a salary by accident.
 | Personal information           | self, hr           | employee, hr          | Name, preferred name, pronouns, date of birth, nationality, personal contact, home address, photo                                         |
 | Identification & right to work | hr                 | hr, employee          | National identifiers, passport, visa, permit expiry, right-to-work check. Heavily country-dependent                                       |
 | Emergency contacts             | self, hr           | employee              | Repeating. Nobody else needs these, including the manager                                                                                 |
-| HR information                 | self, manager, hr  | hr                    | Employee number, status, hire date, legal entity, department, location, manager, job title, level                                         |
+| HR information                 | self, manager, hr  | hr                    | Employee number, hire date, legal entity, department, location, manager, job title, level. Not status (below)                             |
 | Employment terms               | self, hr           | hr                    | Contract type and dates, working pattern, FTE, probation, notice, collective agreement, work model                                        |
 | Compensation & finance         | self, finance, hr  | finance, hr, employee | Salary, pay frequency, variable pay, bank account, tax and social security, pension. Bank details are employee-owned and finance-readable |
 | Public profile                 | directory          | employee              | Display name, photo, title, department, work contact, time zone, bio, skills, languages                                                   |
@@ -389,6 +389,33 @@ setting twenty rules by hand and how Marco avoids seeing a salary by accident.
 | Health & safety                | hr                 | hr, employee          | Occupational health, accommodations, dietary requirements. Article 9 throughout                                                           |
 | Diversity & voluntary self-ID  | **nobody**         | employee              | Special category, voluntary, answerable only in aggregate. See §6.7                                                                       |
 | _(tenant-defined)_             | tenant's choice    | tenant's choice       |                                                                                                                                           |
+
+**Employment status is HR's, and the person's own — nobody else's.** Status
+(§8.1) is a lifecycle state on the record, not an attribute, so no section,
+visibility setting or rule reaches it; `statusVisibleTo` decides it once, in
+the domain, and every read follows. HR reads every status, and a person reads
+their own. A manager, the chain above, finance, `people_admin` and a peer do
+not: "on leave" or "on notice" told to a manager is the disclosure §7 refuses
+a rule for, and a leave is often the first sign of a health or family matter.
+Withheld means absent over REST (`status` is left out of the person) and null
+over GraphQL (`Person.status`), on a record and on every row of a list. The
+rest follows from it:
+
+- **A leaver is listed to HR alone.** `GET /v1/people`, `people`, the
+  directory, its search and its count leave out `terminated`, `discarded` and
+  `merged` records for anybody who is not HR — existence, not status, and the
+  coarsest fact a list can hold. A record read by its id is still answered,
+  with its status withheld.
+- **"Active" outside HR is everybody listed.** A search that finds one person
+  and counts "0 active" would name them as away, so the directory's `active`
+  is a status count for HR and the listed count for anybody else.
+- **A chart by status is HR's.** A manager's charts count their own chain,
+  and a team of three with one `on_leave` names who it is; `status` is refused
+  as a dimension or filter for a manager whatever a tenant field of that name
+  says, and served to HR without one.
+- Not status, and decided by their own sections: `hire_date`, and
+  `last_working_day` among the termination fields (Onboarding & offboarding:
+  HR and manager), which a manager reads because offboarding is partly theirs.
 
 A full inventory of the attributes each section ships with is in
 [Appendix A](#appendix-a-default-attribute-inventory).
@@ -503,6 +530,17 @@ filled in or equal to one of its option keys — never a label, which can be
 renamed. It can say exactly what the grammar can, ten rows at most, and the
 same contract schema refuses anything else at the API boundary. The same
 predicate, and the same evaluator, decides custom visibility rules (§6.6).
+
+**Never on special-category data.** A predicate may not name a
+special-category field. A gap is shown to whoever owns or chases it, and
+"workplace adjustment missing" tells a manager the person has a disability on
+file — the condition leaks through completeness without the field ever being
+read. Refused with `PREDICATE_DISCLOSES` on save and again at publish
+(reclassifying the named field is an edit to a different attribute), and the
+field editor says so beside the condition. A document published before the
+rule that still holds one fails closed: completeness treats the field as not
+required of anybody, shades it the same for everybody, and reports the rule as
+unevaluable so the administrator hears about it.
 
 ### 6.6 Visibility and ownership
 
@@ -627,6 +665,14 @@ and never reaches past one. The rules that keep it that way:
   reports' grades. Refused with `VISIBILITY_RULE_DISCLOSES` on save, and again
   at publish, because narrowing or archiving the named field is an edit to a
   different attribute. Special-category fields are never named at all.
+- **Nor what it reads about placement.** A placement fact is held to the same
+  rule through the field it is read from: legal entity through
+  `legal_entity_id`, country through `home_address` and `country`, employment
+  type and work model through `employment_type` and `work_model`. A fact with
+  no such field in the schema is refused too. Status has no field and is HR's
+  (and the person's own; §6.3, the profile's employment panel, §8.1), so
+  "managers see this for people on leave" — which would tell every manager
+  who is on leave — is refused, and a status rule may grant `hr` only.
 - **No subject, no rule.** A rule is decided per record, in `visibleTo`, with
   the person's facts carried on the viewer's relations to them. Wherever the
   question is about everybody — a directory filter, a search, a list's
@@ -1173,6 +1219,40 @@ is **pending review**. Nothing is blocked by it; it is HR's work, like a gap.
   a retry with the same Idempotency-Key answers as the first request did. The
   grid, like a form, warns per cell before it saves and then saves anyway.
 
+#### Bulk edit beyond the grid (PEO-071)
+
+The grid fills gaps. Bulk edit sets the **same values on a set of people**
+whether or not anything is missing — a new cost centre for a team, a job
+title after a re-levelling — and it is HR's alone.
+
+- **Chosen in the directory.** HR ticks people on a directory page (filters and
+  search narrow it first) and edits them together at `/people/bulk-edit`: one
+  or more fields HR may write (never a lifecycle date, never a file), and one
+  `effectiveFrom` chosen for the batch. A field kept without dates changes on
+  the day, and the screen says so.
+- **Nothing is bypassed.** Each person is one ordinary write through the
+  single write path — field-level write authorization, custom visibility
+  rules (§6.6), validation, uniqueness, the identifier checks and HR's review
+  gate above, the lifecycle refusal, the transfer rule (§8.5) and the
+  completeness re-judge — so it raises what that person's own save would: one
+  `profile_updated` with the actor and the request's correlation id on its
+  envelope, which is the audit. A value that already stands as of the date is
+  not written again.
+- **Atomic per person.** Each person's write is its own savepoint: a refusal
+  rolls back that person alone, and the rest stand.
+- **Previewed exactly.** Before anything is kept, the preview makes the same
+  writes in the same order in one transaction and throws it away. So each
+  person's row says what changes from what to what as of the date, or the
+  refusal the commit would give and why — including a value two people in the
+  batch would both claim, refused for the second. Changing a value or the date
+  sets the preview aside; Apply writes only what was last shown, and answers
+  per person the same way.
+- **Bounded.** At most 50 people a request (a directory page), one after
+  another in one transaction; the screen sends a larger selection a page at a
+  time and says how far it got if one fails. A retry with the same
+  Idempotency-Key writes nothing twice. `peopleBulkEdit`,
+  `peopleBulkEditPreview` and `bulkEditPeople` over GraphQL.
+
 ### 8.5 Effective dating and corrections
 
 Per the repository rule, and it is load-bearing here rather than decorative:
@@ -1309,6 +1389,105 @@ the tenant's. A write that moves somebody to another office is judged on the
 calendar it moves them to. An import row is judged the same way, on the
 calendar of the person the row is about. An export's file date and its "As of"
 line are the tenant default's day, because one file has one date.
+
+### 8.6 Approval of sensitive changes (PEO-077)
+
+A change to a **sensitive** field is not applied until somebody else approves
+it. Which fields are sensitive is a per-field setting, `requiresApproval` on
+the attribute definition (§6.2), edited on the field editor's last step and
+published through the ordinary versioned publish (§9.3, which names a field
+whose setting changed). **The default follows the policy**: on for financial
+data and for anything stored encrypted — the bank account, the salary a
+tenant classifies as financial, `tax_code`, the national identifiers — and off
+for everything else, so a sensitive field a tenant adds tomorrow is held
+without anybody remembering a checkbox. The setting is absent from a
+definition until a tenant chooses, so every published document keeps its
+checksum; seeded and country-pack fields get the default. A tenant may turn it
+either way on any field.
+
+- **Every writer, nothing refused.** The form, the completeness grid, bulk
+  edit, the import, a hire, REST and GraphQL all write through
+  `PersonAccess.update` or `correct`, and that is where a sensitive value is
+  taken out of the write, checked like any other value, and recorded as a
+  **pending change** instead. The rest of the write goes ahead. A correction
+  to a sensitive field is held too, with what it supersedes and its reason.
+  The lifecycle's own dates (`hire_date`, `last_working_day`) have their own
+  HR-only moves and are not held.
+- **Never a current value.** A pending value is not in the person's row,
+  history, secrets, completeness, exports or PDFs. The record reads what is in
+  force; the pending value is shown beside it, marked *Pending approval*, to
+  a viewer who may read the field — masked as the field is, a sealed one by
+  its last four — with when it would take effect, who asked and until when it
+  waits. A sealed pending value is kept sealed under the secrets' key ring
+  (`people.pending_change`), and its ciphertext is dropped when the change
+  closes.
+- **Who decides.** Anyone holding `hr`, except the requester and except the
+  person the change is about: HR's own change needs a second HR member, and
+  nobody approves a change to their own record, whoever asked. The database
+  refuses a requester's decision as well as the domain. A one-person HR team
+  changing its own pay has nobody to approve it, and the change lapses; nobody
+  is let in to fill the gap.
+- **An approval applies it** through the same write path, as the requester,
+  from the `effectiveFrom` the write asked for — a raise entered on the 15th
+  and effective on the 1st is effective on the 1st however long HR took — in
+  the decision's transaction. Its `profile_updated` or `attribute_corrected`
+  is caused by `change_decided`, which records who decided and any note. A
+  value the write path would now refuse (a unique value taken meanwhile, a
+  field archived) refuses the approval with the write's own reason; HR then
+  rejects it.
+- **Withdrawal and expiry.** The requester may withdraw a change while it
+  waits. Undecided after **seven days** it expires: it reads as expired from
+  that moment, a late decision is refused, the expiry is recorded once, and
+  the requester is emailed.
+- **HR may apply without approval.** The import and bulk edit offer *Apply
+  sensitive values without approval* (`applySensitiveWithoutApproval` on the
+  shared write path); only `hr` may, anybody else is refused, and each
+  person's `profile_updated` (or `attribute_corrected`) names the keys applied
+  that way (`appliedWithoutApproval`).
+- **System work and mirrors are not held.** The scheduled-values job applies
+  history that was already approved; a renumbering is People's own. A SCIM
+  connection writes only the attributes it is the source of record for
+  (§13.6): the upstream system is authoritative there, nobody in People could
+  approve or reject it, and holding it would only hold the truth back.
+- **Notifications** go through `platform/messaging`'s notice API: every
+  approver is told when a change is requested, and the requester when it is
+  approved, rejected or expired. None names the person, the field or the
+  value — only that there is a change, and a link to the approvals inbox.
+- **Marked everywhere.** A sensitive field carries Reach's *Sensitive* badge
+  (`Badge tone="sensitive"`, `Field sensitive`) wherever it is drawn: the
+  forms, the profile, history, the completeness grid, bulk edit, the import's
+  mapping and review, the field registry and the approvals inbox; the record
+  PDF labels it `(sensitive)`.
+- **The inbox** (`/people/approvals`) lists, oldest first, every change
+  waiting for HR, and a requester's own for anybody else: who it is about,
+  the field, the value asked for beside the value in force, who asked, when,
+  why (a correction's reason) and when it lapses. HR approves or rejects with
+  an optional note there; a requester withdraws there or on the record.
+- **Retention.** A closed change keeps the value asked for as the audit of
+  the request; the retention job erases it with the attribute it would have
+  changed.
+
+**As built.** The wait is a Temporal workflow per change on task queue
+`people-pending-change`, modelled on full values (§15.2): People starts it
+from its own `people.person.change_requested` and wakes it from
+`change_decided` and `change_withdrawn`, so a change held by any transport
+starts one only after its transaction committed. It announces the change to
+the approvers once, sleeps until the change closes or the week runs out, then
+records a due expiry and tells the requester how it ended; the decision and
+the value it applies are the request's, never the workflow's. Without
+`TEMPORAL_ADDRESS` the same activities run in-process off the same events,
+and an undecided change expires lazily. REST: `GET /v1/pending-changes`,
+`GET /v1/pending-changes/{id}`, `POST /v1/pending-changes/{id}/decision`,
+`POST /v1/pending-changes/{id}/withdrawal`, `GET
+/v1/people/{id}/pending-changes`; every person write answers with
+`pendingChanges`, and a held correction with `pendingChange`. GraphQL:
+`peopleApprovals`, `PeopleProfile.pending`, `decidePendingChange`,
+`withdrawPendingChange`. Migration `20260926180000`.
+
+**Not done.** A subject access request does not yet include a person's pending
+or decided changes. A pending sealed value is not re-wrapped by the key
+rotation job: an old key may be dropped no sooner than seven days after the
+rotation that replaced it.
 
 ---
 
@@ -1591,6 +1770,20 @@ never anybody's values, every field classified like any other.
 | `people.location.zone_changed` v1  | locationId, zoneId, time zone, `effectiveFrom` (also on the envelope), `supersedes` for a correction |
 | `people.settings.changed` v1       | default time zone, cohort minimum, changed field names                                               |
 | `people.employee_numbering.set` v1 | legalEntityId, prefix, digits, next number                                                           |
+
+Changes held for approval (§8.6). Each names the change, the person and the
+key, never a value; who asked or decided is the envelope's actor, and when
+the change would take effect is its `effectiveFrom`.
+
+| Event                                 | Payload highlights                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `people.person.change_requested` v1   | changeId, personId, attributeKey, kind, supersedes, reason, expiresAt     |
+| `people.person.change_decided` v1     | changeId, personId, attributeKey, decision (approved, rejected), note     |
+| `people.person.change_withdrawn` v1   | changeId, personId, attributeKey                                          |
+| `people.person.change_expired` v1     | changeId, personId, attributeKey                                          |
+
+`profile_updated` and `attribute_corrected` carry `appliedWithoutApproval`
+when HR wrote a sensitive value straight through.
 
 `people.person.org_changed` already names the legal entity and location a
 person moved to; that event is what tells a consumer a person changed
@@ -2234,6 +2427,11 @@ GET    /v1/exports/files/{key}         a signed link, 24 hours; carries its own 
 POST   /v1/exports/full-values         finance asks for sealed fields in full, with a reason
 GET    /v1/exports/full-values/{id}    the requester or HR; the one-use link to the requester only
 POST   /v1/exports/full-values/{id}/decision   HR approves or rejects
+GET    /v1/report-schedules            HR and people_admin: scheduled reports, each with its last run (§16.3)
+POST   /v1/report-schedules            schedule an export file or the analytics summary; first runs next period
+POST   /v1/report-schedules/{id}/pause   and /resume — resuming skips what it was paused through
+DELETE /v1/report-schedules/{id}       with its run history
+GET    /v1/report-schedules/{id}/runs  the last 50 runs: period, periods covered, outcome per recipient
 GET    /v1/roles                       who holds a tenant role; HR and people_admin (PEO-112)
 POST   /v1/roles/grants                people_admin: grant a role, with a reason; never to oneself
 POST   /v1/roles/revocations           people_admin: revoke one; never the last people_admin (409)
@@ -2258,6 +2456,9 @@ GET    /v1/views/history[/{id}]?asOf=  one record as of a date, and every change
 POST   /v1/views/me/sections           save one section of my own record
 POST   /v1/views/people/{id}/sections  save one section of somebody's record
 POST   /v1/views/completeness          HR's grid: one write, and one event, per person
+GET    /v1/views/bulk-edit?people=     the people chosen and the fields HR may set on them (§8.4)
+POST   /v1/views/bulk-edit/preview     what a page of a bulk edit would change and refuse; rolled back
+POST   /v1/views/bulk-edit             a page of a bulk edit: one write per person, each atomic, each answered
 POST   /v1/views/setup/entity          confirm the legal entity: rename the first in that country, or create one
 POST   /v1/views/setup/publish         the core fields + a country pack, published as version 1
 POST   /v1/schema/draft/sections       add a section to the draft
@@ -2280,7 +2481,7 @@ POST   /v1/imports                     commit
 `GET /v1/views/directory?search=&filter=key:value,…&after=<person id>` answers
 one keyset page of 50 in id order, the cursor for the next (`next`, null on
 the last), and `active`, counted over everybody the search and filters match
-rather than over the page. Before this the view read the first 200 people and
+rather than over the page (for anybody but HR, everybody listed: §6.3). Before this the view read the first 200 people and
 searched those in memory, so nobody past the 200th could be found. `GET
 /v1/people` takes the same `search`. Both authorize it as a filter is
 authorized, in `PersonAccess.list` and so for every transport: a filter key
@@ -2420,8 +2621,9 @@ JSX runtime and Reach, plus `ssr/people.css`.
   stores — uploads (§14.2), export files and reports (§15.1) — and the nightly
   backups are in Amazon S3, reached through the instance's IAM role with no
   access key. People's own REST
-  routes (§13.2), the schema artifact (§13.4) and SCIM (§13.5) are not routed
-  publicly yet; the signed export links are. `docs/environments.md` "Hosting"
+  routes (§13.2), the schema artifact (§13.4) and SCIM (§13.5, served at
+  `/scim/v2` and awaiting its tunnel rule) are not routed publicly yet; the
+  signed export links are. `docs/environments.md` "Hosting"
   has the rest, including what moves where at scale.
 
 ### 13.3 Webhooks (Phase 1)
@@ -2452,6 +2654,90 @@ than a moving target.
 extension and mapped by the approved mapping from §12.4. Okta and Entra as the
 first two verified providers.
 
+**As built (PEO-072).**
+
+- **A connection** is one upstream system — Okta, Entra, an HRIS — made by a
+  People administrator on the integrations screen: what the tenant calls it,
+  a bearer token and an approved mapping. `people.scim_connection`,
+  `_mapping`, `_link`, `_group` (20260926160000). The token is `kps_` +
+  the tenant's id, the connection's id and 32 random bytes; only its SHA-256
+  is stored, it is shown once, a rotation keeps the old one valid for 24
+  hours, and a revocation stops it at once. Every change is
+  `people.scim.connection_changed` with the administrator as the actor — the
+  audit record — and never carries the token. The mapping is set by a
+  person and never drafted automatically; the TypeSafe draft of §12.4 is
+  not built.
+- **Where it is served.** `/scim/v2/*` on People's port, authenticated by
+  People itself with the connection's token: an identity provider holds no
+  user token, so the router cannot front it. Every request, discovery
+  included, needs a live token of a company entitled to People. Not routed
+  publicly yet: the tunnel rule is an operator's checklist item in
+  `docs/environments.md` "Hosting".
+- **What it answers.** `ServiceProviderConfig`, `ResourceTypes`, `Schemas`
+  (Kithena's extension, `urn:kithena:scim:schemas:extension:people:2.0:User`,
+  as the mapping fills it; a tenant attribute is `<extension>:<key>`),
+  `/Users` and `/Groups` with GET, POST, PUT, PATCH and DELETE. Filters take
+  the RFC's grammar — `eq ne co sw ew gt ge lt le pr`, `and`/`or`/`not`,
+  parentheses and value filters — with `userName` case-insensitive and `id`
+  and `externalId` exact; paging is `startIndex` from 1 and `count` up to
+  200; `excludedAttributes` drops top-level attributes. PATCH is applied to
+  the resource as JSON in both providers' shapes (Okta's pathless value
+  objects, Entra's capitalised ops, `"False"` booleans, value filters on
+  emails and remove-by-value on members); a path nothing maps is dropped, not
+  refused. PUT replaces whole. Errors are the RFC's, `scimType` included;
+  `userName` (per connection, case-insensitively) and `externalId` are
+  unique. Not supported, and said so in `ServiceProviderConfig`: bulk,
+  sorting, ETags, password change.
+- **What a User is.** The link — `id` is the person's id, `userName`,
+  `externalId`, `active` — and the mapped attributes, from a fixed list of
+  core and enterprise paths (`name.*`, `nickName`, `title`, work email, work
+  and mobile phone, `employeeNumber`, `department`, …) or Kithena's
+  extension. A mapping may not name a sealed or special-category attribute,
+  a lifecycle date, a person reference (the manager) or a placement (legal
+  entity, location): those are HR's moves, and the first two never leave
+  People through SCIM.
+- **One write path.** A POST creates a provisional record through
+  `PersonAccess.create`, as the integration, with `sourceOfRecord: external`;
+  every later change goes through `update` as that integration. So a SCIM
+  write is held to the identifier checks, uniqueness, validation, history
+  and events every writer gets, **effective now** on the person's calendar,
+  with `{ kind: 'integration' }` as the actor. A value the provider sends
+  that the record already holds is not a change — Okta pushes a whole
+  profile on every update — and a PUT that changes nothing writes nothing.
+  `people.person.synced_from_external` names the fields that changed,
+  attribute keys and `userName`/`externalId`/`active`, never values. A hire
+  of a record SCIM made says `sourceOfRecord: external`.
+- **Reads return what the connection owns.** A User is read through
+  `PersonAccess.read` as the integration, which sees only its mapped
+  attributes and never a sealed or special-category value, however the
+  field's classification later changes.
+- **`active: false` and DELETE end nothing.** Deactivation is recorded on the
+  link and raises `synced_from_external` naming `active`; DELETE unlinks the
+  person, so the system stops mirroring them and their attributes are
+  Kithena's again. Whether employment ends is HR's decision (§8.1); neither
+  terminates, anonymises nor deletes a record. Retention's erasure of a
+  leaver deletes their links.
+- **Groups carry no authorization.** They are stored and answered so a
+  provider pushing groups works; members must be people the connection
+  provisions; nothing in People reads a group to decide anything. Mapping a
+  group to a tenant role or an org unit would let the identity provider
+  grant access, and is a decision nobody has taken.
+- **Known gaps.** Okta and Entra are built to their documented shapes and
+  proven by the conformance subset in `http/scim.integration.test.ts`, not
+  yet by a live tenant of either. A POST for somebody already in People —
+  created by HR, or provisioned by identity — is not matched to them: it
+  creates a second record, or is refused `uniqueness` where the mapping
+  writes a unique field such as the work email; adopting an existing record
+  is a decision for HR, not built. A list filtered on anything but the
+  link's fields reads every linked record (fine at thousands, not at
+  50,000).
+- **Not identity's SCIM.** `docs/authentication.md` (decision 6) buys SAML
+  and SCIM as Phase 8 connectors at the edge of `platform/identity`, for
+  accounts. This is People's inbound SCIM, for person records: it owns no
+  account, session or credential, and provisions nobody's sign-in. The two
+  would be one provider app pointed at two base URLs; whether they converge
+  is open.
+
 ### 13.6 Mirror mode (Phase 3)
 
 `sourceOfRecord: external`. A customer's HRIS owns the records; People holds the
@@ -2460,6 +2746,36 @@ fires on every change, carrying field names and never values. Per-attribute
 source ownership, so a customer can keep names and jobs upstream while owning
 emergency contacts in Kithena. Every other writer to an externally-owned
 attribute is refused, and the refusal names the owning system.
+
+**As built (PEO-073).** The approved mapping of a SCIM connection (§13.5)
+*is* the declaration: every attribute it names is owned by that system. One
+owner per attribute in a tenant, held by a constraint
+(`scim_mapping_one_owner`); mapping a field another system owns is refused
+naming it.
+
+- **Where it holds.** On the records the system provisions — the people it
+  is linked to. A record it does not know is Kithena's in full, because
+  nobody upstream could write it; a field refused to everybody there would
+  be a field nobody can fill.
+- **How.** `canWrite` in the domain refuses every other writer
+  `SOURCE_OF_RECORD_EXTERNAL`, "given_name is kept in Okta; change it
+  there" (REST 403, a GraphQL error with that code, SCIM `mutability`), and
+  lets the owning integration write exactly what it owns and nothing else.
+  The relations resolver adds each person's sources beside their facts
+  (`withSources`), so every transport that resolves relations holds it:
+  REST, GraphQL, the screens' saves, corrections, the completeness grid and
+  imports, which all write through `PersonAccess`. People's own scheduled
+  job (§8.5) is not a writer here and is not refused.
+- **How it shows.** A mirrored field is read-only on every record form, with
+  "Kept in Okta; change it there." (`keptIn` on `RecordField`). The
+  integrations screen lists what each system keeps and warns, before a
+  mapping is saved, that the fields become read-only here.
+- **Conflict and drift.** There is no second writer to conflict with: the
+  upstream value is the value, written when it is sent. A value HR scheduled
+  ahead (§8.5) before the field was mapped still comes into force on its day,
+  and the upstream system's next push overwrites it. Revoking a connection,
+  or DELETE of a user, ends the ownership at once and hands the fields back
+  to Kithena's own writers with the last values the system sent.
 
 This is what makes the module genuinely sellable to a Workday shop, and it is
 Phase 3 because it is worth nothing until the registry and the API beneath it are
@@ -2492,6 +2808,13 @@ are matched to people by a filename pattern the admin confirms
 (`{employee_number}-contract.pdf`, `{work_email}_*.pdf`) or by a column in an
 accompanying sheet. Nothing is attached on a guess — an unmatched file lands in
 a review list, never on the nearest-looking person.
+
+**Not built yet (PEO-063), deliberately.** An imported document needs
+somewhere durable to live, and People has nowhere legitimate: it stores a
+reference and never bytes (§6.4), its two buckets are an upload kept for a day
+and an export kept for a day, and document storage is out of scope. Document
+import waits for the Documents module (PEO-076) or for a decision that names
+the object storage §6.4 falls back to, and who owns its retention and erasure.
 
 ### 14.2 The flow
 
@@ -2835,7 +3158,7 @@ order — the same order as the profile screen, so the file reads like the UI.
   request. It holds nothing: it wakes on the decision or when the week runs
   out, and asks the request's row what to do. The same approval rules — a
   stated reason, separation of duties, a deadline, a single use — are the
-  primitives the approval workflows on sensitive changes (Phase 3) will reuse.
+  primitives the approval of sensitive changes reuses (§8.6).
 
 - **Special-category attributes never appear** in a standard export at all.
   They are reachable only through the DSAR path (§15.5), which runs as the
@@ -3135,6 +3458,53 @@ Scheduled reports go out through `platform/messaging` on a tenant-set cadence:
 a PDF roster, an XLSX export, or a digest of the completeness numbers. The
 email carries a link, not the data.
 
+**As built (PEO-069).** A schedule is `people.report_schedule`: a name, an
+audience (a saved segment, or a filter where `{}` is everybody), a report — an
+export file (XLSX or PDF, chosen fields or all, with the reason a financial
+field needs) or the summary, which is the analytics screen and its headcount,
+movement and completeness numbers — a cadence (daily, weekly on a weekday, or
+monthly on the 1st–28th, at an hour), whose clock the hour is read on (a legal
+entity's, else the tenant's default), and 1–25 recipients, who must sign in
+here. HR and People administrators make, pause, resume and delete them; a
+schedule is the tenant's cadence, not a person's. It holds no result and no
+person.
+
+**Every run is authorized as each recipient, at send time.** The file is the
+export that recipient could have asked for themselves that morning — their
+rows, their readable columns, the segment's filter refused if they may not
+filter by it — built through the ordinary export path and audited as
+`people.export.completed` with the schedule's process as the actor. A summary
+goes only to somebody the analytics screen would draw for, and under a segment
+only to somebody who could chart by it. Nobody is sent a report built as the
+owner. A recipient who has left or has no work email, a run whose owner no
+longer holds `hr` or `people_admin`, and a run whose segment has gone are
+recorded and sent nothing. So two recipients of one schedule can receive
+different files, each exactly what they may read.
+
+**The email carries a link to the tenant app, never the data or the file's
+own link** (`scheduled_report`, docs/messaging.md): a file waits at
+`/people/export?export=<id>`, where only its recipient is handed the signed
+24-hour download, and a summary is `/people/analytics`. A forwarded email
+opens nothing, and the tenant app wakes a sleeping backend where a direct file
+link would be dead. The email says how often and in what format — never the
+schedule's name, who it is about, or a number.
+
+**Periods, not timers, because the backend sleeps.** A period is the calendar
+date an occurrence falls on in the schedule's zone. The sweep runs in the
+People process on every boot and hourly after, and a schedule is due when a
+period has come that has not run. Only the latest is sent — a report is built
+from the day it is sent, whichever period it is for — and the periods it
+covers are counted on the run. So a weekly report reaches its recipients the
+next time anybody wakes People, not at 07:00 on Monday, and a tenant nobody
+opens for a month gets one report, not four. A new schedule starts from the
+period current when it is saved and a resumed one from the period current when
+it is resumed: neither sends on the spot, and a pause is not caught up. Each
+run is `people.report_run`, keyed on (schedule, period): claimed and committed
+before anything is built, so two replicas or two sweeps send a period once,
+and a crash mid-run leaves that period recorded without an outcome rather than
+sent twice. CSV is not offered: it is several files for one export, and a
+scheduled report is one.
+
 **Exporting a chart exports its data**, as CSV or XLSX, plus the chart itself
 inside the PDF report. There is no "download as PNG" — a PNG of a chart is a
 number nobody can check, and it goes stale the moment it leaves.
@@ -3341,7 +3711,7 @@ PDF exports — the employee record and the roster — and the DSAR pack. Docume
 import with filename matching. The TypeSafe classification suggestion and
 column mapping. The effective-dated history UI ("what did this look like in
 March"). Custom visibility rules beyond the presets (built: §6.6); the full
-predicate editor for conditional requiredness (built: §6.5); bulk edit grids. The rest of the chart set:
+predicate editor for conditional requiredness (built: §6.5); bulk edit grids (built: §8.4). The rest of the chart set:
 movement waterfall, attrition, tenure, span of control, onboarding funnel,
 joiner heatmap. Saved segments and scheduled reports. The aggregate reporting
 surface for voluntary self-ID.
@@ -3351,7 +3721,7 @@ surface for voluntary self-ID.
 SCIM 2.0; mirror mode and per-attribute external ownership; duplicate detection
 and merge; automated anonymisation on retention expiry; document attributes
 wired to the Documents module; approval workflows on sensitive changes via
-Temporal; pay distribution and compa-ratio charts behind the finance relation.
+Temporal (built: §8.6); pay distribution and compa-ratio charts behind the finance relation.
 
 ### Out of scope
 
@@ -3635,7 +4005,8 @@ makes an unreviewed rule safe to ship.
 ### HR information
 
 `employee_number`**core** (numbered per legal entity, unique in the tenant;
-§9.4), `status`**core**,
+§9.4), `status`**core** (a lifecycle state, not an attribute: HR's and the
+person's own, §6.3),
 `hire_date`**core**, `seniority_date`, `legal_entity`**core**, `org_unit`,
 `cost_centre`, `work_location`, `manager`**core**, `dotted_line_manager`,
 `work_email`**core**, `work_phone`, `job_title`**core**, `job_family`,

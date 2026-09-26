@@ -392,13 +392,23 @@ describe('the snapshot', () => {
 
   it("counts a manager's whole chain and nobody else", async () => {
     const boss = await chart(ACME, managerOf(BOSS), (ctx) =>
-      composition(ctx, { asOf: D3, by: ['status'] }),
+      composition(ctx, { asOf: D3, by: ['employment_type'] }),
     );
     const manager = await chart(ACME, managerOf(MANAGER), (ctx) =>
+      composition(ctx, { asOf: D3, by: ['employment_type'] }),
+    );
+    expect(boss).toMatchObject({ ok: true, value: { cells: [{ keys: ['permanent'], count: 3 }] } });
+    expect(manager).toMatchObject({
+      ok: true,
+      value: { cells: [{ keys: ['permanent'], count: 2 }] },
+    });
+  });
+
+  it('never breaks a chain down by status, which is HR’s (§6.3)', async () => {
+    const byStatus = await chart(ACME, managerOf(BOSS), (ctx) =>
       composition(ctx, { asOf: D3, by: ['status'] }),
     );
-    expect(boss).toMatchObject({ ok: true, value: { cells: [{ keys: ['active'], count: 3 }] } });
-    expect(manager).toMatchObject({ ok: true, value: { cells: [{ keys: ['active'], count: 2 }] } });
+    expect(byStatus.ok ? 'drawn' : byStatus.error.code).toBe('FIELD_NOT_READABLE');
   });
 
   it('falls back to history off the grid, and says so', async () => {

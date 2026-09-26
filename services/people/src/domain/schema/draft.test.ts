@@ -395,3 +395,96 @@ describe('a custom visibility rule (PEO-066)', () => {
     expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
   });
 });
+
+/** A tenant field managers may see on a placement fact rather than a field. */
+const onPlacement = (
+  clause: Record<string, unknown>,
+  scopes: string[] = ['manager'],
+): AttributeDefinitionInput => ({
+  ...onGrade('grade', scopes),
+  visibilityRules: [
+    { scopes: scopes as never, when: { combine: 'all', clauses: [clause as never] } },
+  ],
+});
+const placed = (key: string, visibility: string[]) => grade(visibility, { key });
+
+describe('a custom visibility rule on a placement fact', () => {
+  it('may use a fact each scope it grants already reads, through the field that holds it', () => {
+    const d = draft();
+    expect(d.addAttribute(placed('employment_type', ['manager', 'hr'])).ok).toBe(true);
+    expect(d.addAttribute(onPlacement({ operand: 'employmentType', in: ['contractor'] })).ok).toBe(
+      true,
+    );
+  });
+
+  it('may not use one the scope cannot read: showing the field would disclose it', () => {
+    const d = draft();
+    expect(d.addAttribute(placed('work_model', ['hr'])).ok).toBe(true);
+    const refused = d.addAttribute(onPlacement({ operand: 'workModel', in: ['remote'] }));
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+    expect(!refused.ok && refused.error.message).toContain('work model');
+  });
+
+  it('may not use one the schema holds no field for', () => {
+    const refused = draft().addAttribute(
+      onPlacement({ operand: 'legalEntity', in: ['00000000-0000-4000-8000-0000000000e1'] }),
+    );
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
+  it('reads country from every field it can come from', () => {
+    const d = draft();
+    expect(d.addAttribute(placed('country', ['manager', 'hr'])).ok).toBe(true);
+    expect(d.addAttribute(placed('home_address', ['self', 'hr'])).ok).toBe(true);
+    const refused = d.addAttribute(onPlacement({ operand: 'country', in: ['ES'] }));
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+  });
+
+  it('may use status for HR alone: who is on leave is not a manager’s to infer', () => {
+    const onLeave = { operand: 'status', in: ['on_leave'] };
+    const refused = draft().addAttribute(onPlacement(onLeave));
+    expect(!refused.ok && refused.error.code).toBe('VISIBILITY_RULE_DISCLOSES');
+    expect(!refused.ok && refused.error.message).toContain('employment status');
+    expect(draft().addAttribute(onPlacement(onLeave, ['hr'])).ok).toBe(true);
+  });
+});
+
+const health = grade(['hr'], {
+  key: 'disability',
+  classification: {
+    classification: 'special-category',
+    piiKind: 'health',
+    exportable: true,
+    aiEligible: false,
+  },
+});
+const requiredOnHealth: AttributeDefinitionInput = {
+  ...attribute,
+  key: 'workplace_adjustment',
+  origin: 'tenant',
+  requiredness: {
+    mode: 'conditional',
+    when: { combine: 'all', clauses: [{ operand: 'attribute', key: 'disability', is: 'set' }] },
+  },
+};
+
+describe('a requiredness predicate', () => {
+  it('may not name special-category data: "missing" would tell its readers the condition held', () => {
+    const d = draft();
+    expect(d.addAttribute(health).ok).toBe(true);
+    const refused = d.addAttribute(requiredOnHealth);
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
+    expect(!refused.ok && refused.error.path).toEqual(['requiredness']);
+    expect(!refused.ok && refused.error.message).toContain('disability');
+  });
+
+  it('is checked again when an edit changes it', () => {
+    const d = draft();
+    expect(d.addAttribute(health).ok).toBe(true);
+    expect(d.addAttribute({ ...requiredOnHealth, requiredness: { mode: 'never' } }).ok).toBe(true);
+    const refused = d.updateAttribute('workplace_adjustment', {
+      requiredness: requiredOnHealth.requiredness,
+    });
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
+  });
+});

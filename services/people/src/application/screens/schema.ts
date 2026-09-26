@@ -1,6 +1,7 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import {
   COUNTRIES,
+  requiresApproval,
   type AttributeDefinition,
   type AttributeDefinitionInput,
   type RequirednessPredicate,
@@ -88,6 +89,8 @@ export interface RegistryView {
     readonly collectAt: string;
     readonly classification: string;
     readonly piiKind: string;
+    /** Whether a change waits for HR's approval (PEO-077): the tenant's choice, else the default. */
+    readonly requiresApproval: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
@@ -142,6 +145,7 @@ export async function registryView(
         collectAt: a.collectAt,
         classification: a.classification.classification,
         piiKind: a.classification.piiKind,
+        requiresApproval: requiresApproval(a),
         origin: a.origin,
         pending: pendingOf(a, published),
       }));
@@ -265,6 +269,12 @@ export interface FieldInput {
   readonly classification: string;
   readonly piiKind: string;
   readonly classificationSource: 'suggested' | 'human' | 'section_default';
+  /**
+   * Whether a change waits for HR's approval (PEO-077). Null, or the value
+   * the policy would give anyway, keeps the default — so a field saved
+   * without touching it follows its classification, now and later.
+   */
+  readonly requiresApproval: boolean | null;
 }
 
 function definitionOf(input: FieldInput, order: number): AttributeDefinitionInput {
@@ -313,6 +323,13 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
     },
     classificationSource: input.classificationSource,
     encrypted: secret,
+    ...(input.requiresApproval === null ||
+    input.requiresApproval === requiresApproval({
+      encrypted: secret,
+      classification: { piiKind: input.piiKind },
+    })
+      ? {}
+      : { requiresApproval: input.requiresApproval }),
     origin: 'tenant',
   } as AttributeDefinitionInput;
 }
@@ -340,6 +357,7 @@ export async function saveField(
               return draft.updateAttribute(editing, {
                 ...patch,
                 visibilityRules: patch.visibilityRules,
+                requiresApproval: patch.requiresApproval,
               });
             })();
       if (!saved.ok) return saved;

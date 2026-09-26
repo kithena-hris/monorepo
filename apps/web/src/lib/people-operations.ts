@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required readOnly currency ownedBy
+    key label description dataType options { value label } required readOnly currency ownedBy keptIn sensitive
   }`;
 
 const ENTRY = `
@@ -33,7 +33,7 @@ const STAGE = `
     ... on ImportMapStage {
       step file { name rows sheet }
       columns { index header status key source confidence reason }
-      fields { key label }
+      fields { key label sensitive }
     }
     ... on ImportReviewStage {
       step file { name rows sheet }
@@ -45,16 +45,26 @@ const STAGE = `
         corrections { row from to }
         blocked { row person problem cell }
         findings { row cell label level message }
+        sensitive { fields values }
       }
       blockedUrl
     }
-    ... on ImportDoneStage { step file { name rows sheet } created updated blocked reportUrl forReview }
+    ... on ImportDoneStage {
+      step file { name rows sheet } created updated blocked reportUrl forReview held appliedWithoutApproval
+    }
   }`;
 
 /** A person's doubted identifiers still open (PEO-125). Never the value. */
 const REVIEW = `
   fragment ReviewParts on IdentifierReviewEntry {
     key label state findings { level code message } note
+  }`;
+
+/** A value waiting for HR's approval (PEO-077), masked as its field is. */
+const PENDING = `
+  fragment PendingParts on PendingField {
+    id key label kind value { ...EntryParts } effectiveFrom requestedAt expiresAt requestedBy reason
+    mine canDecide
   }`;
 
 /** What the country checks warned about, on a save or before one (PEO-125). */
@@ -93,8 +103,9 @@ export const OPERATIONS = {
         locations { value label legalEntityId }
       }
       reviews { ...ReviewParts }
+      pending { ...PendingParts }
     }
-  }${RECORD_FIELD}${ENTRY}${REVIEW}`,
+  }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
 
   /** A record as of a date, and every change behind it (PEO-064). */
   History: `query History($personId: ID, $asOf: String) {
@@ -110,6 +121,19 @@ export const OPERATIONS = {
       }
     }
   }${RECORD_FIELD}${ENTRY}`,
+
+  /** Changes waiting for approval (PEO-077): every one for HR, the viewer's own otherwise. */
+  Approvals: `query Approvals {
+    peopleApprovals {
+      isHr
+      items {
+        id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+        reason mine canDecide
+        value { ...EntryParts }
+        current { ...EntryParts }
+      }
+    }
+  }${ENTRY}`,
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
@@ -130,6 +154,27 @@ export const OPERATIONS = {
   GridCheck: `query GridCheck($changes: [GridChangeInput!]!) {
     peopleGridCheck(changes: $changes) { ${GRID_FINDINGS} }
   }`,
+
+  /** The people chosen for a bulk edit, and what HR may set on them (PEO-071). */
+  BulkEdit: `query BulkEdit($personIds: [ID!]!) {
+    peopleBulkEdit(personIds: $personIds) {
+      people { id name }
+      sections { key label visibility fields { ...RecordFieldParts } }
+      today limit
+    }
+  }${RECORD_FIELD}`,
+
+  /** What a page of a bulk edit would change and refuse; nothing is kept. */
+  BulkEditPreview: `query BulkEditPreview(
+    $personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $applySensitiveWithoutApproval: Boolean
+  ) {
+    peopleBulkEditPreview(
+      personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval
+    ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
 
   IdentifierCheck: `query IdentifierCheck($personId: ID, $changed: [FormValueInput!]!) {
     peopleIdentifierCheck(personId: $personId, changed: $changed) { ${FINDINGS} }
@@ -178,7 +223,7 @@ export const OPERATIONS = {
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } missing }
       next
-      can { import export }
+      can { import export bulkEdit }
     }
   }`,
 
@@ -188,7 +233,7 @@ export const OPERATIONS = {
       waiting { people lastReminded }
       completedThisWeek
       toFill
-      fields { key label options { value label } person }
+      fields { key label options { value label } person sensitive }
       rows { personId name department manager missing }
       next
     }
@@ -215,7 +260,7 @@ export const OPERATIONS = {
       sections { key label visibility ownership origin fixed }
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
-        collectAt classification piiKind origin pending
+        collectAt classification piiKind requiresApproval origin pending
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
@@ -251,6 +296,11 @@ export const OPERATIONS = {
       endpoints {
         id url enabled events allowlist alertEmail retrying problem lastDelivery secretRotated
       }
+      scim {
+        url paths extension
+        mappable { key label }
+        connections { id system createdAt tokenRotatedAt revokedAt linked mapping { path key } }
+      }
     }
   }`,
 
@@ -260,6 +310,11 @@ export const OPERATIONS = {
       who { value label count }
       sections { key label fields { key label } }
     }
+  }`,
+
+  /* A scheduled report's file, from the link in its email (PEO-069): the requester's own only. */
+  ScheduledExport: `query ScheduledExport($id: ID!) {
+    peopleExport(id: $id) { id status expiresAt links { name url } }
   }`,
 
   Analytics: `query Analytics($segment: ID) {
@@ -311,11 +366,11 @@ export const OPERATIONS = {
 
   /* ------------------------------------------------------------ writes -- */
   SaveOwnSection: `mutation SaveOwnSection($changed: [FormValueInput!]!, $key: String!) {
-    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok ${FINDINGS} }
+    saveOwnSection(changed: $changed, idempotencyKey: $key) { ok held ${FINDINGS} }
   }`,
 
   SavePersonSection: `mutation SavePersonSection($personId: ID!, $changed: [FormValueInput!]!, $key: String!) {
-    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok ${FINDINGS} }
+    savePersonSection(personId: $personId, changed: $changed, idempotencyKey: $key) { ok held ${FINDINGS} }
   }`,
 
   ReviewIdentifier: `mutation ReviewIdentifier(
@@ -334,8 +389,20 @@ export const OPERATIONS = {
     placePerson(personId: $personId, legalEntityId: $legalEntityId, locationId: $locationId, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
   }`,
 
+  BulkEditPeople: `mutation BulkEditPeople(
+    $personIds: [ID!]!, $values: [FormValueInput!]!, $effectiveFrom: String!, $applySensitiveWithoutApproval: Boolean,
+    $key: String!
+  ) {
+    bulkEditPeople(
+      personIds: $personIds, values: $values, effectiveFrom: $effectiveFrom,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
+    ) {
+      committed rows { personId name outcome held changes { key label dated before { ...EntryParts } after { ...EntryParts } } refusal { code message keys } ${FINDINGS} }
+    }
+  }${ENTRY}`,
+
   SaveCompletenessGrid: `mutation SaveCompletenessGrid($changes: [GridChangeInput!]!, $key: String!) {
-    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok ${GRID_FINDINGS} }
+    saveCompletenessGrid(changes: $changes, idempotencyKey: $key) { ok held ${GRID_FINDINGS} }
   }`,
 
   ConfirmSetupEntity: `mutation ConfirmSetupEntity($name: String!, $country: String!, $key: String!) {
@@ -386,6 +453,22 @@ export const OPERATIONS = {
 
   RotateWebhookSecret: `mutation RotateWebhookSecret($id: ID!, $key: String!) {
     rotateWebhookSecret(id: $id, idempotencyKey: $key) { id secret }
+  }`,
+
+  CreateScimConnection: `mutation CreateScimConnection($system: String!, $key: String!) {
+    createScimConnection(system: $system, idempotencyKey: $key) { id token }
+  }`,
+
+  RotateScimToken: `mutation RotateScimToken($id: ID!, $key: String!) {
+    rotateScimToken(id: $id, idempotencyKey: $key) { id token }
+  }`,
+
+  RevokeScimConnection: `mutation RevokeScimConnection($id: ID!, $key: String!) {
+    revokeScimConnection(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  SetScimMapping: `mutation SetScimMapping($id: ID!, $mapping: [ScimMappingInput!]!, $key: String!) {
+    setScimMapping(id: $id, mapping: $mapping, idempotencyKey: $key) { ok }
   }`,
 
   ReplayWebhookDelivery: `mutation ReplayWebhookDelivery($deliveryId: ID!, $key: String!) {
@@ -517,9 +600,22 @@ export const OPERATIONS = {
     dryRunImport(uploadId: $uploadId, mapping: $mapping) { ...StageParts }
   }${STAGE}`,
 
-  CommitImport: `mutation CommitImport($uploadId: ID!, $mapping: [ImportColumnInput!]!, $key: String!) {
-    commitImport(uploadId: $uploadId, mapping: $mapping, idempotencyKey: $key) { ...StageParts }
+  CommitImport: `mutation CommitImport(
+    $uploadId: ID!, $mapping: [ImportColumnInput!]!, $applySensitiveWithoutApproval: Boolean, $key: String!
+  ) {
+    commitImport(
+      uploadId: $uploadId, mapping: $mapping,
+      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
+    ) { ...StageParts }
   }${STAGE}`,
+
+  DecidePendingChange: `mutation DecidePendingChange($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
+    decidePendingChange(id: $id, approve: $approve, note: $note, idempotencyKey: $key) { ok }
+  }`,
+
+  WithdrawPendingChange: `mutation WithdrawPendingChange($id: ID!, $key: String!) {
+    withdrawPendingChange(id: $id, idempotencyKey: $key) { ok }
+  }`,
 
   RequestExport: `mutation RequestExport(
     $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String, $key: String!

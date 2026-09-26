@@ -1,0 +1,1 @@
+{"version":1,"body":"query Completeness($after: ID) {\n    peopleCompleteness(after: $after) {\n      since\n      waiting { people lastReminded }\n      completedThisWeek\n      toFill\n      fields { key label options { value label } person sensitive }\n      rows { personId name department manager missing }\n      next\n    }\n  }"}

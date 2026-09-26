@@ -1,8 +1,15 @@
 import { createHash } from 'node:crypto';
 
+import { requiresApproval } from '@kithena/contracts';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
-import { checkVisibilityRules, type Attribute, type SchemaDraft, type Section } from './draft.js';
+import {
+  checkRequirednessPredicate,
+  checkVisibilityRules,
+  type Attribute,
+  type SchemaDraft,
+  type Section,
+} from './draft.js';
 
 /**
  * Publishing a draft, and what a published version is allowed to do afterwards.
@@ -145,6 +152,8 @@ export function publish(
   for (const attribute of document.attributes) {
     const discloses = checkVisibilityRules(attribute, document.attributes);
     if (!discloses.ok) return discloses;
+    const predicate = checkRequirednessPredicate(attribute, document.attributes);
+    if (!predicate.ok) return predicate;
   }
 
   return ok(
@@ -192,8 +201,22 @@ export function diff(before: SchemaDocument, after: SchemaDocument): SchemaDiff 
     if (requiredness > 0 || classification > 0) tightened.push(key);
     else if (requiredness < 0 || classification < 0) loosened.push(key);
     else if (
-      JSON.stringify(sortKeys([next.visibility, next.visibilityRules ?? [], next.requiredness])) !==
-      JSON.stringify(sortKeys([current.visibility, current.visibilityRules ?? [], current.requiredness]))
+      JSON.stringify(
+        sortKeys([
+          next.visibility,
+          next.visibilityRules ?? [],
+          next.requiredness,
+          requiresApproval(next),
+        ]),
+      ) !==
+      JSON.stringify(
+        sortKeys([
+          current.visibility,
+          current.visibilityRules ?? [],
+          current.requiredness,
+          requiresApproval(current),
+        ]),
+      )
     ) {
       changed.push(key);
     }

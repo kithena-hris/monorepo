@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AttributeDefinition } from './attribute-definition.js';
+import { AttributeDefinition, requiresApproval } from './attribute-definition.js';
 
 /**
  * The refinements that are not negotiable.
@@ -203,5 +203,38 @@ describe('custom visibility rules (PEO-066)', () => {
       define({ visibility: [], visibilityRules: [rule], requiredness: { mode: 'always' } })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('requiresApproval (PEO-077)', () => {
+  const financial = {
+    classification: {
+      classification: 'confidential',
+      piiKind: 'financial',
+      exportable: true,
+      aiEligible: false,
+    },
+    encrypted: true,
+  };
+
+  it('defaults on for financial or encrypted data, and off for the rest', () => {
+    const bank = define(financial);
+    const notes = define();
+    const sealed = define({ encrypted: true });
+    if (!bank.success || !notes.success || !sealed.success) throw new Error('not parsed');
+    expect(requiresApproval(bank.data)).toBe(true);
+    expect(requiresApproval(sealed.data)).toBe(true);
+    expect(requiresApproval(notes.data)).toBe(false);
+  });
+
+  it('follows the tenant either way once set, and stays absent until it is', () => {
+    const off = define({ ...financial, requiresApproval: false });
+    const on = define({ requiresApproval: true });
+    const unset = define();
+    if (!off.success || !on.success || !unset.success) throw new Error('not parsed');
+    expect(requiresApproval(off.data)).toBe(false);
+    expect(requiresApproval(on.data)).toBe(true);
+    // Absent, not defaulted: a document published before it existed keeps its checksum.
+    expect('requiresApproval' in unset.data).toBe(false);
   });
 });

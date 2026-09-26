@@ -110,6 +110,21 @@ describe('field-level authorization over a chart', () => {
     if (!result.ok) expect(result.error.code).toBe('SPECIAL_CATEGORY_HR_ONLY');
   });
 
+  it('lets HR chart employment status, which is not an attribute', () => {
+    expect(authorizeFields(definitions, hr, ['status'])).toEqual({
+      ok: true,
+      value: { special: false },
+    });
+  });
+
+  it('never breaks a manager’s team down by status, whatever a tenant field says', () => {
+    // A team of three with one "on_leave" names who is on leave (§6.3).
+    const named = [...definitions, define({ key: 'status', visibility: ['manager_chain'] })];
+    const result = authorizeFields(named, manager, ['status']);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('FIELD_NOT_READABLE');
+  });
+
   it('marks a breakdown special when any field in it is, including a filter', () => {
     const result = authorizeFields(definitions, hr, ['org_unit', 'ethnicity']);
     expect(result).toEqual({ ok: true, value: { special: true } });

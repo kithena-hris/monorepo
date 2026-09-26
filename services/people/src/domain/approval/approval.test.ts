@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { decide, expire, openApproval, stateAt, useOnce, type Approval } from './approval.js';
+import {
+  decide,
+  expire,
+  openApproval,
+  stateAt,
+  useOnce,
+  withdraw,
+  type Approval,
+} from './approval.js';
 
 const FINANCE = '00000000-0000-4000-8000-0000000000fe';
 const HR = '00000000-0000-4000-8000-0000000000ff';
@@ -118,5 +126,64 @@ describe('a grant', () => {
   it('cannot be used once it has expired, even unused', () => {
     const late = useOnce(grant, '2026-09-23T09:00:00.000Z');
     expect(!late.ok && late.error.code).toBe('GRANT_EXPIRED');
+  });
+});
+
+describe('an optional reason (PEO-077)', () => {
+  it('opens without one when the caller says a reason is optional, and still bounds it', () => {
+    const opened = openApproval({
+      id: 'x',
+      requestedBy: FINANCE,
+      reason: '  ',
+      at: AT,
+      expiresAt: WEEK_LATER,
+      reasonOptional: true,
+    });
+    expect(opened.ok && opened.value.reason).toBe('');
+    const long = openApproval({
+      id: 'x',
+      requestedBy: FINANCE,
+      reason: 'x'.repeat(501),
+      at: AT,
+      expiresAt: WEEK_LATER,
+      reasonOptional: true,
+    });
+    expect(!long.ok && long.error.code).toBe('VALUE_INVALID');
+  });
+});
+
+describe('withdrawing (PEO-077)', () => {
+  it('is the requester’s alone, and final', () => {
+    const refused = withdraw(pending(), { by: HR, at: AT });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+
+    const withdrawn = withdraw(pending(), { by: FINANCE, at: AT });
+    expect(withdrawn.ok && withdrawn.value).toMatchObject({
+      state: 'withdrawn',
+      decidedBy: FINANCE,
+      decidedAt: AT,
+    });
+    if (!withdrawn.ok) return;
+    const again = withdraw(withdrawn.value, { by: FINANCE, at: AT });
+    expect(!again.ok && again.error.code).toBe('APPROVAL_DECIDED');
+    const decided = decide(withdrawn.value, { by: HR, approve: true, at: AT });
+    expect(!decided.ok && decided.error.code).toBe('APPROVAL_DECIDED');
+  });
+
+  it('is refused once the request expired or was decided', () => {
+    const late = withdraw(pending(), { by: FINANCE, at: WEEK_LATER });
+    expect(!late.ok && late.error.code).toBe('APPROVAL_EXPIRED');
+    const decided = decide(pending(), { by: HR, approve: false, at: AT });
+    if (!decided.ok) throw new Error(decided.error.message);
+    const after = withdraw(decided.value, { by: FINANCE, at: AT });
+    expect(!after.ok && after.error.code).toBe('APPROVAL_DECIDED');
+  });
+
+  it('reads as withdrawn whatever the clock says', () => {
+    const withdrawn = withdraw(pending(), { by: FINANCE, at: AT });
+    if (!withdrawn.ok) throw new Error(withdrawn.error.message);
+    expect(stateAt(withdrawn.value, WEEK_LATER)).toBe('withdrawn');
+    const expired = expire(withdrawn.value, WEEK_LATER);
+    expect(!expired.ok && expired.error.code).toBe('APPROVAL_DECIDED');
   });
 });

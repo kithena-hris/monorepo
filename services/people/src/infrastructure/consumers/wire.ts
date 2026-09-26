@@ -16,6 +16,15 @@ import { drizzleOrgStore } from '../drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
 import { openFgaFrom } from '../openfga.js';
 import { tenantTransaction } from '../unit-of-work.js';
+import { approvalMailerFrom } from '../approval-mailer.js';
+import { drizzlePersonReader } from '../drizzle-person-reader.js';
+import { keysFrom, open, seal, staticKeyRing } from '../envelope.js';
+import { tenantAppBase, tenantCompanies } from '../tenant-origin.js';
+import { startPendingChanges, type PendingChangeRunner } from '../temporal/pending-change.js';
+import {
+  drizzlePendingChangeStore,
+  outboxPendingChanges,
+} from '../../application/person/pending-store.js';
 import { peopleConsumer } from './handle.js';
 import { drizzleProvisionalPeople } from './identity.js';
 
@@ -57,8 +66,10 @@ export async function startConsumers(
   const client = postgres(databaseUrl, { max: 5 });
   const inTenant = tenantTransaction(drizzle(client));
   const authz = openFgaFrom(env);
+  const approvals = await pendingChanges(env, inTenant);
   const handle = peopleConsumer({
     ...(authz === null ? {} : { authz }),
+    ...(approvals === null ? {} : { approvals }),
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
     recompute: recomputeCompleteness({
@@ -103,9 +114,44 @@ export async function startConsumers(
   return {
     async stop() {
       await consumer.disconnect();
+      await approvals?.close();
       await client.end();
     },
   };
+}
+
+/**
+ * The approval workflows of held changes (PEO-077), run beside the consumer
+ * that starts them. Null without the secrets' keys, which a held sealed value
+ * needs; the events then start nothing and an undecided change expires lazily.
+ */
+async function pendingChanges(
+  env: NodeJS.ProcessEnv,
+  inTenant: ReturnType<typeof tenantTransaction>,
+): Promise<PendingChangeRunner | null> {
+  const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
+  if (keys.length === 0) {
+    logger.warn('PEOPLE_SECRET_KEYS unset; pending-change workflows not started');
+    return null;
+  }
+  const ring = staticKeyRing(keys);
+  const base = tenantAppBase(env);
+  const mailer = base === null ? undefined : approvalMailerFrom(env);
+  return startPendingChanges(env, inTenant, {
+    holding: {
+      store: drizzlePendingChangeStore({
+        seal: (plaintext) => seal(plaintext, ring),
+        open: (sealed) => open(sealed, ring),
+      }),
+      publish: outboxPendingChanges,
+      clock: systemClock,
+      newId: uuidv7,
+    },
+    reader: drizzlePersonReader(),
+    roles: drizzleRoleStore(),
+    companyOf: tenantCompanies(base ?? '', drizzleOrgStore()),
+    ...(mailer === undefined ? {} : { mailer }),
+  });
 }
 
 /**

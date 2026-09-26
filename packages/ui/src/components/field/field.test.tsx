@@ -43,6 +43,20 @@ describe('<Field>', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Required.');
   });
 
+  it('marks a sensitive field with a word, not only a glyph, and keeps its name', () => {
+    render(
+      <Field sensitive>
+        <FieldLabel>Bank account</FieldLabel>
+        <FieldControl>
+          <Input />
+        </FieldControl>
+      </Field>,
+    );
+    const input = screen.getByLabelText(/bank account/i);
+    expect(input).toHaveAccessibleName('Bank account Sensitive');
+    expect(screen.getByText('Sensitive')).toBeInTheDocument();
+  });
+
   it('announces the required state to assistive tech, not only with an asterisk', () => {
     renderField(false);
     expect(screen.getByLabelText(/legal first name/i)).toHaveAttribute('aria-required', 'true');

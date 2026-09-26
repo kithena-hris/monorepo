@@ -34,6 +34,38 @@ export interface RecordField {
   readonly readOnly: boolean;
   readonly currency?: string;
   readonly ownedBy?: string;
+  /** A change to it waits for HR's approval (PEO-077): marked wherever the field is drawn. */
+  readonly sensitive: boolean;
+  /**
+   * The upstream system that is the source of record for it on this person
+   * (PEO-073): read-only for everybody here, changed there.
+   */
+  readonly keptIn?: string;
+}
+
+/**
+ * A value waiting for HR's approval (PEO-077), on a field the viewer reads:
+ * never the field's value, which stays what is in force. Masked as the field
+ * is — a sealed one reads `{ last4 }`.
+ */
+export interface PendingFieldView {
+  readonly id: string;
+  readonly key: string;
+  readonly label: string;
+  readonly kind: 'value' | 'correction';
+  readonly value: FormValue;
+  /** When it takes effect once approved. */
+  readonly effectiveFrom: string;
+  readonly requestedAt: string;
+  /** Undecided by then, it expires. */
+  readonly expiresAt: string;
+  /** Who asked, in words the viewer may read. */
+  readonly requestedBy: string;
+  readonly reason: string | null;
+  /** The viewer asked, so may withdraw it. */
+  readonly mine: boolean;
+  /** The viewer holds HR and is neither the requester nor the person. */
+  readonly canDecide: boolean;
 }
 
 export interface RecordSection {

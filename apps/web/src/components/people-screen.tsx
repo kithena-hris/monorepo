@@ -168,6 +168,10 @@ export function PeopleScreen({
           onHistory: () => {
             go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
           },
+          onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onApprovals: () => {
+            go('/people/approvals');
+          },
         };
       }
       // A date is a URL, so Back returns to the one before (PEO-064).
@@ -217,7 +221,7 @@ export function PeopleScreen({
         const data =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? (load.data as {
-                can?: { import?: boolean; export?: boolean };
+                can?: { import?: boolean; export?: boolean; bulkEdit?: boolean };
                 next?: string | null;
               })
             : {};
@@ -254,6 +258,13 @@ export function PeopleScreen({
             ? {
                 onImport: () => {
                   go('/people/import');
+                },
+              }
+            : {}),
+          ...(can.bulkEdit === true
+            ? {
+                onBulkEdit: (ids: readonly string[]) => {
+                  go(`/people/bulk-edit?people=${ids.join(',')}`);
                 },
               }
             : {}),
@@ -300,6 +311,17 @@ export function PeopleScreen({
               }),
         };
       }
+      // Previewed and applied a page of people at a time (PEO-071).
+      case 'BulkEdit':
+        return {
+          load: loadable,
+          onPreview: actions.previewBulkEdit,
+          onCommit: actions.commitBulkEdit,
+          searchPeople: actions.searchPeople,
+          onBack: () => {
+            go('/people/directory');
+          },
+        };
       case 'FieldRegistry':
         return {
           load: loadable,
@@ -329,6 +351,20 @@ export function PeopleScreen({
           onOpenLog: (id: string) => {
             go(`/people/settings/integrations/${id}`);
           },
+          scim: {
+            onConnect: async (system: string) => {
+              const made = await actions.createScimConnection(system);
+              if (made.ok) refresh();
+              return made;
+            },
+            onRotateToken: async (id: string) => {
+              const rotated = await actions.rotateScimToken(id);
+              if (rotated.ok) refresh();
+              return rotated;
+            },
+            onDisconnect: thenRefresh(actions.revokeScimConnection),
+            onSetMapping: thenRefresh(actions.setScimMapping),
+          },
         };
       case 'RoleSettings':
         return {
@@ -349,6 +385,15 @@ export function PeopleScreen({
           load: loadable,
           onDecide: thenRefresh(actions.reviewIdentifier),
           onReveal: actions.revealIdentifier,
+        };
+      case 'Approvals':
+        return {
+          load: loadable,
+          onDecide: thenRefresh(actions.decidePendingChange),
+          onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onOpen: (personId: string) => {
+            go(`/people/${personId}`);
+          },
         };
       case 'Duplicates':
         return {
@@ -447,11 +492,19 @@ export function PeopleScreen({
             const id = importing.uploadId;
             return id === null ? again : next(await actions.dryRunImport(id, mapping), id, mapping);
           },
-          onCommit: async () => {
+          onCommit: async (options?: { readonly applyWithoutApproval?: boolean }) => {
             const id = importing.uploadId;
             return id === null
               ? again
-              : next(await actions.commitImport(id, importing.mapping), id, importing.mapping);
+              : next(
+                  await actions.commitImport(
+                    id,
+                    importing.mapping,
+                    options?.applyWithoutApproval === true,
+                  ),
+                  id,
+                  importing.mapping,
+                );
           },
           onDownloadBlocked: () => {
             // A signed link to the stored report: it downloads, and expires.

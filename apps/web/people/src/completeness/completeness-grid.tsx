@@ -2,6 +2,7 @@ import {
   Alert,
   AutoGrid,
   Avatar,
+  Badge,
   Button,
   Card,
   DataTable,
@@ -35,6 +36,8 @@ export interface GapField {
   readonly options: readonly { readonly value: string; readonly label: string }[];
   /** A person reference: picked by searching people, not from `options`. */
   readonly person: boolean;
+  /** A change to it waits for HR's approval (PEO-077). */
+  readonly sensitive?: boolean;
 }
 
 export interface GapRow {
@@ -69,7 +72,12 @@ export type GridFinding = IdentifierFinding & { readonly personId: string };
 
 /** What saving cells would be warned about, or saved with. */
 export type GridOutcome =
-  | { readonly ok: true; readonly findings?: readonly GridFinding[] }
+  | {
+      readonly ok: true;
+      readonly findings?: readonly GridFinding[];
+      /** Cells sent to HR for approval rather than saved (PEO-077). */
+      readonly held?: number;
+    }
   | { readonly ok: false; readonly message: string };
 
 export interface CompletenessGridProps {
@@ -128,7 +136,7 @@ function Grid({
     {},
   );
   const [saving, setSaving] = useState(false);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [outcome, setOutcome] = useState<GridOutcome | null>(null);
   /** Cells our checks doubt, and the edits they were found in: the next press saves anyway. */
   const [warned, setWarned] = useState<{
     readonly edits: string;
@@ -264,7 +272,17 @@ function Grid({
           { id: 'manager', header: 'Manager', cell: (r) => r.manager ?? '' },
           {
             id: field.key,
-            header: field.label,
+            header:
+              field.sensitive === true ? (
+                <span className="inline-flex items-center gap-2">
+                  {field.label}
+                  <Badge tone="sensitive" size="sm">
+                    Sensitive
+                  </Badge>
+                </span>
+              ) : (
+                field.label
+              ),
             cell: control,
           },
         ];
@@ -313,6 +331,9 @@ function Grid({
       {outcome === null ? null : outcome.ok ? (
         <Alert tone="success">
           Saved. Each person's record now carries what you filled in.
+          {(outcome.held ?? 0) > 0
+            ? ` ${String(outcome.held)} ${outcome.held === 1 ? 'value waits' : 'values wait'} for HR's approval and ${outcome.held === 1 ? 'is' : 'are'} not applied until then.`
+            : ''}
           {reviewed > 0
             ? ` ${String(reviewed)} ${reviewed === 1 ? 'value our checks doubted went' : 'values our checks doubted went'} to HR's review.`
             : ''}
@@ -341,7 +362,7 @@ function Grid({
               <SelectContent>
                 {state.fields.map((f) => (
                   <SelectItem key={f.key} value={f.key}>
-                    {f.label}
+                    {f.sensitive === true ? `${f.label} (sensitive: changes wait for approval)` : f.label}
                   </SelectItem>
                 ))}
               </SelectContent>

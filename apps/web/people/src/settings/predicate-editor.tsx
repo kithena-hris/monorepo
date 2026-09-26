@@ -12,7 +12,14 @@ import {
 } from '@reach/ui';
 import type { JSX } from 'react';
 
-import type { Choice, ListOperand, Predicate, PredicateClause, RegistryDraft } from './model';
+import type {
+  Choice,
+  Classification,
+  ListOperand,
+  Predicate,
+  PredicateClause,
+  RegistryDraft,
+} from './model';
 import { FACT_VALUES, OPERAND_LABEL } from './words';
 
 const { add: Plus, delete: Trash } = icons;
@@ -33,6 +40,8 @@ export interface PredicateField {
   readonly key: string;
   readonly label: string;
   readonly options: readonly string[];
+  /** Special-category data never decides requiredness (PEO-065). */
+  readonly classification?: Classification;
 }
 
 /**

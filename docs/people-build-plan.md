@@ -917,6 +917,20 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-063** Document import — a zip or folder matched to people by a
       filename pattern the admin confirms. An unmatched file goes to a review
       list, **never onto the nearest-looking person**. _(PRD §14.1)_
+      **Blocked on a document store.** A `document_ref` value is a reference,
+      never bytes (§6.4), and document storage is out of scope for People
+      (§19, "Document storage itself"). Nothing durable exists to point at:
+      the import upload bucket is deleted on commit and after a day, and is
+      not indexed by person — which is the only reason §14.2 allows it to hold
+      employee data — and the export store expires in a day too. Keeping
+      contracts and ID scans in either would make People the document store,
+      with the retention, erasure, scanning and export path the contract
+      (`data-type.ts`) says belong to whoever owns documents. No
+      `document_ref` write path exists yet either (no profile control; bulk
+      edit has none). Unblocked by PEO-076, or by a PRD decision naming the
+      object storage §6.4 falls back to and who owns its retention and
+      erasure. The upload, zip safety and dry-run shape can then reuse §14.2's
+      presigned flow as it stands._
 - [x] **PEO-064** Effective-dated history UI — "what did this look like in
       March", per attribute. _(PRD §8.5)_
       _Built as `/people/:id/history` (and `/people/me/history`) over
@@ -938,7 +952,14 @@ Ordered, but none of it blocks Phase 1 shipping.
       `RequirednessPredicate`, parsed at the REST boundary, so GraphQL, REST
       and the draft refuse the same things. Editing a conditional field used
       to save it as optional; it keeps its predicate now. The evaluator is
-      shared with PEO-066 (`evaluatePredicate`)._
+      shared with PEO-066 (`evaluatePredicate`).
+      Privacy guard: a predicate may not name a special-category field
+      (`PREDICATE_DISCLOSES`, on save and at publish; the editor says so
+      beside the condition), since "missing" would tell whoever sees the gap
+      that the condition held. A published document that still holds one is
+      failed closed by `assessCompleteness`: the field is not required of
+      anybody and the rule is reported as unevaluable. No country pack or
+      seed carries such a predicate._
 - [x] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
       _As built: `visibilityRules` on the definition — up to five, each
       preset scopes plus the same closed predicate, granting those scopes on
@@ -952,7 +973,11 @@ Ordered, but none of it blocks Phase 1 shipping.
       holds there. Safety: never for special-category data (contract and
       read side); never on a field a granted scope cannot already read
       outright, or on an archived one (`VISIBILITY_RULE_DISCLOSES`, on save
-      and again at publish); rules never count towards "a required field
+      and again at publish); the same for a placement fact, judged
+      through the field `factsOf` reads it from (`legal_entity_id`,
+      `home_address`/`country`, `employment_type`, `work_model`; no such
+      field is a refusal too), and `status` only for `hr`, whose alone it is
+      (PEO-120); rules never count towards "a required field
       somebody can read". The publish preview names a field whose readers or
       conditions changed (`changed`)._
 - [x] **PEO-067** The remaining charts — attrition, tenure, span of control,
@@ -975,8 +1000,22 @@ Ordered, but none of it blocks Phase 1 shipping.
       dimensions (`org_unit`, `work_location`, `status`, `employment_type`);
       a segment over another key is offered in the directory and export only.
       Deleting is REST and GraphQL only; the screens have no delete yet._
-- [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
+- [x] **PEO-069** Scheduled reports through `platform/messaging` — the email
       carries a link, not the data. _(PRD §16.3)_
+      _Landed as migration 20260926170000 (`people.report_schedule`,
+      `people.report_run`; widens `messaging.delivery`'s kinds). HR and
+      `people_admin` schedule an XLSX/PDF export or the analytics summary over
+      a segment or a filter, daily/weekly/monthly on a legal entity's clock,
+      to 1–25 accounts. Each run is built **as each recipient** at send time
+      through the export path — nobody receives a report built as the owner.
+      The email (`scheduled_report` notice) links to the tenant app:
+      `/people/export?export=<id>` (the recipient's own, signed there for 24
+      hours) or `/people/analytics`. Runs are idempotent per (schedule,
+      period) and **catch up on wake**: the sweep runs on boot and hourly in
+      the People process, sends only the latest missed period, and counts
+      the ones it covers. REST only (`/v1/report-schedules`); the screen that
+      manages schedules is not built — the export page shows a report's
+      download when its email is opened._
 - [x] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
       enforced in the query. Its design follows PEO-083: served from the
       monthly publication, rounded to 5, never from the live snapshot.
@@ -986,15 +1025,40 @@ Ordered, but none of it blocks Phase 1 shipping.
       default still to be confirmed — see PEO-045 under *Blocked*); a withheld
       question carries no number at all, only the minimum. Never a manager's,
       never under a segment._
-- [ ] **PEO-071** Bulk edit beyond the completeness grid. _(PRD §8.4)_
+- [x] **PEO-071** Bulk edit beyond the completeness grid. _(PRD §8.4)_
+      _As built: `application/screens/bulk-edit.ts` — HR only, at most
+      `BULK_PAGE` (50) people a request, the same values from one
+      `effectiveFrom`. Each person is one `PersonAccess.update` in its own
+      savepoint, so nothing the single path enforces is skipped and a refusal
+      rolls back that person alone; a value already standing as of the date
+      is skipped. The preview is the same writes in one transaction thrown
+      away, so it answers as the commit will, in-batch uniqueness clashes
+      included. REST `/v1/views/bulk-edit[/preview]` (the commit keyed),
+      GraphQL `peopleBulkEdit`, `peopleBulkEditPreview`, `bulkEditPeople`.
+      The directory's rows are selectable for HR ("Edit together"); the
+      `BulkEdit` screen at `/people/bulk-edit` previews and applies a page at
+      a time. No migration. Not yet: selecting across directory pages or
+      "everyone matching this filter", and choosing people from the phone
+      layout's cards; a person field's before/after shows the id, not the
+      name._
 
 ## Phase 3
 
-- [ ] **PEO-072** SCIM 2.0 `/Users` and `/Groups` with an extension for
+- [x] **PEO-072** SCIM 2.0 `/Users` and `/Groups` with an extension for
       tenant-defined attributes; Okta and Entra verified first. _(PRD §13.5)_
-- [ ] **PEO-073** Mirror mode — `sourceOfRecord: external`, per-attribute
+      _Landed at `/scim/v2` on People's port, authenticated per connection
+      by a hashed, rotatable, revocable bearer token, every change audited as
+      `people.scim.connection_changed` (20260926160000). Writes go through
+      `PersonAccess` as an integration, effective now. Built to Okta's and
+      Entra's documented shapes and proven by `scim.integration.test.ts`;
+      not yet tried against a live tenant of either. `active: false` and
+      DELETE end nothing; groups carry no authorization. Public routing is
+      an operator's checklist in `docs/environments.md`._
+- [x] **PEO-073** Mirror mode — `sourceOfRecord: external`, per-attribute
       ownership, every other writer refused with the owning system named.
-      _(PRD §13.6)_
+      _(PRD §13.6)_ _Landed: the approved mapping is the declaration, one
+      owner per attribute by constraint, enforced in `canWrite` on the
+      records the system provisions, shown read-only as "Kept in Okta"._
 - [x] **PEO-074** Duplicate detection and merge. A merge is **always** a human
       decision, and it is additive — both histories survive, the absorbed
       record becomes a tombstone pointing at the survivor. _(PRD §12.4)_
@@ -1031,10 +1095,19 @@ Ordered, but none of it blocks Phase 1 shipping.
       counsel reviews the floors** (PEO-126): `mayErase` refuses automated
       erasure under an unreviewed floor. _(PRD §8.1, §12)_
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
-- [ ] **PEO-077** Approval workflows on sensitive changes, via Temporal.
+- [x] **PEO-077** Approval workflows on sensitive changes, via Temporal.
+      _(PRD §8.6)_ _A per-field `requiresApproval`, on by default for
+      financial or encrypted data. A sensitive value from any writer is held
+      as a pending change, never a current value; HR other than the requester
+      and the subject approves within seven days, and the approval applies it
+      from its original `effectiveFrom`. Withdrawal, expiry, notices through
+      messaging, the approvals inbox, the Sensitive marker in Reach, and HR's
+      "apply without approval" on import and bulk edit. SCIM writes are not
+      held: the connection is the source of record for what it writes. A DSAR
+      does not yet include pending changes._
 - [x] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
-      _Landed as migration 20260926150000 with the three decisions §16.2
+      _Landed as migration 20260926190000 with the three decisions §16.2
       records: bands in People (`people.pay_band`, append-only, per grade
       and currency, effective-dated, HR or finance on the Pay bands tab,
       `people.pay_band.set`/`.corrected`); the nightly snapshot decrypting
@@ -1675,6 +1748,33 @@ it is written down here rather than left in a PR description.
       audit record. No migration.* *Still open:* no transport calls a manual
       `anonymiseDue` yet — HR's by-hand erasure needs a route and a control
       on the profile when PEO-075 is built.
+- [x] Employment status leaked to anybody who could read the person:
+      `Person.status` over GraphQL, `status` on `GET /v1/people[/{id}]`, every
+      row of a list, the directory's `active` count (a one-person search
+      answering "0 active" names them as away), and a manager's charts by
+      status. Found beside PEO-065/066, whose guard assumes status is HR's.
+      *(PRD §6.3)* *Landed as `statusVisibleTo` in
+      `domain/access/field-access.ts` — HR, and the person's own — applied
+      once in `PersonAccess`'s view, so REST leaves `status` out, GraphQL
+      answers null, and the screens follow; lists and counts leave out
+      leavers (`LEAVERS`) for anybody but HR, whose `active` is then the
+      listed count; `authorizeFields` serves `status` to HR only. §6.3 no
+      longer lists status under HR information.* *Still open:* a record
+      read by its id is answered for a leaver, status withheld; hiding it
+      from a peer altogether is a product call.
+- [ ] Route `/scim/v2/*` through the Cloudflare Tunnel to People
+      (`docs/environments.md` "Hosting" has the rule and the API call), and
+      decide whether a tenant relying on SCIM keeps the VM awake. Found in
+      PEO-072. *(PRD §13.5)*
+- [ ] Verify SCIM against a live Okta and a live Entra tenant (the provider
+      test suites: Okta's SCIM 2.0 spec tests, Entra's SCIM validator), and
+      record what each sent that the build did not expect. Found in PEO-072.
+      *(PRD §13.5)*
+- [ ] A SCIM POST for somebody already in People (HR-created, or provisioned
+      by identity) creates a second record or is refused `uniqueness`. HR
+      adopting the existing record into the connection — and whether that
+      should ever be automatic — needs deciding; PEO-074's duplicate
+      detection is the nearest thing. Found in PEO-072. *(PRD §13.5, §12.4)*
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
       in PEO-113. *(PRD §13.1)*

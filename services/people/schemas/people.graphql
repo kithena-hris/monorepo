@@ -154,6 +154,29 @@ type AnalyticsTenureBand {
   leavers: Int
 }
 
+type ApprovalItem {
+  canDecide: Boolean
+  """What is in force now, masked the same way."""
+  current: FormEntry
+  effectiveFrom: String
+  expiresAt: String
+  id: ID
+  key: String
+  kind: String
+  label: String
+  mine: Boolean
+  name: String
+  personId: ID
+  """
+  False where the viewer may not read the field: value and current are empty.
+  """
+  readable: Boolean
+  reason: String
+  requestedAt: String
+  requestedBy: String
+  value: FormEntry
+}
+
 """
 One attribute the viewer may read. A withheld attribute is absent from the list.
 """
@@ -181,6 +204,47 @@ input AttributeValueInput {
 type BooleanAttribute {
   key: String
   value: Boolean
+}
+
+type BulkEditChange {
+  after: FormEntry
+  before: FormEntry
+  """
+  False: kept without dates, so it changes on the day whatever the date says.
+  """
+  dated: Boolean
+  key: String
+  label: String
+}
+
+type BulkEditPerson {
+  id: ID
+  name: String
+}
+
+type BulkEditRefusal {
+  code: String
+  keys: [String!]
+  message: String
+}
+
+type BulkEditResult {
+  committed: Boolean
+  rows: [BulkEditRow!]
+}
+
+type BulkEditRow {
+  changes: [BulkEditChange!]
+  findings: [IdentifierFindingNotice!]
+  """Fields sent to HR for approval rather than written (PEO-077)."""
+  held: [String!]
+  name: String
+  """
+  changed, unchanged, refused, or held: every value it would change waits for approval
+  """
+  outcome: String
+  personId: ID
+  refusal: BulkEditRefusal
 }
 
 """
@@ -219,6 +283,8 @@ type CompletenessField {
   options: [FieldOption!]
   """A person reference: picked with peoplePicker, not from options"""
   person: Boolean
+  """A change to it waits for HR approval (PEO-077)."""
+  sensitive: Boolean
 }
 
 type CompletenessRow {
@@ -243,6 +309,8 @@ type DateAttribute {
 }
 
 type DirectoryActions {
+  """HR’s: set values on the people chosen (PEO-071)."""
+  bulkEdit: Boolean
   export: Boolean
   import: Boolean
 }
@@ -288,6 +356,8 @@ input DraftFieldInput {
   piiKind: String!
   requiredWhen: PersonPredicateInput
   requiredness: String!
+  """Whether a change waits for HR approval; null keeps the default."""
+  requiresApproval: Boolean
   sectionKey: String!
   visibility: [String!]!
   visibilityRules: [VisibilityRuleInput!]
@@ -452,6 +522,8 @@ type GridIdentifierCheck {
 
 type GridSaved {
   findings: [GridCellFinding!]
+  """Cells sent to HR for approval rather than saved (PEO-077)."""
+  held: Int
   ok: Boolean
 }
 
@@ -587,11 +659,14 @@ type ImportCounts {
 }
 
 type ImportDoneStage {
+  appliedWithoutApproval: Boolean
   blocked: Int
   created: Int
   file: ImportFile
   """Doubted national identifiers that imported and went to HR’s review."""
   forReview: Int
+  """Values waiting for HR approval rather than written (PEO-077)."""
+  held: Int
   """The same report, stored sealed; a signed link that expires in a day."""
   reportUrl: String
   step: String
@@ -608,6 +683,7 @@ type ImportDryRun {
   findings: [ImportCellFinding!]
   ignoredColumns: [String!]
   incomplete: ImportIncomplete
+  sensitive: ImportSensitive
   sheets: [ImportSheet!]
 }
 
@@ -651,6 +727,14 @@ type ImportReviewStage {
 }
 
 """
+Mapped fields a change to which waits for HR approval, and how many values the rows carry for them (PEO-077).
+"""
+type ImportSensitive {
+  fields: [String!]
+  values: Int
+}
+
+"""
 A repeating attribute’s sheet; one not imported is listed, never dropped.
 """
 type ImportSheet {
@@ -664,6 +748,8 @@ union ImportStage = ImportDoneStage | ImportMapStage | ImportReviewStage
 type ImportTarget {
   key: String
   label: String
+  """A change to it waits for HR approval (PEO-077)."""
+  sensitive: Boolean
 }
 
 type ImportUploadHeader {
@@ -756,13 +842,32 @@ input MoneyInput {
 type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """
+  A page of a bulk edit: one ordinary write per person, each atomic, each answered.
+  """
+  bulkEditPeople(
+    """HR only: write values that require approval without it (PEO-077)."""
+    applySensitiveWithoutApproval: Boolean
+    effectiveFrom: String!
+    idempotencyKey: String!
+    personIds: [ID!]!
+    values: [FormValueInput!]!
+  ): BulkEditResult
+  """
   From a date, in the new zone. The same date again corrects the earlier change.
   """
   changeLocationZone(effectiveFrom: String!, id: ID!, idempotencyKey: String!, timeZone: String!): Location
   """
   Import. A retry of the same key is refused ALREADY_IMPORTED: the report is not kept.
   """
-  commitImport(idempotencyKey: String!, mapping: [ImportColumnInput!]!, uploadId: ID!): ImportStage
+  commitImport(
+    """
+    HR only: write values that require approval without it; each row’s event says so (PEO-077).
+    """
+    applySensitiveWithoutApproval: Boolean
+    idempotencyKey: String!
+    mapping: [ImportColumnInput!]!
+    uploadId: ID!
+  ): ImportStage
   """
   The file is uploaded: check it, then the proposed mapping. Changes nothing else.
   """
@@ -771,9 +876,14 @@ type Mutation {
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
+  createScimConnection(idempotencyKey: String!, system: String!): ScimConnectionToken
   createWebhookEndpoint(alertEmail: String!, allowlist: [String!]!, events: [String!]!, idempotencyKey: String!, url: String!): WebhookEndpointSecret
   """HR approves or rejects; a retry answers the request as it now stands."""
   decideFullValues(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): FullValuesRequest
+  """
+  HR approves or rejects a held change (PEO-077); an approval applies it from its effectiveFrom. Never the requester’s or the subject’s.
+  """
+  decidePendingChange(approve: Boolean!, id: ID!, idempotencyKey: String!, note: String): WriteOutcome
   """Delete a segment you saved."""
   deletePeopleSegment(id: ID!, idempotencyKey: String!): WriteOutcome
   """Withdraw a provisional record that was never a person; HR only."""
@@ -846,6 +956,8 @@ type Mutation {
   reviewIdentifier(attributeKey: String!, decision: IdentifierReviewDecision!, idempotencyKey: String!, note: String, personId: ID!): IdentifierDecision
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
+  revokeScimConnection(id: ID!, idempotencyKey: String!): WriteOutcome
+  rotateScimToken(id: ID!, idempotencyKey: String!): ScimConnectionToken
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
   """Add or change a field in the draft; the draft decides whether it may."""
@@ -864,6 +976,7 @@ type Mutation {
   Set a pay band from a day, or correct the one recorded for that day; HR or finance (PEO-078).
   """
   setPayBand(currency: String!, effectiveFrom: String!, grade: String!, idempotencyKey: String!, maximumMinor: String!, midpointMinor: String!, minimumMinor: String!): PayBand
+  setScimMapping(id: ID!, idempotencyKey: String!, mapping: [ScimMappingInput!]!): WriteOutcome
   """
   Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
   """
@@ -894,6 +1007,8 @@ type Mutation {
   Withdraw a person’s notice before their last working day ends on their calendar; back to active or on leave; HR only.
   """
   withdrawNotice(idempotencyKey: String!, personId: ID!): Person
+  """The requester takes a held change back while it waits (PEO-077)."""
+  withdrawPendingChange(id: ID!, idempotencyKey: String!): WriteOutcome
 }
 
 type NumberAttribute {
@@ -931,6 +1046,29 @@ type PayBand {
 }
 
 """
+A value waiting for HR approval. Never the field’s value, which stays what is in force.
+"""
+type PendingField {
+  canDecide: Boolean
+  effectiveFrom: String
+  expiresAt: String
+  id: ID
+  key: String
+  """value, or a correction of a recorded one"""
+  kind: String
+  label: String
+  """The viewer asked; they may withdraw it."""
+  mine: Boolean
+  reason: String
+  requestedAt: String
+  requestedBy: String
+  """
+  Masked as the field is: a sealed one is a SealedEntry with its last four.
+  """
+  value: FormEntry
+}
+
+"""
 A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).
 """
 type PeopleAnalytics {
@@ -955,6 +1093,23 @@ type PeopleAnalytics {
   """Managers by number of direct reports"""
   span: [AnalyticsPoint!]
   tenure: [AnalyticsTenureBand!]
+}
+
+"""
+Changes waiting for approval: every one for HR, the viewer’s own otherwise.
+"""
+type PeopleApprovals {
+  isHr: Boolean
+  items: [ApprovalItem!]
+}
+
+"""The people chosen, and the fields HR may set on them in bulk."""
+type PeopleBulkEdit {
+  """People per request."""
+  limit: Int
+  people: [BulkEditPerson!]
+  sections: [RecordSection!]
+  today: String
 }
 
 type PeopleCompleteness {
@@ -1043,6 +1198,7 @@ type PeopleIntegrations {
   events: [String!]
   fields: [IntegrationField!]
   schemaVersion: Int
+  scim: PeopleScim
 }
 
 type PeopleOnboarding {
@@ -1083,6 +1239,10 @@ type PeopleProfile {
   calendar: PersonCalendar
   """HR’s alone: their status and every employment period (PEO-120)."""
   employment: ProfileEmployment
+  """
+  Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.
+  """
+  pending: [PendingField!]
   person: ProfilePerson
   """
   Null unless the viewer is HR and there is somewhere to place the person.
@@ -1115,6 +1275,16 @@ type PeopleSchema {
   checksum: String
   publishedAt: String
   version: Int
+}
+
+type PeopleScim {
+  connections: [ScimConnection!]
+  """The schema a tenant attribute is mapped under, as `<extension>:<key>`."""
+  extension: String
+  mappable: [ScimMappableAttribute!]
+  paths: [String!]
+  """The SCIM base URL to give the provider."""
+  url: String
 }
 
 """
@@ -1173,6 +1343,9 @@ type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
   schemaVersion: Int
+  """
+  Employment status: HR’s, and the person’s own. Null for anybody else (§6.3).
+  """
   status: String
 }
 
@@ -1298,6 +1471,15 @@ type Query {
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage
   peopleAnalytics(segment: ID): PeopleAnalytics
+  """
+  Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
+  """
+  peopleApprovals: PeopleApprovals
+  peopleBulkEdit(personIds: [ID!]!): PeopleBulkEdit
+  """
+  What a bulk edit would change and refuse, per person, and why; nothing is kept.
+  """
+  peopleBulkEditPreview(applySensitiveWithoutApproval: Boolean, effectiveFrom: String!, personIds: [ID!]!, values: [FormValueInput!]!): BulkEditResult
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory
@@ -1354,6 +1536,10 @@ type RecordField {
   currency: String
   dataType: String
   description: String
+  """
+  The upstream system that is the source of record for this field on this person (PEO-073); change it there.
+  """
+  keptIn: String
   key: String
   label: String
   options: [FieldOption!]
@@ -1361,6 +1547,10 @@ type RecordField {
   ownedBy: String
   readOnly: Boolean
   required: Boolean
+  """
+  A change to it waits for HR approval (PEO-077); mark it wherever it is drawn.
+  """
+  sensitive: Boolean
 }
 
 type RecordSection {
@@ -1396,6 +1586,10 @@ type RegistryField {
   """When a conditional field is required; null unless it is conditional."""
   requiredWhen: PersonPredicate
   requiredness: String
+  """
+  Whether a change waits for HR approval: the tenant’s choice, else the default.
+  """
+  requiresApproval: Boolean
   sectionKey: String
   visibility: [String!]
   """Scopes that may also read it, on the records each predicate holds for."""
@@ -1449,6 +1643,40 @@ type RoleSettingsPerson {
   workEmail: String
 }
 
+"""An upstream system provisioning people over SCIM (PEO-072)."""
+type ScimConnection {
+  createdAt: String
+  id: ID
+  """How many people it provisions."""
+  linked: Int
+  """The approved mapping: every attribute it names is kept in this system."""
+  mapping: [ScimMappingEntry!]
+  revokedAt: String
+  system: String
+  tokenRotatedAt: String
+}
+
+type ScimConnectionToken {
+  id: ID
+  """Shown once. Null when a retry of the same key answers: rotate again."""
+  token: String
+}
+
+type ScimMappableAttribute {
+  key: String
+  label: String
+}
+
+type ScimMappingEntry {
+  key: String
+  path: String
+}
+
+input ScimMappingInput {
+  key: String!
+  path: String!
+}
+
 """An encrypted value. Only its last four characters are ever served."""
 type SealedAttribute {
   key: String
@@ -1466,6 +1694,10 @@ type SectionSaved {
   Warnings on national identifiers the save carried (PEO-125); saved all the same.
   """
   findings: [IdentifierFindingNotice!]
+  """
+  Labels of the fields sent to HR for approval rather than saved (PEO-077); empty on a retry.
+  """
+  held: [String!]
   ok: Boolean
 }
 

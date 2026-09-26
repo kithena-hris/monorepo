@@ -1,19 +1,22 @@
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
-import type { Actor, AttributeDefinition } from '@kithena/contracts';
+import { requiresApproval, type Actor, type AttributeDefinition } from '@kithena/contracts';
 
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
+import { LEAVERS } from '../person/ports.js';
 import { segmentFor, segmentsFor } from './segments.js';
 import type {
   FormValue,
   FormValues,
   IdentifierFindingView,
   IdentifierReviewEntry,
+  PendingFieldView,
   RecordSection,
 } from './model.js';
+import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
 import {
   formValues,
   nameOf,
@@ -240,6 +243,11 @@ export interface ProfileView {
   readonly placement: PlacementView | null;
   /** Their doubted identifiers still open, on fields this viewer reads (PEO-125). */
   readonly reviews: readonly IdentifierReviewEntry[];
+  /**
+   * Changes to them waiting for HR's approval (PEO-077), on fields this viewer
+   * reads. Never in `values`: those are what is in force.
+   */
+  readonly pending: readonly PendingFieldView[];
 }
 
 export interface PlacementView {
@@ -294,9 +302,12 @@ export async function profileView(
       .filter((l) => l.archived !== true || l.id === at('location_id'))
       .map((l) => ({ value: l.id, label: l.name, legalEntityId: l.legalEntityId }));
     const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, id.value);
+    // HR reads the status, so `status` is here whenever `isHr` is (§6.3).
+    const status = view.status ?? null;
     const placeable =
       relations.isHr &&
-      !['terminated', 'discarded', 'merged'].includes(view.status) &&
+      status !== null &&
+      !(LEAVERS as readonly string[]).includes(status) &&
       sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
     const named = sections.map((s) => ({
       ...s,
@@ -321,7 +332,8 @@ export async function profileView(
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,
-      employment: periods?.ok ? { status: view.status, periods: periods.value } : null,
+      employment:
+        periods?.ok && status !== null ? { status, periods: periods.value } : null,
       sections: named.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, named),
       placement: placeable
@@ -333,7 +345,116 @@ export async function profileView(
           }
         : null,
       reviews: record.value.reviews,
+      pending: await pendingOnRecord(deps, tx, asking, id.value),
     });
+  });
+}
+
+/** A person's changes waiting for HR, as this viewer may see them (PEO-077). */
+async function pendingOnRecord(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personId: string,
+): Promise<PendingFieldView[]> {
+  const pending = deps.service.pending;
+  if (!pending) return [];
+  const version = await deps.service.schemas.current(tx, asking.tenantId);
+  const labels = new Map(
+    (version?.document.attributes ?? []).map((d) => [d.key as string, d.label.default]),
+  );
+  const found = await pendingFor(tx, pending, { ...asking, personId });
+  if (!found.ok) return [];
+  const by = await actors(
+    deps,
+    tx,
+    asking,
+    found.value.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+  );
+  return found.value.map((c) => ({
+    id: c.id,
+    key: c.attributeKey,
+    label: labels.get(c.attributeKey) ?? c.attributeKey,
+    kind: c.kind,
+    value: toForm(c.value),
+    effectiveFrom: c.effectiveFrom,
+    requestedAt: c.requestedAt,
+    expiresAt: c.expiresAt,
+    requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+    reason: c.reason,
+    mine: c.mine,
+    canDecide: c.canDecide,
+  }));
+}
+
+/* ------------------------------------------------------------ approvals -- */
+
+/** One change in the approvals inbox (PEO-077). */
+export interface ApprovalItem extends PendingFieldView {
+  readonly personId: string;
+  /** The person, as the viewer may name them. */
+  readonly name: string;
+  /** Null where the viewer may not read the field: they decide on who, when and why. */
+  readonly value: FormValue;
+  readonly readable: boolean;
+  /** What is in force now, masked the same way; null when unreadable or empty. */
+  readonly current: FormValue;
+}
+
+export interface ApprovalsView {
+  /** HR sees every change waiting in the tenant; anybody else, their own. */
+  readonly isHr: boolean;
+  readonly items: readonly ApprovalItem[];
+}
+
+/**
+ * The approvals inbox (PEO-077): oldest first, each with who it is about, the
+ * field, the value asked for and the value in force, who asked and when it
+ * lapses. HR decides here; a requester withdraws here.
+ */
+export async function approvalsView(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<Result<ApprovalsView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const pending = deps.service.pending;
+    if (!pending) return ok({ isHr: false, items: [] });
+    const inbox = await approvalsInbox(tx, pending, asking);
+    if (!inbox.ok) return inbox;
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    const labels = new Map(
+      (version?.document.attributes ?? []).map((d) => [d.key as string, d.label.default]),
+    );
+    const by = await actors(
+      deps,
+      tx,
+      asking,
+      inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+    );
+    const items: ApprovalItem[] = [];
+    for (const c of inbox.value.items) {
+      const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
+      const attributes = person.ok ? person.value.attributes : {};
+      items.push({
+        id: c.id,
+        personId: c.personId,
+        name: nameOf(attributes) ?? 'Unnamed',
+        key: c.attributeKey,
+        label: labels.get(c.attributeKey) ?? c.attributeKey,
+        kind: c.kind,
+        value: c.readable ? toForm(c.value) : null,
+        readable: c.readable,
+        current: c.readable ? toForm(attributes[c.attributeKey]) : null,
+        effectiveFrom: c.effectiveFrom,
+        requestedAt: c.requestedAt,
+        expiresAt: c.expiresAt,
+        requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+        reason: c.reason,
+        mine: c.mine,
+        canDecide: c.canDecide,
+      });
+    }
+    return ok({ isHr: inbox.value.isHr, items });
   });
 }
 
@@ -682,7 +803,8 @@ export async function duplicatesView(
     const person = (view: PersonView, refusal: DomainFailure | null): ComparedPerson => ({
       id: view.id,
       name: nameOf(view.attributes) ?? 'Unnamed',
-      status: view.status,
+      // The queue is HR's alone (`duplicates`), and HR reads every status.
+      status: view.status ?? '',
       refusal: refusal?.message ?? null,
     });
     return ok({
@@ -717,8 +839,8 @@ export interface DirectoryView {
   }[];
   /** The cursor for the page after this one; null on the last page. */
   readonly next: string | null;
-  /** Which of the screen's two buttons this viewer gets (§13.1). */
-  readonly can: { readonly import: boolean; readonly export: boolean };
+  /** Which of the screen's actions this viewer gets (§13.1, §8.4). */
+  readonly can: { readonly import: boolean; readonly export: boolean; readonly bulkEdit: boolean };
   /** The saved segment applied (PEO-068), and those this viewer could apply here. */
   readonly segment: { readonly id: string; readonly name: string } | null;
   readonly segments: readonly { readonly id: string; readonly name: string }[];
@@ -836,7 +958,7 @@ export async function directoryView(
       }),
       next: listed.value.next,
       // An export is a read, so everybody may build one of what they can see.
-      can: { import: everyone.isHr, export: true },
+      can: { import: everyone.isHr, export: true, bulkEdit: everyone.isHr },
       segment: segment === null ? null : { id: segment.value.id, name: segment.value.name },
       segments: (await segmentsFor(deps, tx, asking))
         .filter((s) => s.usableIn.directory)
@@ -859,6 +981,8 @@ export interface CompletenessView {
     readonly options: readonly { readonly value: string; readonly label: string }[];
     /** A person reference: picked by searching people (`pickerView`), not from `options`. */
     readonly person: boolean;
+    /** A change to it waits for HR's approval (PEO-077). */
+    readonly sensitive: boolean;
   }[];
   readonly rows: readonly {
     readonly personId: string;
@@ -957,6 +1081,7 @@ export async function completenessView(
                     .map((o) => ({ value: o.value, label: o.label.default }))
                 : [],
             person: d.typeConfig.kind === 'person_ref',
+            sensitive: requiresApproval(d),
           },
         ];
       }),
@@ -984,14 +1109,19 @@ export async function saveGrid(
   deps: ScreenDeps,
   asking: Asking,
   changes: GridChanges,
-): Promise<Result<{ readonly ok: true; readonly findings: readonly GridFinding[] }>> {
+): Promise<
+  Result<{ readonly ok: true; readonly findings: readonly GridFinding[]; readonly held?: number }>
+> {
   const findings: GridFinding[] = [];
+  let held = 0;
   for (const change of changes) {
     const saved = await saveSection(deps, asking, change.personId, change.values);
     if (!saved.ok) return saved;
     findings.push(...saved.value.findings.map((f) => ({ ...f, personId: change.personId })));
+    held += saved.value.held?.length ?? 0;
   }
-  return ok({ ok: true as const, findings });
+  // Only when something was held, so a retry answers as the first did otherwise.
+  return ok({ ok: true as const, findings, ...(held === 0 ? {} : { held }) });
 }
 
 /**

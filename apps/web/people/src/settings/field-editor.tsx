@@ -110,6 +110,8 @@ interface Draft {
   visibilityRules: readonly VisibilityRule[];
   classification: Classification | null;
   confirmedSpecial: boolean;
+  /** Whether a change waits for HR's approval (PEO-077); null until the admin says. */
+  requiresApproval: boolean | null;
 }
 
 function draftFrom(section: RegistrySection, field: RegistryField | null): Draft {
@@ -128,6 +130,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
       visibilityRules: field.visibilityRules,
       classification: field.classification,
       confirmedSpecial: field.classification === 'special-category',
+      requiresApproval: field.requiresApproval ?? null,
     };
   }
   return {
@@ -146,11 +149,44 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     visibilityRules: [],
     classification: null,
     confirmedSpecial: false,
+    requiresApproval: null,
   };
 }
 
+/**
+ * What a field defaults to when nobody chose (PEO-077), as People computes
+ * it: on for financial data and for anything stored encrypted.
+ */
+export function approvalByDefault(dataType: DataType, piiKind: string): boolean {
+  return piiKind === 'financial' || dataType === 'bank_account' || dataType === 'national_id';
+}
+
 /** What stops each step from moving on, or null when it may. */
-function problemsIn(step: number, draft: Draft, keyTaken: (key: string) => boolean) {
+/**
+ * A condition on special-category data leaks through completeness: "missing"
+ * tells whoever sees the gap that the condition held. People refuses it
+ * (`PREDICATE_DISCLOSES`); saying so here puts the sentence beside the row.
+ */
+function specialCategoryProblem(
+  predicate: Draft['requiredWhen'],
+  others: readonly PredicateField[],
+): string | null {
+  for (const clause of predicate.clauses) {
+    if (clause.operand !== 'attribute') continue;
+    const named = others.find((f) => f.key === clause.key);
+    if (named?.classification === 'special-category') {
+      return `${named.label} is special-category data, so it cannot decide whether a field is required: a missing value would tell whoever sees it that the condition held.`;
+    }
+  }
+  return null;
+}
+
+function problemsIn(
+  step: number,
+  draft: Draft,
+  keyTaken: (key: string) => boolean,
+  others: readonly PredicateField[],
+) {
   const problems: Partial<
     Record<
       'label' | 'key' | 'options' | 'ownership' | 'requiredWhen' | 'visibility' | 'rules' | 'kind',
@@ -172,7 +208,8 @@ function problemsIn(step: number, draft: Draft, keyTaken: (key: string) => boole
     problems.ownership = 'Somebody has to be able to fill it in.';
   }
   if (step === 1 && draft.requiredness === 'conditional') {
-    const problem = predicateProblem(draft.requiredWhen);
+    const problem =
+      predicateProblem(draft.requiredWhen) ?? specialCategoryProblem(draft.requiredWhen, others);
     if (problem !== null) problems.requiredWhen = problem;
   }
   if (step === 2) {
@@ -268,7 +305,12 @@ export function FieldEditor({
 
   const editing = field !== null;
   const others = fields.filter((f) => f.key !== draft.key);
-  const problems = problemsIn(step, draft, (key) => !editing && takenKeys.includes(key));
+  const problems = problemsIn(
+    step,
+    draft,
+    (key) => !editing && takenKeys.includes(key),
+    others,
+  );
   const blocked = Object.keys(problems).length > 0;
   const set = (patch: Partial<Draft>): void => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -347,6 +389,7 @@ export function FieldEditor({
       classification: draft.classification,
       piiKind: judged?.piiKind ?? 'none',
       classificationSource: suggested === draft.classification ? 'suggested' : 'human',
+      requiresApproval: draft.requiresApproval,
     });
     setSaving(false);
     if (outcome.ok) onOpenChange(false);
@@ -666,6 +709,30 @@ export function FieldEditor({
               </Stack>
             ) : null}
 
+            {step === 3 ? (
+              <Field orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Checkbox
+                    checked={
+                      draft.requiresApproval ??
+                      approvalByDefault(
+                        draft.dataType,
+                        typeof advice === 'object' && advice !== null ? advice.piiKind : 'none',
+                      )
+                    }
+                    onCheckedChange={(on) => {
+                      set({ requiresApproval: on === true });
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>Changes need a second person to approve them</FieldLabel>
+                <FieldDescription>
+                  Sensitive: a new value is held until another HR member approves it, within seven
+                  days, and is marked Sensitive wherever it is shown. On by default for financial
+                  and encrypted data.
+                </FieldDescription>
+              </Field>
+            ) : null}
             {step === 3 ? (
               <Classify
                 advice={advice}

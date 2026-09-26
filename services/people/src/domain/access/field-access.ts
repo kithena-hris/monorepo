@@ -37,7 +37,32 @@ export interface ViewerRelations {
    * some records, and those questions answer for all of them.
    */
   readonly subject?: PersonFacts;
+  /**
+   * The attributes an external system is the source of record for on this
+   * person, and which system (PEO-073, PRD §13.6): every other writer is
+   * refused, naming it. Absent for a question about everybody, and for a
+   * record no external system mirrors.
+   */
+  readonly sources?: ReadonlyMap<string, ExternalSource>;
+  /**
+   * Set when the one asking is an integration, not a person: the SCIM
+   * connection's id. It holds no scope and no writer role; it reads and
+   * writes exactly the attributes `sources` says it owns.
+   */
+  readonly integrationId?: string;
 }
+
+/** The external system that owns an attribute on a mirrored record. */
+export interface ExternalSource {
+  readonly connectionId: string;
+  /** What the tenant calls it — "Okta", "Workday" — as a refusal names it. */
+  readonly system: string;
+}
+
+/** Whether this integration owns this attribute here. */
+const ownedByIntegration = (definition: AttributeDefinition, viewer: ViewerRelations): boolean =>
+  viewer.integrationId !== undefined &&
+  viewer.sources?.get(definition.key)?.connectionId === viewer.integrationId;
 
 /** Which scopes this viewer satisfies. `directory` is everyone in the tenant. */
 function scopesOf(viewer: ViewerRelations): ReadonlySet<ViewerScope> {
@@ -71,6 +96,16 @@ function rolesOf(viewer: ViewerRelations): ReadonlySet<WriterRole> {
  * fallback: editing the schema is not a key to every value in it.
  */
 export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelations): boolean {
+  // An integration reads back what it is the source of, and never a sealed
+  // or special-category value: those are never mapped, and if a field was
+  // tightened after it was, this is where that holds.
+  if (viewer.integrationId !== undefined) {
+    return (
+      ownedByIntegration(definition, viewer) &&
+      !definition.encrypted &&
+      definition.classification.classification !== 'special-category'
+    );
+  }
   const scopes = scopesOf(viewer);
   if (definition.visibility.some((scope) => scopes.has(scope))) return true;
 
@@ -85,6 +120,19 @@ export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelatio
     (rule) =>
       rule.scopes.some((scope) => scopes.has(scope)) && evaluatePredicate(rule.when, subject).holds,
   );
+}
+
+/**
+ * Whether this viewer may read a person's employment status (§6.3).
+ *
+ * Status is a lifecycle state, not an attribute, so no visibility setting or
+ * rule reaches it. HR reads it, and the person reads their own; nobody else
+ * does. "On leave" or "on notice" shown to a manager or a peer is the
+ * disclosure §7 refuses a visibility rule for, and finance and `people_admin`
+ * need it for nothing they do. A withheld status is absent, like a field.
+ */
+export function statusVisibleTo(viewer: ViewerRelations): boolean {
+  return viewer.isHr || viewer.isSelf;
 }
 
 /**
@@ -149,6 +197,28 @@ export function canWrite(definition: AttributeDefinition, viewer: ViewerRelation
   if (definition.deprecatedAt !== null) {
     return err(
       failure('FIELD_DEPRECATED', `${definition.key} is no longer collected`, [definition.key]),
+    );
+  }
+
+  // One writer per fact at a time (§7 rule 1): where an external system is
+  // the source of record, it writes and nobody else does.
+  if (viewer.integrationId !== undefined) {
+    return ownedByIntegration(definition, viewer)
+      ? ok(undefined)
+      : err(
+          failure('FIELD_NOT_WRITABLE', `${definition.key} is not mapped to this integration`, [
+            definition.key,
+          ]),
+        );
+  }
+  const source = viewer.sources?.get(definition.key);
+  if (source !== undefined) {
+    return err(
+      failure(
+        'SOURCE_OF_RECORD_EXTERNAL',
+        `${definition.key} is kept in ${source.system}; change it there`,
+        [definition.key],
+      ),
     );
   }
 

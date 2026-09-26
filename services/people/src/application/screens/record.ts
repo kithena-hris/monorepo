@@ -1,6 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, localDate, ok, type Clock, type Result } from '@kithena/domain-kit';
-import type { AttributeDefinition, WriterRole } from '@kithena/contracts';
+import { requiresApproval, type AttributeDefinition, type WriterRole } from '@kithena/contracts';
 
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -132,6 +132,7 @@ function fieldOf(
         ? people
         : [];
   const readOnly = !canWrite(d, relations).ok;
+  const keptIn = relations.sources?.get(d.key)?.system;
   return {
     key: d.key,
     label: label(d),
@@ -141,7 +142,9 @@ function fieldOf(
     required: d.requiredness.mode === 'always' || missing.has(d.key),
     readOnly,
     ...(config.kind === 'money' && config.currency !== null ? { currency: config.currency } : {}),
-    ...(readOnly ? { ownedBy: ownedBy(d) } : {}),
+    ...(readOnly ? { ownedBy: keptIn ?? ownedBy(d) } : {}),
+    ...(keptIn === undefined ? {} : { keptIn }),
+    sensitive: requiresApproval(d),
   };
 }
 
@@ -201,7 +204,7 @@ export function fromForm(definition: AttributeDefinition | undefined, value: unk
 }
 
 /** A form's changed values as the write path takes them, and the definitions they name. */
-async function formChanges(
+export async function formChanges(
   deps: ScreenDeps,
   tx: Tx,
   tenantId: string,
@@ -219,7 +222,7 @@ async function formChanges(
 }
 
 /** The findings worth a warning: anything worse than `ok`, labelled for a form (PEO-125). */
-function warnings(
+export function warnings(
   byKey: ReadonlyMap<string, AttributeDefinition>,
   found: readonly AttributeFindings[],
 ): IdentifierFindingView[] {
@@ -244,23 +247,38 @@ function warnings(
 /**
  * Save one section of a record, from a form: only what changed, as one
  * `profile_updated`. Answered with what the country checks found on any
- * national identifier it carried (PEO-125): saved all the same.
+ * national identifier it carried (PEO-125): saved all the same; and with the
+ * fields it sent to HR for approval rather than saved (PEO-077).
  */
 export async function saveSection(
   deps: ScreenDeps,
   asking: Asking,
   personId: string,
   changed: Readonly<Record<string, unknown>>,
-): Promise<Result<{ readonly ok: true; readonly findings: readonly IdentifierFindingView[] }>> {
+): Promise<
+  Result<{
+    readonly ok: true;
+    readonly findings: readonly IdentifierFindingView[];
+    /** Present only when something was held; a retry answers without it. */
+    readonly held?: readonly string[];
+  }>
+> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const form = await formChanges(deps, tx, asking.tenantId, changed);
     if (!form.ok) return form;
     const { changes, byKey } = form.value;
-    if (Object.keys(changes).length === 0) return ok({ ok: true as const, findings: [] });
+    const none: IdentifierFindingView[] = [];
+    if (Object.keys(changes).length === 0) return ok({ ok: true as const, findings: none });
     const saved = await deps.service.access.update(tx, { ...asking, personId, changes });
-    return saved.ok
-      ? ok({ ok: true as const, findings: warnings(byKey, saved.value.findings ?? []) })
-      : saved;
+    if (!saved.ok) return saved;
+    const held = (saved.value.held ?? []).map(
+      (h) => byKey.get(h.attributeKey)?.label.default ?? h.attributeKey,
+    );
+    return ok({
+      ok: true as const,
+      findings: warnings(byKey, saved.value.findings ?? []),
+      ...(held.length === 0 ? {} : { held }),
+    });
   });
 }
 

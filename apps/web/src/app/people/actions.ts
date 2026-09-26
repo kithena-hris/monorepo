@@ -43,13 +43,30 @@ function formInputs(changed: Values): Record<string, unknown>[] {
 
 /** What People's checks warned about on a national identifier (PEO-125). Never the value. */
 type Finding = Readonly<Record<string, string>>;
+/**
+ * A save's answer: what the checks found, and what it sent to HR for approval
+ * instead of saving (PEO-077) — the fields' labels for a form, a count for the
+ * grid.
+ */
 export type Saved =
-  | { readonly ok: true; readonly findings: readonly Finding[] }
+  | {
+      readonly ok: true;
+      readonly findings: readonly Finding[];
+      readonly held?: readonly string[] | number;
+    }
   | { readonly ok: false; readonly message: string };
 
-const saved = async (answer: Promise<PeopleAnswer<{ findings?: Finding[] }>>): Promise<Saved> => {
+const saved = async (
+  answer: Promise<PeopleAnswer<{ findings?: Finding[]; held?: readonly string[] | number | null }>>,
+): Promise<Saved> => {
   const a = await answer;
-  return a.ok ? { ok: true, findings: a.data.findings ?? [] } : { ok: false, message: a.message };
+  if (!a.ok) return { ok: false, message: a.message };
+  const held = a.data.held;
+  return {
+    ok: true,
+    findings: a.data.findings ?? [],
+    ...(held === undefined || held === null ? {} : { held }),
+  };
 };
 
 export async function saveOwnSection(sectionKey: string, changed: Values): Promise<Saved> {
@@ -157,6 +174,46 @@ const gridChanges = (changes: GridChanges) =>
     personId: c.personId,
     values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
   }));
+
+/* ----------------------------------------------------------- bulk edit -- */
+
+/** A page of a bulk edit (PEO-071): the same values for these people, from one date. */
+export interface BulkEditPage {
+  readonly personIds: readonly string[];
+  readonly values: Values;
+  readonly effectiveFrom: string;
+  /** HR writes values that need approval straight through (PEO-077). */
+  readonly applySensitiveWithoutApproval?: boolean;
+}
+export type BulkEdited =
+  | { readonly ok: true; readonly committed: boolean; readonly rows: readonly unknown[] }
+  | { readonly ok: false; readonly message: string };
+
+const bulk = async (answer: Promise<PeopleAnswer<never>>): Promise<BulkEdited> => {
+  const a = await answer;
+  if (!a.ok) return { ok: false, message: a.message };
+  const result = VIEWS.BulkEditResult(a.data) as {
+    committed: boolean;
+    rows: unknown[];
+  };
+  return { ok: true, committed: result.committed, rows: result.rows };
+};
+const bulkVariables = (page: BulkEditPage) => ({
+  personIds: [...page.personIds],
+  values: formInputs(page.values),
+  effectiveFrom: page.effectiveFrom,
+  ...(page.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
+});
+
+/** What this page would change and refuse, per person; nothing is kept. */
+export async function previewBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
+  return bulk(people('BulkEditPreview', bulkVariables(page)));
+}
+
+/** This page, written: one ordinary, effective-dated write per person. */
+export async function commitBulkEdit(page: BulkEditPage): Promise<BulkEdited> {
+  return bulk(people('BulkEditPeople', bulkVariables(page)));
+}
 
 /**
  * People a person field may name, found by name over everybody, as the
@@ -277,11 +334,62 @@ export async function replayDelivery(deliveryId: string): Promise<Outcome> {
   return outcome(people('ReplayWebhookDelivery', { deliveryId }));
 }
 
+/* --------------------------------------------------------------- SCIM -- */
+
+export type WithToken =
+  { readonly ok: true; readonly token: string } | { readonly ok: false; readonly message: string };
+
+const withToken = (answer: PeopleAnswer<{ token: string | null }>): WithToken =>
+  !answer.ok
+    ? { ok: false, message: answer.message }
+    : answer.data.token === null
+      ? { ok: false, message: 'Done, but the token was not shown. Rotate it to see a new one.' }
+      : { ok: true, token: answer.data.token };
+
+export async function createScimConnection(system: string): Promise<WithToken> {
+  return withToken(await people('CreateScimConnection', { system }));
+}
+
+export async function rotateScimToken(id: string): Promise<WithToken> {
+  return withToken(await people('RotateScimToken', { id }));
+}
+
+export async function revokeScimConnection(id: string): Promise<Outcome> {
+  return outcome(people('RevokeScimConnection', { id }));
+}
+
+export async function setScimMapping(
+  id: string,
+  mapping: readonly { readonly path: string; readonly key: string }[],
+): Promise<Outcome> {
+  return outcome(
+    people('SetScimMapping', { id, mapping: mapping.map((m) => ({ path: m.path, key: m.key })) }),
+  );
+}
+
 /* --------------------------------------------------------- full values -- */
 
 /** Finance asks for sealed fields in full, with a reason (PEO-088); HR decides. */
 export async function requestFullValues(fields: readonly string[], reason: string): Promise<Outcome> {
   return outcome(people('RequestFullValues', { fields: [...fields], reason }));
+}
+
+/* ---------------------------------------------- approvals (PEO-077) -- */
+
+/** HR approves or rejects a change held for approval; People decides who may. */
+export async function decidePendingChange(
+  id: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Outcome> {
+  return outcome(
+    people('DecidePendingChange', { id, approve, ...(note === null ? {} : { note }) }),
+  );
+}
+
+/** The requester takes their change back while it waits. */
+export async function withdrawPendingChange(id: string): Promise<Outcome> {
+  return outcome(people('WithdrawPendingChange', { id }));
 }
 
 export async function decideFullValues(
@@ -486,8 +594,15 @@ export async function dryRunImport(
 export async function commitImport(
   uploadId: string,
   mapping: Readonly<Record<number, string | null>>,
+  applySensitiveWithoutApproval = false,
 ): Promise<Staged> {
-  return staged(people('CommitImport', { uploadId, mapping: columns(mapping) }));
+  return staged(
+    people('CommitImport', {
+      uploadId,
+      mapping: columns(mapping),
+      ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+    }),
+  );
 }
 
 /* -------------------------------------------------------------- export -- */

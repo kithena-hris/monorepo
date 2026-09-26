@@ -23,6 +23,7 @@ import { useState, type JSX } from 'react';
 import { Loaded, type Loadable } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, RecordField, RecordSection, Values } from '../record/model';
+import { SensitiveMark } from '../record/pending';
 
 /** One recorded change (PEO-064). A sealed field's reads `{ last4: null }`: it changed, nothing more. */
 export interface HistoryChange {
@@ -165,7 +166,10 @@ function History({
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
             {section.fields.map((field) => (
               <div key={field.key} className="contents">
-                <dt className="text-sm text-fg-muted">{field.label}</dt>
+                <dt className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+                  {field.label}
+                  <SensitiveMark field={field} />
+                </dt>
                 <dd className="text-sm">
                   {state.asOf !== null && !dated.has(field.key) ? (
                     <span className="text-fg-muted">Not kept by date</span>

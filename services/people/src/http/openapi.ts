@@ -10,6 +10,9 @@ import {
   CreateFullValuesBody,
   FullValuesBody,
   FullValuesDecisionBody,
+  PendingChangeBody,
+  PendingChangeDecisionBody,
+  PendingChangesBody,
   CreatePersonBody,
   ExportBody,
   ErrorBody,
@@ -41,8 +44,11 @@ import {
 import { EmploymentPeriodsBody, LIFECYCLE_ACTIONS, NoBody } from './lifecycle.js';
 import {
   Advice,
+  BulkEditBody,
   Entity,
   EndpointBody,
+  ScimConnectionBody,
+  ScimMappingBody,
   EndpointPatch,
   Field,
   Grid,
@@ -54,6 +60,7 @@ import {
   ImportStepBody,
   SegmentBody,
   PayBandBody,
+  ScheduleBody,
   UploadStart,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
@@ -107,9 +114,13 @@ const components = {
   CreateFullValues: CreateFullValuesBody,
   FullValuesDecision: FullValuesDecisionBody,
   FullValues: FullValuesBody,
+  PendingChange: PendingChangeBody,
+  PendingChanges: PendingChangesBody,
+  PendingChangeDecision: PendingChangeDecisionBody,
   // The screens' writes (PEO-098, keyed and documented in PEO-116).
   SectionChanges: Sections,
   CompletenessChanges: Grid,
+  BulkEdit: BulkEditBody,
   NewSection: Label,
   Order,
   DraftField: Field,
@@ -119,10 +130,13 @@ const components = {
   SetupChoice,
   CreateWebhookEndpoint: EndpointBody,
   PatchWebhookEndpoint: EndpointPatch,
+  CreateScimConnection: ScimConnectionBody,
+  ScimMapping: ScimMappingBody,
   ImportUploadStart: UploadStart,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
   PayBand: PayBandBody,
+  ReportSchedule: ScheduleBody,
   RoleHolder: RoleHolderBody,
   RoleHolders: z.object({ items: z.array(RoleHolderBody) }),
   RoleChange: RoleChangeBody,
@@ -230,6 +244,23 @@ function screenPaths(): Record<string, unknown> {
         'Saved',
       ),
     },
+    '/v1/views/bulk-edit/preview': {
+      post: screenWrite(
+        'What a bulk edit would change and refuse, per person, and why (PEO-071); nothing is kept',
+        'BulkEdit',
+        200,
+        '{ committed: false, rows }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/bulk-edit': {
+      post: screenWrite(
+        'A page of a bulk edit: one write per person, each atomic, each answered',
+        'BulkEdit',
+        200,
+        '{ committed: true, rows }',
+      ),
+    },
     '/v1/schema/draft/sections': {
       post: screenWrite('Add a section to the draft', 'NewSection', 201, 'Added'),
     },
@@ -296,6 +327,41 @@ function screenPaths(): Record<string, unknown> {
         { path: 'id' },
       ),
     },
+    '/v1/scim/connections': {
+      post: screenWrite(
+        'Connect an upstream system to provision people over SCIM; people_admin only',
+        'CreateScimConnection',
+        201,
+        '{ id, token }. A retry answers { id }: the token is shown once',
+      ),
+    },
+    '/v1/scim/connections/{id}/rotate': {
+      post: screenWrite(
+        "Rotate a connection's token; the old one authenticates for 24 hours more",
+        null,
+        200,
+        '{ id, token }. A retry answers { id }: the token is shown once',
+        { path: 'id' },
+      ),
+    },
+    '/v1/scim/connections/{id}/revoke': {
+      post: screenWrite(
+        'Disconnect: its tokens stop at once and it owns no attribute any more',
+        null,
+        200,
+        'Revoked',
+        { path: 'id' },
+      ),
+    },
+    '/v1/scim/connections/{id}/mapping': {
+      put: screenWrite(
+        'Set the approved mapping; every attribute it names is kept in that system (PEO-073)',
+        'ScimMapping',
+        200,
+        'Set',
+        { path: 'id' },
+      ),
+    },
     '/v1/webhooks/deliveries/{id}/replay': {
       post: screenWrite('Send a stored delivery again', null, 201, '{ deliveryId }', {
         path: 'id',
@@ -324,6 +390,31 @@ function screenPaths(): Record<string, unknown> {
     },
     '/v1/segments/{id}': {
       delete: screenWrite('Delete a segment you saved', null, 200, 'Deleted', { path: 'id' }),
+    },
+    '/v1/report-schedules': {
+      post: screenWrite(
+        'Schedule a report (PEO-069): an export file or the analytics summary, built as each recipient on every run and emailed as a link; HR or people_admin',
+        'ReportSchedule',
+        201,
+        'The schedule. It first runs at the next period, not now',
+      ),
+    },
+    '/v1/report-schedules/{id}/pause': {
+      post: screenWrite('Pause a scheduled report', null, 200, 'The schedule', { path: 'id' }),
+    },
+    '/v1/report-schedules/{id}/resume': {
+      post: screenWrite(
+        'Resume a scheduled report from the next period; what it was paused through is not sent',
+        null,
+        200,
+        'The schedule',
+        { path: 'id' },
+      ),
+    },
+    '/v1/report-schedules/{id}': {
+      delete: screenWrite('Delete a scheduled report and its run history', null, 200, 'Deleted', {
+        path: 'id',
+      }),
     },
     '/v1/imports/uploads': {
       post: screenWrite(
@@ -585,6 +676,50 @@ export function openApiDocument(): Record<string, unknown> {
           parameters: [id, idempotencyKey],
           requestBody: { required: true, ...json('FullValuesDecision') },
           responses: { 200: { description: 'The request', ...json('FullValues') }, ...failure },
+        },
+      },
+      '/v1/pending-changes': {
+        get: {
+          summary:
+            'Changes waiting for approval: every one in the tenant for HR, the caller’s own otherwise; oldest first',
+          responses: {
+            200: { description: 'Open changes', ...json('PendingChanges') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/pending-changes/{id}': {
+        get: {
+          summary: 'One change, to its requester, HR, or a reader of the field while it waits',
+          parameters: [id],
+          responses: { 200: { description: 'The change', ...json('PendingChange') }, ...failure },
+        },
+      },
+      '/v1/pending-changes/{id}/decision': {
+        post: {
+          summary:
+            'HR approves or rejects; never the requester or the subject. An approval applies the value from its effectiveFrom',
+          parameters: [id, idempotencyKey],
+          requestBody: { required: true, ...json('PendingChangeDecision') },
+          responses: { 200: { description: 'The change', ...json('PendingChange') }, ...failure },
+        },
+      },
+      '/v1/pending-changes/{id}/withdrawal': {
+        post: {
+          summary: 'The requester takes it back while it waits',
+          parameters: [id, idempotencyKey],
+          responses: { 200: { description: 'The change', ...json('PendingChange') }, ...failure },
+        },
+      },
+      '/v1/people/{id}/pending-changes': {
+        get: {
+          summary:
+            'This person’s changes waiting for HR, on fields the caller reads, masked as the field is; never in attributes',
+          parameters: [id],
+          responses: {
+            200: { description: 'Open changes', ...json('PendingChanges') },
+            ...failure,
+          },
         },
       },
       '/v1/exports/{id}': {

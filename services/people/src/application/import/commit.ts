@@ -5,6 +5,7 @@ import { ImportCompleted, ImportStarted, type Actor } from '@kithena/contracts';
 import { currentValue } from '../../domain/person/history.js';
 import { REPORT_LIFETIME_MS, type ObjectStore } from '../export/object-store.js';
 import { inTenantResult, type Asking, type PersonAccess } from '../person/person-access.js';
+import { holds } from '../person/pending-changes.js';
 import type { InTenant } from '../person/service.js';
 import { writeCsv } from './csv.js';
 import { PERSON_ID_COLUMN } from './parse.js';
@@ -197,6 +198,11 @@ export type CommitResult =
       readonly effectiveFrom: DryRun['effectiveFrom'];
       /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
       readonly findings: DryRun['findings'];
+      /**
+       * Values the rows written carried for fields that require approval
+       * (PEO-077): held for HR, unless HR applied them without approval.
+       */
+      readonly held: number;
     };
 
 interface Outcome {
@@ -312,10 +318,25 @@ export async function commitImport(
     expiresAt,
   });
 
+  const version = await deps.schemas.current(tx, input.tenantId);
+  const sensitive = new Set(
+    (version?.document.attributes ?? []).filter((d) => holds(d)).map((d) => d.key as string),
+  );
+  const held =
+    input.applySensitiveWithoutApproval === true
+      ? 0
+      : outcomes
+          .filter((o) => o.written === 'created' || o.written === 'updated')
+          .reduce(
+            (n, o) => n + Object.keys(o.row.changes).filter((k) => sensitive.has(k)).length,
+            0,
+          );
+
   return ok({
     status: 'imported',
     importId,
     counts,
+    held,
     report: blocked,
     reportUrl: await signReport(deps, input.tenantId, input.file.checksum, expiresAt),
     ignoredColumns: plan.ignoredColumns,
@@ -418,6 +439,9 @@ async function write(
     tenantId: input.tenantId,
     viewer: input.viewer,
     correlationId: input.correlationId,
+    ...(input.applySensitiveWithoutApproval === true
+      ? { applySensitiveWithoutApproval: true }
+      : {}),
   };
 
   const done = await deps.rowScope(tx, async (sp) => {

@@ -388,6 +388,11 @@ function FieldRow({
               {pending.text}
             </Badge>
           )}
+          {field.requiresApproval === true ? (
+            <Badge tone="sensitive" size="sm" className="ms-2 align-middle">
+              Sensitive
+            </Badge>
+          ) : null}
         </p>
         <p className="truncate font-mono text-xs text-fg-muted">{field.key}</p>
       </div>

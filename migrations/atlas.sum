@@ -1,4 +1,4 @@
-h1:Hcoem+UgReEMwYgk2gyr4aY5nSG9jYz9YtPXHu4G1ow=
+h1:e7iFvh3/iPmOCUKnLvN9ZI2geGKl7g6tpxPdZUURGj0=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -49,4 +49,7 @@ h1:Hcoem+UgReEMwYgk2gyr4aY5nSG9jYz9YtPXHu4G1ow=
 20260926130000_people_segment.sql h1:e3Dr16KEn/KE2j68mBsE655Vi+vhAMVrLflQudPGnfc=
 20260926140000_people_visibility_rules.sql h1:N0JmbXroxGVIk9K79bXMBK9UEm/acaw7LcaiDbWwwUM=
 20260926143000_people_duplicates.sql h1:CVONpbVbaMg6aG7Le2ao5iQZlA473g+w3PmS7mQJxbs=
-20260926150000_people_pay.sql h1:Hcoem+UgReEMwYgk2gyr4aY5nSG9jYz9YtPXHu4G1ow=
+20260926160000_people_scim.sql h1:CzLRWAdY2Os0t+xksm6l5MqeBfFkHmHEKTnabLz9S1A=
+20260926170000_people_report_schedule.sql h1:YOdQ9oABuzmAL7nUIp07HCj5AL5AY3OwilSLakr6YOA=
+20260926180000_people_pending_change.sql h1:6zTgUi35XZ7lPIQWVyyC17zXBWiYguKe+p9RX69fDJ4=
+20260926190000_people_pay.sql h1:e7iFvh3/iPmOCUKnLvN9ZI2geGKl7g6tpxPdZUURGj0=

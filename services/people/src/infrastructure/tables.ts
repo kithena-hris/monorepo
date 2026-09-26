@@ -66,6 +66,8 @@ export const attributeDefinition = people.table(
     visibility: text('visibility').array().notNull(),
     /** Custom visibility rules (PEO-066); null for none. */
     visibilityRules: jsonb('visibility_rules'),
+    /** The tenant's choice (PEO-077); null for the default from the policy. */
+    requiresApproval: boolean('requires_approval'),
     collectAt: text('collect_at').notNull(),
     classification: jsonb('classification').notNull(),
     classificationSource: text('classification_source').notNull(),

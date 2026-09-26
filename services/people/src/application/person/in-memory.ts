@@ -13,7 +13,7 @@ import type { Attribute, Section } from '../../domain/schema/draft.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
-import type { PersonRecord, PersonSearch } from './ports.js';
+import { LEAVERS, type PersonRecord, type PersonSearch } from './ports.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import type { IdentifierReview } from '../../domain/person/identifier-review.js';
 import { utcCalendars } from '../org/org.js';
@@ -96,6 +96,7 @@ function toRecord(row: Row): PersonRecord {
     legalEntityId: row.fields.legalEntityId ?? null,
     employmentType: row.fields.employmentType ?? null,
     workModel: row.fields.workModel ?? null,
+    sourceOfRecord: row.fields.sourceOfRecord ?? 'own',
   };
 }
 
@@ -114,6 +115,7 @@ export interface InMemoryPeople {
       account?: string | null;
       fields?: Partial<PersonFields>;
       custom?: Record<string, unknown>;
+      status?: PersonSnapshot['status'];
     },
   ): void;
 }
@@ -185,7 +187,9 @@ export function inMemoryPeople(
     r: Row,
     where: Readonly<Record<string, string>>,
     search: PersonSearch | undefined,
+    leavers = true,
   ): boolean => {
+    if (!leavers && (LEAVERS as readonly string[]).includes(r.snapshot.status)) return false;
     if (!Object.entries(where).every(([k, v]) => r.fields.custom[k] === v)) return false;
     const text = search?.text.trim().toLocaleLowerCase('en') ?? '';
     if (text === '') return true;
@@ -212,17 +216,17 @@ export function inMemoryPeople(
         const row = rows.get(id);
         return Promise.resolve(row ? toRecord(row) : null);
       },
-      page: (_tx, _tenant, after, limit, where = {}, search) =>
+      page: (_tx, _tenant, after, limit, where = {}, search, _gaps, leavers = true) =>
         Promise.resolve(
           [...rows.values()]
             .filter((r) => after === null || r.snapshot.id > after)
-            .filter((r) => matches(r, where, search))
+            .filter((r) => matches(r, where, search, leavers))
             .toSorted((a, b) => a.snapshot.id.localeCompare(b.snapshot.id))
             .slice(0, limit)
             .map(toRecord),
         ),
-      count: (_tx, _tenant, where = {}, search) => {
-        const found = [...rows.values()].filter((r) => matches(r, where, search));
+      count: (_tx, _tenant, where = {}, search, leavers = true) => {
+        const found = [...rows.values()].filter((r) => matches(r, where, search, leavers));
         return Promise.resolve({
           all: found.length,
           active: found.filter((r) => r.snapshot.status === 'active').length,
@@ -288,13 +292,14 @@ export function inMemoryPeople(
       account?: string | null;
       fields?: Partial<PersonFields>;
       custom?: Record<string, unknown>;
+      status?: PersonSnapshot['status'];
     } = {},
   ): void {
     rows.set(id, {
       snapshot: {
         id,
         tenantId: TENANT,
-        status: 'active',
+        status: over.status ?? 'active',
         identityAccountId: over.account ?? null,
         hireDate: '2026-01-01',
         lastWorkingDay: null,

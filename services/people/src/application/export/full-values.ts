@@ -288,6 +288,8 @@ export async function settleFullValues(
     case 'pending':
       return ok('pending');
     case 'rejected':
+    // Nothing withdraws a full-values request; the rules are shared (PEO-077).
+    case 'withdrawn':
       return ok('rejected');
     case 'expired': {
       if (prior.approval.state === 'expired') return ok('expired');
