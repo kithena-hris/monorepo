@@ -205,4 +205,40 @@ describe('tenant roles in People', () => {
     const adam = await inTenant(ACME, ({ tx }) => roles.list(tx, as(ADAM.account)));
     expect(adam.ok ? null : adam.error.code).toBe('FORBIDDEN');
   });
+  it('takes back what the back office gave when it removes somebody, never the last people_admin', async () => {
+    const backOffice = {
+      tenantId: ACME,
+      accountId: ADAM.account,
+      correlationId: '00000000-0000-4000-8000-00000000c0de',
+      causationId: null,
+    };
+    await inTenant(ACME, ({ tx }) => roles.administratorNamed(tx, backOffice));
+    expect(await inTenant(ACME, ({ tx }) => roles.administratorRemoved(tx, backOffice))).toBe(
+      'applied',
+    );
+    expect((await inTenant(ACME, ({ tx }) => roles.of(tx, ACME, ADAM.account))).roles).toEqual([]);
+    const revoked = await admin<{ payload: { role: string; via: string } }[]>`
+      SELECT envelope -> 'payload' AS payload FROM people.outbox
+       WHERE event_name = 'people.role.revoked' AND envelope -> 'payload' ->> 'accountId' = ${ADAM.account}
+       ORDER BY created_at, event_id`;
+    expect(revoked.map((r) => [r.payload.role, r.payload.via])).toEqual([
+      ['people_admin', 'back_office'],
+      ['hr', 'back_office'],
+    ]);
+    // Removing again changes nothing.
+    expect(await inTenant(ACME, ({ tx }) => roles.administratorRemoved(tx, backOffice))).toBe(
+      'unchanged',
+    );
+
+    // The one administrator left keeps the role: nobody else could grant anything.
+    const [last] = await admin<{ account_id: string }[]>`
+      SELECT account_id FROM people.role_grant WHERE tenant_id = ${ACME} AND role = 'people_admin'`;
+    const lastOne = { ...backOffice, accountId: last?.account_id ?? '' };
+    expect(await inTenant(ACME, ({ tx }) => roles.administratorRemoved(tx, lastOne))).toBe(
+      'unchanged',
+    );
+    expect((await inTenant(ACME, ({ tx }) => roles.of(tx, ACME, lastOne.accountId))).roles).toContain(
+      'people_admin',
+    );
+  });
 });

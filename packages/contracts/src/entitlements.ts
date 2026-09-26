@@ -24,11 +24,20 @@ export const OFFERED_MODULES: readonly ModuleEntitlement[] = ['module.people', '
 
 /**
  * Modules that cannot be switched on without naming who administers them
- * (PEO-112). The back office names an existing account; the module grants it
- * its administrator role from `identity.tenant.administrator_named`. Nobody
- * is an administrator because they happened to be first.
+ * (PEO-112). The back office names one or more existing accounts; the module
+ * grants each its administrator role from `identity.tenant.administrator_named`
+ * and takes it back on `identity.tenant.administrator_removed`. Nobody is an
+ * administrator because they happened to be first.
+ *
+ * Every module Kithena offers: an operator names who runs each, the same
+ * people for all or different ones. A module with no roles of its own yet
+ * (Time off) receives the naming and ignores it until it has somebody to
+ * grant.
  */
-export const ADMINISTERED_MODULES: readonly ModuleEntitlement[] = ['module.people'];
+export const ADMINISTERED_MODULES: readonly ModuleEntitlement[] = [
+  'module.people',
+  'module.timeoff',
+];
 
 /**
  * A list of modules from configuration or storage: the known ones, once

@@ -179,7 +179,7 @@ describe('the modules the company bought (PEO-114)', () => {
     const result = await provisionTenant(d)({
       ...request,
       entitlements: ['module.timeoff', 'module.people'],
-      administrators: { 'module.people': 'ada@acme.example' },
+      administrators: { 'module.people': 'ada@acme.example', 'module.timeoff': ['ada@acme.example'] },
     });
     expect(result.ok).toBe(true);
     expect(d.written.slice(0, 3)).toEqual([
@@ -207,8 +207,30 @@ describe('the modules the company bought (PEO-114)', () => {
     expect(d.written.at(-1)).toBe('administrator:module.people:acct-grace@acme.example:op-1');
   });
 
+  it('names several administrators, for every module switched on', async () => {
+    const d = deps();
+    const both = ['ada@acme.example', 'Grace@acme.example'];
+    const result = await provisionTenant(d)({
+      ...request,
+      entitlements: ['module.people', 'module.timeoff'],
+      administrators: { 'module.people': both, 'module.timeoff': both },
+    });
+    expect(result.ok).toBe(true);
+    expect(d.written.filter((w) => w.startsWith('administrator:'))).toEqual([
+      'administrator:module.people:acct-ada@acme.example:null',
+      'administrator:module.people:acct-grace@acme.example:null',
+      'administrator:module.timeoff:acct-ada@acme.example:null',
+      'administrator:module.timeoff:acct-grace@acme.example:null',
+    ]);
+  });
+
   it('will not switch People on without naming one of the administrators', async () => {
-    for (const administrators of [{}, { 'module.people': 'someone@else.example' }]) {
+    for (const administrators of [
+      {},
+      { 'module.people': 'someone@else.example' },
+      { 'module.people': [] },
+      { 'module.people': ['ada@acme.example', 'someone@else.example'] },
+    ]) {
       const d = deps();
       const result = await provisionTenant(d)({
         ...request,

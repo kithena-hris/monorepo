@@ -40,7 +40,8 @@ interface Draft {
   themeId: string;
   timeZone: string;
   entitlements: string[];
-  administrators: Record<string, string>;
+  /** Module → the emails of the invited administrators who run it (PEO-112). */
+  administrators: Record<string, string[]>;
 }
 
 export default async function NewCompany(): Promise<JSX.Element> {

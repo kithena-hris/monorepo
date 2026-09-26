@@ -18,6 +18,7 @@ import {
   RoleRevoked,
   SchemaPublished,
   TenantAdministratorNamed,
+  TenantAdministratorRemoved,
   TenantAmended,
   TenantEntitlementsChanged,
   TenantProvisioned,
@@ -231,6 +232,23 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         return deps.inTenant(event.tenantId, async ({ tx }) => {
           await rememberTenant(tx, event.tenantId);
           return roles.administratorNamed(tx, {
+            tenantId: event.tenantId,
+            accountId: event.payload.accountId,
+            correlationId: event.correlationId,
+            causationId: event.eventId,
+          });
+        });
+      }
+
+      /* The back office took somebody off People's administrators. */
+      case TenantAdministratorRemoved.name: {
+        const event = parse(TenantAdministratorRemoved, raw);
+        if (!event) return 'rejected';
+        const { roles } = deps;
+        if (event.payload.entitlement !== 'module.people' || !roles) return 'ignored';
+        return deps.inTenant(event.tenantId, async ({ tx }) => {
+          await rememberTenant(tx, event.tenantId);
+          return roles.administratorRemoved(tx, {
             tenantId: event.tenantId,
             accountId: event.payload.accountId,
             correlationId: event.correlationId,
