@@ -28,7 +28,6 @@
   "devDependencies": {
     "@kithena/testing": "workspace:*",
     "@types/nodemailer": "^8.0.2",
-    "@vercel/node": "^14.0.0",
     "vitest": "^4.1.11"
   }
 }
