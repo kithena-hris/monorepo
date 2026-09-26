@@ -916,16 +916,37 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-065** The full predicate editor for conditional requiredness.
       _(PRD §6.5)_
 - [ ] **PEO-066** Custom visibility rules beyond the presets. _(PRD §6.6)_
-- [ ] **PEO-067** The remaining charts — attrition, tenure, span of control,
+- [x] **PEO-067** The remaining charts — attrition, tenure, span of control,
       joiner heatmap, composition stacked. _(PRD §16.2)_
-- [ ] **PEO-068** Saved segments shared across directory, export and analytics.
+      _Built on the Phase 1 queries (`application/analytics/queries.ts`),
+      shaped by `application/screens/analytics.ts` and drawn with Reach's
+      `TrendChart`, `StackedBarChart`, `BarChart` and `HeatmapChart`, each with
+      its numbers one tap away. Every one reads the snapshot and is a manager's
+      chain for a manager; composition is department by employment type, and
+      a chart over a field the viewer cannot read is absent._
+- [x] **PEO-068** Saved segments shared across directory, export and analytics.
       _(PRD §16.3)_
+      _Landed as `people.segment`: a name, the directory's `key → value`
+      filter, an owner and `shared`. Never a list of people: whoever uses one
+      is authorized as for a typed filter, as themselves and when they use it,
+      so a segment HR shared over an HR-only field shows a manager nobody and
+      is not offered to them. `?segment=` on the directory and analytics,
+      `segmentId` on an export, and each usable segment is an audience in the
+      export builder. Analytics can use only keys the snapshot holds as
+      dimensions (`org_unit`, `work_location`, `status`, `employment_type`);
+      a segment over another key is offered in the directory and export only.
+      Deleting is REST and GraphQL only; the screens have no delete yet._
 - [ ] **PEO-069** Scheduled reports through `platform/messaging` — the email
       carries a link, not the data. _(PRD §16.3)_
-- [ ] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
+- [x] **PEO-070** Aggregate reporting for voluntary self-ID, cohort minimum
       enforced in the query. Its design follows PEO-083: served from the
       monthly publication, rounded to 5, never from the live snapshot.
       _(PRD §6.7, §16.1)_
+      _The analytics screen serves every self-ID question to HR from
+      `selfIdBreakdown`, with the tenant's `cohort_minimum` (default 10, the
+      default still to be confirmed — see PEO-045 under *Blocked*); a withheld
+      question carries no number at all, only the minimum. Never a manager's,
+      never under a segment._
 - [ ] **PEO-071** Bulk edit beyond the completeness grid. _(PRD §8.4)_
 
 ## Phase 3
@@ -945,6 +966,15 @@ Ordered, but none of it blocks Phase 1 shipping.
 - [ ] **PEO-077** Approval workflows on sensitive changes, via Temporal.
 - [ ] **PEO-078** Pay distribution and compa-ratio charts, behind the finance
       relation. _(PRD §16.2)_
+      _Not started: waiting on product decisions the PRD leaves open — where
+      pay bands (minimum, midpoint, maximum per grade and currency) live and
+      who maintains them, since compa-ratio is against a band midpoint and
+      People holds no bands; whether the snapshot may decrypt a sealed
+      (financial) salary in-process to count aggregates; whether the
+      per-person `ScatterChart` of pay against tenure becomes an aggregate
+      per tenure band, since finance sees aggregates only; and which
+      statistics a cell shows (quartiles rather than minimum and maximum,
+      which are one person's salary) under which cohort minimum._
 
 ---
 
