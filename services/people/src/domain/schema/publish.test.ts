@@ -283,3 +283,33 @@ describe('rolling back', () => {
     expect(pointless.error.code).toBe('ALREADY_IN_FORCE');
   });
 });
+
+describe('publishing a requiredness predicate (PEO-065)', () => {
+  const disability: AttributeDefinitionInput = { ...attribute, key: 'disability' };
+  const adjustment: AttributeDefinitionInput = {
+    ...attribute,
+    key: 'workplace_adjustment',
+    requiredness: {
+      mode: 'conditional',
+      when: { combine: 'all', clauses: [{ operand: 'attribute', key: 'disability', is: 'set' }] },
+    },
+  };
+
+  it('refuses once the field it names has become special-category since it was saved', () => {
+    const d = draft();
+    d.addAttribute(disability);
+    expect(d.addAttribute(adjustment).ok).toBe(true);
+    const reclassified = d.updateAttribute('disability', {
+      includeInEvents: false,
+      classification: {
+        classification: 'special-category',
+        piiKind: 'health',
+        exportable: true,
+        aiEligible: false,
+      },
+    });
+    expect(reclassified.ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
+  });
+});

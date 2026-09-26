@@ -504,6 +504,17 @@ renamed. It can say exactly what the grammar can, ten rows at most, and the
 same contract schema refuses anything else at the API boundary. The same
 predicate, and the same evaluator, decides custom visibility rules (§6.6).
 
+**Never on special-category data.** A predicate may not name a
+special-category field. A gap is shown to whoever owns or chases it, and
+"workplace adjustment missing" tells a manager the person has a disability on
+file — the condition leaks through completeness without the field ever being
+read. Refused with `PREDICATE_DISCLOSES` on save and again at publish
+(reclassifying the named field is an edit to a different attribute), and the
+field editor says so beside the condition. A document published before the
+rule that still holds one fails closed: completeness treats the field as not
+required of anybody, shades it the same for everybody, and reports the rule as
+unevaluable so the administrator hears about it.
+
 ### 6.6 Visibility and ownership
 
 **Ownership** is who may write. **Visibility** is who may read. They are
@@ -627,6 +638,14 @@ and never reaches past one. The rules that keep it that way:
   reports' grades. Refused with `VISIBILITY_RULE_DISCLOSES` on save, and again
   at publish, because narrowing or archiving the named field is an edit to a
   different attribute. Special-category fields are never named at all.
+- **Nor what it reads about placement.** A placement fact is held to the same
+  rule through the field it is read from: legal entity through
+  `legal_entity_id`, country through `home_address` and `country`, employment
+  type and work model through `employment_type` and `work_model`. A fact with
+  no such field in the schema is refused too. Status has no field and is HR's
+  alone (the profile's employment panel, §8.1), so "managers see this for
+  people on leave" — which would tell every manager who is on leave — is
+  refused, and a status rule may grant `hr` only.
 - **No subject, no rule.** A rule is decided per record, in `visibleTo`, with
   the person's facts carried on the viewer's relations to them. Wherever the
   question is about everybody — a directory filter, a search, a list's
