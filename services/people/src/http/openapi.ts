@@ -68,6 +68,7 @@ import {
   FileOf,
   FileStart,
   DetailAsk,
+  AskBody,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
@@ -145,6 +146,7 @@ const components = {
   FileUploadStart: FileStart,
   FileOf,
   DetailAsk,
+  AskBody,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
   PayBand: PayBandBody,
@@ -504,6 +506,15 @@ function screenPaths(): Record<string, unknown> {
         200,
         '{ id, name, mediaType, size }',
         { path: 'id' },
+      ),
+    },
+    '/v1/assistant/ask': {
+      post: screenWrite(
+        'A question in words, answered as the asker: the model sees the question and field names only, and People runs the query',
+        'AskBody',
+        200,
+        '{ text, understood, people }',
+        { safe: true },
       ),
     },
     '/v1/views/profile/{id}/requests': {

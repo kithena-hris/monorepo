@@ -62,6 +62,7 @@ import {
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import { requestDetails } from '../application/screens/requests.js';
 import { activityView } from '../application/settings/activity.js';
+import { ask } from '../application/assistant/ask.js';
 import {
   completeFileUpload,
   fileView,
@@ -230,6 +231,7 @@ export const FileOf = z.strictObject({
   key: z.string().min(1).max(64),
 });
 export const SignupAskBody = z.strictObject({ ask: z.enum(['off', 'optional', 'required']) });
+export const AskBody = z.strictObject({ question: z.string().trim().min(1).max(500) });
 export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
@@ -475,6 +477,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/views\/photos\/remove$/,
       handle: write(PhotoOf, (asking, input) => removePhoto(photoDeps, asking, input.personId)),
+    },
+    // A question in words, answered as the asker (Slack, and anywhere else). A read.
+    {
+      method: 'POST',
+      pattern: /^\/v1\/assistant\/ask$/,
+      safe: true,
+      handle: compute(AskBody, (asking, input) => ask(deps, asking, input.question)),
     },
     // The Settings activity log, newest first (`?before=<id>&area=fields`).
     {

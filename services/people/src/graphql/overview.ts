@@ -2,6 +2,7 @@ import type { OverviewView } from '../application/screens/overview.js';
 import type { PhotoView } from '../application/screens/photo.js';
 import type { FileView } from '../application/screens/files.js';
 import type { ActivityView } from '../application/settings/activity.js';
+import type { AssistantAnswer } from '../application/assistant/ask.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
 
 /**
@@ -203,7 +204,34 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
+  const AnswerPerson = builder
+    .objectRef<AssistantAnswer['people'][number]>('PeopleAnswerPerson')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        name: t.exposeString('name'),
+        title: t.exposeString('title', { nullable: true }),
+      }),
+    });
+  const Answer = builder.objectRef<AssistantAnswer>('PeopleAnswer').implement({
+    description:
+      'A question in words, answered as the asker: the model reads only the question and field names; People runs the query.',
+    fields: (t) => ({
+      text: t.exposeString('text'),
+      understood: t.exposeString('understood', { description: 'How the question was read.' }),
+      people: t.field({ type: [AnswerPerson], resolve: (a) => list(a.people) }),
+    }),
+  });
+
   builder.queryFields((t) => ({
+    peopleAsk: t.field({
+      type: Answer,
+      args: { question: t.arg.string({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<AssistantAnswer>(ctx, 'POST', '/v1/assistant/ask', {
+          body: { question: args.question },
+        }),
+    }),
     peopleSettingsActivity: t.field({
       type: Activity,
       args: { before: t.arg.id(), area: t.arg.string() },

@@ -1343,6 +1343,22 @@ type PeopleAnalytics {
 }
 
 """
+A question in words, answered as the asker: the model reads only the question and field names; People runs the query.
+"""
+type PeopleAnswer {
+  people: [PeopleAnswerPerson!]
+  text: String
+  """How the question was read."""
+  understood: String
+}
+
+type PeopleAnswerPerson {
+  id: ID
+  name: String
+  title: String
+}
+
+"""
 Changes waiting for approval: every one for HR, the viewer’s own otherwise.
 """
 type PeopleApprovals {
@@ -1923,6 +1939,7 @@ type Query {
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
   peopleApprovals: PeopleApprovals
+  peopleAsk(question: String!): PeopleAnswer
   peopleBulkEdit(personIds: [ID!]!): PeopleBulkEdit
   """
   What a bulk edit would change and refuse, per person, and why; nothing is kept.

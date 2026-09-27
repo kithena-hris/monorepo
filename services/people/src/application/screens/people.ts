@@ -1125,7 +1125,7 @@ function shownByDefault(d: AttributeDefinition): boolean {
   );
 }
 
-const STATUS_OPTIONS = [
+export const STATUS_OPTIONS = [
   { value: 'provisional', label: 'Not started' },
   { value: 'pre_hire', label: 'Starting soon' },
   { value: 'active', label: 'Active' },
@@ -1135,7 +1135,7 @@ const STATUS_OPTIONS = [
 ];
 
 /** Which kind of condition a field takes; null for one the directory does not filter by. */
-function fieldKind(kind: string): 'text' | 'select' | 'date' | 'number' | 'person' | null {
+export function fieldKind(kind: string): 'text' | 'select' | 'date' | 'number' | 'person' | null {
   switch (kind) {
     case 'select':
     case 'location_ref':

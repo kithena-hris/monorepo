@@ -2,7 +2,8 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { systemClock, type DomainFailure } from '@kithena/domain-kit';
-import { drain, logger, onShutdown } from '@kithena/telemetry';
+import { aiGateway, drain, logger, onShutdown, tenantPolicies, type Prompt } from '@kithena/telemetry';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
@@ -79,6 +80,8 @@ import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
+import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
+import { loadTenantPolicies } from '../infrastructure/policy-registry.js';
 import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
@@ -473,6 +476,20 @@ function detailRequests(calendars: ReturnType<typeof drizzleOrgStore>) {
   };
 }
 
+/** The assistant, where a model is configured (`ASSISTANT_*`); nothing otherwise. */
+function assistantFrom(env: NodeJS.ProcessEnv) {
+  const config = modelConfigFrom(env);
+  if (config === null) return {};
+  const gateway = aiGateway({ registry: tenantPolicies, send: chatModel(config) });
+  return {
+    assistant: {
+      complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
+      loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
+        loadTenantPolicies(tx, tenantId, tenantPolicies),
+    },
+  };
+}
+
 /** What the screens' transports need beyond the person use cases (PEO-098). */
 function screenDeps(
   service: ReturnType<typeof peopleService>,
@@ -502,6 +519,7 @@ function screenDeps(
     photos: drizzlePhotos(),
     files: drizzleFiles(),
     activity: drizzleActivity(),
+    ...assistantFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars),
     schedules: scheduleAdmin(),
