@@ -82,6 +82,8 @@ export interface FieldRegistryProps {
   readonly onSaveField: (input: FieldInput, editing: string | null) => Promise<Outcome>;
   readonly preview: (requiredFrom: IsoDate) => Promise<PublishPreview>;
   readonly onPublish: (requiredFrom: IsoDate) => Promise<Outcome>;
+  /** Share a field with the assistant, or stop (a draft change). */
+  readonly onAssistant?: (key: string, share: boolean) => Promise<Outcome>;
   /** Put a field on the sign-up flow, optional or required, or take it off (a draft change). */
   readonly onSignup?: (key: string, ask: 'off' | 'optional' | 'required') => Promise<Outcome>;
 }
@@ -126,6 +128,7 @@ function Registry({
   preview,
   onPublish,
   onSignup,
+  onAssistant,
 }: FieldRegistryProps & { readonly draft: RegistryDraft }): JSX.Element {
   const [previewing, setPreviewing] = useState(false);
   // The order as the admin last left it, shown until the shell hands back a
@@ -333,6 +336,7 @@ function Registry({
                 section={section}
                 fields={fields}
                 {...(onSignup === undefined ? {} : { onSignup })}
+                {...(onAssistant === undefined ? {} : { onAssistant })}
                 onEdit={(field) => {
                   setEditing({ field });
                 }}
@@ -385,6 +389,7 @@ function SectionFields({
   fields,
   onEdit,
   onSignup,
+  onAssistant,
   onAdd,
   onReorder,
 }: {
@@ -392,6 +397,7 @@ function SectionFields({
   readonly fields: readonly RegistryField[];
   readonly onEdit: (field: RegistryField) => void;
   readonly onSignup?: FieldRegistryProps['onSignup'];
+  readonly onAssistant?: FieldRegistryProps['onAssistant'];
   readonly onAdd: () => void;
   readonly onReorder: (order: readonly string[]) => void;
 }): JSX.Element {
@@ -445,6 +451,7 @@ function SectionFields({
                 }
                 onEdit={onEdit}
                 {...(onSignup === undefined ? {} : { onSignup })}
+                {...(onAssistant === undefined ? {} : { onAssistant })}
               />
             )}
           </SortableList>
@@ -648,6 +655,62 @@ function EditOrWhy({
 }
 
 /**
+ * Whether the assistant may name this field: its label and its options, so a
+ * question like "who is in Scranton" can be read. Never a value from a
+ * record; People runs the query. Offered on every field, the built-in ones
+ * too, and refused where the field is confidential or sealed.
+ */
+function AssistantShare({
+  field,
+  onAssistant,
+}: {
+  readonly field: RegistryField;
+  readonly onAssistant: NonNullable<FieldRegistryProps['onAssistant']>;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const shared = field.aiEligible === true;
+  const label = shared ? 'Assistant: shared' : 'Assistant: not shared';
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          loading={busy}
+          loadingLabel="Saving"
+          endIcon={<icons.expand aria-hidden />}
+          aria-label={`${field.label}: ${label}. Change whether the assistant may use it`}
+        >
+          {label}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>The assistant (Slack and questions)</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={shared ? 'shared' : 'not'}
+          onValueChange={(value) => {
+            setBusy(true);
+            void onAssistant(field.key, value === 'shared').then(() => {
+              setBusy(false);
+            });
+          }}
+        >
+          <DropdownMenuRadioItem value="shared" disabled={field.aiShareable !== true && !shared}>
+            Shared
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="not">Not shared</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        <p className="max-w-64 px-2 py-1.5 text-xs text-fg-muted">
+          {field.aiShareable === true || shared
+            ? 'Shared, the assistant can answer questions about this field. It learns its name and options, never anybody’s value.'
+            : 'Confidential or encrypted: never shared with the assistant.'}
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
  * Whether the sign-up flow asks for this field, and whether it must be
  * answered: a menu on the row, a draft change like any other edit.
  */
@@ -722,11 +785,13 @@ function FieldRow({
   editable,
   onEdit,
   onSignup,
+  onAssistant,
 }: {
   readonly field: RegistryField;
   readonly editable: boolean;
   readonly onEdit: (field: RegistryField) => void;
   readonly onSignup?: FieldRegistryProps['onSignup'];
+  readonly onAssistant?: FieldRegistryProps['onAssistant'];
 }): JSX.Element {
   return (
     <div className="flex items-start gap-3">
@@ -741,6 +806,9 @@ function FieldRow({
         <p className="truncate font-mono text-xs text-fg-muted">{field.key}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {onAssistant === undefined ? null : (
+          <AssistantShare field={field} onAssistant={onAssistant} />
+        )}
         {onSignup === undefined || !editable ? null : (
           <SignupAsk field={field} onSignup={onSignup} />
         )}

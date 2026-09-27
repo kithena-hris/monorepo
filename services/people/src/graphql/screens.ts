@@ -958,6 +958,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             'page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.',
         }),
         signupAskable: t.exposeBoolean('signupAskable'),
+        aiEligible: t.exposeBoolean('aiEligible', {
+          description: 'The assistant may name it: its label and options, never a value.',
+        }),
+        aiShareable: t.exposeBoolean('aiShareable'),
         pending: t.exposeString('pending', {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
@@ -2519,6 +2523,24 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           },
           key: args.idempotencyKey,
         });
+        return done();
+      },
+    }),
+    setFieldAssistant: t.field({
+      type: Outcome,
+      description: 'Share a field with the assistant, or stop. A draft change.',
+      args: {
+        key: t.arg.string({ required: true }),
+        share: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/schema/draft/attributes/${encodeURIComponent(args.key)}/assistant`,
+          { body: { share: args.share }, key: args.idempotencyKey },
+        );
         return done();
       },
     }),

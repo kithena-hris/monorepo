@@ -51,6 +51,17 @@ const RULES: readonly Rule[] = [
     }),
   },
   {
+    path: new RegExp(`^/v1/schema/draft/attributes/${ID}/assistant$`),
+    area: 'fields',
+    say: (_m, b, id) => ({
+      action:
+        b['share'] === true
+          ? 'Shared a field with the assistant'
+          : 'Stopped sharing a field with the assistant',
+      subject: id ?? null,
+    }),
+  },
+  {
     path: /^\/v1\/schema\/draft\/attributes$/,
     area: 'fields',
     say: (_m, b) => {

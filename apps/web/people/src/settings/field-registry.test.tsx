@@ -518,4 +518,23 @@ describe('FieldRegistry', () => {
     expect(within(sheet).getByText(/Cost centre/)).toBeInTheDocument();
     expect(await axeViolations(container.ownerDocument.body)).toEqual([]);
   });
+
+  it('shares a field with the assistant from its row, built-in ones too, never a confidential one', async () => {
+    const user = fast();
+    const onAssistant = vi.fn(ok);
+    const shareable: RegistryDraft = {
+      ...draft,
+      fields: draft.fields.map((f) =>
+        f.key === 'employee_number'
+          ? { ...f, aiEligible: false, aiShareable: true }
+          : f.key === 'ethnicity'
+            ? { ...f, aiEligible: false, aiShareable: false }
+            : f,
+      ),
+    };
+    render(<FieldRegistry {...props({ load: { status: 'ready', data: shareable }, onAssistant })} />);
+    await user.click(screen.getByRole('button', { name: /Employee number: Assistant: not shared/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Shared' }));
+    expect(onAssistant).toHaveBeenCalledWith('employee_number', true);
+  });
 });

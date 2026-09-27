@@ -315,6 +315,11 @@ export async function addSection(label: string): Promise<Outcome> {
   return outcome(people('AddDraftSection', { label }));
 }
 
+/** A field shared with the assistant, or not: a draft change. */
+export async function setFieldAssistant(field: string, share: boolean): Promise<Outcome> {
+  return outcome(people('SetFieldAssistant', { field, share }));
+}
+
 /** A field on the sign-up flow, optional or required, or off it: a draft change. */
 export async function setFieldSignup(
   field: string,

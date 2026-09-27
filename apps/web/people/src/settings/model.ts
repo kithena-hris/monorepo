@@ -127,6 +127,10 @@ export interface RegistryField {
   readonly signup?: 'page' | 'after' | null;
   /** It may be put on the sign-up flow: the employee fills it in. */
   readonly signupAskable?: boolean;
+  /** The assistant may name it: its label and options, never a value from a record. */
+  readonly aiEligible?: boolean;
+  /** It could be shared with the assistant: public or internal, and not sealed. */
+  readonly aiShareable?: boolean;
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;

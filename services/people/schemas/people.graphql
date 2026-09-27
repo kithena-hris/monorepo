@@ -1157,6 +1157,8 @@ type Mutation {
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
+  """Share a field with the assistant, or stop. A draft change."""
+  setFieldAssistant(idempotencyKey: String!, key: String!, share: Boolean!): WriteOutcome
   """
   Put a field on the sign-up flow (optional or required), or take it off. A draft change.
   """
@@ -2068,6 +2070,9 @@ type RegistryChoices {
 }
 
 type RegistryField {
+  """The assistant may name it: its label and options, never a value."""
+  aiEligible: Boolean
+  aiShareable: Boolean
   classification: String
   collectAt: String
   dataType: String

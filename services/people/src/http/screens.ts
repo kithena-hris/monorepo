@@ -92,6 +92,7 @@ import {
   reorderSections,
   saveField,
   setFieldSignup,
+  setFieldAssistant,
   setupView,
   type SchemaScreenDeps,
 } from '../application/screens/schema.js';
@@ -230,6 +231,7 @@ export const FileOf = z.strictObject({
   personId: z.uuid().nullable(),
   key: z.string().min(1).max(64),
 });
+export const AssistantShareBody = z.strictObject({ share: z.boolean() });
 export const SignupAskBody = z.strictObject({ ask: z.enum(['off', 'optional', 'required']) });
 export const AskBody = z.strictObject({ question: z.string().trim().min(1).max(500) });
 export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
@@ -829,6 +831,14 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'PUT',
       pattern: new RegExp(`^/v1/schema/draft/sections/${KEY}/order$`),
       handle: write(Order, (asking, input, key) => reorderFields(deps, asking, key, input.order)),
+    },
+    {
+      // A field shared with the assistant, or not.
+      method: 'POST',
+      pattern: new RegExp(`^/v1/schema/draft/attributes/${KEY}/assistant$`),
+      handle: write(AssistantShareBody, (asking, input, key) =>
+        setFieldAssistant(deps, asking, key, input.share),
+      ),
     },
     {
       // A field on the sign-up flow, optional or required, or off it.

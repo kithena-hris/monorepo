@@ -520,6 +520,7 @@ export function PeopleScreen({
           preview: actions.previewPublish,
           onPublish: thenRefresh(actions.publishDraft),
           onSignup: thenRefresh(actions.setFieldSignup),
+          onAssistant: thenRefresh(actions.setFieldAssistant),
         };
       case 'Integrations':
         return {

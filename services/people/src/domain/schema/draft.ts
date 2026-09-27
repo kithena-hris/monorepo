@@ -419,12 +419,25 @@ export class SchemaDraft {
   /**
    * The floor a tenant configures above, for core and country-pack fields.
    *
-   * A tenant may relabel `national_id`, may not make it optional, and may not
-   * mark it AI-eligible. Tightening is always allowed — a customer whose works
+   * A tenant may relabel `national_id` and may not make it optional; whether
+   * a field is shared with the assistant is the tenant's choice wherever
+   * `aiShareable` allows it, which a sealed identifier never is. Tightening is always allowed — a customer whose works
    * council wants a field treated as confidential is right, and the registry
    * should not argue.
    */
   #checkFloor(current: Attribute, next: AttributeDefinition): Result<void> {
+    // Shared with the assistant: the company's choice for any field it could
+    // safely be, never for one that is confidential, special-category or
+    // sealed, whoever shipped it.
+    if (next.classification.aiEligible && !current.classification.aiEligible && !aiShareable(next)) {
+      return err(
+        failure(
+          'AI_NOT_ALLOWED',
+          `${current.key} is ${next.encrypted ? 'encrypted' : next.classification.classification} and is never shared with the assistant`,
+          ['classification'],
+        ),
+      );
+    }
     if (current.origin === 'tenant') return ok(undefined);
 
     if (!classificationAtLeastAsStrict(next.classification, current.classification)) {
@@ -469,6 +482,15 @@ export class SchemaDraft {
   }
 }
 
+/** What a company may choose to share with the assistant: public or internal, and not sealed. */
+export function aiShareable(definition: Pick<AttributeDefinition, 'classification' | 'encrypted'>): boolean {
+  return (
+    !definition.encrypted &&
+    (definition.classification.classification === 'public' ||
+      definition.classification.classification === 'internal')
+  );
+}
+
 /**
  * A tenant may tighten and may not loosen.
  *
@@ -481,7 +503,7 @@ function classificationAtLeastAsStrict(next: FieldPolicyInput, floor: FieldPolic
   if (CLASSIFICATION_RANK[next.classification] < CLASSIFICATION_RANK[floor.classification]) {
     return false;
   }
-  if (next.aiEligible && !floor.aiEligible) return false;
+  // Sharing with the assistant is not a loosening here: `aiShareable` decides it.
   // Exportability is the subject's right rather than the tenant's setting.
   if (!next.exportable && floor.exportable) return false;
   return true;

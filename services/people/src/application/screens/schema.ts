@@ -11,7 +11,12 @@ import {
 import { CORE_PACK } from '../../country-packs/core.js';
 import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
-import { SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
+import {
+  aiShareable,
+  SchemaDraft,
+  type Attribute,
+  type Section,
+} from '../../domain/schema/draft.js';
 import {
   askAtSignup,
   atSignup,
@@ -107,6 +112,10 @@ export interface RegistryView {
     readonly signup: 'page' | 'after' | null;
     /** It may be put on the sign-up flow: the employee fills it in. */
     readonly signupAskable: boolean;
+    /** The assistant may name it: its label and options, never a value from a record. */
+    readonly aiEligible: boolean;
+    /** It could be shared with the assistant: public or internal, and not sealed. */
+    readonly aiShareable: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
@@ -166,6 +175,8 @@ export async function registryView(
         requiresApproval: requiresApproval(a),
         signup: !atSignup(a) ? null : onSignupPage(a) ? ('page' as const) : ('after' as const),
         signupAskable: askAtSignup(a, 'optional').ok,
+        aiEligible: a.classification.aiEligible,
+        aiShareable: aiShareable(a),
         origin: a.origin,
         pending: pendingOf(a, published),
       }));
@@ -424,6 +435,31 @@ export async function setFieldSignup(
       if (!patch.ok) return patch;
       const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
       const saved = draft.updateAttribute(key, patch.value);
+      if (!saved.ok) return saved;
+      await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
+      return ok(undefined);
+    }),
+  );
+}
+
+/** Share a field with the assistant, or stop: a draft change, in force once published. */
+export async function setFieldAssistant(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  key: string,
+  share: boolean,
+): Promise<Result<void>> {
+  return run(deps.service, asking.tenantId, (tx) =>
+    asAdmin(deps, tx, asking, async () => {
+      const current = await deps.schema.loadDraft(tx, asking.tenantId);
+      const attribute = current.attributes.find((a) => a.key === key);
+      if (attribute === undefined) {
+        return err(failure('ATTRIBUTE_UNKNOWN', `No field called ${key}`, ['key']));
+      }
+      const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
+      const saved = draft.updateAttribute(key, {
+        classification: { ...attribute.classification, aiEligible: share },
+      });
       if (!saved.ok) return saved;
       await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
       return ok(undefined);
