@@ -6,8 +6,12 @@ import { ChevronRight } from 'lucide-react';
 import {
   Children,
   cloneElement,
+  useEffect,
   useId,
+  useRef,
+  useState,
   type ComponentPropsWithoutRef,
+  type KeyboardEvent,
   type JSX,
   type ReactElement,
   type ReactNode,
@@ -15,7 +19,8 @@ import {
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
-import { useRailCollapsed } from '../page-layout/page-layout';
+import { RailContext, useRailCollapsed } from '../page-layout/page-layout';
+import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { Tooltip } from '../tooltip/tooltip';
 
 /**
@@ -126,6 +131,21 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   asChild?: boolean;
   /** Trailing control: a pin, an overflow menu. */
   action?: ReactNode;
+  /**
+   * The sections of this destination, shown beside it on demand rather than
+   * as a column that is always open. Usually a `Nav` of level-2 items.
+   *
+   * It opens on hover (after a short delay, and closes after another, so a
+   * pointer crossing the sidebar does not flash it), when the item takes
+   * keyboard focus, on ArrowRight, and on the first tap of a touch — the
+   * second tap follows the link. Escape or ArrowLeft closes it and returns
+   * focus to the item. It is rendered in place rather than in a portal, so
+   * Tab goes from the item into its sections and on out the other side.
+   *
+   * It stays in the collapsed rail, where it replaces the tooltip: the
+   * sections are the one thing a rail cannot otherwise show.
+   */
+  flyout?: ReactNode;
 }
 
 const itemByLevel = {
@@ -143,9 +163,11 @@ export function NavItem({
   current = false,
   asChild = false,
   action,
+  flyout,
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
+  const fly = useFlyout();
   const Comp = asChild ? Slot : 'a';
   /*
    * With `asChild` the one child is the link, and the label is its children.
@@ -219,10 +241,38 @@ export function NavItem({
         className,
       )}
       {...props}
+      {...(flyout === undefined ? {} : fly.triggerProps)}
     >
       {child === null ? inside : cloneElement(child, undefined, inside)}
     </Comp>
   );
+
+  if (flyout !== undefined) {
+    return (
+      <Popover open={fly.open} onOpenChange={fly.setOpen} modal={false}>
+        <PopoverAnchor asChild>
+          <li className="min-w-0" {...fly.anchorProps}>
+            {link}
+            <PopoverContent
+              {...fly.contentProps}
+              portal={false}
+              side="right"
+              align="start"
+              // Clear of the sidebar's own padding and border.
+              sideOffset={asIcon ? 10 : 16}
+              // Not a dialog: Radix gives its content `role="dialog"`, and what
+              // is inside is navigation that names itself.
+              role={undefined}
+              className="w-60 p-2"
+            >
+              {/* Its items are not in the rail, even when this one is. */}
+              <RailContext value={{ collapsed: false }}>{flyout}</RailContext>
+            </PopoverContent>
+          </li>
+        </PopoverAnchor>
+      </Popover>
+    );
+  }
 
   // The tooltip only exists in the rail, where the label is not on screen.
   // Wrapping it everywhere would put a tooltip on text that is already there.
@@ -249,6 +299,130 @@ export function NavItem({
   ) : (
     <li className="min-w-0">{link}</li>
   );
+}
+
+/** How long a pointer rests before a flyout opens, and lingers before it closes. */
+const FLYOUT_OPEN_MS = 120;
+const FLYOUT_CLOSE_MS = 200;
+
+/**
+ * The state and handlers behind `NavItem`'s `flyout`.
+ *
+ * The pointer is asked what it is (`pointerType`) at the moment it acts, which
+ * is the only honest answer: a laptop with a touch screen has both, and no
+ * media query says which one is in use right now.
+ */
+function useFlyout() {
+  const [open, setOpen] = useState(false);
+  const contentId = useId();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trigger = useRef<HTMLElement | null>(null);
+  const content = useRef<HTMLDivElement | null>(null);
+  // Whether it was open when a touch began: the first tap opens, the second goes.
+  const openAtTouch = useRef<boolean | null>(null);
+  // Focus handed back on close must not open it again.
+  const returning = useRef(false);
+
+  const clear = (): void => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const later = (next: boolean, ms: number): void => {
+    clear();
+    timer.current = setTimeout(() => {
+      setOpen(next);
+    }, ms);
+  };
+  useEffect(() => clear, []);
+
+  // Opening now cancels a close the pointer scheduled on its way out.
+  const show = (): void => {
+    clear();
+    setOpen(true);
+  };
+  const close = (focusTrigger: boolean): void => {
+    clear();
+    setOpen(false);
+    if (focusTrigger) {
+      returning.current = true;
+      trigger.current?.focus();
+      returning.current = false;
+    }
+  };
+
+  return {
+    open,
+    setOpen: (next: boolean): void => {
+      clear();
+      setOpen(next);
+    },
+    anchorProps: {
+      onPointerEnter: (event: { pointerType: string }): void => {
+        if (event.pointerType === 'mouse') later(true, FLYOUT_OPEN_MS);
+      },
+      // Not while the keyboard is in it: a pointer drifting off must not take
+      // the sections out from under the focus.
+      onPointerLeave: (event: { pointerType: string; currentTarget: Element }): void => {
+        if (event.pointerType !== 'mouse') return;
+        if (event.currentTarget.contains(document.activeElement)) return;
+        later(false, FLYOUT_CLOSE_MS);
+      },
+    },
+    triggerProps: {
+      ref: (node: HTMLElement | null): void => {
+        trigger.current = node;
+      },
+      'aria-expanded': open,
+      'aria-controls': open ? contentId : undefined,
+      onPointerDown: (event: { pointerType: string }): void => {
+        openAtTouch.current = event.pointerType === 'mouse' ? null : open;
+      },
+      onFocus: (): void => {
+        if (!returning.current) show();
+      },
+      onClick: (event: { preventDefault: () => void }): void => {
+        if (openAtTouch.current === false) {
+          event.preventDefault();
+          show();
+        }
+        openAtTouch.current = null;
+      },
+      onKeyDown: (event: KeyboardEvent): void => {
+        if (event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        show();
+        // After the content has mounted.
+        requestAnimationFrame(() => {
+          content.current?.querySelector<HTMLElement>('a[href], button:not(:disabled)')?.focus();
+        });
+      },
+    },
+    contentProps: {
+      id: contentId,
+      ref: content,
+      onOpenAutoFocus: (event: Event): void => {
+        event.preventDefault();
+      },
+      onCloseAutoFocus: (event: Event): void => {
+        event.preventDefault();
+      },
+      onEscapeKeyDown: (event: globalThis.KeyboardEvent): void => {
+        event.preventDefault();
+        close(content.current?.contains(document.activeElement) === true);
+      },
+      onKeyDown: (event: KeyboardEvent): void => {
+        if (event.key !== 'ArrowLeft') return;
+        event.preventDefault();
+        close(true);
+      },
+      // Following one of its links closes it; the page it goes to is the answer.
+      onClick: (event: { target: EventTarget }): void => {
+        if (event.target instanceof Element && event.target.closest('a[href]') !== null) {
+          close(false);
+        }
+      },
+    },
+  };
 }
 
 export interface NavGroupProps extends ComponentPropsWithoutRef<'li'> {
@@ -311,7 +485,7 @@ export function NavGroup({
       <li className={cn('min-w-0 pt-3 first:pt-0', className)} {...props}>
         <h3
           id={labelId}
-          className="px-3 pb-1 text-2xs font-semibold tracking-wide text-fg-subtle uppercase"
+          className="px-3 pb-1 text-xs font-semibold text-fg-muted"
         >
           {label}
         </h3>
@@ -328,7 +502,7 @@ export function NavGroup({
         <CollapsiblePrimitive.Trigger
           className={cn(
             'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-md px-3 text-start',
-            'text-2xs font-semibold tracking-wide text-fg-subtle uppercase',
+            'text-xs font-semibold text-fg-muted',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
           )}

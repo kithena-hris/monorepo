@@ -866,6 +866,54 @@ const navPage: DocPage = {
   </NavList>
 </Nav>`,
     },
+    {
+      id: 'flyout',
+      title: 'Sections on demand',
+      blurb:
+        "`flyout` on a primary item hangs that area's sections beside it instead of in a column that is always open. It opens on hover (with a short delay either way), when the item takes keyboard focus, on ArrowRight, and on the first tap of a touch; Escape or ArrowLeft closes it and returns focus to the item. It renders in place, so Tab goes from the item into its sections, and it keeps working in the collapsed rail. Focus the People item below to open it.",
+      render: () => (
+        <Nav label="Areas" className="w-60">
+          <NavList>
+            <NavItem
+              asChild
+              current
+              flyout={
+                <Nav label="People sections">
+                  <NavList>
+                    <NavGroup label="Records">
+                      {['Overview', 'Directory', 'Approvals'].map((item) => (
+                        <NavItem key={item} asChild level={2} current={item === 'Directory'}>
+                          <a href={`#${item.toLowerCase()}`}>{item}</a>
+                        </NavItem>
+                      ))}
+                    </NavGroup>
+                  </NavList>
+                </Nav>
+              }
+            >
+              <a href="#people">People</a>
+            </NavItem>
+            <NavItem href="#documents">Documents</NavItem>
+          </NavList>
+        </Nav>
+      ),
+      code: `<NavItem
+  asChild
+  icon={<People />}
+  current
+  flyout={
+    <Nav label="People sections">
+      <NavList>
+        <NavItem asChild level={2} current>
+          <Link href="/people/directory">Directory</Link>
+        </NavItem>
+      </NavList>
+    </Nav>
+  }
+>
+  <Link href="/people">People</Link>
+</NavItem>`,
+    },
   ],
 };
 

@@ -70,7 +70,7 @@ export const dark: Palette = {
   surface: '#141820',
   'surface-sunken': '#0d1018',
   fg: '#f9fafb',
-  'fg-muted': '#9ca1ab',
+  'fg-muted': '#b6bbc4',
   'fg-on-accent': '#ffffff',
   border: '#2e333c',
   'border-strong': '#484d57',
@@ -99,8 +99,8 @@ export const scale = {
   /** `--text-md` / 1rem. Body copy in an email is 16px, not the 14px a dense
    *  HRIS screen uses — nobody reads a message in a data grid. */
   body: { size: '16px', lineHeight: '24px', tracking: '0' },
-  /** `--text-sm` / 0.8125rem, tracking 0.004em. Fine print. */
-  small: { size: '13px', lineHeight: '20px', tracking: '0.05px' },
+  /** `--text-sm` / 0.875rem, tracking 0.004em. Fine print. */
+  small: { size: '14px', lineHeight: '22px', tracking: '0.06px' },
   /** `--text-xs` / 0.75rem, tracking 0.006em. The footer and the wordmark. */
   tiny: { size: '12px', lineHeight: '18px', tracking: '0.07px' },
   /** `--radius-lg`, what `Card` uses. */

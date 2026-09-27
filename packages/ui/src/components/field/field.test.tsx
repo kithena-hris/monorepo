@@ -57,6 +57,23 @@ describe('<Field>', () => {
     expect(screen.getByText('Sensitive')).toBeInTheDocument();
   });
 
+  it('marks a missing field with a word in its name, without making it invalid', () => {
+    const { container } = render(
+      <Field missing>
+        <FieldLabel>Date of birth</FieldLabel>
+        <FieldControl>
+          <Input />
+        </FieldControl>
+      </Field>,
+    );
+    const input = screen.getByLabelText(/date of birth/i);
+    expect(input).toHaveAccessibleName('Date of birth Missing');
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(container.querySelector('[data-missing]')).not.toBeNull();
+    // The glyph is decoration; the word carries it.
+    expect(container.querySelector('[data-missing] svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('announces the required state to assistive tech, not only with an asterisk', () => {
     renderField(false);
     expect(screen.getByLabelText(/legal first name/i)).toHaveAttribute('aria-required', 'true');

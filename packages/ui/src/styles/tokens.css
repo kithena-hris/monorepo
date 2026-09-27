@@ -279,7 +279,10 @@
     --reach-color-overlay: oklch(0.145 0.016 264 / 0.7);
 
     --reach-color-fg: var(--reach-neutral-50);
-    --reach-color-fg-muted: var(--reach-neutral-400);
+    /* Between 400 and 300. 400 measured AA, and still read as dim grey on a
+       near-black surface for every description, caption and table column that
+       uses it; secondary text has to be read, not merely pass. */
+    --reach-color-fg-muted: oklch(0.79 0.014 264);
     --reach-color-fg-subtle: var(--reach-neutral-400);
     --reach-color-fg-disabled: var(--reach-neutral-600);
     --reach-color-fg-on-accent: var(--reach-neutral-0);

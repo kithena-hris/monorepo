@@ -69,6 +69,12 @@ export interface AppShellProps {
    * it is something this company does not have.
    */
   readonly entitlements: readonly string[];
+  /**
+   * An area's own sections, by the area's `href`: shown beside its sidebar
+   * item on hover, focus or a tap (`NavItem`'s `flyout`) rather than as a
+   * column that takes width from every screen.
+   */
+  readonly sections?: Readonly<Record<string, ReactNode>>;
   readonly children: ReactNode;
 }
 
@@ -146,6 +152,7 @@ export function AppShell({
   companyName,
   logoUrl = null,
   entitlements,
+  sections = {},
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -243,6 +250,7 @@ export function AppShell({
                       asChild
                       icon={area.icon}
                       current={isCurrent(area.href, pathname)}
+                      flyout={sections[area.href]}
                     >
                       <Link href={area.href as Route}>{area.label}</Link>
                     </NavItem>

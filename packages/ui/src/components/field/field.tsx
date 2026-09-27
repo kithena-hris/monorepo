@@ -26,6 +26,7 @@ interface FieldContextValue {
   required: boolean;
   disabled: boolean;
   sensitive: boolean;
+  missing: boolean;
 }
 
 const FieldContext = createContext<FieldContextValue | null>(null);
@@ -49,6 +50,14 @@ export interface FieldProps extends ComponentPropsWithoutRef<'div'> {
    * in its accessible name as well as on screen.
    */
   sensitive?: boolean;
+  /**
+   * Marks the field as wanted and not yet filled in. The label carries a
+   * `Missing` badge (`Badge tone="attention"`, with its glyph), in the
+   * accessible name as well as on screen, so it is never colour alone. For a
+   * field that is merely optional and empty, leave it off: this is for what
+   * somebody is expected to complete.
+   */
+  missing?: boolean;
   /** Lay the label out beside the control instead of above it. */
   orientation?: 'vertical' | 'horizontal';
 }
@@ -59,6 +68,7 @@ export function Field({
   required = false,
   disabled = false,
   sensitive = false,
+  missing = false,
   orientation = 'vertical',
   ...props
 }: FieldProps): JSX.Element {
@@ -74,10 +84,12 @@ export function Field({
         required,
         disabled,
         sensitive,
+        missing,
       }}
     >
       <div
         data-orientation={orientation}
+        data-missing={missing || undefined}
         data-invalid={invalid || undefined}
         data-disabled={disabled || undefined}
         className={cn(
@@ -98,7 +110,7 @@ export function Field({
 export type FieldLabelProps = ComponentPropsWithoutRef<typeof LabelPrimitive.Root>;
 
 export function FieldLabel({ className, children, ...props }: FieldLabelProps): JSX.Element {
-  const { controlId, required, disabled, sensitive } = useField('FieldLabel');
+  const { controlId, required, disabled, sensitive, missing } = useField('FieldLabel');
 
   return (
     <LabelPrimitive.Root
@@ -127,6 +139,14 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
           </Badge>
         </>
       ) : null}
+      {missing ? (
+        <>
+          {' '}
+          <Badge tone="attention" size="sm" className="ms-1">
+            Missing
+          </Badge>
+        </>
+      ) : null}
     </LabelPrimitive.Root>
   );
 }
@@ -145,7 +165,7 @@ export function FieldDescription({
   return (
     <p
       id={descriptionId}
-      className={cn('text-xs', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
+      className={cn('text-sm', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
       {...props}
     />
   );

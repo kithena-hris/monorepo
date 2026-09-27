@@ -132,11 +132,15 @@
   --text-xs: 0.75rem;
   --text-xs--line-height: 1.125rem;
   --text-xs--letter-spacing: 0.006em;
-  --text-sm: 0.8125rem;
-  --text-sm--line-height: 1.25rem;
+  /* `sm` and `base` were 13px and 14px, and the screens built on them read as
+     fine print: descriptions, table cells and navigation all sat at 13px. One
+     step up each, with the leading opened to match, is the readability pass
+     that reaches every screen at once rather than one class at a time. */
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
   --text-sm--letter-spacing: 0.004em;
-  --text-base: 0.875rem;
-  --text-base--line-height: 1.375rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
   --text-base--letter-spacing: 0.002em;
   /* The hinge of the ramp: 16px is where the face is already correct, so it
      takes no correction in either direction. */

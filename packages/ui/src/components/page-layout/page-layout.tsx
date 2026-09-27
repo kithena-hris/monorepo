@@ -114,7 +114,7 @@ interface RailState {
  * every screen threading a `collapsed` prop through four components. Defaults
  * to expanded, so a `Nav` used anywhere else behaves normally.
  */
-const RailContext = createContext<RailState>({ collapsed: false });
+export const RailContext = createContext<RailState>({ collapsed: false });
 
 /** True when the surrounding rail is collapsed to icons. */
 export function useRailCollapsed(): boolean {
@@ -285,6 +285,9 @@ export function PageLayout({
           data-collapsed={sidebarState.collapsed || undefined}
           className={cn(
             'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface',
+            // Above the content, so a flyout from one of its items (`NavItem`'s
+            // `flyout`) paints over the page rather than under a sticky toolbar.
+            'md:z-30',
             /*
              * A flex column, not a block.
              *
@@ -632,7 +635,9 @@ export function PageHeader({
             {meta}
           </div>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm text-fg-muted">{description}</p>
+            // A measure, not a width: past ~65 characters the eye loses the
+            // start of the next line.
+            <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">{description}</p>
           ) : null}
         </div>
         {actions ? (
@@ -671,16 +676,18 @@ export function PageSection({
     <section
       className={cn(
         'min-w-0',
-        surface && 'rounded-lg border border-border bg-surface p-4 sm:p-5',
+        surface && 'rounded-lg border border-border bg-surface p-4 sm:p-6',
         className,
       )}
       {...props}
     >
       {title || actions ? (
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            {title ? <h2 className="text-md font-semibold text-fg">{title}</h2> : null}
-            {description ? <p className="mt-0.5 text-sm text-fg-muted">{description}</p> : null}
+            {title ? <h2 className="text-lg font-semibold text-fg">{title}</h2> : null}
+            {description ? (
+              <p className="mt-1 max-w-prose text-sm text-pretty text-fg-muted">{description}</p>
+            ) : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         </div>
