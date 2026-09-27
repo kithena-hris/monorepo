@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest';
+import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
-import { define } from '../../application/person/in-memory.js';
 import { signupQuestions } from './signup.js';
+
+const define = (over: Partial<AttributeDefinitionInput> & { key: string }) =>
+  AttributeDefinition.parse({
+    sectionKey: 'personal',
+    label: { default: over.key },
+    dataType: 'text',
+    typeConfig: { kind: 'text' },
+    requiredness: { mode: 'never' },
+    ownership: ['hr'],
+    visibility: ['self', 'hr'],
+    collectAt: 'hr_only',
+    classification: {
+      classification: 'internal',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: true,
+    },
+    classificationSource: 'human',
+    origin: 'tenant',
+    ...over,
+  });
 
 /**
  * Which fields the auth origin asks before the passkey (PRD §8.3): the ones
