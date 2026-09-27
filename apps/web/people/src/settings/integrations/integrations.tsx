@@ -86,6 +86,11 @@ export interface IntegrationsProps {
   readonly onOpenLog?: (id: string) => void;
   /** SCIM connections (PEO-072); absent, the section is not drawn. */
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
+  /**
+   * The company's other Kithena modules, by name: connected to People on its
+   * event stream already, with nothing to set up. Absent: none named.
+   */
+  readonly builtIn?: readonly string[];
 }
 
 /**
@@ -180,6 +185,7 @@ function Endpoints({
   onRotate,
   onOpenLog,
   scim,
+  builtIn = [],
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
@@ -189,7 +195,33 @@ function Endpoints({
     <Stack gap={6}>
       <PageHeader
         title="Integrations"
-        description={`${String(state.endpoints.length)} endpoints · schema version ${String(state.schemaVersion)} · ${state.deliveries24h.toLocaleString()} deliveries in 24h`}
+        description="Connect People to third-party tools. Kithena’s own modules are connected already."
+      />
+      <PageSection
+        title="Built into Kithena"
+        description="Your other Kithena modules receive People’s changes as they happen, with nothing to set up and nothing to maintain."
+      >
+        {builtIn.length === 0 ? (
+          <p className="text-sm text-fg-muted">
+            When your company adds another Kithena module, such as Time off, it is connected here
+            automatically.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {builtIn.map((name) => (
+              <li key={name} className="flex items-center gap-3 text-sm">
+                <span className="font-medium text-fg">{name}</span>
+                <Badge tone="success" size="sm">
+                  Connected
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PageSection>
+      <PageSection
+        title="Webhooks to third-party tools"
+        description={`Payroll, benefits, IT or a data warehouse: each endpoint is told about the events you choose, carrying only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last day · schema version ${String(state.schemaVersion)}.`}
         actions={
           <Button
             variant="primary"
@@ -200,46 +232,49 @@ function Endpoints({
             Add endpoint
           </Button>
         }
-      />
-      {secret === null ? null : (
-        <Alert tone="warning" title="Copy the signing secret now">
-          <Stack gap={2}>
-            <p>
-              This is the only time it is shown for {secret.url}. It cannot be retrieved later; if
-              it is lost, rotate it.
-            </p>
-            <CopyField value={secret.value} label="Copy the signing secret" />
-          </Stack>
-        </Alert>
-      )}
-      {state.endpoints.length === 0 ? (
-        <EmptyState
-          title="No endpoints yet"
-          description="An endpoint receives the events you choose, carrying only the fields you allow."
-        />
-      ) : (
-        state.endpoints.map((endpoint) => (
-          <EndpointCard
-            key={endpoint.id}
-            endpoint={endpoint}
-            state={state}
-            refusedKeys={refusedLabels}
-            onUpdate={onUpdate}
-            {...(onOpenLog === undefined
-              ? {}
-              : {
-                  onOpenLog: () => {
-                    onOpenLog(endpoint.id);
-                  },
-                })}
-            onRotate={async () => {
-              const rotated = await onRotate(endpoint.id);
-              if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
-              return rotated.ok ? { ok: true } : rotated;
-            }}
-          />
-        ))
-      )}
+      >
+        <Stack gap={4}>
+          {secret === null ? null : (
+            <Alert tone="warning" title="Copy the signing secret now">
+              <Stack gap={2}>
+                <p>
+                  This is the only time it is shown for {secret.url}. It cannot be retrieved later;
+                  if it is lost, rotate it.
+                </p>
+                <CopyField value={secret.value} label="Copy the signing secret" />
+              </Stack>
+            </Alert>
+          )}
+          {state.endpoints.length === 0 ? (
+            <EmptyState
+              title="No third-party tools connected"
+              description="Add the address a tool gives you for incoming webhooks. Kithena addresses are not needed here: its own modules are connected already."
+            />
+          ) : (
+            state.endpoints.map((endpoint) => (
+              <EndpointCard
+                key={endpoint.id}
+                endpoint={endpoint}
+                state={state}
+                refusedKeys={refusedLabels}
+                onUpdate={onUpdate}
+                {...(onOpenLog === undefined
+                  ? {}
+                  : {
+                      onOpenLog: () => {
+                        onOpenLog(endpoint.id);
+                      },
+                    })}
+                onRotate={async () => {
+                  const rotated = await onRotate(endpoint.id);
+                  if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
+                  return rotated.ok ? { ok: true } : rotated;
+                }}
+              />
+            ))
+          )}
+        </Stack>
+      </PageSection>
       {state.scim === undefined || scim === undefined ? null : (
         <Provisioning scim={state.scim} {...scim} />
       )}

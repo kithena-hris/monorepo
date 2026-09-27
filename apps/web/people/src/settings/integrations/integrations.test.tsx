@@ -65,7 +65,7 @@ describe('Integrations', () => {
   it('shows each endpoint, its health and what it receives', async () => {
     const { container } = render(<Integrations {...props()} />);
     expect(
-      screen.getByText('2 endpoints · schema version 4 · 1,284 deliveries in 24h'),
+      screen.getByText(/2 endpoints · 1,284 deliveries in the last day · schema version 4/),
     ).toBeInTheDocument();
     expect(screen.getByText('Healthy')).toBeInTheDocument();
     expect(screen.getByText('3 retrying')).toBeInTheDocument();
@@ -171,7 +171,23 @@ describe('Integrations', () => {
     rerender(
       <Integrations {...props({ load: { status: 'ready', data: { ...state, endpoints: [] } } })} />,
     );
-    expect(screen.getByText('No endpoints yet')).toBeInTheDocument();
+    expect(screen.getByText('No third-party tools connected')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows Kithena’s own modules as connected, apart from third-party tools', () => {
+    const { rerender } = render(
+      <Integrations {...props({ builtIn: ['Time off', 'Documents'] })} />,
+    );
+    const built = screen
+      .getByRole('heading', { name: 'Built into Kithena' })
+      .closest('section') as HTMLElement;
+    expect(within(built).getByText('Time off')).toBeInTheDocument();
+    expect(within(built).getAllByText('Connected')).toHaveLength(2);
+    expect(
+      screen.getByRole('heading', { name: 'Webhooks to third-party tools' }),
+    ).toBeInTheDocument();
+    rerender(<Integrations {...props()} />);
+    expect(screen.getByText(/connected here automatically/)).toBeInTheDocument();
   });
 });

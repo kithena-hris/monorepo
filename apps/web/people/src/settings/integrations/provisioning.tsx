@@ -95,8 +95,8 @@ export function Provisioning(props: ProvisioningProps): JSX.Element {
 
   return (
     <PageSection
-      title="Provisioning (SCIM)"
-      description="Let your identity provider or HRIS create and update people. The fields you map are kept there."
+      title="Provisioning from a third-party tool (SCIM)"
+      description="Let Okta, Microsoft Entra or another HRIS create and update people here. The fields you map are kept in that tool and read-only here."
       actions={
         <Button
           onClick={() => {

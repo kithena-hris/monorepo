@@ -278,7 +278,7 @@
       "owns": [
         "/settings/people/integrations/:id"
       ],
-      "description": "Webhooks that tell other systems about changes, and provisioning from an identity provider.",
+      "description": "Third-party tools: webhooks to payroll, benefits or IT, and provisioning from Okta or Entra. Kithena modules are connected already.",
       "icon": "link"
     },
     {
