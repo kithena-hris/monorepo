@@ -28,6 +28,8 @@ import { z } from 'zod';
 const Place = z.object({
   path: z.string().startsWith('/'),
   label: z.string().min(1),
+  /** One sentence, for places drawn as cards (settings). */
+  description: z.string().min(1).optional(),
   group: z.string().min(1).optional(),
   for: z.array(z.string().min(1)).optional(),
   owns: z.array(z.string().startsWith('/')).optional(),
@@ -38,15 +40,33 @@ const RouteManifest = z.object({
   routes: z.array(z.object({ path: z.string().startsWith('/'), component: z.string().min(1) })),
   sections: z.array(Place).default([]),
   actions: z.array(Place).default([]),
+  /**
+   * The module's settings, drawn by the host's Settings page rather than among
+   * the module's sections: changing how a module works is somewhere you go,
+   * not somewhere you work.
+   */
+  settings: z.array(Place).default([]),
 });
 
 /** The sections and actions this viewer's roles open, in the manifest's order. */
 export function placesFor(
-  nav: { readonly sections: readonly Place[]; readonly actions: readonly Place[] },
+  nav: {
+    readonly sections: readonly Place[];
+    readonly actions: readonly Place[];
+    readonly settings?: readonly Place[];
+  },
   roles: Readonly<Record<string, boolean>>,
-): { readonly sections: readonly Place[]; readonly actions: readonly Place[] } {
+): {
+  readonly sections: readonly Place[];
+  readonly actions: readonly Place[];
+  readonly settings: readonly Place[];
+} {
   const opens = (p: Place): boolean => p.for === undefined || p.for.some((r) => roles[r] === true);
-  return { sections: nav.sections.filter(opens), actions: nav.actions.filter(opens) };
+  return {
+    sections: nav.sections.filter(opens),
+    actions: nav.actions.filter(opens),
+    settings: (nav.settings ?? []).filter(opens),
+  };
 }
 
 /**
@@ -92,8 +112,12 @@ export interface RemoteRoute {
   readonly path: string;
   /** `:name` segments of the manifest path, as matched: `/people/:id` → `{ id }`. */
   readonly params: Readonly<Record<string, string>>;
-  /** Every section and action the manifest lists, for the host's navigation. */
-  readonly nav: { readonly sections: readonly Place[]; readonly actions: readonly Place[] };
+  /** Every section, action and setting the manifest lists, for the host's navigation. */
+  readonly nav: {
+    readonly sections: readonly Place[];
+    readonly actions: readonly Place[];
+    readonly settings: readonly Place[];
+  };
 }
 
 export interface Matched {
@@ -117,8 +141,8 @@ export interface Matched {
 export function matchRoute(manifest: unknown, path: string): Matched | null | undefined {
   const parsed = RouteManifest.safeParse(manifest);
   if (!parsed.success) return null;
-  const { routes, sections, actions } = parsed.data;
-  const nav = { sections, actions };
+  const { routes, sections, actions, settings } = parsed.data;
+  const nav = { sections, actions, settings };
   const literal = routes.find((route) => route.path === path);
   if (literal !== undefined) {
     return { component: literal.component, path: literal.path, params: {}, nav };

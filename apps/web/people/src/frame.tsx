@@ -8,7 +8,7 @@ import {
   Button,
   PageHeaderFrame,
 } from '@reach/ui';
-import type { ComponentType, JSX } from 'react';
+import { Fragment, type ComponentType, type JSX } from 'react';
 
 /**
  * What the host puts in a screen's header: where the screen is, and the
@@ -22,6 +22,11 @@ import type { ComponentType, JSX } from 'react';
 export interface Frame {
   /** The screen's section, for a trail of People › section. None on People's front page. */
   readonly section?: string | null;
+  /**
+   * The links before the section, root first. Absent, it is People alone; a
+   * settings screen is Settings › People › section.
+   */
+  readonly trail?: readonly { readonly href: string; readonly label: string }[];
   readonly actions?: readonly { readonly href: string; readonly label: string }[];
 }
 
@@ -32,7 +37,7 @@ export function framed<P extends object>(
   function Framed({ frame, ...props }: P & { readonly frame?: Frame }): JSX.Element {
     const screen = <Screen {...(props as P)} />;
     if (frame === undefined) return screen;
-    const { section = null, actions = [] } = frame;
+    const { section = null, actions = [], trail = [{ href: '/people', label: 'People' }] } = frame;
     return (
       <PageHeaderFrame
         breadcrumb={
@@ -40,10 +45,14 @@ export function framed<P extends object>(
             // A phone has the host's section select in its place.
             <Breadcrumb className="max-md:hidden">
               <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/people">People</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
+                {trail.map((link) => (
+                  <Fragment key={link.href}>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </Fragment>
+                ))}
                 <BreadcrumbItem>
                   <BreadcrumbPage>{section}</BreadcrumbPage>
                 </BreadcrumbItem>

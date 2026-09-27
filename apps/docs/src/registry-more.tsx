@@ -54,6 +54,7 @@ import {
   FilterBuilder,
   Inline,
   Kbd,
+  KeyValues,
   ListDetail,
   Nav,
   NavGroup,
@@ -921,6 +922,41 @@ const navPage: DocPage = {
   ],
 };
 
+const keyValues: DocPage = {
+  slug: 'key-values',
+  title: 'KeyValues',
+  description: 'What is configured, read back as label and value.',
+  when: 'A summary somebody reads before deciding whether to open a setting and change it. Labels sit above values, so a long value wraps under its own label, and `columns` spreads pairs across the width the container has.',
+  importLine: "import { KeyValues } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'In a card',
+      blurb:
+        'A `<dl>`: each label is announced with the value that follows it. Values can be any content, a badge included.',
+      render: () => (
+        <KeyValues
+          columns={2}
+          aria-label="Organisation, now"
+          items={[
+            { label: 'Default time zone', value: 'America/New_York' },
+            { label: 'Smallest group reported', value: '10 people' },
+            { label: 'Legal entities', value: '1' },
+            { label: 'Work locations', value: '6' },
+          ]}
+        />
+      ),
+      code: `<KeyValues
+  columns={2}
+  items={[
+    { label: 'Default time zone', value: 'America/New_York' },
+    { label: 'Smallest group reported', value: '10 people' },
+  ]}
+/>`,
+    },
+  ],
+};
+
 const kbd: DocPage = {
   slug: 'kbd',
   title: 'Kbd',
@@ -1349,6 +1385,7 @@ export const MORE_PAGES: readonly DocPage[] = [
   feedback,
   filterBuilder,
   kbd,
+  keyValues,
   layout,
   navPage,
   listDetail,

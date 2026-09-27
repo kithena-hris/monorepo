@@ -251,6 +251,8 @@ export { Input, Textarea } from './components/input/input';
 export type { InputProps, TextareaProps } from './components/input/input';
 
 export { Kbd } from './components/kbd/kbd';
+export { KeyValues } from './components/key-values/key-values';
+export type { KeyValuesProps } from './components/key-values/key-values';
 export type { KbdProps } from './components/kbd/kbd';
 
 export { Nav, NavGroup, NavItem, NavList, TertiaryNav } from './components/nav/nav';

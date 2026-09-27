@@ -28,7 +28,8 @@ export async function GET(
   }
   // Never a type People did not store: an image, or nothing.
   if (!TYPES.has(answer.data.mediaType)) return new Response(null, { status: 404 });
-  const versioned = new URL(request.url).searchParams.get('v') === answer.data.checksum.slice(0, 16);
+  const versioned =
+    new URL(request.url).searchParams.get('v') === answer.data.checksum.slice(0, 16);
   return new Response(Buffer.from(answer.data.data, 'base64'), {
     headers: {
       'content-type': answer.data.mediaType,

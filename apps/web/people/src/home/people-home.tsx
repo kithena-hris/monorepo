@@ -126,7 +126,8 @@ export function tenure(startedOn: string, today: string): string | null {
   const [y1, m1, d1] = startedOn.split('-').map(Number);
   const [y2, m2, d2] = today.split('-').map(Number);
   if ([y1, m1, d1, y2, m2, d2].some((n) => n === undefined || Number.isNaN(n))) return null;
-  const months = ((y2 ?? 0) - (y1 ?? 0)) * 12 + ((m2 ?? 0) - (m1 ?? 0)) - ((d2 ?? 0) < (d1 ?? 0) ? 1 : 0);
+  const months =
+    ((y2 ?? 0) - (y1 ?? 0)) * 12 + ((m2 ?? 0) - (m1 ?? 0)) - ((d2 ?? 0) < (d1 ?? 0) ? 1 : 0);
   if (months < 0) return null;
   if (months === 0) return 'less than a month';
   const years = Math.floor(months / 12);
@@ -150,7 +151,9 @@ const localTime = (now: string, timeZone: string): string => {
   }
 };
 
-const STATUS: Readonly<Record<string, { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' }>> = {
+const STATUS: Readonly<
+  Record<string, { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' }>
+> = {
   active: { label: 'Active', tone: 'success' },
   pre_hire: { label: 'Starting soon', tone: 'info' },
   provisional: { label: 'Not hired yet', tone: 'neutral' },
@@ -161,7 +164,13 @@ const STATUS: Readonly<Record<string, { label: string; tone: 'success' | 'info' 
 /* -------------------------------------------------------------- parts -- */
 
 /** A detail with its icon: the icon is decoration, the words carry it. */
-function Detail({ icon, children }: { readonly icon: ReactNode; readonly children: ReactNode }): JSX.Element {
+function Detail({
+  icon,
+  children,
+}: {
+  readonly icon: ReactNode;
+  readonly children: ReactNode;
+}): JSX.Element {
   return (
     <li className="flex min-w-0 items-center gap-2 text-sm text-fg-muted">
       <span aria-hidden className="shrink-0 text-fg-subtle [&_svg]:size-4">
@@ -172,7 +181,13 @@ function Detail({ icon, children }: { readonly icon: ReactNode; readonly childre
   );
 }
 
-function Identity({ me, now }: { readonly me: NonNullable<PeopleHomeState['me']>; readonly now: string }): JSX.Element {
+function Identity({
+  me,
+  now,
+}: {
+  readonly me: NonNullable<PeopleHomeState['me']>;
+  readonly now: string;
+}): JSX.Element {
   const role = [me.title, me.department].filter((x) => x !== null).join(' · ');
   const status = me.status === null ? undefined : STATUS[me.status];
   const time = localTime(now, me.timeZone);
@@ -187,9 +202,7 @@ function Identity({ me, now }: { readonly me: NonNullable<PeopleHomeState['me']>
           meta={
             <>
               {status === undefined ? null : <Badge tone={status.tone}>{status.label}</Badge>}
-              {me.missing === null || me.missing === 0 ? null : (
-                <MissingMark count={me.missing} />
-              )}
+              {me.missing === null || me.missing === 0 ? null : <MissingMark count={me.missing} />}
             </>
           }
           actions={
@@ -246,7 +259,13 @@ function Done({ title, detail }: { readonly title: string; readonly detail: stri
 }
 
 /** A "Show all" that is a link, because it goes somewhere. */
-function ShowAll({ href, children }: { readonly href: string; readonly children: ReactNode }): JSX.Element {
+function ShowAll({
+  href,
+  children,
+}: {
+  readonly href: string;
+  readonly children: ReactNode;
+}): JSX.Element {
   return (
     <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
       <a href={href}>{children}</a>
@@ -334,7 +353,9 @@ function Missing({
           ? undefined
           : `${String(missing.length)} of ${String(required)} required ${required === 1 ? 'detail' : 'details'} missing`
       }
-      actions={missing.length === 0 ? undefined : <ShowAll href="/people/me">Open your profile</ShowAll>}
+      actions={
+        missing.length === 0 ? undefined : <ShowAll href="/people/me">Open your profile</ShowAll>
+      }
     >
       {missing.length === 0 ? (
         <Done
@@ -364,7 +385,8 @@ function Missing({
           {theirs.length === 0 ? null : (
             <div>
               <p className="text-xs text-fg-muted">
-                Waiting on {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}, nothing for you to do:
+                Waiting on {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}, nothing for
+                you to do:
               </p>
               <ul aria-label="Waiting on somebody else" className="mt-1.5 flex flex-wrap gap-2">
                 {theirs.map((m) => (
@@ -382,7 +404,13 @@ function Missing({
 }
 
 /** A row's two lines: what it is, then the detail. */
-function Lines({ first, second }: { readonly first: ReactNode; readonly second?: ReactNode }): JSX.Element {
+function Lines({
+  first,
+  second,
+}: {
+  readonly first: ReactNode;
+  readonly second?: ReactNode;
+}): JSX.Element {
   return (
     <>
       <span className="block truncate font-medium text-fg">{first}</span>
@@ -422,10 +450,7 @@ function ReportingLine({
       <Stack gap={4}>
         {/* The chain, top down to them; one rule joins the photos, as a chart draws it. */}
         <Nav as="div" label="Your managers, from the top" className="relative -mx-2.5">
-          <span
-            aria-hidden
-            className="absolute top-5 bottom-5 left-[1.625rem] w-px bg-border"
-          />
+          <span aria-hidden className="absolute top-5 bottom-5 left-[1.625rem] w-px bg-border" />
           {line.moreAbove && top !== undefined ? (
             <p className="relative py-1 ps-12 text-xs text-fg-muted">
               <a className="underline underline-offset-4" href={`/people/${top.id}`}>
@@ -441,7 +466,14 @@ function ReportingLine({
           <div className="relative flex items-center gap-2.5 px-2.5 py-2 text-sm">
             <Avatar size="md" name={me.name} src={me.avatarUrl ?? undefined} />
             <span className="min-w-0">
-              <Lines first={<>{me.name} <span className="font-normal text-fg-muted">(you)</span></>} second={me.title} />
+              <Lines
+                first={
+                  <>
+                    {me.name} <span className="font-normal text-fg-muted">(you)</span>
+                  </>
+                }
+                second={me.title}
+              />
             </span>
           </div>
         </Nav>
@@ -456,11 +488,16 @@ function ReportingLine({
           <div>
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-fg">
-                Your direct reports <span className="font-normal text-fg-muted tabular-nums">{line.reportsTotal}</span>
+                Your direct reports{' '}
+                <span className="font-normal text-fg-muted tabular-nums">{line.reportsTotal}</span>
               </h3>
               {line.reportsFilter === null ? null : (
-                <ShowAll href={`/people/directory?filter=${encodeURIComponent(line.reportsFilter)}`}>
-                  {line.reportsTotal > line.reports.length ? `Show all ${String(line.reportsTotal)}` : 'In the directory'}
+                <ShowAll
+                  href={`/people/directory?filter=${encodeURIComponent(line.reportsFilter)}`}
+                >
+                  {line.reportsTotal > line.reports.length
+                    ? `Show all ${String(line.reportsTotal)}`
+                    : 'In the directory'}
                 </ShowAll>
               )}
             </div>
@@ -478,7 +515,13 @@ function ReportingLine({
   );
 }
 
-function Places({ label, places }: { readonly label: string; readonly places: readonly Place[] }): JSX.Element {
+function Places({
+  label,
+  places,
+}: {
+  readonly label: string;
+  readonly places: readonly Place[];
+}): JSX.Element {
   return (
     <div className="min-w-0">
       <h3 className="mb-1 text-sm font-semibold text-fg">{label}</h3>
@@ -501,9 +544,12 @@ export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
   return (
     <Loaded load={load} what="your overview">
       {(state) => {
-        const open = (manifest.sections as readonly Place[]).filter(
-          (p) => p.path !== '/people' && opens(p, state.roles),
-        );
+        // Settings live on the Settings page now, but "everything" still
+        // lists them, as their own group, where they are.
+        const open = [
+          ...(manifest.sections as readonly Place[]),
+          ...(manifest.settings as readonly Place[]).map((p) => ({ ...p, group: 'Settings' })),
+        ].filter((p) => p.path !== '/people' && opens(p, state.roles));
         const groups = [...new Set(open.map((p) => p.group ?? 'People'))];
         const { me, reportingLine, approvals, team } = state;
         const main = (

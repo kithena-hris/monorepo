@@ -59,9 +59,7 @@ export function Card({
   tone,
   ...props
 }: CardProps): JSX.Element {
-  return (
-    <div className={cn(card({ variant, padded, interactive, tone }), className)} {...props} />
-  );
+  return <div className={cn(card({ variant, padded, interactive, tone }), className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
@@ -73,8 +71,20 @@ export function CardHeader({ className, ...props }: ComponentPropsWithoutRef<'di
   );
 }
 
-export function CardTitle({ className, ...props }: ComponentPropsWithoutRef<'h3'>): JSX.Element {
-  return <h3 className={cn('text-md leading-none font-semibold text-fg', className)} {...props} />;
+/**
+ * The card's heading. An `h3` by default; `level` sets it to fit the page's
+ * outline, since a card directly under a page title is a second-level heading
+ * and a skipped level is a broken outline to a screen reader.
+ */
+export function CardTitle({
+  className,
+  level = 3,
+  ...props
+}: ComponentPropsWithoutRef<'h3'> & { readonly level?: 2 | 3 | 4 }): JSX.Element {
+  const Heading = `h${String(level)}` as 'h2' | 'h3' | 'h4';
+  return (
+    <Heading className={cn('text-md leading-none font-semibold text-fg', className)} {...props} />
+  );
 }
 
 export function CardDescription({

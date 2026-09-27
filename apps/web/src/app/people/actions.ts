@@ -32,7 +32,12 @@ function formInputs(changed: Values): Record<string, unknown>[] {
     if (typeof value === 'boolean') return [{ key, flag: value }];
     if (Array.isArray(value)) return [{ key, items: value.map(String) }];
     if (typeof value === 'object' && 'amountMinor' in value && 'currency' in value) {
-      return [{ key, money: { amountMinor: String(value.amountMinor), currency: String(value.currency) } }];
+      return [
+        {
+          key,
+          money: { amountMinor: String(value.amountMinor), currency: String(value.currency) },
+        },
+      ];
     }
     // A sealed value's last four is what was shown, not something to write back.
     return [];
@@ -48,7 +53,10 @@ function formInputs(changed: Values): Record<string, unknown>[] {
  */
 export async function addPerson(
   person: Readonly<Record<string, string>>,
-): Promise<{ readonly ok: true; readonly personId: string } | { readonly ok: false; readonly message: string }> {
+): Promise<
+  | { readonly ok: true; readonly personId: string }
+  | { readonly ok: false; readonly message: string }
+> {
   const { hireDate = null, ...attributes } = person;
   const a = await people<{ id: string }>('CreatePerson', {
     attributes: Object.entries(attributes).map(([key, text]) => ({ key, text })),
@@ -132,7 +140,9 @@ export async function revealIdentifier(
   attributeKey: string,
 ): Promise<{ ok: true; value: string } | { ok: false; message: string }> {
   const answer = await people<{ value: string }>('RevealIdentifier', { personId, attributeKey });
-  return answer.ok ? { ok: true, value: answer.data.value } : { ok: false, message: answer.message };
+  return answer.ok
+    ? { ok: true, value: answer.data.value }
+    : { ok: false, message: answer.message };
 }
 
 /**
@@ -415,7 +425,10 @@ export async function setScimMapping(
 /* --------------------------------------------------------- full values -- */
 
 /** Finance asks for sealed fields in full, with a reason (PEO-088); HR decides. */
-export async function requestFullValues(fields: readonly string[], reason: string): Promise<Outcome> {
+export async function requestFullValues(
+  fields: readonly string[],
+  reason: string,
+): Promise<Outcome> {
   return outcome(people('RequestFullValues', { fields: [...fields], reason }));
 }
 
@@ -558,7 +571,11 @@ type LeavingReason = 'resigned' | 'dismissed' | 'end_of_contract';
 
 /** One of a person's lifecycle moves (PEO-120), HR's, keyed per press. People decides whether it may. */
 export type LifecycleMove =
-  | { readonly kind: 'giveNotice'; readonly lastWorkingDay: string; readonly reason?: LeavingReason }
+  | {
+      readonly kind: 'giveNotice';
+      readonly lastWorkingDay: string;
+      readonly reason?: LeavingReason;
+    }
   | { readonly kind: 'withdrawNotice' }
   | {
       readonly kind: 'terminate';
@@ -641,7 +658,10 @@ export async function startImportUpload(file: {
  * Where to put a person's photo (no id: the viewer's own): a presigned PUT,
  * as an import's file. The browser has already shrunk it.
  */
-export async function startPhotoUpload(personId: string | null, size: number): Promise<UploadTarget> {
+export async function startPhotoUpload(
+  personId: string | null,
+  size: number,
+): Promise<UploadTarget> {
   const answer = await people<{
     uploadId: string;
     url: string;
@@ -661,8 +681,14 @@ export async function startPhotoUpload(personId: string | null, size: number): P
 export async function completePhotoUpload(
   personId: string | null,
   uploadId: string,
-): Promise<{ readonly ok: true; readonly avatarUrl: string | null } | { readonly ok: false; readonly message: string }> {
-  const a = await people<{ avatarUrl: string | null }>('CompletePhotoUpload', { personId, uploadId });
+): Promise<
+  | { readonly ok: true; readonly avatarUrl: string | null }
+  | { readonly ok: false; readonly message: string }
+> {
+  const a = await people<{ avatarUrl: string | null }>('CompletePhotoUpload', {
+    personId,
+    uploadId,
+  });
   return a.ok ? { ok: true, avatarUrl: a.data.avatarUrl } : { ok: false, message: a.message };
 }
 
@@ -709,13 +735,17 @@ export async function commitImport(
 /* -------------------------------------------------------------- export -- */
 
 type Exported =
-  | { ok: true; links: readonly { name: string; url: string }[] }
-  | { ok: false; message: string };
+  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string };
 
 // The links are signed and expire (PEO-089); they carry their own authority.
 async function exported(variables: Record<string, unknown>): Promise<Exported> {
-  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', variables);
-  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+  const answer = await people<{ links: { name: string; url: string }[] }>(
+    'RequestExport',
+    variables,
+  );
+  return answer.ok
+    ? { ok: true, links: answer.data.links }
+    : { ok: false, message: answer.message };
 }
 
 export async function requestExport(choice: {
@@ -726,7 +756,12 @@ export async function requestExport(choice: {
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
-  return exported({ format: choice.format, fields: [...choice.fields], asOf: choice.asOf, segmentId });
+  return exported({
+    format: choice.format,
+    fields: [...choice.fields],
+    asOf: choice.asOf,
+    segmentId,
+  });
 }
 
 /** One person's employee record as a PDF (PEO-061): what this viewer may read of them. */

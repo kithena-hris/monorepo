@@ -108,7 +108,11 @@ describe('currentPlace', () => {
     expect(at('/people/bulk-edit')).toBe('Directory');
     expect(at('/people/me/history')).toBe('My profile');
     expect(at('/people/reports/:id')).toBe('Scheduled reports');
-    expect(at('/people/settings/integrations/:id')).toBe('Integrations');
+    // Settings are the Settings page's, not People's sections.
+    expect(at('/settings/people/integrations/:id')).toBeUndefined();
+    expect(currentPlace(manifest.settings, '/settings/people/integrations/:id')?.label).toBe(
+      'Integrations',
+    );
     // Adding somebody is an action, not a section.
     expect(at('/people/new')).toBeUndefined();
     expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add employee');
@@ -118,7 +122,9 @@ describe('currentPlace', () => {
     const hr = placesFor(nav, { hr: true, admin: false, finance: false });
     const { unmount } = render(<People {...hr} route="/people/:id" />);
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
-    expect(links.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe('page');
+    expect(links.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
     unmount();
 
     render(<People {...hr} route="/people/new" />);

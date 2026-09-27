@@ -31,6 +31,8 @@ export interface PeopleScreenProps {
   readonly frame?: {
     readonly section: string | null;
     readonly actions: readonly { readonly href: string; readonly label: string }[];
+    /** The links before the section; absent, People alone. */
+    readonly trail?: readonly { readonly href: string; readonly label: string }[];
   };
 }
 
@@ -429,7 +431,7 @@ export function PeopleScreen({
             return rotated;
           },
           onOpenLog: (id: string) => {
-            go(`/people/settings/integrations/${id}`);
+            go(`/settings/people/integrations/${id}`);
           },
           scim: {
             onConnect: async (system: string) => {
@@ -464,6 +466,7 @@ export function PeopleScreen({
           onRevoke: thenRefresh(actions.revokeRole),
         };
       case 'PeopleHome':
+      case 'PeopleSettings':
         return { load: loadable };
       case 'FullValues':
         return {
@@ -519,12 +522,12 @@ export function PeopleScreen({
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? ((load.data as { next?: string | null }).next ?? null)
             : null;
-        const here = `/people/settings/integrations/${params['id'] ?? ''}`;
+        const here = `/settings/people/integrations/${params['id'] ?? ''}`;
         return {
           load: loadable,
           onReplay: thenRefresh(actions.replayDelivery),
           onBack: () => {
-            go('/people/settings/integrations');
+            go('/settings/people/integrations');
           },
           ...(next === null
             ? {}

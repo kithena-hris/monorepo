@@ -540,7 +540,7 @@ describe('PEO-112: granting a role on the roles screen', () => {
   it('grants Finance to an employee with a reason, audited; the employee cannot see the screen', async () => {
     const context = await signedIn(ADMIN.session);
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/settings/roles`);
+    await page.goto(`${stack.shell}/settings/people/roles`);
     // Hydrated first, as elsewhere here: a press on the server's markup is lost.
     await page.waitForLoadState('networkidle');
     await page.getByRole('checkbox', { name: `Finance for ${EMPLOYEE.email}` }).click();
@@ -568,7 +568,7 @@ describe('PEO-112: granting a role on the roles screen', () => {
 
     const employee = await signedIn(EMPLOYEE.session);
     const theirs = await employee.newPage();
-    await theirs.goto(`${stack.shell}/people/settings/roles`);
+    await theirs.goto(`${stack.shell}/settings/people/roles`);
     await theirs.getByText('Could not load the roles').waitFor({ timeout: 30_000 });
     await employee.close();
   });
@@ -638,7 +638,7 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
 
     // The office moves across the date line from today there: 25 hours
     // ahead, so his day is always a different date.
-    await page.goto(`${stack.shell}/people/settings/organisation`);
+    await page.goto(`${stack.shell}/settings/people/organisation`);
     await page.waitForLoadState('networkidle');
     await page.getByRole('tab', { name: 'Locations' }).click();
     await page.getByRole('button', { name: 'Change the time zone of Pago Pago office' }).click();
@@ -901,12 +901,12 @@ describe('PEO-121: the webhook delivery log', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/settings/integrations`);
+    await page.goto(`${stack.shell}/settings/people/integrations`);
     await page.waitForLoadState('networkidle');
     await page
       .getByRole('button', { name: `Delivery log for ${hookUrl}` })
       .click();
-    await page.waitForURL(new RegExp(`/people/settings/integrations/${endpointId}$`));
+    await page.waitForURL(new RegExp(`/settings/people/integrations/${endpointId}$`));
     await page.waitForLoadState('networkidle');
     const table = page.getByRole('table', { name: 'Deliveries' });
     await table.getByText('Failed').waitFor({ timeout: 30_000 });
@@ -936,7 +936,7 @@ describe('Employee fields: a field from a template, explained, then published', 
   it('adds T-shirt size in four steps, says when it is asked, and publishes it', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/settings/fields`);
+    await page.goto(`${stack.shell}/settings/people/fields`);
     await page.getByRole('heading', { name: 'Employee fields' }).waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');
 

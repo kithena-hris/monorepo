@@ -98,6 +98,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('Overview');
     case 'Organisation':
       return read('Organisation');
+    case 'PeopleSettings':
+      return settingsOverview();
     case 'FullValues':
       return read('FullValues');
     case 'IdentifierReviews':
@@ -159,3 +161,24 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
 }
 
 export { today };
+
+/**
+ * People's settings read back for the Settings page: the four screens' own
+ * queries, side by side. Each one People refuses this viewer (Employee fields
+ * and Integrations are its administrators', Roles HR's) is left out rather
+ * than failing the page; only an unreachable People is an error.
+ */
+async function settingsOverview(): Promise<ScreenLoad> {
+  const parts = await Promise.all([
+    read('Registry'),
+    read('Organisation'),
+    read('RoleSettings'),
+    read('Integrations'),
+  ]);
+  const down = parts.find((p) => p.status === 'error' && p.unreachable === true);
+  if (down !== undefined) return down;
+  const [fields, organisation, roles, integrations] = parts.map((p) =>
+    p.status === 'ready' ? p.data : null,
+  );
+  return { status: 'ready', data: { fields, organisation, roles, integrations } };
+}

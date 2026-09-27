@@ -283,8 +283,8 @@ export function AppShell({
             <div className="border-border mt-auto flex shrink-0 flex-col gap-3 border-t pt-3">
               <Nav label="Account">
                 <NavList>
-                  <NavItem href="/settings" icon={<Settings />} aria-disabled tabIndex={-1}>
-                    Settings
+                  <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
+                    <Link href={'/settings' as Route}>Settings</Link>
                   </NavItem>
                 </NavList>
               </Nav>
@@ -472,8 +472,8 @@ function MobileTabs({
           <SheetBody>
             <Nav label="Account">
               <NavList>
-                <NavItem href="/settings" icon={<Settings />} aria-disabled tabIndex={-1}>
-                  Settings
+                <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
+                  <Link href={'/settings' as Route}>Settings</Link>
                 </NavItem>
               </NavList>
             </Nav>
