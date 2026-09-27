@@ -64,7 +64,7 @@ const draft: RegistryDraft = {
     },
   ],
   fields: [
-    field({ key: 'employee_number', label: 'Employee number' }),
+    field({ key: 'employee_number', label: 'Employee number', requiresApproval: true }),
     field({ key: 'hire_date', label: 'Hire date', dataType: 'date' }),
     field({
       key: 'cost_centre',
@@ -129,6 +129,10 @@ describe('FieldRegistry', () => {
     expect(screen.getByText('4 changes are waiting to be published')).toBeInTheDocument();
     // Each row says when it is asked and who sees it, not only its type.
     expect(screen.getByText(/One of a list · 2 options · HR only · Seen by/)).toBeInTheDocument();
+    // A field whose changes wait for a second person says so in those words;
+    // its classification is a badge of its own.
+    expect(screen.getByText('Needs approval')).toBeInTheDocument();
+    expect(screen.queryByText(/Sensitive/)).toBeNull();
 
     await user.click(screen.getByRole('searchbox', { name: 'Search fields' }));
     await user.paste('ethni');

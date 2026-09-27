@@ -442,7 +442,7 @@ const FILTERS: Record<Filter, { label: string; keep: (f: RegistryField) => boole
   all: { label: 'All fields', keep: () => true },
   required: { label: 'Required', keep: (f) => f.requiredness !== 'never' },
   protected: {
-    label: 'Sensitive or confidential',
+    label: 'Needs approval or confidential',
     keep: (f) =>
       f.requiresApproval === true ||
       f.classification === 'confidential' ||
@@ -566,7 +566,7 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
       )}
       {field.requiresApproval === true ? (
         <Badge tone="sensitive" size="sm">
-          Sensitive · needs approval
+          Needs approval
         </Badge>
       ) : null}
       {field.classification === 'confidential' ? (
