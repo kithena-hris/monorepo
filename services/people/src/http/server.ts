@@ -352,6 +352,8 @@ function wireExports(service: PeopleService): {
       reader: drizzlePersonReader(),
       secrets,
     },
+    // Photos for an export that asks for them, and for a record PDF.
+    photos: drizzlePhotos(),
     store: exportStoreFrom(process.env),
     // ponytail: the requester learns the export is ready from
     // `people.export.completed` and fetches the links from `GET

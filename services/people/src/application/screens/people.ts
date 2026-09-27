@@ -280,6 +280,80 @@ export interface ProfileView {
   }[];
   /** What each image or document value is: its name and type, to draw it. */
   readonly files: readonly FileInfoView[];
+  /** Who they report to, up to the top, and who else shares their manager. */
+  readonly reportingLine: ReportingLineView;
+}
+
+/** One person on a reporting line, as the viewer may read them. */
+export interface LinePerson {
+  readonly id: string;
+  readonly name: string;
+  readonly title: string | null;
+  readonly avatarUrl: string | null;
+}
+
+export interface ReportingLineView {
+  /** From the top of the chain down to their manager; empty for somebody at the top. */
+  readonly chain: readonly LinePerson[];
+  /** Everybody else reporting to their manager, as far as the viewer may list them. */
+  readonly peers: readonly LinePerson[];
+  /** More peers than are listed. */
+  readonly morePeers: boolean;
+}
+
+/** The furthest a chain is walked: deeper than any organisation, short of a loop. */
+const MOST_LEVELS = 15;
+const MOST_PEERS = 24;
+
+/**
+ * Their reporting line: each manager above them, read as the viewer reads a
+ * profile, stopping at the first the viewer may not read (a chain says no
+ * more than its readers may know) and at a loop, however the data came to
+ * hold one; then their peers, listed as the directory lists them.
+ */
+async function reportingLineOf(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  person: PersonView,
+): Promise<ReportingLineView> {
+  const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+  const line = (p: PersonView): Omit<LinePerson, 'avatarUrl'> => ({
+    id: p.id,
+    name: nameOf(p.attributes) ?? 'Unnamed',
+    title: text(p.attributes['job_title']),
+  });
+  const up: Omit<LinePerson, 'avatarUrl'>[] = [];
+  const seen = new Set<string>([person.id]);
+  let next = text(person.attributes[REPORTS_TO]);
+  const manager = next;
+  while (next !== null && !seen.has(next) && up.length < MOST_LEVELS) {
+    seen.add(next);
+    const read = await deps.service.access.read(tx, { ...asking, personId: next });
+    if (!read.ok) break;
+    up.push(line(read.value));
+    next = text(read.value.attributes[REPORTS_TO]);
+  }
+  let peers: Omit<LinePerson, 'avatarUrl'>[] = [];
+  let morePeers = false;
+  if (manager !== null) {
+    const listed = await deps.service.access.list(tx, {
+      ...asking,
+      where: { [REPORTS_TO]: manager },
+      limit: MOST_PEERS + 1,
+    });
+    if (listed.ok) {
+      const others = listed.value.items.filter((p) => p.id !== person.id);
+      morePeers = others.length > MOST_PEERS || listed.value.next !== null;
+      peers = others.slice(0, MOST_PEERS).map(line);
+    }
+  }
+  const avatars = await avatarsOf(deps, tx, asking.tenantId, [...up, ...peers].map((p) => p.id));
+  const withAvatar = (p: Omit<LinePerson, 'avatarUrl'>): LinePerson => ({
+    ...p,
+    avatarUrl: avatars.get(p.id) ?? null,
+  });
+  return { chain: up.toReversed().map(withAvatar), peers: peers.map(withAvatar), morePeers };
 }
 
 export interface PlacementView {
@@ -387,6 +461,7 @@ export async function profileView(
       pending: await pendingOnRecord(deps, tx, asking, id.value),
       requests: await openRequests(deps, tx, asking, id.value, named, formValues(view, named)),
       files: await filesOn(deps, tx, asking.tenantId, id.value, named, formValues(view, named)),
+      reportingLine: await reportingLineOf(deps, tx, asking, view),
     });
   });
 }

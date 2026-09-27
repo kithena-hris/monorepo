@@ -1,4 +1,4 @@
-import { Badge } from '@reach/ui';
+import { Badge, Button, Tooltip } from '@reach/ui';
 import type { JSX } from 'react';
 
 /**
@@ -20,5 +20,33 @@ export function MissingMark({
     <Badge tone="attention" size={size}>
       {count === undefined ? 'Missing' : `${String(count)} missing`}
     </Badge>
+  );
+}
+
+/**
+ * How many are missing, as a way to them: hovering or focusing it names them,
+ * pressing it goes to the first. The count alone says there is work; this
+ * says which, and takes you there.
+ */
+export function MissingJump({
+  labels,
+  onJump,
+}: {
+  readonly labels: readonly string[];
+  readonly onJump: () => void;
+}): JSX.Element {
+  const named = labels.join(', ');
+  return (
+    <Tooltip content={`Missing: ${named}`}>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-auto p-0"
+        aria-label={`${String(labels.length)} missing: ${named}. Go to the first`}
+        onClick={onJump}
+      >
+        <MissingMark count={labels.length} size="md" />
+      </Button>
+    </Tooltip>
   );
 }

@@ -191,6 +191,7 @@ describe('every mutation (PEO-113)', () => {
       'pending',
       'person',
       'placement',
+      'reportingLine',
       'requests',
       'reviews',
       'sections',

@@ -826,6 +826,7 @@ export async function requestExport(choice: {
   fields: readonly string[];
   asOf: string;
   format: 'xlsx' | 'csv' | 'pdf';
+  photos?: boolean;
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
@@ -834,6 +835,7 @@ export async function requestExport(choice: {
     fields: [...choice.fields],
     asOf: choice.asOf,
     segmentId,
+    ...(choice.photos === true ? { includePhotos: true } : {}),
   });
 }
 

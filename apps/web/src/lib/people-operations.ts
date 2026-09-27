@@ -106,6 +106,11 @@ export const OPERATIONS = {
       pending { ...PendingParts }
       requests { key label requestedAt by }
       files { id name mediaType size }
+      reportingLine {
+        chain { id name title avatarUrl }
+        peers { id name title avatarUrl }
+        morePeers
+      }
     }
   }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
 
@@ -757,11 +762,12 @@ export const OPERATIONS = {
   }`,
 
   RequestExport: `mutation RequestExport(
-    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String, $key: String!
+    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String,
+    $includePhotos: Boolean, $key: String!
   ) {
     requestExport(
       format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
-      idempotencyKey: $key
+      includePhotos: $includePhotos, idempotencyKey: $key
     ) {
       id status rowCount expiresAt links { name url }
     }

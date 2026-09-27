@@ -617,6 +617,9 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     // PEO-123: HR places him there from his profile. The move is dated on
     // the office's calendar, and from then on his day is the office's.
     await page.waitForLoadState('networkidle');
+    // Changed from the profile's Actions menu, in a dialog.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Change placement' }).click();
     const placement = page.getByRole('form', { name: 'Placement' });
     await placement.getByRole('combobox', { name: /Work location/ }).click();
     await page.getByRole('option', { name: 'Pago Pago office' }).click();

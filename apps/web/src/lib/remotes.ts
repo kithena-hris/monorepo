@@ -35,6 +35,8 @@ const Place = z.object({
   group: z.string().min(1).optional(),
   for: z.array(z.string().min(1)).optional(),
   owns: z.array(z.string().startsWith('/')).optional(),
+  /** An action's pages: offered only there. Absent, everywhere in the area. */
+  on: z.array(z.string().startsWith('/')).optional(),
 });
 export type Place = z.infer<typeof Place>;
 
@@ -103,6 +105,7 @@ export function headerFrame(
     siblingsLabel: 'People sections',
     actions: places.actions
       .filter((a) => currentPlace([a], route) === undefined)
+      .filter((a) => a.on === undefined || (route !== null && a.on.includes(route)))
       .map((a) => ({ href: a.path, label: a.label })),
   };
 }

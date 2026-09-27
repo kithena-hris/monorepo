@@ -352,6 +352,8 @@ export const CreateExportBody = z.strictObject({
   segmentId: z.uuid().optional(),
   /** Required when a financial field is in the file; recorded with the export. */
   reason: z.string().max(500).optional(),
+  /** Profile photos too, as a ZIP beside a CSV or spreadsheet. */
+  includePhotos: z.boolean().optional(),
 });
 
 export const CreateFullValuesBody = z.strictObject({
@@ -1134,6 +1136,7 @@ export function restRoutes(deps: RestDeps): Route[] {
           ...(v.personIds ? { personIds: v.personIds } : {}),
           ...(v.filter !== undefined ? { filter: v.filter } : {}),
           ...(v.reason !== undefined ? { reason: v.reason } : {}),
+          ...(v.includePhotos === true ? { includePhotos: true } : {}),
         };
         const answer = await idempotent(
           deps,
