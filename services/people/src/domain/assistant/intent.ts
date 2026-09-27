@@ -150,7 +150,9 @@ export function instructionFor(): string {
     '{"kind":"people","conditions":[{"key":"<field key>","op":"<op>","values":["..."]}],"match":"all"|"any","limit":1-25}  — to list people',
     '{"kind":"count","conditions":[...],"match":"all","groupBy":"<select field key>"|null}  — how many, optionally per option',
     '{"kind":"person","name":"<full or partial name>"}  — about one named person',
-    '{"kind":"reports","name":"<manager name>"}  — who reports to someone',
+    // Worded without the names of fields: the AI gateway refuses a prompt
+    // that names a field not for AI, and the reporting line is one.
+    '{"kind":"reports","name":"<their name>"}  — who reports to a named person',
     '{"kind":"approvals"}  — what waits for the asker’s approval',
     '{"kind":"unclear","reply":"<one short sentence>"}  — anything else',
     'Ops: is, in, contains, before, after, between (two dates, either may be ""), empty, not_empty. Dates are YYYY-MM-DD.',

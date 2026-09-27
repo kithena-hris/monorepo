@@ -604,6 +604,8 @@ jobs:
           VM_DEPLOY_SSH_KEY: ${{ secrets.VM_DEPLOY_SSH_KEY }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
+          # The assistant's model key. Optional: absent, the assistant is off.
+          ASSISTANT_API_KEY: ${{ secrets.ASSISTANT_API_KEY }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_PRODUCTION }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_PRODUCTION }}
@@ -632,7 +634,10 @@ jobs:
             deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh atlas.hcl migrations vm:kithena/
           ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/production
           put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/production/$1"; }
-          printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN" | put people.env
+          {
+            printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN"
+            if [ -n "$ASSISTANT_API_KEY" ]; then printf 'ASSISTANT_API_KEY=%s\n' "$ASSISTANT_API_KEY"; fi
+          } | put people.env
           printf 'PEOPLE_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
             "$PEOPLE_API_TOKEN" \
             https://identity.kithena.com/.well-known/jwks.json \

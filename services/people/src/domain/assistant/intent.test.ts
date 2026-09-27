@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readIntent, type CatalogueField } from './intent.js';
+import { instructionFor, readIntent, type CatalogueField } from './intent.js';
 
 const catalogue: readonly CatalogueField[] = [
   {
@@ -62,5 +62,9 @@ describe('reading what the model made of a question', () => {
     expect(
       readIntent('{"kind":"count","conditions":[],"groupBy":"hire_date"}', catalogue),
     ).toMatchObject({ kind: 'count', groupBy: null });
+  });
+
+  it('never names a field in what the model is told, so no field policy refuses it', () => {
+    expect(instructionFor().toLowerCase()).not.toMatch(/manager|location|email|legal|birth/);
   });
 });
