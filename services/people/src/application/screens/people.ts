@@ -8,7 +8,8 @@ import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/
 import { mayChangePhoto } from '../../domain/person/photo.js';
 import { avatarsOf } from './photo.js';
 import { run } from '../person/service.js';
-import { LEAVERS } from '../person/ports.js';
+import { LEAVERS, type Condition } from '../person/ports.js';
+import { isCoreKey } from '../person/core.js';
 import { segmentFor, segmentsFor } from './segments.js';
 import type {
   FormValue,
@@ -914,7 +915,32 @@ export interface DirectoryView {
   /** Provisional or pre-hire among them; null when this viewer is not shown statuses. */
   readonly notStarted: number | null;
   readonly incomplete: number | null;
-  readonly columns: readonly { readonly key: string; readonly label: string }[];
+  /**
+   * Every column this viewer may show, in order; `shown` is the default set
+   * (the fields marked for the directory). The screen lets the viewer choose.
+   */
+  readonly columns: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly shown: boolean;
+    readonly sortable: boolean;
+  }[];
+  /**
+   * Every field this viewer may build a condition on, with what kind of value
+   * it holds (which operators fit) and, for a choice, its options.
+   */
+  readonly fields: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly kind: 'text' | 'select' | 'date' | 'number' | 'person' | 'status';
+    readonly options: readonly { readonly value: string; readonly label: string }[];
+  }[];
+  /** The conditions, match and order this page answers, as asked. */
+  readonly query: {
+    readonly conditions: readonly Condition[];
+    readonly match: 'all' | 'any';
+    readonly sort: { readonly key: string; readonly direction: 'asc' | 'desc' } | null;
+  };
   readonly filterable: readonly {
     readonly key: string;
     readonly label: string;
@@ -940,6 +966,57 @@ export interface DirectoryView {
 /** Shown as columns: in the directory, and readable on everybody. */
 const COLUMN_SKIP = new Set(['given_name', 'family_name', 'preferred_name', 'work_email']);
 
+/** Core fields the directory offers as columns and conditions, besides tenant fields. */
+const COLUMN_CHOICES = new Set([
+  'manager_id',
+  'location_id',
+  'legal_entity_id',
+  'hire_date',
+  'employee_number',
+]);
+
+const STATUS_OPTIONS = [
+  { value: 'provisional', label: 'Not started' },
+  { value: 'pre_hire', label: 'Starting soon' },
+  { value: 'active', label: 'Active' },
+  { value: 'on_leave', label: 'On leave' },
+  { value: 'notice', label: 'On notice' },
+  { value: 'terminated', label: 'Left' },
+];
+
+/** Which kind of condition a field takes; null for one the directory does not filter by. */
+function fieldKind(kind: string): 'text' | 'select' | 'date' | 'number' | 'person' | null {
+  switch (kind) {
+    case 'select':
+    case 'location_ref':
+    case 'legal_entity_ref':
+      return 'select';
+    case 'date':
+      return 'date';
+    case 'number':
+    case 'decimal':
+    case 'percentage':
+      return 'number';
+    case 'person_ref':
+      return 'person';
+    case 'text':
+    case 'long_text':
+    case 'email':
+    case 'phone':
+    case 'url':
+      return 'text';
+    default:
+      return null;
+  }
+}
+
+/** A choice's label, for a cell. */
+function optionLabel(definition: AttributeDefinition, value: string): string | undefined {
+  return definition.typeConfig.kind === 'select'
+    ? definition.typeConfig.options.find((o) => o.value === value)?.label.default
+    : undefined;
+}
+
 /** A directory page. Keyset, so the last page of 50,000 costs what the first does. */
 export const DIRECTORY_PAGE = 50;
 
@@ -962,6 +1039,10 @@ export async function directoryView(
     readonly segmentId?: string;
     /** Only people with a required detail missing: HR's alone. */
     readonly incomplete?: boolean;
+    /** Conditions, all or any, and an order (`refinable` authorizes them). */
+    readonly conditions?: readonly Condition[];
+    readonly match?: 'all' | 'any';
+    readonly sort?: { readonly key: string; readonly direction: 'asc' | 'desc' };
   },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
@@ -983,15 +1064,27 @@ export async function directoryView(
             gapsIn: 'any' as const,
           }
         : {};
+    // A sorted directory's cursor is its offset (`@150`); an unsorted one's,
+    // the last person's id, as ever.
+    const offset =
+      query.sort !== undefined && query.after?.startsWith('@') === true
+        ? Number.parseInt(query.after.slice(1), 10) || 0
+        : 0;
+    const refine = {
+      conditions: query.conditions ?? [],
+      match: query.match ?? ('all' as const),
+      ...(query.sort === undefined ? {} : { sort: query.sort, offset }),
+    };
     const narrowed = {
       ...asking,
       where: { ...segment?.value.filter, ...query.filters },
       ...(query.search.trim() === '' ? {} : { search: query.search }),
       ...gaps,
+      refine,
     };
     const listed = await deps.service.access.list(tx, {
       ...narrowed,
-      after: query.after ?? null,
+      after: query.sort === undefined ? (query.after ?? null) : null,
       limit: DIRECTORY_PAGE,
     });
     if (!listed.ok) return listed;
@@ -999,9 +1092,21 @@ export async function directoryView(
     if (!counted.ok) return counted;
     const page = listed.value.items;
 
+    // Every column this viewer may read on everybody; the directory's own set
+    // shown by default, the rest a choice away. Location and legal entity are
+    // named, the manager too, the start date and (HR's) status read as is.
     const columns = definitions.filter(
-      (d) => d.includeInDirectory && !COLUMN_SKIP.has(d.key) && visibleTo(d, everyone),
+      (d) =>
+        !COLUMN_SKIP.has(d.key) &&
+        !d.encrypted &&
+        visibleTo(d, everyone) &&
+        (d.includeInDirectory || COLUMN_CHOICES.has(d.key) || !isCoreKey(d.key)),
     );
+    const org = await deps.calendars.load(tx, asking.tenantId);
+    const placeName = new Map<string, string>([
+      ...[...org.entities.values()].map((e) => [e.id, e.name] as const),
+      ...[...org.locations.values()].map((l) => [l.id, l.name] as const),
+    ]);
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
     );
@@ -1056,7 +1161,53 @@ export async function directoryView(
       active: counted.value.active,
       notStarted: everyone.isHr ? counted.value.notStarted : null,
       incomplete: incomplete?.ok === true ? incomplete.value.all : null,
-      columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
+      columns: [
+        ...columns.map((c) => ({
+          key: c.key as string,
+          label: c.label.default,
+          shown: c.includeInDirectory,
+          sortable: true,
+        })),
+        ...(everyone.isHr
+          ? [{ key: 'status', label: 'Status', shown: false, sortable: true }]
+          : []),
+      ],
+      fields: [
+        ...columns.flatMap((c) => {
+          const kind = fieldKind(c.typeConfig.kind);
+          if (kind === null) return [];
+          const options =
+            c.typeConfig.kind === 'select'
+              ? c.typeConfig.options
+                  .filter((o) => o.retiredAt === null)
+                  .map((o) => ({ value: o.value, label: o.label.default }))
+              : c.typeConfig.kind === 'location_ref'
+                ? [...org.locations.values()]
+                    .filter((l) => l.archived !== true)
+                    .map((l) => ({ value: l.id, label: l.name }))
+                : c.typeConfig.kind === 'legal_entity_ref'
+                  ? [...org.entities.values()]
+                      .filter((e) => e.archived !== true)
+                      .map((e) => ({ value: e.id, label: e.name }))
+                  : [];
+          return [{ key: c.key as string, label: c.label.default, kind, options }];
+        }),
+        ...(everyone.isHr
+          ? [
+              {
+                key: 'status',
+                label: 'Status',
+                kind: 'status' as const,
+                options: STATUS_OPTIONS,
+              },
+            ]
+          : []),
+      ],
+      query: {
+        conditions: refine.conditions,
+        match: refine.match,
+        sort: query.sort ?? null,
+      },
       filterable: [
         ...(reportsTo === undefined
           ? []
@@ -1068,14 +1219,14 @@ export async function directoryView(
               },
             ]),
         ...selects.map((d) => ({
-        key: d.key,
-        label: d.label.default,
-        options:
-          d.typeConfig.kind === 'select'
-            ? d.typeConfig.options
-                .filter((o) => o.retiredAt === null)
-                .map((o) => ({ value: o.value, label: o.label.default }))
-            : [],
+          key: d.key,
+          label: d.label.default,
+          options:
+            d.typeConfig.kind === 'select'
+              ? d.typeConfig.options
+                  .filter((o) => o.retiredAt === null)
+                  .map((o) => ({ value: o.value, label: o.label.default }))
+              : [],
         })),
       ],
       people: page.map((p) => {
@@ -1089,12 +1240,19 @@ export async function directoryView(
             columns.flatMap((c) => {
               const value = p.attributes[c.key];
               if (value === undefined || value === null) return [];
+              const kind = c.typeConfig.kind;
               const shown =
-                c.typeConfig.kind === 'person_ref'
+                kind === 'person_ref'
                   ? typeof value === 'string'
                     ? names.get(value)
                     : undefined
-                  : toForm(value);
+                  : kind === 'location_ref' || kind === 'legal_entity_ref'
+                    ? typeof value === 'string'
+                      ? placeName.get(value)
+                      : undefined
+                    : kind === 'select' && typeof value === 'string'
+                      ? (optionLabel(c, value) ?? value)
+                      : toForm(value);
               return typeof shown === 'string' ? [[c.key, shown]] : [];
             }),
           ),

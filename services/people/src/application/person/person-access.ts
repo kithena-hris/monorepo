@@ -71,7 +71,15 @@ import {
   holds,
   type Holding,
 } from './pending-changes.js';
-import type { Asking, GapsIn, PersonCount, SealedValue } from './ports.js';
+import type {
+  Asking,
+  Condition,
+  ConditionOp,
+  GapsIn,
+  PersonCount,
+  Refine,
+  SealedValue,
+} from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
 import { countryOf, factsOf } from './subject.js';
@@ -222,6 +230,8 @@ export interface PersonAccess {
       readonly gaps?: readonly string[];
       /** `any`: a gap anybody fills, the employee's too. Staff's alone by default. */
       readonly gapsIn?: GapsIn;
+      /** The directory's conditions and order (`refinable`). */
+      readonly refine?: Refine;
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
   /** How many people `list` would page through for the same `where`, `search` and `gaps`. */
@@ -232,6 +242,7 @@ export interface PersonAccess {
       readonly search?: string;
       readonly gaps?: readonly string[];
       readonly gapsIn?: GapsIn;
+      readonly refine?: Refine;
     },
   ): Promise<Result<PersonCount>>;
   update(
@@ -564,6 +575,72 @@ export function filterable(
     ) {
       return err(failure('FIELD_NOT_FILTERABLE', `You cannot filter people by ${key}`, [key]));
     }
+  }
+  return ok(undefined);
+}
+
+/** How many conditions a directory may combine, and values one may list. */
+const MAX_CONDITIONS = 20;
+const MAX_VALUES = 50;
+const ARITY: Readonly<Record<ConditionOp, readonly [number, number]>> = {
+  is: [1, 1],
+  in: [1, MAX_VALUES],
+  contains: [1, 1],
+  before: [1, 1],
+  after: [1, 1],
+  between: [2, 2],
+  empty: [0, 0],
+  not_empty: [0, 0],
+  under: [1, 1],
+};
+
+/**
+ * The directory's conditions and order, authorized: every key readable on
+ * everybody, as a filter's is (`filterable`), except that a condition may
+ * also name a core or lifecycle field — a location, a legal entity, a start
+ * date — since it reads the typed column. `status` is HR's; `name` sorts;
+ * `under` only walks the reporting line. Pure, so the rule is testable alone.
+ */
+export function refinable(
+  definitions: readonly AttributeDefinition[],
+  refine: Refine | undefined,
+  everyone: ViewerRelations,
+): Result<void> {
+  if (refine === undefined) return ok(undefined);
+  const conditions = refine.conditions ?? [];
+  if (conditions.length > MAX_CONDITIONS) {
+    return err(failure('TOO_MANY_CONDITIONS', `At most ${String(MAX_CONDITIONS)} conditions`));
+  }
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  const readable = (key: string): boolean => {
+    if (key === 'status') return everyone.isHr;
+    const definition = byKey.get(key);
+    return definition !== undefined && !definition.encrypted && visibleTo(definition, everyone);
+  };
+  for (const c of conditions) {
+    if (!readable(c.key)) {
+      return err(failure('FIELD_NOT_FILTERABLE', `You cannot filter people by ${c.key}`, [c.key]));
+    }
+    const [least, most] = ARITY[c.op];
+    if (c.values.length < least || c.values.length > most || c.values.some((v) => v.length > 200)) {
+      return err(
+        failure(
+          'CONDITION_INVALID',
+          `${c.key} ${c.op} takes ${String(least)} to ${String(most)} values`,
+          [c.key],
+        ),
+      );
+    }
+    if (c.op === 'under' && c.key !== REPORTS_TO) {
+      return err(failure('CONDITION_INVALID', 'Only the reporting line can be walked', [c.key]));
+    }
+  }
+  const sort = refine.sort;
+  if (sort !== undefined && sort.key !== 'name' && !readable(sort.key)) {
+    return err(failure('FIELD_NOT_SORTABLE', `You cannot sort people by ${sort.key}`, [sort.key]));
+  }
+  if (refine.offset !== undefined && (refine.offset < 0 || refine.offset > 100_000)) {
+    return err(failure('CONDITION_INVALID', 'Offset out of range'));
   }
   return ok(undefined);
 }
@@ -1073,7 +1150,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     if (!person || person.snapshot.status !== 'provisional') return {};
     if (person.values['employee_number'] !== undefined) return {};
     const entity =
-      changes['legal_entity_id'] ?? (await placementOn(tx, asking.tenantId, person, on)).legalEntityId;
+      changes['legal_entity_id'] ??
+      (await placementOn(tx, asking.tenantId, person, on)).legalEntityId;
     if (typeof entity !== 'string') return {};
     const next = await nextNumber(tx, asking.tenantId, entity);
     return next === null ? {} : { employee_number: next };
@@ -1518,7 +1596,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     async last4(tx, tenantId, changeId) {
       const change = await deps.approvals?.store.find(tx, tenantId, changeId);
       if (!change) return null;
-      return change.sealed ? change.last4 : typeof change.value === 'string' ? change.value.slice(-4) : null;
+      return change.sealed
+        ? change.last4
+        : typeof change.value === 'string'
+          ? change.value.slice(-4)
+          : null;
     },
     async value(tx, tenantId, changeId) {
       const change = await deps.approvals?.store.find(tx, tenantId, changeId);
@@ -1672,7 +1754,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const own = await deps.reader.personOf(tx, asking.tenantId, asking.viewer.accountId);
     const refusal =
       own === merge.survivorId || own === merge.absorbedId
-        ? failure('FORBIDDEN', 'Nobody undoes a merge of their own record; another HR colleague has to')
+        ? failure(
+            'FORBIDDEN',
+            'Nobody undoes a merge of their own record; another HR colleague has to',
+          )
         : (unmergeRefusal(
             absorbed.snapshot,
             survivor.snapshot,
@@ -1698,10 +1783,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       return d !== undefined && !d.encrypted && canWrite(d, onSurvivor).ok;
     };
     const reverse = plan.reverse.filter((r) => writable(r.key));
-    const kept = [
-      ...plan.kept,
-      ...plan.reverse.filter((r) => !writable(r.key)).map((r) => r.key),
-    ];
+    const kept = [...plan.kept, ...plan.reverse.filter((r) => !writable(r.key)).map((r) => r.key)];
     const moved = merge.moved?.identityAccountId ?? null;
     const account: UnmergeOptions['account'] =
       moved === null ? null : survivor.snapshot.identityAccountId === moved ? 'returned' : 'kept';
@@ -2132,7 +2214,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     async unmerge(tx, asking) {
       const reason = asking.reason.trim();
       if (reason === '' || reason.length > 500) {
-        return err(failure('VALUE_INVALID', 'Say why the merge was wrong, in at most 500 characters', ['reason']));
+        return err(
+          failure('VALUE_INVALID', 'Say why the merge was wrong, in at most 500 characters', [
+            'reason',
+          ]),
+        );
       }
       const found = await unmergeCase(tx, asking, true);
       if (!found.ok) return found;
@@ -2244,6 +2330,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly search?: string;
         readonly gaps?: readonly string[];
         readonly gapsIn?: GapsIn;
+        readonly refine?: Refine;
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
@@ -2251,6 +2338,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const everyone = await everyoneTo(tx, asking);
       const query = narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
+      const refinement = refinable(version.document.attributes, asking.refine, everyone);
+      if (!refinement.ok) return refinement;
       if (asking.gaps !== undefined && !everyone.isHr) {
         return err(failure('FORBIDDEN', 'Who is missing what is HR’s to list'));
       }
@@ -2264,6 +2353,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.gaps,
         everyone.isHr,
         asking.gapsIn,
+        asking.refine,
       );
       const related = await relationsToMany(
         deps.relations,
@@ -2279,7 +2369,13 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         if (relations === undefined) continue;
         items.push(await view(tx, asking, row, version, relations, asking.asOf));
       }
-      const next = rows.length === asking.limit ? (rows.at(-1)?.snapshot.id ?? null) : null;
+      // A sorted list's next page is its offset; an unsorted one's, the last id.
+      const next =
+        rows.length < asking.limit
+          ? null
+          : asking.refine?.sort !== undefined
+            ? `@${String((asking.refine.offset ?? 0) + asking.limit)}`
+            : (rows.at(-1)?.snapshot.id ?? null);
       return ok({ items, next });
     },
 
@@ -2289,6 +2385,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const everyone = await everyoneTo(tx, asking);
       const query = narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
+      const refinement = refinable(version.document.attributes, asking.refine, everyone);
+      if (!refinement.ok) return refinement;
       if (asking.gaps !== undefined && !everyone.isHr) {
         return err(failure('FORBIDDEN', 'Who is missing what is HR’s to count'));
       }
@@ -2300,6 +2398,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         everyone.isHr,
         asking.gaps,
         asking.gapsIn,
+        asking.refine,
       );
       // Statuses are HR's; outside HR everybody listed counts as active.
       return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all, notStarted: 0 });
@@ -2828,7 +2927,12 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
 
       // Where they sit on their first day, a placement scheduled for it included.
       const on = await placementOn(tx, asking.tenantId, person, hireDate);
-      const facts = hireFactsOf(on.values, on.legalEntityId, version.version, person.sourceOfRecord);
+      const facts = hireFactsOf(
+        on.values,
+        on.legalEntityId,
+        version.version,
+        person.sourceOfRecord,
+      );
       if (!facts.ok) return facts;
 
       const aggregate = Person.rehydrate(person.snapshot);
@@ -2900,7 +3004,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         version.document.attributes.some(
           (d) => d.key === 'legal_entity_id' && d.deprecatedAt === null,
         ) && [...calendar.entities.values()].some((e) => e.archived !== true);
-      const refusal = hireRefusal(current.snapshot.status, !needsEntity || now.legalEntityId !== null);
+      const refusal = hireRefusal(
+        current.snapshot.status,
+        !needsEntity || now.legalEntityId !== null,
+      );
       if (refusal) return err(refusal);
       const hired = await api.hire(tx, { ...on, hireDate });
       return hired.ok ? ok({ view: hired.value, placed }) : hired;

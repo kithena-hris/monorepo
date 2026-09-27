@@ -22,6 +22,7 @@ import {
   type PersonReader,
   type PersonRecord,
   type PersonSearch,
+  type Refine,
   type RelationsResolver,
   type ScheduledRefusals,
   type SchemaVersions,
@@ -179,6 +180,100 @@ function matching(
  * narrow row per person, so its cost is the tenant's size and not a
  * completeness verdict per person.
  */
+/**
+ * A field as SQL: its typed column when it has one, the start date, the
+ * status, or its value in `custom` as text. Dates are ISO strings, so text
+ * order is date order.
+ */
+function fieldSql(key: string): SQL {
+  if (key === 'status') return sql`${person.status}::text`;
+  if (key === 'hire_date') return sql`${person.hireDate}::text`;
+  if (Object.hasOwn(CORE_COLUMNS, key)) {
+    const column = person[CORE_COLUMNS[key as keyof typeof CORE_COLUMNS]];
+    return sql`${column}::text`;
+  }
+  return sql`(${person.custom} ->> ${key})`;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The directory's conditions as one predicate, all or any of them. Values
+ * are parameters, never SQL; the keys were authorized by the caller
+ * (`refinable`) and only ever name a column or a JSON key.
+ */
+function refined(tenantId: string, refine: Refine | undefined): SQL | undefined {
+  const conditions = refine?.conditions ?? [];
+  if (conditions.length === 0) return undefined;
+  const parts = conditions.map((c): SQL => {
+    const [first = '', second = ''] = c.values;
+    // A range over numbers compares numbers ("9" < "10"); a value that is not
+    // one reads as NULL rather than failing the statement. Dates stay text.
+    const numeric =
+      ['before', 'after', 'between'].includes(c.op) &&
+      c.values.length > 0 &&
+      c.values.every((v) => /^-?\d+(\.\d+)?$/.test(v));
+    const text = fieldSql(c.key);
+    const field = numeric
+      ? sql`(CASE WHEN ${text} ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (${text})::numeric END)`
+      : text;
+    const bound = (v: string): SQL => (numeric ? sql`${v}::numeric` : sql`${v}`);
+    switch (c.op) {
+      case 'is':
+        return sql`${field} = ${first}`;
+      case 'in':
+        return c.values.length === 0
+          ? sql`false`
+          : sql`${field} IN (${sql.join(
+              c.values.map((v) => sql`${v}`),
+              sql`, `,
+            )})`;
+      case 'contains':
+        return sql`${text} ILIKE ${likePattern(first)}`;
+      case 'before':
+        return sql`${field} <= ${bound(first)}`;
+      case 'after':
+        return sql`${field} >= ${bound(first)}`;
+      case 'between':
+        return sql`${field} BETWEEN ${bound(first)} AND ${bound(second)}`;
+      case 'empty':
+        return sql`(${field} IS NULL OR ${field} = '')`;
+      case 'not_empty':
+        return sql`(${field} IS NOT NULL AND ${field} <> '')`;
+      case 'under':
+        // Everybody below a manager, however deep. UNION, not UNION ALL, so a
+        // cycle in bad data ends rather than looping.
+        return UUID.test(first)
+          ? sql`${person.id} IN (
+              WITH RECURSIVE below(id) AS (
+                SELECT id FROM people.person
+                 WHERE tenant_id = ${tenantId}::uuid AND manager_id = ${first}::uuid
+                UNION
+                SELECT p.id FROM people.person p JOIN below b ON p.manager_id = b.id
+                 WHERE p.tenant_id = ${tenantId}::uuid
+              ) SELECT id FROM below)`
+          : sql`false`;
+    }
+  });
+  return refine?.match === 'any' ? or(...parts) : and(...parts);
+}
+
+/** The order a sorted directory asks for, always ending in the id so pages are stable. */
+function orderOf(refine: Refine | undefined): SQL[] | undefined {
+  const sort = refine?.sort;
+  if (sort === undefined) return undefined;
+  const dir = sort.direction === 'desc' ? sql`DESC` : sql`ASC`;
+  if (sort.key === 'name') {
+    return [
+      sql`lower(coalesce(${person.preferredName}, ${person.givenName}, '')) ${dir}`,
+      sql`lower(coalesce(${person.familyName}, '')) ${dir}`,
+      sql`${person.id} ASC`,
+    ];
+  }
+  // A person with no value sorts last whichever way the list runs.
+  return [sql`${fieldSql(sort.key)} ${dir} NULLS LAST`, sql`${person.id} ASC`];
+}
+
 export function drizzleGapTotals() {
   return async (tx: PostgresJsDatabase, tenantId: string): Promise<GapTotals> => {
     const [waiting] = await tx.execute<{ n: number }>(sql`
@@ -206,22 +301,41 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
-    async page(tx, tenantId, after, limit, where, search, gaps, leavers, gapsIn) {
-      const rows = await tx
-        .select(withEmployment)
-        .from(person)
-        .where(
-          and(
-            matching(tenantId, where, search, gaps, leavers, gapsIn),
-            after === null ? undefined : gt(person.id, after),
-          ),
-        )
-        .orderBy(asc(person.id))
-        .limit(limit);
+    async page(tx, tenantId, after, limit, where, search, gaps, leavers, gapsIn, refine) {
+      const order = orderOf(refine);
+      // ponytail: a sorted page reads by offset, so page n costs n pages; the
+      // unsorted default keeps the keyset by id that large tenants page by.
+      // Keyset on (value, id) if deep sorted pages ever matter.
+      const rows =
+        order === undefined
+          ? await tx
+              .select(withEmployment)
+              .from(person)
+              .where(
+                and(
+                  matching(tenantId, where, search, gaps, leavers, gapsIn),
+                  refined(tenantId, refine),
+                  after === null ? undefined : gt(person.id, after),
+                ),
+              )
+              .orderBy(asc(person.id))
+              .limit(limit)
+          : await tx
+              .select(withEmployment)
+              .from(person)
+              .where(
+                and(
+                  matching(tenantId, where, search, gaps, leavers, gapsIn),
+                  refined(tenantId, refine),
+                ),
+              )
+              .orderBy(...order)
+              .limit(limit)
+              .offset(Math.max(0, refine?.offset ?? 0));
       return rows.map(toRecord);
     },
 
-    async count(tx, tenantId, where, search, leavers, gaps, gapsIn) {
+    async count(tx, tenantId, where, search, leavers, gaps, gapsIn, refine) {
       const rows = await tx
         .select({
           all: sql<number>`count(*)::int`,
@@ -229,7 +343,9 @@ export function drizzlePersonReader(): PersonReader {
           notStarted: sql<number>`(count(*) FILTER (WHERE ${person.status} IN ('provisional', 'pre_hire')))::int`,
         })
         .from(person)
-        .where(matching(tenantId, where, search, gaps, leavers, gapsIn));
+        .where(
+          and(matching(tenantId, where, search, gaps, leavers, gapsIn), refined(tenantId, refine)),
+        );
       return {
         all: rows[0]?.all ?? 0,
         active: rows[0]?.active ?? 0,
@@ -478,7 +594,8 @@ export function drizzleRelations(): RelationsResolver {
         UNION ALL
         SELECT DISTINCT 'chain', id FROM below
       `);
-      const of = (kind: string) => new Set([...rows].filter((r) => r.kind === kind).map((r) => r.id));
+      const of = (kind: string) =>
+        new Set([...rows].filter((r) => r.kind === kind).map((r) => r.id));
       return { self: of('self'), direct: of('direct'), chain: of('chain'), complete: true };
     },
   };

@@ -597,6 +597,62 @@ describe('the directory at 50,000 people', () => {
     );
   });
 
+  it('narrows by any of several conditions and sorts by name, within the budget', async () => {
+    const refine = {
+      conditions: [
+        { key: 'cost_centre', op: 'in' as const, values: ['CC-204', 'CC-205'] },
+        { key: 'cost_centre', op: 'contains' as const, values: ['CC-49'] },
+      ],
+      match: 'any' as const,
+      sort: { key: 'name', direction: 'asc' as const },
+      offset: 0,
+    };
+    const page = await timed('directory conditions sorted by name', () =>
+      inTenantResult(inTenant, PERF, (tx) =>
+        people.list(tx, { ...asking(hr, PERF), limit: 50, refine }),
+      ),
+    );
+    expect(page.ok).toBe(true);
+    if (!page.ok) return;
+    const centres = page.value.items.map((p) => String(p.attributes['cost_centre']));
+    expect(centres.every((c) => c === 'CC-204' || c === 'CC-205' || c.startsWith('CC-49'))).toBe(
+      true,
+    );
+    const names = page.value.items.map((p) => String(p.attributes['given_name']).toLowerCase());
+    expect(names).toEqual([...names].sort());
+    // Sorted, the next page is an offset.
+    expect(page.value.next).toBe('@50');
+  });
+
+  it('pages a sorted list by offset without repeating anybody', async () => {
+    const refine = (offset: number) => ({
+      conditions: [{ key: 'cost_centre', op: 'is' as const, values: ['CC-7'] }],
+      sort: { key: 'cost_centre', direction: 'desc' as const },
+      offset,
+    });
+    const first = await inTenantResult(inTenant, PERF, (tx) =>
+      people.list(tx, { ...asking(hr, PERF), limit: 50, refine: refine(0) }),
+    );
+    const second = await inTenantResult(inTenant, PERF, (tx) =>
+      people.list(tx, { ...asking(hr, PERF), limit: 50, refine: refine(50) }),
+    );
+    if (!first.ok || !second.ok) throw new Error('not listed');
+    const a = new Set(first.value.items.map((p) => p.id));
+    expect(second.value.items.some((p) => a.has(p.id))).toBe(false);
+  });
+
+  it('lets HR narrow by status, and counts what the conditions match', async () => {
+    const counted = await inTenantResult(inTenant, PERF, (tx) =>
+      people.count(tx, {
+        ...asking(hr, PERF),
+        refine: { conditions: [{ key: 'status', op: 'is', values: ['terminated'] }] },
+      }),
+    );
+    if (!counted.ok) throw new Error(counted.error.message);
+    // Every seventh of 50,000.
+    expect(counted.value.all).toBe(Math.floor(50_000 / 7));
+  });
+
   it('searches every person, with its count, a page at a time, within the budget', async () => {
     // `Family204` is 50 people spread over the whole id range: a search over
     // a first page of people, as the directory once did, finds almost none.

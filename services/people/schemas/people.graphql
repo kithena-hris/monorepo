@@ -341,6 +341,33 @@ type DirectoryCell {
 type DirectoryColumn {
   key: String
   label: String
+  """In the default set of columns."""
+  shown: Boolean
+  sortable: Boolean
+}
+
+type DirectoryCondition {
+  key: String
+  op: String
+  values: [String!]
+}
+
+"""
+One condition: is, in, contains, before, after, between, empty, not_empty, or under (the reporting line).
+"""
+input DirectoryConditionInput {
+  key: String!
+  op: String!
+  values: [String!]!
+}
+
+"""A field a condition may name, with the kind of value it holds."""
+type DirectoryField {
+  key: String
+  """text, select, date, number, person or status: which operators fit."""
+  kind: String
+  label: String
+  options: [FieldOption!]
 }
 
 type DirectoryFilter {
@@ -356,6 +383,18 @@ type DirectoryPerson {
   missing: Int
   name: String
   values: [DirectoryCell!]
+}
+
+"""The conditions, match and order this page answers."""
+type DirectoryQuery {
+  conditions: [DirectoryCondition!]
+  match: String
+  sort: DirectorySort
+}
+
+type DirectorySort {
+  direction: String
+  key: String
 }
 
 input DraftFieldInput {
@@ -1276,11 +1315,13 @@ type PeopleDirectory {
   active: Int
   can: DirectoryActions
   columns: [DirectoryColumn!]
+  fields: [DirectoryField!]
   filterable: [DirectoryFilter!]
   incomplete: Int
   next: String
   notStarted: Int
   people: [DirectoryPerson!]
+  query: DirectoryQuery
   segment: PeopleSegmentRef
   """The saved segments this viewer could apply here."""
   segments: [PeopleSegmentRef!]
@@ -1763,11 +1804,16 @@ type Query {
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(
     after: ID
+    conditions: [DirectoryConditionInput!]
     filter: String
     """Only people with a required detail missing; HR’s alone."""
     incomplete: Boolean
+    """all (default) or any."""
+    match: String
     search: String
     segment: ID
+    """`key:asc` or `key:desc`; `name` sorts by name."""
+    sort: String
   ): PeopleDirectory
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.

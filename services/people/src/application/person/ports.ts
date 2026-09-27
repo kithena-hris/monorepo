@@ -45,6 +45,35 @@ export interface PersonRecord {
 /** Whose gaps a `gaps` narrowing reads: the ones staff fill, or anybody's. */
 export type GapsIn = 'staff' | 'any';
 
+/**
+ * A directory condition: one field, an operator, and its values.
+ *
+ * `is` one value; `in` any of several (OR within a field); `contains` a
+ * substring; `before`, `after` and `between` a date or number range, bounds
+ * included; `empty` and `not_empty` take no value; `under` a manager and
+ * everybody below them, however deep. `status` is a key too, HR's alone.
+ */
+export type ConditionOp =
+  'is' | 'in' | 'contains' | 'before' | 'after' | 'between' | 'empty' | 'not_empty' | 'under';
+
+export interface Condition {
+  readonly key: string;
+  readonly op: ConditionOp;
+  readonly values: readonly string[];
+}
+
+/**
+ * What the directory adds to a list beyond `where`: conditions, whether all
+ * or any must hold, and an order. A sorted list pages by `offset`; an
+ * unsorted one keeps the keyset by id, which is what large tenants page by.
+ */
+export interface Refine {
+  readonly conditions?: readonly Condition[];
+  readonly match?: 'all' | 'any';
+  readonly sort?: { readonly key: string; readonly direction: 'asc' | 'desc' };
+  readonly offset?: number;
+}
+
 /** A directory search: the text, and the core keys it may be matched against. */
 export interface PersonSearch {
   readonly text: string;
@@ -90,6 +119,7 @@ export interface PersonReader {
     gaps?: readonly string[],
     leavers?: boolean,
     gapsIn?: GapsIn,
+    refine?: Refine,
   ): Promise<readonly PersonRecord[]>;
 
   /** How many people `where` and `search` (and `gaps`) match, by status: the directory's summary. */
@@ -101,6 +131,7 @@ export interface PersonReader {
     leavers?: boolean,
     gaps?: readonly string[],
     gapsIn?: GapsIn,
+    refine?: Refine,
   ): Promise<PersonCount>;
 
   /** Which person signs in as this account, if any: "my profile" starts here. */

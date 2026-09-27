@@ -205,9 +205,7 @@ export const EndpointPatch = EndpointBody.partial().extend({ enabled: z.boolean(
 export const ScimConnectionBody = z.strictObject({ system: z.string().max(80) });
 /** The approved mapping, whole (PEO-073): each SCIM path and the attribute it owns. */
 export const ScimMappingBody = z.strictObject({
-  mapping: z
-    .array(z.strictObject({ path: z.string().max(200), key: z.string().max(64) }))
-    .max(200),
+  mapping: z.array(z.strictObject({ path: z.string().max(200), key: z.string().max(64) })).max(200),
 });
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
 /** Whose photo: a person, or null for the viewer's own. */
@@ -441,7 +439,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           again: async (asking, _resource, input) => {
             const answered = await run(deps.service, asking.tenantId, async (tx) => {
               const id =
-                input.personId ?? (await deps.personOf(tx, asking.tenantId, asking.viewer.accountId));
+                input.personId ??
+                (await deps.personOf(tx, asking.tenantId, asking.viewer.accountId));
               const urls = await avatarsOf(deps, tx, asking.tenantId, id === null ? [] : [id]);
               return ok({ avatarUrl: id === null ? null : (urls.get(id) ?? null) });
             });
@@ -544,7 +543,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         const b = query.get('b');
         const id = new RegExp(`^${UUID}$`);
         if ((a === null) !== (b === null) || (a !== null && (!id.test(a) || !id.test(b ?? '')))) {
-          return refused(failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']));
+          return refused(
+            failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']),
+          );
         }
         return answer(await duplicatesView(deps, asking, a === null || b === null ? null : [a, b]));
       },
@@ -569,18 +570,30 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'filter is key:value pairs', ['filter']));
         }
         const after = query.get('after') ?? undefined;
-        if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
-          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        if (after !== undefined && !new RegExp(`^(${UUID}|@\\d{1,6})$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id or @offset', ['after']));
         }
         const segment = query.get('segment') ?? undefined;
         if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
         }
+        const refine = DirectoryRefine.safeParse({
+          conditions: parseJson(query.get('conditions')),
+          match: query.get('match') ?? undefined,
+          sort: query.get('sort') ?? undefined,
+        });
+        if (!refine.success) {
+          return refused(
+            failure('BAD_REQUEST', 'conditions, match or sort is malformed', ['conditions']),
+          );
+        }
         return answer(
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
-            after: after ?? null,
+            // Sorted, the cursor is an offset (`@150`); otherwise a person id.
+            after: after ?? query.get('offset') ?? null,
+            ...refine.data,
             ...(segment === undefined ? {} : { segmentId: segment }),
             ...(query.get('incomplete') === 'true' ? { incomplete: true } : {}),
           }),
@@ -642,7 +655,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: async (asking, _r, _p, query) => {
         const ids = (query.get('people') ?? '').split(',').filter((id) => id !== '');
         if (!ids.every((id) => new RegExp(`^${UUID}$`).test(id))) {
-          return refused(failure('BAD_REQUEST', 'people is person ids, comma-separated', ['people']));
+          return refused(
+            failure('BAD_REQUEST', 'people is person ids, comma-separated', ['people']),
+          );
         }
         return answer(await bulkEditView(deps, asking, ids));
       },
@@ -833,11 +848,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/scim\/connections$/,
-      handle: write(ScimConnectionBody, (asking, input) => createScimConnection(deps, asking, input.system), {
-        status: 201,
-        resource: (_asking, _id, made) => made.id,
-        again: (_asking, id) => Promise.resolve({ status: 201, body: { id } }),
-      }),
+      handle: write(
+        ScimConnectionBody,
+        (asking, input) => createScimConnection(deps, asking, input.system),
+        {
+          status: 201,
+          resource: (_asking, _id, made) => made.id,
+          again: (_asking, id) => Promise.resolve({ status: 201, body: { id } }),
+        },
+      ),
     },
     {
       method: 'POST',
@@ -857,9 +876,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'PUT',
       pattern: new RegExp(`^/v1/scim/connections/${UUID}/mapping$`),
-      handle: write(ScimMappingBody, (asking, input, id) => setScimMapping(deps, asking, id, input.mapping), {
-        resource: (_asking, id) => id,
-      }),
+      handle: write(
+        ScimMappingBody,
+        (asking, input, id) => setScimMapping(deps, asking, id, input.mapping),
+        {
+          resource: (_asking, id) => id,
+        },
+      ),
     },
     {
       method: 'GET',
@@ -911,19 +934,23 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/imports$/,
-      handle: write(ImportStepBody, (asking, input) => commitImportView(deps, asking, importStep(input)), {
-        status: 201,
-        // The report is not kept (PEO-090), so a retry is told it went through.
-        again: () =>
-          Promise.resolve(
-            refused(
-              failure(
-                'ALREADY_IMPORTED',
-                'This import went through on the first request with this key',
+      handle: write(
+        ImportStepBody,
+        (asking, input) => commitImportView(deps, asking, importStep(input)),
+        {
+          status: 201,
+          // The report is not kept (PEO-090), so a retry is told it went through.
+          again: () =>
+            Promise.resolve(
+              refused(
+                failure(
+                  'ALREADY_IMPORTED',
+                  'This import went through on the first request with this key',
+                ),
               ),
             ),
-          ),
-      }),
+        },
+      ),
     },
 
     /* export and analytics */
@@ -1088,3 +1115,52 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
 
 /** How big a request body may be. No file comes this way: an import's goes to storage (§14.2). */
 export const BODY_LIMIT = 256 * 1024;
+
+/** The directory's conditions, match and sort, as the query string carries them. */
+const DirectoryRefine = z
+  .object({
+    conditions: z
+      .array(
+        z.object({
+          key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
+          op: z.enum([
+            'is',
+            'in',
+            'contains',
+            'before',
+            'after',
+            'between',
+            'empty',
+            'not_empty',
+            'under',
+          ]),
+          values: z.array(z.string().max(200)).max(50).default([]),
+        }),
+      )
+      .max(20)
+      .optional(),
+    match: z.enum(['all', 'any']).optional(),
+    // `key:asc` or `key:desc`.
+    sort: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,62}:(asc|desc)$/)
+      .transform((v) => {
+        const [key = '', direction] = v.split(':');
+        return { key, direction: direction === 'desc' ? ('desc' as const) : ('asc' as const) };
+      })
+      .optional(),
+  })
+  .transform((v) => ({
+    ...(v.conditions === undefined ? {} : { conditions: v.conditions }),
+    ...(v.match === undefined ? {} : { match: v.match }),
+    ...(v.sort === undefined ? {} : { sort: v.sort }),
+  }));
+
+function parseJson(text: string | null): unknown {
+  if (text === null || text === '') return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return 'malformed';
+  }
+}
