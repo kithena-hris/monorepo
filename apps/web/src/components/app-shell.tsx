@@ -338,7 +338,8 @@ function PersonMenu({
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side="top" align="start" className="w-56">
+      {/* Out to the right like the navigation's flyouts, its foot level with the trigger's. */}
+      <DropdownMenuContent side="right" align="end" sideOffset={16} className="w-56">
         <DropdownMenuLabel className="truncate font-normal">
           {person.email ?? person.name}
         </DropdownMenuLabel>
