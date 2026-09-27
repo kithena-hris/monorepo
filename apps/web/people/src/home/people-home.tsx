@@ -213,14 +213,14 @@ function Identity({
           )}
           {me.email === null ? null : (
             <Detail icon={<icons.email />}>
-              <a className="underline-offset-4 hover:underline" href={`mailto:${me.email}`}>
+              <a className="relative tap-target underline-offset-4 hover:underline" href={`mailto:${me.email}`}>
                 {me.email}
               </a>
             </Detail>
           )}
           {me.phone === null ? null : (
             <Detail icon={<icons.phone />}>
-              <a className="underline-offset-4 hover:underline" href={`tel:${me.phone}`}>
+              <a className="relative tap-target underline-offset-4 hover:underline" href={`tel:${me.phone}`}>
                 {me.phone}
               </a>
             </Detail>

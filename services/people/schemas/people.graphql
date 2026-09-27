@@ -323,6 +323,21 @@ type DateAttribute {
   value: String
 }
 
+"""A field somebody asked the person to fill in, still empty."""
+type DetailRequest {
+  """Who asked, in words the viewer may read."""
+  by: String
+  key: String
+  label: String
+  requestedAt: String
+}
+
+type DetailRequestSent {
+  asked: [String!]
+  """False when it was asked for within the day, or no email is configured."""
+  emailed: Boolean
+}
+
 type DirectoryActions {
   """HR’s: set values on the people chosen (PEO-071)."""
   bulkEdit: Boolean
@@ -582,9 +597,19 @@ type GridSaved {
 }
 
 """
+Who made a change, to draw: a person with their photo, or not a person.
+"""
+type HistoryActor {
+  avatarUrl: String
+  """person, integration or system."""
+  kind: String
+}
+
+"""
 One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.
 """
 type HistoryChange {
+  actor: HistoryActor
   by: String
   effectiveFrom: String
   id: ID
@@ -1070,6 +1095,10 @@ type Mutation {
   reorderDraftSections(idempotencyKey: String!, order: [String!]!): WriteOutcome
   replayWebhookDelivery(deliveryId: ID!, idempotencyKey: String!): WebhookReplay
   """
+  Ask somebody to fill in empty details of theirs: recorded, and they are emailed at most once a day.
+  """
+  requestDetails(idempotencyKey: String!, keys: [String!]!, personId: ID!): DetailRequestSent
+  """
   Over 2,000 rows the export is queued; ask `peopleExport` for its links.
   """
   requestExport(
@@ -1536,6 +1565,10 @@ type PeopleProfile {
   """
   placement: ProfilePlacement
   """
+  Fields somebody asked this person to fill in that are still empty, on fields the viewer reads.
+  """
+  requests: [DetailRequest!]
+  """
   Their doubted identifiers still open, on fields the viewer reads (PEO-125).
   """
   reviews: [IdentifierReviewEntry!]
@@ -1871,6 +1904,10 @@ type Query {
 
 """A field the viewer may read, as a form draws it."""
 type RecordField {
+  """
+  The viewer may ask the person to fill it in: HR or a manager, on a field the employee fills.
+  """
+  askable: Boolean
   currency: String
   dataType: String
   description: String

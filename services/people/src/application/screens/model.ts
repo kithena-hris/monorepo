@@ -46,6 +46,8 @@ export interface RecordField {
    * (PEO-073): read-only for everybody here, changed there.
    */
   readonly keptIn?: string;
+  /** The viewer may ask the person to fill it in: HR or a manager, on a field the employee fills. */
+  readonly askable?: boolean;
 }
 
 /**

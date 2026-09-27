@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
-import { dayAfter, Employment, type EmploymentPeriod, type EmploymentState } from './employment';
+import {
+  dayAfter,
+  Employment,
+  EmploymentPeriods,
+  type EmploymentPeriod,
+  type EmploymentState,
+} from './employment';
 
 const calendar = { today: '2026-09-24', timeZone: 'Europe/Madrid' };
 const first: EmploymentPeriod = {
@@ -40,7 +46,24 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     expect(screen.getByRole('button', { name: 'Withdraw notice' })).toBeInTheDocument();
     rerender(<Employment state={state('active')} />);
     expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.getByText('2026-09-24 (Europe/Madrid)')).toBeInTheDocument();
+  });
+
+  it('lists employment periods only once somebody has come back', () => {
+    const left: EmploymentPeriod = {
+      ...first,
+      lastWorkingDay: '2026-03-31',
+      leavingReason: 'resigned',
+      eligibleForRehire: false,
+    };
+    const { rerender } = render(<EmploymentPeriods periods={[first]} />);
+    // One period says nothing the start date does not.
+    expect(screen.queryByRole('table')).toBeNull();
+    rerender(<EmploymentPeriods periods={[left, { ...first, period: 2, startedOn: '2026-06-01' }]} />);
+    const rows = within(screen.getByRole('table', { name: 'Employment periods' })).getAllByRole('row');
+    // Newest first, under the header row.
+    expect(rows[1]).toHaveTextContent('Current');
+    expect(rows[2]).toHaveTextContent('Resigned');
+    expect(rows[2]).toHaveTextContent('Not eligible for rehire');
   });
 
   it('terminates with a reason, and ends access now when asked', async () => {
@@ -74,7 +97,6 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
       eligibleForRehire: false,
     };
     render(<Employment state={state('terminated', [left])} onMove={onMove} />);
-    expect(screen.getByText('Not eligible for rehire')).toBeInTheDocument();
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Rehire' }));
     const dialog = screen.getByRole('dialog', { name: 'Rehire' });

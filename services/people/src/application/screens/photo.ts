@@ -6,6 +6,7 @@ import { discard, finishUpload, startUpload, type UploadDeps } from '../import/u
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { ImportUploadView } from './operations.js';
+import type { PhotoStore } from './photo-store.js';
 import { personOfViewer, type ScreenDeps, type Tx } from './record.js';
 
 /**
@@ -20,34 +21,7 @@ import { personOfViewer, type ScreenDeps, type Tx } from './record.js';
  * another module: nobody else needs a face.
  */
 
-export interface StoredPhoto {
-  readonly tenantId?: string;
-  readonly personId?: string;
-  readonly mediaType: PhotoMediaType;
-  readonly bytes: Uint8Array;
-  /** SHA-256 of `bytes`, hex: the version a URL names. */
-  readonly checksum: string;
-}
-
-export interface PhotoStore {
-  get(tx: Tx, tenantId: string, personId: string): Promise<StoredPhoto | null>;
-  /** Each of these people's photo version, in one read; somebody with none is absent. */
-  versions(
-    tx: Tx,
-    tenantId: string,
-    personIds: readonly string[],
-  ): Promise<ReadonlyMap<string, string>>;
-  put(
-    tx: Tx,
-    photo: StoredPhoto & {
-      readonly tenantId: string;
-      readonly personId: string;
-      readonly updatedAt: string;
-      readonly updatedBy: string;
-    },
-  ): Promise<void>;
-  remove(tx: Tx, tenantId: string, personId: string): Promise<void>;
-}
+export type { PhotoStore, StoredPhoto } from './photo-store.js';
 
 export interface PhotoDeps extends ScreenDeps {
   readonly photos?: PhotoStore;

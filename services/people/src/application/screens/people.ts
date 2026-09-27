@@ -6,6 +6,7 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
+import { askable } from '../../domain/person/detail-request.js';
 import { avatarsOf } from './photo.js';
 import { run } from '../person/service.js';
 import { LEAVERS, type Condition } from '../person/ports.js';
@@ -265,6 +266,17 @@ export interface ProfileView {
    * reads. Never in `values`: those are what is in force.
    */
   readonly pending: readonly PendingFieldView[];
+  /**
+   * Fields somebody asked this person to fill in that are still empty, and
+   * who asked: shown to the person as what they were asked for, and to
+   * whoever may ask as already asked.
+   */
+  readonly requests: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly requestedAt: string;
+    readonly by: string;
+  }[];
 }
 
 export interface PlacementView {
@@ -326,6 +338,9 @@ export async function profileView(
       status !== null &&
       !(LEAVERS as readonly string[]).includes(status) &&
       sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
+    const definitions = new Map(
+      record.value.version.document.attributes.map((d) => [d.key as string, d]),
+    );
     const named = sections.map((s) => ({
       ...s,
       fields: s.fields.map((f) => {
@@ -335,10 +350,12 @@ export async function profileView(
             : f.key === 'location_id'
               ? locations.map(({ value, label }) => ({ value, label }))
               : f.options;
+        const definition = definitions.get(f.key);
+        const asked = definition !== undefined && askable(definition, relations);
         // Moved through the placement control, where the date and the transfer are.
         return PLACED.has(f.key) && placeable
-          ? { ...f, options, readOnly: true }
-          : { ...f, options };
+          ? { ...f, options, readOnly: true, askable: asked }
+          : { ...f, options, askable: asked };
       }),
     }));
 
@@ -365,9 +382,44 @@ export async function profileView(
         : null,
       reviews: record.value.reviews,
       pending: await pendingOnRecord(deps, tx, asking, id.value),
+      requests: await openRequests(deps, tx, asking, id.value, named, formValues(view, named)),
     });
   });
 }
+
+/** What somebody asked this person for that is still empty, on fields this viewer reads. */
+async function openRequests(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personId: string,
+  sections: readonly RecordSection[],
+  values: FormValues,
+): Promise<ProfileView['requests']> {
+  if (deps.requests === undefined) return [];
+  const labels = new Map(sections.flatMap((s) => s.fields.map((f) => [f.key, f.label] as const)));
+  const open = (await deps.requests.store.of(tx, asking.tenantId, personId)).filter(
+    (r) => labels.has(r.key) && empty(values[r.key]),
+  );
+  const by = await actors(
+    deps,
+    tx,
+    asking,
+    open.map((r) => ({ kind: 'user' as const, userId: r.requestedBy })),
+  );
+  return open.map((r) => ({
+    key: r.key,
+    label: labels.get(r.key) ?? r.key,
+    requestedAt: r.requestedAt,
+    by: by({ kind: 'user', userId: r.requestedBy }),
+  }));
+}
+
+const empty = (value: FormValue | undefined): boolean =>
+  value === undefined ||
+  value === null ||
+  (typeof value === 'string' && value.trim() === '') ||
+  (Array.isArray(value) && value.length === 0);
 
 /** A person's changes waiting for HR, as this viewer may see them (PEO-077). */
 export async function pendingOnRecord(
@@ -499,6 +551,11 @@ export interface HistoryChange {
   readonly recordedAt: string;
   /** Who recorded it, in words: "You", a name the viewer may read, an integration. */
   readonly by: string;
+  /** Who, to draw: a person with their photo if the viewer may read them, or not a person. */
+  readonly actor: {
+    readonly kind: 'person' | 'integration' | 'system';
+    readonly avatarUrl: string | null;
+  };
   /** The change this one corrects. */
   readonly supersedes: string | null;
   /** The correction that replaced this one; it no longer stands. */
@@ -590,6 +647,12 @@ export async function historyView(
       asking,
       history.value.map((e) => e.actor),
     );
+    const faces = await actorFaces(
+      deps,
+      tx,
+      asking,
+      history.value.map((e) => e.actor),
+    );
     const changes = history.value
       .filter((e) => shown.has(e.attributeKey))
       .toSorted(
@@ -604,6 +667,15 @@ export async function historyView(
         effectiveFrom: e.effectiveFrom,
         recordedAt: e.recordedAt,
         by: by(e.actor),
+        actor: {
+          kind:
+            e.actor.kind === 'user'
+              ? ('person' as const)
+              : e.actor.kind === 'integration'
+                ? ('integration' as const)
+                : ('system' as const),
+          avatarUrl: e.actor.kind === 'user' ? (faces.get(e.actor.userId) ?? null) : null,
+        },
         supersedes: e.supersedes,
         supersededBy: supersededBy.get(e.id) ?? null,
       }));
@@ -620,6 +692,30 @@ export async function historyView(
       changes,
     });
   });
+}
+
+/** The photo of each person among these actors whom the viewer may read, by account. */
+async function actorFaces(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  all: readonly Actor[],
+): Promise<ReadonlyMap<string, string>> {
+  const people = new Map<string, string>();
+  for (const actor of all) {
+    if (actor.kind !== 'user' || people.has(actor.userId)) continue;
+    const personId = await deps.personOf(tx, asking.tenantId, actor.userId);
+    if (personId === null) continue;
+    const read = await deps.service.access.read(tx, { ...asking, personId });
+    if (read.ok) people.set(actor.userId, personId);
+  }
+  const avatars = await avatarsOf(deps, tx, asking.tenantId, [...people.values()]);
+  return new Map(
+    [...people].flatMap(([account, personId]) => {
+      const url = avatars.get(personId);
+      return url === undefined ? [] : [[account, url] as const];
+    }),
+  );
 }
 
 /**
@@ -975,6 +1071,25 @@ const COLUMN_CHOICES = new Set([
   'employee_number',
 ]);
 
+/** Core columns a directory shows until the viewer chooses: where, since when, and to whom. */
+const COLUMN_DEFAULTS = new Set(['manager_id', 'location_id', 'hire_date']);
+
+/**
+ * Shown until the viewer chooses: the directory's own set, the core defaults,
+ * and a tenant's short fields everybody may read (a job title, a department),
+ * never contact details. At most `SHOWN_MAX`, in schema order.
+ */
+const SHOWN_MAX = 7;
+function shownByDefault(d: AttributeDefinition): boolean {
+  if (d.includeInDirectory || COLUMN_DEFAULTS.has(d.key)) return true;
+  return (
+    !isCoreKey(d.key) &&
+    d.visibility.includes('directory') &&
+    d.classification.piiKind === 'none' &&
+    (d.typeConfig.kind === 'select' || d.dataType === 'text')
+  );
+}
+
 const STATUS_OPTIONS = [
   { value: 'provisional', label: 'Not started' },
   { value: 'pre_hire', label: 'Starting soon' },
@@ -1102,6 +1217,12 @@ export async function directoryView(
         visibleTo(d, everyone) &&
         (d.includeInDirectory || COLUMN_CHOICES.has(d.key) || !isCoreKey(d.key)),
     );
+    const shownDefault = new Set(
+      columns
+        .filter(shownByDefault)
+        .slice(0, SHOWN_MAX)
+        .map((c) => c.key as string),
+    );
     const org = await deps.calendars.load(tx, asking.tenantId);
     const placeName = new Map<string, string>([
       ...[...org.entities.values()].map((e) => [e.id, e.name] as const),
@@ -1156,6 +1277,12 @@ export async function directoryView(
         })
       : null;
 
+    // HR's: the status in words, beside the columns.
+    const withStatus = (status: string | undefined, values: Record<string, string>) =>
+      everyone.isHr && status !== undefined
+        ? { ...values, status: STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status }
+        : values;
+
     return ok({
       total: counted.value.all,
       active: counted.value.active,
@@ -1163,13 +1290,13 @@ export async function directoryView(
       incomplete: incomplete?.ok === true ? incomplete.value.all : null,
       columns: [
         ...columns.map((c) => ({
-          key: c.key as string,
+          key: c.key,
           label: c.label.default,
-          shown: c.includeInDirectory,
+          shown: shownDefault.has(c.key),
           sortable: true,
         })),
         ...(everyone.isHr
-          ? [{ key: 'status', label: 'Status', shown: false, sortable: true }]
+          ? [{ key: 'status', label: 'Status', shown: true, sortable: true }]
           : []),
       ],
       fields: [
@@ -1190,7 +1317,7 @@ export async function directoryView(
                       .filter((e) => e.archived !== true)
                       .map((e) => ({ value: e.id, label: e.name }))
                   : [];
-          return [{ key: c.key as string, label: c.label.default, kind, options }];
+          return [{ key: c.key, label: c.label.default, kind, options }];
         }),
         ...(everyone.isHr
           ? [
@@ -1236,7 +1363,7 @@ export async function directoryView(
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
           avatarUrl: avatars.get(p.id) ?? null,
-          values: Object.fromEntries(
+          values: withStatus(p.status, Object.fromEntries(
             columns.flatMap((c) => {
               const value = p.attributes[c.key];
               if (value === undefined || value === null) return [];
@@ -1255,7 +1382,7 @@ export async function directoryView(
                       : toForm(value);
               return typeof shown === 'string' ? [[c.key, shown]] : [];
             }),
-          ),
+          )),
           missing: missing.get(p.id) ?? null,
         };
       }),

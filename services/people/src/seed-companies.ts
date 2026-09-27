@@ -45,6 +45,23 @@ export interface SeedPerson {
   readonly details?: Readonly<Record<string, string | number>>;
 }
 
+/**
+ * Who is not full time, by handle: everybody else is. Ryan started as the
+ * temp, Karen and Holly came over on fixed terms in the branch mergers, and
+ * the warehouse has a part-timer or two.
+ */
+export const EMPLOYMENT_TYPES: Readonly<Record<string, string>> = {
+  'ryan.howard': 'Temporary',
+  'erin.hannon': 'Part time',
+  'madge.madsen': 'Part time',
+  'lonny.collins': 'Part time',
+  'karen.filippelli': 'Contract',
+  'clark.green': 'Temporary',
+  'pete.miller': 'Temporary',
+  'donald.knuth': 'Part time',
+  'barbara.liskov': 'Contract',
+};
+
 export interface SeedCompany {
   readonly slug: string;
   readonly displayName: string;
@@ -78,6 +95,14 @@ const WORK_FIELDS = (departments: readonly string[]): SeedField[] => [
     label: 'Department',
     dataType: 'select',
     options: departments,
+  },
+  {
+    key: 'employment_type',
+    sectionKey: 'employment',
+    label: 'Employment type',
+    dataType: 'select',
+    description: 'Hours and contract: full time, part time, a fixed-term contract or a temp.',
+    options: ['Full time', 'Part time', 'Contract', 'Temporary'],
   },
   {
     key: 'work_phone',

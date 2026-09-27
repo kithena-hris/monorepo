@@ -692,6 +692,11 @@ export async function completePhotoUpload(
   return a.ok ? { ok: true, avatarUrl: a.data.avatarUrl } : { ok: false, message: a.message };
 }
 
+/** Ask somebody to fill in empty details of theirs: they are emailed, at most once a day. */
+export async function requestDetails(personId: string, keys: readonly string[]): Promise<Outcome> {
+  return outcome(people('RequestDetails', { personId, keys }));
+}
+
 export async function removePhoto(personId: string | null): Promise<Outcome> {
   return outcome(people('RemovePhoto', { personId }));
 }

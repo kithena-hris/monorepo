@@ -10,7 +10,8 @@ import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
 import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
-import type { PhotoStore } from './photo.js';
+import type { PhotoStore } from './photo-store.js';
+import type { ReminderCompany, ReminderMailer } from '../completeness/reminders.js';
 import type {
   FormValue,
   FormValues,
@@ -44,6 +45,41 @@ export interface ScreenDeps {
   readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
   /** People's photos. Absent, nobody has one and none may be set. */
   readonly photos?: PhotoStore;
+  /** Asking somebody for an empty detail. Absent, nobody may be asked. */
+  readonly requests?: {
+    readonly store: DetailRequestStore;
+    /** The email; absent, the request is recorded and shown and nobody is emailed. */
+    readonly mailer?: ReminderMailer;
+    readonly company?: (tx: Tx, tenantId: string) => Promise<ReminderCompany | null>;
+  };
+}
+
+export interface DetailRequest {
+  readonly key: string;
+  /** The account that asked. */
+  readonly requestedBy: string;
+  readonly requestedAt: string;
+}
+
+export interface DetailRequestStore {
+  /**
+   * Record these requests; answer with the keys whose last request was
+   * before `resendBefore` or that were never asked for, which are the ones
+   * worth an email.
+   */
+  record(
+    tx: Tx,
+    request: {
+      readonly tenantId: string;
+      readonly personId: string;
+      readonly keys: readonly string[];
+      readonly requestedBy: string;
+      readonly requestedAt: string;
+      readonly resendBefore: string;
+    },
+  ): Promise<readonly string[]>;
+  /** Every field somebody asked this person for, newest first. */
+  of(tx: Tx, tenantId: string, personId: string): Promise<readonly DetailRequest[]>;
 }
 
 /** HR's share of the completeness grid, counted over everybody (PEO-122). */

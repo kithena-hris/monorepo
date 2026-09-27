@@ -256,6 +256,10 @@ export function PeopleScreen({
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
                   download(await actions.exportRecord(id, reason)),
+                // Ask them for empty details; People says which fields may be asked for.
+                onRequest: thenRefresh((keys: readonly string[]) =>
+                  actions.requestDetails(id, keys),
+                ),
               }),
           searchPeople: actions.searchPeople,
           onHistory: () => {
@@ -296,14 +300,23 @@ export function PeopleScreen({
           after?: string;
           segment?: string | null;
           incomplete?: boolean;
+          conditions?: string;
+          match?: string;
+          sort?: string;
         }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
           const f = next.filters ?? filters;
           const segment = next.segment === undefined ? (search['segment'] ?? null) : next.segment;
           const incomplete = next.incomplete ?? search['incomplete'] === 'true';
+          const conditions = next.conditions ?? search['conditions'] ?? '';
+          const match = next.match ?? search['match'] ?? '';
+          const sort = next.sort ?? search['sort'] ?? '';
           if (text !== '') q.set('search', text);
           if (incomplete) q.set('incomplete', 'true');
+          if (conditions !== '' && conditions !== '[]') q.set('conditions', conditions);
+          if (match === 'any') q.set('match', 'any');
+          if (sort !== '') q.set('sort', sort);
           const joined = Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
@@ -341,6 +354,16 @@ export function PeopleScreen({
           incomplete: search['incomplete'] === 'true',
           onIncompleteChange: (incomplete: boolean) => {
             query({ incomplete });
+          },
+          // Advanced conditions and the order, in the URL so a view is a link.
+          onConditionsChange: (
+            conditions: readonly { key: string; op: string; values: readonly string[] }[],
+            match: 'all' | 'any',
+          ) => {
+            query({ conditions: JSON.stringify(conditions), match });
+          },
+          onSortChange: (sort: { key: string; direction: 'asc' | 'desc' } | null) => {
+            query({ sort: sort === null ? '' : `${sort.key}:${sort.direction}` });
           },
           onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
             actions.saveSegment({ ...segment, filter: filters }),

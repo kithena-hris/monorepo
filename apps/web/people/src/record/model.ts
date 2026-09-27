@@ -44,6 +44,8 @@ export interface RecordField {
   readonly keptIn?: string;
   /** A change to it waits for HR's approval (PEO-077): marked wherever it is drawn. */
   readonly sensitive?: boolean;
+  /** The viewer may ask the person to fill it in (HR or a manager, a field the employee fills). */
+  readonly askable?: boolean;
 }
 
 /**

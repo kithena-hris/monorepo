@@ -22,13 +22,15 @@ import {
   PageSection,
   Stack,
   Textarea,
+  Tooltip,
+  icons,
   type UploadedImage,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
-import { DisplayValue } from '../record/display';
+import { DisplayValue, longDate } from '../record/display';
 import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
 import { MissingMark } from '../record/missing';
 import { PendingNote, SensitiveMark } from '../record/pending';
@@ -36,7 +38,9 @@ import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
 import {
   Employment,
+  EmploymentPeriods,
   PlacementPickers,
+  statusLabel,
   type EmploymentState,
   type LifecycleMove,
   type PlacementState,
@@ -81,6 +85,16 @@ export interface ProfileState {
    * Never in `values`, which are what is in force.
    */
   readonly pending?: readonly PendingValue[];
+  /** Empty fields somebody asked this person to fill in, and who asked. */
+  readonly requests?: readonly DetailRequest[];
+}
+
+export interface DetailRequest {
+  readonly key: string;
+  readonly label: string;
+  readonly requestedAt: string;
+  /** Who asked, in words the viewer may read. */
+  readonly by: string;
 }
 
 export type { PlacementState };
@@ -116,6 +130,11 @@ export interface ProfileProps {
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** Open with this field's section in edit mode and the cursor in it: a link to one missing detail. */
   readonly focusField?: string;
+  /**
+   * Ask the person to fill in these empty fields: they are emailed. Absent on
+   * one's own profile; offered beside a field only where People says it may be.
+   */
+  readonly onRequest?: (keys: readonly string[]) => Promise<Outcome>;
 }
 
 export type PhotoOutcome =
@@ -146,6 +165,7 @@ export function Profile({
   onDownloadRecord,
   onPhoto,
   focusField,
+  onRequest,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
@@ -164,6 +184,7 @@ export function Profile({
             onSelfApprove={onSelfApprove}
             onApprovals={onApprovals}
             onDownloadRecord={onDownloadRecord}
+            onRequest={onRequest}
           />
         )}
       </Loaded>
@@ -184,6 +205,7 @@ function Record({
   onDownloadRecord,
   onPhoto,
   focusField,
+  onRequest,
 }: {
   readonly state: ProfileState;
   readonly onPhoto: ProfileProps['onPhoto'];
@@ -197,6 +219,7 @@ function Record({
   readonly onSelfApprove: ProfileProps['onSelfApprove'];
   readonly onApprovals: ProfileProps['onApprovals'];
   readonly onDownloadRecord: ProfileProps['onDownloadRecord'];
+  readonly onRequest: ProfileProps['onRequest'];
 }): JSX.Element {
   // A link to one missing detail opens its section, with the cursor in it.
   const sectionOf = (key: string | undefined): string | null =>
@@ -237,6 +260,14 @@ function Record({
     section.fields.filter((f) => f.missing === true && isMissing(values[f.key]));
   const gaps = sections.flatMap(gapsIn);
   const required = sections.flatMap((s) => s.fields).filter((f) => f.required).length;
+  const requests = new Map((state.requests ?? []).map((r) => [r.key, r]));
+  // What may be asked of them now: empty, and theirs to fill in.
+  const askable =
+    onRequest === undefined
+      ? []
+      : sections.flatMap((s) => s.fields).filter((f) => f.askable === true && isMissing(values[f.key]));
+  const firstName = person.name.split(' ')[0] ?? person.name;
+  const status = state.employment?.status ?? null;
 
   return (
     <Stack gap={6}>
@@ -251,19 +282,35 @@ function Record({
             title={person.name}
             description={person.summary ?? undefined}
             meta={
-              person.missing === null ? undefined : gaps.length === 0 ? (
-                <Badge tone="success">Complete</Badge>
-              ) : (
-                <MissingMark count={gaps.length} size="md" />
+              status === null && person.missing === null ? undefined : (
+                <span className="flex flex-wrap items-center gap-2">
+                  {status === null ? null : (
+                    <Badge tone={status === 'active' ? 'success' : 'neutral'}>
+                      {statusLabel(status)}
+                    </Badge>
+                  )}
+                  {person.missing === null ? null : gaps.length === 0 ? (
+                    <Badge tone="success">Complete</Badge>
+                  ) : (
+                    <MissingMark count={gaps.length} size="md" />
+                  )}
+                </span>
               )
             }
             actions={
-              onHistory === undefined && onDownloadRecord === undefined ? undefined : (
-                <>
-                  {onHistory === undefined ? null : <Button onClick={onHistory}>History</Button>}
-                  {onDownloadRecord ? <RecordPdf onDownload={onDownloadRecord} /> : null}
-                </>
-              )
+              <>
+                {/* The moves their status allows: Hire, Give notice, Terminate… (HR's). */}
+                {state.calendar ? (
+                  <Employment
+                    state={{ calendar: state.calendar, employment: state.employment ?? null }}
+                    onMove={onMove}
+                    name={person.name}
+                    placement={state.placement}
+                  />
+                ) : null}
+                {onHistory === undefined ? null : <Button onClick={onHistory}>History</Button>}
+                {onDownloadRecord ? <RecordPdf onDownload={onDownloadRecord} /> : null}
+              </>
             }
           />
           {person.missing === null || gaps.length === 0 ? null : (
@@ -282,6 +329,15 @@ function Record({
               >
                 {gaps[0]?.readOnly === true ? 'Show the first' : 'Fill in the first'}
               </Button>
+            </div>
+          )}
+          {askable.length < 2 || onRequest === undefined ? null : (
+            <div>
+              <AskAll
+                keys={askable.map((f) => f.key)}
+                label={`Ask ${firstName} for all ${String(askable.length)} empty details`}
+                onRequest={onRequest}
+              />
             </div>
           )}
         </div>
@@ -309,14 +365,28 @@ function Record({
           Pending values are shown under their fields and are not applied until approved.
         </Alert>
       )}
-      {state.calendar ? (
-        <Employment
-          state={{ calendar: state.calendar, employment: state.employment ?? null }}
-          onMove={onMove}
-          name={person.name}
-          placement={state.placement}
-        />
-      ) : null}
+      {/* Asked of them, on their own profile: what, and by whom. */}
+      {onRequest !== undefined || requests.size === 0 ? null : (
+        <Alert
+          tone="info"
+          title={`${[...requests.values()][0]?.by ?? 'HR'} asked you to add ${
+            requests.size === 1 ? 'a detail' : `${String(requests.size)} details`
+          }`}
+          action={
+            <Button
+              size="sm"
+              onClick={() => {
+                const first = [...requests.keys()][0];
+                if (first !== undefined) open(first);
+              }}
+            >
+              Add them
+            </Button>
+          }
+        >
+          {[...requests.values()].map((r) => r.label).join(', ')}.
+        </Alert>
+      )}
       {/* Where they work, beside their employment (PEO-123). */}
       {state.placement && onPlace ? (
         <PlacementSection placement={state.placement} onPlace={onPlace} />
@@ -425,6 +495,29 @@ function Record({
                                   Add
                                 </Button>
                               )}
+                              {onRequest !== undefined &&
+                              field.askable === true ? (
+                                <AskButton
+                                  field={field.label}
+                                  keyName={field.key}
+                                  firstName={firstName}
+                                  asked={requests.get(field.key) ?? null}
+                                  onRequest={onRequest}
+                                />
+                              ) : null}
+                            </span>
+                          ) : onRequest !== undefined &&
+                            field.askable === true &&
+                            isMissing(values[field.key]) ? (
+                            <span className="flex flex-wrap items-center gap-1">
+                              <DisplayValue field={field} value={values[field.key]} />
+                              <AskButton
+                                field={field.label}
+                                keyName={field.key}
+                                firstName={firstName}
+                                asked={requests.get(field.key) ?? null}
+                                onRequest={onRequest}
+                              />
                             </span>
                           ) : (
                             <DisplayValue field={field} value={values[field.key]} />
@@ -450,7 +543,107 @@ function Record({
           );
         })
       )}
+      <EmploymentPeriods periods={state.employment?.periods ?? []} />
     </Stack>
+  );
+}
+
+/**
+ * Ask the person for one empty detail: an icon beside it, its meaning in the
+ * tooltip and the accessible name alike. Once asked, it says when and by
+ * whom; pressing it again within the day records it and sends no second email.
+ */
+function AskButton({
+  field,
+  keyName,
+  firstName,
+  asked,
+  onRequest,
+}: {
+  readonly field: string;
+  readonly keyName: string;
+  readonly firstName: string;
+  readonly asked: DetailRequest | null;
+  readonly onRequest: (keys: readonly string[]) => Promise<Outcome>;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const label =
+    problem !== null
+      ? `Not sent: ${problem}`
+      : sent
+        ? `Asked ${firstName} for ${field}`
+        : asked !== null
+          ? `${asked.by} asked ${firstName} for this on ${longDate(asked.requestedAt.slice(0, 10))}. Ask again`
+          : `Ask ${firstName} to add ${field}`;
+  return (
+    <>
+      <Tooltip content={label}>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={label}
+          loading={busy}
+          loadingLabel={`Asking ${firstName}`}
+          startIcon={sent || asked !== null ? <icons.success aria-hidden /> : <icons.send aria-hidden />}
+          onClick={() => {
+            setBusy(true);
+            setProblem(null);
+            void onRequest([keyName]).then((outcome) => {
+              setBusy(false);
+              if (outcome.ok) setSent(true);
+              else setProblem(outcome.message);
+            });
+          }}
+        >
+          {null}
+        </Button>
+      </Tooltip>
+      {problem === null ? null : (
+        <span role="alert" className="text-xs text-danger-fg">
+          {problem}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** Ask for every empty detail they fill in, in one email. */
+function AskAll({
+  keys,
+  label,
+  onRequest,
+}: {
+  readonly keys: readonly string[];
+  readonly label: string;
+  readonly onRequest: (keys: readonly string[]) => Promise<Outcome>;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <Button
+        size="sm"
+        startIcon={<icons.send aria-hidden />}
+        loading={busy}
+        loadingLabel="Asking"
+        onClick={() => {
+          setBusy(true);
+          void onRequest(keys).then((outcome) => {
+            setBusy(false);
+            setDone(outcome.ok ? 'Asked. They have been emailed.' : `Not sent: ${outcome.message}`);
+          });
+        }}
+      >
+        {label}
+      </Button>
+      {done === null ? null : (
+        <span role="status" className="text-xs text-fg-muted">
+          {done}
+        </span>
+      )}
+    </span>
   );
 }
 

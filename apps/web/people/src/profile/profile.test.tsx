@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -423,5 +424,74 @@ describe('Profile: what is missing', () => {
       />,
     );
     expect(screen.queryByLabelText('Photo')).toBeNull();
+  });
+
+  it('asks the person for an empty detail from beside it, and says when it was asked', async () => {
+    const user = fast();
+    const onRequest = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const state: ProfileState = {
+      ...asManager,
+      sections: [
+        {
+          key: 'work',
+          label: 'Work',
+          visibility: ['self', 'manager', 'hr'],
+          readsLogged: false,
+          fields: [
+            field({ key: 'work_phone', label: 'Work phone', askable: true }),
+            field({ key: 'hometown', label: 'Hometown', askable: true }),
+            field({ key: 'employee_number', label: 'Employee number' }),
+          ],
+        },
+      ],
+      values: {},
+      requests: [
+        { key: 'hometown', label: 'Hometown', requestedAt: '2026-09-20T10:00:00Z', by: 'Toby Flenderson' },
+      ],
+    };
+    const { container } = render(
+      <Profile load={{ status: 'ready', data: state }} onSave={vi.fn()} onRequest={onRequest} />,
+      { wrapper: TooltipProvider },
+    );
+    // Only what the employee fills in; HR's employee number is not theirs to add.
+    expect(screen.queryByRole('button', { name: /Employee number/ })).toBeNull();
+    expect(
+      screen.getByRole('button', {
+        name: 'Toby Flenderson asked Adam for this on September 20, 2026. Ask again',
+      }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ask Adam to add Work phone' }));
+    expect(onRequest).toHaveBeenCalledWith(['work_phone']);
+    expect(
+      await screen.findByRole('button', { name: 'Asked Adam for Work phone' }),
+    ).toBeInTheDocument();
+    // Both at once, in one email.
+    await user.click(screen.getByRole('button', { name: 'Ask Adam for all 2 empty details' }));
+    expect(onRequest).toHaveBeenLastCalledWith(['work_phone', 'hometown']);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('tells the person what they were asked for, on their own profile', async () => {
+    const user = fast();
+    const state: ProfileState = {
+      ...asManager,
+      sections: [
+        {
+          key: 'work',
+          label: 'Work',
+          visibility: ['self', 'manager', 'hr'],
+          readsLogged: false,
+          fields: [field({ key: 'hometown', label: 'Hometown', readOnly: false })],
+        },
+      ],
+      values: {},
+      requests: [
+        { key: 'hometown', label: 'Hometown', requestedAt: '2026-09-20T10:00:00Z', by: 'Toby Flenderson' },
+      ],
+    };
+    render(<Profile load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    expect(screen.getByText('Toby Flenderson asked you to add a detail')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add them' }));
+    expect(screen.getByRole('textbox', { name: /Hometown/ })).toHaveFocus();
   });
 });

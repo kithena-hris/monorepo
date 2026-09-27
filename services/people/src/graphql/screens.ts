@@ -110,6 +110,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description:
           'A change to it waits for HR approval (PEO-077); mark it wherever it is drawn.',
       }),
+      askable: t.boolean({
+        description:
+          'The viewer may ask the person to fill it in: HR or a manager, on a field the employee fills.',
+        resolve: (f) => f.askable === true,
+      }),
       missing: t.exposeBoolean('missing', {
         description:
           'Required of this person and empty, as their completeness verdict says; only fields the viewer reads.',
@@ -500,11 +505,28 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.',
         resolve: (v) => list(v.pending),
       }),
+      requests: t.field({
+        type: [DetailRequestRef],
+        description:
+          'Fields somebody asked this person to fill in that are still empty, on fields the viewer reads.',
+        resolve: (v) => list(v.requests),
+      }),
     }),
   });
 
   /* ------------------------------------------ held changes (PEO-077) -- */
 
+  const DetailRequestRef = builder
+    .objectRef<ProfileView['requests'][number]>('DetailRequest')
+    .implement({
+      description: 'A field somebody asked the person to fill in, still empty.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        requestedAt: t.exposeString('requestedAt'),
+        by: t.exposeString('by', { description: 'Who asked, in words the viewer may read.' }),
+      }),
+    });
   const PendingFieldRef = builder.objectRef<PendingFieldView>('PendingField').implement({
     description:
       'A value waiting for HR approval. Never the field’s value, which stays what is in force.',
@@ -576,6 +598,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
 
+  const HistoryActorRef = builder
+    .objectRef<HistoryChange['actor']>('HistoryActor')
+    .implement({
+      description: 'Who made a change, to draw: a person with their photo, or not a person.',
+      fields: (t) => ({
+        kind: t.exposeString('kind', { description: 'person, integration or system.' }),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      }),
+    });
   const HistoryChangeRef = builder.objectRef<HistoryChange>('HistoryChange').implement({
     description:
       'One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.',
@@ -586,6 +617,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       effectiveFrom: t.exposeString('effectiveFrom'),
       recordedAt: t.exposeString('recordedAt'),
       by: t.exposeString('by'),
+      actor: t.field({ type: HistoryActorRef, resolve: (c) => c.actor }),
       supersedes: t.exposeID('supersedes', { nullable: true }),
       supersededBy: t.exposeID('supersededBy', { nullable: true }),
     }),
@@ -1530,6 +1562,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       expiresAt: t.exposeString('expiresAt'),
     }),
   });
+  const DetailRequestSent = builder
+    .objectRef<{ readonly asked: readonly string[]; readonly emailed: boolean }>(
+      'DetailRequestSent',
+    )
+    .implement({
+      fields: (t) => ({
+        asked: t.exposeStringList('asked'),
+        emailed: t.exposeBoolean('emailed', {
+          description: 'False when it was asked for within the day, or no email is configured.',
+        }),
+      }),
+    });
   const PhotoSaved = builder
     .objectRef<{ readonly avatarUrl: string | null }>('PeoplePhotoSaved')
     .implement({
@@ -2639,6 +2683,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'POST',
           `/v1/views/photos/uploads/${encodeURIComponent(args.uploadId)}/complete`,
           { body: { personId: args.personId ?? null }, key: args.idempotencyKey },
+        ),
+    }),
+    requestDetails: t.field({
+      type: DetailRequestSent,
+      description:
+        'Ask somebody to fill in empty details of theirs: recorded, and they are emailed at most once a day.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        keys: t.arg.stringList({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ asked: readonly string[]; emailed: boolean }>(
+          ctx,
+          'POST',
+          `/v1/views/profile/${encodeURIComponent(args.personId)}/requests`,
+          { body: { keys: args.keys }, key: args.idempotencyKey },
         ),
     }),
     removePhoto: t.field({

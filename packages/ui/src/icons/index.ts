@@ -126,6 +126,7 @@ import {
   ChartColumn,
   FileChartColumn,
   GitMerge,
+  Cpu,
   ScanSearch,
 } from 'lucide-react';
 
@@ -232,6 +233,8 @@ export const iconGroups = {
     review: ScanSearch,
     /** Two records becoming one. */
     merge: GitMerge,
+    /** Done by the product itself, not a person: a scheduled job, a rule. */
+    system: Cpu,
     tag: Tag,
     identifier: Hash,
     email: Mail,

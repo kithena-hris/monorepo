@@ -7,7 +7,7 @@ import { logger } from '@kithena/telemetry';
 
 import { wirePeople } from './http/server.js';
 import { samplePhoto } from './seed-photos.js';
-import { COMPANIES, type SeedCompany } from './seed-companies.js';
+import { COMPANIES, EMPLOYMENT_TYPES, type SeedCompany } from './seed-companies.js';
 import { consumerFrom } from './infrastructure/consumers/wire.js';
 import { tenantTransaction } from './infrastructure/unit-of-work.js';
 
@@ -355,6 +355,29 @@ async function seedCompany(company: SeedCompany): Promise<void> {
     else lined += 1;
   }
   logger.info({ slug, lined }, 'reporting lines, jobs and details set');
+
+  // Fields a company gained after its people were first seeded: filled in
+  // where the record has nothing yet, so a re-seed brings older data along.
+  const typed = new Set(
+    (
+      await owner<{ id: string }[]>`
+        SELECT id FROM people.person
+         WHERE tenant_id = ${tenantId} AND custom ? 'employment_type'`
+    ).map((r) => r.id),
+  );
+  let backfilled = 0;
+  for (const person of company.people) {
+    const row = person.handle === company.admin.handle ? adminRow : byHandle.get(person.handle);
+    if (row === undefined || typed.has(row.id)) continue;
+    // eslint-disable-next-line no-await-in-loop -- a few dozen, in order
+    const patched = await asAdmin('PATCH', `/v1/people/${row.id}`, {
+      attributes: {
+        employment_type: optionKey(EMPLOYMENT_TYPES[person.handle] ?? 'Full time'),
+      },
+    });
+    if (patched.status < 300) backfilled += 1;
+  }
+  logger.info({ slug, backfilled }, 'employment types set');
 
   // A photo for each sample employee but the administrator, uploaded the way
   // the profile uploads one: a presigned PUT to the upload bucket, then People

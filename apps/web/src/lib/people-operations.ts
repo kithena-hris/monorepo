@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required missing readOnly currency ownedBy keptIn sensitive
+    key label description dataType options { value label } required missing readOnly currency ownedBy keptIn sensitive askable
   }`;
 
 const ENTRY = `
@@ -104,6 +104,7 @@ export const OPERATIONS = {
       }
       reviews { ...ReviewParts }
       pending { ...PendingParts }
+      requests { key label requestedAt by }
     }
   }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
 
@@ -117,6 +118,7 @@ export const OPERATIONS = {
       values { ...EntryParts }
       changes {
         id key effectiveFrom recordedAt by supersedes supersededBy
+        actor { kind avatarUrl }
         value { ...EntryParts }
       }
     }
@@ -251,12 +253,14 @@ export const OPERATIONS = {
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean) {
-    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $sort: String) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete, conditions: $conditions, match: $match, sort: $sort) {
       total active notStarted incomplete
       segment { id name }
       segments { id name }
-      columns { key label }
+      columns { key label shown sortable }
+      fields { key label kind options { value label } }
+      query { conditions { key op values } match sort { key direction } }
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } missing }
       next
@@ -655,6 +659,10 @@ export const OPERATIONS = {
 
   CompletePhotoUpload: `mutation CompletePhotoUpload($personId: ID, $uploadId: ID!, $key: String!) {
     completePhotoUpload(personId: $personId, uploadId: $uploadId, idempotencyKey: $key) { avatarUrl }
+  }`,
+
+  RequestDetails: `mutation RequestDetails($personId: ID!, $keys: [String!]!, $key: String!) {
+    requestDetails(personId: $personId, keys: $keys, idempotencyKey: $key) { asked emailed }
   }`,
 
   RemovePhoto: `mutation RemovePhoto($personId: ID, $key: String!) {

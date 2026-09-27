@@ -60,6 +60,7 @@ import {
   type PhotoDeps,
 } from '../application/screens/photo.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
+import { requestDetails } from '../application/screens/requests.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 import {
   createSchedule,
@@ -210,6 +211,7 @@ export const ScimMappingBody = z.strictObject({
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
 /** Whose photo: a person, or null for the viewer's own. */
 export const PhotoOf = z.strictObject({ personId: z.uuid().nullable() });
+export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
   size: z.int().min(1),
@@ -453,6 +455,12 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/views\/photos\/remove$/,
       handle: write(PhotoOf, (asking, input) => removePhoto(photoDeps, asking, input.personId)),
+    },
+    // Ask somebody for empty details of theirs: recorded, and they are emailed.
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/profile/${UUID}/requests$`),
+      handle: write(DetailAsk, (asking, input, id) => requestDetails(deps, asking, id, input.keys)),
     },
     {
       method: 'GET',

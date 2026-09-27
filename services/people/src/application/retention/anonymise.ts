@@ -14,7 +14,7 @@ import { personZone, type Placement } from '../../domain/org/calendar.js';
 import { mayErase, type ErasureMode } from '../../domain/retention/floors.js';
 import { forgetImportReports, type StoredReports } from '../import/commit.js';
 import type { Calendars } from '../org/org.js';
-import type { PhotoStore } from '../screens/photo.js';
+import type { PhotoStore } from '../screens/photo-store.js';
 
 /** Whose erasure takes the photo with it: the keys that name somebody. */
 const NAMES: ReadonlySet<string> = new Set(['given_name', 'family_name', 'preferred_name']);

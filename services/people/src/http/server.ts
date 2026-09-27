@@ -76,6 +76,8 @@ import type { UploadStore } from '../application/import/upload.js';
 import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
 import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
 import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
+import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
+import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -457,6 +459,18 @@ function send(response: ServerResponse, answer: RestResponse): void {
   response.end(JSON.stringify(answer.body));
 }
 
+/** Asking for a detail: recorded always, emailed where the reminder's mailer is configured. */
+function detailRequests(calendars: ReturnType<typeof drizzleOrgStore>) {
+  const mailer = reminderMailerFrom(process.env);
+  const base = tenantAppBase(process.env);
+  return {
+    store: drizzleDetailRequests(),
+    ...(mailer === undefined || base === null
+      ? {}
+      : { mailer, company: tenantCompanies(base, calendars) }),
+  };
+}
+
 /** What the screens' transports need beyond the person use cases (PEO-098). */
 function screenDeps(
   service: ReturnType<typeof peopleService>,
@@ -484,6 +498,7 @@ function screenDeps(
     gapTotals: drizzleGapTotals(),
     segments: { store: drizzleSegments(), newId: uuidv7 },
     photos: drizzlePhotos(),
+    requests: detailRequests(calendars),
     schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
