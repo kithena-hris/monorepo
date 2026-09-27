@@ -954,6 +954,8 @@ export const NAV: readonly NavGroup[] = [
     title: 'Data',
     slugs: [
       'table',
+      'column-chooser',
+      'filter-builder',
       'virtual-list',
       'stat',
       'money',

@@ -237,3 +237,24 @@ export const InATableRow: Story = {
     </div>
   ),
 };
+
+export const Removable: Story = {
+  name: 'Removable, as a chip',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`onRemove` turns a badge into a chip: an applied filter, a chosen tag. The remove button is a real button named for what it removes ("Remove Team: Engineering"), because "×" read aloud is "times".',
+      },
+    },
+  },
+  render: () => (
+    <ul aria-label="Active filters" className="flex flex-wrap gap-2">
+      {['Team: Engineering', 'Started after 1 Jan 2026', 'Has missing information'].map((chip) => (
+        <li key={chip}>
+          <Badge onRemove={() => undefined}>{chip}</Badge>
+        </li>
+      ))}
+    </ul>
+  ),
+};
