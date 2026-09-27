@@ -55,6 +55,9 @@ export function AppMark({ app, tone = 'brand', title, className, ...props }: App
   return (
     <svg
       viewBox={drawing.viewBox}
+      // Mono follows the text colour from the root too, not only its paths:
+      // an SVG's own fill is black until told otherwise.
+      {...(tone === 'mono' ? { fill: 'currentColor' } : {})}
       {...(title === undefined ? { 'aria-hidden': true } : { role: 'img' })}
       className={cn('size-5 shrink-0', className)}
       {...props}
