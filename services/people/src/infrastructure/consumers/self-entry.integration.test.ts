@@ -73,7 +73,7 @@ beforeAll(async () => {
   const dir = fileURLToPath(new URL('../../../../../migrations/', import.meta.url));
   const files = (await readdir(dir))
     .filter((f) => f.includes('_people_') && !f.includes('identity'))
-    .sort();
+    .toSorted();
   for (const file of ['20260821120000_tenant_registry.sql', ...files]) {
     await admin.execute(sql.raw(await readFile(`${dir}${file}`, 'utf8')));
   }
@@ -307,6 +307,6 @@ describe('the sign-up questions People reports to identity', () => {
         { key: 'badge_name', dataType: 'text' },
       ],
     });
-    expect((received[0]?.body['questions'] as unknown[]).length).toBe(2);
+    expect(received[0]?.body['questions']).toHaveLength(2);
   });
 });
