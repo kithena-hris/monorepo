@@ -105,3 +105,29 @@ describe('checkAmendable', () => {
     if (result.ok) expect(result.value.logoUrl).toBe(BLOB);
   });
 });
+
+describe('an edit that leaves the address alone', () => {
+  it('is not refused over the address held, and says nothing about it', () => {
+    const { address: _held, ...rest } = request();
+    const result = checkAmendable({ ...rest, themeId: request().themeId }, IMAGES);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.address).toBeUndefined();
+  });
+
+  it('still checks an address that is sent', () => {
+    const result = checkAmendable(
+      request({
+        address: {
+          country: 'US',
+          line1: '1 Main Street',
+          line2: null,
+          city: 'Scranton',
+          subdivision: null,
+          postcode: '18503',
+        },
+      }),
+      IMAGES,
+    );
+    expect(!result.ok && result.error.path).toEqual(['address.subdivision']);
+  });
+});

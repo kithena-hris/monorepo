@@ -335,12 +335,11 @@ export function EditCompanyForm({
         ) : null}
       </Card>
 
-      {/* Every failure that is not already shown under an input. Repeating one
-          that is would have an operator fix the same thing twice; swallowing
-          one that is not is a Save button that silently does nothing. */}
-      {result && !result.ok && !shownInline ? (
-        <Alert tone="danger" title="That did not save">
-          {result.message}
+      {/* Every failure, beside the button that was pressed: one under a field
+          far up the form reads, from here, as a Save that did nothing. */}
+      {result && !result.ok ? (
+        <Alert tone="danger" title="Not saved">
+          {shownInline ? `Fix the highlighted field: ${result.message}.` : result.message}
         </Alert>
       ) : null}
 
