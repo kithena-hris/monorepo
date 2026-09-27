@@ -113,7 +113,7 @@ export const Attention: Story = {
     docs: {
       description: {
         story:
-          '`tone="attention"`: this card holds something wanted and missing. The warning edge is the reminder; the badge and the words inside are the signal, because an edge is colour alone.',
+          '`tone="attention"`: this card holds something wanted and missing. Its one-pixel warning edge is the reminder; the badge and the words inside are the signal, because an edge is colour alone.',
       },
     },
   },

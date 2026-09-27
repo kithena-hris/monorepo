@@ -15,15 +15,17 @@ const card = cva('rounded-lg bg-surface text-fg', {
     },
     padded: { true: 'p-5', false: '' },
     /**
-     * `attention`: this card holds something that is wanted and missing. A
-     * warning-coloured edge down its leading side, which is the reminder; the
-     * card's own words (usually a `Badge tone="attention"`) are the signal,
-     * because an edge is colour and colour alone says nothing to a screen
-     * reader or to one reader in twelve.
+     * `attention`: this card holds something that is wanted and missing. Its
+     * one-pixel edge takes the warning border colour, which is the reminder;
+     * the card's own words (usually a `Badge tone="attention"`) are the
+     * signal, because an edge is colour and colour alone says nothing to a
+     * screen reader or to one reader in twelve. Deliberately not a thick
+     * stripe down one side: that is the stock callout, and it shouts where
+     * this only has to be findable.
      */
     tone: {
       default: '',
-      attention: 'border-warning-border border-s-3 border-s-warning',
+      attention: 'border-warning-border',
     },
     /**
      * The whole card is a target. Only set this when the card really is a
