@@ -48,7 +48,7 @@ describe('the approvals inbox (PEO-077)', () => {
     expect(await axeViolations(container)).toEqual([]);
     // Under her group's heading row, her change.
     const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
-    expect(within(row).getByText('Sensitive')).toBeInTheDocument();
+    expect(within(row).getByText('Needs approval')).toBeInTheDocument();
     expect(within(row).getByText('Pending approval')).toBeInTheDocument();
     expect(within(row).getByText('•••• 3000')).toBeInTheDocument();
     expect(within(row).getByText('•••• 1332')).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe('the approvals inbox (PEO-077)', () => {
     );
     const user = fast();
     expect(screen.queryByRole('button', { name: /Approve the change to Me's/ })).toBeNull();
-    expect(screen.getByText(/Another HR member decides your own change/)).toBeInTheDocument();
+    expect(screen.getByText(/Another HR member must approve your change/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
     await user.type(screen.getByLabelText('Note'), 'Checked against the form');
     await user.click(screen.getByRole('button', { name: 'Approve' }));
@@ -96,7 +96,7 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    expect(screen.queryByText(/Another HR member decides your own change/)).toBeNull();
+    expect(screen.queryByText(/Another HR member must approve your change/)).toBeNull();
     const user = fast();
     await user.click(
       screen.getByRole('button', { name: "Approve the change to Priya Shah's IBAN yourself" }),
@@ -305,8 +305,7 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
     expect(screen.getByRole('form', { name: 'Identification' })).toBeInTheDocument();
   });
 
-  it('groups the inbox by employee, and shows every change as one list when asked', async () => {
-    const user = fast();
+  it('is one table, grouped by employee', () => {
     render(
       <Approvals
         load={{
@@ -320,8 +319,7 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
     const groups = screen.getAllByRole('rowheader');
     expect(groups.length).toBeGreaterThan(0);
     expect(groups[0]).toHaveTextContent('2 changes');
-    await user.click(screen.getByRole('radio', { name: 'All changes' }));
-    expect(screen.queryAllByRole('rowheader')).toHaveLength(0);
-    expect(screen.getByRole('columnheader', { name: 'Person' })).toBeInTheDocument();
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(screen.queryByRole('radio')).toBeNull();
   });
 });
