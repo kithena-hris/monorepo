@@ -98,7 +98,10 @@ export function helpText(command: string): string {
   ].join('\n');
 }
 
-/** The answer as Slack shows it: the words, then how the question was read, quietly. */
+/**
+ * The answer as Slack shows it: the words alone, as a colleague would reply.
+ * How the question was read stays in the app, where somebody checking looks.
+ */
 export function answerText(answer: { readonly text: string; readonly understood: string }): string {
-  return `${answer.text}\n_${answer.understood}_`;
+  return answer.text;
 }

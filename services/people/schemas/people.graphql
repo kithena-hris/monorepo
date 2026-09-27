@@ -1991,7 +1991,13 @@ type Query {
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
   peopleApprovals: PeopleApprovals
-  peopleAsk(question: String!): PeopleAnswer
+  peopleAsk(
+    """
+    Earlier questions in the same conversation, oldest first, for a follow-up.
+    """
+    earlier: [String!]
+    question: String!
+  ): PeopleAnswer
   peopleBulkEdit(personIds: [ID!]!): PeopleBulkEdit
   """
   What a bulk edit would change and refuse, per person, and why; nothing is kept.

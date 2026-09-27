@@ -334,10 +334,15 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     peopleChat: t.field({ type: Chat, resolve: (_root, _args, ctx) => chat(ctx) }),
     peopleAsk: t.field({
       type: Answer,
-      args: { question: t.arg.string({ required: true }) },
+      args: {
+        question: t.arg.string({ required: true }),
+        earlier: t.arg.stringList({
+          description: 'Earlier questions in the same conversation, oldest first, for a follow-up.',
+        }),
+      },
       resolve: (_root, args, ctx) =>
         viaRest<AssistantAnswer>(ctx, 'POST', '/v1/assistant/ask', {
-          body: { question: args.question },
+          body: { question: args.question, earlier: args.earlier ?? [] },
         }),
     }),
     peopleSettingsActivity: t.field({

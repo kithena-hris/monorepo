@@ -97,19 +97,59 @@ const personLine = (p: PersonView): { id: string; name: string; title: string | 
 });
 
 const listed = (people: readonly { name: string; title: string | null }[]): string =>
-  people.map((p) => `• ${p.name}${p.title === null ? '' : `, ${p.title}`}`).join('\n');
+  people.map((p) => `• ${p.name}${p.title === null ? '' : ` — ${p.title}`}`).join('\n');
 
-/** How the conditions read, in the catalogue's words: "Department is Sales". */
-function describe(conditions: readonly Condition[], catalogue: readonly CatalogueField[]): string {
-  if (conditions.length === 0) return 'everybody';
+const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
+
+/** A calendar date as people say it: "12 March 2019". */
+function spokenDate(iso: string): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+/**
+ * Who the conditions pick out, as a sentence ends: "whose department is Sales
+ * and who started after 1 January 2020". "everyone" when there are none.
+ */
+function describe(
+  conditions: readonly Condition[],
+  catalogue: readonly CatalogueField[],
+  match: 'all' | 'any' = 'all',
+): string {
+  if (conditions.length === 0) return 'across the company';
   return conditions
     .map((c) => {
       const f = catalogue.find((x) => x.key === c.key);
-      const values = c.values.map((v) => f?.options.find((o) => o.value === v)?.label ?? v);
-      return `${f?.label ?? c.key} ${c.op.replace('_', ' ')} ${values.join(' or ')}`.trim();
+      const label = (f?.label ?? c.key).toLowerCase();
+      const values = c.values.map((v) => {
+        const option = f?.options.find((o) => o.value === v)?.label;
+        return option ?? (f?.kind === 'date' && v !== '' ? spokenDate(v) : v);
+      });
+      switch (c.op) {
+        case 'empty':
+          return `with no ${label} yet`;
+        case 'not_empty':
+          return `with a ${label}`;
+        case 'contains':
+          return `whose ${label} mentions ${values.join(' or ')}`;
+        case 'before':
+          return `whose ${label} is before ${values[0] ?? ''}`;
+        case 'after':
+          return `whose ${label} is after ${values[0] ?? ''}`;
+        case 'between':
+          return `whose ${label} is between ${values[0] || 'the start'} and ${values[1] || 'today'}`;
+        default:
+          return `whose ${label} is ${values.join(' or ')}`;
+      }
     })
-    .join(' and ');
+    .join(match === 'any' ? ', or ' : ' and ');
 }
+
+/** The model's opening with its count filled in, or People's own. */
+const opening = (intent: Intent, n: number, otherwise: string): string =>
+  intent.say === undefined ? otherwise : intent.say.replaceAll('{n}', String(n));
 
 /** One person by name, as the asker may find them; null when nobody or several match. */
 async function onePerson(
@@ -144,31 +184,46 @@ async function answer(
       if (!found.ok) return { text: found.error.message, people: [], understood: 'Refused' };
       const people = found.value.items.map(personLine);
       const total = counted.ok ? counted.value.all : people.length;
-      const what = describe(intent.conditions, catalogue);
+      const what = describe(intent.conditions, catalogue, intent.match);
+      const open = opening(
+        intent,
+        total,
+        `I found ${String(total)} ${plural(total, 'person', 'people')} ${what}.`,
+      );
+      const more =
+        total > people.length ? ` Here are the first ${String(people.length)}; the directory has the rest.` : '';
       return {
         text:
           total === 0
-            ? `Nobody matches ${what}.`
-            : `${String(total)} ${total === 1 ? 'person' : 'people'} (${what})${total > people.length ? `, the first ${String(people.length)}` : ''}:\n${listed(people)}`,
+            ? `I couldn’t find anyone ${what}.`
+            : `${open}${more}\n${listed(people)}`,
         people,
-        understood: `People where ${what}`,
+        understood: `People ${what}`,
       };
     }
     case 'count': {
       const refine = { conditions: intent.conditions, match: intent.match };
-      const what = describe(intent.conditions, catalogue);
+      const what = describe(intent.conditions, catalogue, intent.match);
       const group = catalogue.find((f) => f.key === intent.groupBy);
       if (group === undefined) {
         const counted = await deps.service.access.count(tx, { ...asking, refine });
         if (!counted.ok) return { text: counted.error.message, people: [], understood: 'Refused' };
         const n = counted.value.all;
         return {
-          text: `${String(n)} ${n === 1 ? 'person' : 'people'} (${what}).`,
+          text:
+            n === 0
+              ? `Nobody ${what} at the moment.`
+              : opening(
+                  intent,
+                  n,
+                  `There ${plural(n, 'is', 'are')} ${String(n)} ${plural(n, 'person', 'people')} ${what}.`,
+                ),
           people: [],
-          understood: `How many where ${what}`,
+          understood: `How many ${what}`,
         };
       }
       const rows: string[] = [];
+      let sum = 0;
       for (const option of group.options.slice(0, 20)) {
         const counted = await deps.service.access.count(tx, {
           ...asking,
@@ -180,16 +235,18 @@ async function answer(
             match: 'all',
           },
         });
-        if (counted.ok && counted.value.all > 0)
+        if (counted.ok && counted.value.all > 0) {
+          sum += counted.value.all;
           rows.push(`• ${option.label}: ${String(counted.value.all)}`);
+        }
       }
       return {
         text:
           rows.length === 0
-            ? `Nobody matches ${what}.`
-            : `By ${group.label.toLowerCase()} (${what}):\n${rows.join('\n')}`,
+            ? `Nobody ${what} at the moment.`
+            : `${opening(intent, sum, `Here’s how the ${String(sum)} ${plural(sum, 'person', 'people')} ${what} split by ${group.label.toLowerCase()}:`)}\n${rows.join('\n')}`,
         people: [],
-        understood: `How many where ${what}, by ${group.label.toLowerCase()}`,
+        understood: `How many ${what}, by ${group.label.toLowerCase()}`,
       };
     }
     case 'person': {
@@ -197,12 +254,12 @@ async function answer(
       if (person === null) {
         return several.length === 0
           ? {
-              text: `I could not find anybody called ${intent.name}.`,
+              text: `I couldn’t find anyone called ${intent.name}. Could you check the spelling?`,
               people: [],
               understood: `About ${intent.name}`,
             }
           : {
-              text: `Several people match ${intent.name}:\n${listed(several.map(personLine))}`,
+              text: `A few people are called ${intent.name}. Which one did you mean?\n${listed(several.map(personLine))}`,
               people: several.map(personLine),
               understood: `About ${intent.name}`,
             };
@@ -216,14 +273,19 @@ async function answer(
           : await deps.service.access
               .read(tx, { ...asking, personId: manager })
               .then((r) => (r.ok ? nameOf(r.value.attributes) : null));
-      const facts = [
-        line.title,
-        text(a['work_email']),
-        managerName === null ? null : `Reports to ${managerName}`,
-        text(a['hire_date']) === null ? null : `Started ${String(a['hire_date'])}`,
+      const hired = text(a['hire_date']);
+      const email = text(a['work_email']);
+      const joined = [
+        managerName === null ? null : `report to ${managerName}`,
+        hired === null ? null : `joined on ${spokenDate(hired)}`,
+      ].filter((x) => x !== null);
+      const sentences = [
+        line.title === null ? `Here’s ${line.name}.` : `${line.name} works as ${line.title}.`,
+        joined.length === 0 ? null : `They ${joined.join(' and ')}.`,
+        email === null ? null : `You can reach them at ${email}.`,
       ].filter((x) => x !== null);
       return {
-        text: `${line.name}${facts.length === 0 ? '' : `\n${facts.map((f) => `• ${f}`).join('\n')}`}`,
+        text: [intent.say ?? null, ...sentences].filter((x) => x !== null).join(' '),
         people: [line],
         understood: `About ${line.name}`,
       };
@@ -234,8 +296,8 @@ async function answer(
         return {
           text:
             several.length === 0
-              ? `I could not find anybody called ${intent.name}.`
-              : `Several people match ${intent.name}; say which:\n${listed(several.map(personLine))}`,
+              ? `I couldn’t find anyone called ${intent.name}. Could you check the spelling?`
+              : `A few people are called ${intent.name}. Which one did you mean?\n${listed(several.map(personLine))}`,
           people: several.map(personLine),
           understood: `Who reports to ${intent.name}`,
         };
@@ -250,8 +312,8 @@ async function answer(
       return {
         text:
           people.length === 0
-            ? `Nobody reports to ${manager.name}.`
-            : `${String(people.length)} ${people.length === 1 ? 'person reports' : 'people report'} to ${manager.name}:\n${listed(people)}`,
+            ? `No one reports to ${manager.name} at the moment.`
+            : `${opening(intent, people.length, `${manager.name} has ${String(people.length)} direct ${plural(people.length, 'report', 'reports')}:`)}\n${listed(people)}`,
         people,
         understood: `Who reports to ${manager.name}`,
       };
@@ -262,10 +324,10 @@ async function answer(
       return {
         text:
           items.length === 0
-            ? 'Nothing waits for your approval.'
-            : `${String(items.length)} ${items.length === 1 ? 'change waits' : 'changes wait'} for approval:\n${items
+            ? 'You’re all caught up. Nothing is waiting for your approval.'
+            : `${opening(intent, items.length, `${String(items.length)} ${plural(items.length, 'change is', 'changes are')} waiting for your approval:`)}\n${items
                 .slice(0, 10)
-                .map((i) => `• ${i.name}: ${i.label}`)
+                .map((i) => `• ${i.name} — ${i.label}`)
                 .join('\n')}`,
         people: [],
         understood: 'What waits for approval',
@@ -274,10 +336,15 @@ async function answer(
   }
 }
 
+/** The most earlier questions a follow-up is read with. */
+export const EARLIER = 5;
+
 export async function ask(
   deps: ScreenDeps,
   asking: Asking,
   question: string,
+  /** Earlier questions in the same conversation, oldest first: never their answers. */
+  earlier: readonly string[] = [],
 ): Promise<Result<AssistantAnswer>> {
   const assistant = deps.assistant;
   if (assistant === undefined) {
@@ -295,14 +362,20 @@ export async function ask(
   const today = deps.clock.instant().slice(0, 10);
   const completed = await assistant.complete(asking.tenantId, {
     instruction: `${instructionFor()}\nToday is ${today}.`,
-    context: { question: q, fields: catalogue.value },
+    context: {
+      question: q,
+      ...(earlier.length === 0
+        ? {}
+        : { earlier: earlier.slice(-EARLIER).map((e) => e.trim().slice(0, 500)) }),
+      fields: catalogue.value,
+    },
   });
   if (!completed.ok) {
     return ok({
       text:
         completed.error.code === 'AI_FIELD_NAMED' || completed.error.code === 'AI_VALUE_DENIED'
-          ? 'That question mentions information that is never sent to the assistant. Look it up in People instead.'
-          : 'The assistant could not take that question just now.',
+          ? 'That question touches information I’m not allowed to see, so I can’t help with it here. You’ll find it in People.'
+          : 'Sorry, I couldn’t take that question just now. Could you try again in a moment?',
       people: [],
       understood: 'Not sent to the assistant',
     });

@@ -243,7 +243,10 @@ export const FileOf = z.strictObject({
 });
 export const AssistantShareBody = z.strictObject({ share: z.boolean() });
 export const SignupAskBody = z.strictObject({ ask: z.enum(['off', 'optional', 'required']) });
-export const AskBody = z.strictObject({ question: z.string().trim().min(1).max(500) });
+export const AskBody = z.strictObject({
+  question: z.string().trim().min(1).max(500),
+  earlier: z.array(z.string().max(500)).max(10).default([]),
+});
 export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
@@ -495,7 +498,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/assistant\/ask$/,
       safe: true,
-      handle: compute(AskBody, (asking, input) => ask(deps, asking, input.question)),
+      handle: compute(AskBody, (asking, input) =>
+        ask(deps, asking, input.question, input.earlier),
+      ),
     },
     // The Settings activity log, newest first (`?before=<id>&area=fields`).
     {

@@ -128,7 +128,7 @@ describe('asking People in words', () => {
       conditions: [{ key: 'department', op: 'in', values: ['sales'] }],
       match: 'all',
     });
-    expect(answered.ok && answered.value.text).toMatch(/\(department in Sales\)/);
+    expect(answered.ok && answered.value.text).toMatch(/^I found \d+ (person|people) whose department is Sales\./);
     const sent = JSON.stringify(w.prompts);
     expect(sent).toContain('Who is in sales?');
     expect(sent).not.toContain('Schrute');
@@ -139,7 +139,17 @@ describe('asking People in words', () => {
   it('answers who reports to somebody, found by name', async () => {
     const w = world(() => JSON.stringify({ kind: 'reports', name: 'Michael' }));
     const answered = await ask(w.deps, w.asking, 'Who reports to Michael?');
-    expect(answered.ok && answered.value.text).toMatch(/2 people report to Michael Scott/);
+    expect(answered.ok && answered.value.text).toMatch(/^Michael Scott has 2 direct reports:/);
+  });
+
+  it('opens with the model’s own words, and fills in the count itself', async () => {
+    const w = world(() =>
+      JSON.stringify({ kind: 'reports', name: 'Michael', say: 'Sure! Here are the {n} people on Michael’s team.' }),
+    );
+    const answered = await ask(w.deps, w.asking, 'Who reports to Michael?', ['Who is in sales?']);
+    expect(answered.ok && answered.value.text).toMatch(/^Sure! Here are the 2 people on Michael’s team\.\n•/);
+    // A follow-up is read with the earlier question, never an earlier answer.
+    expect(JSON.stringify(w.prompts)).toContain('"earlier":["Who is in sales?"]');
   });
 
   it('says so rather than guessing when the model answers with something People cannot run', async () => {
@@ -170,7 +180,7 @@ describe('asking People in words', () => {
       question: 'Who reports to Michael?',
       correlationId: '00000000-0000-4000-8000-0000000000c2',
     });
-    expect(answered.ok && answered.value.text).toMatch(/report to Michael Scott/);
+    expect(answered.ok && answered.value.text).toMatch(/Michael Scott has 2 direct reports/);
 
     const stranger = await askFromChat(chat, {
       tenantId: TENANT,

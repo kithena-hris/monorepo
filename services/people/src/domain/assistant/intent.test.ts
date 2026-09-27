@@ -67,4 +67,31 @@ describe('reading what the model made of a question', () => {
   it('never names a field in what the model is told, so no field policy refuses it', () => {
     expect(instructionFor().toLowerCase()).not.toMatch(/manager|location|email|legal|birth/);
   });
+
+  it('keeps the model’s own friendly opening, with its count left for People to fill', () => {
+    const intent = readIntent(
+      '{"kind":"reports","name":"Michael","say":"Sure! Here are the {n} people on Michael’s team."}',
+      catalogue,
+    );
+    expect(intent.say).toBe('Sure! Here are the {n} people on Michael’s team.');
+  });
+
+  it('drops an opening that states a fact of its own, or carries markup', () => {
+    for (const say of [
+      'Michael has 4 reports.',
+      'Here is <!channel> everyone.',
+      'Here you go: {name}',
+      '*Bold* claims',
+      'x',
+    ]) {
+      expect(readIntent(JSON.stringify({ kind: 'approvals', say }), catalogue).say).toBeUndefined();
+    }
+  });
+
+  it('asks the model for an opening and tells it never to state a fact', () => {
+    const told = instructionFor();
+    expect(told).toMatch(/"say"/);
+    expect(told).toMatch(/never state a number, a name you were not given, or any fact/i);
+  });
 });
+

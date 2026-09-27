@@ -111,10 +111,10 @@ describe('a Slack envelope as a question', () => {
     expect(questionOf({ type: 'hello' })).toBeNull();
   });
 
-  it('drops the mention from the words, and shows how the question was read', () => {
+  it('drops the mention from the words, and answers in words alone', () => {
     expect(withoutMentions('<@U123|kithena>   who   is here')).toBe('who is here');
     expect(
-      answerText({ text: '6 people.', understood: 'How many where Department in Sales' }),
-    ).toBe('6 people.\n_How many where Department in Sales_');
+      answerText({ text: 'There are 6 people in Sales.', understood: 'How many in Sales' }),
+    ).toBe('There are 6 people in Sales.');
   });
 });
