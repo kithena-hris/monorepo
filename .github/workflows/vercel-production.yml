@@ -675,7 +675,7 @@ jobs:
           # `migrations/` replaced whole, so the copy is exactly this commit's.
           ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
           scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
-            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh deploy/vm/debezium.properties \
+            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh deploy/vm/debezium.env \
             atlas.hcl migrations vm:kithena/
           ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/production
           put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/production/$1"; }

@@ -52,7 +52,7 @@ services:
 
   # The datastore's tables first, as the VM does: `run` on an empty database
   # answers every call with a 500 rather than creating them.
-  # The outbox relay, as on the VM (`deploy/vm/debezium.properties`), but one
+  # The outbox relay, as on the VM (`deploy/vm/debezium.env`), but one
   # instance for both outboxes: identity and People share this database here.
   # As the owner, because a fresh volume's `svc_debezium` is made NOLOGIN by
   # its migration; and from now rather than from the start, as People's is on
@@ -60,6 +60,7 @@ services:
   relay:
     image: quay.io/debezium/server:3.6.3.Final
     restart: unless-stopped
+    env_file: deploy/vm/debezium.env
     environment:
       OTEL_ENABLED: 'false'
       JAVA_OPTS: -Xms32m -Xmx64m -XX:MaxMetaspaceSize=80m -XX:+UseSerialGC -XX:TieredStopAtLevel=1
@@ -70,9 +71,7 @@ services:
       DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: platform.outbox,people.outbox
       DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_local
       DEBEZIUM_SOURCE_SNAPSHOT_MODE: no_data
-    volumes:
-      - ./deploy/vm/debezium.properties:/debezium/config/application.properties:ro
-      - relay:/debezium/data
+    volumes: [relay:/debezium/data]
     depends_on:
       postgres: { condition: service_healthy }
       redpanda: { condition: service_healthy }
