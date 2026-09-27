@@ -18,6 +18,8 @@ const avatar = cva(
         lg: 'size-10 text-sm',
         xl: 'size-14 text-md',
         '2xl': 'size-16 text-lg',
+        /** A page's own subject: the person a profile or a start page is about. */
+        '3xl': 'size-24 text-2xl',
       },
       /**
        * A face is round; a wordmark is not.

@@ -136,7 +136,10 @@ function toSafeImageSrc(value: string | null | undefined): string | null {
   ) {
     return null;
   }
-  return parsed.href;
+  // A same-origin path stays a path. Resolved on the server there is no
+  // document, and its `href` would name `http://localhost/` — which the
+  // browser then loads, from itself, and hydration keeps.
+  return trimmed.startsWith('/') ? `${parsed.pathname}${parsed.search}${parsed.hash}` : parsed.href;
 }
 
 const aspectClass = {
