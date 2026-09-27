@@ -425,6 +425,23 @@ export type {
   TableRowProps,
 } from './components/table/table';
 
+export { ColumnChooser, orderColumns } from './components/table/column-chooser';
+export type {
+  ColumnChoice,
+  ColumnChooserProps,
+  ColumnChooserValue,
+} from './components/table/column-chooser';
+
+export { FilterBuilder, isConditionComplete } from './components/filter-builder/filter-builder';
+export type {
+  FilterBuilderProps,
+  FilterCondition,
+  FilterField,
+  FilterGroup,
+  FilterOperator,
+  FilterValueKind,
+} from './components/filter-builder/filter-builder';
+
 export { DataTable } from './components/table/data-table';
 export type {
   DataColumn,

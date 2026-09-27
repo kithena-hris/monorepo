@@ -39,6 +39,7 @@ import {
   ContextMenuTrigger,
   CopyButton,
   CopyField,
+  ColumnChooser,
   CurrencyField,
   DatePicker,
   Dropzone,
@@ -50,6 +51,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
   EmptyState,
+  FilterBuilder,
   Inline,
   Kbd,
   ListDetail,
@@ -84,7 +86,9 @@ import {
   ToggleGroup,
   ToggleGroupItem,
   VirtualList,
+  type ColumnChooserValue,
   type ComboboxOption,
+  type FilterGroup,
   type IsoDate,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -1241,6 +1245,94 @@ const dropzone: DocPage = {
   ],
 };
 
+/* ------------------------------------------------------------------ data -- */
+
+const columnChooser: DocPage = {
+  slug: 'column-chooser',
+  title: 'Column chooser',
+  description: 'Which columns a table shows, and in what order, as one list.',
+  when: 'A table with more columns than most readers want at once. It is controlled and remembers nothing: where a choice is kept is the application’s decision.',
+  importLine: "import { ColumnChooser } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'Default',
+      tall: true,
+      blurb:
+        'The identity column is `locked`: always shown, never moved. The trigger carries the count, because a popover hides its state.',
+      render: function ColumnChooserDemo(): JSX.Element {
+        const columns = [
+          { id: 'name', label: 'Name', locked: true },
+          { id: 'title', label: 'Job title' },
+          { id: 'team', label: 'Team' },
+          { id: 'location', label: 'Location' },
+          { id: 'start', label: 'Start date' },
+        ];
+        const [value, setValue] = useState<ColumnChooserValue>({
+          order: columns.map((c) => c.id),
+          visible: ['name', 'title', 'team'],
+        });
+        return <ColumnChooser columns={columns} value={value} onChange={setValue} />;
+      },
+      code: `const [value, setValue] = useState({ order: ids, visible: ['name', 'title'] });
+
+<ColumnChooser columns={columns} value={value} onChange={setValue} onReset={reset} />`,
+    },
+  ],
+};
+
+const filterBuilder: DocPage = {
+  slug: 'filter-builder',
+  title: 'Filter builder',
+  description: 'Conditions a reader can check by reading them: field, operator, value, all or any.',
+  when: 'More than two or three filters, or filters that need an operator ("between", "is any of"). One or two equality filters are a Select each in the toolbar.',
+  importLine: "import { FilterBuilder, isConditionComplete } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'Default',
+      tall: true,
+      blurb:
+        'Presentational: the application supplies the fields and the operators it honours, and decides when a change applies. Values are canonical strings, never labels.',
+      render: function FilterBuilderDemo(): JSX.Element {
+        const [value, setValue] = useState<FilterGroup>({
+          match: 'all',
+          conditions: [{ id: 'c1', field: 'team', operator: 'in', values: ['engineering'] }],
+        });
+        return (
+          <div className="w-full max-w-2xl">
+            <FilterBuilder
+              value={value}
+              onChange={setValue}
+              fields={[
+                {
+                  id: 'team',
+                  label: 'Team',
+                  operators: [{ id: 'in', label: 'is any of', value: 'options' }],
+                  options: [
+                    { value: 'engineering', label: 'Engineering' },
+                    { value: 'research', label: 'Research' },
+                  ],
+                },
+                {
+                  id: 'start',
+                  label: 'Start date',
+                  operators: [{ id: 'between', label: 'is between', value: 'date-range' }],
+                },
+              ]}
+            />
+          </div>
+        );
+      },
+      code: `<FilterBuilder
+  fields={[{ id: 'team', label: 'Team', operators: [{ id: 'in', label: 'is any of', value: 'options' }], options }]}
+  value={value}
+  onChange={setValue}
+/>`,
+    },
+  ],
+};
+
 /* ------------------------------------------------------------------ index -- */
 
 export const MORE_PAGES: readonly DocPage[] = [
@@ -1248,12 +1340,14 @@ export const MORE_PAGES: readonly DocPage[] = [
   breadcrumb,
   calendar,
   clipboard,
+  columnChooser,
   combobox,
   contextMenu,
   datePicker,
   dropdownMenu,
   dropzone,
   feedback,
+  filterBuilder,
   kbd,
   layout,
   navPage,
