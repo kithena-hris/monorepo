@@ -427,6 +427,30 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
     }),
   });
+  const LinePersonRef = builder
+    .objectRef<ProfileView['reportingLine']['chain'][number]>('ReportingLinePerson')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        name: t.exposeString('name'),
+        title: t.exposeString('title', { nullable: true }),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      }),
+    });
+  const ReportingLineRef = builder
+    .objectRef<ProfileView['reportingLine']>('ReportingLine')
+    .implement({
+      description: 'Who a person reports to, up to the top, and who else shares their manager.',
+      fields: (t) => ({
+        chain: t.field({
+          type: [LinePersonRef],
+          description: 'From the top down to their manager, as far as the viewer may read.',
+          resolve: (v) => list(v.chain),
+        }),
+        peers: t.field({ type: [LinePersonRef], resolve: (v) => list(v.peers) }),
+        morePeers: t.exposeBoolean('morePeers'),
+      }),
+    });
   const PersonCalendar = builder
     .objectRef<NonNullable<ProfileView['calendar']>>('PersonCalendar')
     .implement({
@@ -516,6 +540,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'Fields somebody asked this person to fill in that are still empty, on fields the viewer reads.',
         resolve: (v) => list(v.requests),
       }),
+      reportingLine: t.field({ type: ReportingLineRef, resolve: (v) => v.reportingLine }),
     }),
   });
 

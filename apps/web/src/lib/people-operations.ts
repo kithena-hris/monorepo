@@ -106,6 +106,11 @@ export const OPERATIONS = {
       pending { ...PendingParts }
       requests { key label requestedAt by }
       files { id name mediaType size }
+      reportingLine {
+        chain { id name title avatarUrl }
+        peers { id name title avatarUrl }
+        morePeers
+      }
     }
   }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
 

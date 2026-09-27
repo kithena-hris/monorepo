@@ -1705,6 +1705,7 @@ type PeopleProfile {
   Null unless the viewer is HR and there is somewhere to place the person.
   """
   placement: ProfilePlacement
+  reportingLine: ReportingLine
   """
   Fields somebody asked this person to fill in that are still empty, on fields the viewer reads.
   """
@@ -2302,6 +2303,23 @@ type ReportSegmentChoice {
   forSummary: Boolean
   id: ID
   name: String
+}
+
+"""
+Who a person reports to, up to the top, and who else shares their manager.
+"""
+type ReportingLine {
+  """From the top down to their manager, as far as the viewer may read."""
+  chain: [ReportingLinePerson!]
+  morePeers: Boolean
+  peers: [ReportingLinePerson!]
+}
+
+type ReportingLinePerson {
+  avatarUrl: String
+  id: ID
+  name: String
+  title: String
 }
 
 type RetentionFloor {

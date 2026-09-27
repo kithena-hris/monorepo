@@ -40,6 +40,7 @@ import { DisplayValue, longDate } from '../record/display';
 import { FieldFiles, type FileInfo, type UploadOutcome } from '../record/files';
 import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
 import { MissingJump, MissingMark } from '../record/missing';
+import { ReportingLine, type ReportingLineState } from './reporting-line';
 import { PendingNote, SensitiveMark } from '../record/pending';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
@@ -100,6 +101,8 @@ export interface ProfileState {
   readonly requests?: readonly DetailRequest[];
   /** What each image or document value is: its name and type. */
   readonly files?: readonly FileInfo[];
+  /** Who they report to, up to the top, and their peers. */
+  readonly reportingLine?: ReportingLineState;
 }
 
 export interface DetailRequest {
@@ -467,159 +470,172 @@ function Record({
           }}
         />
       ) : null}
-      {sections.length === 0 ? (
-        <EmptyState title="Nothing else to show" />
-      ) : (
-        sections.map((section) => {
-          const writable = section.fields.some((f) => !f.readOnly);
-          return (
-            <PageSection
-              key={section.key}
-              surface
-              title={section.label}
-              actions={
-                <span className="flex items-center gap-2">
-                  {gapsIn(section).length === 0 ? null : (
-                    <MissingMark count={gapsIn(section).length} />
-                  )}
-                  {section.readsLogged ? <Badge size="sm">Reads are logged</Badge> : null}
-                  {writable && editing !== section.key ? (
-                    <Button
-                      size="sm"
-                      aria-label={`Edit ${section.label}`}
-                      onClick={() => {
-                        setEditing(section.key);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  ) : null}
-                </span>
-              }
-            >
-              {(held[section.key] ?? []).length === 0 || editing === section.key ? null : (
-                <Alert tone="info" title="Sent to HR for approval">
-                  {(held[section.key] ?? []).join(' and ')}{' '}
-                  {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
-                  approves; the record keeps what it had until then.
-                </Alert>
-              )}
-              {editing === section.key ? (
-                <SectionForm
-                  section={section}
-                  values={values}
-                  pending={pending}
-                  {...(onWithdraw === undefined ? {} : { onWithdraw })}
-                  {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
-                  {...(onCheck === undefined ? {} : { onCheck })}
-                  {...(focus === undefined ? {} : { focusKey: focus })}
-                  footer={
-                    <Button
-                      onClick={() => {
-                        setEditing(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  }
-                  onSave={async (key, changed) => {
-                    const outcome = await onSave(key, changed);
-                    if (outcome.ok) {
-                      // A value sent for approval is not the record's yet (PEO-077).
-                      const waiting = new Set(outcome.held ?? []);
-                      const applied = Object.fromEntries(
-                        Object.entries(changed).filter(
-                          ([k]) =>
-                            !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
-                        ),
-                      );
-                      setValues((v) => ({ ...v, ...applied }));
-                      setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
-                      setEditing(null);
-                    }
-                    return outcome;
-                  }}
-                />
-              ) : (
-                <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
-                  {section.fields.map((field) => {
-                    const gap = field.missing === true && isMissing(values[field.key]);
-                    return (
-                      <div key={field.key} className="contents">
-                        <dt
-                          id={`field-${field.key}`}
-                          className="flex flex-wrap items-center gap-2 text-sm text-fg-muted"
+      {/* The record, and beside it on a desk who they report to. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <Stack gap={6} className="min-w-0">
+          {sections.length === 0 ? (
+            <EmptyState title="Nothing else to show" />
+          ) : (
+            sections.map((section) => {
+              const writable = section.fields.some((f) => !f.readOnly);
+              return (
+                <PageSection
+                  key={section.key}
+                  surface
+                  title={section.label}
+                  actions={
+                    <span className="flex items-center gap-2">
+                      {gapsIn(section).length === 0 ? null : (
+                        <MissingMark count={gapsIn(section).length} />
+                      )}
+                      {section.readsLogged ? <Badge size="sm">Reads are logged</Badge> : null}
+                      {writable && editing !== section.key ? (
+                        <Button
+                          size="sm"
+                          aria-label={`Edit ${section.label}`}
+                          onClick={() => {
+                            setEditing(section.key);
+                          }}
                         >
-                          {field.label}
-                          <SensitiveMark field={field} />
-                          {gap ? <MissingMark /> : null}
-                        </dt>
-                        <dd className="flex flex-col gap-1 text-sm">
-                          {gap ? (
-                            <span className="flex flex-wrap items-center gap-2 text-fg-muted">
-                              {field.readOnly
-                                ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
-                                : 'Not provided yet.'}
-                              {field.readOnly ? null : (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  aria-label={`Add ${field.label}`}
-                                  onClick={() => {
-                                    open(field.key);
-                                  }}
-                                >
-                                  Add
-                                </Button>
+                          Edit
+                        </Button>
+                      ) : null}
+                    </span>
+                  }
+                >
+                  {(held[section.key] ?? []).length === 0 || editing === section.key ? null : (
+                    <Alert tone="info" title="Sent to HR for approval">
+                      {(held[section.key] ?? []).join(' and ')}{' '}
+                      {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
+                      approves; the record keeps what it had until then.
+                    </Alert>
+                  )}
+                  {editing === section.key ? (
+                    <SectionForm
+                      section={section}
+                      values={values}
+                      pending={pending}
+                      {...(onWithdraw === undefined ? {} : { onWithdraw })}
+                      {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
+                      {...(onCheck === undefined ? {} : { onCheck })}
+                      {...(focus === undefined ? {} : { focusKey: focus })}
+                      footer={
+                        <Button
+                          onClick={() => {
+                            setEditing(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      }
+                      onSave={async (key, changed) => {
+                        const outcome = await onSave(key, changed);
+                        if (outcome.ok) {
+                          // A value sent for approval is not the record's yet (PEO-077).
+                          const waiting = new Set(outcome.held ?? []);
+                          const applied = Object.fromEntries(
+                            Object.entries(changed).filter(
+                              ([k]) =>
+                                !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
+                            ),
+                          );
+                          setValues((v) => ({ ...v, ...applied }));
+                          setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
+                          setEditing(null);
+                        }
+                        return outcome;
+                      }}
+                    />
+                  ) : (
+                    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
+                      {section.fields.map((field) => {
+                        const gap = field.missing === true && isMissing(values[field.key]);
+                        return (
+                          <div key={field.key} className="contents">
+                            <dt
+                              id={`field-${field.key}`}
+                              className="flex flex-wrap items-center gap-2 text-sm text-fg-muted"
+                            >
+                              {field.label}
+                              <SensitiveMark field={field} />
+                              {gap ? <MissingMark /> : null}
+                            </dt>
+                            <dd className="flex flex-col gap-1 text-sm">
+                              {gap ? (
+                                <span className="flex flex-wrap items-center gap-2 text-fg-muted">
+                                  {field.readOnly
+                                    ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
+                                    : 'Not provided yet.'}
+                                  {field.readOnly ? null : (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      aria-label={`Add ${field.label}`}
+                                      onClick={() => {
+                                        open(field.key);
+                                      }}
+                                    >
+                                      Add
+                                    </Button>
+                                  )}
+                                  {onRequest !== undefined && field.askable === true ? (
+                                    <AskButton
+                                      field={field.label}
+                                      keyName={field.key}
+                                      firstName={firstName}
+                                      asked={requests.get(field.key) ?? null}
+                                      onRequest={onRequest}
+                                    />
+                                  ) : null}
+                                </span>
+                              ) : onRequest !== undefined &&
+                                field.askable === true &&
+                                isMissing(values[field.key]) ? (
+                                <span className="flex flex-wrap items-center gap-1">
+                                  <DisplayValue field={field} value={values[field.key]} />
+                                  <AskButton
+                                    field={field.label}
+                                    keyName={field.key}
+                                    firstName={firstName}
+                                    asked={requests.get(field.key) ?? null}
+                                    onRequest={onRequest}
+                                  />
+                                </span>
+                              ) : (
+                                <DisplayValue field={field} value={values[field.key]} />
                               )}
-                              {onRequest !== undefined && field.askable === true ? (
-                                <AskButton
-                                  field={field.label}
-                                  keyName={field.key}
-                                  firstName={firstName}
-                                  asked={requests.get(field.key) ?? null}
-                                  onRequest={onRequest}
-                                />
-                              ) : null}
-                            </span>
-                          ) : onRequest !== undefined &&
-                            field.askable === true &&
-                            isMissing(values[field.key]) ? (
-                            <span className="flex flex-wrap items-center gap-1">
-                              <DisplayValue field={field} value={values[field.key]} />
-                              <AskButton
-                                field={field.label}
-                                keyName={field.key}
-                                firstName={firstName}
-                                asked={requests.get(field.key) ?? null}
-                                onRequest={onRequest}
-                              />
-                            </span>
-                          ) : (
-                            <DisplayValue field={field} value={values[field.key]} />
-                          )}
-                          {pending
-                            .filter((p) => p.key === field.key)
-                            .map((p) => (
-                              <PendingNote
-                                key={p.id}
-                                field={field}
-                                pending={p}
-                                onWithdraw={onWithdraw}
-                                onSelfApprove={onSelfApprove}
-                              />
-                            ))}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
-              )}
-            </PageSection>
-          );
-        })
-      )}
-      <EmploymentPeriods periods={state.employment?.periods ?? []} />
+                              {pending
+                                .filter((p) => p.key === field.key)
+                                .map((p) => (
+                                  <PendingNote
+                                    key={p.id}
+                                    field={field}
+                                    pending={p}
+                                    onWithdraw={onWithdraw}
+                                    onSelfApprove={onSelfApprove}
+                                  />
+                                ))}
+                            </dd>
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  )}
+                </PageSection>
+              );
+            })
+          )}
+          <EmploymentPeriods periods={state.employment?.periods ?? []} />
+        </Stack>
+        {state.reportingLine === undefined ? null : (
+          <aside className="lg:sticky lg:top-6">
+            <ReportingLine
+              line={state.reportingLine}
+              person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
+            />
+          </aside>
+        )}
+      </div>
     </Stack>
   );
 }
