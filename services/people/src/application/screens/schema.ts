@@ -12,7 +12,7 @@ import { CORE_PACK } from '../../country-packs/core.js';
 import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
 import { SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
-import type { PublishedVersion } from '../../domain/schema/publish.js';
+import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
@@ -107,13 +107,15 @@ export interface Choice {
   readonly label: string;
 }
 
-function pendingOf(draft: Attribute, published: PublishedVersion | null): Pending {
+export function pendingOf(draft: Attribute, published: PublishedVersion | null): Pending {
   const was = published?.document.attributes.find((a) => a.key === draft.key);
   if (was === undefined) return draft.deprecatedAt === null ? 'added' : null;
   if (draft.deprecatedAt !== null && was.deprecatedAt === null) return 'archived';
-  return JSON.stringify({ ...draft, order: 0 }) === JSON.stringify({ ...was, order: 0 })
-    ? null
-    : 'changed';
+  // Key order is not a difference: the published document comes back from
+  // `jsonb`, which keeps its own, and the draft is built in code. Compared
+  // as written, every field read as changed the moment it was published.
+  const same = (a: Attribute): string => JSON.stringify(sortKeys({ ...a, order: 0 }));
+  return same(draft) === same(was) ? null : 'changed';
 }
 
 const optionsOf = (a: AttributeDefinition): string[] =>
