@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ConnectChatApp($app: String!, $origin: String!) {\n    connectChatApp(app: $app, origin: $origin)\n  }"}

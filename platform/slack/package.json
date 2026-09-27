@@ -12,7 +12,8 @@
     "start": "node dist/src/main.js"
   },
   "dependencies": {
-    "@kithena/telemetry": "workspace:*"
+    "@kithena/telemetry": "workspace:*",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
     "vitest": "^4.1.11"

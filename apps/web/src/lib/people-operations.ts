@@ -488,6 +488,30 @@ export const OPERATIONS = {
     reorderDraftFields(sectionKey: $sectionKey, order: $order, idempotencyKey: $key) { ok }
   }`,
 
+  Chat: `query Chat {
+    peopleChat {
+      apps { key name canConnect connection { workspace connectedAt } }
+      notices { key label description to action on }
+      fields { on { key label } shareable }
+    }
+  }`,
+
+  ConnectChatApp: `mutation ConnectChatApp($app: String!, $origin: String!) {
+    connectChatApp(app: $app, origin: $origin)
+  }`,
+
+  CompleteChatApp: `mutation CompleteChatApp($app: String!, $code: String!, $state: String!, $key: String!) {
+    completeChatApp(app: $app, code: $code, state: $state, idempotencyKey: $key) { apps { key } }
+  }`,
+
+  DisconnectChatApp: `mutation DisconnectChatApp($app: String!, $key: String!) {
+    disconnectChatApp(app: $app, idempotencyKey: $key) { apps { key } }
+  }`,
+
+  SetChatNotice: `mutation SetChatNotice($notice: String!, $on: Boolean!, $key: String!) {
+    setChatNotice(key: $notice, on: $on, idempotencyKey: $key) { notices { key on } }
+  }`,
+
   SetFieldAssistant: `mutation SetFieldAssistant($field: String!, $share: Boolean!, $key: String!) {
     setFieldAssistant(key: $field, share: $share, idempotencyKey: $key) { ok }
   }`,

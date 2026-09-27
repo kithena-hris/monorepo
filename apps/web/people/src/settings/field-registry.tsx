@@ -685,7 +685,7 @@ function AssistantShare({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>The assistant (Slack and questions)</DropdownMenuLabel>
+        <DropdownMenuLabel>The assistant, in Kithena and in chat apps</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={shared ? 'shared' : 'not'}
           onValueChange={(value) => {

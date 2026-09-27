@@ -161,7 +161,7 @@ describe('asking People in words', () => {
     const w = world(() => JSON.stringify({ kind: 'reports', name: 'Michael' }));
     const chat = {
       ...w.deps,
-      accountByEmail: (_tx: never, _tenant: string, email: string) =>
+      accountByEmail: (_tx: unknown, _tenant: string, email: string) =>
         Promise.resolve(email === 'toby@dunder.example' ? TOBY_ACCOUNT : null),
     };
     const answered = await askFromChat(chat, {

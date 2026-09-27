@@ -3,6 +3,7 @@ import type { PhotoView } from '../application/screens/photo.js';
 import type { FileView } from '../application/screens/files.js';
 import type { ActivityView } from '../application/settings/activity.js';
 import type { AssistantAnswer } from '../application/assistant/ask.js';
+import type { ChatView } from '../application/settings/chat.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
 
 /**
@@ -223,7 +224,114 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
+  const ChatConnectionRef = builder
+    .objectRef<NonNullable<ChatView['apps'][number]['connection']>>('PeopleChatConnection')
+    .implement({
+      fields: (t) => ({
+        workspace: t.exposeString('workspace'),
+        connectedAt: t.exposeString('connectedAt'),
+      }),
+    });
+  const ChatAppRef = builder.objectRef<ChatView['apps'][number]>('PeopleChatApp').implement({
+    description: 'A chat app the company may connect (Slack today).',
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      name: t.exposeString('name'),
+      canConnect: t.exposeBoolean('canConnect'),
+      connection: t.field({ type: ChatConnectionRef, nullable: true, resolve: (a) => a.connection }),
+    }),
+  });
+  const ChatNoticeRef = builder.objectRef<ChatView['notices'][number]>('PeopleChatNotice').implement({
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      description: t.exposeString('description'),
+      to: t.exposeString('to'),
+      action: t.exposeString('action', { nullable: true }),
+      on: t.exposeBoolean('on'),
+    }),
+  });
+  const ChatFieldRef = builder
+    .objectRef<ChatView['fields']['on'][number]>('PeopleChatField')
+    .implement({ fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }) });
+  const ChatFieldsRef = builder.objectRef<ChatView['fields']>('PeopleChatFields').implement({
+    fields: (t) => ({
+      on: t.field({ type: [ChatFieldRef], resolve: (f) => list(f.on) }),
+      shareable: t.exposeInt('shareable'),
+    }),
+  });
+  const Chat = builder.objectRef<ChatView>('PeopleChat').implement({
+    description: 'People in the company’s chat apps: connections, notices, and what the assistant may answer.',
+    fields: (t) => ({
+      apps: t.field({ type: [ChatAppRef], resolve: (v) => list(v.apps) }),
+      notices: t.field({ type: [ChatNoticeRef], resolve: (v) => list(v.notices) }),
+      fields: t.field({ type: ChatFieldsRef, resolve: (v) => v.fields }),
+    }),
+  });
+  const chat = (ctx: Parameters<ViaRest>[0]) => viaRest<ChatView>(ctx, 'GET', '/v1/views/chat');
+
+  builder.mutationFields((t) => ({
+    connectChatApp: t.string({
+      description: 'Where to send the administrator to connect a chat app; they come back to `origin`.',
+      args: { app: t.arg.string({ required: true }), origin: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) =>
+        (
+          await viaRest<{ url: string }>(
+            ctx,
+            'POST',
+            `/v1/chat/apps/${encodeURIComponent(args.app)}/connect`,
+            { body: { origin: args.origin } },
+          )
+        ).url,
+    }),
+    completeChatApp: t.field({
+      type: Chat,
+      description: 'Finish connecting a chat app with what it sent back.',
+      args: {
+        app: t.arg.string({ required: true }),
+        code: t.arg.string({ required: true }),
+        state: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/chat/apps/${encodeURIComponent(args.app)}/complete`, {
+          body: { code: args.code, state: args.state },
+          key: args.idempotencyKey,
+        });
+        return chat(ctx);
+      },
+    }),
+    disconnectChatApp: t.field({
+      type: Chat,
+      args: { app: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/chat/apps/${encodeURIComponent(args.app)}/disconnect`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return chat(ctx);
+      },
+    }),
+    setChatNotice: t.field({
+      type: Chat,
+      description: 'Send one of People’s notices to chat apps, or stop.',
+      args: {
+        key: t.arg.string({ required: true }),
+        on: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'PUT', `/v1/chat/notices/${encodeURIComponent(args.key)}`, {
+          body: { on: args.on },
+          key: args.idempotencyKey,
+        });
+        return chat(ctx);
+      },
+    }),
+  }));
+
   builder.queryFields((t) => ({
+    peopleChat: t.field({ type: Chat, resolve: (_root, _args, ctx) => chat(ctx) }),
     peopleAsk: t.field({
       type: Answer,
       args: { question: t.arg.string({ required: true }) },

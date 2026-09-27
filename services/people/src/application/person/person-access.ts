@@ -73,7 +73,6 @@ import {
 } from './pending-changes.js';
 import type {
   Asking,
-  Condition,
   ConditionOp,
   GapsIn,
   PersonCount,

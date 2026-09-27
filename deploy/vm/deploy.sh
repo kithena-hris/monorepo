@@ -206,6 +206,9 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_messaging') THEN
     CREATE ROLE svc_messaging NOLOGIN NOBYPASSRLS;
   END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_slack') THEN
+    CREATE ROLE svc_slack NOLOGIN NOBYPASSRLS;
+  END IF;
 END \$\$;
 ALTER ROLE migrator PASSWORD '$(get MIGRATOR_PASSWORD)';
 SELECT 'CREATE DATABASE kithena OWNER migrator'

@@ -27,6 +27,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../../load';
+import { ChatApps, type ChatAppsProps, type ChatAppsState } from './chat-apps';
 import { Provisioning, type ProvisioningProps, type ScimState } from './provisioning';
 
 /** A field in the published schema, and whether an allowlist may name it. */
@@ -60,6 +61,8 @@ export interface IntegrationsState {
   readonly endpoints: readonly Endpoint[];
   /** SCIM provisioning and what it keeps upstream (PEO-072, PEO-073); absent where not served. */
   readonly scim?: ScimState;
+  /** Chat apps and People's notices to them; absent where no chat service answered. */
+  readonly chat?: ChatAppsState;
 }
 
 export interface EndpointInput {
@@ -86,6 +89,8 @@ export interface IntegrationsProps {
   readonly onOpenLog?: (id: string) => void;
   /** SCIM connections (PEO-072); absent, the section is not drawn. */
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
+  /** Chat apps (Slack today) and People's notices to them; absent, not drawn. */
+  readonly chat?: ChatAppsProps;
 }
 
 /**
@@ -180,6 +185,7 @@ function Endpoints({
   onRotate,
   onOpenLog,
   scim,
+  chat,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
@@ -189,8 +195,11 @@ function Endpoints({
     <Stack gap={6}>
       <PageHeader
         title="Integrations"
-        description="Connect People to tools outside Kithena, such as your payroll provider, your benefits platform or your identity provider. Everything inside Kithena works together on its own."
+        description="Connect People to tools outside Kithena, such as your chat app, your payroll provider or your identity provider. Everything inside Kithena works together on its own."
       />
+      {chat === undefined || state.chat === undefined ? null : (
+        <ChatApps {...chat} state={state.chat} />
+      )}
       <PageSection
         title="Webhooks to third-party tools"
         description={`When something happens in People (somebody is hired, changes job or leaves) People tells the tools you add here, so nobody types it twice. Each is told only the events you choose, carrying only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last day · schema version ${String(state.schemaVersion)}.`}

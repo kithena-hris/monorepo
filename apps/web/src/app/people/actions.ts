@@ -320,6 +320,24 @@ export async function setFieldAssistant(field: string, share: boolean): Promise<
   return outcome(people('SetFieldAssistant', { field, share }));
 }
 
+/** Where to send an administrator to connect a chat app, returning to this origin. */
+export async function connectChatApp(
+  app: string,
+  origin: string,
+): Promise<{ readonly ok: true; readonly url: string } | { readonly ok: false; readonly message: string }> {
+  const answer = await people<string>('ConnectChatApp', { app, origin });
+  return answer.ok ? { ok: true, url: answer.data } : { ok: false, message: answer.message };
+}
+
+export async function disconnectChatApp(app: string): Promise<Outcome> {
+  return outcome(people('DisconnectChatApp', { app }));
+}
+
+/** One of People's notices sent to chat apps, or not. */
+export async function setChatNotice(notice: string, on: boolean): Promise<Outcome> {
+  return outcome(people('SetChatNotice', { notice, on }));
+}
+
 /** A field on the sign-up flow, optional or required, or off it: a draft change. */
 export async function setFieldSignup(
   field: string,

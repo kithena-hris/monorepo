@@ -165,8 +165,10 @@ describe('every mutation (PEO-113)', () => {
     // revealIdentifier is an audited read (PEO-125): it changes nothing a retry could repeat.
     // An import's upload (§14.2): a retried start is a fresh upload, and completing checks.
     // A photo's start likewise; completing one keeps it, so that is keyed.
+    // Connecting a chat app only computes where to send the administrator.
     expect(unkeyed.toSorted()).toEqual([
       'completeImportUpload',
+      'connectChatApp',
       'dryRunImport',
       'revealIdentifier',
       'startFileUpload',

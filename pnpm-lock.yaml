@@ -824,6 +824,9 @@ importers:
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
     devDependencies:
       vitest:
         specifier: ^4.1.11

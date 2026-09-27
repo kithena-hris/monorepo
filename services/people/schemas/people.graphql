@@ -983,6 +983,8 @@ type Mutation {
     mapping: [ImportColumnInput!]!
     uploadId: ID!
   ): ImportStage
+  """Finish connecting a chat app with what it sent back."""
+  completeChatApp(app: String!, code: String!, idempotencyKey: String!, state: String!): PeopleChat
   """
   The file is uploaded: check it and keep it. Saving the field points the record at it.
   """
@@ -996,6 +998,10 @@ type Mutation {
   """
   completePhotoUpload(idempotencyKey: String!, personId: ID, uploadId: ID!): PeoplePhotoSaved
   confirmSetupEntity(country: String!, idempotencyKey: String!, name: String!): WriteOutcome
+  """
+  Where to send the administrator to connect a chat app; they come back to `origin`.
+  """
+  connectChatApp(app: String!, origin: String!): String
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
@@ -1055,6 +1061,7 @@ type Mutation {
   deleteReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
+  disconnectChatApp(app: String!, idempotencyKey: String!): PeopleChat
   """HR says a pair are two people; the queue stops offering it."""
   dismissDuplicate(idempotencyKey: String!, personIds: [ID!]!): DuplicateDismissed
   """
@@ -1153,6 +1160,8 @@ type Mutation {
   """
   savePeopleSegment(filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
+  """Send one of People’s notices to chat apps, or stop."""
+  setChatNotice(idempotencyKey: String!, key: String!, on: Boolean!): PeopleChat
   """
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
@@ -1379,6 +1388,47 @@ type PeopleBulkEdit {
   placement: ProfilePlacement
   sections: [RecordSection!]
   today: String
+}
+
+"""
+People in the company’s chat apps: connections, notices, and what the assistant may answer.
+"""
+type PeopleChat {
+  apps: [PeopleChatApp!]
+  fields: PeopleChatFields
+  notices: [PeopleChatNotice!]
+}
+
+"""A chat app the company may connect (Slack today)."""
+type PeopleChatApp {
+  canConnect: Boolean
+  connection: PeopleChatConnection
+  key: String
+  name: String
+}
+
+type PeopleChatConnection {
+  connectedAt: String
+  workspace: String
+}
+
+type PeopleChatField {
+  key: String
+  label: String
+}
+
+type PeopleChatFields {
+  on: [PeopleChatField!]
+  shareable: Int
+}
+
+type PeopleChatNotice {
+  action: String
+  description: String
+  key: String
+  label: String
+  on: Boolean
+  to: String
 }
 
 type PeopleCompleteness {
@@ -1951,6 +2001,7 @@ type Query {
   Who a bulk hire would hire and who it would skip, and why; nothing is kept.
   """
   peopleBulkHirePreview(hires: [BulkHireInput!]!): BulkEditResult
+  peopleChat: PeopleChat
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
   peopleDirectory(

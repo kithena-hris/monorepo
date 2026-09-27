@@ -155,6 +155,8 @@ export type { AvatarGroupProps, AvatarProps } from './components/avatar/avatar';
 
 export { ReachLogo, ReachMark, ReachWordmark } from './brand/reach-logo';
 export type { ReachLogoProps, ReachMarkProps, ReachWordmarkProps } from './brand/reach-logo';
+export { AppMark } from './brand/app-mark';
+export type { AppMarkProps, ThirdPartyApp } from './brand/app-mark';
 export { KithenaLogo, KithenaMark, KithenaWordmark } from './brand/kithena-logo';
 export type {
   KithenaLogoProps,

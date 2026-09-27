@@ -226,7 +226,7 @@ async function pendingChanges(
   }
   const ring = staticKeyRing(keys);
   const base = tenantAppBase(env);
-  const mailer = base === null ? undefined : approvalMailerFrom(env);
+  const mailer = base === null ? undefined : approvalMailerFrom(env, inTenant);
   return startPendingChanges(env, inTenant, {
     holding: {
       store: drizzlePendingChangeStore({

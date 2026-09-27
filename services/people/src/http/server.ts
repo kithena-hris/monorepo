@@ -37,6 +37,9 @@ import { scimProvisioning } from '../application/scim/provisioning.js';
 import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { chatAct, parseChatAction } from './chat.js';
+import { chatAppsFrom } from '../infrastructure/chat-apps.js';
+import { drizzleChatNotices } from '../infrastructure/drizzle-chat-notices.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
@@ -469,8 +472,11 @@ function send(response: ServerResponse, answer: RestResponse): void {
 }
 
 /** Asking for a detail: recorded always, emailed where the reminder's mailer is configured. */
-function detailRequests(calendars: ReturnType<typeof drizzleOrgStore>) {
-  const mailer = reminderMailerFrom(process.env);
+function detailRequests(
+  calendars: ReturnType<typeof drizzleOrgStore>,
+  service: ReturnType<typeof peopleService>,
+) {
+  const mailer = reminderMailerFrom(process.env, service.inTenant, 'details_requested');
   const base = tenantAppBase(process.env);
   return {
     store: drizzleDetailRequests(),
@@ -478,6 +484,12 @@ function detailRequests(calendars: ReturnType<typeof drizzleOrgStore>) {
       ? {}
       : { mailer, company: tenantCompanies(base, calendars) }),
   };
+}
+
+/** The chat apps this deployment has, and People's notices to them. */
+function chatFrom(env: NodeJS.ProcessEnv) {
+  const apps = chatAppsFrom(env);
+  return apps.length === 0 ? {} : { chat: { apps, notices: drizzleChatNotices() } };
 }
 
 /** A question from Slack: which company, whose verified email, and the words. */
@@ -532,7 +544,8 @@ function screenDeps(
     activity: drizzleActivity(),
     ...assistantFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
-    requests: detailRequests(calendars),
+    requests: detailRequests(calendars, service),
+    ...chatFrom(process.env),
     schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
@@ -796,6 +809,41 @@ export function wirePeople(server: Server): void {
     }
   };
 
+  // What a Slack button does, as whoever pressed it: the app's own routes.
+  const actChat = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    try {
+      if (chatToken === '' || !presentsInternalToken({ headers: request.headers }, chatToken)) {
+        send(response, { status: 401, body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } } });
+        return;
+      }
+      const raw = await bodyOf(request, BODY_LIMIT);
+      let parsed: unknown = null;
+      try {
+        parsed = raw === null ? null : JSON.parse(raw);
+      } catch {
+        parsed = null;
+      }
+      const input = parseChatAction(parsed);
+      if (!input.success) {
+        send(response, { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'Not a chat action' } } });
+        return;
+      }
+      const done = await chatAct(
+        {
+          apiToken: process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
+          accountOf: (tenantId, email) =>
+            service.inTenant(tenantId, ({ tx }) => chatDeps.accountByEmail(tx, tenantId, email)),
+          rest: async (r) => rest(r),
+        },
+        input.data,
+      );
+      send(response, { status: 200, body: done });
+    } catch (cause) {
+      logger.error({ err: cause }, 'a chat action failed');
+      if (!response.headersSent) send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+    }
+  };
+
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
     const path = request.url ?? '/';
     if (path === SCIM_PREFIX || path.startsWith(`${SCIM_PREFIX}/`)) {
@@ -834,6 +882,10 @@ export function wirePeople(server: Server): void {
     // Only the Slack service may: it presents a token of its own.
     if (path === '/internal/assistant/ask' && request.method === 'POST') {
       void answerChat(request, response);
+      return;
+    }
+    if (path === '/internal/chat/act' && request.method === 'POST') {
+      void actChat(request, response);
       return;
     }
     if (!path.startsWith('/v1/')) {

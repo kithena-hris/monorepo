@@ -62,6 +62,13 @@ import {
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import { requestDetails } from '../application/screens/requests.js';
 import { activityView } from '../application/settings/activity.js';
+import {
+  chatView,
+  completeChat,
+  connectChat,
+  disconnectChat,
+  setChatNotice,
+} from '../application/settings/chat.js';
 import { ask } from '../application/assistant/ask.js';
 import {
   completeFileUpload,
@@ -137,6 +144,9 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     readonly schedules?: ScheduleAdminDeps;
   };
 
+export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
+export const ChatComplete = z.strictObject({ code: z.string().min(1).max(500), state: z.string().min(1).max(2000) });
+export const ChatNotice = z.strictObject({ on: z.boolean() });
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
 export const SetupChoice = z.strictObject({
@@ -936,6 +946,43 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: write(NoBody, (asking, _input, id) => rotateEndpoint(deps, asking, id), {
         resource: (_asking, id) => id,
         again: endpoint,
+      }),
+    },
+    // Chat apps (Slack today): connecting one, and which notices go there.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/chat$/,
+      handle: async (asking) => answer(await chatView(deps, asking)),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/chat\/apps\/([a-z]{1,20})\/connect$/,
+      safe: true,
+      handle: async (asking, request, params) => {
+        const input = body(ChatConnect, request.body);
+        if (!input.ok) return refused(input.error);
+        return answer(await connectChat(deps, asking, params['id'] ?? '', input.value.origin));
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/chat\/apps\/([a-z]{1,20})\/complete$/,
+      handle: write(ChatComplete, (asking, input, id) => completeChat(deps, asking, id, input), {
+        resource: (_asking, id) => id,
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/chat\/apps\/([a-z]{1,20})\/disconnect$/,
+      handle: write(NoBody, (asking, _input, id) => disconnectChat(deps, asking, id), {
+        resource: (_asking, id) => id,
+      }),
+    },
+    {
+      method: 'PUT',
+      pattern: /^\/v1\/chat\/notices\/([a-z][a-z0-9_]{0,63})$/,
+      handle: write(ChatNotice, (asking, input, id) => setChatNotice(deps, asking, id, input.on), {
+        resource: (_asking, id) => id,
       }),
     },
     // SCIM connections (PEO-072, PEO-073): people_admin's, audited by event.

@@ -13,6 +13,7 @@ import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
 import type { PhotoStore } from './photo-store.js';
 import type { FileStore } from './file-store.js';
 import type { AssistantPort } from '../assistant/assistant-port.js';
+import type { ChatDeps } from '../settings/chat-port.js';
 import type { ActivityStore } from '../settings/activity-store.js';
 import type { ReminderCompany, ReminderMailer } from '../completeness/reminders.js';
 import type {
@@ -52,6 +53,8 @@ export interface ScreenDeps {
   readonly photoAtSignup?: (tx: Tx, tenantId: string) => Promise<'off' | 'optional' | 'required'>;
   /** Questions in words (Slack, and anywhere else). Absent, no model is configured. */
   readonly assistant?: AssistantPort;
+  /** Chat apps and People's notices to them (`application/settings/chat.ts`). Absent, none. */
+  readonly chat?: ChatDeps;
   /** The Settings activity log. Absent, it is not kept. */
   readonly activity?: ActivityStore;
   /** Files for image and document fields. Absent, those fields take nothing. */

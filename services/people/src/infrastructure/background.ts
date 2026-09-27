@@ -366,7 +366,7 @@ export async function startBackground(
     ),
   );
 
-  const mailer = options.mailer ?? reminderMailerFrom(env);
+  const mailer = options.mailer ?? reminderMailerFrom(env, inTenant);
   const base = tenantAppBase(env);
   if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
   if (mailer === undefined || base === null) {

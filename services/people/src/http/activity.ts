@@ -1,4 +1,9 @@
 import type { ActivityArea } from '../application/settings/activity.js';
+import { PEOPLE_NOTICES } from '../application/settings/chat.js';
+
+/** A chat app's name as the log says it. */
+const appName = (key: string | undefined): string | null =>
+  key === undefined ? null : `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
 
 /**
  * Which commands are changes to settings, and how each reads in the log.
@@ -190,6 +195,24 @@ const RULES: readonly Rule[] = [
     path: new RegExp(`^/v1/scim/connections/${ID}/mapping$`),
     area: 'integrations',
     say: () => ({ action: 'Changed which fields provisioning sets' }),
+  },
+  {
+    path: /^\/v1\/chat\/apps\/([a-z]+)\/complete$/,
+    area: 'integrations',
+    say: (_m, _b, id) => ({ action: 'Connected a chat app', subject: appName(id) }),
+  },
+  {
+    path: /^\/v1\/chat\/apps\/([a-z]+)\/disconnect$/,
+    area: 'integrations',
+    say: (_m, _b, id) => ({ action: 'Disconnected a chat app', subject: appName(id) }),
+  },
+  {
+    path: /^\/v1\/chat\/notices\/([a-z_]+)$/,
+    area: 'integrations',
+    say: (_m, b, id) => ({
+      action: b['on'] === true ? 'Turned on a chat notice' : 'Turned off a chat notice',
+      subject: PEOPLE_NOTICES.find((n) => n.key === id)?.label ?? null,
+    }),
   },
 ];
 

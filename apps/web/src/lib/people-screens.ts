@@ -124,8 +124,18 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         before: given(query.search['before']),
         area: given(query.search['area']),
       });
-    case 'Integrations':
-      return read('Integrations');
+    case 'Integrations': {
+      // Chat apps beside the rest; a chat service that is down hides its section, not the page.
+      const [integrations, chat] = await Promise.all([read('Integrations'), read('Chat')]);
+      if (integrations.status !== 'ready') return integrations;
+      return {
+        status: 'ready',
+        data: {
+          ...(integrations.data as Record<string, unknown>),
+          ...(chat.status === 'ready' ? { chat: chat.data } : {}),
+        },
+      };
+    }
     case 'RoleSettings':
       return read('RoleSettings');
     case 'PeopleHome':

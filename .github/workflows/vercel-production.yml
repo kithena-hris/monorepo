@@ -367,6 +367,7 @@ jobs:
           CREATE ROLE svc_timeoff;
           CREATE ROLE svc_identity NOBYPASSRLS;
           CREATE ROLE svc_messaging NOBYPASSRLS;
+          CREATE ROLE svc_slack NOBYPASSRLS;
           SQL
 
       - name: migrate production

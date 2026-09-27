@@ -553,6 +553,18 @@ export function PeopleScreen({
             onDisconnect: thenRefresh(actions.revokeScimConnection),
             onSetMapping: thenRefresh(actions.setScimMapping),
           },
+          chat: {
+            onConnect: (app: string) => actions.connectChatApp(app, window.location.origin),
+            onDisconnect: thenRefresh(actions.disconnectChatApp),
+            onNotice: actions.setChatNotice,
+            fieldsHref: '/settings/people/fields',
+            returned:
+              search['connected'] !== undefined
+                ? { ok: true, message: `${search['connected']} is connected. Choose below what it sends.` }
+                : search['notConnected'] !== undefined
+                  ? { ok: false, message: search['notConnected'] }
+                  : null,
+          },
         };
       case 'ReportSchedules':
         return {
