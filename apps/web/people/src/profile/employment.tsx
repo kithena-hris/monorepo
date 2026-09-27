@@ -158,59 +158,56 @@ export function statusLabel(status: string): string {
   return STATUS[status] ?? status;
 }
 
+/** A lifecycle move somebody may be asked for. */
+export type MoveKind = Asking;
+
+/** The moves §8.1 allows from a status, in the order offered. People refuses anything else anyway. */
+export function offeredMoves(status: string | null): readonly MoveKind[] {
+  return status === null ? [] : (OFFERED[status] ?? []);
+}
+
+/** A move in words: "Give notice". */
+export function moveLabel(kind: MoveKind): string {
+  return LABEL[kind];
+}
+
+/** A move that ends or withdraws somebody's employment: marked as such wherever it is offered. */
+export function isDestructiveMove(kind: MoveKind): boolean {
+  return kind === 'terminate' || kind === 'discard';
+}
+
 /**
- * The moves §8.1 allows from where they stand, as buttons, for the profile's
- * header: status beside the name, the moves beside it, so there is one
- * Employment on the page, not two. The dialog each opens asks for what the
- * move needs; People decides whether it may happen.
+ * The dialog for one move: it asks for what the move needs, says what it will
+ * do, and shows People's refusal as it was worded. Every date is a day on the
+ * person's own calendar.
  */
-export function Employment({
+export function EmploymentMove({
+  kind,
   state,
   onMove,
   name,
   placement,
+  onClose,
 }: {
+  readonly kind: MoveKind;
   readonly state: EmploymentState;
-  /** Absent on one's own profile: nobody moves their own employment. */
-  readonly onMove?: ((move: LifecycleMove) => Promise<Outcome>) | undefined;
+  readonly onMove: (move: LifecycleMove) => Promise<Outcome>;
   /** Who this is, for a hire to say what it will do. */
   readonly name?: string | undefined;
   /** Where they sit: a hire asks for it when they sit nowhere yet. */
   readonly placement?: PlacementState | null | undefined;
-}): JSX.Element | null {
-  const [asking, setAsking] = useState<Asking | null>(null);
-  const { calendar, employment } = state;
-  const offered = employment === null ? [] : (OFFERED[employment.status] ?? []);
-  const periods = employment?.periods ?? [];
-  if (onMove === undefined || offered.length === 0) return null;
-
+  readonly onClose: () => void;
+}): JSX.Element {
   return (
-    <>
-      {offered.map((kind) => (
-        <Button
-          key={kind}
-          variant={kind === 'terminate' || kind === 'discard' ? 'destructive' : 'secondary'}
-          onClick={() => {
-            setAsking(kind);
-          }}
-        >
-          {LABEL[kind]}
-        </Button>
-      ))}
-      {asking === null ? null : (
-        <MoveDialog
-          kind={asking}
-          today={calendar.today}
-          lastPeriod={periods.at(-1) ?? null}
-          name={name ?? 'They'}
-          placement={placement ?? null}
-          onMove={onMove}
-          onClose={() => {
-            setAsking(null);
-          }}
-        />
-      )}
-    </>
+    <MoveDialog
+      kind={kind}
+      today={state.calendar.today}
+      lastPeriod={state.employment?.periods.at(-1) ?? null}
+      name={name ?? 'They'}
+      placement={placement ?? null}
+      onMove={onMove}
+      onClose={onClose}
+    />
   );
 }
 

@@ -3,13 +3,67 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
+import { Button } from '@reach/ui';
+import { useState } from 'react';
+
 import {
   dayAfter,
-  Employment,
+  EmploymentMove,
   EmploymentPeriods,
+  moveLabel,
+  offeredMoves,
   type EmploymentPeriod,
   type EmploymentState,
+  type LifecycleMove,
+  type MoveKind,
+  type PlacementState,
 } from './employment';
+import type { Outcome } from '../load';
+
+/**
+ * The profile offers these moves from its Actions menu; here each is a plain
+ * button, so the tests read the moves and their dialogs and not the menu.
+ */
+function Employment({
+  state,
+  onMove,
+  name,
+  placement,
+}: {
+  readonly state: EmploymentState;
+  readonly onMove?: (move: LifecycleMove) => Promise<Outcome>;
+  readonly name?: string;
+  readonly placement?: PlacementState;
+}) {
+  const [kind, setKind] = useState<MoveKind | null>(null);
+  const moves = onMove === undefined ? [] : offeredMoves(state.employment?.status ?? null);
+  return (
+    <>
+      {moves.map((m) => (
+        <Button
+          key={m}
+          onClick={() => {
+            setKind(m);
+          }}
+        >
+          {moveLabel(m)}
+        </Button>
+      ))}
+      {kind === null || onMove === undefined ? null : (
+        <EmploymentMove
+          kind={kind}
+          state={state}
+          onMove={onMove}
+          name={name}
+          placement={placement}
+          onClose={() => {
+            setKind(null);
+          }}
+        />
+      )}
+    </>
+  );
+}
 
 const calendar = { today: '2026-09-24', timeZone: 'Europe/Madrid' };
 const first: EmploymentPeriod = {

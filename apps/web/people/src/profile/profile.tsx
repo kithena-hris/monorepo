@@ -12,7 +12,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   EmptyState,
   Field,
   FieldControl,
@@ -26,7 +32,7 @@ import {
   icons,
   type UploadedImage,
 } from '@reach/ui';
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
@@ -37,8 +43,12 @@ import { PendingNote, SensitiveMark } from '../record/pending';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
 import {
-  Employment,
+  EmploymentMove,
   EmploymentPeriods,
+  isDestructiveMove,
+  moveLabel,
+  offeredMoves,
+  type MoveKind,
   PlacementPickers,
   statusLabel,
   type EmploymentState,
@@ -259,7 +269,6 @@ function Record({
   const gapsIn = (section: RecordSection) =>
     section.fields.filter((f) => f.missing === true && isMissing(values[f.key]));
   const gaps = sections.flatMap(gapsIn);
-  const required = sections.flatMap((s) => s.fields).filter((f) => f.required).length;
   const requests = new Map((state.requests ?? []).map((r) => [r.key, r]));
   // What may be asked of them now: empty, and theirs to fill in.
   const askable =
@@ -268,6 +277,9 @@ function Record({
       : sections.flatMap((s) => s.fields).filter((f) => f.askable === true && isMissing(values[f.key]));
   const firstName = person.name.split(' ')[0] ?? person.name;
   const status = state.employment?.status ?? null;
+  const [moving, setMoving] = useState<MoveKind | null>(null);
+  const [pdf, setPdf] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <Stack gap={6}>
@@ -298,50 +310,67 @@ function Record({
               )
             }
             actions={
-              <>
-                {/* The moves their status allows: Hire, Give notice, Terminate… (HR's). */}
-                {state.calendar ? (
-                  <Employment
-                    state={{ calendar: state.calendar, employment: state.employment ?? null }}
-                    onMove={onMove}
-                    name={person.name}
-                    placement={state.placement}
-                  />
-                ) : null}
-                {onHistory === undefined ? null : <Button onClick={onHistory}>History</Button>}
-                {onDownloadRecord ? <RecordPdf onDownload={onDownloadRecord} /> : null}
-              </>
+              <RecordActions
+                moves={
+                  onMove === undefined || !state.calendar ? [] : offeredMoves(status)
+                }
+                onMove={setMoving}
+                firstMissing={gaps[0] ?? null}
+                onFirstMissing={(key) => {
+                  open(key);
+                }}
+                askFor={
+                  askable.length === 0 || onRequest === undefined
+                    ? null
+                    : {
+                        label:
+                          askable.length === 1
+                            ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
+                            : `Ask ${firstName} for ${String(askable.length)} empty details`,
+                        run: () => {
+                          void onRequest(askable.map((f) => f.key)).then((outcome) => {
+                            setNotice(
+                              outcome.ok
+                                ? `${firstName} has been asked, by email.`
+                                : `Not sent: ${outcome.message}`,
+                            );
+                          });
+                        },
+                      }
+                }
+                onHistory={onHistory}
+                onDownload={
+                  onDownloadRecord === undefined
+                    ? undefined
+                    : () => {
+                        setPdf(true);
+                      }
+                }
+              />
             }
           />
-          {person.missing === null || gaps.length === 0 ? null : (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-muted">
-              <p>
-                <span className="font-medium text-fg tabular-nums">{gaps.length}</span> of{' '}
-                <span className="tabular-nums">{required}</span> required{' '}
-                {required === 1 ? 'detail' : 'details'} missing
-              </p>
-              <Button
-                size="sm"
-                onClick={() => {
-                  const first = gaps[0];
-                  if (first !== undefined) open(first.key);
-                }}
-              >
-                {gaps[0]?.readOnly === true ? 'Show the first' : 'Fill in the first'}
-              </Button>
-            </div>
-          )}
-          {askable.length < 2 || onRequest === undefined ? null : (
-            <div>
-              <AskAll
-                keys={askable.map((f) => f.key)}
-                label={`Ask ${firstName} for all ${String(askable.length)} empty details`}
-                onRequest={onRequest}
-              />
-            </div>
+          {notice === null ? null : (
+            <p role="status" className="text-sm text-fg-muted">
+              {notice}
+            </p>
           )}
         </div>
       </div>
+      {moving === null || onMove === undefined || !state.calendar ? null : (
+        <EmploymentMove
+          kind={moving}
+          state={{ calendar: state.calendar, employment: state.employment ?? null }}
+          onMove={onMove}
+          name={person.name}
+          placement={state.placement}
+          onClose={() => {
+            setMoving(null);
+          }}
+        />
+      )}
+      {onDownloadRecord === undefined ? null : (
+        <RecordPdf open={pdf} onOpenChange={setPdf} onDownload={onDownloadRecord} />
+      )}
       <ReviewNotices
         reviews={state.reviews}
         onCorrect={(key) => {
@@ -609,41 +638,106 @@ function AskButton({
   );
 }
 
-/** Ask for every empty detail they fill in, in one email. */
-function AskAll({
-  keys,
-  label,
-  onRequest,
+/**
+ * Everything one may do to this record, in one menu beside the page's primary
+ * action: the moves the status allows, then the record's own. A header with a
+ * button per verb reads as a toolbar; this reads as a page.
+ */
+function RecordActions({
+  moves,
+  onMove,
+  firstMissing,
+  onFirstMissing,
+  askFor,
+  onHistory,
+  onDownload,
 }: {
-  readonly keys: readonly string[];
-  readonly label: string;
-  readonly onRequest: (keys: readonly string[]) => Promise<Outcome>;
-}): JSX.Element {
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  readonly moves: readonly MoveKind[];
+  readonly onMove: (kind: MoveKind) => void;
+  readonly firstMissing: { readonly key: string; readonly readOnly: boolean } | null;
+  readonly onFirstMissing: (key: string) => void;
+  readonly askFor: { readonly label: string; readonly run: () => void } | null;
+  readonly onHistory: (() => void) | undefined;
+  readonly onDownload: (() => void) | undefined;
+}): JSX.Element | null {
+  // An item that puts the cursor somewhere keeps it there: the menu would
+  // otherwise hand focus back to its trigger as it closes.
+  const moved = useRef(false);
+  const record = [
+    firstMissing === null
+      ? null
+      : (
+          <DropdownMenuItem
+            key="missing"
+            onSelect={() => {
+              moved.current = true;
+              // After the menu has closed and let go of focus.
+              setTimeout(() => {
+                onFirstMissing(firstMissing.key);
+              }, 0);
+            }}
+          >
+            <icons.missing aria-hidden />
+            {firstMissing.readOnly ? 'Show missing details' : 'Fill in missing details'}
+          </DropdownMenuItem>
+        ),
+    askFor === null ? null : (
+      <DropdownMenuItem key="ask" onSelect={askFor.run}>
+        <icons.send aria-hidden />
+        {askFor.label}
+      </DropdownMenuItem>
+    ),
+    onHistory === undefined ? null : (
+      <DropdownMenuItem key="history" onSelect={onHistory}>
+        <icons.history aria-hidden />
+        History
+      </DropdownMenuItem>
+    ),
+    onDownload === undefined ? null : (
+      <DropdownMenuItem key="pdf" onSelect={onDownload}>
+        <icons.download aria-hidden />
+        Download PDF
+      </DropdownMenuItem>
+    ),
+  ].filter((x) => x !== null);
+  if (moves.length === 0 && record.length === 0) return null;
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <Button
-        size="sm"
-        startIcon={<icons.send aria-hidden />}
-        loading={busy}
-        loadingLabel="Asking"
-        onClick={() => {
-          setBusy(true);
-          void onRequest(keys).then((outcome) => {
-            setBusy(false);
-            setDone(outcome.ok ? 'Asked. They have been emailed.' : `Not sent: ${outcome.message}`);
-          });
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button endIcon={<icons.expand aria-hidden />}>Actions</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        onCloseAutoFocus={(event) => {
+          if (moved.current) event.preventDefault();
+          moved.current = false;
         }}
       >
-        {label}
-      </Button>
-      {done === null ? null : (
-        <span role="status" className="text-xs text-fg-muted">
-          {done}
-        </span>
-      )}
-    </span>
+        {moves.length === 0 ? null : (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Employment</DropdownMenuLabel>
+            {moves.map((kind) => (
+              <DropdownMenuItem
+                key={kind}
+                destructive={isDestructiveMove(kind)}
+                onSelect={() => {
+                  onMove(kind);
+                }}
+              >
+                {moveLabel(kind)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        )}
+        {moves.length === 0 || record.length === 0 ? null : <DropdownMenuSeparator />}
+        {record.length === 0 ? null : (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Record</DropdownMenuLabel>
+            {record}
+          </DropdownMenuGroup>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -665,10 +759,11 @@ function PhotoPicker({
   const [stored, setStored] = useState(src);
   const [problem, setProblem] = useState<string | null>(null);
   return (
-    <div className="flex max-w-xs flex-col gap-2">
+    <div className="flex shrink-0 flex-col items-start gap-2">
       <AvatarUploader
-        label="Photo"
-        hint={busy ? 'Uploading…' : 'PNG, JPEG or WebP; sent as a 512px square.'}
+        label={busy ? 'Photo, uploading' : 'Photo'}
+        controls="menu"
+        size="lg"
         value={picked}
         src={stored}
         fallback={<Avatar size="xl" name={name} className="ring-0" />}
@@ -696,7 +791,7 @@ function PhotoPicker({
         }}
       />
       {problem === null ? null : (
-        <p role="alert" className="text-xs text-danger-fg">
+        <p role="alert" className="max-w-40 text-xs text-danger-fg">
           {problem}
         </p>
       )}
@@ -790,11 +885,14 @@ function PlacementSection({
  * rather than after a refusal.
  */
 function RecordPdf({
+  open,
+  onOpenChange: setOpen,
   onDownload,
 }: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly onDownload: (reason: string) => Promise<Outcome>;
 }): JSX.Element {
-  const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -810,9 +908,6 @@ function RecordPdf({
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button size="sm">Download PDF</Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Download the employee record</DialogTitle>

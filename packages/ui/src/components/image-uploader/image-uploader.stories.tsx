@@ -460,3 +460,35 @@ export const AvatarStored: Story = {
     );
   },
 };
+
+export const AvatarMenu: Story = {
+  name: 'AvatarUploader — the photo is the control',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`controls="menu"` for a page header: no label or file rules beside the face. Pressing a stored photo opens Replace and Remove; with no photo it opens the file picker. The label still names the control for a screen reader.',
+      },
+    },
+  },
+  render: function MenuStory() {
+    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    const [stored, setStored] = useState<string | null>(STORED_IMAGE);
+    return (
+      <div className="flex gap-6">
+        <AvatarUploader
+          label="Photo"
+          controls="menu"
+          size="lg"
+          src={stored}
+          value={images}
+          onChange={(next) => {
+            setImages(next);
+            if (next.length === 0) setStored(null);
+          }}
+        />
+        <AvatarUploader label="Photo" controls="menu" size="lg" value={[]} onChange={() => undefined} />
+      </div>
+    );
+  },
+};

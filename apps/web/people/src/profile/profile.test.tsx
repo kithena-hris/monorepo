@@ -1,5 +1,5 @@
 import { TooltipProvider } from '@reach/ui';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -115,7 +115,7 @@ describe('Profile', () => {
     const { container, rerender } = render(
       <Profile load={{ status: 'ready', data: asHr }} onSave={vi.fn()} />,
     );
-    expect(screen.queryByRole('button', { name: 'Download PDF' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Download PDF' })).toBeNull();
     rerender(
       <Profile
         load={{ status: 'ready', data: asHr }}
@@ -123,7 +123,8 @@ describe('Profile', () => {
         onDownloadRecord={onDownloadRecord}
       />,
     );
-    await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Download PDF' }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('textbox', { name: 'Reason' }), 'Grievance file');
     await user.click(within(dialog).getByRole('button', { name: 'Download' }));
@@ -293,7 +294,7 @@ describe('Profile', () => {
     const { rerender } = render(
       <Profile load={{ status: 'ready', data: asManager }} onSave={vi.fn()} />,
     );
-    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Actions' })).toBeNull();
     rerender(
       <Profile
         load={{ status: 'ready', data: asManager }}
@@ -301,7 +302,8 @@ describe('Profile', () => {
         onHistory={onHistory}
       />,
     );
-    await fast().click(screen.getByRole('button', { name: 'History' }));
+    await fast().click(screen.getByRole('button', { name: 'Actions' }));
+    await fast().click(screen.getByRole('menuitem', { name: 'History' }));
     expect(onHistory).toHaveBeenCalledOnce();
   });
 
@@ -364,11 +366,7 @@ describe('Profile: what is missing', () => {
 
   it('marks each gap in place, counts them per section and overall, in words', async () => {
     const { container } = render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
-    expect(
-      screen.getByText(
-        (_, el) => el?.tagName === 'P' && el.textContent === '2 of 3 required details missing',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText('2 missing')).toBeInTheDocument();
     expect(screen.getAllByText('1 missing')).toHaveLength(2);
     expect(screen.getAllByText('Missing')).toHaveLength(2);
     expect(screen.getByText('Not provided yet. HR fills this in.')).toBeInTheDocument();
@@ -396,8 +394,11 @@ describe('Profile: what is missing', () => {
   it('fills in the first gap from the header', async () => {
     const user = fast();
     render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Fill in the first' }));
-    expect(screen.getByRole('textbox', { name: /Emergency contact/ })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Fill in missing details' }));
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: /Emergency contact/ })).toHaveFocus();
+    });
   });
 
   it('lets the person change their photo, and hands the file to the shell', async () => {
@@ -466,8 +467,10 @@ describe('Profile: what is missing', () => {
       await screen.findByRole('button', { name: 'Asked Adam for Work phone' }),
     ).toBeInTheDocument();
     // Both at once, in one email.
-    await user.click(screen.getByRole('button', { name: 'Ask Adam for all 2 empty details' }));
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ask Adam for 2 empty details' }));
     expect(onRequest).toHaveBeenLastCalledWith(['work_phone', 'hometown']);
+    expect(await screen.findByText('Adam has been asked, by email.')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 
