@@ -238,12 +238,16 @@ function measure(options) {
   const FOCUSABLE =
     'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
   let ringsSeen = 0;
+  // What could have shown a ring: a story with none (a picture, a mark) owes
+  // no ring, and must not read as a focus pass gone blind.
+  let focusables = 0;
 
   for (const el of document.querySelectorAll(FOCUSABLE)) {
     if (el.closest('.sr-only, [aria-hidden="true"]') || el.closest(INACTIVE)) continue;
     if (el.closest(FOREIGN)) continue;
     const box = el.getBoundingClientRect();
     if (box.width < 2 || box.height < 2) continue;
+    focusables += 1;
 
     // What the element looks like *before* it has focus, so the indicator can
     // be defined as the difference rather than as whatever shadow happens to be
@@ -367,7 +371,7 @@ function measure(options) {
     }
   }
 
-  return { findings, ringsSeen };
+  return { findings, ringsSeen, focusables };
 }
 /* eslint-enable unicorn/consistent-function-scoping */
 
@@ -531,6 +535,7 @@ const workers = Math.max(
 const failures = [];
 const skipped = [];
 let ringsSeen = 0;
+let focusablesSeen = 0;
 let checks = 0;
 let next = 0;
 
@@ -641,6 +646,7 @@ async function worker() {
 
       const result = await page.evaluate(measure, { palette: job.palette });
       ringsSeen += result.ringsSeen;
+      focusablesSeen += result.focusables;
       checks += 1;
       for (const found of result.findings) {
         failures.push({
@@ -719,7 +725,9 @@ for (const [key, items] of grouped) {
 // Docs pages have no controls to focus, so a run narrowed to one of them can
 // legitimately measure no rings. Only a run that rendered a story owes any.
 const sweptAStory = stories.some((entry) => entry.standalone || entry.viewMode === 'story');
-const blind = ringsSeen === 0 && sweptAStory;
+// And a narrowed run whose stories hold nothing focusable (a shard of one
+// brand mark) owes none either: blind is controls rendered and no ring seen.
+const blind = ringsSeen === 0 && sweptAStory && focusablesSeen > 0;
 if (blind) {
   console.error(
     '\nNo focus ring was measured in any story. Either nothing is focusable or\n' +
