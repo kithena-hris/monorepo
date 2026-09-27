@@ -1614,12 +1614,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
                  logo_url = ${change.logoUrl},
                  cover_image_url = ${change.coverImageUrl},
                  branding_public = ${change.brandingPublic},
-                 address_country = ${change.address.country.toUpperCase()},
-                 address_line1 = ${change.address.line1},
-                 address_line2 = ${change.address.line2},
-                 address_city = ${change.address.city},
-                 address_subdivision = ${change.address.subdivision},
-                 address_postcode = ${change.address.postcode},
+                 address_country = COALESCE(${change.address?.country.toUpperCase() ?? null}, address_country),
+                 address_line1 = COALESCE(${change.address?.line1 ?? null}, address_line1),
+                 address_line2 = CASE WHEN ${change.address !== undefined} THEN ${change.address?.line2 ?? null} ELSE address_line2 END,
+                 address_city = COALESCE(${change.address?.city ?? null}, address_city),
+                 address_subdivision = CASE WHEN ${change.address !== undefined} THEN ${change.address?.subdivision ?? null} ELSE address_subdivision END,
+                 address_postcode = CASE WHEN ${change.address !== undefined} THEN ${change.address?.postcode ?? null} ELSE address_postcode END,
                  updated_at = now()
            WHERE id = ${tenantId}::uuid
     RETURNING id, slug

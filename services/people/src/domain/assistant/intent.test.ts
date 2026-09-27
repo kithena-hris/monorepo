@@ -93,5 +93,8 @@ describe('reading what the model made of a question', () => {
     expect(told).toMatch(/"say"/);
     expect(told).toMatch(/never state a number, a name you were not given, or any fact/i);
   });
-});
 
+  it('tells the model to write @me for the asker, so it never needs their name', () => {
+    expect(instructionFor()).toMatch(/@me/);
+  });
+});

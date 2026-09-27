@@ -27,7 +27,12 @@ export interface AmendRequest {
   readonly coverImageUrl: string | null;
   /** Whether the mark may appear on a page nobody has authenticated to. */
   readonly brandingPublic: boolean;
-  readonly address: PostalAddress;
+  /**
+   * The postal address, when the edit changes it. Absent keeps the one held:
+   * a new theme or logo is not refused over an address saved before a rule
+   * about it existed.
+   */
+  readonly address?: PostalAddress;
 }
 
 /**
@@ -52,6 +57,8 @@ export function checkAmendable(
   if (!imageIsOurs(request.logoUrl, images) || !imageIsOurs(request.coverImageUrl, images)) {
     return err(ImageNotOurs);
   }
+
+  if (request.address === undefined) return ok({ ...request, displayName });
 
   const shape = PostalAddress.safeParse(request.address);
   if (!shape.success) {

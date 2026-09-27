@@ -160,6 +160,17 @@ describe('asking People in words', () => {
     expect(answered.ok && answered.value.text).toMatch(/^There (is|are) \d+ (person|people) across the company\.$/);
   });
 
+  it('reads "me" as whoever is asking, and never sends their name to the model', async () => {
+    const w = world(() => JSON.stringify({ kind: 'reports', name: '@me' }));
+    const asMichael = { ...w.deps, personOf: () => Promise.resolve(MICHAEL) };
+    const answered = await ask(asMichael, w.asking, 'Who reports to me?');
+    expect(answered.ok && answered.value.text).toMatch(/Michael Scott has 2 direct reports/);
+    expect(JSON.stringify(w.prompts.map((p) => p.context))).not.toContain('Michael');
+
+    const nobody = await ask(w.deps, w.asking, 'Who reports to me?');
+    expect(nobody.ok && nobody.value.text).toMatch(/don’t have a profile/);
+  });
+
   it('says so rather than guessing when the model answers with something People cannot run', async () => {
     const w = world(
       () => '{"kind":"people","conditions":[{"key":"medical_notes","op":"is","values":["x"]}]}',

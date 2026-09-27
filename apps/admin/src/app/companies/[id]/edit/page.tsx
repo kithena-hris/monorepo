@@ -44,6 +44,7 @@ export default async function EditCompany({
   if (status === 404) notFound();
   const company = body as Detail | null;
   if (company === null) notFound();
+  const storedAddress = company.address;
 
   /**
    * Saving, as a server action.
@@ -65,6 +66,26 @@ export default async function EditCompany({
       return typeof value === 'string' ? value.trim() : '';
     };
 
+    const address = {
+      country: text('country'),
+      line1: text('line1'),
+      line2: text('line2'),
+      city: text('city'),
+      subdivision: text('subdivision'),
+      postcode: text('postcode'),
+    };
+    // Sent only when it changed: a new theme is not refused over an address
+    // saved before a rule about it existed.
+    const held = storedAddress;
+    const addressChanged =
+      held === null ||
+      address.country !== held.country ||
+      address.line1 !== held.line1 ||
+      address.line2 !== (held.line2 ?? '') ||
+      address.city !== held.city ||
+      address.subdivision !== (held.subdivision ?? '') ||
+      address.postcode !== (held.postcode ?? '');
+
     const { status: saved, body: result } = await callIdentity(
       `/api/internal/admin/tenants/${id}`,
       {
@@ -75,14 +96,7 @@ export default async function EditCompany({
           logoUrl: text('logoUrl'),
           coverImageUrl: text('coverImageUrl'),
           brandingPublic: text('brandingPublic') !== '',
-          address: {
-            country: text('country'),
-            line1: text('line1'),
-            line2: text('line2'),
-            city: text('city'),
-            subdivision: text('subdivision'),
-            postcode: text('postcode'),
-          },
+          ...(addressChanged ? { address } : {}),
         },
       },
     );

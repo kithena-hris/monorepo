@@ -185,6 +185,7 @@ export function instructionFor(): string {
     '{"kind":"reports","name":"<their name>"}  — who reports to a named person',
     '{"kind":"approvals"}  — what waits for the asker’s approval',
     '{"kind":"unclear","reply":"<one short sentence>"}  — anything else',
+    'The asker is a person here too. When the question is about the asker (me, my, I, myself), use the name "@me": {"kind":"reports","name":"@me"} is who reports to them, {"kind":"person","name":"@me"} is their own details. Never ask who "me" is.',
     'Ops: is, in, contains, before, after, between (two dates, either may be ""), empty, not_empty. Dates are YYYY-MM-DD.',
     'For a select field use the option value. Use only the keys given. Never invent a field.',
     'Add "say" to any answer but unclear: one warm, natural sentence a helpful colleague would open with, in the asker’s language, written for this question. Vary it: most openings need no filler word at all, e.g. "Michael’s team has {n} people:", "Here’s how the {n} people split by department:", "Pam’s a good one to ask about."',

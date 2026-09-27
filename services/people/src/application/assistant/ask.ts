@@ -163,12 +163,24 @@ const opening = (say: string | undefined, n: number, otherwise: string): string 
   say === undefined ? otherwise : say.replaceAll('{n}', String(n));
 
 /** One person by name, as the asker may find them; null when nobody or several match. */
+/** How the model, or a person, names the asker. */
+const SELF = /^(@me|me|myself|i|my self)$/iu;
+
+const NO_PROFILE = 'You don’t have a profile in People yet, so I can’t answer about you.';
+
 async function onePerson(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
   name: string,
-): Promise<{ person: PersonView | null; several: readonly PersonView[] }> {
+): Promise<{ person: PersonView | null; several: readonly PersonView[]; self?: 'none' }> {
+  // "Me" is whoever asks: resolved here, so the model never needs their name.
+  if (SELF.test(name.trim())) {
+    const own = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
+    if (own === null) return { person: null, several: [], self: 'none' };
+    const read = await deps.service.access.read(tx, { ...asking, personId: own });
+    return { person: read.ok ? read.value : null, several: [] };
+  }
   const found = await deps.service.access.list(tx, { ...asking, search: name, limit: 5 });
   const items = found.ok ? found.value.items : [];
   return items.length === 1
@@ -276,7 +288,8 @@ async function answer(
       };
     }
     case 'person': {
-      const { person, several } = await onePerson(deps, tx, asking, intent.name);
+      const { person, several, self } = await onePerson(deps, tx, asking, intent.name);
+      if (self === 'none') return { text: NO_PROFILE, people: [], understood: 'About you', answered: true };
       if (person === null) {
         return several.length === 0
           ? {
@@ -320,7 +333,8 @@ async function answer(
       };
     }
     case 'reports': {
-      const { person, several } = await onePerson(deps, tx, asking, intent.name);
+      const { person, several, self } = await onePerson(deps, tx, asking, intent.name);
+      if (self === 'none') return { text: NO_PROFILE, people: [], understood: 'Who reports to you', answered: true };
       if (person === null) {
         return {
           text:
