@@ -397,6 +397,9 @@
   --animate-fade-out: fade-out var(--animate-duration-fast) var(--ease-exit);
   --animate-scale-in: scale-in var(--animate-duration-fast) var(--ease-entrance);
   --animate-scale-out: scale-out var(--animate-duration-fast) var(--ease-exit);
+  /* A navigation flyout: out from the item it belongs to, and back into it. */
+  --animate-flyout-in: flyout-in var(--animate-duration-normal) var(--ease-entrance);
+  --animate-flyout-out: flyout-out var(--animate-duration-fast) var(--ease-exit);
   --animate-slide-up: slide-up var(--animate-duration-normal) var(--ease-entrance);
 
   /* A screen's content arriving, which is the only motion a navigation should
@@ -472,6 +475,18 @@
   @keyframes fade-out {
     to {
       opacity: 0;
+    }
+  }
+  @keyframes flyout-in {
+    from {
+      opacity: 0;
+      transform: translateX(-8px) scale(0.985);
+    }
+  }
+  @keyframes flyout-out {
+    to {
+      opacity: 0;
+      transform: translateX(-6px) scale(0.99);
     }
   }
   @keyframes scale-in {

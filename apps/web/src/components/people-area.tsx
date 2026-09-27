@@ -9,7 +9,7 @@ import { currentTenant } from '../lib/branding';
 import { people } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
-import { currentPlace, headerFrame, peopleRoute, placesFor } from '../lib/remotes';
+import { currentPlace, headerFrame, peopleRoute, placesFor, siblingsOf } from '../lib/remotes';
 import { currentPerson, displayName } from '../lib/session';
 import { workspaceConfig } from '../lib/workspace';
 
@@ -96,6 +96,15 @@ export async function PeopleArea({
                   { href: '/settings/people', label: 'People' },
                 ],
           actions: [],
+          // The breadcrumb's last crumb lists the other settings.
+          siblings:
+            here === '/settings/people'
+              ? []
+              : siblingsOf(
+                  places.settings.map((p) => ({ ...p, group: 'People settings' })),
+                  currentPlace(places.settings, here),
+                ),
+          siblingsLabel: 'People settings',
         };
 
   const tenant = await currentTenant();

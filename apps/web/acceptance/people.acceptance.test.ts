@@ -819,7 +819,7 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const asks = await finance.newPage();
     await asks.goto(`${stack.shell}/people`);
-    await (await sections(asks)).getByRole('link', { name: 'Full values' }).click();
+    await (await sections(asks)).getByRole('link', { name: 'Sensitive data access' }).click();
     await asks.waitForURL(/\/people\/full-values$/);
     await asks.waitForLoadState('networkidle');
     await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
@@ -1123,7 +1123,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // HR sees what the checks found, reveals the held value, and accepts it.
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
-    await (await sections(reviews)).getByRole('link', { name: 'Identifiers to review' }).click();
+    await (await sections(reviews)).getByRole('link', { name: 'ID verification' }).click();
     await reviews.waitForURL(/\/people\/identifier-reviews$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('table', { name: 'Identifiers to review' });

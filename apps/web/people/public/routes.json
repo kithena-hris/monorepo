@@ -109,7 +109,9 @@
     {
       "path": "/people/new",
       "label": "Add employee",
-      "for": ["hr"],
+      "for": [
+        "hr"
+      ],
       "icon": "hire"
     }
   ],
@@ -117,104 +119,133 @@
     {
       "path": "/people",
       "label": "Overview",
-      "group": "Everyday",
+      "group": "Workspace",
       "icon": "home",
-      "description": "Your details, what needs you, and who you report to."
+      "description": "Your profile summary, pending tasks and reporting line."
     },
     {
       "path": "/people/directory",
       "label": "Directory",
-      "group": "Everyday",
-      "owns": ["/people/:id", "/people/:id/history", "/people/bulk-edit"],
+      "group": "Workspace",
+      "owns": [
+        "/people/:id",
+        "/people/:id/history",
+        "/people/bulk-edit"
+      ],
       "icon": "people",
-      "description": "Everybody here. Search, filter and open a profile."
+      "description": "Search, filter and view every employee record."
     },
     {
       "path": "/people/me",
       "label": "My profile",
-      "group": "Everyday",
-      "owns": ["/people/me/history", "/people/onboarding"],
+      "group": "Workspace",
+      "owns": [
+        "/people/me/history",
+        "/people/onboarding"
+      ],
       "icon": "person",
-      "description": "Your own record: details, photo and history."
+      "description": "Your personal and employment details."
     },
     {
       "path": "/people/approvals",
       "label": "Approvals",
-      "group": "Everyday",
+      "group": "Workspace",
       "icon": "approve",
-      "description": "Changes waiting for somebody to decide."
+      "description": "Changes awaiting review and decision."
     },
     {
       "path": "/people/completeness",
-      "label": "Missing information",
+      "label": "Data completeness",
       "group": "Records",
-      "for": ["hr"],
+      "for": [
+        "hr"
+      ],
       "icon": "missing",
-      "description": "Records with required details still to fill in."
+      "description": "Employee records with required details outstanding."
     },
     {
       "path": "/people/identifier-reviews",
-      "label": "Identifiers to review",
+      "label": "ID verification",
       "group": "Records",
-      "for": ["hr"],
+      "for": [
+        "hr"
+      ],
       "icon": "review",
-      "description": "National IDs the checks doubted, waiting for HR."
+      "description": "National identifiers flagged for HR review."
     },
     {
       "path": "/people/duplicates",
-      "label": "Possible duplicates",
+      "label": "Duplicate records",
       "group": "Records",
-      "for": ["hr"],
+      "for": [
+        "hr"
+      ],
       "icon": "merge",
-      "description": "Records that may be the same person, to merge or dismiss."
+      "description": "Potential duplicates to merge or dismiss."
     },
     {
       "path": "/people/import",
       "label": "Import",
       "group": "Records",
-      "for": ["hr"],
+      "for": [
+        "hr"
+      ],
       "icon": "upload",
-      "description": "Add or update many people from a spreadsheet."
+      "description": "Create or update employees in bulk from a spreadsheet."
     },
     {
       "path": "/people/export",
       "label": "Export",
       "group": "Records",
       "icon": "download",
-      "description": "People and their details as a file, with a reason."
+      "description": "Download employee data with a recorded purpose."
     },
     {
       "path": "/people/full-values",
-      "label": "Full values",
+      "label": "Sensitive data access",
       "group": "Records",
-      "for": ["finance", "hr"],
+      "for": [
+        "finance",
+        "hr"
+      ],
       "icon": "sensitive",
-      "description": "Unmasked values, asked for with a reason and audited."
+      "description": "Request and audit access to unmasked values."
     },
     {
       "path": "/people/analytics",
-      "label": "Analytics",
-      "group": "Reporting",
-      "for": ["hr"],
+      "label": "Workforce analytics",
+      "group": "Insights",
+      "for": [
+        "hr"
+      ],
       "icon": "analytics",
-      "description": "Headcount, movement and pay, as charts."
+      "description": "Headcount, turnover and compensation trends."
     },
     {
       "path": "/people/reports",
-      "label": "Scheduled reports",
-      "group": "Reporting",
-      "for": ["hr", "admin"],
-      "owns": ["/people/reports/:id"],
+      "label": "Report schedules",
+      "group": "Insights",
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "owns": [
+        "/people/reports/:id"
+      ],
       "icon": "report",
-      "description": "Reports built for each recipient and emailed on a schedule."
+      "description": "Recurring reports delivered to each recipient."
     }
   ],
   "settings": [
     {
       "path": "/settings/people/fields",
       "label": "Employee fields",
-      "for": ["admin"],
-      "owns": ["/people/setup"],
+      "for": [
+        "admin"
+      ],
+      "owns": [
+        "/people/setup"
+      ],
       "description": "The details People keeps on each person: what they are, who sees them, and when they are asked.",
       "icon": "document"
     },
@@ -227,15 +258,22 @@
     {
       "path": "/settings/people/roles",
       "label": "Roles",
-      "for": ["hr", "admin"],
+      "for": [
+        "hr",
+        "admin"
+      ],
       "description": "Who is an HR member, a People administrator or in finance here.",
       "icon": "permission"
     },
     {
       "path": "/settings/people/integrations",
       "label": "Integrations",
-      "for": ["admin"],
-      "owns": ["/settings/people/integrations/:id"],
+      "for": [
+        "admin"
+      ],
+      "owns": [
+        "/settings/people/integrations/:id"
+      ],
       "description": "Webhooks that tell other systems about changes, and provisioning from an identity provider.",
       "icon": "link"
     }

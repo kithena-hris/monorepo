@@ -6,6 +6,8 @@ import { ChevronRight } from 'lucide-react';
 import {
   Children,
   cloneElement,
+  createContext,
+  use,
   useEffect,
   useId,
   useRef,
@@ -120,6 +122,9 @@ const listColumns = {
   3: 'grid gap-x-4 gap-y-5 space-y-0 @xl:grid-cols-2 @4xl:grid-cols-3',
 } as const;
 
+/** Set by a `NavList` with columns: its groups are a menu's columns, headed as such. */
+const MenuColumns = createContext(false);
+
 export function NavList({
   className,
   level = 1,
@@ -129,7 +134,13 @@ export function NavList({
   const list = (
     <ul className={cn('min-w-0', listByLevel[level], listColumns[columns], className)} {...props} />
   );
-  return columns === 1 ? list : <div className="@container">{list}</div>;
+  return columns === 1 ? (
+    list
+  ) : (
+    <MenuColumns value={true}>
+      <div className="@container">{list}</div>
+    </MenuColumns>
+  );
 }
 
 export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'children'> {
@@ -240,10 +251,11 @@ export function NavItem({
             'shrink-0',
             described
               ? cn(
-                  'flex size-8 items-center justify-center rounded-md [&_svg]:size-4',
+                  'flex size-8 items-center justify-center rounded-md border [&_svg]:size-4',
+                  'transition-colors duration-(--animate-duration-fast)',
                   current
-                    ? 'bg-accent-solid text-fg-on-accent'
-                    : 'bg-surface-sunken text-fg-muted group-hover/nav-item:text-fg',
+                    ? 'border-transparent bg-accent-subtle text-accent-fg'
+                    : 'border-border bg-surface text-fg-muted group-hover/nav-item:border-border-strong group-hover/nav-item:text-fg',
                 )
               : level === 1
                 ? '[&_svg]:size-4'
@@ -335,7 +347,11 @@ export function NavItem({
               // Not a dialog: Radix gives its content `role="dialog"`, and what
               // is inside is navigation that names itself.
               role={undefined}
-              className={flyoutSize === 'lg' ? 'w-[min(46rem,calc(100vw-6rem))] p-3' : 'w-60 p-2'}
+              className={cn(
+                flyoutSize === 'lg' ? 'w-[min(46rem,calc(100vw-6rem))] p-4' : 'w-60 p-2',
+                // Out of the item and back into it, rather than the popover's zoom.
+                'origin-left data-[state=open]:animate-flyout-in data-[state=closed]:animate-flyout-out',
+              )}
             >
               {/* Its items are not in the rail, even when this one is. */}
               <RailContext value={{ collapsed: false }}>{flyout}</RailContext>
@@ -374,8 +390,8 @@ export function NavItem({
 }
 
 /** How long a pointer rests before a flyout opens, and lingers before it closes. */
-const FLYOUT_OPEN_MS = 120;
-const FLYOUT_CLOSE_MS = 200;
+const FLYOUT_OPEN_MS = 50;
+const FLYOUT_CLOSE_MS = 80;
 
 /**
  * The state and handlers behind `NavItem`'s `flyout`.
@@ -438,6 +454,14 @@ function useFlyout() {
         if (event.pointerType !== 'mouse') return;
         if (event.currentTarget.contains(document.activeElement)) return;
         later(false, FLYOUT_CLOSE_MS);
+      },
+      // Focus moving anywhere outside the item and its sections closes them at
+      // once: tabbing on past the menu, or into the page, is leaving it.
+      onBlur: (event: { currentTarget: Element; relatedTarget: EventTarget | null }): void => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        clear();
+        setOpen(false);
       },
     },
     triggerProps: {
@@ -528,6 +552,7 @@ export function NavGroup({
 }: NavGroupProps): JSX.Element {
   const collapsed = useRailCollapsed();
   const labelId = useId();
+  const menuColumn = use(MenuColumns);
 
   if (collapsed) {
     // A heading with nothing to head. The rule keeps the grouping legible
@@ -555,7 +580,16 @@ export function NavGroup({
   if (!collapsible) {
     return (
       <li className={cn('min-w-0 pt-3 first:pt-0', className)} {...props}>
-        <h3 id={labelId} className="px-3 pb-1 text-xs font-semibold text-fg-muted">
+        <h3
+          id={labelId}
+          className={cn(
+            'px-3 pb-1 text-xs font-semibold text-fg-muted',
+            // A menu column's heading: small capitals over a hairline, the
+            // way a console heads a column of destinations.
+            menuColumn &&
+              'mx-2.5 mb-1.5 border-b border-border px-0 pb-2 text-2xs tracking-[0.08em] uppercase text-fg-subtle',
+          )}
+        >
           {label}
         </h3>
         <ul aria-labelledby={labelId} className="min-w-0 space-y-0.5">

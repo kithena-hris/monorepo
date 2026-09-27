@@ -1,9 +1,18 @@
-import { ChevronRight, Ellipsis } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
+import { ChevronDown, ChevronRight, Ellipsis } from 'lucide-react';
+import { Fragment, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { Slot } from '@radix-ui/react-slot';
 
 import { cn } from '../../lib/cn';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/dropdown-menu';
 
 /**
  * Where this record sits, and how to get back up.
@@ -125,5 +134,81 @@ export function BreadcrumbEllipsis({
       {children ?? <Ellipsis className="size-4" />}
       <span className="sr-only">Collapsed levels</span>
     </span>
+  );
+}
+
+export interface BreadcrumbMenuProps {
+  /** The page you are on: the trigger's label. */
+  readonly label: string;
+  /**
+   * Where else you could be at this level, grouped: the sections of the same
+   * area. The current one is marked, and each is a link, so middle-click and
+   * "open in a new tab" still work.
+   */
+  readonly groups: readonly {
+    readonly label: string;
+    readonly items: readonly {
+      readonly href: string;
+      readonly label: string;
+      readonly current?: boolean;
+    }[];
+  }[];
+  /** What the menu is, for a screen reader: "People sections". */
+  readonly menuLabel: string;
+  /**
+   * Render each item's link through the app's router link. It receives the
+   * href and the label and must return an `<a>` or a framework `Link`.
+   */
+  readonly renderLink?: (item: { href: string; label: string }) => ReactNode;
+}
+
+/**
+ * The last crumb, as a menu of its siblings: "People › Directory ▾".
+ *
+ * Still the page you are on (`aria-current`), and also the fastest way to the
+ * next section over without going back to the area first. A menu button, not
+ * a link: it opens the list rather than going anywhere, and the list is links.
+ */
+export function BreadcrumbMenu({
+  label,
+  groups,
+  menuLabel,
+  renderLink = ({ href, label: text }) => <a href={href}>{text}</a>,
+}: BreadcrumbMenuProps): JSX.Element {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-current="page"
+        aria-label={`${label}, ${menuLabel}`}
+        className={cn(
+          'inline-flex max-w-full items-center gap-1 rounded-sm px-1 -mx-1 font-medium text-fg',
+          'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+          'data-[state=open]:bg-surface-hover',
+        )}
+      >
+        <span className="truncate">{label}</span>
+        <ChevronDown aria-hidden className="size-3.5 shrink-0 text-fg-muted" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-56">
+        {groups.map((group, index) => (
+          <Fragment key={group.label}>
+            {index === 0 ? null : <DropdownMenuSeparator />}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+              {group.items.map((item) => (
+                <DropdownMenuItem
+                  key={item.href}
+                  asChild
+                  {...(item.current === true ? { 'aria-current': 'page' as const } : {})}
+                  className={cn(item.current === true && 'font-medium text-accent-fg')}
+                >
+                  {renderLink(item)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </Fragment>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -65,7 +65,12 @@ describe('PeopleSections and PeopleBar', () => {
     );
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
     expect(links.getByRole('link', { name: 'Directory' })).toBeTruthy();
-    for (const hidden of ['Import', 'Missing information', 'Analytics', 'Employee fields']) {
+    for (const hidden of [
+      'Import',
+      'Data completeness',
+      'Workforce analytics',
+      'Employee fields',
+    ]) {
       expect(links.queryByRole('link', { name: hidden })).toBeNull();
     }
   });
@@ -75,20 +80,22 @@ describe('headerFrame', () => {
   const hr = placesFor(nav, { hr: true, admin: false, finance: false });
 
   it('names the section for the breadcrumb and offers adding somebody', () => {
-    expect(headerFrame(hr, '/people/directory', '/people')).toEqual({
-      section: 'Directory',
-      actions: [{ href: '/people/new', label: 'Add employee' }],
-    });
+    const frame = headerFrame(hr, '/people/directory', '/people');
+    expect(frame.section).toBe('Directory');
+    expect(frame.actions).toEqual([{ href: '/people/new', label: 'Add employee' }]);
+    // The last crumb is a menu of the other sections, grouped, this one marked.
+    const workspace = frame.siblings.find((g) => g.label === 'Workspace');
+    expect(workspace?.items.find((i) => i.current)?.label).toBe('Directory');
+    expect(frame.siblings.map((g) => g.label)).toEqual(['Workspace', 'Records', 'Insights']);
     // A profile is the Directory's.
     expect(headerFrame(hr, '/people/:id', '/people').section).toBe('Directory');
   });
 
   it('has no trail on People’s front page, and no Add employee on its own form', () => {
     expect(headerFrame(hr, '/people', '/people').section).toBeNull();
-    expect(headerFrame(hr, '/people/new', '/people')).toEqual({
-      section: 'Add employee',
-      actions: [],
-    });
+    const adding = headerFrame(hr, '/people/new', '/people');
+    expect(adding.section).toBe('Add employee');
+    expect(adding.actions).toEqual([]);
   });
 
   it('offers an employee nothing to start', () => {
@@ -107,7 +114,7 @@ describe('currentPlace', () => {
     expect(at('/people/:id/history')).toBe('Directory');
     expect(at('/people/bulk-edit')).toBe('Directory');
     expect(at('/people/me/history')).toBe('My profile');
-    expect(at('/people/reports/:id')).toBe('Scheduled reports');
+    expect(at('/people/reports/:id')).toBe('Report schedules');
     // Settings are the Settings page's, not People's sections.
     expect(at('/settings/people/integrations/:id')).toBeUndefined();
     expect(currentPlace(manifest.settings, '/settings/people/integrations/:id')?.label).toBe(

@@ -38,9 +38,11 @@ export {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbMenu,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from './components/breadcrumb/breadcrumb';
+export type { BreadcrumbMenuProps } from './components/breadcrumb/breadcrumb';
 export type { BreadcrumbItemProps, BreadcrumbLinkProps } from './components/breadcrumb/breadcrumb';
 
 export {

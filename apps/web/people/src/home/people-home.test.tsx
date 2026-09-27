@@ -30,7 +30,10 @@ describe('the overview', () => {
     expect(within(details).getByText(/Madrid office/)).toBeInTheDocument();
     expect(within(details).getByText(/11:30 local time/)).toBeInTheDocument();
     expect(within(details).getByText(/Joined 4 Mar 2024 · 2 years, 6 months/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View your profile' })).toHaveAttribute('href', '/people/me');
+    expect(screen.getByRole('link', { name: 'View your profile' })).toHaveAttribute(
+      'href',
+      '/people/me',
+    );
     expect(screen.getByText('2 missing')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -38,12 +41,14 @@ describe('the overview', () => {
   it('lists the first approvals with who and how long, and a way to all of them', () => {
     render(<PeopleHome load={ready(overview())} />);
     const waiting = part('Waiting for your approval');
-    expect(within(waiting).getByRole('link', { name: /Tim Berners-Lee · Bank account/ })).toHaveAttribute(
+    expect(
+      within(waiting).getByRole('link', { name: /Tim Berners-Lee · Bank account/ }),
+    ).toHaveAttribute('href', '/people/approvals');
+    expect(within(waiting).getByText('3 days ago')).toBeInTheDocument();
+    expect(within(waiting).getByRole('link', { name: 'Show all 7' })).toHaveAttribute(
       'href',
       '/people/approvals',
     );
-    expect(within(waiting).getByText('3 days ago')).toBeInTheDocument();
-    expect(within(waiting).getByRole('link', { name: 'Show all 7' })).toHaveAttribute('href', '/people/approvals');
   });
 
   it('links each missing detail of theirs to the field itself, and names who fills the rest', () => {
@@ -62,7 +67,9 @@ describe('the overview', () => {
   it('draws the reporting line from the top down to them, and their reports with “show all”', () => {
     render(<PeopleHome load={ready(overview())} />);
     const line = part('Your reporting line');
-    const managers = within(line).getAllByRole('link').map((a) => a.textContent);
+    const managers = within(line)
+      .getAllByRole('link')
+      .map((a) => a.textContent);
     expect(managers.slice(0, 2)).toEqual([
       expect.stringContaining('Grace Hopper'),
       expect.stringContaining('Alan Turing'),
@@ -80,13 +87,17 @@ describe('the overview', () => {
 
   it('gives HR the team’s gaps, and never an employee', () => {
     const hr = render(<PeopleHome load={ready(overview())} />);
-    expect(part('Everybody’s records')).toHaveTextContent(
-      '11 details wait for HR',
-    );
+    expect(part('Everybody’s records')).toHaveTextContent('11 details wait for HR');
     hr.unmount();
     render(
       <PeopleHome
-        load={ready(overview({ roles: { hr: false, admin: false, finance: false }, team: null, approvals: null }))}
+        load={ready(
+          overview({
+            roles: { hr: false, admin: false, finance: false },
+            team: null,
+            approvals: null,
+          }),
+        )}
       />,
     );
     expect(maybe('Everybody’s records')).toBeNull();
@@ -106,11 +117,12 @@ describe('the overview', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('still opens for an account with no record: what it can, and every place', async () => {
+  it('still opens for an account with no record, and lists no places of its own', async () => {
     const { container } = render(<PeopleHome load={ready(nobody({ hr: true }))} />);
     expect(screen.getByRole('heading', { level: 1, name: 'People' })).toBeInTheDocument();
     expect(maybe('Your reporting line')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Directory' })).toHaveAttribute('href', '/people/directory');
+    // The sections are the sidebar's and the breadcrumb's; the overview stays clean.
+    expect(screen.queryByRole('navigation')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
   });
 });

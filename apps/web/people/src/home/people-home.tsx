@@ -13,7 +13,6 @@ import {
 } from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
 
-import manifest from '../../public/routes.json';
 import { Loaded, type Loadable } from '../load';
 import { MissingMark } from '../record/missing';
 
@@ -95,18 +94,6 @@ export interface PeopleHomeState {
 export interface PeopleHomeProps {
   readonly load: Loadable<PeopleHomeState>;
 }
-
-/** A section or an action of the manifest: open to everybody, or to any of `for`. */
-export interface Place {
-  readonly path: string;
-  readonly label: string;
-  readonly group?: string;
-  readonly for?: readonly string[];
-}
-
-export const opens = (place: Place, can: PeopleHomeState['roles']): boolean =>
-  place.for === undefined ||
-  Object.entries(can).some(([role, held]) => held && place.for?.includes(role) === true);
 
 /* ------------------------------------------------------------- words -- */
 
@@ -515,42 +502,12 @@ function ReportingLine({
   );
 }
 
-function Places({
-  label,
-  places,
-}: {
-  readonly label: string;
-  readonly places: readonly Place[];
-}): JSX.Element {
-  return (
-    <div className="min-w-0">
-      <h3 className="mb-1 text-sm font-semibold text-fg">{label}</h3>
-      <Nav label={label}>
-        <NavList>
-          {places.map((p) => (
-            <NavItem key={p.path} level={2} href={p.path}>
-              {p.label}
-            </NavItem>
-          ))}
-        </NavList>
-      </Nav>
-    </div>
-  );
-}
-
 /* --------------------------------------------------------------- page -- */
 
 export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
   return (
     <Loaded load={load} what="your overview">
       {(state) => {
-        // Settings live on the Settings page now, but "everything" still
-        // lists them, as their own group, where they are.
-        const open = [
-          ...(manifest.sections as readonly Place[]),
-          ...(manifest.settings as readonly Place[]).map((p) => ({ ...p, group: 'Settings' })),
-        ].filter((p) => p.path !== '/people' && opens(p, state.roles));
-        const groups = [...new Set(open.map((p) => p.group ?? 'People'))];
         const { me, reportingLine, approvals, team } = state;
         const main = (
           <Stack gap={6}>
@@ -563,7 +520,7 @@ export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
             {me === null ? (
               <PageHeader
                 title="People"
-                description="Your account is not linked to anybody’s record, so there is no profile to show. Everything else is below."
+                description="Your account is not linked to anybody’s record, so there is no profile to show."
               />
             ) : (
               <Identity me={me} now={state.now} />
@@ -588,18 +545,6 @@ export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
                 </p>
               </PageSection>
             )}
-            {/* Every place People has, as the manifest lists them for these roles (PEO-119). */}
-            <PageSection title="Everything in People">
-              <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                {groups.map((group) => (
-                  <Places
-                    key={group}
-                    label={group}
-                    places={open.filter((p) => (p.group ?? 'People') === group)}
-                  />
-                ))}
-              </div>
-            </PageSection>
           </Stack>
         );
       }}

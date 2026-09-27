@@ -93,14 +93,41 @@ export function headerFrame(
 ): {
   readonly section: string | null;
   readonly actions: readonly { readonly href: string; readonly label: string }[];
+  readonly siblings: readonly Siblings[];
+  readonly siblingsLabel: string;
 } {
   const here = currentPlace(places.sections, route) ?? currentPlace(places.actions, route);
   return {
     section: here === undefined || here.path === home ? null : here.label,
+    siblings: siblingsOf(places.sections, here),
+    siblingsLabel: 'People sections',
     actions: places.actions
       .filter((a) => currentPlace([a], route) === undefined)
       .map((a) => ({ href: a.path, label: a.label })),
   };
+}
+
+/** A group of places, for the breadcrumb's menu, the current one marked. */
+export interface Siblings {
+  readonly label: string;
+  readonly items: readonly {
+    readonly href: string;
+    readonly label: string;
+    readonly current: boolean;
+  }[];
+}
+
+/** Places by their manifest group, in order, marking `here`. */
+export function siblingsOf(places: readonly Place[], here: Place | undefined): Siblings[] {
+  const groups = new Map<string, Siblings['items'][number][]>();
+  for (const p of places) {
+    const group = p.group ?? 'Sections';
+    groups.set(group, [
+      ...(groups.get(group) ?? []),
+      { href: p.path, label: p.label, current: p === here },
+    ]);
+  }
+  return [...groups].map(([label, items]) => ({ label, items }));
 }
 
 export interface RemoteRoute {

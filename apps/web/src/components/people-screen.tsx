@@ -33,6 +33,16 @@ export interface PeopleScreenProps {
     readonly actions: readonly { readonly href: string; readonly label: string }[];
     /** The links before the section; absent, People alone. */
     readonly trail?: readonly { readonly href: string; readonly label: string }[];
+    /** The section's siblings, grouped, for the breadcrumb's menu. */
+    readonly siblings?: readonly {
+      readonly label: string;
+      readonly items: readonly {
+        readonly href: string;
+        readonly label: string;
+        readonly current?: boolean;
+      }[];
+    }[];
+    readonly siblingsLabel?: string;
   };
 }
 
@@ -84,7 +94,17 @@ async function shrink(file: File): Promise<Blob | null> {
     canvas.height = out;
     canvas
       .getContext('2d')
-      ?.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, out, out);
+      ?.drawImage(
+        image,
+        (image.width - side) / 2,
+        (image.height - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        out,
+        out,
+      );
     image.close();
     return await new Promise((resolve) => {
       canvas.toBlob(resolve, 'image/jpeg', 0.86);
@@ -100,7 +120,8 @@ async function uploadPhoto(
   file: File,
 ): Promise<{ ok: true; avatarUrl: string | null } | { ok: false; message: string }> {
   const small = await shrink(file);
-  if (small === null) return { ok: false, message: 'That image could not be read; try a PNG or a JPEG.' };
+  if (small === null)
+    return { ok: false, message: 'That image could not be read; try a PNG or a JPEG.' };
   const target = await actions.startPhotoUpload(personId, small.size);
   if (!target.ok) return target;
   if (!(await putFile(target, small, () => undefined))) {
