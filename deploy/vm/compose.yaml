@@ -103,6 +103,75 @@ services:
       resources:
         limits: { memory: 160m, cpus: '0.5' }
 
+  # The outbox relay: Debezium Server, one per database, each tailing one
+  # outbox and publishing its rows to Redpanda (`debezium.properties` has the
+  # shared settings and why). Started by `deploy.sh migrate`, after the
+  # migration that makes their publication and role.
+  #
+  # Measured locally at ~175 MB each once running: a 64 MB heap, and Quarkus,
+  # Kafka's client and Debezium's classes around it. The image attaches an
+  # OpenTelemetry agent by default, which alone costs ~70 MB; nothing here
+  # collects from it, so it is off.
+  relay-people:
+    image: &relay-image quay.io/debezium/server:3.6.3.Final@sha256:e1c8e29cbb0c44f3cd9b742222e7899520ed1c210906ba071e80dbb8b987d0bd
+    restart: unless-stopped
+    environment:
+      OTEL_ENABLED: 'false'
+      JAVA_OPTS: &relay-java -Xms32m -Xmx64m -XX:MaxMetaspaceSize=80m -XX:ReservedCodeCacheSize=24m -XX:MaxDirectMemorySize=16m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:CICompilerCount=1
+      DEBEZIUM_SOURCE_DATABASE_HOSTNAME: postgres
+      DEBEZIUM_SOURCE_DATABASE_DBNAME: kithena
+      DEBEZIUM_SOURCE_DATABASE_PASSWORD: ${DEBEZIUM_DB_PASSWORD:?DEBEZIUM_DB_PASSWORD is set by deploy.sh}
+      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: people.outbox
+      DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_people
+      # From now, not from the start. People's events have never been
+      # delivered here, and replaying them would start an approval workflow,
+      # and email its approvers, for every change ever held, however long ago
+      # it was decided. The slot lives on this VM's own Postgres, so it is not
+      # lost short of a restore.
+      DEBEZIUM_SOURCE_SNAPSHOT_MODE: no_data
+    volumes:
+      - ./debezium.properties:/debezium/config/application.properties:ro
+      - relay-people:/debezium/data
+    healthcheck: &relay-health
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/q/health']
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      start_interval: 5s
+      retries: 3
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: &relay-limits { memory: 224m, cpus: '0.5' }
+
+  # Identity's outbox is on Neon: `relay.env` holds where and the password, and
+  # `deploy.sh` starts this only once it does. It replays identity's outbox on
+  # its first start, which is how the events written before any relay existed
+  # (a company's first administrator, its modules) reach People; they are
+  # idempotent. Its connection keeps Neon's compute awake while the VM is up,
+  # and the slot keeps identity's WAL while the VM sleeps.
+  relay-identity:
+    image: *relay-image
+    restart: unless-stopped
+    env_file: relay.env
+    environment:
+      OTEL_ENABLED: 'false'
+      JAVA_OPTS: *relay-java
+      DEBEZIUM_SOURCE_DATABASE_SSLMODE: require
+      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: platform.outbox
+      DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_identity
+    volumes:
+      - ./debezium.properties:/debezium/config/application.properties:ro
+      - relay-identity:/debezium/data
+    healthcheck: *relay-health
+    depends_on:
+      redpanda: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: *relay-limits
+
   # Distroless: no shell to run a healthcheck in. `deploy.sh` asks
   # `/health/ready` from the People container instead.
   router:
@@ -192,6 +261,9 @@ services:
       - maintenance_work_mem=32MB
       - -c
       - max_connections=80
+      # For the outbox relay's replication slot (`relay-people`).
+      - -c
+      - wal_level=logical
     environment:
       POSTGRES_USER: kithena
       POSTGRES_PASSWORD: ${VM_POSTGRES_PASSWORD:?VM_POSTGRES_PASSWORD is set by deploy.sh}
@@ -302,3 +374,5 @@ volumes:
   redpanda:
   postgres18:
   valkey:
+  relay-people:
+  relay-identity:

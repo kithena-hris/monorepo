@@ -646,6 +646,11 @@ jobs:
           SLACK_TOKEN_KEY: ${{ secrets.SLACK_TOKEN_KEY }}
           SLACK_PEOPLE_TOKEN: ${{ secrets.SLACK_PEOPLE_TOKEN }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          # The identity outbox relay's way into Neon: the direct (not pooled)
+          # endpoint, and `svc_debezium`'s password. Unset, identity's outbox is
+          # not relayed and the deploy warns.
+          IDENTITY_RELAY_HOST: ${{ vars.IDENTITY_RELAY_HOST_PRODUCTION }}
+          IDENTITY_RELAY_PASSWORD: ${{ secrets.IDENTITY_RELAY_PASSWORD }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_PRODUCTION }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_PRODUCTION }}
           GH_TOKEN: ${{ github.token }}
@@ -670,7 +675,8 @@ jobs:
           # `migrations/` replaced whole, so the copy is exactly this commit's.
           ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
           scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
-            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh atlas.hcl migrations vm:kithena/
+            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh deploy/vm/debezium.properties \
+            atlas.hcl migrations vm:kithena/
           ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/production
           put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/production/$1"; }
           {
@@ -687,6 +693,10 @@ jobs:
             https://identity.kithena.com/.well-known/jwks.json \
             "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" | put router.env
           printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env
+          if [ -n "$IDENTITY_RELAY_HOST" ] && [ -n "$IDENTITY_RELAY_PASSWORD" ]; then
+            printf 'DEBEZIUM_SOURCE_DATABASE_HOSTNAME=%s\nDEBEZIUM_SOURCE_DATABASE_DBNAME=neondb\nDEBEZIUM_SOURCE_DATABASE_PASSWORD=%s\n' \
+              "$IDENTITY_RELAY_HOST" "$IDENTITY_RELAY_PASSWORD"
+          fi | put relay.env
           echo "$GH_TOKEN" | ssh vm sudo docker login ghcr.io -u "$ACTOR" --password-stdin
 
       # People's database is the VM's Postgres, not Neon, so the same
