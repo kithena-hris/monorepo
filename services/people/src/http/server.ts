@@ -723,6 +723,8 @@ export function wirePeople(server: Server): void {
   const uploads = uploadStoreFrom(process.env);
   const stopSweep = sweepUploads(uploads);
   const idempotency = drizzleIdempotency();
+  const activitySchema = drizzleSchemaRepository();
+  const activityOrg = drizzleOrgStore();
   const rest = restHandler({
     service,
     callerFrom,
@@ -735,6 +737,19 @@ export function wirePeople(server: Server): void {
       store: drizzleActivity(),
       newId: uuidv7,
       now: () => systemClock.instant(),
+      // What a field or the company settings were, and are: the log's "from → to".
+      reads: (tx, tenantId) => ({
+        field: async (key) =>
+          (await activitySchema.loadDraft(tx, tenantId)).attributes.find((a) => a.key === key) ?? null,
+        settings: async () => {
+          const s = await activityOrg.settings(tx, tenantId);
+          return {
+            defaultTimeZone: s.defaultTimeZone,
+            cohortMinimum: s.cohortMinimum,
+            photoAtSignup: s.photoAtSignup,
+          };
+        },
+      }),
     },
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).

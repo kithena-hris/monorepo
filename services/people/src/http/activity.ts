@@ -1,3 +1,5 @@
+import type { AttributeDefinition } from '@kithena/contracts';
+
 import type { ActivityArea } from '../application/settings/activity.js';
 import { PEOPLE_NOTICES } from '../application/settings/chat.js';
 
@@ -334,4 +336,98 @@ export function settingsActivity(
     return said === null ? null : { ...said, area: rule.area };
   }
   return null;
+}
+
+
+/* ------------------------------------------------ what changed, from what -- */
+
+/** What a settings command changes, to read before and after it. */
+export type ActivityTarget = { readonly kind: 'field'; readonly key: string } | { readonly kind: 'settings' };
+
+/** What the log reads to compare: the thing, as it is. */
+export interface ActivityReads {
+  field(key: string): Promise<AttributeDefinition | null>;
+  settings(): Promise<{
+    readonly defaultTimeZone: string;
+    readonly cohortMinimum: number;
+    readonly photoAtSignup: string;
+  } | null>;
+}
+
+const FIELD_ROUTE = /^\/v1\/schema\/draft\/attributes\/([a-z][a-z0-9_]{0,63})\/(signup|assistant)$/;
+
+/** Which thing a successful command changes, when it is one the log compares. */
+export function activityTarget(method: string, path: string, rawBody: string): ActivityTarget | null {
+  if (method === 'GET') return null;
+  if (path === '/v1/settings') return { kind: 'settings' };
+  const own = FIELD_ROUTE.exec(path);
+  if (own?.[1] !== undefined) return { kind: 'field', key: own[1] };
+  if (path === '/v1/schema/draft/attributes') {
+    try {
+      const body = JSON.parse(rawBody) as Body;
+      const editing = text(body['editing']);
+      return editing === null ? null : { kind: 'field', key: editing };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+const yes = (b: boolean): string => (b ? 'Yes' : 'No');
+const REQUIRED: Readonly<Record<string, string>> = {
+  always: 'Yes',
+  conditional: 'On some records',
+  never: 'No',
+};
+
+/** A field's settings as the log compares them, in words. */
+export function fieldFacts(a: AttributeDefinition): Record<string, string> {
+  return {
+    Name: a.label.default,
+    Description: a.description?.default ?? '',
+    'Filled in by': joined(a.ownership.map((w) => WRITER[w] ?? w)),
+    'Seen by':
+      joined(a.visibility.map((v) => SEER[v] ?? v)) +
+      ((a.visibilityRules ?? []).length === 0 ? '' : ', and more on some records'),
+    Required: REQUIRED[a.requiredness.mode] ?? a.requiredness.mode,
+    Protection: a.classification.classification,
+    Encrypted: yes(a.encrypted),
+    'Assistant and chat': a.classification.aiEligible ? 'Shared' : 'Not shared',
+    'Asked at': a.collectAt.replaceAll('_', ' '),
+  };
+}
+
+export function settingsFacts(s: NonNullable<Awaited<ReturnType<ActivityReads['settings']>>>): Record<string, string> {
+  return {
+    'Default time zone': s.defaultTimeZone,
+    'Smallest group reported': String(s.cohortMinimum),
+    'Photo at sign-up': s.photoAtSignup === 'off' ? 'Not asked' : s.photoAtSignup === 'optional' ? 'Optional' : 'Required',
+  };
+}
+
+/** What differs, as "Seen by: HR → HR and their manager." — or null when nothing does. */
+export function changes(
+  before: Readonly<Record<string, string>> | null,
+  after: Readonly<Record<string, string>> | null,
+): string | null {
+  if (before === null || after === null) return null;
+  const said = Object.keys(after)
+    .filter((k) => (before[k] ?? '') !== (after[k] ?? ''))
+    .map((k) => `${k}: ${before[k] === '' || before[k] === undefined ? 'none' : before[k]} → ${after[k] === '' ? 'none' : (after[k] ?? '')}.`);
+  if (said.length === 0) return null;
+  const all = said.join(' ');
+  return all.length <= 500 ? all : `${all.slice(0, 497)}…`;
+}
+
+export async function factsOf(
+  target: ActivityTarget,
+  reads: ActivityReads,
+): Promise<Record<string, string> | null> {
+  if (target.kind === 'settings') {
+    const s = await reads.settings();
+    return s === null ? null : settingsFacts(s);
+  }
+  const a = await reads.field(target.key);
+  return a === null ? null : fieldFacts(a);
 }
