@@ -1,5 +1,6 @@
 import type { OverviewView } from '../application/screens/overview.js';
 import type { PhotoView } from '../application/screens/photo.js';
+import type { FileView } from '../application/screens/files.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
 
 /**
@@ -112,6 +113,31 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       fields: (t) => ({ waiting: t.exposeInt('waiting'), toFill: t.exposeInt('toFill') }),
     });
 
+  type Setup = NonNullable<OverviewView['setup']>;
+  const SetupField = builder
+    .objectRef<Setup['fields'][number]>('PeopleSetupField')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        sectionKey: t.exposeString('sectionKey'),
+        label: t.exposeString('label'),
+        description: t.exposeString('description', { nullable: true }),
+        dataType: t.exposeString('dataType', { description: 'image or document_ref.' }),
+        required: t.exposeBoolean('required'),
+      }),
+    });
+  const SetupRef = builder.objectRef<Setup>('PeopleOverviewSetup').implement({
+    description:
+      'What signing up still asks of the viewer: a photo, and the image and document fields collected at sign-up.',
+    fields: (t) => ({
+      photo: t.exposeString('photo', {
+        nullable: true,
+        description: 'optional or required; null when no photo is asked for.',
+      }),
+      fields: t.field({ type: [SetupField], resolve: (s) => list(s.fields) }),
+    }),
+  });
+
   const Overview = builder.objectRef<OverviewView>('PeopleOverview').implement({
     description: 'Where People starts: the viewer, their reporting line, and what waits for them.',
     fields: (t) => ({
@@ -124,6 +150,7 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       approvals: t.field({ type: ApprovalsRef, nullable: true, resolve: (o) => o.approvals }),
       missing: t.field({ type: [MissingRef], resolve: (o) => list(o.missing) }),
       team: t.field({ type: Team, nullable: true, resolve: (o) => o.team }),
+      setup: t.field({ type: SetupRef, nullable: true, resolve: (o) => o.setup }),
     }),
   });
 
@@ -136,7 +163,22 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
+  const File = builder.objectRef<FileView>('PeopleFile').implement({
+    description: 'A file an image or document field holds, to somebody who may read that field.',
+    fields: (t) => ({
+      name: t.exposeString('name'),
+      mediaType: t.exposeString('mediaType'),
+      data: t.exposeString('data', { description: 'The file, base64.' }),
+    }),
+  });
+
   builder.queryFields((t) => ({
+    peopleFile: t.field({
+      type: File,
+      args: { id: t.arg.id({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<FileView>(ctx, 'GET', `/v1/views/files/${encodeURIComponent(args.id)}`),
+    }),
     peopleOverview: t.field({
       type: Overview,
       resolve: (_root, _args, ctx) => viaRest<OverviewView>(ctx, 'GET', '/v1/views/overview'),

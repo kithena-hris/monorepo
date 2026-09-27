@@ -153,7 +153,7 @@ export function drizzleUploadIntents(): UploadIntents {
     id: r.id,
     tenantId: r.tenant_id,
     actorId: r.actor_id,
-    purpose: r.purpose === 'photo' ? 'photo' : 'import',
+    purpose: r.purpose === 'photo' || r.purpose === 'file' ? r.purpose : 'import',
     name: r.name,
     size: Number(r.size),
     objectKey: r.object_key,

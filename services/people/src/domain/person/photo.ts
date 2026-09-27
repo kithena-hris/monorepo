@@ -64,6 +64,15 @@ export function readPhoto(bytes: Uint8Array): Result<Photo> {
   return read;
 }
 
+/**
+ * An image of any size without what a camera wrote beside it: PNG or JPEG,
+ * read from the bytes, the picture itself untouched. A photo's size rules are
+ * `readPhoto`'s; an image field brings its own.
+ */
+export function cleanImage(bytes: Uint8Array): Result<Photo> {
+  return isPng(bytes) ? cleanPng(bytes) : isJpeg(bytes) ? cleanJpeg(bytes) : notAPhoto();
+}
+
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const isPng = (b: Uint8Array) => PNG_SIGNATURE.every((v, i) => b[i] === v);
 const isJpeg = (b: Uint8Array) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;

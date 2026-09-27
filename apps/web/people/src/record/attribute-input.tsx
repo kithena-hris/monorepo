@@ -29,6 +29,7 @@ import {
   type JSX,
 } from 'react';
 
+import { FileInput, isFileField } from './files';
 import { isMissing, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
 
@@ -162,8 +163,8 @@ export function PersonPicker({
  *
  * Every control is Reach's, so the phone-keyboard work — `inputMode`,
  * `autoComplete`, verbatim entry — comes from the type rather than from each
- * form remembering it (§8.3). A type with no control of its own here (a
- * document, an image) is filled in on the profile rather than in a form.
+ * form remembering it (§8.3). A document or an image is uploaded as soon as
+ * it is chosen, where the shell supplies the upload (`FieldFiles`).
  */
 export function AttributeInput({
   field,
@@ -209,6 +210,19 @@ export function AttributeInput({
     );
   const error = <FieldError>{problem}</FieldError>;
   const disabled = field.readOnly;
+
+  // An image or a document: chosen, uploaded, and held as the file's id.
+  if (isFileField(field)) {
+    return (
+      <FileInput
+        field={field}
+        value={typeof value === 'string' && value !== '' ? value : null}
+        invalid={invalid}
+        description={[note, problem ?? ''].filter((x) => x !== '').join(' ')}
+        onChange={onChange}
+      />
+    );
+  }
 
   // Controls that carry their own label: they are the whole field.
   if (field.dataType === 'date') {

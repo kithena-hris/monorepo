@@ -31,7 +31,11 @@ export interface PeopleSettingsState {
     readonly fields: readonly unknown[];
   } | null;
   readonly organisation: {
-    readonly settings: { readonly defaultTimeZone: string; readonly cohortMinimum: number };
+    readonly settings: {
+      readonly defaultTimeZone: string;
+      readonly cohortMinimum: number;
+      readonly photoAtSignup?: string;
+    };
     readonly legalEntities: readonly { readonly archived: boolean }[];
     readonly locations: readonly { readonly archived: boolean }[];
     readonly retentionFloors: readonly { readonly status: string }[];
@@ -112,7 +116,7 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
 
   if (data.organisation !== null) {
     const o = data.organisation;
-    const live = <T extends { archived: boolean }>(xs: readonly T[]): number =>
+    const live = (xs: readonly { archived: boolean }[]): number =>
       xs.filter((x) => !x.archived).length;
     const unreviewed = o.retentionFloors.filter((f) => f.status !== 'reviewed').length;
     cards.push(
@@ -126,6 +130,15 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
           { label: 'Legal entities', value: String(live(o.legalEntities)) },
           { label: 'Work locations', value: String(live(o.locations)) },
           { label: 'Default time zone', value: o.settings.defaultTimeZone },
+          {
+            label: 'Photo at sign-up',
+            value:
+              o.settings.photoAtSignup === 'required'
+                ? 'Asked first'
+                : o.settings.photoAtSignup === 'optional'
+                  ? 'Asked, can skip'
+                  : 'Not asked',
+          },
           {
             label: 'Smallest group reported',
             value: plural(o.settings.cohortMinimum, 'person', 'people'),

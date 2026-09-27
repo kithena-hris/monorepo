@@ -169,6 +169,7 @@ describe('every mutation (PEO-113)', () => {
       'completeImportUpload',
       'dryRunImport',
       'revealIdentifier',
+      'startFileUpload',
       'startImportUpload',
       'startPhotoUpload',
     ]);
@@ -184,6 +185,7 @@ describe('every mutation (PEO-113)', () => {
     expect(Object.keys(fields).toSorted()).toEqual([
       'calendar',
       'employment',
+      'files',
       'pending',
       'person',
       'placement',

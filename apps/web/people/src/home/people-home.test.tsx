@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
+import { fast } from '../test/user';
 import { PeopleHome, tenure, waited } from './people-home';
 import { ADA, nobody, overview } from './people-home.fixture';
 
@@ -140,5 +141,48 @@ describe('the words', () => {
     expect(waited('2026-09-27T08:00:00.000Z', now)).toBe('today');
     expect(waited('2026-09-26T08:00:00.000Z', now)).toBe('yesterday');
     expect(waited('2026-06-01T08:00:00.000Z', now)).toBe('3 months ago');
+  });
+});
+
+describe('finishing sign-up on the overview', () => {
+  it('asks for the photo and each sign-up file first, and lets what is optional wait', async () => {
+    const onSetupFile = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        file: { id: 'f', name: 'id.pdf', mediaType: 'application/pdf', size: 1000 },
+      }),
+    );
+    const data = {
+      ...overview(),
+      setup: {
+        photo: 'optional' as const,
+        fields: [
+          {
+            key: 'id_scan',
+            sectionKey: 'personal',
+            label: 'Proof of identity',
+            description: null,
+            dataType: 'document_ref',
+            required: false,
+          },
+        ],
+      },
+    };
+    const user = fast();
+    const { container } = render(
+      <PeopleHome
+        load={{ status: 'ready', data }}
+        onPhoto={vi.fn()}
+        onSetupFile={onSetupFile}
+      />,
+    );
+    expect(screen.getByText('Finish setting up your account')).toBeInTheDocument();
+    expect(screen.getByLabelText('Your photo')).toHaveAttribute('type', 'file');
+    const file = new File(['%PDF-1.7'], 'id.pdf', { type: 'application/pdf' });
+    await user.upload(screen.getByLabelText(/Proof of identity/), file);
+    expect(onSetupFile).toHaveBeenCalledWith(data.setup.fields[0], file);
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Later' }));
+    expect(screen.queryByText('Finish setting up your account')).toBeNull();
   });
 });

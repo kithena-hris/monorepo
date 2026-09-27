@@ -60,6 +60,11 @@ export interface TenantSettings {
   readonly defaultTimeZone: string;
   readonly cohortMinimum: number;
   /**
+   * Whether the first screen after signing up asks for a photo: not at all,
+   * as something they may skip, or before anything else.
+   */
+  readonly photoAtSignup: PhotoAtSignup;
+  /**
    * `<slug>.app…`, where the company's people sign in, and its name, as the
    * back office last described them (`identity.tenant.*`). Read-only here:
    * the back office owns both. Null until People has heard of them.
@@ -68,9 +73,12 @@ export interface TenantSettings {
   readonly displayName: string | null;
 }
 
+export type PhotoAtSignup = 'off' | 'optional' | 'required';
+
 export const DEFAULT_SETTINGS: TenantSettings = {
   defaultTimeZone: 'Etc/UTC',
   cohortMinimum: COHORT_FLOOR,
+  photoAtSignup: 'off',
   slug: null,
   displayName: null,
 };
@@ -112,7 +120,7 @@ export interface OrgStore extends Calendars {
   saveSettings(
     tx: Tx,
     tenantId: string,
-    settings: Pick<TenantSettings, 'defaultTimeZone' | 'cohortMinimum'>,
+    settings: Pick<TenantSettings, 'defaultTimeZone' | 'cohortMinimum' | 'photoAtSignup'>,
   ): Promise<void>;
   /** Keep the company copy, unless the one held is newer. True when it was kept. */
   saveCompany(tx: Tx, tenantId: string, company: Company): Promise<boolean>;
@@ -163,6 +171,12 @@ export interface Writer {
   readonly causationId: string | null;
 }
 
+export interface SettingsChange {
+  readonly defaultTimeZone?: string;
+  readonly cohortMinimum?: number;
+  readonly photoAtSignup?: PhotoAtSignup;
+}
+
 const NotAdmin = () =>
   failure('FORBIDDEN', 'Only a People administrator may change legal entities, locations or settings');
 
@@ -170,7 +184,7 @@ export interface OrgAdmin {
   settings(tx: Tx, asking: Asked): Promise<Result<TenantSettings>>;
   updateSettings(
     tx: Tx,
-    asking: Asked<{ readonly defaultTimeZone?: string; readonly cohortMinimum?: number }>,
+    asking: Asked<SettingsChange>,
   ): Promise<Result<TenantSettings>>;
   legalEntities(tx: Tx, asking: Asked): Promise<Result<readonly LegalEntityView[]>>;
   createLegalEntity(tx: Tx, asking: Asked<PlaceInput>): Promise<Result<LegalEntityView>>;
@@ -300,7 +314,7 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
   async function writeSettings(
     tx: Tx,
     by: Writer,
-    change: { readonly defaultTimeZone?: string; readonly cohortMinimum?: number },
+    change: SettingsChange,
   ): Promise<Result<TenantSettings>> {
     const current = await store.settings(tx, by.tenantId);
     const zone = checkTimeZone(change.defaultTimeZone ?? current.defaultTimeZone, 'defaultTimeZone');
@@ -310,8 +324,12 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
       change.cohortMinimum ?? current.cohortMinimum,
     );
     if (!minimum.ok) return minimum;
-    const next = { defaultTimeZone: zone.value, cohortMinimum: minimum.value };
-    const fieldsChanged = (['defaultTimeZone', 'cohortMinimum'] as const).filter(
+    const next = {
+      defaultTimeZone: zone.value,
+      cohortMinimum: minimum.value,
+      photoAtSignup: change.photoAtSignup ?? current.photoAtSignup,
+    };
+    const fieldsChanged = (['defaultTimeZone', 'cohortMinimum', 'photoAtSignup'] as const).filter(
       (k) => next[k] !== current[k],
     );
     if (fieldsChanged.length === 0) return ok(current);
@@ -331,7 +349,7 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
 
     updateSettings: async (
       tx: Tx,
-      asking: Asked<{ readonly defaultTimeZone?: string; readonly cohortMinimum?: number }>,
+      asking: Asked<SettingsChange>,
     ): Promise<Result<TenantSettings>> => {
       const by = writer(asking);
       return by.ok ? writeSettings(tx, by.value, asking) : by;

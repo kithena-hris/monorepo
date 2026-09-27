@@ -65,6 +65,9 @@ import {
   UploadStart,
   PhotoOf,
   PhotoStart,
+  FileOf,
+  FileStart,
+  DetailAsk,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
@@ -139,6 +142,9 @@ const components = {
   ImportUploadStart: UploadStart,
   PhotoUploadStart: PhotoStart,
   PhotoOf,
+  FileUploadStart: FileStart,
+  FileOf,
+  DetailAsk,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
   PayBand: PayBandBody,
@@ -479,6 +485,33 @@ function screenPaths(): Record<string, unknown> {
         'PhotoOf',
         200,
         '{ avatarUrl }',
+        { path: 'id' },
+      ),
+    },
+    '/v1/views/files/uploads': {
+      post: screenWrite(
+        'Start the upload of a file for an image or document field (no personId: the viewer’s own): a presigned PUT for exactly this many bytes',
+        'FileUploadStart',
+        200,
+        '{ uploadId, url, method, headers, expiresAt }: PUT the file there with exactly these headers',
+        { safe: true },
+      ),
+    },
+    '/v1/views/files/uploads/{id}/complete': {
+      post: screenWrite(
+        'The file is uploaded: check it is a PNG, a JPEG or (for a document) a PDF, and keep it; saving the field points the record at it',
+        'FileOf',
+        200,
+        '{ id, name, mediaType, size }',
+        { path: 'id' },
+      ),
+    },
+    '/v1/views/profile/{id}/requests': {
+      post: screenWrite(
+        'Ask somebody to fill in empty details of theirs: recorded, and emailed at most once a day per field',
+        'DetailAsk',
+        200,
+        '{ asked, emailed }',
         { path: 'id' },
       ),
     },

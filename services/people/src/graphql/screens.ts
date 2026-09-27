@@ -505,6 +505,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.',
         resolve: (v) => list(v.pending),
       }),
+      files: t.field({
+        type: [FileInfoRef],
+        description: 'What each image or document value on the record is: its name and type.',
+        resolve: (v) => list(v.files),
+      }),
       requests: t.field({
         type: [DetailRequestRef],
         description:
@@ -516,6 +521,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
 
   /* ------------------------------------------ held changes (PEO-077) -- */
 
+  const FileInfoRef = builder.objectRef<ProfileView['files'][number]>('PeopleFileInfo').implement({
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      mediaType: t.exposeString('mediaType'),
+      size: t.exposeInt('size'),
+    }),
+  });
   const DetailRequestRef = builder
     .objectRef<ProfileView['requests'][number]>('DetailRequest')
     .implement({
@@ -598,15 +611,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
 
-  const HistoryActorRef = builder
-    .objectRef<HistoryChange['actor']>('HistoryActor')
-    .implement({
-      description: 'Who made a change, to draw: a person with their photo, or not a person.',
-      fields: (t) => ({
-        kind: t.exposeString('kind', { description: 'person, integration or system.' }),
-        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
-      }),
-    });
+  const HistoryActorRef = builder.objectRef<HistoryChange['actor']>('HistoryActor').implement({
+    description: 'Who made a change, to draw: a person with their photo, or not a person.',
+    fields: (t) => ({
+      kind: t.exposeString('kind', { description: 'person, integration or system.' }),
+      avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+    }),
+  });
   const HistoryChangeRef = builder.objectRef<HistoryChange>('HistoryChange').implement({
     description:
       'One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.',
@@ -2698,6 +2709,44 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'POST',
           `/v1/views/photos/uploads/${encodeURIComponent(args.uploadId)}/complete`,
           { body: { personId: args.personId ?? null }, key: args.idempotencyKey },
+        ),
+    }),
+    startFileUpload: t.field({
+      type: UploadTarget,
+      description:
+        'Where to upload a file for an image or document field (no personId: the viewer’s own): a presigned PUT.',
+      args: {
+        personId: t.arg.id(),
+        key: t.arg.string({ required: true }),
+        name: t.arg.string({ required: true }),
+        size: t.arg.int({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ImportUploadView>(ctx, 'POST', '/v1/views/files/uploads', {
+          body: {
+            personId: args.personId ?? null,
+            key: args.key,
+            name: args.name,
+            size: args.size,
+          },
+        }),
+    }),
+    completeFileUpload: t.field({
+      type: FileInfoRef,
+      description:
+        'The file is uploaded: check it and keep it. Saving the field points the record at it.',
+      args: {
+        personId: t.arg.id(),
+        key: t.arg.string({ required: true }),
+        uploadId: t.arg.id({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ProfileView['files'][number]>(
+          ctx,
+          'POST',
+          `/v1/views/files/uploads/${encodeURIComponent(args.uploadId)}/complete`,
+          { body: { personId: args.personId ?? null, key: args.key }, key: args.idempotencyKey },
         ),
     }),
     requestDetails: t.field({

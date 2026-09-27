@@ -61,6 +61,12 @@ import {
 } from '../application/screens/photo.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import { requestDetails } from '../application/screens/requests.js';
+import {
+  completeFileUpload,
+  fileView,
+  startFileUpload,
+  type FileDeps,
+} from '../application/screens/files.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 import {
   createSchedule,
@@ -211,6 +217,16 @@ export const ScimMappingBody = z.strictObject({
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
 /** Whose photo: a person, or null for the viewer's own. */
 export const PhotoOf = z.strictObject({ personId: z.uuid().nullable() });
+export const FileStart = z.strictObject({
+  personId: z.uuid().nullable(),
+  key: z.string().min(1).max(64),
+  name: z.string().trim().min(1).max(255),
+  size: z.int().positive(),
+});
+export const FileOf = z.strictObject({
+  personId: z.uuid().nullable(),
+  key: z.string().min(1).max(64),
+});
 export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
@@ -401,6 +417,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   };
   // A photo's upload needs the bucket and the upload ledger, and nothing else of import's.
   const photoDeps: PhotoDeps = { ...deps, newId: () => deps.commit.newId() };
+  const fileDeps: FileDeps = { ...deps, newId: () => deps.commit.newId() };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
 
@@ -455,6 +472,26 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/views\/photos\/remove$/,
       handle: write(PhotoOf, (asking, input) => removePhoto(photoDeps, asking, input.personId)),
+    },
+    // A file for an image or document field, to somebody who may read that field.
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/files/${UUID}$`),
+      handle: async (asking, _r, params) => answer(await fileView(deps, asking, params['id'] ?? '')),
+    },
+    {
+      // Where to put a field's file: a presigned PUT, as a photo's.
+      method: 'POST',
+      pattern: /^\/v1\/views\/files\/uploads$/,
+      safe: true,
+      handle: compute(FileStart, (asking, input) => startFileUpload(fileDeps, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/files/uploads/${UUID}/complete$`),
+      handle: write(FileOf, (asking, input, uploadId) =>
+        completeFileUpload(fileDeps, asking, input, uploadId),
+      ),
     },
     // Ask somebody for empty details of theirs: recorded, and they are emailed.
     {

@@ -11,6 +11,7 @@ import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
 import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
 import type { PhotoStore } from './photo-store.js';
+import type { FileStore } from './file-store.js';
 import type { ReminderCompany, ReminderMailer } from '../completeness/reminders.js';
 import type {
   FormValue,
@@ -45,6 +46,10 @@ export interface ScreenDeps {
   readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
   /** People's photos. Absent, nobody has one and none may be set. */
   readonly photos?: PhotoStore;
+  /** Whether signing up asks for a photo (organisation settings). Absent: it does not. */
+  readonly photoAtSignup?: (tx: Tx, tenantId: string) => Promise<'off' | 'optional' | 'required'>;
+  /** Files for image and document fields. Absent, those fields take nothing. */
+  readonly files?: FileStore;
   /** Asking somebody for an empty detail. Absent, nobody may be asked. */
   readonly requests?: {
     readonly store: DetailRequestStore;

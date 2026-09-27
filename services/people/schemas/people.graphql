@@ -984,6 +984,10 @@ type Mutation {
     uploadId: ID!
   ): ImportStage
   """
+  The file is uploaded: check it and keep it. Saving the field points the record at it.
+  """
+  completeFileUpload(idempotencyKey: String!, key: String!, personId: ID, uploadId: ID!): PeopleFileInfo
+  """
   The file is uploaded: check it, then the proposed mapping. Changes nothing else.
   """
   completeImportUpload(uploadId: ID!): ImportStage
@@ -1159,6 +1163,10 @@ type Mutation {
   setPayBand(currency: String!, effectiveFrom: String!, grade: String!, idempotencyKey: String!, maximumMinor: String!, midpointMinor: String!, minimumMinor: String!): PayBand
   setScimMapping(id: ID!, idempotencyKey: String!, mapping: [ScimMappingInput!]!): WriteOutcome
   """
+  Where to upload a file for an image or document field (no personId: the viewer’s own): a presigned PUT.
+  """
+  startFileUpload(key: String!, name: String!, personId: ID, size: Int!): ImportUploadTarget
+  """
   Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
   """
   startImportUpload(
@@ -1193,7 +1201,13 @@ type Mutation {
   unmergePerson(idempotencyKey: String!, personId: ID!, reason: String!): Person
   updateLegalEntity(archived: Boolean, id: ID!, idempotencyKey: String!, name: String, timeZone: String): LegalEntity
   updateLocation(archived: Boolean, id: ID!, idempotencyKey: String!, name: String): Location
-  updatePeopleSettings(cohortMinimum: Int, defaultTimeZone: String, idempotencyKey: String!): PeopleSettings
+  updatePeopleSettings(
+    cohortMinimum: Int
+    defaultTimeZone: String
+    idempotencyKey: String!
+    """off, optional or required."""
+    photoAtSignup: String
+  ): PeopleSettings
   updatePerson(changes: [AttributeValueInput!]!, effectiveFrom: String, id: ID!, idempotencyKey: String!): Person
   """Change a scheduled report; whoever saves it owns it."""
   updateReportSchedule(
@@ -1393,6 +1407,23 @@ type PeopleExportBuilder {
   who: [ExportAudience!]
 }
 
+"""
+A file an image or document field holds, to somebody who may read that field.
+"""
+type PeopleFile {
+  """The file, base64."""
+  data: String
+  mediaType: String
+  name: String
+}
+
+type PeopleFileInfo {
+  id: ID
+  mediaType: String
+  name: String
+  size: Int
+}
+
 """Finance’s own requests for full values, or every one for HR (PEO-121)."""
 type PeopleFullValues {
   canDecide: Boolean
@@ -1478,6 +1509,7 @@ type PeopleOverview {
   now: String
   reportingLine: PeopleReportingLine
   roles: PeopleOverviewRoles
+  setup: PeopleOverviewSetup
   team: PeopleOverviewTeam
 }
 
@@ -1538,6 +1570,15 @@ type PeopleOverviewRoles {
   hr: Boolean
 }
 
+"""
+What signing up still asks of the viewer: a photo, and the image and document fields collected at sign-up.
+"""
+type PeopleOverviewSetup {
+  fields: [PeopleSetupField!]
+  """optional or required; null when no photo is asked for."""
+  photo: String
+}
+
 type PeopleOverviewTeam {
   toFill: Int
   waiting: Int
@@ -1566,6 +1607,8 @@ type PeopleProfile {
   calendar: PersonCalendar
   """HR’s alone: their status and every employment period (PEO-120)."""
   employment: ProfileEmployment
+  """What each image or document value on the record is: its name and type."""
+  files: [PeopleFileInfo!]
   """
   Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.
   """
@@ -1682,6 +1725,10 @@ type PeopleSettings {
   cohortMinimum: Int
   defaultTimeZone: String
   displayName: String
+  """
+  off, optional or required: whether the first screen after signing up asks for a photo.
+  """
+  photoAtSignup: String
   slug: String
 }
 
@@ -1695,6 +1742,16 @@ type PeopleSetup {
   packs: [SetupPack!]
   profile: SetupProfile
   published: Int
+}
+
+type PeopleSetupField {
+  """image or document_ref."""
+  dataType: String
+  description: String
+  key: String
+  label: String
+  required: Boolean
+  sectionKey: String
 }
 
 type Person @key(fields: "id") {
@@ -1866,6 +1923,7 @@ type Query {
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder: PeopleExportBuilder
+  peopleFile(id: ID!): PeopleFile
   peopleFullValues: PeopleFullValues
   """
   What saving these grid cells would be warned about (PEO-125); nothing is kept.

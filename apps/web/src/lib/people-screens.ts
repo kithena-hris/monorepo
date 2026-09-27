@@ -197,7 +197,7 @@ export { today };
  * and Integrations are its administrators', Roles HR's) is left out rather
  * than failing the page; only an unreachable People is an error.
  */
-async function settingsOverview(): Promise<ScreenLoad> {
+export async function settingsOverview(): Promise<ScreenLoad> {
   const parts = await Promise.all([
     read('Registry'),
     read('Organisation'),

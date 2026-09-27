@@ -95,6 +95,24 @@ export interface OverviewView {
   }[];
   /** HR's summary of everybody's gaps; null for anybody else. */
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
+  /**
+   * What signing up still asks of them, on the first screen they land on: a
+   * photo when the company asks for one and they have none, and the image and
+   * document fields collected at sign-up that are still empty. The sign-up
+   * page itself is identity's, which never holds a file. Null when nothing is
+   * left.
+   */
+  readonly setup: {
+    readonly photo: 'optional' | 'required' | null;
+    readonly fields: readonly {
+      readonly key: string;
+      readonly sectionKey: string;
+      readonly label: string;
+      readonly description: string | null;
+      readonly dataType: string;
+      readonly required: boolean;
+    }[];
+  } | null;
 }
 
 /** How far up the line the overview reads before "and above". */
@@ -127,6 +145,7 @@ export async function overviewView(
         approvals,
         missing: [],
         team,
+        setup: null,
       });
     }
     const { view, sections } = record.value;
@@ -143,6 +162,29 @@ export async function overviewView(
     const locationId = at('location_id');
     const line = await reportingLine(deps, tx, asking, view);
     const avatars = await avatarsOf(deps, tx, asking.tenantId, [personId]);
+    const asked =
+      deps.photos === undefined || deps.photoAtSignup === undefined || avatars.has(personId)
+        ? 'off'
+        : await deps.photoAtSignup(tx, asking.tenantId);
+    const atSignup = new Set(
+      record.value.version.document.attributes
+        .filter(
+          (d) =>
+            (d.collectAt === 'signup' || d.collectAt === 'enrolment') &&
+            (d.dataType === 'image' || d.dataType === 'document_ref'),
+        )
+        .map((d) => d.key as string),
+    );
+    const setupFields = fields
+      .filter((f) => atSignup.has(f.key) && !f.readOnly && text(view.attributes[f.key]) === null)
+      .map((f) => ({
+        key: f.key,
+        sectionKey: f.section.key,
+        label: f.label,
+        description: f.description,
+        dataType: f.dataType,
+        required: f.required,
+      }));
 
     return ok({
       roles,
@@ -175,6 +217,10 @@ export async function overviewView(
           ownedBy: f.readOnly ? (f.ownedBy ?? 'HR') : null,
         })),
       team,
+      setup:
+        asked === 'off' && setupFields.length === 0
+          ? null
+          : { photo: asked === 'off' ? null : asked, fields: setupFields },
     });
   });
 }

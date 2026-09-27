@@ -503,6 +503,7 @@ const given = (patch: Values): Record<string, unknown> =>
 export async function updateSettings(patch: {
   defaultTimeZone?: string;
   cohortMinimum?: number;
+  photoAtSignup?: 'off' | 'optional' | 'required';
 }): Promise<Outcome> {
   return outcome(people('UpdatePeopleSettings', given(patch)));
 }
@@ -677,6 +678,41 @@ export async function startPhotoUpload(
     method: answer.data.method,
     headers: Object.fromEntries(answer.data.headers.map((h) => [h.name, h.value])),
   };
+}
+
+/** Where to PUT a file for an image or document field: `personId` null is one's own. */
+export async function startFileUpload(
+  personId: string | null,
+  field: string,
+  name: string,
+  size: number,
+): Promise<UploadTarget> {
+  const answer = await people<{
+    uploadId: string;
+    url: string;
+    method: string;
+    headers: { name: string; value: string }[];
+  }>('StartFileUpload', { personId, field, name, size });
+  if (!answer.ok) return { ok: false, message: answer.message };
+  return {
+    ok: true,
+    uploadId: answer.data.uploadId,
+    url: answer.data.url,
+    method: answer.data.method,
+    headers: Object.fromEntries(answer.data.headers.map((h) => [h.name, h.value])),
+  };
+}
+
+export type FileInfo = { id: string; name: string; mediaType: string; size: number };
+
+/** The file is uploaded: People checks it and keeps it. Saving the field points the record at it. */
+export async function completeFileUpload(
+  personId: string | null,
+  field: string,
+  uploadId: string,
+): Promise<{ ok: true; file: FileInfo } | { ok: false; message: string }> {
+  const a = await people<FileInfo>('CompleteFileUpload', { personId, field, uploadId });
+  return a.ok ? { ok: true, file: a.data } : { ok: false, message: a.message };
 }
 
 export async function completePhotoUpload(

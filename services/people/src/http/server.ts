@@ -77,6 +77,7 @@ import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
 import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
 import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
+import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
@@ -498,6 +499,8 @@ function screenDeps(
     gapTotals: drizzleGapTotals(),
     segments: { store: drizzleSegments(), newId: uuidv7 },
     photos: drizzlePhotos(),
+    files: drizzleFiles(),
+    photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars),
     schedules: scheduleAdmin(),
     schema,

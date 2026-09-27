@@ -1146,6 +1146,18 @@ function Preview({ draft, approval }: { readonly draft: Draft; readonly approval
 /** What the chosen stage means for who fills the field in, where the two disagree. */
 function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
   const employee = draft.ownership.includes('employee');
+  if (
+    (draft.collectAt === 'signup' || draft.collectAt === 'enrolment') &&
+    (draft.dataType === 'image' || draft.dataType === 'document_ref')
+  ) {
+    return (
+      <Alert tone="info" title="Asked on the first screen after sign-up">
+        {employee
+          ? 'A file is never taken on the account setup page. It is asked for on the first screen they see once their account is set up, beside their photo if you ask for one.'
+          : 'Only the employee can answer there. Tick The employee under Who can change it, or choose another moment.'}
+      </Alert>
+    );
+  }
   if (draft.collectAt === 'signup' || draft.collectAt === 'enrolment') {
     return (
       <Alert tone="info" title="Shown on the account setup page">

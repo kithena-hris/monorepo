@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CompleteFileUpload($personId: ID, $field: String!, $uploadId: ID!, $key: String!) {\n    completeFileUpload(personId: $personId, key: $field, uploadId: $uploadId, idempotencyKey: $key) { id name mediaType size }\n  }"}

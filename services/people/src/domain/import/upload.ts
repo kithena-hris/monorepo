@@ -29,7 +29,7 @@ export const UPLOAD_LIFETIME_MS = 24 * 60 * 60 * 1000;
  * What the file is for. A photo waits where an import's file does, under its
  * own key and its own limit, and starting one never lets go of the other.
  */
-export type UploadPurpose = 'import' | 'photo';
+export type UploadPurpose = 'import' | 'photo' | 'file';
 
 /** A photo, already shrunk by the browser: `PHOTO_MAX_BYTES` in `person/photo.ts`. */
 export const PHOTO_UPLOAD_MAX_BYTES = 512 * 1024;

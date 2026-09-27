@@ -7,6 +7,7 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
 import { askable } from '../../domain/person/detail-request.js';
+import type { FileInfoView } from './files.js';
 import { avatarsOf } from './photo.js';
 import { run } from '../person/service.js';
 import { LEAVERS, type Condition } from '../person/ports.js';
@@ -277,6 +278,8 @@ export interface ProfileView {
     readonly requestedAt: string;
     readonly by: string;
   }[];
+  /** What each image or document value is: its name and type, to draw it. */
+  readonly files: readonly FileInfoView[];
 }
 
 export interface PlacementView {
@@ -383,8 +386,33 @@ export async function profileView(
       reviews: record.value.reviews,
       pending: await pendingOnRecord(deps, tx, asking, id.value),
       requests: await openRequests(deps, tx, asking, id.value, named, formValues(view, named)),
+      files: await filesOn(deps, tx, asking.tenantId, id.value, named, formValues(view, named)),
     });
   });
+}
+
+/**
+ * The files a record's image and document values name, as a form draws them.
+ * Only this person's: a value naming somebody else's file draws nothing.
+ */
+export async function filesOn(
+  deps: ScreenDeps,
+  tx: Tx,
+  tenantId: string,
+  personId: string,
+  sections: readonly RecordSection[],
+  values: FormValues,
+): Promise<FileInfoView[]> {
+  if (deps.files === undefined) return [];
+  const ids = sections
+    .flatMap((s) => s.fields)
+    .filter((f) => f.dataType === 'image' || f.dataType === 'document_ref')
+    .map((f) => values[f.key])
+    .filter((v): v is string => typeof v === 'string' && v !== '');
+  const found = await deps.files.describe(tx, tenantId, ids);
+  return [...found.values()]
+    .filter((f) => f.personId === personId)
+    .map(({ id, name, mediaType, size }) => ({ id, name, mediaType, size }));
 }
 
 /** What somebody asked this person for that is still empty, on fields this viewer reads. */

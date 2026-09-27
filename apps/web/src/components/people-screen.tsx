@@ -130,6 +130,48 @@ async function uploadPhoto(
   return actions.completePhotoUpload(personId, target.uploadId);
 }
 
+/**
+ * An image People cannot read as it is (a WebP, a HEIC a phone made) redrawn
+ * as a JPEG, at most 2048 pixels a side, the right way up. A PNG, a JPEG and
+ * a PDF go as they are; People checks every file whatever arrives.
+ */
+async function asUploadable(file: File): Promise<Blob | null> {
+  if (!file.type.startsWith('image/') || file.type === 'image/png' || file.type === 'image/jpeg') {
+    return file;
+  }
+  try {
+    const image = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, 2048 / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.width * scale);
+    canvas.height = Math.round(image.height * scale);
+    canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+    image.close();
+    return await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.9);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Upload a file for an image or document field, and have People keep it. */
+async function uploadFile(
+  personId: string | null,
+  key: string,
+  file: File,
+): Promise<{ ok: true; file: actions.FileInfo } | { ok: false; message: string }> {
+  const body = await asUploadable(file);
+  if (body === null) return { ok: false, message: 'That file could not be read.' };
+  const name = body === file ? file.name : file.name.replace(/\.[^.]*$/, '') + '.jpg';
+  const target = await actions.startFileUpload(personId, key, name, body.size);
+  if (!target.ok) return target;
+  if (!(await putFile(target, body, () => undefined))) {
+    return { ok: false, message: 'The upload did not go through; try again.' };
+  }
+  return actions.completeFileUpload(personId, key, target.uploadId);
+}
+
 type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
 
 /**
@@ -223,6 +265,7 @@ export function PeopleScreen({
       case 'Onboarding':
         return {
           load: loadable,
+          onUploadFile: (key: string, file: File) => uploadFile(null, key, file),
           onSave: thenRefresh(actions.saveOwnSection),
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(null, sectionKey, changed),
@@ -235,6 +278,8 @@ export function PeopleScreen({
           ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: thenRefresh((file: File) => uploadPhoto(id ?? null, file)),
+          // A file for an image or document field; the form's Save keeps it.
+          onUploadFile: (key: string, file: File) => uploadFile(id ?? null, key, file),
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(id ?? null, sectionKey, changed),
           onSave: thenRefresh(
@@ -517,6 +562,22 @@ export function PeopleScreen({
           onRevoke: thenRefresh(actions.revokeRole),
         };
       case 'PeopleHome':
+        return {
+          load: loadable,
+          // What signing up still asks: their photo, and files kept to their fields.
+          onPhoto: thenRefresh((file: File) => uploadPhoto(null, file)),
+          onSetupFile: async (
+            field: { readonly key: string; readonly sectionKey: string },
+            file: File,
+          ) => {
+            const up = await uploadFile(null, field.key, file);
+            if (!up.ok) return up;
+            const saved = await actions.saveOwnSection(field.sectionKey, { [field.key]: up.file.id });
+            if (!saved.ok) return { ok: false as const, message: saved.message };
+            refresh();
+            return up;
+          },
+        };
       case 'PeopleSettings':
         return { load: loadable };
       case 'FullValues':

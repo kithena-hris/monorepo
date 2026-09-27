@@ -105,6 +105,7 @@ export const OPERATIONS = {
       reviews { ...ReviewParts }
       pending { ...PendingParts }
       requests { key label requestedAt by }
+      files { id name mediaType size }
     }
   }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
 
@@ -230,6 +231,7 @@ export const OPERATIONS = {
       approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy } }
       missing { key label sectionKey section ownedBy }
       team { waiting toFill }
+      setup { photo fields { key sectionKey label description dataType required } }
     }
   }`,
 
@@ -238,10 +240,15 @@ export const OPERATIONS = {
     peoplePhoto(personId: $personId) { mediaType data checksum }
   }`,
 
+  /** A field's file, to somebody who may read that field: the tenant app's file route. */
+  File: `query File($id: ID!) {
+    peopleFile(id: $id) { name mediaType data }
+  }`,
+
   Organisation: `query Organisation {
     peopleOrganisation {
       canManage
-      settings { defaultTimeZone cohortMinimum slug displayName }
+      settings { defaultTimeZone cohortMinimum photoAtSignup slug displayName }
       legalEntities { id name country timeZone archived }
       locations { id legalEntityId name country timeZone zones { effectiveFrom timeZone } archived }
       numberings { legalEntityId prefix digits nextValue }
@@ -540,8 +547,8 @@ export const OPERATIONS = {
     revokeRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }
   }`,
 
-  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $key: String!) {
-    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, idempotencyKey: $key) {
+  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $photoAtSignup: String, $key: String!) {
+    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, photoAtSignup: $photoAtSignup, idempotencyKey: $key) {
       defaultTimeZone
     }
   }`,
@@ -663,6 +670,14 @@ export const OPERATIONS = {
 
   RequestDetails: `mutation RequestDetails($personId: ID!, $keys: [String!]!, $key: String!) {
     requestDetails(personId: $personId, keys: $keys, idempotencyKey: $key) { asked emailed }
+  }`,
+
+  StartFileUpload: `mutation StartFileUpload($personId: ID, $field: String!, $name: String!, $size: Int!) {
+    startFileUpload(personId: $personId, key: $field, name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  CompleteFileUpload: `mutation CompleteFileUpload($personId: ID, $field: String!, $uploadId: ID!, $key: String!) {
+    completeFileUpload(personId: $personId, key: $field, uploadId: $uploadId, idempotencyKey: $key) { id name mediaType size }
   }`,
 
   RemovePhoto: `mutation RemovePhoto($personId: ID, $key: String!) {

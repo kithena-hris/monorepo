@@ -1,7 +1,14 @@
 import {
   Avatar,
+  AvatarUploader,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  type UploadedImage,
   icons,
   Nav,
   NavItem,
@@ -11,9 +18,10 @@ import {
   Split,
   Stack,
 } from '@reach/ui';
-import type { JSX, ReactNode } from 'react';
+import { useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
+import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
 import { MissingMark } from '../record/missing';
 
 /**
@@ -89,10 +97,35 @@ export interface PeopleHomeState {
     readonly ownedBy: string | null;
   }[];
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
+  /**
+   * What signing up still asks of them: a photo, and image or document fields
+   * collected at sign-up. Absent or null when nothing is left.
+   */
+  readonly setup?: {
+    readonly photo: 'optional' | 'required' | null;
+    readonly fields: readonly SetupField[];
+  } | null;
 }
+
+export interface SetupField {
+  readonly key: string;
+  readonly sectionKey: string;
+  readonly label: string;
+  readonly description: string | null;
+  readonly dataType: string;
+  readonly required: boolean;
+}
+
+export type PhotoOutcome =
+  | { readonly ok: true; readonly avatarUrl: string | null }
+  | { readonly ok: false; readonly message: string };
 
 export interface PeopleHomeProps {
   readonly load: Loadable<PeopleHomeState>;
+  /** Their own photo, uploaded by the shell. */
+  readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
+  /** A sign-up file: uploaded, then saved to the field, by the shell. */
+  readonly onSetupFile?: (field: SetupField, file: File) => Promise<UploadOutcome>;
 }
 
 /* ------------------------------------------------------------- words -- */
@@ -504,7 +537,138 @@ function ReportingLine({
 
 /* --------------------------------------------------------------- page -- */
 
-export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
+/**
+ * What signing up still asks of them, first on the first screen they land on
+ * (the sign-up page itself is identity's, and never holds a file): their
+ * photo when the company asks for one, and any image or document the company
+ * collects at sign-up. Each is kept as soon as it is chosen. What is optional
+ * can wait; the card goes once nothing is left.
+ */
+function Setup({
+  setup,
+  name,
+  onPhoto,
+  onSetupFile,
+}: {
+  readonly setup: NonNullable<PeopleHomeState['setup']>;
+  readonly name: string;
+  readonly onPhoto: PeopleHomeProps['onPhoto'];
+  readonly onSetupFile: PeopleHomeProps['onSetupFile'];
+}): JSX.Element | null {
+  const [later, setLater] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoProblem, setPhotoProblem] = useState<string | null>(null);
+  const [picked, setPicked] = useState<readonly UploadedImage[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<ReadonlySet<string>>(new Set());
+  const required =
+    setup.photo === 'required' ||
+    setup.fields.some((f) => f.required && !done.has(f.key));
+  if (later && !required) return null;
+  const byKey = new Map(setup.fields.map((f) => [f.key, f]));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle level={2}>Finish setting up your account</CardTitle>
+        <CardDescription>
+          {required
+            ? 'Your company asks for these before anything else. Each is saved as soon as you choose it.'
+            : 'Your company would like these. Each is saved as soon as you choose it.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Stack gap={5}>
+          {setup.photo === null || onPhoto === undefined ? null : (
+            <AvatarUploader
+              label={setup.photo === 'required' ? 'Your photo (required)' : 'Your photo'}
+              hint={
+                busy
+                  ? 'Uploading…'
+                  : (photoProblem ?? 'A clear photo of your face, so colleagues know who you are.')
+              }
+              value={picked}
+              src={photo}
+              fallback={<Avatar size="xl" name={name} className="ring-0" />}
+              accept={['image/png', 'image/jpeg', 'image/webp']}
+              maxSize={20 * 1024 * 1024}
+              disabled={busy}
+              invalid={photoProblem !== null}
+              onReject={(rejections) => {
+                setPhotoProblem(rejections[0]?.message ?? 'That image was not accepted.');
+              }}
+              onChange={(next) => {
+                const file = next[0]?.file;
+                setPicked(next);
+                setPhotoProblem(null);
+                if (file === undefined) return;
+                setBusy(true);
+                void onPhoto(file).then((outcome) => {
+                  setBusy(false);
+                  if (outcome.ok) setPhoto(outcome.avatarUrl);
+                  else {
+                    setPhotoProblem(outcome.message);
+                    setPicked([]);
+                  }
+                });
+              }}
+            />
+          )}
+          {setup.fields.length === 0 || onSetupFile === undefined ? null : (
+            <FieldFiles.Provider
+              value={{
+                known: new Map(),
+                upload: (key, file) => {
+                  const field = byKey.get(key);
+                  if (field === undefined) {
+                    return Promise.resolve({ ok: false, message: 'No such field' });
+                  }
+                  return onSetupFile(field, file).then((outcome) => {
+                    if (outcome.ok) setDone((d) => new Set([...d, key]));
+                    return outcome;
+                  });
+                },
+              }}
+            >
+              {setup.fields.map((f) => (
+                <FileInput
+                  key={f.key}
+                  field={{
+                    key: f.key,
+                    label: f.label,
+                    description: f.description,
+                    dataType: f.dataType as 'image' | 'document_ref',
+                    options: [],
+                    required: f.required,
+                    readOnly: false,
+                  }}
+                  value={null}
+                  invalid={false}
+                  description={f.description ?? ''}
+                  onChange={() => undefined}
+                />
+              ))}
+            </FieldFiles.Provider>
+          )}
+          {required ? null : (
+            <div>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setLater(true);
+                }}
+              >
+                Later
+              </Button>
+            </div>
+          )}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX.Element {
   return (
     <Loaded load={load} what="your overview">
       {(state) => {
@@ -517,6 +681,14 @@ export function PeopleHome({ load }: PeopleHomeProps): JSX.Element {
         );
         return (
           <Stack gap={8}>
+            {me === null || state.setup == null ? null : (
+              <Setup
+                setup={state.setup}
+                name={me.name}
+                onPhoto={onPhoto}
+                onSetupFile={onSetupFile}
+              />
+            )}
             {me === null ? (
               <PageHeader
                 title="People"

@@ -398,6 +398,9 @@ const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').im
   fields: (t) => ({
     defaultTimeZone: t.exposeString('defaultTimeZone'),
     cohortMinimum: t.exposeInt('cohortMinimum'),
+    photoAtSignup: t.exposeString('photoAtSignup', {
+      description: 'off, optional or required: whether the first screen after signing up asks for a photo.',
+    }),
     slug: t.string({ nullable: true, resolve: (s) => s.slug }),
     displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
   }),
@@ -648,6 +651,7 @@ builder.mutationType({
       args: {
         defaultTimeZone: t.arg.string(),
         cohortMinimum: t.arg.int(),
+        photoAtSignup: t.arg.string({ description: 'off, optional or required.' }),
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, { idempotencyKey: key, ...patch }, ctx) =>

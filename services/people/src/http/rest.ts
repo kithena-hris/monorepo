@@ -385,6 +385,9 @@ export const ExportBody = z.object({
 export const SettingsBody = z.object({
   defaultTimeZone: z.string(),
   cohortMinimum: z.int().describe('Raisable, never lowerable; at least 10.'),
+  photoAtSignup: z
+    .enum(['off', 'optional', 'required'])
+    .describe('Whether the first screen after signing up asks for a photo.'),
   slug: z
     .string()
     .nullable()
@@ -395,6 +398,7 @@ export const SettingsBody = z.object({
 export const PatchSettingsBody = z.strictObject({
   defaultTimeZone: z.string().optional(),
   cohortMinimum: z.int().optional(),
+  photoAtSignup: z.enum(['off', 'optional', 'required']).optional(),
 });
 
 export const LegalEntityBody = z.object({

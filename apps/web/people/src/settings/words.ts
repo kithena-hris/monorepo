@@ -74,8 +74,8 @@ export const DATA_TYPE_HINT: Record<DataType, string> = {
   org_unit_ref: 'A team or department in your organisation.',
   legal_entity_ref: 'One of your legal entities.',
   location_ref: 'One of your work locations.',
-  document_ref: 'A file, uploaded on the profile. A signed contract.',
-  image: 'A picture, uploaded on the profile.',
+  document_ref: 'A PDF or a scan, uploaded: a signed contract, a certificate.',
+  image: 'A picture, uploaded: a PNG or a JPEG, shown on the profile.',
 };
 
 /** The type picker's groups, so 29 types read as eight short lists. */

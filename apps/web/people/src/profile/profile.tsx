@@ -37,6 +37,7 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue, longDate } from '../record/display';
+import { FieldFiles, type FileInfo, type UploadOutcome } from '../record/files';
 import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
 import { MissingMark } from '../record/missing';
 import { PendingNote, SensitiveMark } from '../record/pending';
@@ -97,6 +98,8 @@ export interface ProfileState {
   readonly pending?: readonly PendingValue[];
   /** Empty fields somebody asked this person to fill in, and who asked. */
   readonly requests?: readonly DetailRequest[];
+  /** What each image or document value is: its name and type. */
+  readonly files?: readonly FileInfo[];
 }
 
 export interface DetailRequest {
@@ -145,6 +148,8 @@ export interface ProfileProps {
    * one's own profile; offered beside a field only where People says it may be.
    */
   readonly onRequest?: (keys: readonly string[]) => Promise<Outcome>;
+  /** Keep a file for an image or document field; saving the field points the record at it. */
+  readonly onUploadFile?: (key: string, file: File) => Promise<UploadOutcome>;
 }
 
 export type PhotoOutcome =
@@ -176,26 +181,34 @@ export function Profile({
   onPhoto,
   focusField,
   onRequest,
+  onUploadFile,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
       <Loaded load={load} what="this profile">
         {(state) => (
-          <Record
-            state={state}
-            onPhoto={onPhoto}
-            focusField={focusField}
-            onSave={onSave}
-            onCheck={onCheck}
-            onMove={onMove}
-            onPlace={onPlace}
-            onHistory={onHistory}
-            onWithdraw={onWithdraw}
-            onSelfApprove={onSelfApprove}
-            onApprovals={onApprovals}
-            onDownloadRecord={onDownloadRecord}
-            onRequest={onRequest}
-          />
+          <FieldFiles.Provider
+            value={{
+              upload: onUploadFile ?? null,
+              known: new Map((state.files ?? []).map((f) => [f.id, f])),
+            }}
+          >
+            <Record
+              state={state}
+              onPhoto={onPhoto}
+              focusField={focusField}
+              onSave={onSave}
+              onCheck={onCheck}
+              onMove={onMove}
+              onPlace={onPlace}
+              onHistory={onHistory}
+              onWithdraw={onWithdraw}
+              onSelfApprove={onSelfApprove}
+              onApprovals={onApprovals}
+              onDownloadRecord={onDownloadRecord}
+              onRequest={onRequest}
+            />
+          </FieldFiles.Provider>
         )}
       </Loaded>
     </PeopleSearch.Provider>
@@ -274,7 +287,9 @@ function Record({
   const askable =
     onRequest === undefined
       ? []
-      : sections.flatMap((s) => s.fields).filter((f) => f.askable === true && isMissing(values[f.key]));
+      : sections
+          .flatMap((s) => s.fields)
+          .filter((f) => f.askable === true && isMissing(values[f.key]));
   const firstName = person.name.split(' ')[0] ?? person.name;
   const status = state.employment?.status ?? null;
   const [moving, setMoving] = useState<MoveKind | null>(null);
@@ -311,9 +326,7 @@ function Record({
             }
             actions={
               <RecordActions
-                moves={
-                  onMove === undefined || !state.calendar ? [] : offeredMoves(status)
-                }
+                moves={onMove === undefined || !state.calendar ? [] : offeredMoves(status)}
                 onMove={setMoving}
                 firstMissing={gaps[0] ?? null}
                 onFirstMissing={(key) => {
@@ -482,7 +495,8 @@ function Record({
                       const waiting = new Set(outcome.held ?? []);
                       const applied = Object.fromEntries(
                         Object.entries(changed).filter(
-                          ([k]) => !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
+                          ([k]) =>
+                            !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
                         ),
                       );
                       setValues((v) => ({ ...v, ...applied }));
@@ -524,8 +538,7 @@ function Record({
                                   Add
                                 </Button>
                               )}
-                              {onRequest !== undefined &&
-                              field.askable === true ? (
+                              {onRequest !== undefined && field.askable === true ? (
                                 <AskButton
                                   field={field.label}
                                   keyName={field.key}
@@ -615,7 +628,9 @@ function AskButton({
           aria-label={label}
           loading={busy}
           loadingLabel={`Asking ${firstName}`}
-          startIcon={sent || asked !== null ? <icons.success aria-hidden /> : <icons.send aria-hidden />}
+          startIcon={
+            sent || asked !== null ? <icons.success aria-hidden /> : <icons.send aria-hidden />
+          }
           onClick={() => {
             setBusy(true);
             setProblem(null);
@@ -664,23 +679,21 @@ function RecordActions({
   // otherwise hand focus back to its trigger as it closes.
   const moved = useRef(false);
   const record = [
-    firstMissing === null
-      ? null
-      : (
-          <DropdownMenuItem
-            key="missing"
-            onSelect={() => {
-              moved.current = true;
-              // After the menu has closed and let go of focus.
-              setTimeout(() => {
-                onFirstMissing(firstMissing.key);
-              }, 0);
-            }}
-          >
-            <icons.missing aria-hidden />
-            {firstMissing.readOnly ? 'Show missing details' : 'Fill in missing details'}
-          </DropdownMenuItem>
-        ),
+    firstMissing === null ? null : (
+      <DropdownMenuItem
+        key="missing"
+        onSelect={() => {
+          moved.current = true;
+          // After the menu has closed and let go of focus.
+          setTimeout(() => {
+            onFirstMissing(firstMissing.key);
+          }, 0);
+        }}
+      >
+        <icons.missing aria-hidden />
+        {firstMissing.readOnly ? 'Show missing details' : 'Fill in missing details'}
+      </DropdownMenuItem>
+    ),
     askFor === null ? null : (
       <DropdownMenuItem key="ask" onSelect={askFor.run}>
         <icons.send aria-hidden />

@@ -93,7 +93,7 @@ export async function PeopleArea({
               ? [{ href: '/settings', label: 'Settings' }]
               : [
                   { href: '/settings', label: 'Settings' },
-                  { href: '/settings/people', label: 'People' },
+                  { href: '/settings', label: 'People' },
                 ],
           actions: [],
           // The breadcrumb's last crumb lists the other settings.
