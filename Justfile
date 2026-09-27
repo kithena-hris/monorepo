@@ -6,7 +6,8 @@ default:
 # Boot infrastructure, migrate, seed, and start everything.
 #
 # The seed is identity's then People's (`pnpm db:seed`): Acme, Ada invited and
-# named People's administrator, version 1 published and sample employees.
+# named People's administrator, version 1 published and sample employees, with
+# a reporting line, job titles and sample photos.
 # Identity's events are piped into People's seed, standing where the topic
 # would; see `services/people/src/seed-local.ts`.
 dev:
@@ -15,8 +16,9 @@ dev:
     # The seeds import workspace packages through their built `dist/`, which a
     # fresh clone does not have and an old checkout has stale.
     pnpm turbo run build --filter='./packages/*' --output-logs=errors-only
-    pnpm db:seed
+    # The bucket first: the seed uploads its sample photos into it.
     pnpm --filter @kithena/people upload-bucket
+    pnpm db:seed
     pnpm turbo run dev --parallel --env-mode=loose --concurrency=20
 
 up:

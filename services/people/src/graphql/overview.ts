@@ -35,7 +35,6 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       phone: t.exposeString('phone', { nullable: true }),
       location: t.exposeString('location', { nullable: true }),
       timeZone: t.exposeString('timeZone'),
-      now: t.exposeString('now', { description: 'When the page was drawn: their local time.' }),
       startedOn: t.exposeString('startedOn', { nullable: true }),
       today: t.exposeString('today', { description: 'Today on their calendar.' }),
       status: t.exposeString('status', { nullable: true }),
@@ -117,6 +116,9 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     description: 'Where People starts: the viewer, their reporting line, and what waits for them.',
     fields: (t) => ({
       roles: t.field({ type: Roles, resolve: (o) => o.roles }),
+      now: t.exposeString('now', {
+        description: 'When the page was drawn: what a local time and an age are read against.',
+      }),
       me: t.field({ type: MeRef, nullable: true, resolve: (o) => o.me }),
       reportingLine: t.field({ type: LineRef, nullable: true, resolve: (o) => o.reportingLine }),
       approvals: t.field({ type: ApprovalsRef, nullable: true, resolve: (o) => o.approvals }),

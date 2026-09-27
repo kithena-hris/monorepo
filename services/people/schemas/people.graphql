@@ -1391,6 +1391,10 @@ type PeopleOverview {
   approvals: PeopleOverviewApprovals
   me: PeopleOverviewMe
   missing: [PeopleOverviewMissing!]
+  """
+  When the page was drawn: what a local time and an age are read against.
+  """
+  now: String
   reportingLine: PeopleReportingLine
   roles: PeopleOverviewRoles
   team: PeopleOverviewTeam
@@ -1421,8 +1425,6 @@ type PeopleOverviewMe {
   location: String
   missing: Int
   name: String
-  """When the page was drawn: their local time."""
-  now: String
   phone: String
   required: Int
   startedOn: String

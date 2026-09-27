@@ -6,6 +6,7 @@ import postgres from 'postgres';
 import { logger } from '@kithena/telemetry';
 
 import { wirePeople } from './http/server.js';
+import { samplePhoto } from './seed-photos.js';
 import { consumerFrom } from './infrastructure/consumers/wire.js';
 import { tenantTransaction } from './infrastructure/unit-of-work.js';
 
@@ -140,7 +141,7 @@ await new Promise<void>((resolve) => {
 const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
 
 async function asAdmin(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PATCH',
   path: string,
   body?: unknown,
 ): Promise<{ status: number; body: unknown }> {
@@ -221,6 +222,177 @@ for (const person of SAMPLE) {
   added += 1;
 }
 logger.info({ added }, 'sample employees added');
+
+/* ----------------------------------------- what the overview draws -- */
+
+// A handful of the fields a company adds on its first day, through the
+// registry and a publish, as an administrator adds them: a job title and a
+// department to say what somebody does, a work phone, the start date, and one
+// detail each employee is asked for themselves, so there is something missing.
+const everyone = ['self', 'manager', 'manager_chain', 'hr', 'directory'];
+const FIELDS = [
+  { key: 'job_title', sectionKey: 'employment', label: 'Job title', dataType: 'text' },
+  {
+    key: 'department',
+    sectionKey: 'employment',
+    label: 'Department',
+    dataType: 'select',
+    options: ['Leadership', 'Engineering', 'Research', 'People'],
+  },
+  {
+    key: 'work_phone',
+    sectionKey: 'employment',
+    label: 'Work phone',
+    dataType: 'phone',
+    ownership: ['employee', 'hr'],
+    collectAt: 'onboarding',
+    piiKind: 'contact',
+  },
+  {
+    key: 'hire_date',
+    sectionKey: 'employment',
+    label: 'Start date',
+    dataType: 'date',
+    visibility: ['self', 'manager', 'hr'],
+  },
+  {
+    key: 'emergency_contact',
+    sectionKey: 'personal',
+    label: 'Emergency contact',
+    dataType: 'text',
+    visibility: ['self', 'hr'],
+    ownership: ['employee', 'hr'],
+    collectAt: 'onboarding',
+    requiredness: 'always',
+    classification: 'confidential',
+    piiKind: 'contact',
+  },
+] as const;
+const registry = (await asAdmin('GET', '/v1/views/registry')).body as {
+  fields?: { key: string }[];
+} | null;
+const known = new Set((registry?.fields ?? []).map((f) => f.key));
+let fields = 0;
+for (const f of FIELDS) {
+  if (known.has(f.key)) continue;
+  // eslint-disable-next-line no-await-in-loop -- a handful, in order
+  const saved = await asAdmin('POST', '/v1/schema/draft/attributes', {
+    input: {
+      key: f.key,
+      sectionKey: f.sectionKey,
+      label: f.label,
+      description: null,
+      dataType: f.dataType,
+      options: 'options' in f ? f.options : [],
+      requiredness: 'requiredness' in f ? f.requiredness : 'never',
+      requiredWhen: null,
+      ownership: 'ownership' in f ? f.ownership : ['hr'],
+      collectAt: 'collectAt' in f ? f.collectAt : 'hr_only',
+      visibility: 'visibility' in f ? f.visibility : everyone,
+      visibilityRules: [],
+      classification: 'classification' in f ? f.classification : 'internal',
+      piiKind: 'piiKind' in f ? f.piiKind : 'none',
+      classificationSource: 'human',
+      requiresApproval: null,
+    },
+    editing: null,
+  });
+  if (saved.status >= 300) {
+    logger.warn({ key: f.key, answer: saved.body }, 'sample field not added');
+    continue;
+  }
+  fields += 1;
+}
+if (fields > 0) {
+  const today = new Date().toISOString().slice(0, 10);
+  const next = await asAdmin('POST', '/v1/schema/draft/publish', { requiredFrom: today });
+  logger.info({ fields, answer: next.body }, 'sample fields published');
+}
+
+// Who reports to whom, and what each does: the reporting line the overview
+// draws. Ada, People's administrator, reports to Grace. Set once: a record
+// that already has a manager is left as it is.
+const LINE: Readonly<Record<string, { manager: string | null; title: string; department: string }>> = {
+  'grace.hopper': { manager: null, title: 'Chief Executive', department: 'leadership' },
+  'alan.turing': { manager: 'grace.hopper', title: 'VP Engineering', department: 'engineering' },
+  'katherine.johnson': { manager: 'grace.hopper', title: 'Head of Research', department: 'research' },
+  'tim.berners-lee': { manager: 'alan.turing', title: 'Staff Engineer', department: 'engineering' },
+  'margaret.hamilton': { manager: 'alan.turing', title: 'Engineering Manager', department: 'engineering' },
+  'edsger.dijkstra': { manager: 'margaret.hamilton', title: 'Engineer', department: 'engineering' },
+  'barbara.liskov': { manager: 'margaret.hamilton', title: 'Engineer', department: 'engineering' },
+  'donald.knuth': { manager: 'katherine.johnson', title: 'Researcher', department: 'research' },
+};
+const rows = await owner<{ id: string; email: string | null; account: string | null; manager: string | null }[]>`
+  SELECT id, lower(work_email) AS email, identity_account_id AS account, manager_id AS manager
+    FROM people.person WHERE tenant_id = ${tenantId}`;
+const byHandle = new Map(
+  rows.flatMap((r) => (r.email === null ? [] : [[r.email.split('@')[0] ?? '', r] as const])),
+);
+const ada = rows.find((r) => r.account === admin.account_id);
+const placed: [string, { manager: string | null; title: string; department: string }][] = [
+  ...Object.entries(LINE),
+  ...(ada === undefined
+    ? []
+    : [[`@${ada.id}`, { manager: 'grace.hopper', title: 'Head of People', department: 'people' }] as [string, { manager: string | null; title: string; department: string }]]),
+];
+let lined = 0;
+for (const [handle, line] of placed) {
+  const row = handle.startsWith('@') ? ada : byHandle.get(handle);
+  if (row === undefined || row.manager !== null) continue;
+  const manager = line.manager === null ? null : (byHandle.get(line.manager)?.id ?? null);
+  // eslint-disable-next-line no-await-in-loop -- a handful, in order
+  const patched = await asAdmin('PATCH', `/v1/people/${row.id}`, {
+    attributes: {
+      ...(manager === null ? {} : { manager_id: manager }),
+      job_title: line.title,
+      department: line.department,
+    },
+  });
+  if (patched.status >= 300) logger.warn({ handle, answer: patched.body }, 'reporting line not set');
+  else lined += 1;
+}
+logger.info({ lined }, 'reporting lines and job titles set');
+
+// A photo for each sample employee, uploaded the way the profile uploads one:
+// a presigned PUT to the upload bucket, then People checks and keeps it. Ada
+// is left without one, to add her own. Skipped, with a warning, when there is
+// no upload bucket to put them in.
+const photographed = new Set(
+  (
+    await owner<{ person_id: string }[]>`
+      SELECT person_id FROM people.person_photo WHERE tenant_id = ${tenantId}`
+  ).map((r) => r.person_id),
+);
+let photos = 0;
+for (const [index, handle] of Object.keys(LINE).entries()) {
+  const row = byHandle.get(handle);
+  if (row === undefined || photographed.has(row.id)) continue;
+  const bytes = samplePhoto(index);
+  // eslint-disable-next-line no-await-in-loop -- a handful, in order
+  const started = await asAdmin('POST', '/v1/views/photos/uploads', {
+    personId: row.id,
+    size: bytes.byteLength,
+  });
+  if (started.status >= 300) {
+    logger.warn({ answer: started.body }, 'sample photos skipped: is the upload bucket there? (`pnpm --filter @kithena/people upload-bucket`)');
+    break;
+  }
+  const target = started.body as { uploadId: string; url: string; headers: Record<string, string> };
+  const { 'content-length': _length, ...signed } = target.headers;
+  // eslint-disable-next-line no-await-in-loop -- as above
+  const put = await fetch(target.url, { method: 'PUT', headers: signed, body: bytes as Uint8Array<ArrayBuffer> }).catch(() => null);
+  if (put === null || !put.ok) {
+    logger.warn({ status: put?.status }, 'sample photo not uploaded');
+    continue;
+  }
+  // eslint-disable-next-line no-await-in-loop -- as above
+  const kept = await asAdmin('POST', `/v1/views/photos/uploads/${target.uploadId}/complete`, {
+    personId: row.id,
+  });
+  if (kept.status >= 300) logger.warn({ handle, answer: kept.body }, 'sample photo not kept');
+  else photos += 1;
+}
+logger.info({ photos }, 'sample photos added');
 
 logger.info({ delivered: await relay() }, 'People’s own events delivered to People');
 

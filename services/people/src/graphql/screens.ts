@@ -2519,7 +2519,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: PhotoSaved,
       args: { personId: t.arg.id(), idempotencyKey: t.arg.string({ required: true }) },
       resolve: async (_root, args, ctx) => {
-        await viaRest<unknown>(ctx, 'POST', '/v1/views/photos/remove', {
+        await viaRest(ctx, 'POST', '/v1/views/photos/remove', {
           body: { personId: args.personId ?? null },
           key: args.idempotencyKey,
         });

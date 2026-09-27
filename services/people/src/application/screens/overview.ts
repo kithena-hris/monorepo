@@ -33,6 +33,8 @@ export interface OverviewPerson {
 export interface OverviewView {
   /** The viewer's tenant-wide roles: which of People's places the page offers. */
   readonly roles: { readonly hr: boolean; readonly admin: boolean; readonly finance: boolean };
+  /** When the page was drawn: what a local time and an age are read against. */
+  readonly now: string;
   /** The viewer's own record; null for an account nobody's record is linked to. */
   readonly me: {
     readonly id: string;
@@ -42,10 +44,9 @@ export interface OverviewView {
     readonly department: string | null;
     readonly email: string | null;
     readonly phone: string | null;
-    /** Where they work, and the instant the page was drawn, for their local time. */
+    /** Where they work, and their zone, for their local time. */
     readonly location: string | null;
     readonly timeZone: string;
-    readonly now: string;
     /** Their start date, when their record says it and they may read it. */
     readonly startedOn: string | null;
     /** Today on their calendar: what tenure is counted to. */
@@ -118,7 +119,15 @@ export async function overviewView(
     const record =
       personId === null ? null : await ownRecord(deps, tx, asking, personId, () => true);
     if (personId === null || record === null || !record.ok) {
-      return ok({ roles, me: null, reportingLine: null, approvals, missing: [], team });
+      return ok({
+        roles,
+        now: deps.clock.instant(),
+        me: null,
+        reportingLine: null,
+        approvals,
+        missing: [],
+        team,
+      });
     }
     const { view, sections } = record.value;
     const fields = sections.flatMap((s) => s.fields.map((f) => ({ ...f, section: s })));
@@ -137,6 +146,7 @@ export async function overviewView(
 
     return ok({
       roles,
+      now,
       me: {
         id: personId,
         name: nameOf(view.attributes) ?? at('work_email') ?? 'You',
@@ -147,7 +157,6 @@ export async function overviewView(
         phone: at('work_phone'),
         location: locationId === null ? null : (org.locations.get(locationId)?.name ?? null),
         timeZone: zone,
-        now,
         startedOn: at('hire_date'),
         today: localDate(now, zone),
         status: view.status ?? null,

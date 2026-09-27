@@ -156,7 +156,7 @@ function png(): Uint8Array {
   const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
   const chunk = (type: string, data: number[]) => [
     ...u32(data.length),
-    ...[...type].map((c) => c.charCodeAt(0)),
+    ...Buffer.from(type, 'latin1'),
     ...data,
     0,
     0,
@@ -166,7 +166,7 @@ function png(): Uint8Array {
   return new Uint8Array([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     ...chunk('IHDR', [...u32(512), ...u32(512), 8, 6, 0, 0, 0]),
-    ...chunk('tEXt', [...'Location 52.37N'].map((c) => c.charCodeAt(0))),
+    ...chunk('tEXt', Array.from(Buffer.from('Location 52.37N', 'latin1'))),
     ...chunk('IDAT', [9, 9, 9]),
     ...chunk('IEND', []),
   ]);
@@ -202,7 +202,9 @@ describe('a person’s photo, browser to bucket to People', () => {
     expect(saved.status).toBe(200);
     expect(saved.body['avatarUrl']).toMatch(new RegExp(`^/people/photos/${ADA}\\?v=[0-9a-f]{16}$`));
 
-    const [row] = await clients[0]!.unsafe<{ media_type: string; text: boolean }[]>(
+    const superuser = clients[0];
+    if (superuser === undefined) throw new Error('no database');
+    const [row] = await superuser.unsafe<{ media_type: string; text: boolean }[]>(
       `SELECT media_type, position('Location'::bytea in bytes) > 0 AS text
          FROM people.person_photo WHERE person_id = '${ADA}'`,
     );
@@ -239,10 +241,10 @@ describe('the overview, in one read', () => {
     const tim = await call('GET', '/v1/views/overview', as(TIM_ACCOUNT));
     expect(tim.status).toBe(200);
     expect(tim.body).toMatchObject({
-      me: { id: TIM, name: 'Tim Berners-Lee', avatarUrl: expect.stringContaining(TIM) },
+      me: { id: TIM, name: 'Tim Berners-Lee' },
       reportingLine: {
         managers: [
-          { id: ADA, name: 'Ada Lovelace', avatarUrl: expect.stringContaining(ADA) },
+          { id: ADA, name: 'Ada Lovelace' },
           { id: GRACE, name: 'Grace Hopper', avatarUrl: null },
         ],
         peers: 0,
@@ -252,6 +254,13 @@ describe('the overview, in one read', () => {
       approvals: null,
       team: null,
     });
+
+    const view = tim.body as {
+      me: { avatarUrl: string | null };
+      reportingLine: { managers: { avatarUrl: string | null }[] };
+    };
+    expect(view.me.avatarUrl).toContain(TIM);
+    expect(view.reportingLine.managers[0]?.avatarUrl).toContain(ADA);
 
     const ada = await call('GET', '/v1/views/overview', as(ADA_ACCOUNT));
     expect(ada.body).toMatchObject({

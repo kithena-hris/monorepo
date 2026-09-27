@@ -173,13 +173,23 @@ export async function onboardingView(
   });
 }
 
+/** A record as its screens draw it: the read, its sections, and what is missing of it. */
+export interface OwnRecord {
+  readonly view: PersonView;
+  readonly sections: RecordSection[];
+  readonly version: NonNullable<Awaited<ReturnType<ScreenDeps['service']['schemas']['current']>>>;
+  /** How many required values are missing; null when this viewer is not shown it. */
+  readonly missing: number | null;
+  readonly reviews: IdentifierReviewEntry[];
+}
+
 export async function ownRecord(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
   personId: string,
   include: (d: AttributeDefinition) => boolean,
-) {
+): Promise<Result<OwnRecord>> {
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
   const view = await deps.service.access.read(tx, { ...asking, personId });

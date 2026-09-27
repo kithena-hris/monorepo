@@ -222,8 +222,10 @@ describe('the overview', () => {
     const { missing, me } = await overview(w, w.as(ADA_ACCOUNT));
     expect(missing).toEqual([
       expect.objectContaining({ key: 'emergency_contact', ownedBy: null }),
-      expect.objectContaining({ key: 'cost_centre', ownedBy: expect.any(String) }),
+      expect.objectContaining({ key: 'cost_centre' }),
     ]);
+    // HR's to fill, so named as somebody else's.
+    expect(missing[1]?.ownedBy).not.toBeNull();
     expect(missing.map((m) => m.key)).not.toContain('right_to_work');
     expect(me?.missing).toBe(2);
   });
@@ -258,7 +260,7 @@ function png(): Uint8Array {
   const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
   const chunk = (type: string, data: number[]) => [
     ...u32(data.length),
-    ...[...type].map((c) => c.charCodeAt(0)),
+    ...Buffer.from(type, 'latin1'),
     ...data,
     0,
     0,
@@ -268,7 +270,7 @@ function png(): Uint8Array {
   return new Uint8Array([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     ...chunk('IHDR', [...u32(256), ...u32(256), 8, 6, 0, 0, 0]),
-    ...chunk('tEXt', [...'GPS 52N'].map((c) => c.charCodeAt(0))),
+    ...chunk('tEXt', Array.from(Buffer.from('GPS 52N', 'latin1'))),
     ...chunk('IDAT', [1, 2, 3]),
     ...chunk('IEND', []),
   ]);

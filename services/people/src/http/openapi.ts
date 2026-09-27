@@ -63,6 +63,8 @@ import {
   PayBandBody,
   ScheduleBody,
   UploadStart,
+  PhotoOf,
+  PhotoStart,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
@@ -135,6 +137,8 @@ const components = {
   CreateScimConnection: ScimConnectionBody,
   ScimMapping: ScimMappingBody,
   ImportUploadStart: UploadStart,
+  PhotoUploadStart: PhotoStart,
+  PhotoOf,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
   PayBand: PayBandBody,
@@ -459,6 +463,27 @@ function screenPaths(): Record<string, unknown> {
         'The mapping',
         { path: 'id', safe: true },
       ),
+    },
+    '/v1/views/photos/uploads': {
+      post: screenWrite(
+        'Start a photo’s upload (no personId: the viewer’s own; theirs or HR’s): a presigned PUT for exactly this many bytes',
+        'PhotoUploadStart',
+        200,
+        '{ uploadId, url, method, headers, expiresAt }: PUT the photo there with exactly these headers',
+        { safe: true },
+      ),
+    },
+    '/v1/views/photos/uploads/{id}/complete': {
+      post: screenWrite(
+        'The photo is uploaded: check it is a PNG or JPEG, keep it without its metadata',
+        'PhotoOf',
+        200,
+        '{ avatarUrl }',
+        { path: 'id' },
+      ),
+    },
+    '/v1/views/photos/remove': {
+      post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
     },
     '/v1/imports/dry-run': {
       post: screenWrite(

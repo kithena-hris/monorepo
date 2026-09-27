@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { mayChangePhoto, PHOTO_MAX_BYTES, readPhoto } from './photo.js';
 
-const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
+const ascii = (s: string) => Array.from(Buffer.from(s, 'latin1'));
 const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
 const u16 = (n: number) => [(n >>> 8) & 255, n & 255];
 
@@ -96,7 +96,7 @@ describe('readPhoto', () => {
     // Colour and the image itself stay.
     expect(has(kept, 'ICC_PROFILE')).toBe(true);
     expect(has(kept, 'JFIF')).toBe(true);
-    expect([...kept.slice(-9)]).toEqual([0x12, 0xff, 0x00, 0x34, 0xff, 0xd0, 0x56, 0xff, 0xd9]);
+    expect(Array.from(kept.slice(-9))).toEqual([0x12, 0xff, 0x00, 0x34, 0xff, 0xd0, 0x56, 0xff, 0xd9]);
   });
 
   it('drops a PNG’s text and EXIF chunks and keeps the image', () => {
