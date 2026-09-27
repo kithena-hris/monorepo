@@ -187,7 +187,7 @@ export function instructionFor(): string {
     '{"kind":"unclear","reply":"<one short sentence>"}  — anything else',
     'Ops: is, in, contains, before, after, between (two dates, either may be ""), empty, not_empty. Dates are YYYY-MM-DD.',
     'For a select field use the option value. Use only the keys given. Never invent a field.',
-    'Add "say" to any answer but unclear: one warm, natural sentence a helpful colleague would open with, in the asker’s language, e.g. "Sure! Here are the {n} people on Michael’s team." or "Happy to help, here’s what’s waiting for you."',
+    'Add "say" to any answer but unclear: one warm, natural sentence a helpful colleague would open with, in the asker’s language, written for this question. Vary it: most openings need no filler word at all, e.g. "Michael’s team has {n} people:", "Here’s how the {n} people split by department:", "Pam’s a good one to ask about."',
     'You have not seen the answer yet, so in "say" never state a number, a name you were not given, or any fact: write {n} where the count goes.',
     'For unclear, "reply" is a friendly sentence saying what you can help with.',
     'Earlier questions from the same conversation, if any, are in "earlier": use them to understand a follow-up such as "and in sales?".',

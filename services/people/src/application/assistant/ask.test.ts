@@ -152,6 +152,14 @@ describe('asking People in words', () => {
     expect(JSON.stringify(w.prompts)).toContain('"earlier":["Who is in sales?"]');
   });
 
+  it('never lets an opening without the count stand in for a count', async () => {
+    const w = world(() =>
+      JSON.stringify({ kind: 'count', conditions: [], say: 'Here’s the count for the company:' }),
+    );
+    const answered = await ask(w.deps, w.asking, 'How many people work here?');
+    expect(answered.ok && answered.value.text).toMatch(/^There (is|are) \d+ (person|people) across the company\.$/);
+  });
+
   it('says so rather than guessing when the model answers with something People cannot run', async () => {
     const w = world(
       () => '{"kind":"people","conditions":[{"key":"medical_notes","op":"is","values":["x"]}]}',

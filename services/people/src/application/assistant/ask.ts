@@ -159,8 +159,8 @@ function describe(
 }
 
 /** The model's opening with its count filled in, or People's own. */
-const opening = (intent: Intent, n: number, otherwise: string): string =>
-  intent.say === undefined ? otherwise : intent.say.replaceAll('{n}', String(n));
+const opening = (say: string | undefined, n: number, otherwise: string): string =>
+  say === undefined ? otherwise : say.replaceAll('{n}', String(n));
 
 /** One person by name, as the asker may find them; null when nobody or several match. */
 async function onePerson(
@@ -203,7 +203,7 @@ async function answer(
       const total = counted.ok ? counted.value.all : people.length;
       const what = describe(intent.conditions, catalogue, intent.match);
       const open = opening(
-        intent,
+        intent.say,
         total,
         `I found ${String(total)} ${plural(total, 'person', 'people')} ${what}.`,
       );
@@ -237,7 +237,8 @@ async function answer(
             n === 0
               ? `Nobody ${what} at the moment.`
               : opening(
-                  intent,
+                  // The count is the whole answer: an opening without it says nothing.
+                  intent.say?.includes('{n}') === true ? intent.say : undefined,
                   n,
                   `There ${plural(n, 'is', 'are')} ${String(n)} ${plural(n, 'person', 'people')} ${what}.`,
                 ),
@@ -268,7 +269,7 @@ async function answer(
         text:
           rows.length === 0
             ? `Nobody ${what} at the moment.`
-            : `${opening(intent, sum, `Here’s how the ${String(sum)} ${plural(sum, 'person', 'people')} ${what} split by ${group.label.toLowerCase()}:`)}\n${rows.join('\n')}`,
+            : `${opening(intent.say, sum, `Here’s how the ${String(sum)} ${plural(sum, 'person', 'people')} ${what} split by ${group.label.toLowerCase()}:`)}\n${rows.join('\n')}`,
         people: [],
         understood: `How many ${what}, by ${group.label.toLowerCase()}`,
         answered: true,
@@ -342,7 +343,7 @@ async function answer(
         text:
           people.length === 0
             ? `No one reports to ${manager.name} at the moment.`
-            : `${opening(intent, people.length, `${manager.name} has ${String(people.length)} direct ${plural(people.length, 'report', 'reports')}:`)}\n${listed(people)}`,
+            : `${opening(intent.say, people.length, `${manager.name} has ${String(people.length)} direct ${plural(people.length, 'report', 'reports')}:`)}\n${listed(people)}`,
         people,
         understood: `Who reports to ${manager.name}`,
         answered: true,
@@ -355,7 +356,7 @@ async function answer(
         text:
           items.length === 0
             ? 'You’re all caught up. Nothing is waiting for your approval.'
-            : `${opening(intent, items.length, `${String(items.length)} ${plural(items.length, 'change is', 'changes are')} waiting for your approval:`)}\n${items
+            : `${opening(intent.say, items.length, `${String(items.length)} ${plural(items.length, 'change is', 'changes are')} waiting for your approval:`)}\n${items
                 .slice(0, 10)
                 .map((i) => `• ${i.name} — ${i.label}`)
                 .join('\n')}`,
