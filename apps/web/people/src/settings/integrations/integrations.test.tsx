@@ -174,20 +174,4 @@ describe('Integrations', () => {
     expect(screen.getByText('No third-party tools connected')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
-
-  it('shows Kithena’s own modules as connected, apart from third-party tools', () => {
-    const { rerender } = render(
-      <Integrations {...props({ builtIn: ['Time off', 'Documents'] })} />,
-    );
-    const built = screen
-      .getByRole('heading', { name: 'Built into Kithena' })
-      .closest('section') as HTMLElement;
-    expect(within(built).getByText('Time off')).toBeInTheDocument();
-    expect(within(built).getAllByText('Connected')).toHaveLength(2);
-    expect(
-      screen.getByRole('heading', { name: 'Webhooks to third-party tools' }),
-    ).toBeInTheDocument();
-    rerender(<Integrations {...props()} />);
-    expect(screen.getByText(/connected here automatically/)).toBeInTheDocument();
-  });
 });

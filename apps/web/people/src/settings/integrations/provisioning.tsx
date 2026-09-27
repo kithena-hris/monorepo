@@ -95,8 +95,8 @@ export function Provisioning(props: ProvisioningProps): JSX.Element {
 
   return (
     <PageSection
-      title="Provisioning from a third-party tool (SCIM)"
-      description="Let Okta, Microsoft Entra or another HRIS create and update people here. The fields you map are kept in that tool and read-only here."
+      title="Provisioning from your identity provider (SCIM)"
+      description="If your company adds and removes people in Okta, Microsoft Entra or another HR system, connect it here and People follows it: somebody added there appears here, and somebody removed there loses access. The fields you map are kept in that tool and are read-only here."
       actions={
         <Button
           onClick={() => {
@@ -380,7 +380,9 @@ function Connect({
         <DialogHeader>
           <DialogTitle>Connect a system</DialogTitle>
           <DialogDescription>
-            The token is shown once, after this. Nothing is kept there until you map it.
+            You get an address and a token to paste into the tool’s SCIM or provisioning settings.
+            The token is shown once, after this. Nothing is kept in the tool until you map a field
+            to it.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -391,13 +393,15 @@ function Connect({
                 <Input
                   value={system}
                   maxLength={80}
+                  placeholder="Okta"
                   onChange={(e) => {
                     setSystem(e.target.value);
                   }}
                 />
               </FieldControl>
               <FieldDescription>
-                What your people know it as — Okta, Entra, Workday. A field kept there says so.
+                The name your people know it by, such as Okta, Microsoft Entra or Workday. A field
+                kept there says so on every profile.
               </FieldDescription>
             </Field>
             {refused === null ? null : (

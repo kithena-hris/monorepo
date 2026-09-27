@@ -278,7 +278,7 @@
       "owns": [
         "/settings/people/integrations/:id"
       ],
-      "description": "Third-party tools: webhooks to payroll, benefits or IT, and provisioning from Okta or Entra. Kithena modules are connected already.",
+      "description": "Tools outside Kithena: tell your payroll, benefits or IT tools about hires and leavers, and let Okta or Entra add and remove people.",
       "icon": "link"
     },
     {

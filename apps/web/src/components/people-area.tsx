@@ -157,7 +157,6 @@ export async function PeopleArea({
               search={search}
               today={today()}
               frame={frame}
-              modules={person.entitlements}
             />
           </div>
         </div>

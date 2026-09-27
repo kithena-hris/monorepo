@@ -23,8 +23,6 @@ type Outcome = { readonly ok: true } | { readonly ok: false; readonly message: s
 
 export interface PeopleScreenProps {
   readonly route: RemoteRoute | null;
-  /** The company's entitlements (`module.timeoff`…): which Kithena modules it has. */
-  readonly modules?: readonly string[];
   readonly load: ScreenLoad;
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
@@ -157,17 +155,6 @@ async function asUploadable(file: File): Promise<Blob | null> {
   }
 }
 
-/** Kithena's modules by entitlement, as the Integrations page names them; People is not its own integration. */
-const MODULE_NAMES: Readonly<Record<string, string>> = {
-  'module.timeoff': 'Time off',
-  'module.performance': 'Performance',
-  'module.documents': 'Documents',
-  'module.onboarding': 'Onboarding',
-  'module.compensation': 'Compensation',
-  'module.recruiting': 'Recruiting',
-  'module.reporting': 'Reporting',
-};
-
 /** Upload a file for an image or document field, and have People keep it. */
 async function uploadFile(
   personId: string | null,
@@ -207,7 +194,6 @@ export function PeopleScreen({
   search,
   today,
   frame,
-  modules = [],
 }: PeopleScreenProps): JSX.Element {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -538,11 +524,6 @@ export function PeopleScreen({
       case 'Integrations':
         return {
           load: loadable,
-          // Kithena's other modules, connected on the event stream already.
-          builtIn: modules.flatMap((m) => {
-            const name = MODULE_NAMES[m];
-            return name === undefined ? [] : [name];
-          }),
           onCreate: async (input: Parameters<typeof actions.createEndpoint>[0]) => {
             const made = await actions.createEndpoint(input);
             if (made.ok) refresh();
