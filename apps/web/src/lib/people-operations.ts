@@ -262,7 +262,7 @@ export const OPERATIONS = {
       fields { key label kind options { value label } }
       query { conditions { key op values } match sort { key direction } }
       filterable { key label options { value label } }
-      people { id name email avatarUrl values { key value } missing }
+      people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
       next
       can { import export bulkEdit }
     }

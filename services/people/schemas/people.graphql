@@ -397,7 +397,18 @@ type DirectoryPerson {
   id: ID
   missing: Int
   name: String
+  """
+  Each person column (a manager), to draw as a person: who, and their photo.
+  """
+  people: [DirectoryPersonRef!]
   values: [DirectoryCell!]
+}
+
+type DirectoryPersonRef {
+  avatarUrl: String
+  id: ID
+  key: String
+  name: String
 }
 
 """The conditions, match and order this page answers."""

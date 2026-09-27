@@ -166,6 +166,8 @@ export interface TableHeadProps extends Omit<ComponentPropsWithoutRef<'th'>, 'on
   onSort?: (direction: Exclude<SortDirection, null>) => void;
   /** Keeps the column visible while the rest of the table scrolls sideways. */
   sticky?: boolean;
+  /** A control on the header's edge, beside the sort button rather than in it: a column resizer. */
+  resizer?: ReactNode;
   children?: ReactNode;
 }
 
@@ -176,6 +178,7 @@ export function TableHead({
   sortDirection = null,
   onSort,
   sticky = false,
+  resizer,
   children,
   ...props
 }: TableHeadProps): JSX.Element {
@@ -199,6 +202,8 @@ export function TableHead({
         'h-10 px-3 text-left align-middle text-xs font-semibold text-fg-muted',
         numeric && 'text-right',
         sticky && 'sticky left-0 z-20 bg-surface-sunken',
+        resizer !== undefined && !sticky && 'relative',
+        resizer !== undefined && 'overflow-visible',
         className,
       )}
       {...props}
@@ -228,6 +233,7 @@ export function TableHead({
       ) : (
         children
       )}
+      {resizer}
     </th>
   );
 }

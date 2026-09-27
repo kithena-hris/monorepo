@@ -1048,6 +1048,13 @@ export interface DirectoryView {
     readonly email: string | null;
     readonly avatarUrl: string | null;
     readonly values: Readonly<Record<string, string>>;
+    /** Each person column (a manager): who, with their photo, to draw as a person. */
+    readonly people: readonly {
+      readonly key: string;
+      readonly id: string;
+      readonly name: string;
+      readonly avatarUrl: string | null;
+    }[];
     readonly missing: number | null;
   }[];
   /** The cursor for the page after this one; null on the last page. */
@@ -1254,12 +1261,11 @@ export async function directoryView(
       const name = read.ok ? nameOf(read.value.attributes) : null;
       if (name !== null) names.set(reportsTo, name);
     }
-    const avatars = await avatarsOf(
-      deps,
-      tx,
-      asking.tenantId,
-      page.map((p) => p.id),
-    );
+    const personColumns = columns.filter((c) => c.typeConfig.kind === 'person_ref');
+    const avatars = await avatarsOf(deps, tx, asking.tenantId, [
+      ...page.map((p) => p.id),
+      ...names.keys(),
+    ]);
     // HR's per-row count of what is missing, as the verdict counts it: only
     // fields HR may see on that person. One verdict per row, as the grid.
     const missing = new Map<string, number>();
@@ -1383,6 +1389,13 @@ export async function directoryView(
               return typeof shown === 'string' ? [[c.key, shown]] : [];
             }),
           )),
+          people: personColumns.flatMap((c) => {
+            const id = p.attributes[c.key];
+            const name = typeof id === 'string' ? names.get(id) : undefined;
+            return typeof id === 'string' && name !== undefined
+              ? [{ key: c.key, id, name, avatarUrl: avatars.get(id) ?? null }]
+              : [];
+          }),
           missing: missing.get(p.id) ?? null,
         };
       }),

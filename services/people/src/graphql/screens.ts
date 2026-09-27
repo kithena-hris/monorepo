@@ -715,9 +715,24 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         type: [Cell],
         resolve: (p) => Object.entries(p.values).map(([key, value]) => ({ key, value })),
       }),
+      people: t.field({
+        type: [DirectoryPersonRefRef],
+        description: 'Each person column (a manager), to draw as a person: who, and their photo.',
+        resolve: (p) => list(p.people),
+      }),
       missing: t.exposeInt('missing', { nullable: true }),
     }),
   });
+  const DirectoryPersonRefRef = builder
+    .objectRef<Listed['people'][number]>('DirectoryPersonRef')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        id: t.exposeID('id'),
+        name: t.exposeString('name'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      }),
+    });
   const DirectoryCan = builder.objectRef<Directory['can']>('DirectoryActions').implement({
     fields: (t) => ({
       import: t.exposeBoolean('import'),

@@ -181,7 +181,7 @@ export function BreadcrumbMenu({
         aria-current="page"
         aria-label={`${label}, ${menuLabel}`}
         className={cn(
-          'inline-flex max-w-full items-center gap-1 rounded-sm px-1 -mx-1 font-medium text-fg',
+          'relative tap-target inline-flex max-w-full items-center gap-1 rounded-sm px-1 -mx-1 font-medium text-fg',
           'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
           'data-[state=open]:bg-surface-hover',
         )}

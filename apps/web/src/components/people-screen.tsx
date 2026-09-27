@@ -365,6 +365,13 @@ export function PeopleScreen({
           onSortChange: (sort: { key: string; direction: 'asc' | 'desc' } | null) => {
             query({ sort: sort === null ? '' : `${sort.key}:${sort.direction}` });
           },
+          // Infinite scroll: the next page of the same query, appended in place.
+          ...(next === null
+            ? {}
+            : {
+                onLoadMore: (after: string) => actions.directoryPage(search, after),
+                next,
+              }),
           onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
             actions.saveSegment({ ...segment, filter: filters }),
           ),

@@ -2,6 +2,7 @@
 
 import { people, type PeopleAnswer } from '../../lib/people';
 import { VIEWS } from '../../lib/people-views';
+import { loadScreen } from '../../lib/people-screens';
 
 /**
  * What the People screens' buttons do: server actions, each one operation
@@ -845,4 +846,18 @@ export async function resumeReportSchedule(id: string): Promise<Outcome> {
 
 export async function deleteReportSchedule(id: string): Promise<Outcome> {
   return outcome(people('DeleteReportSchedule', { id }));
+}
+
+/**
+ * The directory's next page, for its infinite scroll: the same query the page
+ * was drawn with (search, filters, conditions, order), from `after`.
+ */
+export async function directoryPage(
+  search: Readonly<Record<string, string>>,
+  after: string,
+): Promise<{ readonly people: readonly unknown[]; readonly next: string | null } | null> {
+  const load = await loadScreen('Directory', { params: {}, search: { ...search, after } });
+  if (load.status !== 'ready') return null;
+  const data = load.data as { people?: readonly unknown[]; next?: string | null };
+  return { people: data.people ?? [], next: data.next ?? null };
 }

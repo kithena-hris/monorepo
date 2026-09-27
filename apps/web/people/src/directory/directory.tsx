@@ -78,6 +78,13 @@ export interface DirectoryPerson {
   readonly avatarUrl: string | null;
   /** Display text per column key. A key the viewer cannot read is absent. */
   readonly values: Readonly<Record<string, string>>;
+  /** Each person column (a manager): who, to draw as a person with their photo. */
+  readonly people?: readonly {
+    readonly key: string;
+    readonly id: string;
+    readonly name: string;
+    readonly avatarUrl: string | null;
+  }[];
   /** Missing required values, or null when this viewer is not shown completeness. */
   readonly missing: number | null;
 }
@@ -141,6 +148,15 @@ export interface DirectoryProps {
   readonly onImport?: () => void;
   /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
   readonly onBulkEdit?: (personIds: readonly string[]) => void;
+  /**
+   * The page after `after`, for infinite scroll: appended as the reader nears
+   * the end. With it, the table scrolls and there is no pager.
+   */
+  readonly onLoadMore?: (
+    after: string,
+  ) => Promise<{ readonly people: readonly unknown[]; readonly next: string | null } | null>;
+  /** The cursor for the page after the first. */
+  readonly next?: string | null;
   /** Present when People has a page after this one. */
   readonly onNextPage?: () => void;
   /** Present when this is not the first page. */
@@ -153,6 +169,66 @@ export interface DirectoryProps {
 const ANY = '__any';
 const PERSON = 'person';
 const COLUMNS_KEY = 'people.directory.columns';
+const WIDTHS_KEY = 'people.directory.widths';
+
+/** Column widths, remembered in this browser like the choice of columns. */
+function useWidths() {
+  const [widths, setWidths] = useState<Readonly<Record<string, number>>>({});
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(WIDTHS_KEY);
+      if (saved !== null) setWidths(JSON.parse(saved) as Record<string, number>);
+    } catch {
+      // No storage: the defaults stand.
+    }
+  }, []);
+  const choose = (next: Readonly<Record<string, number>>) => {
+    setWidths(next);
+    try {
+      window.localStorage.setItem(WIDTHS_KEY, JSON.stringify(next));
+    } catch {
+      // Remembered for this page only.
+    }
+  };
+  return { widths, choose };
+}
+
+/**
+ * The rows: the first page as the shell drew it, then each page after it as
+ * the reader scrolls. A new query is a new first page, and starts again.
+ */
+function useRows(
+  first: readonly DirectoryPerson[],
+  next: string | null,
+  onLoadMore: DirectoryProps['onLoadMore'],
+) {
+  const [more, setMore] = useState<{ people: DirectoryPerson[]; next: string | null }>({
+    people: [],
+    next,
+  });
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    setMore({ people: [], next });
+  }, [first, next]);
+  const loadMore =
+    onLoadMore === undefined || more.next === null
+      ? undefined
+      : () => {
+          if (loading || more.next === null) return;
+          const after = more.next;
+          setLoading(true);
+          void onLoadMore(after).then((page) => {
+            setLoading(false);
+            if (page === null) return;
+            setMore((m) =>
+              m.next !== after
+                ? m
+                : { people: [...m.people, ...(page.people as DirectoryPerson[])], next: page.next },
+            );
+          });
+        };
+  return { rows: [...first, ...more.people], loading, loadMore, done: more.next === null };
+}
 
 /**
  * "12 people · 9 active · 3 not started · 4 incomplete": everybody matched,
@@ -329,11 +405,15 @@ function Table({
   onBulkEdit,
   onNextPage,
   onFirstPage,
+  onLoadMore,
+  next = null,
   incomplete = false,
   onIncompleteChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const wide = useBreakpoint('md');
   const columnsChosen = useColumns(state.columns);
+  const widths = useWidths();
+  const loaded = useRows(state.people, next, onLoadMore);
   const fields = state.fields ?? [];
   const conditions = state.query?.conditions ?? [];
   const match = state.query?.match === 'any' ? 'any' : 'all';
@@ -365,6 +445,16 @@ function Table({
   }
 
   const cell = (p: DirectoryPerson, c: DirectoryColumn): ReactNode => {
+    // A manager is a person: their face and their full name.
+    const ref = p.people?.find((r) => r.key === c.key);
+    if (ref !== undefined) {
+      return (
+        <span className="flex min-w-0 items-center gap-2">
+          <Avatar size="xs" name={ref.name} src={ref.avatarUrl ?? undefined} />
+          <span className="truncate">{ref.name}</span>
+        </span>
+      );
+    }
     const value = p.values[c.key];
     if (value === undefined || value === '') return <span className="text-fg-subtle">—</span>;
     if (c.key === 'status') {
@@ -388,6 +478,7 @@ function Table({
     {
       id: PERSON,
       header: 'Name',
+      width: '17rem',
       sticky: true,
       sortBy: (p) => p.name,
       cell: (p) => (
@@ -418,6 +509,7 @@ function Table({
     columns.push({
       id: 'record',
       header: 'Record',
+      width: '9rem',
       cell: (p) =>
         p.missing === null ? null : p.missing === 0 ? (
           <Badge tone="success" size="sm">
@@ -548,7 +640,17 @@ function Table({
       {wide ? (
         <DataTable
           label="People"
-          rows={state.people}
+          rows={loaded.rows}
+          striped
+          resizable
+          columnWidths={widths.widths}
+          onColumnWidthsChange={widths.choose}
+          // Infinite: the table scrolls in a window of its own, the next page
+          // loads near the end, and past 100 rows only what is on screen is
+          // mounted (Reach's `auto`).
+          estimateRowHeight={57}
+          containerClassName="max-h-[calc(100dvh-16rem)] min-h-96"
+          {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
           columns={columns}
           rowId={(p) => p.id}
           describeRow={(p) => p.name}
@@ -596,13 +698,28 @@ function Table({
         />
       ) : (
         <Cards
-          state={state}
+          state={{ ...state, people: loaded.rows }}
           columns={shown.flatMap((k) => byKey.get(k) ?? [])}
           cell={cell}
           onOpen={onOpen}
         />
       )}
-      {onNextPage === undefined && onFirstPage === undefined ? null : (
+      {onLoadMore === undefined ? null : (
+        <p role="status" className="text-xs text-fg-muted">
+          {loaded.loading
+            ? 'Loading more people…'
+            : `Showing ${String(loaded.rows.length)} of ${String(state.total)}`}
+        </p>
+      )}
+      {!wide && loaded.loadMore !== undefined ? (
+        <div>
+          <Button loading={loaded.loading} loadingLabel="Loading more" onClick={loaded.loadMore}>
+            Show more people
+          </Button>
+        </div>
+      ) : null}
+      {onLoadMore !== undefined ||
+      (onNextPage === undefined && onFirstPage === undefined) ? null : (
         <nav aria-label="Pages of people" className="flex justify-end gap-2">
           {onFirstPage === undefined ? null : <Button onClick={onFirstPage}>First page</Button>}
           {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}

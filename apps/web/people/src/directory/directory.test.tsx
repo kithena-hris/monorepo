@@ -277,4 +277,45 @@ describe('Directory', () => {
     expect(onSaveSegment).toHaveBeenCalledWith({ name: 'ENG-204', shared: true });
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('draws a manager as a person, and loads the next page as the table nears its end', async () => {
+    const withManager: DirectoryState = {
+      ...state,
+      columns: [...state.columns, { key: 'manager_id', label: 'Manager' }],
+      people: state.people.map((p) => ({
+        ...p,
+        values: { ...p.values, manager_id: 'Grace Hopper' },
+        people: [{ key: 'manager_id', id: 'g', name: 'Grace Hopper', avatarUrl: null }],
+      })),
+    };
+    const onLoadMore = vi.fn(() =>
+      Promise.resolve({
+        people: [
+          {
+            id: 'k',
+            name: 'Katherine Johnson',
+            email: null,
+            avatarUrl: null,
+            values: {},
+            missing: 0,
+          },
+        ],
+        next: null,
+      }),
+    );
+    const { container } = render(
+      <Directory
+        {...props({ load: { status: 'ready', data: withManager }, onLoadMore, next: 'cursor-1' })}
+      />,
+    );
+    // jsdom measures nothing, so the first page never fills the table: it asks at once.
+    expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
+    expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
+    expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
+    expect(screen.getByText('Showing 3 of 420')).toBeInTheDocument();
+    // No pager beside an infinite table.
+    expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
+    expect(onLoadMore).toHaveBeenCalledOnce();
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });
