@@ -312,6 +312,21 @@ async function seedCompany(company: SeedCompany): Promise<void> {
     rows.flatMap((r) => (r.email === null ? [] : [[r.email.split('@')[0] ?? '', r] as const])),
   );
   const adminRow = rows.find((r) => r.account === admin.account_id);
+  // A choice is stored as its option's key ("human_resources"), which is what
+  // the registry makes of a label ("Human Resources").
+  const optionKey = (label: string): string =>
+    label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+  const choices = new Set(company.fields.filter((f) => f.dataType === 'select').map((f) => f.key));
+  const detailsOf = (details: Readonly<Record<string, string | number>> = {}) =>
+    Object.fromEntries(
+      Object.entries(details).map(([key, value]) => [
+        key,
+        choices.has(key) && typeof value === 'string' ? optionKey(value) : value,
+      ]),
+    );
   let lined = 0;
   for (const person of company.people) {
     const row = person.handle === company.admin.handle ? adminRow : byHandle.get(person.handle);
@@ -323,7 +338,7 @@ async function seedCompany(company: SeedCompany): Promise<void> {
       attributes: {
         ...(manager === null ? {} : { manager_id: manager }),
         job_title: person.title,
-        department: person.department,
+        department: optionKey(person.department),
         ...(row !== adminRow
           ? {}
           : {
@@ -332,7 +347,7 @@ async function seedCompany(company: SeedCompany): Promise<void> {
               ...(entity === undefined ? {} : { legal_entity_id: entity.id }),
               ...(location === undefined ? {} : { location_id: location }),
             }),
-        ...(person.details ?? {}),
+        ...detailsOf(person.details),
       },
     });
     if (patched.status >= 300)
