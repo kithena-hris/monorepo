@@ -309,7 +309,7 @@ function Record({
             title={person.name}
             description={person.summary ?? undefined}
             meta={
-              status === null && person.missing === null ? undefined : (
+              status === null && person.missing === null && !state.calendar ? undefined : (
                 <span className="flex flex-wrap items-center gap-2">
                   {status === null ? null : (
                     <Badge tone={status === 'active' ? 'success' : 'neutral'}>
@@ -321,6 +321,15 @@ function Record({
                   ) : (
                     <MissingMark count={gaps.length} size="md" />
                   )}
+                  {/* HR's: what day it is for them, on their own clock (PEO-119). */}
+                  {state.calendar ? (
+                    <span className="text-sm text-fg-muted">
+                      Their day{' '}
+                      <span className="text-fg" data-testid="their-day">
+                        {state.calendar.today} ({state.calendar.timeZone})
+                      </span>
+                    </span>
+                  ) : null}
                 </span>
               )
             }

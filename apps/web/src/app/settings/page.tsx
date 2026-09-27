@@ -11,6 +11,7 @@ import {
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { peopleFlyout } from '../../components/people-flyout';
 import { AppShell } from '../../components/app-shell';
 import { currentTenant } from '../../lib/branding';
 import { people } from '../../lib/people';
@@ -183,6 +184,7 @@ export default async function Settings(): Promise<JSX.Element> {
       companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
+      sections={await peopleFlyout(person.entitlements)}
     >
       <Stack gap={8}>
         <PageHeader

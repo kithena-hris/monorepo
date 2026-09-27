@@ -588,10 +588,10 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
 
-    // Reached from People's own navigation, not typed.
-    await page.goto(`${stack.shell}/people`);
-    await (await sections(page)).getByRole('link', { name: 'Organisation' }).click();
-    await page.waitForURL(/\/people\/settings\/organisation$/);
+    // Reached from Settings, not typed.
+    await page.goto(`${stack.shell}/settings`);
+    await page.getByRole('link', { name: /^Organisation/ }).click();
+    await page.waitForURL(/\/settings\/people\/organisation$/);
     await page.waitForLoadState('networkidle');
 
     await page.getByRole('tab', { name: 'Locations' }).click();
@@ -674,7 +674,9 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     await page.goto(`${stack.shell}/people/${ada.id}`);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: 'Terminate' }).click();
+    // A move is in the profile's Actions menu.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Terminate' }).click();
     const terminate = page.getByRole('dialog', { name: 'Terminate' });
     await terminate.getByRole('combobox', { name: /Reason/ }).click();
     await page.getByRole('option', { name: 'Dismissed' }).click();
@@ -687,7 +689,9 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     expect(ended).toHaveLength(1);
 
     // The page comes back from People with the leaver's move offered.
-    await page.getByRole('button', { name: 'Rehire' }).click();
+    // A move is in the profile's Actions menu.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Rehire' }).click();
     const rehire = page.getByRole('dialog', { name: 'Rehire' });
     await rehire.getByRole('button', { name: 'Rehire' }).click();
     // From the day after the last working day, which is still ahead: pre-hire.
@@ -695,10 +699,10 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     const periods = await stack.sql<{ period: number }[]>`
       SELECT period FROM people.employment_period WHERE person_id = ${ada.id} ORDER BY period`;
     expect(periods.map((p) => p.period)).toEqual([1, 2]);
-    await page
-      .getByRole('table', { name: 'Employment periods' })
-      .getByRole('cell', { name: '2', exact: true })
-      .waitFor({ timeout: 30_000 });
+    // Both periods, newest first, under their header row.
+    const table = page.getByRole('table', { name: 'Employment periods' });
+    await table.waitFor({ timeout: 30_000 });
+    await expect.poll(() => table.getByRole('row').count()).toBe(3);
     await context.close();
   });
 });
@@ -726,7 +730,9 @@ describe('Hiring somebody added without a start date', () => {
     expect(await statusOf('edith@acme.example')).toBe('provisional');
 
     // Placed nowhere yet: the hire asks where, and starts today.
-    await page.getByRole('button', { name: 'Hire' }).click();
+    // A move is in the profile's Actions menu.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Hire' }).click();
     const hire = page.getByRole('dialog', { name: 'Hire' });
     await hire.getByText(/Edith Clarke becomes an employee from/).waitFor();
     await hire.getByRole('combobox', { name: /Legal entity/ }).click();
@@ -1664,7 +1670,7 @@ describe('People overview: who you are here, what needs you, what is missing', (
     const input = page.getByRole('textbox', { name: /Emergency contact/ });
     await input.waitFor({ timeout: 30_000 });
     await expect.poll(() => input.evaluate((el) => el === document.activeElement)).toBe(true);
-    await page.getByText(/required details? missing/).first().waitFor();
+    await page.getByText(/^(\d+ missing|Missing)$/).first().waitFor();
     await shot(page, 'profile-missing-editing-desktop-light');
 
     // His photo: picked on his profile, shrunk, straight to storage, kept by People.
@@ -1731,7 +1737,7 @@ describe('People overview: who you are here, what needs you, what is missing', (
       const c = await signedIn(EMPLOYEE.session, { ...options, colorScheme: scheme });
       const p = await c.newPage();
       await p.goto(`${stack.shell}/people/me`);
-      await p.getByText(/required details? missing/).first().waitFor({ timeout: 30_000 });
+      await p.getByText(/^(\d+ missing|Missing)$/).first().waitFor({ timeout: 30_000 });
       await p.waitForLoadState('networkidle');
       await shot(p, name);
       await c.close();
