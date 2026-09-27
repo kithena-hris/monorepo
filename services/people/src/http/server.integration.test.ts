@@ -89,7 +89,7 @@ beforeAll(async () => {
     '20260926230100_people_identifier_review_held.sql',
     '20260924360000_people_import_upload.sql',
     '20260926160000_people_scim.sql',
-    '20260927160000_people_person_photo.sql',
+    '20260927161000_people_person_photo.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

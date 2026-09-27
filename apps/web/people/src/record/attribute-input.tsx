@@ -193,15 +193,17 @@ export function AttributeInput({
   const gap =
     field.missing === true && isMissing(value)
       ? field.readOnly
-        ? `Missing: ${field.ownedBy ?? 'HR'} fills this in.`
-        : 'Missing: this is required.'
+        ? `${field.ownedBy ?? 'HR'} fills this in.`
+        : 'Required, and not provided yet.'
       : null;
   const note = [gap, field.description, owner].filter((x) => x !== null).join(' ');
   // A caution about a value that was accepted (PEO-125) is read with the
   // field's own help, in the one description the control points at.
   const described =
     warning !== undefined || gap !== null ? (
-      <FieldDescription tone="warning">{[note, warning ?? ''].filter((x) => x !== '').join(' ')}</FieldDescription>
+      <FieldDescription tone="warning">
+        {[note, warning ?? ''].filter((x) => x !== '').join(' ')}
+      </FieldDescription>
     ) : note === '' ? null : (
       <FieldDescription>{note}</FieldDescription>
     );
@@ -230,18 +232,18 @@ export function AttributeInput({
     const allowed = new Set(field.options.map((o) => o.value));
     return (
       <div className="flex flex-col gap-1.5">
-      <SensitiveMark field={field} />
-      <TagsInput
-        label={field.required ? `${field.label} (required)` : field.label}
-        value={Array.isArray(value) ? (value as readonly string[]) : []}
-        disabled={disabled}
-        invalid={invalid}
-        hint={problem ?? field.description ?? undefined}
-        {...(field.dataType === 'multi_select'
-          ? { validate: (v: string) => (allowed.has(v) ? null : 'Not one of the options.') }
-          : {})}
-        onChange={onChange}
-      />
+        <SensitiveMark field={field} />
+        <TagsInput
+          label={field.required ? `${field.label} (required)` : field.label}
+          value={Array.isArray(value) ? (value as readonly string[]) : []}
+          disabled={disabled}
+          invalid={invalid}
+          hint={problem ?? field.description ?? undefined}
+          {...(field.dataType === 'multi_select'
+            ? { validate: (v: string) => (allowed.has(v) ? null : 'Not one of the options.') }
+            : {})}
+          onChange={onChange}
+        />
       </div>
     );
   }
@@ -254,6 +256,7 @@ export function AttributeInput({
         invalid={invalid}
         disabled={disabled}
         required={field.required}
+        missing={gap !== null}
         sensitive={field.sensitive === true}
       >
         <FieldLabel>{field.label}</FieldLabel>
@@ -266,8 +269,13 @@ export function AttributeInput({
     );
   } else if (field.dataType === 'person_ref') {
     return (
-      <Field invalid={invalid} disabled={disabled} required={field.required}
-        sensitive={field.sensitive === true}>
+      <Field
+        invalid={invalid}
+        disabled={disabled}
+        required={field.required}
+        missing={gap !== null}
+        sensitive={field.sensitive === true}
+      >
         <FieldLabel>{field.label}</FieldLabel>
         <FieldControl>
           <PersonPicker
@@ -284,8 +292,13 @@ export function AttributeInput({
     );
   } else if (PICKED.has(field.dataType)) {
     return (
-      <Field invalid={invalid} disabled={disabled} required={field.required}
-        sensitive={field.sensitive === true}>
+      <Field
+        invalid={invalid}
+        disabled={disabled}
+        required={field.required}
+        missing={gap !== null}
+        sensitive={field.sensitive === true}
+      >
         <FieldLabel>{field.label}</FieldLabel>
         <Select
           value={text(value)}
@@ -373,8 +386,13 @@ export function AttributeInput({
   }
 
   return (
-    <Field invalid={invalid} disabled={disabled} required={field.required}
-        sensitive={field.sensitive === true}>
+    <Field
+      invalid={invalid}
+      disabled={disabled}
+      required={field.required}
+      missing={gap !== null}
+      sensitive={field.sensitive === true}
+    >
       <FieldLabel>{field.label}</FieldLabel>
       <FieldControl>{control}</FieldControl>
       {described}

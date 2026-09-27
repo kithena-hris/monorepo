@@ -4,7 +4,7 @@ import type { PhotoStore, StoredPhoto } from '../application/screens/photo.js';
 
 /**
  * People's photos, over `people.person_photo`
- * (`migrations/20260927160000_people_person_photo.sql`). Every method runs in
+ * (`migrations/20260927161000_people_person_photo.sql`). Every method runs in
  * the caller's tenant transaction, under row-level security.
  */
 export function drizzlePhotos(): PhotoStore {

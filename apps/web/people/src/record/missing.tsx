@@ -1,4 +1,4 @@
-import { Badge, icons } from '@reach/ui';
+import { Badge } from '@reach/ui';
 import type { JSX } from 'react';
 
 /**
@@ -17,8 +17,7 @@ export function MissingMark({
   readonly size?: 'sm' | 'md';
 }): JSX.Element {
   return (
-    <Badge tone="warning" size={size}>
-      <icons.warning aria-hidden />
+    <Badge tone="attention" size={size}>
       {count === undefined ? 'Missing' : `${String(count)} missing`}
     </Badge>
   );

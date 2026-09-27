@@ -388,7 +388,8 @@ describe('Profile: what is missing', () => {
     );
     const input = screen.getByRole('textbox', { name: /Emergency contact/ });
     expect(input).toHaveFocus();
-    expect(input).toHaveAccessibleDescription(/Missing: this is required/);
+    expect(input).toHaveAccessibleName(/Emergency contact.*Missing/);
+    expect(input).toHaveAccessibleDescription(/Required, and not provided yet/);
   });
 
   it('fills in the first gap from the header', async () => {
