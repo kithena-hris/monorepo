@@ -19,6 +19,7 @@ import { drizzleReportIndex } from '../application/import/ledger.js';
 import { anonymiseDue } from '../application/retention/anonymise.js';
 import { sweepRetention } from '../application/retention/sweep.js';
 import { drizzleRetentionStore } from './drizzle-retention-store.js';
+import { drizzlePhotos } from './drizzle-photos.js';
 import { exportStoreFrom } from './export-queue.js';
 import { tenantRoles } from '../application/roles/roles.js';
 import { drizzleRoleStore } from './drizzle-role-store.js';
@@ -330,6 +331,7 @@ export async function startBackground(
       calendars: org,
       // The report store the server writes to, so an erasure deletes the reports holding them.
       reports: { store: exportStoreFrom(env), index: drizzleReportIndex() },
+      photos: drizzlePhotos(),
     }),
     clock: systemClock,
     newId: randomUUID,

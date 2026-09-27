@@ -155,7 +155,7 @@ describe('failures', () => {
 });
 
 describe('every mutation (PEO-113)', () => {
-  it('takes a required idempotencyKey, but the four that only compute, read or start an upload', () => {
+  it('takes a required idempotencyKey, but the five that only compute, read or start an upload', () => {
     const unkeyed = Object.values(schema.getMutationType()?.getFields() ?? {})
       .filter((field) => {
         const key = field.args.find((a) => a.name === 'idempotencyKey');
@@ -164,11 +164,13 @@ describe('every mutation (PEO-113)', () => {
       .map((field) => field.name);
     // revealIdentifier is an audited read (PEO-125): it changes nothing a retry could repeat.
     // An import's upload (§14.2): a retried start is a fresh upload, and completing checks.
+    // A photo's start likewise; completing one keeps it, so that is keyed.
     expect(unkeyed.toSorted()).toEqual([
       'completeImportUpload',
       'dryRunImport',
       'revealIdentifier',
       'startImportUpload',
+      'startPhotoUpload',
     ]);
   });
 

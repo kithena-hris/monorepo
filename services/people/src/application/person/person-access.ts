@@ -71,7 +71,7 @@ import {
   holds,
   type Holding,
 } from './pending-changes.js';
-import type { Asking, PersonCount, SealedValue } from './ports.js';
+import type { Asking, GapsIn, PersonCount, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
 import { countryOf, factsOf } from './subject.js';
@@ -220,14 +220,18 @@ export interface PersonAccess {
        * since who is missing what is itself a read.
        */
       readonly gaps?: readonly string[];
+      /** `any`: a gap anybody fills, the employee's too. Staff's alone by default. */
+      readonly gapsIn?: GapsIn;
     },
   ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>>;
-  /** How many people `list` would page through for the same `where` and `search`. */
+  /** How many people `list` would page through for the same `where`, `search` and `gaps`. */
   count(
     tx: Tx,
     asking: Asking & {
       readonly where?: Readonly<Record<string, string>>;
       readonly search?: string;
+      readonly gaps?: readonly string[];
+      readonly gapsIn?: GapsIn;
     },
   ): Promise<Result<PersonCount>>;
   update(
@@ -523,6 +527,9 @@ const orgOf = (values: Readonly<Record<string, unknown>>) => ({
   locationId: textOf(values['location_id']),
 });
 
+/** The one typed column a list may be narrowed by: whose reports. */
+export const REPORTS_TO = 'manager_id';
+
 /** An id no person has, for asking what the viewer may see tenant-wide. */
 const NOBODY = '00000000-0000-0000-0000-000000000000';
 
@@ -535,6 +542,10 @@ const NOBODY = '00000000-0000-0000-0000-000000000000';
  * through a tenant-wide relation, never one they hold to some people and not
  * others, and only when it lives in `custom`, which is what the index covers.
  * Encrypted values are never filterable: their plaintext is not in the row.
+ *
+ * One typed column is filterable too: `manager_id`, "who reports to", which
+ * the overview's direct reports and their "show all" read, and which
+ * `person_reports_idx` answers.
  */
 export function filterable(
   definitions: readonly AttributeDefinition[],
@@ -547,7 +558,7 @@ export function filterable(
     if (
       definition === undefined ||
       definition.encrypted ||
-      isCoreKey(key) ||
+      (isCoreKey(key) && key !== REPORTS_TO) ||
       LIFECYCLE_KEYS.has(key) ||
       !visibleTo(definition, everyone)
     ) {
@@ -2232,6 +2243,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         readonly where?: Readonly<Record<string, string>>;
         readonly search?: string;
         readonly gaps?: readonly string[];
+        readonly gapsIn?: GapsIn;
       },
     ): Promise<Result<{ items: readonly PersonView[]; next: string | null }>> {
       const version = await deps.schemas.current(tx, asking.tenantId);
@@ -2251,6 +2263,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         query.value.search,
         asking.gaps,
         everyone.isHr,
+        asking.gapsIn,
       );
       const related = await relationsToMany(
         deps.relations,
@@ -2276,12 +2289,17 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const everyone = await everyoneTo(tx, asking);
       const query = narrowing(tx, asking, version, everyone);
       if (!query.ok) return query;
+      if (asking.gaps !== undefined && !everyone.isHr) {
+        return err(failure('FORBIDDEN', 'Who is missing what is HR’s to count'));
+      }
       const counted = await deps.reader.count(
         tx,
         asking.tenantId,
         query.value.where,
         query.value.search,
         everyone.isHr,
+        asking.gaps,
+        asking.gapsIn,
       );
       // Statuses are HR's; outside HR everybody listed counts as active.
       return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all, notStarted: 0 });

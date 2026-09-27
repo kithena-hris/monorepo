@@ -110,6 +110,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description:
           'A change to it waits for HR approval (PEO-077); mark it wherever it is drawn.',
       }),
+      missing: t.exposeBoolean('missing', {
+        description:
+          'Required of this person and empty, as their completeness verdict says; only fields the viewer reads.',
+      }),
     }),
   });
 
@@ -395,6 +399,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       missing: t.exposeInt('missing', {
         nullable: true,
         description: 'Null when the viewer may not judge this record’s completeness.',
+      }),
+      canChangePhoto: t.exposeBoolean('canChangePhoto', {
+        description: 'The viewer may choose this photo: it is theirs, or they are HR.',
       }),
     }),
   });
@@ -1453,6 +1460,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       expiresAt: t.exposeString('expiresAt'),
     }),
   });
+  const PhotoSaved = builder
+    .objectRef<{ readonly avatarUrl: string | null }>('PeoplePhotoSaved')
+    .implement({
+      fields: (t) => ({ avatarUrl: t.exposeString('avatarUrl', { nullable: true }) }),
+    });
   const ImportStage = builder.unionType('ImportStage', {
     types: [MapStage, ReviewStage, DoneStage],
     resolveType: (s) =>
@@ -1624,12 +1636,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         filter: t.arg.string(),
         after: t.arg.id(),
         segment: t.arg.id(),
+        incomplete: t.arg.boolean({
+          description: 'Only people with a required detail missing; HR’s alone.',
+        }),
       },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.search) query.set('search', args.search);
         if (args.filter) query.set('filter', args.filter);
         if (args.segment) query.set('segment', args.segment);
+        if (args.incomplete === true) query.set('incomplete', 'true');
         if (args.after) query.set('after', args.after);
         const qs = query.toString();
         return viaRest<DirectoryView>(ctx, 'GET', `/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
@@ -2469,6 +2485,46 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         viaRest<ImportUploadView>(ctx, 'POST', '/v1/imports/uploads', {
           body: { name: args.name, size: args.size },
         }),
+    }),
+    startPhotoUpload: t.field({
+      type: UploadTarget,
+      description:
+        'Where to upload a person’s photo (no id: the viewer’s own), shrunk by the browser first: a presigned PUT. Theirs or HR’s.',
+      args: {
+        personId: t.arg.id(),
+        size: t.arg.int({ required: true, description: 'Bytes, exactly: the PUT is signed for this length.' }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ImportUploadView>(ctx, 'POST', '/v1/views/photos/uploads', {
+          body: { personId: args.personId ?? null, size: args.size },
+        }),
+    }),
+    completePhotoUpload: t.field({
+      type: PhotoSaved,
+      description: 'The photo is uploaded: check it is a photo, keep it without its metadata.',
+      args: {
+        personId: t.arg.id(),
+        uploadId: t.arg.id({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ avatarUrl: string | null }>(
+          ctx,
+          'POST',
+          `/v1/views/photos/uploads/${encodeURIComponent(args.uploadId)}/complete`,
+          { body: { personId: args.personId ?? null }, key: args.idempotencyKey },
+        ),
+    }),
+    removePhoto: t.field({
+      type: PhotoSaved,
+      args: { personId: t.arg.id(), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest<unknown>(ctx, 'POST', '/v1/views/photos/remove', {
+          body: { personId: args.personId ?? null },
+          key: args.idempotencyKey,
+        });
+        return { avatarUrl: null };
+      },
     }),
     completeImportUpload: t.field({
       type: ImportStage,

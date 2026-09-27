@@ -42,6 +42,9 @@ export interface PersonRecord {
   readonly sourceOfRecord?: 'own' | 'external';
 }
 
+/** Whose gaps a `gaps` narrowing reads: the ones staff fill, or anybody's. */
+export type GapsIn = 'staff' | 'any';
+
 /** A directory search: the text, and the core keys it may be matched against. */
 export interface PersonSearch {
   readonly text: string;
@@ -73,6 +76,9 @@ export interface PersonReader {
    *
    * `leavers` false leaves out anybody in a `LEAVERS` state: what a list is
    * to a viewer who may not read status (§6.3).
+   *
+   * `gapsIn` `any` matches a gap anybody fills, the employee's too: the
+   * directory's "has missing information" (HR's alone, as `gaps` is).
    */
   page(
     tx: PostgresJsDatabase,
@@ -83,15 +89,18 @@ export interface PersonReader {
     search?: PersonSearch,
     gaps?: readonly string[],
     leavers?: boolean,
+    gapsIn?: GapsIn,
   ): Promise<readonly PersonRecord[]>;
 
-  /** How many people `where` and `search` match, by status: the directory's summary. */
+  /** How many people `where` and `search` (and `gaps`) match, by status: the directory's summary. */
   count(
     tx: PostgresJsDatabase,
     tenantId: string,
     where?: Readonly<Record<string, string>>,
     search?: PersonSearch,
     leavers?: boolean,
+    gaps?: readonly string[],
+    gapsIn?: GapsIn,
   ): Promise<PersonCount>;
 
   /** Which person signs in as this account, if any: "my profile" starts here. */

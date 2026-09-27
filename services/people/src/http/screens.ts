@@ -50,6 +50,15 @@ import {
 } from '../application/screens/bulk-edit.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
+import { overviewView } from '../application/screens/overview.js';
+import {
+  avatarsOf,
+  completePhotoUpload,
+  photoView,
+  removePhoto,
+  startPhotoUpload,
+  type PhotoDeps,
+} from '../application/screens/photo.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 import {
@@ -201,6 +210,12 @@ export const ScimMappingBody = z.strictObject({
     .max(200),
 });
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
+/** Whose photo: a person, or null for the viewer's own. */
+export const PhotoOf = z.strictObject({ personId: z.uuid().nullable() });
+export const PhotoStart = z.strictObject({
+  personId: z.uuid().nullable(),
+  size: z.int().min(1),
+});
 export const UploadStart = z.strictObject({
   name: z.string().max(255),
   size: z.int().min(1),
@@ -384,11 +399,62 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     }
     return run(deps.service, asking.tenantId, (tx) => act(d, tx));
   };
+  // A photo's upload needs the bucket and the upload ledger, and nothing else of import's.
+  const photoDeps: PhotoDeps = { ...deps, newId: () => deps.commit.newId() };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
 
   return [
     /* people */
+    // Where People starts: the signed-in person, their line, what waits (overview).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/overview$/,
+      handle: async (asking) => answer(await overviewView(deps, asking)),
+    },
+    // A person's photo, to somebody who may read the person; base64 in JSON.
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/photos/${UUID}$`),
+      handle: async (asking, _r, params) =>
+        answer(await photoView(deps, asking, params['id'] ?? '')),
+    },
+    {
+      // Where to put a photo: a presigned PUT, as an import's file (§14.2).
+      // Unkeyed: a retry is a fresh upload, and the earlier one is let go.
+      method: 'POST',
+      pattern: /^\/v1\/views\/photos\/uploads$/,
+      safe: true,
+      handle: compute(PhotoStart, (asking, input) =>
+        startPhotoUpload(photoDeps, asking, input.personId, input.size),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/photos/uploads/${UUID}/complete$`),
+      handle: write(
+        PhotoOf,
+        (asking, input, uploadId) =>
+          completePhotoUpload(photoDeps, asking, input.personId, uploadId),
+        {
+          // A retry finds the upload let go; it is answered with the photo kept.
+          again: async (asking, _resource, input) => {
+            const answered = await run(deps.service, asking.tenantId, async (tx) => {
+              const id =
+                input.personId ?? (await deps.personOf(tx, asking.tenantId, asking.viewer.accountId));
+              const urls = await avatarsOf(deps, tx, asking.tenantId, id === null ? [] : [id]);
+              return ok({ avatarUrl: id === null ? null : (urls.get(id) ?? null) });
+            });
+            return answer(answered);
+          },
+        },
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/photos\/remove$/,
+      handle: write(PhotoOf, (asking, input) => removePhoto(photoDeps, asking, input.personId)),
+    },
     {
       method: 'GET',
       pattern: /^\/v1\/views\/onboarding$/,
@@ -516,6 +582,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
             filters: filterIn(filter),
             after: after ?? null,
             ...(segment === undefined ? {} : { segmentId: segment }),
+            ...(query.get('incomplete') === 'true' ? { incomplete: true } : {}),
           }),
         );
       },

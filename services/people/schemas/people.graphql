@@ -912,6 +912,10 @@ type Mutation {
   The file is uploaded: check it, then the proposed mapping. Changes nothing else.
   """
   completeImportUpload(uploadId: ID!): ImportStage
+  """
+  The photo is uploaded: check it is a photo, keep it without its metadata.
+  """
+  completePhotoUpload(idempotencyKey: String!, personId: ID, uploadId: ID!): PeoplePhotoSaved
   confirmSetupEntity(country: String!, idempotencyKey: String!, name: String!): WriteOutcome
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
@@ -1022,6 +1026,7 @@ type Mutation {
   Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.
   """
   rehirePerson(idempotencyKey: String!, legalEntityId: ID, overrideReason: String, personId: ID!, startDate: String!): Person
+  removePhoto(idempotencyKey: String!, personId: ID): PeoplePhotoSaved
   reorderDraftFields(idempotencyKey: String!, order: [String!]!, sectionKey: String!): WriteOutcome
   reorderDraftSections(idempotencyKey: String!, order: [String!]!): WriteOutcome
   replayWebhookDelivery(deliveryId: ID!, idempotencyKey: String!): WebhookReplay
@@ -1084,6 +1089,14 @@ type Mutation {
   ): ImportUploadTarget
   """An active person goes on leave from today, on their calendar; HR only."""
   startLeave(idempotencyKey: String!, personId: ID!): Person
+  """
+  Where to upload a person’s photo (no id: the viewer’s own), shrunk by the browser first: a presigned PUT. Theirs or HR’s.
+  """
+  startPhotoUpload(
+    personId: ID
+    """Bytes, exactly: the PUT is signed for this length."""
+    size: Int!
+  ): ImportUploadTarget
   """End the employment once its last working day has come; HR only."""
   terminatePerson(
     eligibleForRehire: Boolean
@@ -1371,6 +1384,94 @@ type PeopleOrganisation {
   upcomingErasures: [UpcomingErasure!]
 }
 
+"""
+Where People starts: the viewer, their reporting line, and what waits for them.
+"""
+type PeopleOverview {
+  approvals: PeopleOverviewApprovals
+  me: PeopleOverviewMe
+  missing: [PeopleOverviewMissing!]
+  reportingLine: PeopleReportingLine
+  roles: PeopleOverviewRoles
+  team: PeopleOverviewTeam
+}
+
+type PeopleOverviewApproval {
+  avatarUrl: String
+  id: ID
+  label: String
+  name: String
+  personId: ID
+  requestedAt: String
+  requestedBy: String
+}
+
+type PeopleOverviewApprovals {
+  isHr: Boolean
+  items: [PeopleOverviewApproval!]
+  total: Int
+}
+
+"""The viewer’s own record, as they may read it."""
+type PeopleOverviewMe {
+  avatarUrl: String
+  department: String
+  email: String
+  id: ID
+  location: String
+  missing: Int
+  name: String
+  """When the page was drawn: their local time."""
+  now: String
+  phone: String
+  required: Int
+  startedOn: String
+  status: String
+  timeZone: String
+  title: String
+  """Today on their calendar."""
+  today: String
+}
+
+type PeopleOverviewMissing {
+  key: String
+  label: String
+  """Who fills it in; null when the viewer does."""
+  ownedBy: String
+  section: String
+  sectionKey: String
+}
+
+type PeopleOverviewPerson {
+  avatarUrl: String
+  id: ID
+  name: String
+  title: String
+}
+
+type PeopleOverviewRoles {
+  admin: Boolean
+  finance: Boolean
+  hr: Boolean
+}
+
+type PeopleOverviewTeam {
+  toFill: Int
+  waiting: Int
+}
+
+"""A person’s photo, to somebody who may read the person."""
+type PeoplePhoto {
+  checksum: String
+  """The file, base64."""
+  data: String
+  mediaType: String
+}
+
+type PeoplePhotoSaved {
+  avatarUrl: String
+}
+
 """People to pick from, a keyset page at a time (PEO-122)."""
 type PeoplePicker {
   next: String
@@ -1421,6 +1522,17 @@ type PeopleReportSchedules {
   people: [ReportPersonChoice!]
   schedules: [ReportSchedule!]
   segments: [ReportSegmentChoice!]
+}
+
+type PeopleReportingLine {
+  """Nearest first."""
+  managers: [PeopleOverviewPerson!]
+  moreAbove: Boolean
+  peers: Int
+  reports: [PeopleOverviewPerson!]
+  """The directory filter for all of them."""
+  reportsFilter: String
+  reportsTotal: Int
 }
 
 type PeopleRoleSettings {
@@ -1569,6 +1681,8 @@ type ProfileEmploymentPeriod {
 
 type ProfilePerson {
   avatarUrl: String
+  """The viewer may choose this photo: it is theirs, or they are HR."""
+  canChangePhoto: Boolean
   """Null when the viewer may not judge this record’s completeness."""
   missing: Int
   name: String
@@ -1645,7 +1759,14 @@ type Query {
   peopleBulkHirePreview(hires: [BulkHireInput!]!): BulkEditResult
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
-  peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory
+  peopleDirectory(
+    after: ID
+    filter: String
+    """Only people with a required detail missing; HR’s alone."""
+    incomplete: Boolean
+    search: String
+    segment: ID
+  ): PeopleDirectory
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
@@ -1672,6 +1793,8 @@ type Query {
   peopleIntegrations: PeopleIntegrations
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
+  peopleOverview: PeopleOverview
+  peoplePhoto(personId: ID!): PeoplePhoto
   """People whose name matches, as this viewer may read them."""
   peoplePicker(after: ID, search: String): PeoplePicker
   """One person as the viewer may see them; no id is "my profile"."""
@@ -1709,6 +1832,10 @@ type RecordField {
   keptIn: String
   key: String
   label: String
+  """
+  Required of this person and empty, as their completeness verdict says; only fields the viewer reads.
+  """
+  missing: Boolean
   options: [FieldOption!]
   """Who changes a read-only field; null when the viewer does."""
   ownedBy: String

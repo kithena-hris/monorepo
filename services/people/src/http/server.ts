@@ -75,6 +75,7 @@ import {
 import type { UploadStore } from '../application/import/upload.js';
 import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
 import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
+import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -482,6 +483,7 @@ function screenDeps(
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
     segments: { store: drizzleSegments(), newId: uuidv7 },
+    photos: drizzlePhotos(),
     schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
