@@ -36,6 +36,12 @@ import {
   TableRow,
   icons,
   type IsoDate,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -51,6 +57,7 @@ import type {
 } from './model';
 import { FieldEditor } from './field-editor';
 import { PublishDialog } from './publish';
+import { SignupPreview } from './signup-preview';
 import {
   COLLECT_LABEL,
   DATA_TYPE_LABEL,
@@ -75,6 +82,8 @@ export interface FieldRegistryProps {
   readonly onSaveField: (input: FieldInput, editing: string | null) => Promise<Outcome>;
   readonly preview: (requiredFrom: IsoDate) => Promise<PublishPreview>;
   readonly onPublish: (requiredFrom: IsoDate) => Promise<Outcome>;
+  /** Put a field on the sign-up flow, optional or required, or take it off (a draft change). */
+  readonly onSignup?: (key: string, ask: 'off' | 'optional' | 'required') => Promise<Outcome>;
 }
 
 /**
@@ -116,7 +125,9 @@ function Registry({
   onSaveField,
   preview,
   onPublish,
+  onSignup,
 }: FieldRegistryProps & { readonly draft: RegistryDraft }): JSX.Element {
+  const [previewing, setPreviewing] = useState(false);
   // The order as the admin last left it, shown until the shell hands back a
   // draft that agrees — the list does not jump back while the save is in flight.
   const [sectionOrder, setSectionOrder] = useState<readonly string[] | null>(null);
@@ -166,17 +177,28 @@ function Registry({
         title="Employee fields"
         description={`${status} · ${pending}`}
         actions={
-          <Button
-            variant="primary"
-            disabled={draft.unpublishedChanges === 0}
-            onClick={() => {
-              setPublishing(true);
-            }}
-          >
-            Publish version {next}
-          </Button>
+          <>
+            <Button
+              startIcon={<icons.visible aria-hidden />}
+              onClick={() => {
+                setPreviewing(true);
+              }}
+            >
+              Preview sign-up
+            </Button>
+            <Button
+              variant="primary"
+              disabled={draft.unpublishedChanges === 0}
+              onClick={() => {
+                setPublishing(true);
+              }}
+            >
+              Publish version {next}
+            </Button>
+          </>
         }
       />
+      <SignupPreview fields={draft.fields} open={previewing} onOpenChange={setPreviewing} />
 
       {draft.unpublishedChanges === 0 ? null : (
         <Alert
@@ -265,6 +287,7 @@ function Registry({
                   Sections
                 </h2>
                 <SortableList
+                  moveButtons="on-focus"
                   label="Sections"
                   items={sections.map((s) => ({ ...s, id: s.key, locked: s.fixed }))}
                   itemLabel={(s) => s.label}
@@ -309,6 +332,7 @@ function Registry({
               <SectionFields
                 section={section}
                 fields={fields}
+                {...(onSignup === undefined ? {} : { onSignup })}
                 onEdit={(field) => {
                   setEditing({ field });
                 }}
@@ -360,12 +384,14 @@ function SectionFields({
   section,
   fields,
   onEdit,
+  onSignup,
   onAdd,
   onReorder,
 }: {
   readonly section: RegistrySection;
   readonly fields: readonly RegistryField[];
   readonly onEdit: (field: RegistryField) => void;
+  readonly onSignup?: FieldRegistryProps['onSignup'];
   readonly onAdd: () => void;
   readonly onReorder: (order: readonly string[]) => void;
 }): JSX.Element {
@@ -396,11 +422,15 @@ function SectionFields({
           />
         ) : (
           <SortableList
+            moveButtons="on-focus"
             label={`Fields in ${section.label}`}
             items={fields.map((f) => ({
               ...f,
               id: f.key,
-              locked: section.fixed || f.pending === 'archived',
+              locked:
+                section.fixed ||
+                f.pending === 'archived' ||
+                f.classification === 'special-category',
             }))}
             itemLabel={(f) => f.label}
             onReorder={({ order }) => {
@@ -410,8 +440,11 @@ function SectionFields({
             {(f) => (
               <FieldRow
                 field={f}
-                editable={!section.fixed && f.origin !== 'core'}
+                editable={
+                  !section.fixed && f.origin !== 'core' && f.classification !== 'special-category'
+                }
                 onEdit={onEdit}
+                {...(onSignup === undefined ? {} : { onSignup })}
               />
             )}
           </SortableList>
@@ -515,7 +548,9 @@ function Found({
                 <p className="font-mono text-xs text-fg-muted">{f.key}</p>
               </TableCell>
               <TableCell>{typeOf(f)}</TableCell>
-              <TableCell className="whitespace-nowrap">{COLLECT_LABEL[f.collectAt].short}</TableCell>
+              <TableCell className="whitespace-nowrap">
+                {COLLECT_LABEL[f.collectAt].short}
+              </TableCell>
               <TableCell className="first-letter:uppercase">{seenBy(f)}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
@@ -525,7 +560,9 @@ function Found({
               <TableCell>
                 <EditOrWhy
                   field={f}
-                  editable={!section.fixed && f.origin !== 'core'}
+                  editable={
+                    !section.fixed && f.origin !== 'core' && f.classification !== 'special-category'
+                  }
                   onEdit={onEdit}
                 />
               </TableCell>
@@ -610,14 +647,86 @@ function EditOrWhy({
   );
 }
 
+/**
+ * Whether the sign-up flow asks for this field, and whether it must be
+ * answered: a menu on the row, a draft change like any other edit.
+ */
+function SignupAsk({
+  field,
+  onSignup,
+}: {
+  readonly field: RegistryField;
+  readonly onSignup: NonNullable<FieldRegistryProps['onSignup']>;
+}): JSX.Element | null {
+  const [busy, setBusy] = useState(false);
+  if (field.signupAskable !== true && (field.signup ?? null) === null) return null;
+  const now: 'off' | 'optional' | 'required' =
+    (field.signup ?? null) === null
+      ? 'off'
+      : field.requiredness === 'never'
+        ? 'optional'
+        : 'required';
+  const label =
+    now === 'off'
+      ? 'Not at sign-up'
+      : now === 'required'
+        ? 'Sign-up: required'
+        : 'Sign-up: optional';
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          loading={busy}
+          loadingLabel="Saving"
+          startIcon={<icons.hire aria-hidden />}
+          endIcon={<icons.expand aria-hidden />}
+          aria-label={`${field.label}: ${label}. Change whether sign-up asks for it`}
+        >
+          {label}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Asked at sign-up</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={now}
+          onValueChange={(value) => {
+            setBusy(true);
+            void onSignup(field.key, value as typeof now).then(() => {
+              setBusy(false);
+            });
+          }}
+        >
+          <DropdownMenuRadioItem value="off">Not asked</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="optional" disabled={field.signupAskable !== true}>
+            Optional
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="required" disabled={field.signupAskable !== true}>
+            Required
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        {field.signup === 'after' ? (
+          <p className="max-w-60 px-2 py-1.5 text-xs text-fg-muted">
+            Asked on the first screen after sign-up: the sign-up page never holds a file or
+            confidential data.
+          </p>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function FieldRow({
   field,
   editable,
   onEdit,
+  onSignup,
 }: {
   readonly field: RegistryField;
   readonly editable: boolean;
   readonly onEdit: (field: RegistryField) => void;
+  readonly onSignup?: FieldRegistryProps['onSignup'];
 }): JSX.Element {
   return (
     <div className="flex items-start gap-3">
@@ -631,7 +740,12 @@ function FieldRow({
         </p>
         <p className="truncate font-mono text-xs text-fg-muted">{field.key}</p>
       </div>
-      <EditOrWhy field={field} editable={editable} onEdit={onEdit} />
+      <div className="flex shrink-0 items-center gap-1">
+        {onSignup === undefined || !editable ? null : (
+          <SignupAsk field={field} onSignup={onSignup} />
+        )}
+        <EditOrWhy field={field} editable={editable} onEdit={onEdit} />
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
-import { signupQuestions } from './signup.js';
+import { askAtSignup, onSignupPage, signupQuestions } from './signup.js';
 
 const define = (over: Partial<AttributeDefinitionInput> & { key: string }) =>
   AttributeDefinition.parse({
@@ -109,5 +109,56 @@ describe('the sign-up questions', () => {
     expect(
       signupQuestions([asked({ key: 'given_name' }), asked({ key: 'preferred_name' })]),
     ).toEqual([]);
+  });
+});
+
+describe('asking a field at sign-up', () => {
+  const field = (over: Partial<AttributeDefinitionInput> = {}) =>
+    define({ key: 'hometown', ownership: ['employee', 'hr'], collectAt: 'onboarding', ...over });
+
+  it('places it at sign-up, required or optional, and takes it off again', () => {
+    const required = askAtSignup(field(), 'required');
+    // Of whoever signs up from now, never of the people already here.
+    expect(required.ok && required.value).toEqual({
+      collectAt: 'signup',
+      requiredness: { mode: 'always', requiredFrom: null, appliesTo: 'new_records' },
+    });
+    const optional = askAtSignup(
+      field({ requiredness: { mode: 'always', requiredFrom: null, appliesTo: 'all_records' } }),
+      'optional',
+    );
+    expect(optional.ok && optional.value).toEqual({
+      collectAt: 'signup',
+      requiredness: { mode: 'never' },
+    });
+    const off = askAtSignup(field({ collectAt: 'signup' }), 'off');
+    expect(off.ok && off.value).toEqual({ collectAt: 'onboarding' });
+  });
+
+  it('refuses what the employee does not fill in, and what identity already asks', () => {
+    const hr = askAtSignup(field({ ownership: ['hr'] }), 'required');
+    expect(hr.ok).toBe(false);
+    if (!hr.ok) expect(hr.error.code).toBe('NOT_ASKABLE_AT_SIGNUP');
+    expect(askAtSignup(field({ key: 'given_name' }), 'required').ok).toBe(false);
+  });
+
+  it('says where a field is asked: on the sign-up page, or on the first screen after it', () => {
+    expect(onSignupPage(field({ collectAt: 'signup' }))).toBe(true);
+    expect(
+      onSignupPage(
+        field({
+          collectAt: 'signup',
+          classification: {
+            classification: 'confidential',
+            piiKind: 'none',
+            exportable: true,
+            aiEligible: false,
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      onSignupPage(field({ collectAt: 'signup', dataType: 'image', typeConfig: { kind: 'image' } })),
+    ).toBe(false);
   });
 });

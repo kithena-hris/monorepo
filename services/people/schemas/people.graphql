@@ -1158,6 +1158,15 @@ type Mutation {
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
   """
+  Put a field on the sign-up flow (optional or required), or take it off. A draft change.
+  """
+  setFieldSignup(
+    """off, optional or required."""
+    ask: String!
+    idempotencyKey: String!
+    key: String!
+  ): WriteOutcome
+  """
   Set a pay band from a day, or correct the one recorded for that day; HR or finance (PEO-078).
   """
   setPayBand(currency: String!, effectiveFrom: String!, grade: String!, idempotencyKey: String!, maximumMinor: String!, midpointMinor: String!, minimumMinor: String!): PayBand
@@ -1745,13 +1754,18 @@ type PeopleSetup {
 }
 
 type PeopleSetupField {
-  """image or document_ref."""
   dataType: String
   description: String
   key: String
   label: String
+  options: [PeopleSetupOption!]
   required: Boolean
   sectionKey: String
+}
+
+type PeopleSetupOption {
+  label: String
+  value: String
 }
 
 type Person @key(fields: "id") {
@@ -2039,6 +2053,11 @@ type RegistryField {
   """
   requiresApproval: Boolean
   sectionKey: String
+  """
+  page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.
+  """
+  signup: String
+  signupAskable: Boolean
   visibility: [String!]
   """Scopes that may also read it, on the records each predicate holds for."""
   visibilityRules: [VisibilityRule!]

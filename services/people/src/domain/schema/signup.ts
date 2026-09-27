@@ -1,4 +1,10 @@
-import { SignupDataType, localized, type SignupQuestion } from '@kithena/contracts';
+import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import {
+  SignupDataType,
+  localized,
+  type AttributeDefinition,
+  type SignupQuestion,
+} from '@kithena/contracts';
 
 import type { Attribute } from './draft.js';
 
@@ -25,21 +31,72 @@ import type { Attribute } from './draft.js';
 const IDENTITY_ASKS = new Set(['given_name', 'family_name', 'preferred_name', 'work_email']);
 const RENDERED = new Set<string>(SignupDataType.options);
 
+/** Placed at sign-up or enrolment. */
+export const atSignup = (a: Pick<AttributeDefinition, 'collectAt'>): boolean =>
+  a.collectAt === 'signup' || a.collectAt === 'enrolment';
+
+/**
+ * Asked on identity's sign-up page, before the passkey. A field placed at
+ * sign-up that is not is asked on the first screen after it instead.
+ */
+export function onSignupPage(a: AttributeDefinition): boolean {
+  return (
+    atSignup(a) &&
+    a.deprecatedAt === null &&
+    a.cardinality === 'single' &&
+    a.ownership.includes('employee') &&
+    !a.encrypted &&
+    a.classification.piiKind !== 'financial' &&
+    (a.classification.classification === 'public' ||
+      a.classification.classification === 'internal') &&
+    RENDERED.has(a.dataType) &&
+    !IDENTITY_ASKS.has(a.key)
+  );
+}
+
+export type SignupAsk = 'off' | 'optional' | 'required';
+
+/**
+ * A field put on, or taken off, the sign-up flow: where it is collected and
+ * whether it must be answered. Only a field the employee fills in can be
+ * asked of them; the names are identity's own step already. Off moves it to
+ * onboarding and leaves its requiredness alone.
+ */
+export function askAtSignup(
+  a: AttributeDefinition,
+  ask: SignupAsk,
+): Result<{
+  readonly collectAt: AttributeDefinition['collectAt'];
+  readonly requiredness?: AttributeDefinition['requiredness'];
+}> {
+  if (ask === 'off') return ok({ collectAt: atSignup(a) ? 'onboarding' : a.collectAt });
+  if (!a.ownership.includes('employee') || IDENTITY_ASKS.has(a.key) || a.deprecatedAt !== null) {
+    return err(
+      failure(
+        'NOT_ASKABLE_AT_SIGNUP',
+        IDENTITY_ASKS.has(a.key)
+          ? `${a.key} is asked on sign-up already, in its own step`
+          : 'Only a field the employee fills in can be asked at sign-up',
+        ['key'],
+      ),
+    );
+  }
+  return ok({
+    collectAt: 'signup',
+    // Required of whoever signs up from now: the people already here signed
+    // up without being asked, and do not turn incomplete overnight.
+    requiredness:
+      ask === 'optional'
+        ? { mode: 'never' }
+        : a.requiredness.mode === 'always'
+          ? a.requiredness
+          : { mode: 'always', requiredFrom: null, appliesTo: 'new_records' },
+  });
+}
+
 export function signupQuestions(attributes: readonly Attribute[]): SignupQuestion[] {
   return attributes
-    .filter(
-      (a) =>
-        (a.collectAt === 'signup' || a.collectAt === 'enrolment') &&
-        a.deprecatedAt === null &&
-        a.cardinality === 'single' &&
-        a.ownership.includes('employee') &&
-        !a.encrypted &&
-        a.classification.piiKind !== 'financial' &&
-        (a.classification.classification === 'public' ||
-          a.classification.classification === 'internal') &&
-        RENDERED.has(a.dataType) &&
-        !IDENTITY_ASKS.has(a.key),
-    )
+    .filter(onSignupPage)
     .toSorted((a, b) => a.order - b.order)
     .map((a): SignupQuestion => {
       const config = a.typeConfig;

@@ -1,6 +1,7 @@
 import { localDate, ok, type Result } from '@kithena/domain-kit';
 
 import { personZone } from '../../domain/org/calendar.js';
+import { atSignup, onSignupPage } from '../../domain/schema/signup.js';
 import { approvalsInbox } from '../person/pending-changes.js';
 import { REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
@@ -110,6 +111,7 @@ export interface OverviewView {
       readonly label: string;
       readonly description: string | null;
       readonly dataType: string;
+      readonly options: readonly { readonly value: string; readonly label: string }[];
       readonly required: boolean;
     }[];
   } | null;
@@ -166,23 +168,22 @@ export async function overviewView(
       deps.photos === undefined || deps.photoAtSignup === undefined || avatars.has(personId)
         ? 'off'
         : await deps.photoAtSignup(tx, asking.tenantId);
-    const atSignup = new Set(
+    // Placed at sign-up and not asked on that page: a file, or data the page
+    // may not hold (confidential, say). Asked here instead.
+    const afterSignup = new Set(
       record.value.version.document.attributes
-        .filter(
-          (d) =>
-            (d.collectAt === 'signup' || d.collectAt === 'enrolment') &&
-            (d.dataType === 'image' || d.dataType === 'document_ref'),
-        )
+        .filter((d) => atSignup(d) && !onSignupPage(d))
         .map((d) => d.key as string),
     );
     const setupFields = fields
-      .filter((f) => atSignup.has(f.key) && !f.readOnly && text(view.attributes[f.key]) === null)
+      .filter((f) => afterSignup.has(f.key) && !f.readOnly && view.attributes[f.key] == null)
       .map((f) => ({
         key: f.key,
         sectionKey: f.section.key,
         label: f.label,
         description: f.description,
         dataType: f.dataType,
+        options: f.options,
         required: f.required,
       }));
 

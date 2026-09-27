@@ -315,6 +315,14 @@ export async function addSection(label: string): Promise<Outcome> {
   return outcome(people('AddDraftSection', { label }));
 }
 
+/** A field on the sign-up flow, optional or required, or off it: a draft change. */
+export async function setFieldSignup(
+  field: string,
+  ask: 'off' | 'optional' | 'required',
+): Promise<Outcome> {
+  return outcome(people('SetFieldSignup', { field, ask }));
+}
+
 export async function saveField(input: Values, editing: string | null): Promise<Outcome> {
   return outcome(people('SaveDraftField', { input, editing }));
 }

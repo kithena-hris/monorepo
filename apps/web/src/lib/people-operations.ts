@@ -308,7 +308,7 @@ export const OPERATIONS = {
       sections { key label visibility ownership origin fixed }
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
-        collectAt classification piiKind requiresApproval origin pending
+        collectAt classification piiKind requiresApproval signup signupAskable origin pending
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
@@ -479,6 +479,10 @@ export const OPERATIONS = {
 
   ReorderDraftFields: `mutation ReorderDraftFields($sectionKey: String!, $order: [String!]!, $key: String!) {
     reorderDraftFields(sectionKey: $sectionKey, order: $order, idempotencyKey: $key) { ok }
+  }`,
+
+  SetFieldSignup: `mutation SetFieldSignup($field: String!, $ask: String!, $key: String!) {
+    setFieldSignup(key: $field, ask: $ask, idempotencyKey: $key) { ok }
   }`,
 
   SaveDraftField: `mutation SaveDraftField($input: DraftFieldInput!, $editing: String, $key: String!) {

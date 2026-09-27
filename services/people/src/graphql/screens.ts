@@ -952,6 +952,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             'Whether a change waits for HR approval: the tenant’s choice, else the default.',
         }),
         origin: t.exposeString('origin'),
+        signup: t.exposeString('signup', {
+          nullable: true,
+          description:
+            'page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.',
+        }),
+        signupAskable: t.exposeBoolean('signupAskable'),
         pending: t.exposeString('pending', {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
@@ -2513,6 +2519,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           },
           key: args.idempotencyKey,
         });
+        return done();
+      },
+    }),
+    setFieldSignup: t.field({
+      type: Outcome,
+      description:
+        'Put a field on the sign-up flow (optional or required), or take it off. A draft change.',
+      args: {
+        key: t.arg.string({ required: true }),
+        ask: t.arg.string({ required: true, description: 'off, optional or required.' }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/schema/draft/attributes/${encodeURIComponent(args.key)}/signup`,
+          { body: { ask: args.ask }, key: args.idempotencyKey },
+        );
         return done();
       },
     }),

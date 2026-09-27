@@ -490,4 +490,32 @@ describe('FieldRegistry', () => {
     ).toBeInTheDocument();
     expect(await axeViolations(sheet)).toEqual([]);
   });
+
+  it('puts a field on sign-up from its row, and previews the sign-up with its steps', async () => {
+    const user = fast();
+    const onSignup = vi.fn(ok);
+    const onSignupDraft: RegistryDraft = {
+      ...draft,
+      fields: draft.fields.map((f) =>
+        f.key === 'cost_centre'
+          ? { ...f, signupAskable: true, signup: 'page' as const, requiredness: 'always' as const }
+          : f,
+      ),
+    };
+    const { container } = render(
+      <FieldRegistry {...props({ load: { status: 'ready', data: onSignupDraft }, onSignup })} />,
+    );
+    await user.click(screen.getByRole('button', { name: /Cost centre: Sign-up: required/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Optional' }));
+    expect(onSignup).toHaveBeenCalledWith('cost_centre', 'optional');
+
+    await user.click(screen.getByRole('button', { name: 'Preview sign-up' }));
+    const sheet = screen.getByRole('dialog', { name: 'Sign-up preview' });
+    expect(within(sheet).getByRole('navigation', { name: 'Sign-up steps' })).toHaveTextContent(
+      /About you.*Your details.*Review.*Your passkey/,
+    );
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
+    expect(within(sheet).getByText(/Cost centre/)).toBeInTheDocument();
+    expect(await axeViolations(container.ownerDocument.body)).toEqual([]);
+  });
 });

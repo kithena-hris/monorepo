@@ -511,6 +511,7 @@ export function PeopleScreen({
           onSaveField: thenRefresh(actions.saveField),
           preview: actions.previewPublish,
           onPublish: thenRefresh(actions.publishDraft),
+          onSignup: thenRefresh(actions.setFieldSignup),
         };
       case 'Integrations':
         return {

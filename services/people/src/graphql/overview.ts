@@ -114,6 +114,11 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     });
 
   type Setup = NonNullable<OverviewView['setup']>;
+  const SetupOption = builder
+    .objectRef<{ readonly value: string; readonly label: string }>('PeopleSetupOption')
+    .implement({
+      fields: (t) => ({ value: t.exposeString('value'), label: t.exposeString('label') }),
+    });
   const SetupField = builder
     .objectRef<Setup['fields'][number]>('PeopleSetupField')
     .implement({
@@ -122,7 +127,11 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
         sectionKey: t.exposeString('sectionKey'),
         label: t.exposeString('label'),
         description: t.exposeString('description', { nullable: true }),
-        dataType: t.exposeString('dataType', { description: 'image or document_ref.' }),
+        dataType: t.exposeString('dataType'),
+        options: t.field({
+          type: [SetupOption],
+          resolve: (f) => list(f.options),
+        }),
         required: t.exposeBoolean('required'),
       }),
     });

@@ -119,6 +119,14 @@ export interface RegistryField {
    * the default — on for financial or encrypted data.
    */
   readonly requiresApproval?: boolean;
+  /**
+   * At sign-up, where it is asked: `page` on the sign-up page itself, `after`
+   * on the first screen after it (a file, or data that page may not hold).
+   * Null or absent: not asked at sign-up.
+   */
+  readonly signup?: 'page' | 'after' | null;
+  /** It may be put on the sign-up flow: the employee fills it in. */
+  readonly signupAskable?: boolean;
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;
