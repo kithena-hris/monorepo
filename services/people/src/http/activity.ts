@@ -15,7 +15,12 @@ const appName = (key: string | undefined): string | null =>
  */
 
 type Body = Record<string, unknown>;
-type Said = { readonly action: string; readonly subject?: string | null };
+type Said = {
+  readonly action: string;
+  readonly subject?: string | null;
+  /** What it did, in one plain sentence. */
+  readonly detail?: string | null;
+};
 interface Rule {
   readonly path: RegExp;
   readonly area: ActivityArea;
@@ -25,6 +30,54 @@ interface Rule {
 const text = (v: unknown): string | null =>
   typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, 300) : null;
 const ID = '([^/]+)';
+
+const list = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+const joined = (words: readonly string[]): string =>
+  words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1) ?? ''}`;
+
+/** Who a field's settings name, as the log says them. */
+const WRITER: Readonly<Record<string, string>> = {
+  employee: 'the employee',
+  manager: 'their manager',
+  hr: 'HR',
+  finance: 'finance',
+  admin: 'People administrators',
+  system: 'an integration',
+};
+const SEER: Readonly<Record<string, string>> = {
+  self: 'the employee',
+  manager: 'their manager',
+  manager_chain: 'managers above them',
+  hr: 'HR',
+  finance: 'finance',
+  admin: 'People administrators',
+  directory: 'everyone in the directory',
+};
+const ROLE: Readonly<Record<string, string>> = {
+  people_admin: 'People administrator',
+  hr: 'HR',
+  finance: 'Finance',
+  manager: 'Manager',
+};
+
+/** A field's settings as one sentence: who fills it in, who sees it, whether it is required. */
+function fieldDetail(input: Body): string | null {
+  const writers = list(input['ownership']).map((w) => WRITER[w] ?? w);
+  const seers = list(input['visibility']).map((v) => SEER[v] ?? v);
+  const need =
+    input['requiredness'] === 'always'
+      ? 'Required.'
+      : input['requiredness'] === 'conditional'
+        ? 'Required on some records.'
+        : 'Optional.';
+  const parts = [
+    writers.length === 0 ? null : `Filled in by ${joined(writers)}.`,
+    seers.length === 0 ? null : `Seen by ${joined(seers)}.`,
+    need,
+  ].filter((x) => x !== null);
+  return parts.length === 0 ? null : `${parts.join(' ')} In the draft until published.`;
+}
 
 const RULES: readonly Rule[] = [
   {
@@ -53,6 +106,12 @@ const RULES: readonly Rule[] = [
             ? 'Required a field at sign-up'
             : 'Asked a field at sign-up, optional',
       subject: id ?? null,
+      detail:
+        b['ask'] === 'off'
+          ? 'Sign-up no longer asks for it.'
+          : b['ask'] === 'required'
+            ? 'Everyone signing up must fill it in.'
+            : 'Sign-up asks for it, and people may skip it.',
     }),
   },
   {
@@ -64,6 +123,10 @@ const RULES: readonly Rule[] = [
           ? 'Shared a field with the assistant'
           : 'Stopped sharing a field with the assistant',
       subject: id ?? null,
+      detail:
+        b['share'] === true
+          ? 'The assistant can answer questions about it, in Kithena and in chat apps. It learns the field’s name and choices, never anybody’s value.'
+          : 'The assistant no longer uses it, and chat messages no longer show its values.',
     }),
   },
   {
@@ -74,13 +137,17 @@ const RULES: readonly Rule[] = [
       return {
         action: text(b['editing']) === null ? 'Added a field' : 'Changed a field',
         subject: text(input['label']),
+        detail: fieldDetail(input),
       };
     },
   },
   {
     path: /^\/v1\/schema\/draft\/publish$/,
     area: 'fields',
-    say: () => ({ action: 'Published the employee fields' }),
+    say: () => ({
+      action: 'Published the employee fields',
+      detail: 'Every form now uses the fields as drafted, for everyone.',
+    }),
   },
   {
     path: /^\/v1\/views\/setup\/publish$/,
@@ -97,6 +164,22 @@ const RULES: readonly Rule[] = [
     area: 'organisation',
     say: (_m, b) => ({
       action: 'Changed the company settings',
+      detail:
+        [
+          typeof b['defaultTimeZone'] === 'string' ? `Default time zone is now ${b['defaultTimeZone']}.` : null,
+          typeof b['cohortMinimum'] === 'number'
+            ? `Reports hide any group smaller than ${String(b['cohortMinimum'])}.`
+            : null,
+          b['photoAtSignup'] === 'off'
+            ? 'Sign-up no longer asks for a photo.'
+            : b['photoAtSignup'] === 'optional'
+              ? 'Sign-up asks for a photo, and people may skip it.'
+              : b['photoAtSignup'] === 'required'
+                ? 'Everyone signing up must add a photo.'
+                : null,
+        ]
+          .filter((x) => x !== null)
+          .join(' ') || null,
       subject:
         Object.keys(b)
           .map(
@@ -154,12 +237,18 @@ const RULES: readonly Rule[] = [
   {
     path: /^\/v1\/roles\/grants$/,
     area: 'roles',
-    say: (_m, b) => ({ action: 'Granted a role', subject: text(b['role']) }),
+    say: (_m, b) => ({
+      action: 'Granted a role',
+      subject: ROLE[String(b['role'])] ?? text(b['role']),
+    }),
   },
   {
     path: /^\/v1\/roles\/revocations$/,
     area: 'roles',
-    say: (_m, b) => ({ action: 'Removed a role', subject: text(b['role']) }),
+    say: (_m, b) => ({
+      action: 'Removed a role',
+      subject: ROLE[String(b['role'])] ?? text(b['role']),
+    }),
   },
   {
     path: /^\/v1\/webhooks\/endpoints$/,
@@ -199,7 +288,11 @@ const RULES: readonly Rule[] = [
   {
     path: /^\/v1\/chat\/apps\/([a-z]+)\/complete$/,
     area: 'integrations',
-    say: (_m, _b, id) => ({ action: 'Connected a chat app', subject: appName(id) }),
+    say: (_m, _b, id) => ({
+      action: 'Connected a chat app',
+      subject: appName(id),
+      detail: 'People can ask Kithena questions there, and switched-on notices arrive there.',
+    }),
   },
   {
     path: /^\/v1\/chat\/apps\/([a-z]+)\/disconnect$/,
@@ -212,6 +305,10 @@ const RULES: readonly Rule[] = [
     say: (_m, b, id) => ({
       action: b['on'] === true ? 'Turned on a chat notice' : 'Turned off a chat notice',
       subject: PEOPLE_NOTICES.find((n) => n.key === id)?.label ?? null,
+      detail:
+        b['on'] === true
+          ? 'Now sent to connected chat apps as well as by email.'
+          : 'By email only from now on.',
     }),
   },
 ];

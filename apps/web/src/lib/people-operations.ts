@@ -242,7 +242,7 @@ export const OPERATIONS = {
 
   SettingsActivity: `query SettingsActivity($before: ID, $area: String) {
     peopleSettingsActivity(before: $before, area: $area) {
-      entries { id at action subject area by avatarUrl }
+      entries { id at action subject detail area by name avatarUrl }
       next
     }
   }`,

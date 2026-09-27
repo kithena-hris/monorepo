@@ -283,7 +283,7 @@
     },
     {
       "path": "/settings/people/activity",
-      "label": "Activity",
+      "label": "Activity log",
       "for": [
         "hr",
         "admin"

@@ -1837,6 +1837,7 @@ async function logged(
         actor: asking.viewer.accountId,
         action: said.action,
         subject: said.subject ?? null,
+        detail: said.detail ?? null,
         area: said.area,
         idempotencyKey: key,
       });

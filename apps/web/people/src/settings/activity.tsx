@@ -31,8 +31,13 @@ export interface SettingsActivityState {
     readonly at: string;
     readonly action: string;
     readonly subject: string | null;
+    /** What it did, in one plain sentence; absent on older entries. */
+    readonly detail?: string | null;
     readonly area: string;
+    /** "You", or who did it. */
     readonly by: string;
+    /** Who did it by name, "You" included: the avatar's initials. */
+    readonly name?: string;
     readonly avatarUrl: string | null;
   }[];
   readonly next: string | null;
@@ -56,6 +61,10 @@ const AREAS: readonly { readonly value: ActivityArea | 'all'; readonly label: st
   { value: 'integrations', label: 'Integrations' },
 ];
 
+const AREA_NAME: Readonly<Record<string, string>> = Object.fromEntries(
+  AREAS.filter((a) => a.value !== 'all').map((a) => [a.value, a.label]),
+);
+
 /** The reader's zone once in their browser; UTC for the server's render and the first. */
 function useZone(): string | undefined {
   const [zone, setZone] = useState<string | undefined>('UTC');
@@ -69,8 +78,8 @@ export function SettingsActivity(props: SettingsActivityProps): JSX.Element {
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Activity"
-        description="Every change to People’s settings: who made it, when, and what."
+        title="Activity log"
+        description="Every change to People’s settings: what changed, who changed it, and when."
         actions={
           <Select
             value={props.area ?? 'all'}
@@ -115,7 +124,9 @@ function Entries({
   const day = (iso: string) =>
     new Intl.DateTimeFormat(undefined, { timeZone: zone, dateStyle: 'full' }).format(new Date(iso));
   const time = (iso: string) =>
-    new Intl.DateTimeFormat(undefined, { timeZone: zone, timeStyle: 'short' }).format(new Date(iso));
+    new Intl.DateTimeFormat(undefined, { timeZone: zone, timeStyle: 'short' }).format(
+      new Date(iso),
+    );
   const days = new Map<string, SettingsActivityState['entries'][number][]>();
   for (const e of state.entries) days.set(day(e.at), [...(days.get(day(e.at)) ?? []), e]);
 
@@ -129,15 +140,30 @@ function Entries({
               <TimelineItem
                 key={e.id}
                 last={i === entries.length - 1}
-                marker={<Avatar size="sm" name={e.by} src={e.avatarUrl ?? undefined} />}
-                title={e.subject === null ? e.action : `${e.action}: ${e.subject}`}
+                marker={<Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />}
+                title={
+                  e.subject === null ? (
+                    e.action
+                  ) : (
+                    <>
+                      {e.action}: <span className="font-semibold">{e.subject}</span>
+                    </>
+                  )
+                }
                 timestamp={
                   <time dateTime={e.at} title={new Date(e.at).toISOString()}>
                     {time(e.at)}
                   </time>
                 }
               >
-                By {e.by}
+                <span className="flex flex-col gap-1">
+                  {e.detail === undefined || e.detail === null ? null : (
+                    <span className="text-fg">{e.detail}</span>
+                  )}
+                  <span className="text-fg-muted">
+                    {e.by === 'You' ? 'By you' : `By ${e.by}`} · {AREA_NAME[e.area] ?? 'Settings'}
+                  </span>
+                </span>
               </TimelineItem>
             ))}
           </Timeline>

@@ -22,9 +22,15 @@ export interface ActivityView {
     readonly id: string;
     readonly at: string;
     readonly action: string;
+    /** What it was done to, in words: a field's name, never its key. */
     readonly subject: string | null;
+    /** What it did, in one plain sentence; null on older entries. */
+    readonly detail: string | null;
     readonly area: ActivityArea;
+    /** "You", or who did it. */
     readonly by: string;
+    /** Their name, whoever they are: for the avatar's initials. */
+    readonly name: string;
     readonly avatarUrl: string | null;
   }[];
   /** The cursor for older entries; null when there are none. */
@@ -48,6 +54,15 @@ export async function activityView(
     const shown = rows.slice(0, ACTIVITY_PAGE);
     const who = shown.map((r) => ({ kind: 'user' as const, userId: r.actor }));
     const by = await actors(deps, tx, asking, who);
+    // Named as anybody else would see them, "You" included, for the avatar.
+    const named = await actors(deps, tx, { ...asking, viewer: { ...asking.viewer, accountId: NOBODY } }, who);
+    // A field or section named by its key, as the command that changed it
+    // was: read back as its name today.
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    const names = new Map<string, string>([
+      ...(version?.document.sections ?? []).map((x) => [x.key as string, x.label.default] as const),
+      ...(version?.document.attributes ?? []).map((a) => [a.key as string, a.label.default] as const),
+    ]);
     const people = new Map<string, string>();
     for (const r of shown) {
       if (people.has(r.actor)) continue;
@@ -60,9 +75,11 @@ export async function activityView(
         id: r.id,
         at: r.at,
         action: r.action,
-        subject: r.subject,
+        subject: r.subject === null ? null : (names.get(r.subject) ?? r.subject),
+        detail: r.detail,
         area: r.area,
         by: by({ kind: 'user', userId: r.actor }),
+        name: named({ kind: 'user', userId: r.actor }),
         avatarUrl: avatars.get(people.get(r.actor) ?? '') ?? null,
       })),
       next: rows.length > ACTIVITY_PAGE ? (shown.at(-1)?.id ?? null) : null,

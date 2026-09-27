@@ -1826,7 +1826,11 @@ type PeopleSettingsActivityEntry {
   at: String
   avatarUrl: String
   by: String
+  """What it did, in one plain sentence."""
+  detail: String
   id: ID
+  """Who did it, by name, "You" included."""
+  name: String
   subject: String
 }
 

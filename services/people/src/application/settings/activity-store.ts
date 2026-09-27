@@ -12,6 +12,8 @@ export interface ActivityEntry {
   readonly actor: string;
   readonly action: string;
   readonly subject: string | null;
+  /** What it did, in one plain sentence; null on entries from before it was kept. */
+  readonly detail: string | null;
   readonly area: ActivityArea;
 }
 

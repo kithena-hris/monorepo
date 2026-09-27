@@ -190,10 +190,15 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
         at: t.exposeString('at'),
         action: t.exposeString('action'),
         subject: t.exposeString('subject', { nullable: true }),
+        detail: t.exposeString('detail', {
+          nullable: true,
+          description: 'What it did, in one plain sentence.',
+        }),
         area: t.exposeString('area', {
           description: 'fields, organisation, roles or integrations.',
         }),
         by: t.exposeString('by'),
+        name: t.exposeString('name', { description: 'Who did it, by name, "You" included.' }),
         avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
       }),
     });
