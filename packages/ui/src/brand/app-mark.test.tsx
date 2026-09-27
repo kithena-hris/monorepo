@@ -17,5 +17,6 @@ describe('AppMark', () => {
     expect(new Set(fills()).size).toBe(4);
     rerender(<AppMark app="slack" tone="mono" />);
     expect(new Set(fills())).toEqual(new Set(['currentColor']));
+    expect(container.querySelector('svg')?.getAttribute('fill')).toBe('currentColor');
   });
 });
