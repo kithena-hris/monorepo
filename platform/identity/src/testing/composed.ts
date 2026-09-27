@@ -44,7 +44,7 @@ export async function composed(config: Partial<Config> = {}): Promise<Composed> 
   };
   try {
     // The service roles `tools/scripts/init-db.sql` creates before any migration.
-    for (const role of ['svc_identity', 'svc_messaging', 'svc_people']) {
+    for (const role of ['svc_identity', 'svc_messaging', 'svc_people', 'svc_slack']) {
       await sql.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
     }
     const dir = fileURLToPath(new URL('../../../../migrations/', import.meta.url));

@@ -42,6 +42,12 @@ const SAFE = [
   // PEO-071: a bulk edit's preview, rolled back whatever it wrote.
   'POST /v1/views/bulk-edit/preview',
   'POST /v1/views/bulk-hire/preview',
+  // A question in words: a read, answered as the asker.
+  'POST /v1/assistant/ask',
+  // A field file's upload, as a photo's: a retried start is a fresh upload.
+  'POST /v1/views/files/uploads',
+  // Where to send an administrator to connect a chat app: nothing is kept.
+  'POST /v1/chat/apps/{key}/connect',
 ];
 
 const callerFrom: CallerFrom = () =>

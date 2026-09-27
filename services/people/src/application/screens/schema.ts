@@ -26,7 +26,6 @@ import {
 import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { isCoreKey } from '../person/core.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
 import type { RecordSection, FormValues, PendingFieldView } from './model.js';
@@ -369,6 +368,12 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
   } as AttributeDefinitionInput;
 }
 
+/** The values a typed core column takes (`people.person`'s CHECKs). */
+const COLUMN_VALUES: Readonly<Record<string, readonly string[]>> = {
+  employment_type: ['permanent', 'fixed_term', 'contractor', 'intern', 'apprentice', 'seasonal'],
+  work_model: ['onsite', 'hybrid', 'remote'],
+};
+
 /** Add a field, or change one. The draft decides whether the change is allowed. */
 export async function saveField(
   deps: SchemaScreenDeps,
@@ -377,16 +382,20 @@ export async function saveField(
   editing: string | null,
 ): Promise<Result<void>> {
   // A key People stores in a typed column of its own (`employment_type`,
-  // `work_model`) takes only that column's values: a company's own field
-  // under it would publish and then refuse every save.
-  if (editing === null && isCoreKey(input.key)) {
-    return err(
-      failure(
-        'KEY_RESERVED',
-        `People already keeps ${input.key} itself; give this field a different name`,
-        ['key'],
-      ),
-    );
+  // `work_model`) takes only that column's values: a choice outside them
+  // would publish and then refuse every save.
+  const column = COLUMN_VALUES[input.key];
+  if (editing === null && column !== undefined) {
+    const refused = input.options.map(keyFrom).filter((v) => !column.includes(v));
+    if (refused.length > 0) {
+      return err(
+        failure(
+          'KEY_RESERVED',
+          `People keeps ${input.key} itself, as one of ${column.join(', ')}; give this field a different name, or use those choices`,
+          ['key'],
+        ),
+      );
+    }
   }
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {

@@ -69,6 +69,11 @@ import {
   FileStart,
   DetailAsk,
   AskBody,
+  AssistantShareBody,
+  SignupAskBody,
+  ChatConnect,
+  ChatComplete,
+  ChatNotice,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
@@ -147,6 +152,11 @@ const components = {
   FileOf,
   DetailAsk,
   AskBody,
+  FieldAssistant: AssistantShareBody,
+  FieldSignup: SignupAskBody,
+  ChatConnect,
+  ChatComplete,
+  ChatNotice,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
   PayBand: PayBandBody,
@@ -515,6 +525,56 @@ function screenPaths(): Record<string, unknown> {
         200,
         '{ text, understood, people }',
         { safe: true },
+      ),
+    },
+    '/v1/schema/draft/attributes/{key}/assistant': {
+      post: screenWrite(
+        'Whether the assistant, in the app and in chat apps, may use this field. A draft change',
+        'FieldAssistant',
+        200,
+        'Saved to the draft',
+        { path: 'key' },
+      ),
+    },
+    '/v1/schema/draft/attributes/{key}/signup': {
+      post: screenWrite(
+        'Whether sign-up asks for this field, optionally or required. A draft change',
+        'FieldSignup',
+        200,
+        'Saved to the draft',
+        { path: 'key' },
+      ),
+    },
+    '/v1/chat/apps/{key}/connect': {
+      post: screenWrite(
+        'Where to send a People administrator to connect a chat app (`slack`); nothing is kept until they return',
+        'ChatConnect',
+        200,
+        '{ url }',
+        { path: 'key', safe: true },
+      ),
+    },
+    '/v1/chat/apps/{key}/complete': {
+      post: screenWrite(
+        'Finish connecting a chat app with the code and signed state it sent back',
+        'ChatComplete',
+        200,
+        '{ workspace, connectedAt }',
+        { path: 'key' },
+      ),
+    },
+    '/v1/chat/apps/{key}/disconnect': {
+      post: screenWrite('Disconnect a chat app: it leaves the workspace', null, 200, 'Disconnected', {
+        path: 'key',
+      }),
+    },
+    '/v1/chat/notices/{key}': {
+      put: screenWrite(
+        'Send one of People’s notices to chat apps, or stop',
+        'ChatNotice',
+        200,
+        'Every notice, with whether it is on',
+        { path: 'key' },
       ),
     },
     '/v1/views/profile/{id}/requests': {

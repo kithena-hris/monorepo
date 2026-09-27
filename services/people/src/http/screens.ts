@@ -961,7 +961,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     },
     {
       method: 'POST',
-      pattern: /^\/v1\/chat\/apps\/([a-z]{1,20})\/connect$/,
+      pattern: new RegExp(`^/v1/chat/apps/${KEY}/connect$`),
       safe: true,
       handle: async (asking, request, params) => {
         const input = body(ChatConnect, request.body);
@@ -971,21 +971,21 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     },
     {
       method: 'POST',
-      pattern: /^\/v1\/chat\/apps\/([a-z]{1,20})\/complete$/,
+      pattern: new RegExp(`^/v1/chat/apps/${KEY}/complete$`),
       handle: write(ChatComplete, (asking, input, id) => completeChat(deps, asking, id, input), {
         resource: (_asking, id) => id,
       }),
     },
     {
       method: 'POST',
-      pattern: /^\/v1\/chat\/apps\/([a-z]{1,20})\/disconnect$/,
+      pattern: new RegExp(`^/v1/chat/apps/${KEY}/disconnect$`),
       handle: write(NoBody, (asking, _input, id) => disconnectChat(deps, asking, id), {
         resource: (_asking, id) => id,
       }),
     },
     {
       method: 'PUT',
-      pattern: /^\/v1\/chat\/notices\/([a-z][a-z0-9_]{0,63})$/,
+      pattern: new RegExp(`^/v1/chat/notices/${KEY}$`),
       handle: write(ChatNotice, (asking, input, id) => setChatNotice(deps, asking, id, input.on), {
         resource: (_asking, id) => id,
       }),

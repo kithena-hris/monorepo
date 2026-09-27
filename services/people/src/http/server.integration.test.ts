@@ -81,6 +81,7 @@ beforeAll(async () => {
     '20260924220200_people_employment_period.sql',
     '20260923110000_people_completeness.sql',
     '20260923120000_people_webhooks.sql',
+    '20260924120100_people_webhook_alerts.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924270100_people_entitlements.sql',
@@ -90,6 +91,8 @@ beforeAll(async () => {
     '20260924360000_people_import_upload.sql',
     '20260926160000_people_scim.sql',
     '20260927161000_people_person_photo.sql',
+    '20260927170000_people_detail_request.sql',
+    '20260927180000_people_files.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

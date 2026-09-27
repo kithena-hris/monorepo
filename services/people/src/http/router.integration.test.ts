@@ -166,7 +166,7 @@ beforeAll(async () => {
   clients.push(admin);
   // Every migration: identity runs against the same database here (PEO-113),
   // with the service roles `tools/scripts/init-db.sql` creates first.
-  for (const role of ['svc_identity', 'svc_messaging']) {
+  for (const role of ['svc_identity', 'svc_messaging', 'svc_slack']) {
     await admin.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
   }
   const migrations = join(ROOT, 'migrations');
