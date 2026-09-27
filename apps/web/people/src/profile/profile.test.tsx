@@ -498,3 +498,22 @@ describe('Profile: what is missing', () => {
     expect(screen.getByRole('textbox', { name: /Hometown/ })).toHaveFocus();
   });
 });
+
+describe('a profile read again', () => {
+  it('shows what the server now holds, not what it first drew', () => {
+    const wrap = { wrapper: TooltipProvider };
+    const { rerender } = render(
+      <Profile load={{ status: 'ready', data: asManager }} onSave={vi.fn()} />,
+      wrap,
+    );
+    expect(screen.getByText('Hybrid')).toBeInTheDocument();
+    rerender(
+      <Profile
+        load={{ status: 'ready', data: { ...asManager, values: { work_model: 'Remote' } } }}
+        onSave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Remote')).toBeInTheDocument();
+    expect(screen.queryByText('Hybrid')).toBeNull();
+  });
+});

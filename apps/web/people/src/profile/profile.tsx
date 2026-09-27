@@ -269,6 +269,11 @@ function Record({
     // Once, for the link that opened the page.
   }, []);
   const [values, setValues] = useState<Values>(state.values);
+  // What the server now holds, whenever the screen is read again (a move, a
+  // decision, another tab): a save's own echo is kept locally until then.
+  useEffect(() => {
+    setValues(state.values);
+  }, [state.values]);
   /** Per section, the fields its last save sent for approval rather than saved (PEO-077). */
   const [held, setHeld] = useState<Readonly<Record<string, readonly string[]>>>({});
   const pending = state.pending ?? [];

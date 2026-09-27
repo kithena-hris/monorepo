@@ -99,6 +99,12 @@ describe('headerFrame', () => {
     expect(adding.actions).toEqual([]);
   });
 
+  it('offers adding somebody where it belongs, and not on a profile', () => {
+    expect(headerFrame(hr, '/people', '/people').actions).toHaveLength(1);
+    expect(headerFrame(hr, '/people/:id', '/people').actions).toEqual([]);
+    expect(headerFrame(hr, '/people/me', '/people').actions).toEqual([]);
+  });
+
   it('offers an employee nothing to start', () => {
     const employee = placesFor(nav, { hr: false, admin: false, finance: false });
     expect(headerFrame(employee, '/people/me', '/people').actions).toEqual([]);

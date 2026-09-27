@@ -116,6 +116,10 @@
       "for": [
         "hr"
       ],
+      "on": [
+        "/people",
+        "/people/directory"
+      ],
       "icon": "hire"
     }
   ],
