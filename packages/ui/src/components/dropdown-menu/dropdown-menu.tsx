@@ -14,6 +14,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 
 /**
  * Action menu.
@@ -74,7 +75,7 @@ export interface DropdownMenuProps
 
 export function DropdownMenu({
   openOnHover = false,
-  hoverCloseDelay = 150,
+  hoverCloseDelay = HOVER_CLOSE_MS,
   open,
   defaultOpen,
   onOpenChange,
@@ -103,9 +104,12 @@ export function DropdownMenu({
       enabled: openOnHover,
       open: () => {
         hold();
-        pointerOpened.current = true;
-        setHoverOpen(true);
-        onOpenChange?.(true);
+        // A pointer passing over on its way elsewhere opens nothing.
+        timer.current = setTimeout(() => {
+          pointerOpened.current = true;
+          setHoverOpen(true);
+          onOpenChange?.(true);
+        }, HOVER_OPEN_MS);
       },
       close: () => {
         hold();
@@ -196,7 +200,7 @@ export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const surface = [
   'z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-surface p-1',
   'text-fg shadow-lg',
-  'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+  'popover-motion',
   'origin-(--radix-dropdown-menu-content-transform-origin)',
 ];
 

@@ -286,38 +286,10 @@ export function AppShell({
               <Nav label="Account">
                 <NavList>
                   <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
-                    <Link href={'/settings' as Route}>Settings</Link>
+                    <Link href="/settings">Settings</Link>
                   </NavItem>
                 </NavList>
               </Nav>
-              {/*
-                A visible control, not only an item inside the profile menu.
-
-                It was in the menu alone, which opens on hovering the person's
-                name at the very bottom of the sidebar — something somebody has
-                to already know about to find. A preference nobody can see is a
-                preference nobody has.
-
-                A `Button`, not a `NavItem`: this changes something rather than
-                going somewhere, and `NavItem` renders an anchor. `asChild` on
-                it would be the obvious way round that and does not work —
-                `Slot` needs a single child and `NavItem` gives it an icon, a
-                label and a badge slot.
-              */}
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth
-                aria-pressed={dark}
-                startIcon={dark ? <ThemeLight /> : <ThemeDark />}
-                className="justify-start group-data-[collapsed]/sidebar:hidden"
-                onClick={() => {
-                  setTheme(!dark);
-                }}
-              >
-                {dark ? 'Light mode' : 'Dark mode'}
-              </Button>
-
               <PersonMenu person={person} dark={dark} onTheme={setTheme} />
             </div>
           </div>
@@ -475,7 +447,7 @@ function MobileTabs({
             <Nav label="Account">
               <NavList>
                 <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
-                  <Link href={'/settings' as Route}>Settings</Link>
+                  <Link href="/settings">Settings</Link>
                 </NavItem>
               </NavList>
             </Nav>

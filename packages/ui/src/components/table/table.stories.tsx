@@ -765,6 +765,21 @@ export const InfiniteStripedResizable: Story = {
   },
 };
 
+/** Rows under a heading per group, in group order: the heading counts what it holds. */
+export const Grouped: Story = {
+  render: () => (
+    <DataTable<Row>
+      label="Employees by status"
+      rows={[...rows].sort((a, b) => a.status.localeCompare(b.status))}
+      columns={dataColumns}
+      rowId={(row) => row.id}
+      describeRow={(row) => row.name}
+      groupBy={(row) => row.status}
+      striped
+    />
+  ),
+};
+
 /**
  * Sorting a virtualized table.
  *

@@ -348,6 +348,7 @@ export function PeopleScreen({
           conditions?: string;
           match?: string;
           sort?: string;
+          group?: string;
         }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
@@ -357,11 +358,13 @@ export function PeopleScreen({
           const conditions = next.conditions ?? search['conditions'] ?? '';
           const match = next.match ?? search['match'] ?? '';
           const sort = next.sort ?? search['sort'] ?? '';
+          const group = next.group ?? search['group'] ?? '';
           if (text !== '') q.set('search', text);
           if (incomplete) q.set('incomplete', 'true');
           if (conditions !== '' && conditions !== '[]') q.set('conditions', conditions);
           if (match === 'any') q.set('match', 'any');
           if (sort !== '') q.set('sort', sort);
+          if (group !== '') q.set('group', group);
           const joined = Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
@@ -409,6 +412,11 @@ export function PeopleScreen({
           },
           onSortChange: (sort: { key: string; direction: 'asc' | 'desc' } | null) => {
             query({ sort: sort === null ? '' : `${sort.key}:${sort.direction}` });
+          },
+          // Grouped, People orders by the same column, so a group is never split across pages.
+          group: search['group'] ?? null,
+          onGroupChange: (key: string | null) => {
+            query({ group: key ?? '', sort: key === null ? '' : `${key}:asc` });
           },
           // Infinite scroll: the next page of the same query, appended in place.
           ...(next === null

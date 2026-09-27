@@ -76,7 +76,7 @@ export function SelectContent({
         className={cn(
           'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md',
           'border border-border bg-surface text-fg shadow-lg',
-          'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+          'popover-motion',
           'origin-(--radix-select-content-transform-origin)',
           position === 'popper' && 'w-full min-w-(--radix-select-trigger-width)',
           className,

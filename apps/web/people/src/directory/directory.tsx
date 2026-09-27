@@ -133,6 +133,9 @@ export interface DirectoryProps {
   ) => void;
   /** The order, applied server-side: `?sort=key:asc`. Null is People's own order. */
   readonly onSortChange?: (sort: DirectorySort | null) => void;
+  /** The column people are grouped by, `?group=key`; the shell orders by it too. */
+  readonly group?: string | null;
+  readonly onGroupChange?: (key: string | null) => void;
   /** The saved segment applied, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
@@ -407,6 +410,8 @@ function Table({
   onFirstPage,
   onLoadMore,
   next = null,
+  group = null,
+  onGroupChange,
   incomplete = false,
   onIncompleteChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
@@ -419,6 +424,16 @@ function Table({
   const match = state.query?.match === 'any' ? 'any' : 'all';
   const sort = state.query?.sort ?? null;
   const kindOf = new Map(fields.map((f) => [f.key, f.kind]));
+  // What people can be grouped by: a choice, a place, a manager, a status.
+  const groupable = fields.filter(
+    (f) => f.kind === 'select' || f.kind === 'status' || f.kind === 'person',
+  );
+  const grouping = groupable.find((f) => f.key === group) ?? null;
+  const groupOf = (p: DirectoryPerson): string =>
+    grouping === null
+      ? ''
+      : (p.people?.find((r) => r.key === grouping.key)?.name ??
+        (p.values[grouping.key] || `No ${grouping.label.toLowerCase()}`));
 
   // Nobody at all, rather than nobody matching: say so, and where adding
   // happens. No buttons of its own: Import is in the header and Add employee
@@ -498,7 +513,7 @@ function Table({
       return {
         id: c.key,
         header: c.label,
-        ...(c.sortable === false || onSortChange === undefined
+        ...(c.sortable === false || onSortChange === undefined || grouping !== null
           ? {}
           : { sortBy: (p: DirectoryPerson) => p.values[c.key] ?? '' }),
         cell: (p) => cell(p, c),
@@ -566,6 +581,27 @@ function Table({
               match={match}
               onApply={onConditionsChange}
             />
+          ),
+          onGroupChange === undefined || groupable.length === 0 ? null : (
+            <Select
+              key="group"
+              value={grouping?.key ?? ANY}
+              onValueChange={(value) => {
+                onGroupChange(value === ANY ? null : value);
+              }}
+            >
+              <SelectTrigger aria-label="Group by" className="w-auto min-w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>No grouping</SelectItem>
+                {groupable.map((f) => (
+                  <SelectItem key={f.key} value={f.key}>
+                    Group by {f.label.toLowerCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ),
           onSegmentChange === undefined ? null : (
             <SegmentSelect
@@ -641,6 +677,7 @@ function Table({
         <DataTable
           label="People"
           rows={loaded.rows}
+          {...(grouping === null ? {} : { groupBy: groupOf })}
           striped
           resizable
           columnWidths={widths.widths}
@@ -657,7 +694,7 @@ function Table({
           onRowClick={(p) => {
             onOpen(p.id);
           }}
-          {...(onSortChange === undefined
+          {...(onSortChange === undefined || grouping !== null
             ? {}
             : {
                 sort: tableSort,

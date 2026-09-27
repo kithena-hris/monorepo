@@ -159,6 +159,15 @@ Utility classes for layout and spacing are expected. Utility classes
 reimplementing a component's appearance — a border, a radius, a padding and a
 hover state assembled into something button-shaped — are the thing this forbids.
 
+**Everything that pops over the page moves the same way.** A menu, a
+popover, a select's list, a hover flyout, a combobox: each uses Reach's
+`popover-motion` utility (the sidebar flyout's motion, out of the side it opens
+from, `--animate-flyout-in` / `--animate-flyout-out`) and, when it opens on
+hover, `HOVER_OPEN_MS` and `HOVER_CLOSE_MS` from `packages/ui/src/lib/motion.ts`
+(50 ms to open, 80 ms to close). Do not give a new surface its own keyframes,
+durations or delays; if one needs something else, change the shared values
+and every surface moves together.
+
 **The design system stays presentational.** `packages/ui` may not import a
 contract, a domain type or a data client, and `services/*` may not import
 `packages/ui`. Both directions are dependency-cruiser rules. A module composes

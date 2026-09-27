@@ -318,4 +318,32 @@ describe('Directory', () => {
     expect(onLoadMore).toHaveBeenCalledOnce();
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('groups people under a heading per value, ordered by it on the server', async () => {
+    const user = fast();
+    const onGroupChange = vi.fn();
+    const grouped: DirectoryState = {
+      ...state,
+      fields: [
+        {
+          key: 'cost_centre',
+          label: 'Cost centre',
+          kind: 'select',
+          options: [{ value: 'ENG-204', label: 'ENG-204' }],
+        },
+      ],
+    };
+    const { rerender } = render(
+      <Directory {...props({ load: { status: 'ready', data: grouped }, onGroupChange })} />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Group by' }));
+    await user.click(await screen.findByRole('option', { name: 'Group by cost centre' }));
+    expect(onGroupChange).toHaveBeenCalledWith('cost_centre');
+    rerender(
+      <Directory
+        {...props({ load: { status: 'ready', data: grouped }, onGroupChange, group: 'cost_centre' })}
+      />,
+    );
+    expect(screen.getByRole('rowheader')).toHaveTextContent('ENG-2042');
+  });
 });

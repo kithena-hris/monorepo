@@ -20,6 +20,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 import { Badge } from '../badge/badge';
 import { RailContext, useRailCollapsed } from '../page-layout/page-layout';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
@@ -350,7 +351,7 @@ export function NavItem({
               className={cn(
                 flyoutSize === 'lg' ? 'w-[min(46rem,calc(100vw-6rem))] p-4' : 'w-60 p-2',
                 // Out of the item and back into it, rather than the popover's zoom.
-                'origin-left data-[state=open]:animate-flyout-in data-[state=closed]:animate-flyout-out',
+                'origin-left popover-motion',
               )}
             >
               {/* Its items are not in the rail, even when this one is. */}
@@ -390,8 +391,8 @@ export function NavItem({
 }
 
 /** How long a pointer rests before a flyout opens, and lingers before it closes. */
-const FLYOUT_OPEN_MS = 50;
-const FLYOUT_CLOSE_MS = 80;
+const FLYOUT_OPEN_MS = HOVER_OPEN_MS;
+const FLYOUT_CLOSE_MS = HOVER_CLOSE_MS;
 
 /**
  * The state and handlers behind `NavItem`'s `flyout`.

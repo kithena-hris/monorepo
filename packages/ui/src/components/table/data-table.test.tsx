@@ -59,4 +59,22 @@ describe('DataTable', () => {
     // jsdom measures nothing, so everything is "near the end".
     expect(onEndReached).toHaveBeenCalled();
   });
+
+  it('puts rows under a heading per group, counting each', () => {
+    render(
+      <DataTable
+        label="People"
+        rows={[
+          { id: 'a', name: 'Ada', team: 'Research' },
+          { id: 'b', name: 'Grace', team: 'Research' },
+          { id: 'c', name: 'Radia', team: 'Networks' },
+        ]}
+        columns={[{ id: 'name', header: 'Name', cell: (r) => r.name }]}
+        rowId={(r) => r.id}
+        groupBy={(r) => r.team}
+      />,
+    );
+    const headings = screen.getAllByRole('rowheader');
+    expect(headings.map((h) => h.textContent)).toEqual(['Research2', 'Networks1']);
+  });
 });

@@ -477,16 +477,23 @@
       opacity: 0;
     }
   }
+  /* Out of the side it opens from and back into it: `--flyout-x` and
+     `--flyout-y` are set per side by `popover-motion`, and default to the
+     sidebar flyout's leftward origin. */
   @keyframes flyout-in {
     from {
       opacity: 0;
-      transform: translateX(-8px) scale(0.985);
+      transform: translate(var(--flyout-x, -8px), var(--flyout-y, 0px)) scale(0.985);
     }
   }
   @keyframes flyout-out {
     to {
       opacity: 0;
-      transform: translateX(-6px) scale(0.99);
+      transform: translate(
+          calc(var(--flyout-x, -8px) * 0.75),
+          calc(var(--flyout-y, 0px) * 0.75)
+        )
+        scale(0.99);
     }
   }
   @keyframes scale-in {
@@ -662,5 +669,41 @@
       height: max(100%, var(--spacing-tap));
       translate: -50% -50%;
     }
+  }
+}
+
+/*
+ * How anything that pops over the page arrives and leaves: a menu, a popover,
+ * a select's list, the sidebar's flyout. One motion for all of them, the
+ * flyout's: out of the side it opens from with a fade and a hair of scale,
+ * in at the normal duration, out at the fast one. Radix names the side on
+ * the content (`data-side`) and its state (`data-state`); this reads both, so
+ * a menu that opens upward rises and one that opens right slides right.
+ * Under `prefers-reduced-motion` it only fades: travel is the trigger.
+ */
+@utility popover-motion {
+  --flyout-x: 0px;
+  --flyout-y: 0px;
+  &[data-side='right'] {
+    --flyout-x: -8px;
+  }
+  &[data-side='left'] {
+    --flyout-x: 8px;
+  }
+  &[data-side='top'] {
+    --flyout-y: 8px;
+  }
+  &[data-side='bottom'] {
+    --flyout-y: -8px;
+  }
+  &[data-state='open'] {
+    animation: var(--animate-flyout-in);
+  }
+  &[data-state='closed'] {
+    animation: var(--animate-flyout-out);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    --flyout-x: 0px;
+    --flyout-y: 0px;
   }
 }

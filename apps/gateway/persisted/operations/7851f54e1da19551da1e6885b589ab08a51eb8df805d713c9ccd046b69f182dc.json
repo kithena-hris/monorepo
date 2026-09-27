@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetFieldSignup($field: String!, $ask: String!, $key: String!) {\n    setFieldSignup(key: $field, ask: $ask, idempotencyKey: $key) { ok }\n  }"}

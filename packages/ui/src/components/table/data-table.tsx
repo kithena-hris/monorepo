@@ -246,6 +246,16 @@ export interface DataTableProps<T extends TableRow> {
    * through `containerClassName`.
    */
   onEndReached?: () => void;
+
+  /**
+   * Rows under a heading per group: the label each row belongs under.
+   *
+   * The rows must already arrive in group order (sort by the same thing, on
+   * the server for a table that pages), and a heading is drawn wherever the
+   * label changes, with how many rows it holds among those loaded. Headings
+   * are rows of their own, `rowgroup` headers, virtualized with the rest.
+   */
+  groupBy?: (row: T) => string;
 }
 
 /** A column's narrowest and widest, in px. */
@@ -299,6 +309,7 @@ export function DataTable<T extends TableRow>({
   columnWidths,
   onColumnWidthsChange,
   onEndReached,
+  groupBy,
 }: DataTableProps<T>): JSX.Element {
   const base = useId();
   const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
@@ -455,8 +466,28 @@ export function DataTable<T extends TableRow>({
   const getScrollElement = useCallback(() => scrollRef.current, []);
   const estimateSize = useCallback(() => estimateRowHeight, [estimateRowHeight]);
 
+  // Rows, and a heading wherever a group starts.
+  type Entry =
+    | { readonly kind: 'group'; readonly label: string; readonly count: number }
+    | { readonly kind: 'row'; readonly row: T; readonly index: number };
+  const entries: Entry[] = [];
+  if (groupBy === undefined) {
+    ordered.forEach((row, index) => entries.push({ kind: 'row', row, index }));
+  } else {
+    let heading: { kind: 'group'; label: string; count: number } | null = null;
+    ordered.forEach((row, index) => {
+      const label = groupBy(row);
+      if (heading === null || heading.label !== label) {
+        heading = { kind: 'group', label, count: 0 };
+        entries.push(heading);
+      }
+      heading.count += 1;
+      entries.push({ kind: 'row', row, index });
+    });
+  }
+
   const virtualizer = useVirtualizer({
-    count: virtualized ? ordered.length : 0,
+    count: virtualized ? entries.length : 0,
     getScrollElement,
     estimateSize,
     // Enough rows above and below that a fast flick does not show a gap, and
@@ -490,7 +521,7 @@ export function DataTable<T extends TableRow>({
       : 0;
 
   /** The rows to render, paired with the 1-based index a reader should hear. */
-  const visible: { row: T; index: number }[] = virtualized
+  const visible: { entry: Entry; position: number }[] = virtualized
     ? /*
        * `flatMap` with a presence check, not an index lookup asserted to be
        * populated. The virtualizer reports indices from the measurement it last
@@ -500,10 +531,10 @@ export function DataTable<T extends TableRow>({
        * this drops it instead.
        */
       virtualRows.flatMap((item) => {
-        const row = ordered[item.index];
-        return row === undefined ? [] : [{ row, index: item.index }];
+        const entry = entries[item.index];
+        return entry === undefined ? [] : [{ entry, position: item.index }];
       })
-    : ordered.map((row, index) => ({ row, index }));
+    : entries.map((entry, position) => ({ entry, position }));
 
   const leadingColumns = (renderDetail ? 1 : 0) + (selectable ? 1 : 0) + (canReorder ? 1 : 0);
   const totalColumns = columns.length + leadingColumns;
@@ -515,7 +546,7 @@ export function DataTable<T extends TableRow>({
       containerRef={scrollRef}
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
-      {...(virtualized ? { 'aria-rowcount': ordered.length + 1 } : {})}
+      {...(virtualized ? { 'aria-rowcount': entries.length + 1 } : {})}
       className={cn(resizable && 'w-max table-fixed', className)}
       {...(containerClassName === undefined ? {} : { containerClassName })}
     >
@@ -608,7 +639,23 @@ export function DataTable<T extends TableRow>({
           <tr aria-hidden style={{ height: paddingTop }} />
         ) : null}
 
-        {visible.map(({ row, index: rowIndex }) => {
+        {visible.map(({ entry, position }) => {
+          if (entry.kind === 'group') {
+            return (
+              <TableRow
+                key={`group-${String(position)}`}
+                {...(virtualized ? { 'aria-rowindex': position + 2 } : {})}
+              >
+                <TableHead scope="rowgroup" colSpan={totalColumns} className="bg-surface-sunken">
+                  <span className="flex items-center gap-2 text-fg">
+                    {entry.label}
+                    <span className="font-normal text-fg-muted tabular-nums">{entry.count}</span>
+                  </span>
+                </TableHead>
+              </TableRow>
+            );
+          }
+          const { row, index: rowIndex } = entry;
           const id = rowId(row);
           const detail = renderDetail?.(row) ?? null;
           const isOpen = open.has(id) && detail !== null;
@@ -620,7 +667,7 @@ export function DataTable<T extends TableRow>({
                 id={id}
                 name={name}
                 // 1-based, and past the header row, which is row 1.
-                {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
+                {...(virtualized ? { 'aria-rowindex': position + 2 } : {})}
                 reorderable={canReorder}
                 selected={picked.has(id)}
                 stripe={striped && rowIndex % 2 === 1}

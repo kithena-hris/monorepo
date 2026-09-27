@@ -75,7 +75,7 @@ export function PopoverContent({
           matchTriggerWidth && 'w-(--radix-popover-trigger-width)',
           'max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-contain',
           'origin-(--radix-popover-content-transform-origin)',
-          'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+          'popover-motion',
           className,
         )}
         {...props}
