@@ -345,8 +345,14 @@ export function PageLayout({
             {(sidebarHeader ??
             (sidebarState.enabled &&
               !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
-              <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 p-2 pb-0">
-                <div className="min-w-0 flex-1">{sidebarHeader}</div>
+              // The same inset as the column below it (`p-3`, `p-2` as a rail),
+              // so the brand lines up with the navigation; the brand's slot is
+              // a control tall, so it centres on the collapse button beside it.
+              // As a rail the two stack: the mark alone, the button under it.
+              <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 px-3 pt-3 pb-1 group-data-[collapsed]/sidebar:flex-col group-data-[collapsed]/sidebar:px-2 group-data-[collapsed]/sidebar:pt-2">
+                <div className="flex min-h-control-md min-w-0 flex-1 items-center group-data-[collapsed]/sidebar:justify-center">
+                  {sidebarHeader}
+                </div>
                 {sidebarState.enabled &&
                 !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
                   <RailToggle
@@ -607,8 +613,14 @@ export interface PageHeaderFrameProps extends PageHeaderFrameValue {
  * the frame's `actions` after its own — so a frame's primary action lands at
  * the trailing edge, where a primary action goes.
  */
-export function PageHeaderFrame({ breadcrumb, actions, children }: PageHeaderFrameProps): JSX.Element {
-  return <PageHeaderFrameContext value={{ breadcrumb, actions }}>{children}</PageHeaderFrameContext>;
+export function PageHeaderFrame({
+  breadcrumb,
+  actions,
+  children,
+}: PageHeaderFrameProps): JSX.Element {
+  return (
+    <PageHeaderFrameContext value={{ breadcrumb, actions }}>{children}</PageHeaderFrameContext>
+  );
 }
 
 export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
