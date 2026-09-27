@@ -12,6 +12,8 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
+  icons,
+  type IconName,
 } from '@reach/ui';
 import type { Route } from 'next';
 import Link from 'next/link';
@@ -54,20 +56,35 @@ function groupsOf(sections: readonly Place[]): [string, Place[]][] {
   return [...groups];
 }
 
-/** The sections, grouped, the current one marked: the sidebar's People flyout. */
-export function PeopleSections({
-  sections,
-  route,
-}: PeopleNavProps): JSX.Element | null {
+/** A manifest's icon name as a Reach icon; an unknown name draws nothing rather than failing. */
+function iconOf(name: string | undefined): JSX.Element | undefined {
+  if (name === undefined || !(name in icons)) return undefined;
+  const Icon = icons[name as IconName];
+  return <Icon />;
+}
+
+/**
+ * The sections, grouped in columns, each with its icon and what it is for,
+ * the current one marked: the sidebar's People flyout, a menu of the area
+ * rather than a bare list.
+ */
+export function PeopleSections({ sections, route }: PeopleNavProps): JSX.Element | null {
   if (sections.length === 0) return null;
   const current = currentPlace(sections, route);
   return (
     <Nav label="People sections">
-      <NavList>
+      <NavList columns={3}>
         {groupsOf(sections).map(([group, places]) => (
           <NavGroup key={group} label={group}>
             {places.map((s) => (
-              <NavItem key={s.path} asChild level={2} current={s === current}>
+              <NavItem
+                key={s.path}
+                asChild
+                level={2}
+                current={s === current}
+                icon={iconOf(s.icon)}
+                description={s.description}
+              >
                 <Link href={s.path as Route}>{s.label}</Link>
               </NavItem>
             ))}
@@ -84,10 +101,7 @@ export function PeopleSections({
  * breadcrumb and the actions (`headerFrame`), so this row is a phone's only —
  * which is CSS; nothing here asks how wide the window is.
  */
-export function PeopleBar({
-  sections,
-  route,
-}: PeopleNavProps): JSX.Element | null {
+export function PeopleBar({ sections, route }: PeopleNavProps): JSX.Element | null {
   const router = useRouter();
   if (sections.length === 0) return null;
   const current = currentPlace(sections, route);

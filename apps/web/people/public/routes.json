@@ -109,144 +109,135 @@
     {
       "path": "/people/new",
       "label": "Add employee",
-      "for": [
-        "hr"
-      ]
+      "for": ["hr"],
+      "icon": "hire"
     }
   ],
   "sections": [
     {
       "path": "/people",
       "label": "Overview",
-      "group": "People"
+      "group": "Everyday",
+      "icon": "home",
+      "description": "Your details, what needs you, and who you report to."
     },
     {
       "path": "/people/directory",
       "label": "Directory",
-      "group": "People",
-      "owns": [
-        "/people/:id",
-        "/people/:id/history",
-        "/people/bulk-edit"
-      ]
+      "group": "Everyday",
+      "owns": ["/people/:id", "/people/:id/history", "/people/bulk-edit"],
+      "icon": "people",
+      "description": "Everybody here. Search, filter and open a profile."
     },
     {
       "path": "/people/me",
       "label": "My profile",
-      "group": "People",
-      "owns": [
-        "/people/me/history",
-        "/people/onboarding"
-      ]
+      "group": "Everyday",
+      "owns": ["/people/me/history", "/people/onboarding"],
+      "icon": "person",
+      "description": "Your own record: details, photo and history."
     },
     {
       "path": "/people/approvals",
       "label": "Approvals",
-      "group": "People"
+      "group": "Everyday",
+      "icon": "approve",
+      "description": "Changes waiting for somebody to decide."
     },
     {
       "path": "/people/completeness",
       "label": "Missing information",
-      "group": "People",
-      "for": [
-        "hr"
-      ]
+      "group": "Records",
+      "for": ["hr"],
+      "icon": "missing",
+      "description": "Records with required details still to fill in."
     },
     {
       "path": "/people/identifier-reviews",
       "label": "Identifiers to review",
-      "group": "People",
-      "for": [
-        "hr"
-      ]
+      "group": "Records",
+      "for": ["hr"],
+      "icon": "review",
+      "description": "National IDs the checks doubted, waiting for HR."
     },
     {
       "path": "/people/duplicates",
       "label": "Possible duplicates",
-      "group": "People",
-      "for": [
-        "hr"
-      ]
+      "group": "Records",
+      "for": ["hr"],
+      "icon": "merge",
+      "description": "Records that may be the same person, to merge or dismiss."
     },
     {
       "path": "/people/import",
       "label": "Import",
-      "group": "People",
-      "for": [
-        "hr"
-      ]
+      "group": "Records",
+      "for": ["hr"],
+      "icon": "upload",
+      "description": "Add or update many people from a spreadsheet."
     },
     {
       "path": "/people/export",
       "label": "Export",
-      "group": "People"
+      "group": "Records",
+      "icon": "download",
+      "description": "People and their details as a file, with a reason."
     },
     {
       "path": "/people/full-values",
       "label": "Full values",
-      "group": "People",
-      "for": [
-        "finance",
-        "hr"
-      ]
+      "group": "Records",
+      "for": ["finance", "hr"],
+      "icon": "sensitive",
+      "description": "Unmasked values, asked for with a reason and audited."
     },
     {
       "path": "/people/analytics",
       "label": "Analytics",
       "group": "Reporting",
-      "for": [
-        "hr"
-      ]
+      "for": ["hr"],
+      "icon": "analytics",
+      "description": "Headcount, movement and pay, as charts."
     },
     {
       "path": "/people/reports",
       "label": "Scheduled reports",
       "group": "Reporting",
-      "for": [
-        "hr",
-        "admin"
-      ],
-      "owns": [
-        "/people/reports/:id"
-      ]
+      "for": ["hr", "admin"],
+      "owns": ["/people/reports/:id"],
+      "icon": "report",
+      "description": "Reports built for each recipient and emailed on a schedule."
     }
   ],
   "settings": [
     {
       "path": "/settings/people/fields",
       "label": "Employee fields",
-      "for": [
-        "admin"
-      ],
-      "owns": [
-        "/people/setup"
-      ],
-      "description": "The details People keeps on each person: what they are, who sees them, and when they are asked."
+      "for": ["admin"],
+      "owns": ["/people/setup"],
+      "description": "The details People keeps on each person: what they are, who sees them, and when they are asked.",
+      "icon": "document"
     },
     {
       "path": "/settings/people/organisation",
       "label": "Organisation",
-      "description": "Legal entities, work locations, employee numbering, the default time zone and retention."
+      "description": "Legal entities, work locations, employee numbering, the default time zone and retention.",
+      "icon": "organisation"
     },
     {
       "path": "/settings/people/roles",
       "label": "Roles",
-      "for": [
-        "hr",
-        "admin"
-      ],
-      "description": "Who is an HR member, a People administrator or in finance here."
+      "for": ["hr", "admin"],
+      "description": "Who is an HR member, a People administrator or in finance here.",
+      "icon": "permission"
     },
     {
       "path": "/settings/people/integrations",
       "label": "Integrations",
-      "for": [
-        "admin"
-      ],
-      "owns": [
-        "/settings/people/integrations/:id"
-      ],
-      "description": "Webhooks that tell other systems about changes, and provisioning from an identity provider."
+      "for": ["admin"],
+      "owns": ["/settings/people/integrations/:id"],
+      "description": "Webhooks that tell other systems about changes, and provisioning from an identity provider.",
+      "icon": "link"
     }
   ]
 }

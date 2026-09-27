@@ -251,6 +251,8 @@ export function AppShell({
                       icon={area.icon}
                       current={isCurrent(area.href, pathname)}
                       flyout={sections[area.href]}
+                      // An area's places in columns, each described: room for a menu.
+                      flyoutSize="lg"
                     >
                       <Link href={area.href as Route}>{area.label}</Link>
                     </NavItem>

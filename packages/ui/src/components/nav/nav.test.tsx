@@ -120,3 +120,30 @@ describe('<NavItem flyout>', () => {
     expect(second.defaultPrevented).toBe(false);
   });
 });
+
+describe('<NavItem description>', () => {
+  it('keeps the label as the name and the line under it as the description', () => {
+    render(
+      <Nav label="People sections">
+        <NavList>
+          <NavItem href="#directory" level={2} description="Everybody here. Search and filter.">
+            Directory
+          </NavItem>
+        </NavList>
+      </Nav>,
+    );
+    const link = screen.getByRole('link', { name: 'Directory' });
+    expect(link).toHaveAccessibleDescription('Everybody here. Search and filter.');
+  });
+
+  it('lays groups out in columns only when asked', () => {
+    const { container } = render(
+      <Nav label="Menu">
+        <NavList columns={3}>
+          <li>One</li>
+        </NavList>
+      </Nav>,
+    );
+    expect(container.querySelector('ul')?.className).toMatch(/grid/);
+  });
+});

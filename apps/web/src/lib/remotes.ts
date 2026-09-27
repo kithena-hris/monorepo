@@ -28,8 +28,10 @@ import { z } from 'zod';
 const Place = z.object({
   path: z.string().startsWith('/'),
   label: z.string().min(1),
-  /** One sentence, for places drawn as cards (settings). */
+  /** One sentence on what the place is for, under its label in a menu or on a card. */
   description: z.string().min(1).optional(),
+  /** A Reach icon name (`icons`), drawn beside the label where there is room. */
+  icon: z.string().min(1).optional(),
   group: z.string().min(1).optional(),
   for: z.array(z.string().min(1)).optional(),
   owns: z.array(z.string().startsWith('/')).optional(),

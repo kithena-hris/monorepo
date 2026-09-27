@@ -123,6 +123,10 @@ import {
   Wallet,
   X,
   type LucideIcon,
+  ChartColumn,
+  FileChartColumn,
+  GitMerge,
+  ScanSearch,
 } from 'lucide-react';
 
 /**
@@ -220,6 +224,14 @@ export const iconGroups = {
     file: File,
     folder: Folder,
     table: Table2,
+    /** Charts of a population: headcount, movement, pay. */
+    analytics: ChartColumn,
+    /** A report as a document somebody receives. */
+    report: FileChartColumn,
+    /** Something waiting to be checked by a person. */
+    review: ScanSearch,
+    /** Two records becoming one. */
+    merge: GitMerge,
     tag: Tag,
     identifier: Hash,
     email: Mail,
