@@ -1,7 +1,14 @@
 import {
   Alert,
+  AppMark,
+  AutoGrid,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
   CopyField,
   Dialog,
   DialogBody,
@@ -21,11 +28,14 @@ import {
   PageSection,
   Stack,
   Switch,
-  TagsInput,
+  Combobox,
+  type ComboboxOption,
+  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../../load';
+import { ChatApps, type ChatAppsProps, type ChatAppsState } from './chat-apps';
 import { Provisioning, type ProvisioningProps, type ScimState } from './provisioning';
 
 /** A field in the published schema, and whether an allowlist may name it. */
@@ -59,6 +69,8 @@ export interface IntegrationsState {
   readonly endpoints: readonly Endpoint[];
   /** SCIM provisioning and what it keeps upstream (PEO-072, PEO-073); absent where not served. */
   readonly scim?: ScimState;
+  /** Chat apps and People's notices to them; absent where no chat service answered. */
+  readonly chat?: ChatAppsState;
 }
 
 export interface EndpointInput {
@@ -85,18 +97,15 @@ export interface IntegrationsProps {
   readonly onOpenLog?: (id: string) => void;
   /** SCIM connections (PEO-072); absent, the section is not drawn. */
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
+  /** Chat apps (Slack today) and People's notices to them; absent, not drawn. */
+  readonly chat?: ChatAppsProps;
 }
-
-const REASON = {
-  'special-category': 'is special-category data and never leaves in a webhook',
-  encrypted: 'is encrypted and never leaves in a webhook',
-} as const;
 
 /**
  * What leaves the building, and to whom (PRD §13.3, design screen 9).
  *
  * Each endpoint subscribes to events and to a field allowlist. The allowlist
- * is a `TagsInput` backed by the published schema, so it cannot name a field
+ * is chosen from the published schema's fields, so it cannot name a field
  * that does not exist or one the policy forbids — and People refuses the same
  * two things if anything else tries (`allowable` in the webhook service). A
  * signing secret is a `CopyField`, shown once and never retrievable, the shape
@@ -110,13 +119,71 @@ export function Integrations(props: IntegrationsProps): JSX.Element {
   );
 }
 
-function allowlistCheck(fields: readonly AllowableField[]) {
-  const byKey = new Map(fields.map((f) => [f.key, f]));
-  return (key: string): string | null => {
-    const field = byKey.get(key);
-    if (field === undefined) return `${key} is not a field in the published schema.`;
-    return field.refused === null ? null : `${field.label} ${REASON[field.refused]}.`;
-  };
+/** "people.person.hired" as "Person hired", with the name itself beneath. */
+function eventOptions(events: readonly string[]): ComboboxOption[] {
+  return events.map((e) => {
+    const words = e.replace(/^people\./, '').replaceAll(/[._]/g, ' ');
+    return {
+      value: e,
+      label: words.charAt(0).toUpperCase() + words.slice(1),
+      description: e,
+      group: e.split('.')[1] === 'person' ? 'A person' : 'The company',
+    };
+  });
+}
+
+/** Every field of the published schema; one no endpoint may receive is shown and cannot be chosen. */
+function fieldOptions(fields: readonly AllowableField[]): ComboboxOption[] {
+  return fields.map((f) => ({
+    value: f.key,
+    label: f.label,
+    description:
+      f.refused === 'special-category'
+        ? `${f.key} · special-category data, never sent`
+        : f.refused === 'encrypted'
+          ? `${f.key} · encrypted, never sent`
+          : f.key,
+    disabled: f.refused !== null,
+  }));
+}
+
+/** Several of a known list, searched and chosen, shown as chips. */
+function PickMany({
+  label,
+  options,
+  value,
+  onChange,
+  hint,
+  invalid = false,
+}: {
+  readonly label: string;
+  readonly options: readonly ComboboxOption[];
+  readonly value: readonly string[];
+  readonly onChange: (value: readonly string[]) => void;
+  readonly hint?: string | undefined;
+  readonly invalid?: boolean;
+}): JSX.Element {
+  return (
+    <Field invalid={invalid}>
+      <FieldLabel>{label}</FieldLabel>
+      <FieldControl>
+        <Combobox
+          multiple
+          chips
+          label={label}
+          options={options}
+          value={value}
+          placeholder={value.length === 0 ? 'Choose' : `${String(value.length)} chosen`}
+          searchPlaceholder="Search"
+          emptyMessage="Nothing by that name."
+          onChange={(next) => {
+            onChange(Array.isArray(next) ? next : []);
+          }}
+        />
+      </FieldControl>
+      {hint === undefined ? null : <FieldDescription>{hint}</FieldDescription>}
+    </Field>
+  );
 }
 
 function Endpoints({
@@ -126,6 +193,7 @@ function Endpoints({
   onRotate,
   onOpenLog,
   scim,
+  chat,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
@@ -135,7 +203,20 @@ function Endpoints({
     <Stack gap={6}>
       <PageHeader
         title="Integrations"
-        description={`${String(state.endpoints.length)} endpoints · schema version ${String(state.schemaVersion)} · ${state.deliveries24h.toLocaleString()} deliveries in 24h`}
+        description="Connect People to tools outside Kithena, such as your chat app, your payroll provider or your identity provider. Everything inside Kithena works together on its own."
+      />
+      <Directory state={state} chatShown={chat !== undefined} scimShown={scim !== undefined} />
+      <Outgoing state={state} />
+      {chat === undefined || state.chat === undefined ? null : (
+        <div id="chat" className="scroll-mt-6">
+          <ChatApps {...chat} state={state.chat} />
+        </div>
+      )}
+      <PageSection
+        id="webhooks"
+        className="scroll-mt-6"
+        title="Webhooks to third-party tools"
+        description={`When something happens in People (somebody is hired, changes job or leaves) People tells the tools you add here, so nobody types it twice. Each is told only the events you choose, carrying only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last day · schema version ${String(state.schemaVersion)}.`}
         actions={
           <Button
             variant="primary"
@@ -146,48 +227,53 @@ function Endpoints({
             Add endpoint
           </Button>
         }
-      />
-      {secret === null ? null : (
-        <Alert tone="warning" title="Copy the signing secret now">
-          <Stack gap={2}>
-            <p>
-              This is the only time it is shown for {secret.url}. It cannot be retrieved later; if
-              it is lost, rotate it.
-            </p>
-            <CopyField value={secret.value} label="Copy the signing secret" />
-          </Stack>
-        </Alert>
-      )}
-      {state.endpoints.length === 0 ? (
-        <EmptyState
-          title="No endpoints yet"
-          description="An endpoint receives the events you choose, carrying only the fields you allow."
-        />
-      ) : (
-        state.endpoints.map((endpoint) => (
-          <EndpointCard
-            key={endpoint.id}
-            endpoint={endpoint}
-            state={state}
-            refusedKeys={refusedLabels}
-            onUpdate={onUpdate}
-            {...(onOpenLog === undefined
-              ? {}
-              : {
-                  onOpenLog: () => {
-                    onOpenLog(endpoint.id);
-                  },
-                })}
-            onRotate={async () => {
-              const rotated = await onRotate(endpoint.id);
-              if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
-              return rotated.ok ? { ok: true } : rotated;
-            }}
-          />
-        ))
-      )}
+      >
+        <Stack gap={4}>
+          {secret === null ? null : (
+            <Alert tone="warning" title="Copy the signing secret now">
+              <Stack gap={2}>
+                <p>
+                  This is the only time it is shown for {secret.url}. It cannot be retrieved later;
+                  if it is lost, rotate it.
+                </p>
+                <CopyField value={secret.value} label="Copy the signing secret" />
+              </Stack>
+            </Alert>
+          )}
+          {state.endpoints.length === 0 ? (
+            <EmptyState
+              title="No third-party tools connected"
+              description="Add the address a tool gives you for incoming webhooks, usually in its settings under Webhooks or API. For example, your payroll provider, to hear about starters and leavers."
+            />
+          ) : (
+            state.endpoints.map((endpoint) => (
+              <EndpointCard
+                key={endpoint.id}
+                endpoint={endpoint}
+                state={state}
+                refusedKeys={refusedLabels}
+                onUpdate={onUpdate}
+                {...(onOpenLog === undefined
+                  ? {}
+                  : {
+                      onOpenLog: () => {
+                        onOpenLog(endpoint.id);
+                      },
+                    })}
+                onRotate={async () => {
+                  const rotated = await onRotate(endpoint.id);
+                  if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
+                  return rotated.ok ? { ok: true } : rotated;
+                }}
+              />
+            ))
+          )}
+        </Stack>
+      </PageSection>
       {state.scim === undefined || scim === undefined ? null : (
-        <Provisioning scim={state.scim} {...scim} />
+        <div id="provisioning" className="scroll-mt-6">
+          <Provisioning scim={state.scim} {...scim} />
+        </div>
       )}
       <AddEndpoint
         open={adding}
@@ -200,6 +286,173 @@ function Endpoints({
         }}
       />
     </Stack>
+  );
+}
+
+/**
+ * Every integration side by side, the way integration directories are laid
+ * out: what it is, whether it is on, and one way into its settings below.
+ */
+function Directory({
+  state,
+  chatShown,
+  scimShown,
+}: {
+  readonly state: IntegrationsState;
+  readonly chatShown: boolean;
+  readonly scimShown: boolean;
+}): JSX.Element {
+  const slack = state.chat?.apps.find((a) => a.key === 'slack');
+  const live = state.endpoints.filter((e) => e.enabled);
+  const retrying = live.filter((e) => e.retrying > 0).length;
+  const scimLive = (state.scim?.connections ?? []).filter((c) => c.revokedAt === null);
+  const cards: {
+    readonly id: string;
+    readonly name: string;
+    readonly mark: JSX.Element;
+    readonly says: string;
+    readonly status: { readonly tone: 'success' | 'neutral' | 'warning'; readonly text: string };
+    readonly action: string;
+  }[] = [
+    ...(chatShown && slack !== undefined
+      ? [
+          {
+            id: 'chat',
+            name: 'Slack',
+            mark: <AppMark app="slack" className="size-7" />,
+            says: 'Questions, approvals and reminders, answered right in Slack.',
+            status:
+              slack.connection === null
+                ? { tone: 'neutral' as const, text: 'Not connected' }
+                : { tone: 'success' as const, text: `Connected to ${slack.connection.workspace}` },
+            action: slack.connection === null ? 'Connect' : 'Manage',
+          },
+        ]
+      : []),
+    {
+      id: 'webhooks',
+      name: 'Webhooks',
+      mark: <icons.send aria-hidden className="size-6 text-fg-muted" />,
+      says: 'Tell payroll, benefits or any tool when somebody joins, moves or leaves.',
+      status:
+        live.length === 0
+          ? { tone: 'neutral', text: 'None yet' }
+          : retrying > 0
+            ? { tone: 'warning', text: `${String(retrying)} retrying` }
+            : { tone: 'success', text: `${String(live.length)} active` },
+      action: live.length === 0 ? 'Add one' : 'Manage',
+    },
+    ...(scimShown && state.scim !== undefined
+      ? [
+          {
+            id: 'provisioning',
+            name: 'Provisioning',
+            mark: <icons.people aria-hidden className="size-6 text-fg-muted" />,
+            says: 'Keep people in step with your identity provider, over SCIM.',
+            status:
+              scimLive.length === 0
+                ? { tone: 'neutral' as const, text: 'Not connected' }
+                : { tone: 'success' as const, text: `From ${scimLive[0]?.system ?? 'one system'}` },
+            action: scimLive.length === 0 ? 'Connect' : 'Manage',
+          },
+        ]
+      : []),
+  ];
+  return (
+    <section aria-labelledby="all-integrations">
+      <h2 id="all-integrations" className="sr-only">
+        All integrations
+      </h2>
+      <AutoGrid minItemWidth="15rem" gap={4}>
+        {cards.map((c) => (
+          <Card key={c.id} className="flex flex-col">
+            <CardHeader className="flex-row items-center gap-3">
+              {c.mark}
+              <CardTitle className="flex-1">{c.name}</CardTitle>
+              <Badge tone={c.status.tone} size="sm">
+                {c.status.text}
+              </Badge>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <p className="text-sm text-fg-muted">{c.says}</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild size="sm" variant="secondary">
+                <a href={`#${c.id}`} aria-label={`${c.action}: ${c.name}`}>
+                  {c.action}
+                </a>
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </AutoGrid>
+    </section>
+  );
+}
+
+/**
+ * What can leave Kithena, at a glance: the fields some tool receives, and
+ * the ones no tool ever may. Read from the same allowlists and policy the
+ * webhook service enforces, so it cannot promise what People would refuse.
+ */
+function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element {
+  const label = new Map(state.fields.map((f) => [f.key, f.label]));
+  const receivers = new Map<string, number>();
+  for (const e of state.endpoints.filter((x) => x.enabled)) {
+    for (const key of e.allowlist) receivers.set(key, (receivers.get(key) ?? 0) + 1);
+  }
+  const sent = [...receivers.entries()].toSorted(([a], [b]) =>
+    (label.get(a) ?? a).localeCompare(label.get(b) ?? b),
+  );
+  const never = state.fields.filter((f) => f.refused !== null);
+  return (
+    <PageSection
+      surface
+      title="What can leave Kithena"
+      description="A webhook sends only the fields you allow on it, and only to that tool. A chat app shows a value only for a field marked for the assistant, and only to somebody who may see it in Kithena. The assistant’s model learns field names, never values."
+    >
+      <Stack gap={4}>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-fg">
+            Sent to third-party tools ({String(sent.length)})
+          </p>
+          {sent.length === 0 ? (
+            <p className="text-sm text-fg-muted">
+              Nothing yet. A field is sent only once you allow it on an enabled endpoint.
+            </p>
+          ) : (
+            <span className="flex flex-wrap gap-1.5">
+              {sent.map(([key, n]) => (
+                <Badge key={key} tone="info">
+                  {label.get(key) ?? key}
+                  {state.endpoints.length > 1
+                    ? ` · ${String(n)} ${n === 1 ? 'tool' : 'tools'}`
+                    : ''}
+                </Badge>
+              ))}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-fg">
+            Never sent, whatever is chosen ({String(never.length)})
+          </p>
+          <p className="text-sm text-fg-muted">
+            Special-category data (health, beliefs and the like) and encrypted fields such as bank
+            details cannot be added to any endpoint.
+          </p>
+          {never.length === 0 ? null : (
+            <span className="flex flex-wrap gap-1.5">
+              {never.map((f) => (
+                <Badge key={f.key} tone="neutral">
+                  {f.label}
+                </Badge>
+              ))}
+            </span>
+          )}
+        </div>
+      </Stack>
+    </PageSection>
   );
 }
 
@@ -275,20 +528,20 @@ function EndpointCard({
     >
       <Stack gap={4}>
         {endpoint.problem === null ? null : <Alert tone="warning">{endpoint.problem}</Alert>}
-        <TagsInput
+        <PickMany
           label="Events"
-          value={events}
-          validate={(e) => (knownEvents.has(e) ? null : `${e} is not an event People raises.`)}
+          options={eventOptions(state.events)}
+          value={events.filter((e) => knownEvents.has(e))}
           onChange={setEvents}
         />
-        <TagsInput
+        <PickMany
           label="Fields this endpoint receives"
+          options={fieldOptions(state.fields)}
           value={allowlist}
-          validate={allowlistCheck(state.fields)}
           hint={
             refusedKeys.length === 0
-              ? 'Field keys from the published schema.'
-              : `Field keys from the published schema. ${refusedKeys.join(' and ')} cannot be added to any allowlist.`
+              ? undefined
+              : `${refusedKeys.join(' and ')} can never be sent to an endpoint.`
           }
           onChange={setAllowlist}
         />
@@ -346,7 +599,6 @@ function AddEndpoint({
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const knownEvents = new Set(state.events);
   const badUrl = !/^https:\/\/\S+$/.test(url);
   const badEmail = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alertEmail);
 
@@ -375,7 +627,9 @@ function AddEndpoint({
         <DialogHeader>
           <DialogTitle>Add an endpoint</DialogTitle>
           <DialogDescription>
-            Deliveries are signed. The secret is shown once, after this.
+            People sends this address a signed message whenever one of the events you choose
+            happens. The signing secret is shown once, after this, for the tool to check each
+            message came from you.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -385,12 +639,16 @@ function AddEndpoint({
               <FieldControl>
                 <Input
                   type="url"
+                  placeholder="https://hooks.your-payroll.com/kithena/incoming"
                   value={url}
                   onChange={(e) => {
                     setUrl(e.target.value);
                   }}
                 />
               </FieldControl>
+              <FieldDescription>
+                The tool’s address for incoming webhooks, from its own settings.
+              </FieldDescription>
               <FieldError>An https address, reachable from the internet.</FieldError>
             </Field>
             <Field required invalid={shown && badEmail}>
@@ -399,6 +657,7 @@ function AddEndpoint({
                 <Input
                   type="email"
                   autoComplete="email"
+                  placeholder="it-team@yourcompany.com"
                   value={alertEmail}
                   onChange={(e) => {
                     setAlertEmail(e.target.value);
@@ -410,18 +669,23 @@ function AddEndpoint({
               </FieldDescription>
               <FieldError>An email address to tell.</FieldError>
             </Field>
-            <TagsInput
+            <PickMany
               label="Events"
+              options={eventOptions(state.events)}
               value={events}
               invalid={shown && events.length === 0}
-              hint={shown && events.length === 0 ? 'Subscribe to at least one event.' : undefined}
-              validate={(e) => (knownEvents.has(e) ? null : `${e} is not an event People raises.`)}
+              hint={
+                shown && events.length === 0
+                  ? 'Choose at least one event.'
+                  : 'What the tool is told about. A payroll tool usually wants hires, job changes and leavers.'
+              }
               onChange={setEvents}
             />
-            <TagsInput
+            <PickMany
               label="Fields this endpoint receives"
+              options={fieldOptions(state.fields)}
               value={allowlist}
-              validate={allowlistCheck(state.fields)}
+              hint="Only these details are sent with each event. Choose the fewest the tool needs."
               onChange={setAllowlist}
             />
             {refused === null ? null : (

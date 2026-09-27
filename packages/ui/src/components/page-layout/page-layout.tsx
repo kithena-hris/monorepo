@@ -114,7 +114,7 @@ interface RailState {
  * every screen threading a `collapsed` prop through four components. Defaults
  * to expanded, so a `Nav` used anywhere else behaves normally.
  */
-const RailContext = createContext<RailState>({ collapsed: false });
+export const RailContext = createContext<RailState>({ collapsed: false });
 
 /** True when the surrounding rail is collapsed to icons. */
 export function useRailCollapsed(): boolean {
@@ -285,6 +285,9 @@ export function PageLayout({
           data-collapsed={sidebarState.collapsed || undefined}
           className={cn(
             'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface',
+            // Above the content, so a flyout from one of its items (`NavItem`'s
+            // `flyout`) paints over the page rather than under a sticky toolbar.
+            'md:z-30',
             /*
              * A flex column, not a block.
              *
@@ -582,6 +585,32 @@ function RailToggle({
   );
 }
 
+interface PageHeaderFrameValue {
+  readonly breadcrumb?: ReactNode;
+  readonly actions?: ReactNode;
+}
+
+const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
+
+export interface PageHeaderFrameProps extends PageHeaderFrameValue {
+  readonly children?: ReactNode;
+}
+
+/**
+ * What a frame around a page adds to that page's header, when the frame does
+ * not render the page itself.
+ *
+ * A host that draws its chrome around a screen it only mounts would otherwise
+ * put its breadcrumb and its actions in a row of their own above the screen's
+ * header, and the page would open with two headers. Under this, every
+ * `PageHeader` shows the frame's `breadcrumb` when it has none of its own, and
+ * the frame's `actions` after its own — so a frame's primary action lands at
+ * the trailing edge, where a primary action goes.
+ */
+export function PageHeaderFrame({ breadcrumb, actions, children }: PageHeaderFrameProps): JSX.Element {
+  return <PageHeaderFrameContext value={{ breadcrumb, actions }}>{children}</PageHeaderFrameContext>;
+}
+
 export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
   /** A `Breadcrumb`, above the title. */
   breadcrumb?: ReactNode;
@@ -615,9 +644,20 @@ export function PageHeader({
   size = 'lg',
   ...props
 }: PageHeaderProps): JSX.Element {
+  const frame = useContext(PageHeaderFrameContext);
+  const trail = breadcrumb ?? frame.breadcrumb;
+  const allActions =
+    frame.actions === undefined || frame.actions === null ? (
+      actions
+    ) : (
+      <>
+        {actions}
+        {frame.actions}
+      </>
+    );
   return (
     <div className={cn('flex flex-col gap-3', className)} {...props}>
-      {breadcrumb}
+      {trail}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -632,12 +672,14 @@ export function PageHeader({
             {meta}
           </div>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm text-fg-muted">{description}</p>
+            // A measure, not a width: past ~65 characters the eye loses the
+            // start of the next line.
+            <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">{description}</p>
           ) : null}
         </div>
-        {actions ? (
+        {allActions ? (
           <div className="flex shrink-0 flex-wrap items-center gap-2 max-xs:w-full max-xs:[&>*]:flex-1">
-            {actions}
+            {allActions}
           </div>
         ) : null}
       </div>
@@ -671,16 +713,18 @@ export function PageSection({
     <section
       className={cn(
         'min-w-0',
-        surface && 'rounded-lg border border-border bg-surface p-4 sm:p-5',
+        surface && 'rounded-lg border border-border bg-surface p-4 sm:p-6',
         className,
       )}
       {...props}
     >
       {title || actions ? (
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            {title ? <h2 className="text-md font-semibold text-fg">{title}</h2> : null}
-            {description ? <p className="mt-0.5 text-sm text-fg-muted">{description}</p> : null}
+            {title ? <h2 className="text-lg font-semibold text-fg">{title}</h2> : null}
+            {description ? (
+              <p className="mt-1 max-w-prose text-sm text-pretty text-fg-muted">{description}</p>
+            ) : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         </div>

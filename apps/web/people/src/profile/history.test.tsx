@@ -92,18 +92,59 @@ describe('PersonHistory', () => {
     // A phone number has no value on a past day, only its changes.
     expect(within(section('Contact')).getByText('Not kept by date')).toBeInTheDocument();
 
-    const changes = within(screen.getByRole('list', { name: /Changes/ })).getAllByRole('listitem');
-    expect(changes).toHaveLength(5);
-    const [, fix, typo, bank, phone] = changes;
+    // Newest first, by the day each was made.
+    const days = screen.getAllByRole('list', { name: /^Changes, / });
+    expect(days.map((d) => d.getAttribute('aria-label'))).toEqual([
+      'Changes, June 2, 2026',
+      'Changes, May 20, 2026',
+      'Changes, March 15, 2026',
+    ]);
+    const [fix] = within(days[0] as HTMLElement).getAllByRole('listitem');
+    expect(fix).toHaveTextContent('Base salary corrected');
     expect(within(fix as HTMLElement).getByText('Correction')).toBeInTheDocument();
-    expect(fix).toHaveTextContent(/Replaces .*50,000\.00/);
-    expect(fix).toHaveTextContent('Effective');
-    expect(within(typo as HTMLElement).getByText('Superseded')).toBeInTheDocument();
+    // From what it replaced, to what it is.
+    expect(fix).toHaveTextContent(/50,000\.00.*to.*51,000\.00/);
+    expect(fix).toHaveTextContent('By You');
+    const [june] = within(days[1] as HTMLElement).getAllByRole('listitem');
+    // Recorded on the 20th of May, in force from the 1st of June: both said.
+    expect(june).toHaveTextContent('effective June 1, 2026');
+    const march15 = within(days[2] as HTMLElement).getAllByRole('listitem');
+    const typo = march15.find((li) => li.textContent.includes('Superseded'));
+    expect(typo).toBeDefined();
     // Sealed: that it changed, never what to.
-    expect(bank).toHaveTextContent('••••');
-    // Not dated: recorded, with no effective date to print.
-    expect(phone).not.toHaveTextContent('Effective');
+    expect(march15.some((li) => li.textContent.includes('••••'))).toBe(true);
+    // Recorded the day it took effect: one date, not two.
+    const phone = march15.find((li) => li.textContent.includes('Mobile'));
+    expect(phone).not.toHaveTextContent('effective');
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('draws who made each change: their photo, or the product itself', () => {
+    render(
+      <PersonHistory
+        load={{
+          status: 'ready',
+          data: {
+            ...march,
+            asOf: null,
+            changes: [
+              change({
+                id: 'auto',
+                key: 'mobile',
+                value: '+34 600',
+                effectiveFrom: '2026-03-15',
+                by: 'Automatically',
+                actor: { kind: 'system', avatarUrl: null },
+              }),
+            ],
+          },
+        }}
+        onAsOf={vi.fn()}
+      />,
+    );
+    const [item] = screen.getAllByRole('listitem');
+    expect(item).toHaveTextContent('Mobile added');
+    expect(item).toHaveTextContent('Done automatically');
   });
 
   it('narrows to one field, and goes back to today', async () => {
@@ -113,14 +154,12 @@ describe('PersonHistory', () => {
     await user.click(screen.getByRole('combobox', { name: 'Field' }));
     await user.click(await screen.findByRole('option', { name: 'Mobile' }));
     expect(screen.queryByRole('heading', { name: 'Compensation' })).toBeNull();
-    expect(
-      within(screen.getByRole('list', { name: /Changes/ })).getAllByRole('listitem'),
-    ).toHaveLength(1);
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: 'Today' }));
     expect(onAsOf).toHaveBeenCalledWith(null);
   });
 
-  it('shows today without the as-of notice, and every value the viewer reads', () => {
+  it('shows today as the changes alone, without the as-of notice or the record', () => {
     render(
       <PersonHistory
         load={{
@@ -131,8 +170,8 @@ describe('PersonHistory', () => {
       />,
     );
     expect(screen.queryByText(/As it stood on/)).toBeNull();
-    expect(screen.queryByText('Not kept by date')).toBeNull();
-    expect(section('Contact')).toHaveTextContent('+34 612 345 678');
+    expect(screen.queryByRole('heading', { name: 'Contact' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Changes' })).toBeInTheDocument();
   });
 
   it('has loading and error states', async () => {

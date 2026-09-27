@@ -138,7 +138,10 @@ describe('the policy a process runs with', () => {
   const SWITCHES = { PEOPLE_WEBHOOKS_ALLOW_LOOPBACK: '1', PEOPLE_WEBHOOKS_ALLOW_HTTP: '1' };
 
   it('in production refuses loopback and plain http, whatever the switches say', async () => {
-    const policy = egressPolicyFrom({ NODE_ENV: 'production', ...SWITCHES }, answering('127.0.0.1'));
+    const policy = egressPolicyFrom(
+      { NODE_ENV: 'production', ...SWITCHES },
+      answering('127.0.0.1'),
+    );
     for (const url of ['https://127.0.0.1:8443/in', 'https://[::1]/in', 'https://hooks.test/in']) {
       expect((await vet(url, policy)).ok, url).toBe(false);
     }
@@ -164,5 +167,26 @@ describe('the policy a process runs with', () => {
     ]) {
       expect((await vet(url, policy)).ok, url).toBe(false);
     }
+  });
+});
+
+describe('Kithena itself', () => {
+  it('is never an endpoint: its own modules have People’s changes already', async () => {
+    for (const url of [
+      'https://kithena.com/in',
+      'https://acme.app.kithena.com/hooks',
+      'https://API.Kithena.com./x',
+    ]) {
+      const result = await vet(url, { resolve: answering(PUBLIC) });
+      expect(!result.ok && result.error.code).toBe('OWN_SYSTEM');
+    }
+    // A name that only ends with the letters is somebody else's.
+    expect((await vet('https://notkithena.com/in', { resolve: answering(PUBLIC) })).ok).toBe(true);
+  });
+
+  it('reads its domains from the environment when they are named there', async () => {
+    const policy = egressPolicyFrom({ KITHENA_OWN_DOMAINS: 'kithena.example' }, answering(PUBLIC));
+    const result = await vet('https://x.kithena.example/in', policy);
+    expect(!result.ok && result.error.code).toBe('OWN_SYSTEM');
   });
 });

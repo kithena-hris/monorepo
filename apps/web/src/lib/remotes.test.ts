@@ -41,13 +41,36 @@ describe('matchRoute', () => {
     expect(matchRoute('<html>', '/people')).toBeNull();
   });
 
-  it('carries the sections and actions, and none when a manifest lists none', () => {
+  it('carries the sections, actions and settings, and none when a manifest lists none', () => {
     const nav = {
       sections: [{ path: '/people/directory', label: 'Directory' }],
       actions: [{ path: '/people/new', label: 'Add employee', for: ['hr'] }],
+      settings: [
+        {
+          path: '/settings/people/roles',
+          label: 'Roles',
+          description: 'Who holds which role.',
+          for: ['hr'],
+        },
+      ],
     };
     expect(matchRoute({ ...manifest, ...nav }, '/people')?.nav).toEqual(nav);
-    expect(matchRoute(manifest, '/people')?.nav).toEqual({ sections: [], actions: [] });
+    expect(matchRoute(manifest, '/people')?.nav).toEqual({
+      sections: [],
+      actions: [],
+      settings: [],
+    });
+  });
+
+  it('opens a setting only to the roles it lists', () => {
+    const settings = [
+      { path: '/settings/people/organisation', label: 'Organisation' },
+      { path: '/settings/people/fields', label: 'Employee fields', for: ['admin'] },
+    ];
+    const cut = (roles: Record<string, boolean>) =>
+      placesFor({ sections: [], actions: [], settings }, roles).settings.map((s) => s.label);
+    expect(cut({ admin: true })).toEqual(['Organisation', 'Employee fields']);
+    expect(cut({ hr: true })).toEqual(['Organisation']);
   });
 });
 

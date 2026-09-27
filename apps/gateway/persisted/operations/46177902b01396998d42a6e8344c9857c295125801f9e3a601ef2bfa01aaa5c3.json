@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartPhotoUpload($personId: ID, $size: Int!) {\n    startPhotoUpload(personId: $personId, size: $size) { uploadId url method headers { name value } expiresAt }\n  }"}

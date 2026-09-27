@@ -24,6 +24,7 @@ import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/pers
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import type { UpcomingErasure } from '../application/retention/sweep.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
+import { defineOverview } from './overview.js';
 import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
 import type { PayBandView } from '../application/analytics/pay.js';
@@ -397,6 +398,9 @@ const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').im
   fields: (t) => ({
     defaultTimeZone: t.exposeString('defaultTimeZone'),
     cohortMinimum: t.exposeInt('cohortMinimum'),
+    photoAtSignup: t.exposeString('photoAtSignup', {
+      description: 'off, optional or required: whether the first screen after signing up asks for a photo.',
+    }),
     slug: t.string({ nullable: true, resolve: (s) => s.slug }),
     displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
   }),
@@ -647,6 +651,7 @@ builder.mutationType({
       args: {
         defaultTimeZone: t.arg.string(),
         cohortMinimum: t.arg.int(),
+        photoAtSignup: t.arg.string({ description: 'off, optional or required.' }),
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, { idempotencyKey: key, ...patch }, ctx) =>
@@ -1278,6 +1283,7 @@ builder.mutationFields((t) => ({
 
 defineScreens(builder, viaRest);
 defineReports(builder, viaRest);
+defineOverview(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

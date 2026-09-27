@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   MAX_UPLOAD_BYTES,
+  PHOTO_UPLOAD_MAX_BYTES,
   UPLOAD_LIFETIME_MS,
   UPLOAD_URL_LIFETIME_MS,
   completeUpload,
@@ -56,6 +57,22 @@ describe('opening an upload', () => {
     });
     expect(UPLOAD_URL_LIFETIME_MS).toBe(5 * 60 * 1000);
     expect(UPLOAD_LIFETIME_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('keeps a photo under its own purpose, and at most a photo’s size', () => {
+    const photo = opened({ purpose: 'photo', name: 'me.jpg', size: 40_000 });
+    expect(photo).toMatchObject({ purpose: 'photo', objectKey: `${TENANT}/photo/${ID}` });
+    expect(
+      openUpload({
+        id: ID,
+        tenantId: TENANT,
+        actorId: PRIYA,
+        purpose: 'photo',
+        name: 'me.jpg',
+        size: PHOTO_UPLOAD_MAX_BYTES + 1,
+        now: NOW,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'FILE_TOO_LARGE' } });
   });
 
   it('keeps only the file name a browser gave, never a path', () => {

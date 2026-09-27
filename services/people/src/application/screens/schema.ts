@@ -11,8 +11,19 @@ import {
 import { CORE_PACK } from '../../country-packs/core.js';
 import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
-import { SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
-import type { PublishedVersion } from '../../domain/schema/publish.js';
+import {
+  aiShareable,
+  SchemaDraft,
+  type Attribute,
+  type Section,
+} from '../../domain/schema/draft.js';
+import {
+  askAtSignup,
+  atSignup,
+  onSignupPage,
+  type SignupAsk,
+} from '../../domain/schema/signup.js';
+import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
@@ -92,6 +103,20 @@ export interface RegistryView {
     readonly piiKind: string;
     /** Whether a change waits for HR's approval (PEO-077): the tenant's choice, else the default. */
     readonly requiresApproval: boolean;
+    /**
+     * At sign-up, where it is asked: `page` on identity's sign-up page, `after`
+     * on the first screen after it (a file, or data that page may not hold).
+     * Null when it is not asked at sign-up.
+     */
+    readonly signup: 'page' | 'after' | null;
+    /** It may be put on the sign-up flow: the employee fills it in. */
+    readonly signupAskable: boolean;
+    /** The assistant may name it: its label and options, never a value from a record. */
+    readonly aiEligible: boolean;
+    /** It could be shared with the assistant: public or internal, and not sealed. */
+    readonly aiShareable: boolean;
+    /** Stored sealed: the row keeps its last four and nothing else. */
+    readonly encrypted: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
@@ -107,13 +132,15 @@ export interface Choice {
   readonly label: string;
 }
 
-function pendingOf(draft: Attribute, published: PublishedVersion | null): Pending {
+export function pendingOf(draft: Attribute, published: PublishedVersion | null): Pending {
   const was = published?.document.attributes.find((a) => a.key === draft.key);
   if (was === undefined) return draft.deprecatedAt === null ? 'added' : null;
   if (draft.deprecatedAt !== null && was.deprecatedAt === null) return 'archived';
-  return JSON.stringify({ ...draft, order: 0 }) === JSON.stringify({ ...was, order: 0 })
-    ? null
-    : 'changed';
+  // Key order is not a difference: the published document comes back from
+  // `jsonb`, which keeps its own, and the draft is built in code. Compared
+  // as written, every field read as changed the moment it was published.
+  const same = (a: Attribute): string => JSON.stringify(sortKeys({ ...a, order: 0 }));
+  return same(draft) === same(was) ? null : 'changed';
 }
 
 const optionsOf = (a: AttributeDefinition): string[] =>
@@ -147,6 +174,11 @@ export async function registryView(
         classification: a.classification.classification,
         piiKind: a.classification.piiKind,
         requiresApproval: requiresApproval(a),
+        signup: !atSignup(a) ? null : onSignupPage(a) ? ('page' as const) : ('after' as const),
+        signupAskable: askAtSignup(a, 'optional').ok,
+        aiEligible: a.classification.aiEligible,
+        aiShareable: aiShareable(a),
+        encrypted: a.encrypted,
         origin: a.origin,
         pending: pendingOf(a, published),
       }));
@@ -180,7 +212,11 @@ export async function registryView(
               ownership: [...new Set(mine.flatMap((a) => a.ownership))],
               origin: s.origin,
               // §6.7: self-identification's rules are not the tenant's to change.
-              fixed: mine.some((a) => a.classification.classification === 'special-category'),
+              // A section is fixed only when it is nothing but that; one such
+              // field in a section of ordinary ones is locked on its own.
+              fixed:
+                mine.length > 0 &&
+                mine.every((a) => a.classification.classification === 'special-category'),
             };
           }),
         fields,
@@ -335,6 +371,12 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
   } as AttributeDefinitionInput;
 }
 
+/** The values a typed core column takes (`people.person`'s CHECKs). */
+const COLUMN_VALUES: Readonly<Record<string, readonly string[]>> = {
+  employment_type: ['permanent', 'fixed_term', 'contractor', 'intern', 'apprentice', 'seasonal'],
+  work_model: ['onsite', 'hybrid', 'remote'],
+};
+
 /** Add a field, or change one. The draft decides whether the change is allowed. */
 export async function saveField(
   deps: SchemaScreenDeps,
@@ -342,6 +384,22 @@ export async function saveField(
   input: FieldInput,
   editing: string | null,
 ): Promise<Result<void>> {
+  // A key People stores in a typed column of its own (`employment_type`,
+  // `work_model`) takes only that column's values: a choice outside them
+  // would publish and then refuse every save.
+  const column = COLUMN_VALUES[input.key];
+  if (editing === null && column !== undefined) {
+    const refused = input.options.map(keyFrom).filter((v) => !column.includes(v));
+    if (refused.length > 0) {
+      return err(
+        failure(
+          'KEY_RESERVED',
+          `People keeps ${input.key} itself, as one of ${column.join(', ')}; give this field a different name, or use those choices`,
+          ['key'],
+        ),
+      );
+    }
+  }
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.loadDraft(tx, asking.tenantId);
@@ -361,6 +419,59 @@ export async function saveField(
                 requiresApproval: patch.requiresApproval,
               });
             })();
+      if (!saved.ok) return saved;
+      await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
+      return ok(undefined);
+    }),
+  );
+}
+
+/**
+ * Put a field on the sign-up flow, optional or required, or take it off: a
+ * draft change like any other, in force once published.
+ */
+export async function setFieldSignup(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  key: string,
+  ask: SignupAsk,
+): Promise<Result<void>> {
+  return run(deps.service, asking.tenantId, (tx) =>
+    asAdmin(deps, tx, asking, async () => {
+      const current = await deps.schema.loadDraft(tx, asking.tenantId);
+      const attribute = current.attributes.find((a) => a.key === key);
+      if (attribute === undefined) {
+        return err(failure('ATTRIBUTE_UNKNOWN', `No field called ${key}`, ['key']));
+      }
+      const patch = askAtSignup(attribute, ask);
+      if (!patch.ok) return patch;
+      const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
+      const saved = draft.updateAttribute(key, patch.value);
+      if (!saved.ok) return saved;
+      await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
+      return ok(undefined);
+    }),
+  );
+}
+
+/** Share a field with the assistant, or stop: a draft change, in force once published. */
+export async function setFieldAssistant(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  key: string,
+  share: boolean,
+): Promise<Result<void>> {
+  return run(deps.service, asking.tenantId, (tx) =>
+    asAdmin(deps, tx, asking, async () => {
+      const current = await deps.schema.loadDraft(tx, asking.tenantId);
+      const attribute = current.attributes.find((a) => a.key === key);
+      if (attribute === undefined) {
+        return err(failure('ATTRIBUTE_UNKNOWN', `No field called ${key}`, ['key']));
+      }
+      const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
+      const saved = draft.updateAttribute(key, {
+        classification: { ...attribute.classification, aiEligible: share },
+      });
       if (!saved.ok) return saved;
       await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
       return ok(undefined);

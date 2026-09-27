@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
 import { PeopleHome } from '../home/people-home';
+import { nobody } from '../home/people-home.fixture';
 import {
   numberOf,
   Organisation,
@@ -18,7 +19,12 @@ const MADRID = '00000000-0000-4000-8000-0000000000f1';
 
 const state = (over: Partial<OrganisationState> = {}): OrganisationState => ({
   canManage: true,
-  settings: { defaultTimeZone: 'Europe/Madrid', cohortMinimum: 10, slug: 'acme', displayName: 'Acme' },
+  settings: {
+    defaultTimeZone: 'Europe/Madrid',
+    cohortMinimum: 10,
+    slug: 'acme',
+    displayName: 'Acme',
+  },
   legalEntities: [
     { id: ACME, name: 'Acme Iberia SL', country: 'ES', timeZone: 'Europe/Madrid', archived: false },
   ],
@@ -143,11 +149,25 @@ describe('the organisation settings (PEO-119)', () => {
   it('marks every unreviewed retention floor pending legal review (PEO-126)', async () => {
     const reviewed = state({
       retentionFloors: [
-        { floor: 'es-labour', months: 48, status: 'unreviewed', reviewedBy: null, reviewedOn: null },
-        { floor: 'de-labour', months: 72, status: 'reviewed', reviewedBy: 'A. Counsel', reviewedOn: '2026-10-01' },
+        {
+          floor: 'es-labour',
+          months: 48,
+          status: 'unreviewed',
+          reviewedBy: null,
+          reviewedOn: null,
+        },
+        {
+          floor: 'de-labour',
+          months: 72,
+          status: 'reviewed',
+          reviewedBy: 'A. Counsel',
+          reviewedOn: '2026-10-01',
+        },
       ],
     });
-    const { container } = render(<Organisation {...props({ load: { status: 'ready', data: reviewed } })} />);
+    const { container } = render(
+      <Organisation {...props({ load: { status: 'ready', data: reviewed } })} />,
+    );
     await fast().click(screen.getByRole('tab', { name: 'Company' }));
     const table = screen.getByRole('table', { name: 'Statutory retention floors' });
     const spain = within(table).getByRole('row', { name: /Spain, labour records/ });
@@ -162,11 +182,19 @@ describe('the organisation settings (PEO-119)', () => {
   it('shows HR who is erased next, and who waits for legal review (PEO-075)', async () => {
     const hr = state({
       upcomingErasures: [
-        { personId: 'p1', name: 'Ada Lovelace', dueOn: '2026-03-31', floors: ['es-labour'], waitingForReview: ['es-labour'] },
+        {
+          personId: 'p1',
+          name: 'Ada Lovelace',
+          dueOn: '2026-03-31',
+          floors: ['es-labour'],
+          waitingForReview: ['es-labour'],
+        },
         { personId: 'p2', name: null, dueOn: '2026-11-30', floors: [], waitingForReview: [] },
       ],
     });
-    const { container } = render(<Organisation {...props({ load: { status: 'ready', data: hr } })} />);
+    const { container } = render(
+      <Organisation {...props({ load: { status: 'ready', data: hr } })} />,
+    );
     await fast().click(screen.getByRole('tab', { name: 'Company' }));
     const table = screen.getByRole('table', { name: 'Upcoming automated erasures' });
     const ada = within(table).getByRole('row', { name: /Ada Lovelace/ });
@@ -196,26 +224,11 @@ describe('the organisation settings (PEO-119)', () => {
 });
 
 describe('People home (PEO-119)', () => {
-  it('lists the settings a People administrator uses, and not to an employee', () => {
-    const { unmount } = render(
-      <PeopleHome load={{ status: 'ready', data: { hr: false, admin: true, finance: false } }} />,
-    );
-    const settings = screen.getByRole('navigation', { name: 'Settings' });
-    for (const name of ['Employee fields', 'Roles', 'Integrations', 'Organisation']) {
-      expect(within(settings).getByRole('link', { name })).toBeInTheDocument();
-    }
-    unmount();
-    const hr = render(
-      <PeopleHome load={{ status: 'ready', data: { hr: true, admin: false, finance: false } }} />,
-    );
-    // Add employee is the host's, beside every screen, and never repeated here.
+  it('keeps the overview to the person: settings are on the Settings page, sections in the menu', () => {
+    render(<PeopleHome load={{ status: 'ready', data: nobody({ admin: true }) }} />);
+    expect(screen.queryByRole('navigation', { name: 'Settings' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Employee fields' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Approvals' })).toBeInTheDocument();
-    hr.unmount();
-    render(<PeopleHome load={{ status: 'ready', data: { hr: false, admin: false, finance: false } }} />);
-    expect(screen.queryByRole('link', { name: 'Integrations' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Directory' })).toHaveAttribute('href', '/people/directory');
   });
 
   it('turns an amount into minor units by moving digits, never through a float (PEO-078)', () => {

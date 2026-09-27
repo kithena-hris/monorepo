@@ -28,6 +28,14 @@ import { cn } from '../../lib/cn';
  * ones ahead stay inert. That is not a styling decision: letting someone jump
  * to step 5 from step 2 skips the validation that steps 3 and 4 exist to do,
  * and a wizard that can be short-circuited is a wizard that files bad data.
+ *
+ * ### On a phone, one label
+ *
+ * Five labels in a row across a phone truncate to a letter each, which names
+ * nothing. Under a coarse pointer a horizontal stepper keeps every marker but
+ * shows only the current step's label, with "Step 3 of 5" under it; the other
+ * labels stay in the accessibility tree. The pointer decides, not the width,
+ * as with every density in this system.
  */
 
 export type StepStatus = 'complete' | 'current' | 'upcoming' | 'error';
@@ -109,12 +117,11 @@ export function Stepper({
   ...props
 }: StepperProps): JSX.Element {
   const markerSize = size === 'sm' ? 'size-6 text-2xs' : 'size-8 text-xs';
+  const horizontal = orientation === 'horizontal';
 
   return (
     <nav aria-label={label} className={cn('min-w-0', className)} {...props}>
-      <ol
-        className={cn('flex', orientation === 'horizontal' ? 'flex-row items-start' : 'flex-col')}
-      >
+      <ol className={cn('flex', horizontal ? 'flex-row items-start' : 'flex-col')}>
         {steps.map((step, index) => {
           const status = statusOf(step, index, current);
           const last = index === steps.length - 1;
@@ -142,10 +149,21 @@ export function Stepper({
           );
 
           const text = (
-            <span className="min-w-0">
+            <span
+              className={cn(
+                'min-w-0',
+                // A phone shows the current step's words only; the rest are read, not drawn.
+                horizontal && status !== 'current' && 'touch:sr-only',
+              )}
+            >
               <span className={cn('block truncate text-sm font-medium', labelTone[status])}>
                 {step.label}
               </span>
+              {horizontal && status === 'current' ? (
+                <span className="hidden text-2xs text-fg-subtle touch:block">
+                  Step {index + 1} of {steps.length}
+                </span>
+              ) : null}
               {step.description === undefined ? null : (
                 <span className="block truncate text-2xs text-fg-subtle">{step.description}</span>
               )}
@@ -161,7 +179,7 @@ export function Stepper({
                 onStepChange(index, step);
               }}
               className={cn(
-                'flex min-w-0 touch:min-h-tap items-center gap-2 rounded-sm text-start',
+                'relative tap-target flex min-w-0 touch:min-h-tap items-center gap-2 rounded-sm text-start',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 'hover:[&_span:first-child]:brightness-110',
               )}
@@ -184,8 +202,14 @@ export function Stepper({
               {...(status === 'current' ? { 'aria-current': 'step' as const } : {})}
               className={cn(
                 'flex min-w-0',
-                orientation === 'horizontal'
-                  ? cn('flex-row items-center', last ? 'shrink' : 'flex-1')
+                horizontal
+                  ? cn(
+                      'flex-row items-center',
+                      last ? 'shrink' : 'flex-1',
+                      // Sized by its label, so the one label a phone shows is not
+                      // squeezed into the same fifth as a bare marker.
+                      status === 'current' && 'touch:basis-auto',
+                    )
                   : 'flex-col',
               )}
             >
@@ -199,7 +223,7 @@ export function Stepper({
                   className={cn(
                     'shrink-0 rounded-full transition-colors duration-(--animate-duration-normal)',
                     index < current ? 'bg-success' : 'bg-border',
-                    orientation === 'horizontal'
+                    horizontal
                       ? 'mx-3 h-0.5 min-w-6 flex-1'
                       : cn('my-1 w-0.5', size === 'sm' ? 'ms-3 h-5' : 'ms-4 h-6'),
                   )}

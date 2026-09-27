@@ -27,6 +27,23 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
+  /** The breadcrumb's section and the actions, for the screen's own header (`headerFrame`). */
+  readonly frame?: {
+    readonly section: string | null;
+    readonly actions: readonly { readonly href: string; readonly label: string }[];
+    /** The links before the section; absent, People alone. */
+    readonly trail?: readonly { readonly href: string; readonly label: string }[];
+    /** The section's siblings, grouped, for the breadcrumb's menu. */
+    readonly siblings?: readonly {
+      readonly label: string;
+      readonly items: readonly {
+        readonly href: string;
+        readonly label: string;
+        readonly current?: boolean;
+      }[];
+    }[];
+    readonly siblingsLabel?: string;
+  };
 }
 
 /**
@@ -38,7 +55,7 @@ export interface PeopleScreenProps {
  */
 function putFile(
   target: Extract<actions.UploadTarget, { ok: true }>,
-  file: File,
+  file: Blob,
   progress: (percent: number) => void,
 ): Promise<boolean> {
   return new Promise((resolve) => {
@@ -58,6 +75,101 @@ function putFile(
     };
     xhr.send(file);
   });
+}
+
+/**
+ * A picked photo as People keeps one: the centre square, at most 512 pixels a
+ * side, as a JPEG. Drawn through a canvas, so what leaves the browser is the
+ * picture and nothing a camera wrote beside it; a phone's 5 MB photo becomes a
+ * few tens of kB. People checks it again whatever arrives.
+ */
+async function shrink(file: File): Promise<Blob | null> {
+  try {
+    // `from-image`: a phone's portrait photo the right way up.
+    const image = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const side = Math.min(image.width, image.height);
+    const out = Math.min(512, side);
+    const canvas = document.createElement('canvas');
+    canvas.width = out;
+    canvas.height = out;
+    canvas
+      .getContext('2d')
+      ?.drawImage(
+        image,
+        (image.width - side) / 2,
+        (image.height - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        out,
+        out,
+      );
+    image.close();
+    return await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.86);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Shrink, upload straight to storage, and have People keep it: a photo for `personId`, or one's own. */
+async function uploadPhoto(
+  personId: string | null,
+  file: File,
+): Promise<{ ok: true; avatarUrl: string | null } | { ok: false; message: string }> {
+  const small = await shrink(file);
+  if (small === null)
+    return { ok: false, message: 'That image could not be read; try a PNG or a JPEG.' };
+  const target = await actions.startPhotoUpload(personId, small.size);
+  if (!target.ok) return target;
+  if (!(await putFile(target, small, () => undefined))) {
+    return { ok: false, message: 'The upload did not go through; try again.' };
+  }
+  return actions.completePhotoUpload(personId, target.uploadId);
+}
+
+/**
+ * An image People cannot read as it is (a WebP, a HEIC a phone made) redrawn
+ * as a JPEG, at most 2048 pixels a side, the right way up. A PNG, a JPEG and
+ * a PDF go as they are; People checks every file whatever arrives.
+ */
+async function asUploadable(file: File): Promise<Blob | null> {
+  if (!file.type.startsWith('image/') || file.type === 'image/png' || file.type === 'image/jpeg') {
+    return file;
+  }
+  try {
+    const image = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, 2048 / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.width * scale);
+    canvas.height = Math.round(image.height * scale);
+    canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+    image.close();
+    return await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.9);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Upload a file for an image or document field, and have People keep it. */
+async function uploadFile(
+  personId: string | null,
+  key: string,
+  file: File,
+): Promise<{ ok: true; file: actions.FileInfo } | { ok: false; message: string }> {
+  const body = await asUploadable(file);
+  if (body === null) return { ok: false, message: 'That file could not be read.' };
+  const name = body === file ? file.name : file.name.replace(/\.[^.]*$/, '') + '.jpg';
+  const target = await actions.startFileUpload(personId, key, name, body.size);
+  if (!target.ok) return target;
+  if (!(await putFile(target, body, () => undefined))) {
+    return { ok: false, message: 'The upload did not go through; try again.' };
+  }
+  return actions.completeFileUpload(personId, key, target.uploadId);
 }
 
 type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
@@ -81,6 +193,7 @@ export function PeopleScreen({
   params,
   search,
   today,
+  frame,
 }: PeopleScreenProps): JSX.Element {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -152,6 +265,7 @@ export function PeopleScreen({
       case 'Onboarding':
         return {
           load: loadable,
+          onUploadFile: (key: string, file: File) => uploadFile(null, key, file),
           onSave: thenRefresh(actions.saveOwnSection),
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(null, sectionKey, changed),
@@ -160,6 +274,12 @@ export function PeopleScreen({
         const id = params['id'];
         return {
           load: loadable,
+          // A link from the overview to one missing detail.
+          ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
+          // Offered to everybody; the screen shows it only where People says they may.
+          onPhoto: thenRefresh((file: File) => uploadPhoto(id ?? null, file)),
+          // A file for an image or document field; the form's Save keeps it.
+          onUploadFile: (key: string, file: File) => uploadFile(id ?? null, key, file),
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(id ?? null, sectionKey, changed),
           onSave: thenRefresh(
@@ -181,6 +301,10 @@ export function PeopleScreen({
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
                   download(await actions.exportRecord(id, reason)),
+                // Ask them for empty details; People says which fields may be asked for.
+                onRequest: thenRefresh((keys: readonly string[]) =>
+                  actions.requestDetails(id, keys),
+                ),
               }),
           searchPeople: actions.searchPeople,
           onHistory: () => {
@@ -220,12 +344,27 @@ export function PeopleScreen({
           filters?: Record<string, string>;
           after?: string;
           segment?: string | null;
+          incomplete?: boolean;
+          conditions?: string;
+          match?: string;
+          sort?: string;
+          group?: string;
         }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
           const f = next.filters ?? filters;
           const segment = next.segment === undefined ? (search['segment'] ?? null) : next.segment;
+          const incomplete = next.incomplete ?? search['incomplete'] === 'true';
+          const conditions = next.conditions ?? search['conditions'] ?? '';
+          const match = next.match ?? search['match'] ?? '';
+          const sort = next.sort ?? search['sort'] ?? '';
+          const group = next.group ?? search['group'] ?? '';
           if (text !== '') q.set('search', text);
+          if (incomplete) q.set('incomplete', 'true');
+          if (conditions !== '' && conditions !== '[]') q.set('conditions', conditions);
+          if (match === 'any') q.set('match', 'any');
+          if (sort !== '') q.set('sort', sort);
+          if (group !== '') q.set('group', group);
           const joined = Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
@@ -260,6 +399,32 @@ export function PeopleScreen({
           onSegmentChange: (segment: string | null) => {
             query({ segment });
           },
+          incomplete: search['incomplete'] === 'true',
+          onIncompleteChange: (incomplete: boolean) => {
+            query({ incomplete });
+          },
+          // Advanced conditions and the order, in the URL so a view is a link.
+          onConditionsChange: (
+            conditions: readonly { key: string; op: string; values: readonly string[] }[],
+            match: 'all' | 'any',
+          ) => {
+            query({ conditions: JSON.stringify(conditions), match });
+          },
+          onSortChange: (sort: { key: string; direction: 'asc' | 'desc' } | null) => {
+            query({ sort: sort === null ? '' : `${sort.key}:${sort.direction}` });
+          },
+          // Grouped, People orders by the same column, so a group is never split across pages.
+          group: search['group'] ?? null,
+          onGroupChange: (key: string | null) => {
+            query({ group: key ?? '', sort: key === null ? '' : `${key}:asc` });
+          },
+          // Infinite scroll: the next page of the same query, appended in place.
+          ...(next === null
+            ? {}
+            : {
+                onLoadMore: (after: string) => actions.directoryPage(search, after),
+                next,
+              }),
           onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
             actions.saveSegment({ ...segment, filter: filters }),
           ),
@@ -354,6 +519,8 @@ export function PeopleScreen({
           onSaveField: thenRefresh(actions.saveField),
           preview: actions.previewPublish,
           onPublish: thenRefresh(actions.publishDraft),
+          onSignup: thenRefresh(actions.setFieldSignup),
+          onAssistant: thenRefresh(actions.setFieldAssistant),
         };
       case 'Integrations':
         return {
@@ -370,7 +537,7 @@ export function PeopleScreen({
             return rotated;
           },
           onOpenLog: (id: string) => {
-            go(`/people/settings/integrations/${id}`);
+            go(`/settings/people/integrations/${id}`);
           },
           scim: {
             onConnect: async (system: string) => {
@@ -385,6 +552,18 @@ export function PeopleScreen({
             },
             onDisconnect: thenRefresh(actions.revokeScimConnection),
             onSetMapping: thenRefresh(actions.setScimMapping),
+          },
+          chat: {
+            onConnect: (app: string) => actions.connectChatApp(app, window.location.origin),
+            onDisconnect: thenRefresh(actions.disconnectChatApp),
+            onNotice: actions.setChatNotice,
+            fieldsHref: '/settings/people/fields',
+            returned:
+              search['connected'] !== undefined
+                ? { ok: true, message: `${search['connected']} is connected. Choose below what it sends.` }
+                : search['notConnected'] !== undefined
+                  ? { ok: false, message: search['notConnected'] }
+                  : null,
           },
         };
       case 'ReportSchedules':
@@ -405,7 +584,49 @@ export function PeopleScreen({
           onRevoke: thenRefresh(actions.revokeRole),
         };
       case 'PeopleHome':
+        return {
+          load: loadable,
+          // What signing up still asks: their photo, and files kept to their fields.
+          onPhoto: thenRefresh((file: File) => uploadPhoto(null, file)),
+          onSetupFile: async (
+            field: { readonly key: string; readonly sectionKey: string },
+            file: File,
+          ) => {
+            const up = await uploadFile(null, field.key, file);
+            if (!up.ok) return up;
+            const saved = await actions.saveOwnSection(field.sectionKey, { [field.key]: up.file.id });
+            if (!saved.ok) return { ok: false as const, message: saved.message };
+            refresh();
+            return up;
+          },
+        };
+      case 'PeopleSettings':
         return { load: loadable };
+      // Pages of the log are URLs, so Back returns to the one before.
+      case 'SettingsActivity': {
+        const area = search['area'] ?? null;
+        const to = (q: Record<string, string>) => {
+          const qs = new URLSearchParams(q).toString();
+          router.push(`/settings/people/activity${qs === '' ? '' : `?${qs}`}` as Route);
+        };
+        return {
+          load: loadable,
+          area,
+          onArea: (next: string | null) => {
+            to(next === null ? {} : { area: next });
+          },
+          onOlder: (before: string) => {
+            to({ ...(area === null ? {} : { area }), before });
+          },
+          ...(search['before'] === undefined
+            ? {}
+            : {
+                onNewest: () => {
+                  to(area === null ? {} : { area });
+                },
+              }),
+        };
+      }
       case 'FullValues':
         return {
           load: loadable,
@@ -460,12 +681,12 @@ export function PeopleScreen({
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? ((load.data as { next?: string | null }).next ?? null)
             : null;
-        const here = `/people/settings/integrations/${params['id'] ?? ''}`;
+        const here = `/settings/people/integrations/${params['id'] ?? ''}`;
         return {
           load: loadable,
           onReplay: thenRefresh(actions.replayDelivery),
           onBack: () => {
-            go('/people/settings/integrations');
+            go('/settings/people/integrations');
           },
           ...(next === null
             ? {}
@@ -575,5 +796,13 @@ export function PeopleScreen({
     }
   })();
 
-  return <RemoteScreen name="people" area="People" route={route} props={props} onNavigate={go} />;
+  return (
+    <RemoteScreen
+      name="people"
+      area="People"
+      route={route}
+      props={frame === undefined ? props : { ...props, frame }}
+      onNavigate={go}
+    />
+  );
 }

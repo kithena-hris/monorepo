@@ -48,7 +48,7 @@ const surface = [
   // The menu grows from the pointer, which is what ties it to the thing that
   // was right-clicked rather than to the corner of the screen.
   'origin-(--radix-context-menu-content-transform-origin)',
-  'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+  'popover-motion',
 ];
 
 const item = [

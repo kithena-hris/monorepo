@@ -29,7 +29,8 @@ import {
   type JSX,
 } from 'react';
 
-import type { AttributeValue, RecordField } from './model';
+import { FileInput, isFileField } from './files';
+import { isMissing, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
 
 /** The `type` a plain text input takes for each data type that is one. */
@@ -162,8 +163,8 @@ export function PersonPicker({
  *
  * Every control is Reach's, so the phone-keyboard work — `inputMode`,
  * `autoComplete`, verbatim entry — comes from the type rather than from each
- * form remembering it (§8.3). A type with no control of its own here (a
- * document, an image) is filled in on the profile rather than in a form.
+ * form remembering it (§8.3). A document or an image is uploaded as soon as
+ * it is chosen, where the shell supplies the upload (`FieldFiles`).
  */
 export function AttributeInput({
   field,
@@ -188,17 +189,40 @@ export function AttributeInput({
       : field.readOnly && field.ownedBy !== undefined
         ? `Changed by ${field.ownedBy}.`
         : null;
-  const note = [field.description, owner].filter((x) => x !== null).join(' ');
+  // Required of this person and still empty: said in words, in the
+  // description the control points at, so it is announced with the field.
+  const gap =
+    field.missing === true && isMissing(value)
+      ? field.readOnly
+        ? `${field.ownedBy ?? 'HR'} fills this in.`
+        : 'Required, and not provided yet.'
+      : null;
+  const note = [gap, field.description, owner].filter((x) => x !== null).join(' ');
   // A caution about a value that was accepted (PEO-125) is read with the
   // field's own help, in the one description the control points at.
   const described =
-    warning !== undefined ? (
-      <FieldDescription tone="warning">{[note, warning].filter((x) => x !== '').join(' ')}</FieldDescription>
+    warning !== undefined || gap !== null ? (
+      <FieldDescription tone="warning">
+        {[note, warning ?? ''].filter((x) => x !== '').join(' ')}
+      </FieldDescription>
     ) : note === '' ? null : (
       <FieldDescription>{note}</FieldDescription>
     );
   const error = <FieldError>{problem}</FieldError>;
   const disabled = field.readOnly;
+
+  // An image or a document: chosen, uploaded, and held as the file's id.
+  if (isFileField(field)) {
+    return (
+      <FileInput
+        field={field}
+        value={typeof value === 'string' && value !== '' ? value : null}
+        invalid={invalid}
+        description={[note, problem ?? ''].filter((x) => x !== '').join(' ')}
+        onChange={onChange}
+      />
+    );
+  }
 
   // Controls that carry their own label: they are the whole field.
   if (field.dataType === 'date') {
@@ -222,18 +246,18 @@ export function AttributeInput({
     const allowed = new Set(field.options.map((o) => o.value));
     return (
       <div className="flex flex-col gap-1.5">
-      <SensitiveMark field={field} />
-      <TagsInput
-        label={field.required ? `${field.label} (required)` : field.label}
-        value={Array.isArray(value) ? (value as readonly string[]) : []}
-        disabled={disabled}
-        invalid={invalid}
-        hint={problem ?? field.description ?? undefined}
-        {...(field.dataType === 'multi_select'
-          ? { validate: (v: string) => (allowed.has(v) ? null : 'Not one of the options.') }
-          : {})}
-        onChange={onChange}
-      />
+        <SensitiveMark field={field} />
+        <TagsInput
+          label={field.required ? `${field.label} (required)` : field.label}
+          value={Array.isArray(value) ? (value as readonly string[]) : []}
+          disabled={disabled}
+          invalid={invalid}
+          hint={problem ?? field.description ?? undefined}
+          {...(field.dataType === 'multi_select'
+            ? { validate: (v: string) => (allowed.has(v) ? null : 'Not one of the options.') }
+            : {})}
+          onChange={onChange}
+        />
       </div>
     );
   }
@@ -246,6 +270,7 @@ export function AttributeInput({
         invalid={invalid}
         disabled={disabled}
         required={field.required}
+        missing={gap !== null}
         sensitive={field.sensitive === true}
       >
         <FieldLabel>{field.label}</FieldLabel>
@@ -258,8 +283,13 @@ export function AttributeInput({
     );
   } else if (field.dataType === 'person_ref') {
     return (
-      <Field invalid={invalid} disabled={disabled} required={field.required}
-        sensitive={field.sensitive === true}>
+      <Field
+        invalid={invalid}
+        disabled={disabled}
+        required={field.required}
+        missing={gap !== null}
+        sensitive={field.sensitive === true}
+      >
         <FieldLabel>{field.label}</FieldLabel>
         <FieldControl>
           <PersonPicker
@@ -276,8 +306,13 @@ export function AttributeInput({
     );
   } else if (PICKED.has(field.dataType)) {
     return (
-      <Field invalid={invalid} disabled={disabled} required={field.required}
-        sensitive={field.sensitive === true}>
+      <Field
+        invalid={invalid}
+        disabled={disabled}
+        required={field.required}
+        missing={gap !== null}
+        sensitive={field.sensitive === true}
+      >
         <FieldLabel>{field.label}</FieldLabel>
         <Select
           value={text(value)}
@@ -365,8 +400,13 @@ export function AttributeInput({
   }
 
   return (
-    <Field invalid={invalid} disabled={disabled} required={field.required}
-        sensitive={field.sensitive === true}>
+    <Field
+      invalid={invalid}
+      disabled={disabled}
+      required={field.required}
+      missing={gap !== null}
+      sensitive={field.sensitive === true}
+    >
       <FieldLabel>{field.label}</FieldLabel>
       <FieldControl>{control}</FieldControl>
       {described}

@@ -2,7 +2,11 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { systemClock, type DomainFailure } from '@kithena/domain-kit';
-import { drain, logger, onShutdown } from '@kithena/telemetry';
+import { aiGateway, drain, logger, onShutdown, tenantPolicies, type Prompt } from '@kithena/telemetry';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { presentsInternalToken } from '@kithena/auth-kit';
+import { sql } from 'drizzle-orm';
+import * as z from 'zod';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
@@ -33,6 +37,9 @@ import { scimProvisioning } from '../application/scim/provisioning.js';
 import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { chatAct, parseChatAction } from './chat.js';
+import { chatAppsFrom } from '../infrastructure/chat-apps.js';
+import { drizzleChatNotices } from '../infrastructure/drizzle-chat-notices.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
@@ -75,6 +82,14 @@ import {
 import type { UploadStore } from '../application/import/upload.js';
 import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
 import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
+import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
+import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
+import { drizzleFiles } from '../infrastructure/drizzle-files.js';
+import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
+import { askFromChat, type ChatDeps } from '../application/assistant/from-chat.js';
+import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
+import { loadTenantPolicies } from '../infrastructure/policy-registry.js';
+import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
   drizzleDraftWriter,
@@ -456,6 +471,48 @@ function send(response: ServerResponse, answer: RestResponse): void {
   response.end(JSON.stringify(answer.body));
 }
 
+/** Asking for a detail: recorded always, emailed where the reminder's mailer is configured. */
+function detailRequests(
+  calendars: ReturnType<typeof drizzleOrgStore>,
+  service: ReturnType<typeof peopleService>,
+) {
+  const mailer = reminderMailerFrom(process.env, service.inTenant, 'details_requested');
+  const base = tenantAppBase(process.env);
+  return {
+    store: drizzleDetailRequests(),
+    ...(mailer === undefined || base === null
+      ? {}
+      : { mailer, company: tenantCompanies(base, calendars) }),
+  };
+}
+
+/** The chat apps this deployment has, and People's notices to them. */
+function chatFrom(env: NodeJS.ProcessEnv) {
+  const apps = chatAppsFrom(env);
+  return apps.length === 0 ? {} : { chat: { apps, notices: drizzleChatNotices() } };
+}
+
+/** A question from Slack: which company, whose verified email, and the words. */
+const ChatQuestion = z.strictObject({
+  tenantId: z.uuid(),
+  email: z.email().max(320),
+  question: z.string().trim().min(1).max(500),
+});
+
+/** The assistant, where a model is configured (`ASSISTANT_*`); nothing otherwise. */
+function assistantFrom(env: NodeJS.ProcessEnv) {
+  const config = modelConfigFrom(env);
+  if (config === null) return {};
+  const gateway = aiGateway({ registry: tenantPolicies, send: chatModel(config) });
+  return {
+    assistant: {
+      complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
+      loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
+        loadTenantPolicies(tx, tenantId, tenantPolicies),
+    },
+  };
+}
+
 /** What the screens' transports need beyond the person use cases (PEO-098). */
 function screenDeps(
   service: ReturnType<typeof peopleService>,
@@ -482,6 +539,13 @@ function screenDeps(
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
     segments: { store: drizzleSegments(), newId: uuidv7 },
+    photos: drizzlePhotos(),
+    files: drizzleFiles(),
+    activity: drizzleActivity(),
+    ...assistantFrom(process.env),
+    photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
+    requests: detailRequests(calendars, service),
+    ...chatFrom(process.env),
     schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
@@ -662,6 +726,11 @@ export function wirePeople(server: Server): void {
     fullValues: exports.fullValues,
     segments: drizzleSegments(),
     screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+    activity: {
+      store: drizzleActivity(),
+      newId: uuidv7,
+      now: () => systemClock.instant(),
+    },
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
   configureGraphQL({ service, callerFrom, rest });
@@ -693,6 +762,96 @@ export function wirePeople(server: Server): void {
     response: ServerResponse,
   ) => void)[];
   server.removeAllListeners('request');
+
+  const chatToken = process.env['SLACK_PEOPLE_TOKEN'] ?? '';
+  const chatDeps: ChatDeps = {
+    ...screenDeps(service, exports.deps.store, uploads),
+    accountByEmail: async (tx, tenantId, email) => {
+      const rows = await tx.execute<{ account: string }>(sql`
+        SELECT identity_account_id AS account FROM people.person
+         WHERE tenant_id = ${tenantId}::uuid AND lower(work_email) = ${email}
+           AND identity_account_id IS NOT NULL AND access_ended_at IS NULL
+           AND status NOT IN ('terminated', 'discarded', 'merged')
+         LIMIT 2`);
+      const found = [...rows];
+      // Two current people with one email is a record to fix, not a guess to make.
+      return found.length === 1 ? (found[0]?.account ?? null) : null;
+    },
+  };
+  const answerChat = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    try {
+      if (chatToken === '' || !presentsInternalToken({ headers: request.headers }, chatToken)) {
+        send(response, { status: 401, body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } } });
+        return;
+      }
+      const raw = await bodyOf(request, BODY_LIMIT);
+      let parsed: unknown = null;
+      try {
+        parsed = raw === null ? null : JSON.parse(raw);
+      } catch {
+        parsed = null;
+      }
+      const input = ChatQuestion.safeParse(parsed);
+      if (!input.success) {
+        send(response, { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'tenantId, email and question' } } });
+        return;
+      }
+      const answered = await askFromChat(chatDeps, { ...input.data, correlationId: uuidv7() });
+      send(
+        response,
+        answered.ok
+          ? { status: 200, body: answered.value }
+          : { status: 200, body: { text: answered.error.message, people: [], understood: answered.error.code, answered: false } },
+      );
+    } catch (cause) {
+      logger.error({ err: cause }, 'a chat question failed');
+      if (!response.headersSent) send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+    }
+  };
+
+  // What a Slack button does, as whoever pressed it: the app's own routes.
+  const actChat = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    try {
+      if (chatToken === '' || !presentsInternalToken({ headers: request.headers }, chatToken)) {
+        send(response, { status: 401, body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } } });
+        return;
+      }
+      const raw = await bodyOf(request, BODY_LIMIT);
+      let parsed: unknown = null;
+      try {
+        parsed = raw === null ? null : JSON.parse(raw);
+      } catch {
+        parsed = null;
+      }
+      const input = parseChatAction(parsed);
+      if (!input.success) {
+        send(response, { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'Not a chat action' } } });
+        return;
+      }
+      const done = await chatAct(
+        {
+          apiToken: process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
+          accountOf: (tenantId, email) =>
+            service.inTenant(tenantId, ({ tx }) => chatDeps.accountByEmail(tx, tenantId, email)),
+          rest: async (r) => rest(r),
+          shown: (tenantId) =>
+            service.inTenant(tenantId, async ({ tx }) => {
+              const version = await service.schemas.current(tx, tenantId);
+              return new Set(
+                (version?.document.attributes ?? [])
+                  .filter((d) => d.classification.aiEligible)
+                  .map((d) => d.key as string),
+              );
+            }),
+        },
+        input.data,
+      );
+      send(response, { status: 200, body: done });
+    } catch (cause) {
+      logger.error({ err: cause }, 'a chat action failed');
+      if (!response.headersSent) send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+    }
+  };
 
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
     const path = request.url ?? '/';
@@ -726,6 +885,16 @@ export function wirePeople(server: Server): void {
           }
         }
       })();
+      return;
+    }
+    // A question from Slack, asked as whoever's verified email it carries.
+    // Only the Slack service may: it presents a token of its own.
+    if (path === '/internal/assistant/ask' && request.method === 'POST') {
+      void answerChat(request, response);
+      return;
+    }
+    if (path === '/internal/chat/act' && request.method === 'POST') {
+      void actChat(request, response);
       return;
     }
     if (!path.startsWith('/v1/')) {

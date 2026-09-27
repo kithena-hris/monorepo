@@ -107,6 +107,30 @@ describe('a core attribute', () => {
     expect(tightened.ok).toBe(true);
   });
 
+  it('may be shared with the assistant while it is internal, and not once it is confidential', () => {
+    const d = draft();
+    const shared = d.updateAttribute('employee_number', {
+      classification: {
+        classification: 'internal',
+        piiKind: 'identity',
+        exportable: true,
+        aiEligible: true,
+      },
+    });
+    expect(shared.ok).toBe(true);
+
+    const confidential = draft().updateAttribute('employee_number', {
+      classification: {
+        classification: 'confidential',
+        piiKind: 'identity',
+        exportable: true,
+        aiEligible: true,
+      },
+    });
+    expect(confidential.ok).toBe(false);
+    if (!confidential.ok) expect(confidential.error.code).toBe('AI_NOT_ALLOWED');
+  });
+
   it('cannot have its classification loosened', () => {
     const d = draft();
     const loosened = d.updateAttribute('employee_number', {
@@ -120,19 +144,6 @@ describe('a core attribute', () => {
     expect(loosened.ok).toBe(false);
     if (loosened.ok) return;
     expect(loosened.error.code).toBe('CLASSIFICATION_LOOSENED');
-  });
-
-  it('cannot be made AI-eligible', () => {
-    const d = draft();
-    const opened = d.updateAttribute('employee_number', {
-      classification: {
-        classification: 'internal',
-        piiKind: 'identity',
-        exportable: true,
-        aiEligible: true,
-      },
-    });
-    expect(opened.ok).toBe(false);
   });
 
   it('cannot have its requiredness lowered', () => {

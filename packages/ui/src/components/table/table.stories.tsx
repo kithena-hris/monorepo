@@ -717,6 +717,70 @@ export const Virtualized: Story = {
 };
 
 /**
+ * A long list read row by row: striped, columns widened by dragging (or the
+ * arrow keys on a header's edge), and the next page fetched as the reader
+ * nears the end, then virtualized like any other long table.
+ */
+export const InfiniteStripedResizable: Story = {
+  name: 'Infinite, striped, resizable',
+  render: function InfiniteTable() {
+    const page = (from: number): Row[] =>
+      Array.from({ length: 50 }, (_, i) => {
+        const index = from + i;
+        return {
+          id: `EMP-${String(200_000 + index)}`,
+          name: `Employee ${String(index + 1)}`,
+          role: ['Engineer', 'Designer', 'Analyst', 'Manager'][index % 4] ?? 'Engineer',
+          status: (['active', 'on-leave', 'offboarding'] as const)[index % 3] ?? 'active',
+          hiredOn: `20${String(15 + (index % 10)).padStart(2, '0')}-0${String((index % 9) + 1)}-15`,
+          salaryMinorUnits: String(4_000_000 + index * 137),
+        };
+      });
+    const [loaded, setLoaded] = useState<Row[]>(() => page(0));
+    const [loading, setLoading] = useState(false);
+    const more = () => {
+      if (loading || loaded.length >= 1000) return;
+      setLoading(true);
+      setTimeout(() => {
+        setLoaded((rows) => [...rows, ...page(rows.length)]);
+        setLoading(false);
+      }, 300);
+    };
+    return (
+      <DataTable<Row>
+        label="Every employee, loaded as you scroll"
+        caption={`${String(loaded.length)} of 1000 loaded${loading ? ', loading more…' : ''}`}
+        rows={loaded}
+        columns={dataColumns}
+        rowId={(row) => row.id}
+        describeRow={(row) => row.name}
+        striped
+        resizable
+        stickyHeader
+        virtualize
+        onEndReached={more}
+        containerClassName="h-[32rem]"
+      />
+    );
+  },
+};
+
+/** Rows under a heading per group, in group order: the heading counts what it holds. */
+export const Grouped: Story = {
+  render: () => (
+    <DataTable<Row>
+      label="Employees by status"
+      rows={[...rows].sort((a, b) => a.status.localeCompare(b.status))}
+      columns={dataColumns}
+      rowId={(row) => row.id}
+      describeRow={(row) => row.name}
+      groupBy={(row) => row.status}
+      striped
+    />
+  ),
+};
+
+/**
  * Sorting a virtualized table.
  *
  * Worth its own story because the two features are easy to get wrong together:

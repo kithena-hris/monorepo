@@ -171,7 +171,7 @@ export const Cards: Story = {
     docs: {
       description: {
         story:
-          'The whole card is the label, so the target is the card: comfortably over 44px, which is what makes this the variant to reach for on a phone. The selected card takes the accent wash rather than a border colour alone, because a 1px border change is not a visible state on a bright screen.',
+          'The whole card is the label, so the target is the card: comfortably over 44px, which is what makes this the variant to reach for on a phone. The selected card takes the accent wash rather than a border colour alone, because a 1px border change is not a visible state on a bright screen. The radio is named by the title alone and described by the line under it, so a screen reader says "Monthly, radio button" and then the consequence, rather than both run together as one name.',
       },
     },
   },

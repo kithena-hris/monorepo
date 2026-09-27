@@ -125,21 +125,26 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border',
-        'px-6 py-12 text-center',
+        'flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border-strong',
+        'bg-surface px-6 py-14 text-center',
         className,
       )}
       {...props}
     >
       {icon ? (
-        <div className="grid size-10 place-items-center rounded-full bg-surface-sunken text-fg-subtle [&_svg]:size-5">
+        // Neutral, not accent: accent marks what you can act on, and the
+        // glyph is only there to say what kind of place this is.
+        <div
+          aria-hidden
+          className="grid size-12 place-items-center rounded-full bg-surface-sunken text-fg-muted [&_svg]:size-6"
+        >
           {icon}
         </div>
       ) : null}
-      <div className="space-y-1">
-        <p className="text-base font-semibold text-fg">{title}</p>
+      <div className="space-y-1.5">
+        <p className="text-md font-semibold text-fg">{title}</p>
         {description ? (
-          <p className="mx-auto max-w-sm text-sm text-fg-muted">{description}</p>
+          <p className="mx-auto max-w-md text-base text-pretty text-fg-muted">{description}</p>
         ) : null}
       </div>
       {action ? <div className="mt-1">{action}</div> : null}

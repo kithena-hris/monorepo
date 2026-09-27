@@ -94,7 +94,7 @@ function canonical(document: SchemaDocument): string {
   });
 }
 
-function sortKeys(value: unknown): unknown {
+export function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map((v) => sortKeys(v));
   if (value === null || typeof value !== 'object') return value;
 

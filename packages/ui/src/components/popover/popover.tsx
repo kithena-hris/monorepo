@@ -36,6 +36,14 @@ export interface PopoverContentProps extends ComponentPropsWithoutRef<
    * filter editor, which needs the room.
    */
   matchTriggerWidth?: boolean;
+  /**
+   * Render into a portal at the end of `<body>`, which is the default. Off for
+   * a panel that has to sit in the document where its trigger is — a nav
+   * flyout, whose links should come next in Tab order rather than after the
+   * whole page. Radix positions it `fixed` either way, so an `overflow` on an
+   * ancestor does not clip it; a `transform` or `filter` on one would.
+   */
+  portal?: boolean;
 }
 
 export function PopoverContent({
@@ -45,11 +53,11 @@ export function PopoverContent({
   collisionPadding = 12,
   arrow = false,
   matchTriggerWidth = false,
+  portal = true,
   children,
   ...props
 }: PopoverContentProps): JSX.Element {
-  return (
-    <PopoverPrimitive.Portal>
+  const content = (
       <PopoverPrimitive.Content
         align={align}
         sideOffset={sideOffset}
@@ -67,7 +75,7 @@ export function PopoverContent({
           matchTriggerWidth && 'w-(--radix-popover-trigger-width)',
           'max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-contain',
           'origin-(--radix-popover-content-transform-origin)',
-          'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+          'popover-motion',
           className,
         )}
         {...props}
@@ -83,6 +91,6 @@ export function PopoverContent({
           />
         ) : null}
       </PopoverPrimitive.Content>
-    </PopoverPrimitive.Portal>
   );
+  return portal ? <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal> : content;
 }

@@ -89,7 +89,7 @@ beforeAll(async () => {
   admin = drizzle(adminClient);
   // Every migration, as a deployment has them: the integrations screen
   // reads webhooks, roles and settings beside SCIM.
-  for (const role of ['svc_identity', 'svc_messaging']) {
+  for (const role of ['svc_identity', 'svc_messaging', 'svc_slack']) {
     await adminClient.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
   }
   const dir = new URL('../../../../migrations/', import.meta.url);

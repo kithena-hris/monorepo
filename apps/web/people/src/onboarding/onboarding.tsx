@@ -12,6 +12,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
+import { FieldFiles, type UploadOutcome } from '../record/files';
 import { seenBy, type RecordSection, type Values } from '../record/model';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
@@ -38,6 +39,8 @@ export interface OnboardingProps {
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
   /** What our checks would warn about a national identifier, before it is saved (PEO-125). */
   readonly onCheck?: (sectionKey: string, changed: Values) => Promise<Checked>;
+  /** Keep a file for an image or document field; saving the section points the record at it. */
+  readonly onUploadFile?: (key: string, file: File) => Promise<UploadOutcome>;
 }
 
 const ASK = {
@@ -54,10 +57,14 @@ const ASK = {
  * first section not yet saved. Each section says who will read the answers,
  * because that is the question somebody filling in a form on a train is asking.
  */
-export function Onboarding({ load, onSave, onCheck }: OnboardingProps): JSX.Element {
+export function Onboarding({ load, onSave, onCheck, onUploadFile }: OnboardingProps): JSX.Element {
   return (
     <Loaded load={load} what="your onboarding">
-      {(state) => <Sections state={state} onSave={onSave} onCheck={onCheck} />}
+      {(state) => (
+        <FieldFiles.Provider value={{ upload: onUploadFile ?? null, known: new Map() }}>
+          <Sections state={state} onSave={onSave} onCheck={onCheck} />
+        </FieldFiles.Provider>
+      )}
     </Loaded>
   );
 }

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DisconnectChatApp($app: String!, $key: String!) {\n    disconnectChatApp(app: $app, idempotencyKey: $key) { apps { key } }\n  }"}

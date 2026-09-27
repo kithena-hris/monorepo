@@ -50,7 +50,32 @@ import {
 } from '../application/screens/bulk-edit.js';
 import { personOfViewer } from '../application/screens/record.js';
 import { rolesView } from '../application/screens/roles.js';
+import { overviewView } from '../application/screens/overview.js';
+import {
+  avatarsOf,
+  completePhotoUpload,
+  photoView,
+  removePhoto,
+  startPhotoUpload,
+  type PhotoDeps,
+} from '../application/screens/photo.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
+import { requestDetails } from '../application/screens/requests.js';
+import { activityView } from '../application/settings/activity.js';
+import {
+  chatView,
+  completeChat,
+  connectChat,
+  disconnectChat,
+  setChatNotice,
+} from '../application/settings/chat.js';
+import { ask } from '../application/assistant/ask.js';
+import {
+  completeFileUpload,
+  fileView,
+  startFileUpload,
+  type FileDeps,
+} from '../application/screens/files.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 import {
   createSchedule,
@@ -73,6 +98,8 @@ import {
   reorderFields,
   reorderSections,
   saveField,
+  setFieldSignup,
+  setFieldAssistant,
   setupView,
   type SchemaScreenDeps,
 } from '../application/screens/schema.js';
@@ -117,6 +144,9 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     readonly schedules?: ScheduleAdminDeps;
   };
 
+export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
+export const ChatComplete = z.strictObject({ code: z.string().min(1).max(500), state: z.string().min(1).max(2000) });
+export const ChatNotice = z.strictObject({ on: z.boolean() });
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
 export const SetupChoice = z.strictObject({
@@ -196,11 +226,32 @@ export const EndpointPatch = EndpointBody.partial().extend({ enabled: z.boolean(
 export const ScimConnectionBody = z.strictObject({ system: z.string().max(80) });
 /** The approved mapping, whole (PEO-073): each SCIM path and the attribute it owns. */
 export const ScimMappingBody = z.strictObject({
-  mapping: z
-    .array(z.strictObject({ path: z.string().max(200), key: z.string().max(64) }))
-    .max(200),
+  mapping: z.array(z.strictObject({ path: z.string().max(200), key: z.string().max(64) })).max(200),
 });
 /** What the browser is about to upload: its name and exact size, never its bytes (§14.2). */
+/** Whose photo: a person, or null for the viewer's own. */
+export const PhotoOf = z.strictObject({ personId: z.uuid().nullable() });
+export const FileStart = z.strictObject({
+  personId: z.uuid().nullable(),
+  key: z.string().min(1).max(64),
+  name: z.string().trim().min(1).max(255),
+  size: z.int().positive(),
+});
+export const FileOf = z.strictObject({
+  personId: z.uuid().nullable(),
+  key: z.string().min(1).max(64),
+});
+export const AssistantShareBody = z.strictObject({ share: z.boolean() });
+export const SignupAskBody = z.strictObject({ ask: z.enum(['off', 'optional', 'required']) });
+export const AskBody = z.strictObject({
+  question: z.string().trim().min(1).max(500),
+  earlier: z.array(z.string().max(500)).max(10).default([]),
+});
+export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
+export const PhotoStart = z.strictObject({
+  personId: z.uuid().nullable(),
+  size: z.int().min(1),
+});
 export const UploadStart = z.strictObject({
   name: z.string().max(255),
   size: z.int().min(1),
@@ -384,11 +435,118 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     }
     return run(deps.service, asking.tenantId, (tx) => act(d, tx));
   };
+  // A photo's upload needs the bucket and the upload ledger, and nothing else of import's.
+  const photoDeps: PhotoDeps = { ...deps, newId: () => deps.commit.newId() };
+  const fileDeps: FileDeps = { ...deps, newId: () => deps.commit.newId() };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
 
   return [
     /* people */
+    // Where People starts: the signed-in person, their line, what waits (overview).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/overview$/,
+      handle: async (asking) => answer(await overviewView(deps, asking)),
+    },
+    // A person's photo, to somebody who may read the person; base64 in JSON.
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/photos/${UUID}$`),
+      handle: async (asking, _r, params) =>
+        answer(await photoView(deps, asking, params['id'] ?? '')),
+    },
+    {
+      // Where to put a photo: a presigned PUT, as an import's file (§14.2).
+      // Unkeyed: a retry is a fresh upload, and the earlier one is let go.
+      method: 'POST',
+      pattern: /^\/v1\/views\/photos\/uploads$/,
+      safe: true,
+      handle: compute(PhotoStart, (asking, input) =>
+        startPhotoUpload(photoDeps, asking, input.personId, input.size),
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/photos/uploads/${UUID}/complete$`),
+      handle: write(
+        PhotoOf,
+        (asking, input, uploadId) =>
+          completePhotoUpload(photoDeps, asking, input.personId, uploadId),
+        {
+          // A retry finds the upload let go; it is answered with the photo kept.
+          again: async (asking, _resource, input) => {
+            const answered = await run(deps.service, asking.tenantId, async (tx) => {
+              const id =
+                input.personId ??
+                (await deps.personOf(tx, asking.tenantId, asking.viewer.accountId));
+              const urls = await avatarsOf(deps, tx, asking.tenantId, id === null ? [] : [id]);
+              return ok({ avatarUrl: id === null ? null : (urls.get(id) ?? null) });
+            });
+            return answer(answered);
+          },
+        },
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/photos\/remove$/,
+      handle: write(PhotoOf, (asking, input) => removePhoto(photoDeps, asking, input.personId)),
+    },
+    // A question in words, answered as the asker (Slack, and anywhere else). A read.
+    {
+      method: 'POST',
+      pattern: /^\/v1\/assistant\/ask$/,
+      safe: true,
+      handle: compute(AskBody, (asking, input) =>
+        ask(deps, asking, input.question, input.earlier),
+      ),
+    },
+    // The Settings activity log, newest first (`?before=<id>&area=fields`).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/settings\/activity$/,
+      handle: async (asking, _r, _p, query) => {
+        const area = query.get('area');
+        return answer(
+          await activityView(deps, asking, {
+            before: new RegExp(`^${UUID}$`).test(query.get('before') ?? '')
+              ? query.get('before')
+              : null,
+            area:
+              area === 'fields' || area === 'organisation' || area === 'roles' || area === 'integrations'
+                ? area
+                : null,
+          }),
+        );
+      },
+    },
+    // A file for an image or document field, to somebody who may read that field.
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/files/${UUID}$`),
+      handle: async (asking, _r, params) => answer(await fileView(deps, asking, params['id'] ?? '')),
+    },
+    {
+      // Where to put a field's file: a presigned PUT, as a photo's.
+      method: 'POST',
+      pattern: /^\/v1\/views\/files\/uploads$/,
+      safe: true,
+      handle: compute(FileStart, (asking, input) => startFileUpload(fileDeps, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/files/uploads/${UUID}/complete$`),
+      handle: write(FileOf, (asking, input, uploadId) =>
+        completeFileUpload(fileDeps, asking, input, uploadId),
+      ),
+    },
+    // Ask somebody for empty details of theirs: recorded, and they are emailed.
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/views/profile/${UUID}/requests$`),
+      handle: write(DetailAsk, (asking, input, id) => requestDetails(deps, asking, id, input.keys)),
+    },
     {
       method: 'GET',
       pattern: /^\/v1\/views\/onboarding$/,
@@ -478,7 +636,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         const b = query.get('b');
         const id = new RegExp(`^${UUID}$`);
         if ((a === null) !== (b === null) || (a !== null && (!id.test(a) || !id.test(b ?? '')))) {
-          return refused(failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']));
+          return refused(
+            failure('BAD_REQUEST', 'a and b are two person ids, or neither', ['a', 'b']),
+          );
         }
         return answer(await duplicatesView(deps, asking, a === null || b === null ? null : [a, b]));
       },
@@ -503,19 +663,32 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'filter is key:value pairs', ['filter']));
         }
         const after = query.get('after') ?? undefined;
-        if (after !== undefined && !new RegExp(`^${UUID}$`).test(after)) {
-          return refused(failure('BAD_REQUEST', 'after is a person id', ['after']));
+        if (after !== undefined && !new RegExp(`^(${UUID}|@\\d{1,6})$`).test(after)) {
+          return refused(failure('BAD_REQUEST', 'after is a person id or @offset', ['after']));
         }
         const segment = query.get('segment') ?? undefined;
         if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
         }
+        const refine = DirectoryRefine.safeParse({
+          conditions: parseJson(query.get('conditions')),
+          match: query.get('match') ?? undefined,
+          sort: query.get('sort') ?? undefined,
+        });
+        if (!refine.success) {
+          return refused(
+            failure('BAD_REQUEST', 'conditions, match or sort is malformed', ['conditions']),
+          );
+        }
         return answer(
           await directoryView(deps, asking, {
             search: (query.get('search') ?? '').slice(0, 200),
             filters: filterIn(filter),
-            after: after ?? null,
+            // Sorted, the cursor is an offset (`@150`); otherwise a person id.
+            after: after ?? query.get('offset') ?? null,
+            ...refine.data,
             ...(segment === undefined ? {} : { segmentId: segment }),
+            ...(query.get('incomplete') === 'true' ? { incomplete: true } : {}),
           }),
         );
       },
@@ -575,7 +748,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: async (asking, _r, _p, query) => {
         const ids = (query.get('people') ?? '').split(',').filter((id) => id !== '');
         if (!ids.every((id) => new RegExp(`^${UUID}$`).test(id))) {
-          return refused(failure('BAD_REQUEST', 'people is person ids, comma-separated', ['people']));
+          return refused(
+            failure('BAD_REQUEST', 'people is person ids, comma-separated', ['people']),
+          );
         }
         return answer(await bulkEditView(deps, asking, ids));
       },
@@ -673,6 +848,22 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: write(Order, (asking, input, key) => reorderFields(deps, asking, key, input.order)),
     },
     {
+      // A field shared with the assistant, or not.
+      method: 'POST',
+      pattern: new RegExp(`^/v1/schema/draft/attributes/${KEY}/assistant$`),
+      handle: write(AssistantShareBody, (asking, input, key) =>
+        setFieldAssistant(deps, asking, key, input.share),
+      ),
+    },
+    {
+      // A field on the sign-up flow, optional or required, or off it.
+      method: 'POST',
+      pattern: new RegExp(`^/v1/schema/draft/attributes/${KEY}/signup$`),
+      handle: write(SignupAskBody, (asking, input, key) =>
+        setFieldSignup(deps, asking, key, input.ask),
+      ),
+    },
+    {
       method: 'POST',
       pattern: /^\/v1\/schema\/draft\/attributes$/,
       handle: write(Field, (asking, input) => saveField(deps, asking, input.input, input.editing)),
@@ -762,15 +953,56 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         again: endpoint,
       }),
     },
+    // Chat apps (Slack today): connecting one, and which notices go there.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/chat$/,
+      handle: async (asking) => answer(await chatView(deps, asking)),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/chat/apps/${KEY}/connect$`),
+      safe: true,
+      handle: async (asking, request, params) => {
+        const input = body(ChatConnect, request.body);
+        if (!input.ok) return refused(input.error);
+        return answer(await connectChat(deps, asking, params['id'] ?? '', input.value.origin));
+      },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/chat/apps/${KEY}/complete$`),
+      handle: write(ChatComplete, (asking, input, id) => completeChat(deps, asking, id, input), {
+        resource: (_asking, id) => id,
+      }),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/chat/apps/${KEY}/disconnect$`),
+      handle: write(NoBody, (asking, _input, id) => disconnectChat(deps, asking, id), {
+        resource: (_asking, id) => id,
+      }),
+    },
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/chat/notices/${KEY}$`),
+      handle: write(ChatNotice, (asking, input, id) => setChatNotice(deps, asking, id, input.on), {
+        resource: (_asking, id) => id,
+      }),
+    },
     // SCIM connections (PEO-072, PEO-073): people_admin's, audited by event.
     {
       method: 'POST',
       pattern: /^\/v1\/scim\/connections$/,
-      handle: write(ScimConnectionBody, (asking, input) => createScimConnection(deps, asking, input.system), {
-        status: 201,
-        resource: (_asking, _id, made) => made.id,
-        again: (_asking, id) => Promise.resolve({ status: 201, body: { id } }),
-      }),
+      handle: write(
+        ScimConnectionBody,
+        (asking, input) => createScimConnection(deps, asking, input.system),
+        {
+          status: 201,
+          resource: (_asking, _id, made) => made.id,
+          again: (_asking, id) => Promise.resolve({ status: 201, body: { id } }),
+        },
+      ),
     },
     {
       method: 'POST',
@@ -790,9 +1022,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'PUT',
       pattern: new RegExp(`^/v1/scim/connections/${UUID}/mapping$`),
-      handle: write(ScimMappingBody, (asking, input, id) => setScimMapping(deps, asking, id, input.mapping), {
-        resource: (_asking, id) => id,
-      }),
+      handle: write(
+        ScimMappingBody,
+        (asking, input, id) => setScimMapping(deps, asking, id, input.mapping),
+        {
+          resource: (_asking, id) => id,
+        },
+      ),
     },
     {
       method: 'GET',
@@ -844,19 +1080,23 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/imports$/,
-      handle: write(ImportStepBody, (asking, input) => commitImportView(deps, asking, importStep(input)), {
-        status: 201,
-        // The report is not kept (PEO-090), so a retry is told it went through.
-        again: () =>
-          Promise.resolve(
-            refused(
-              failure(
-                'ALREADY_IMPORTED',
-                'This import went through on the first request with this key',
+      handle: write(
+        ImportStepBody,
+        (asking, input) => commitImportView(deps, asking, importStep(input)),
+        {
+          status: 201,
+          // The report is not kept (PEO-090), so a retry is told it went through.
+          again: () =>
+            Promise.resolve(
+              refused(
+                failure(
+                  'ALREADY_IMPORTED',
+                  'This import went through on the first request with this key',
+                ),
               ),
             ),
-          ),
-      }),
+        },
+      ),
     },
 
     /* export and analytics */
@@ -1021,3 +1261,52 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
 
 /** How big a request body may be. No file comes this way: an import's goes to storage (§14.2). */
 export const BODY_LIMIT = 256 * 1024;
+
+/** The directory's conditions, match and sort, as the query string carries them. */
+const DirectoryRefine = z
+  .object({
+    conditions: z
+      .array(
+        z.object({
+          key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
+          op: z.enum([
+            'is',
+            'in',
+            'contains',
+            'before',
+            'after',
+            'between',
+            'empty',
+            'not_empty',
+            'under',
+          ]),
+          values: z.array(z.string().max(200)).max(50).default([]),
+        }),
+      )
+      .max(20)
+      .optional(),
+    match: z.enum(['all', 'any']).optional(),
+    // `key:asc` or `key:desc`.
+    sort: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,62}:(asc|desc)$/)
+      .transform((v) => {
+        const [key = '', direction] = v.split(':');
+        return { key, direction: direction === 'desc' ? ('desc' as const) : ('asc' as const) };
+      })
+      .optional(),
+  })
+  .transform((v) => ({
+    ...(v.conditions === undefined ? {} : { conditions: v.conditions }),
+    ...(v.match === undefined ? {} : { match: v.match }),
+    ...(v.sort === undefined ? {} : { sort: v.sort }),
+  }));
+
+function parseJson(text: string | null): unknown {
+  if (text === null || text === '') return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return 'malformed';
+  }
+}

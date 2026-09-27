@@ -3,6 +3,7 @@
 import {
   Fragment,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -220,6 +221,57 @@ export interface DataTableProps<T extends TableRow> {
   virtualizeThreshold?: number;
   /** Estimated row height in px, used before a row has been measured. */
   estimateRowHeight?: number;
+
+  /**
+   * Every other row washed, so a wide row can be followed across by eye.
+   * Counted on the row's position, not the DOM's, so a virtualized body keeps
+   * the rhythm as rows come and go.
+   */
+  striped?: boolean;
+
+  /**
+   * A drag handle on every header's right edge, and the arrow keys on it, to
+   * widen a column and read what it truncates. The table lays out on the
+   * widths, so a cell ellipsizes rather than pushing its neighbours.
+   */
+  resizable?: boolean;
+  /** Widths in px by column id. Uncontrolled when omitted. */
+  columnWidths?: Readonly<Record<string, number>>;
+  onColumnWidthsChange?: (widths: Readonly<Record<string, number>>) => void;
+
+  /**
+   * Called when the reader scrolls near the end: fetch the next page and
+   * append it. It can fire again before rows arrive, so guard it. Only a
+   * table whose container has a height of its own scrolls, so pass one
+   * through `containerClassName`.
+   */
+  onEndReached?: () => void;
+
+  /**
+   * Rows under a heading per group: the label each row belongs under.
+   *
+   * The rows must already arrive in group order (sort by the same thing, on
+   * the server for a table that pages), and a heading is drawn wherever the
+   * label changes, with how many rows it holds among those loaded. Headings
+   * are rows of their own, `rowgroup` headers, virtualized with the rest.
+   */
+  groupBy?: (row: T) => string;
+}
+
+/** A column's narrowest and widest, in px. */
+const COLUMN_MIN = 64;
+const COLUMN_MAX = 960;
+const COLUMN_DEFAULT = 176;
+/** How near the end, in px, counts as the end. */
+const END_MARGIN = 480;
+
+const clampWidth = (w: number): number => Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, Math.round(w)));
+
+/** `'10rem'` or `'160px'` as px; anything else is the default. */
+function widthOf(width: string | undefined): number {
+  const m = /^([\d.]+)(rem|px)$/.exec(width ?? '');
+  if (m === null) return COLUMN_DEFAULT;
+  return clampWidth(Number(m[1]) * (m[2] === 'rem' ? 16 : 1));
 }
 
 export function DataTable<T extends TableRow>({
@@ -252,8 +304,22 @@ export function DataTable<T extends TableRow>({
   virtualize = 'auto',
   virtualizeThreshold = 100,
   estimateRowHeight = 44,
+  striped = false,
+  resizable = false,
+  columnWidths,
+  onColumnWidthsChange,
+  onEndReached,
+  groupBy,
 }: DataTableProps<T>): JSX.Element {
   const base = useId();
+  const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
+  const widths = columnWidths ?? ownWidths;
+  const widthFor = (column: DataColumn<T>): number => widths[column.id] ?? widthOf(column.width);
+  const setWidth = (id: string, width: number) => {
+    const next = { ...widths, [id]: clampWidth(width) };
+    if (columnWidths === undefined) setOwnWidths(next);
+    onColumnWidthsChange?.(next);
+  };
   const [openRows, setOpenRows] = useState<readonly string[]>(defaultExpanded ?? []);
   const [pickedRows, setPickedRows] = useState<readonly string[]>(defaultSelected ?? []);
   const [ownSort, setOwnSort] = useState<DataTableSort | null>(defaultSort);
@@ -400,14 +466,52 @@ export function DataTable<T extends TableRow>({
   const getScrollElement = useCallback(() => scrollRef.current, []);
   const estimateSize = useCallback(() => estimateRowHeight, [estimateRowHeight]);
 
+  // Rows, and a heading wherever a group starts.
+  type Entry =
+    | { readonly kind: 'group'; readonly label: string; readonly count: number }
+    | { readonly kind: 'row'; readonly row: T; readonly index: number };
+  const entries: Entry[] = [];
+  if (groupBy === undefined) {
+    ordered.forEach((row, index) => entries.push({ kind: 'row', row, index }));
+  } else {
+    let heading: { kind: 'group'; label: string; count: number } | null = null;
+    ordered.forEach((row, index) => {
+      const label = groupBy(row);
+      if (heading === null || heading.label !== label) {
+        heading = { kind: 'group', label, count: 0 };
+        entries.push(heading);
+      }
+      heading.count += 1;
+      entries.push({ kind: 'row', row, index });
+    });
+  }
+
   const virtualizer = useVirtualizer({
-    count: virtualized ? ordered.length : 0,
+    count: virtualized ? entries.length : 0,
     getScrollElement,
     estimateSize,
     // Enough rows above and below that a fast flick does not show a gap, and
     // few enough that the saving is real.
     overscan: 8,
   });
+
+  // Near the end of what is loaded: on scroll, and whenever the rows change,
+  // since a first page shorter than the container never scrolls at all.
+  const endReached = useRef(onEndReached);
+  endReached.current = onEndReached;
+  const wantsEnd = onEndReached !== undefined;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el === null || !wantsEnd) return;
+    const check = () => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
+    };
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', check);
+    };
+  }, [wantsEnd, ordered.length]);
 
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
@@ -417,7 +521,7 @@ export function DataTable<T extends TableRow>({
       : 0;
 
   /** The rows to render, paired with the 1-based index a reader should hear. */
-  const visible: { row: T; index: number }[] = virtualized
+  const visible: { entry: Entry; position: number }[] = virtualized
     ? /*
        * `flatMap` with a presence check, not an index lookup asserted to be
        * populated. The virtualizer reports indices from the measurement it last
@@ -427,10 +531,10 @@ export function DataTable<T extends TableRow>({
        * this drops it instead.
        */
       virtualRows.flatMap((item) => {
-        const row = ordered[item.index];
-        return row === undefined ? [] : [{ row, index: item.index }];
+        const entry = entries[item.index];
+        return entry === undefined ? [] : [{ entry, position: item.index }];
       })
-    : ordered.map((row, index) => ({ row, index }));
+    : entries.map((entry, position) => ({ entry, position }));
 
   const leadingColumns = (renderDetail ? 1 : 0) + (selectable ? 1 : 0) + (canReorder ? 1 : 0);
   const totalColumns = columns.length + leadingColumns;
@@ -442,8 +546,8 @@ export function DataTable<T extends TableRow>({
       containerRef={scrollRef}
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
-      {...(virtualized ? { 'aria-rowcount': ordered.length + 1 } : {})}
-      className={className}
+      {...(virtualized ? { 'aria-rowcount': entries.length + 1 } : {})}
+      className={cn(resizable && 'w-max table-fixed', className)}
       {...(containerClassName === undefined ? {} : { containerClassName })}
     >
       {caption === undefined ? null : (
@@ -490,7 +594,27 @@ export function DataTable<T extends TableRow>({
                   setSort({ columnId: column.id, direction });
                 }}
                 className={column.className}
-                {...(column.width === undefined ? {} : { style: { width: column.width } })}
+                {...(resizable
+                  ? { style: { width: widthFor(column) } }
+                  : column.width === undefined
+                    ? {}
+                    : { style: { width: column.width } })}
+                {...(resizable
+                  ? {
+                      resizer: (
+                        <ColumnResizer
+                          label={
+                            column.shortHeader ??
+                            (typeof column.header === 'string' ? column.header : column.id)
+                          }
+                          width={widthFor(column)}
+                          onWidth={(w) => {
+                            setWidth(column.id, w);
+                          }}
+                        />
+                      ),
+                    }
+                  : {})}
               >
                 {column.header}
               </TableHead>
@@ -515,7 +639,23 @@ export function DataTable<T extends TableRow>({
           <tr aria-hidden style={{ height: paddingTop }} />
         ) : null}
 
-        {visible.map(({ row, index: rowIndex }) => {
+        {visible.map(({ entry, position }) => {
+          if (entry.kind === 'group') {
+            return (
+              <TableRow
+                key={`group-${String(position)}`}
+                {...(virtualized ? { 'aria-rowindex': position + 2 } : {})}
+              >
+                <TableHead scope="rowgroup" colSpan={totalColumns} className="bg-surface-sunken">
+                  <span className="flex items-center gap-2 text-fg">
+                    {entry.label}
+                    <span className="font-normal text-fg-muted tabular-nums">{entry.count}</span>
+                  </span>
+                </TableHead>
+              </TableRow>
+            );
+          }
+          const { row, index: rowIndex } = entry;
           const id = rowId(row);
           const detail = renderDetail?.(row) ?? null;
           const isOpen = open.has(id) && detail !== null;
@@ -527,9 +667,10 @@ export function DataTable<T extends TableRow>({
                 id={id}
                 name={name}
                 // 1-based, and past the header row, which is row 1.
-                {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
+                {...(virtualized ? { 'aria-rowindex': position + 2 } : {})}
                 reorderable={canReorder}
                 selected={picked.has(id)}
+                stripe={striped && rowIndex % 2 === 1}
                 {...(onRowClick
                   ? {
                       onClick: () => {
@@ -599,7 +740,7 @@ export function DataTable<T extends TableRow>({
                     key={column.id}
                     numeric={column.numeric ?? false}
                     sticky={column.sticky ?? false}
-                    className={column.className}
+                    className={cn(resizable && 'overflow-hidden text-ellipsis', column.className)}
                   >
                     {column.cell(row)}
                   </TableCell>
@@ -698,6 +839,7 @@ function DataRow({
   name,
   reorderable,
   selected,
+  stripe,
   onClick,
   children,
   ...rest
@@ -706,6 +848,7 @@ function DataRow({
   name: string;
   reorderable: boolean;
   selected: boolean;
+  stripe: boolean;
   onClick?: () => void;
   children: ReactNode;
   /** `aria-rowindex` when the body is virtualized. */
@@ -731,7 +874,8 @@ function DataRow({
           ? { transform: CSS.Transform.toString(transform), transition, position: 'relative' }
           : undefined
       }
-      className={cn(isDragging && 'z-10 opacity-60 shadow-md')}
+      // Never over a selection: the accent wash is the one that means something.
+      className={cn(stripe && !selected && 'bg-surface-sunken', isDragging && 'z-10 opacity-60 shadow-md')}
       {...(onClick ? { onClick } : {})}
       {...rest}
     >
@@ -757,5 +901,65 @@ function DataRow({
       ) : null}
       {children}
     </TableRow>
+  );
+}
+
+/**
+ * The drag handle on a header's right edge. A separator with a value, so a
+ * screen reader hears the width and the arrow keys change it; the pointer
+ * drags it. It never sorts the column it sits on.
+ */
+function ColumnResizer({
+  label,
+  width,
+  onWidth,
+}: {
+  label: string;
+  width: number;
+  onWidth: (width: number) => void;
+}): JSX.Element {
+  const drag = useRef<{ x: number; width: number } | null>(null);
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${label}`}
+      aria-valuenow={width}
+      aria-valuemin={COLUMN_MIN}
+      aria-valuemax={COLUMN_MAX}
+      tabIndex={0}
+      className={cn(
+        'tap-target absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize touch-none select-none',
+        'after:absolute after:inset-y-2 after:left-1/2 after:w-px after:bg-border',
+        'hover:after:w-0.5 hover:after:bg-border-focus focus-visible:after:w-0.5 focus-visible:after:bg-border-focus',
+        'focus-visible:outline-none',
+      )}
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { x: event.clientX, width };
+      }}
+      onPointerMove={(event) => {
+        if (drag.current === null) return;
+        onWidth(drag.current.width + event.clientX - drag.current.x);
+      }}
+      onPointerUp={() => {
+        drag.current = null;
+      }}
+      onPointerCancel={() => {
+        drag.current = null;
+      }}
+      onKeyDown={(event) => {
+        const step = event.shiftKey ? 64 : 16;
+        if (event.key === 'ArrowRight') onWidth(width + step);
+        else if (event.key === 'ArrowLeft') onWidth(width - step);
+        else return;
+        event.preventDefault();
+      }}
+    />
   );
 }

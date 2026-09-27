@@ -6,16 +6,24 @@ import { ChevronRight } from 'lucide-react';
 import {
   Children,
   cloneElement,
+  createContext,
+  use,
+  useEffect,
   useId,
+  useRef,
+  useState,
   type ComponentPropsWithoutRef,
+  type KeyboardEvent,
   type JSX,
   type ReactElement,
   type ReactNode,
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 import { Badge } from '../badge/badge';
-import { useRailCollapsed } from '../page-layout/page-layout';
+import { RailContext, useRailCollapsed } from '../page-layout/page-layout';
+import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { Tooltip } from '../tooltip/tooltip';
 
 /**
@@ -91,6 +99,14 @@ export function Nav({ className, label, as = 'nav', children, ...props }: NavPro
 export interface NavListProps extends ComponentPropsWithoutRef<'ul'> {
   /** 1 primary, 2 secondary, 3 tertiary. Drives indentation and type size. */
   level?: 1 | 2 | 3;
+  /**
+   * Groups side by side where the container has room: a flyout that lays an
+   * area's places out as a menu rather than one long column. Each direct
+   * child, usually a `NavGroup`, takes a column; they stack again when the
+   * container is narrow. The width the container has decides, never the
+   * window's.
+   */
+  columns?: 1 | 2 | 3;
 }
 
 const listByLevel = {
@@ -101,8 +117,31 @@ const listByLevel = {
   3: 'ms-3 space-y-px border-s border-border ps-3',
 } as const;
 
-export function NavList({ className, level = 1, ...props }: NavListProps): JSX.Element {
-  return <ul className={cn('min-w-0', listByLevel[level], className)} {...props} />;
+const listColumns = {
+  1: '',
+  2: 'grid gap-x-4 gap-y-5 space-y-0 @xl:grid-cols-2',
+  3: 'grid gap-x-4 gap-y-5 space-y-0 @xl:grid-cols-2 @4xl:grid-cols-3',
+} as const;
+
+/** Set by a `NavList` with columns: its groups are a menu's columns, headed as such. */
+const MenuColumns = createContext(false);
+
+export function NavList({
+  className,
+  level = 1,
+  columns = 1,
+  ...props
+}: NavListProps): JSX.Element {
+  const list = (
+    <ul className={cn('min-w-0', listByLevel[level], listColumns[columns], className)} {...props} />
+  );
+  return columns === 1 ? (
+    list
+  ) : (
+    <MenuColumns value={true}>
+      <div className="@container">{list}</div>
+    </MenuColumns>
+  );
 }
 
 export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'children'> {
@@ -126,6 +165,34 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   asChild?: boolean;
   /** Trailing control: a pin, an overflow menu. */
   action?: ReactNode;
+  /**
+   * One line under the label on what the destination is for, in a menu that
+   * has room for it. It describes the link (`aria-describedby`) rather than
+   * joining its name, so the item is still announced by its label. With a
+   * description the icon sits in a tile, which is what makes a menu of them
+   * scannable.
+   */
+  description?: ReactNode;
+  /**
+   * How much room the `flyout` gets: `sm` (default) for a short list of
+   * sections, `lg` for a menu of described places in columns.
+   */
+  flyoutSize?: 'sm' | 'lg';
+  /**
+   * The sections of this destination, shown beside it on demand rather than
+   * as a column that is always open. Usually a `Nav` of level-2 items.
+   *
+   * It opens on hover (after a short delay, and closes after another, so a
+   * pointer crossing the sidebar does not flash it), when the item takes
+   * keyboard focus, on ArrowRight, and on the first tap of a touch — the
+   * second tap follows the link. Escape or ArrowLeft closes it and returns
+   * focus to the item. It is rendered in place rather than in a portal, so
+   * Tab goes from the item into its sections and on out the other side.
+   *
+   * It stays in the collapsed rail, where it replaces the tooltip: the
+   * sections are the one thing a rail cannot otherwise show.
+   */
+  flyout?: ReactNode;
 }
 
 const itemByLevel = {
@@ -143,9 +210,15 @@ export function NavItem({
   current = false,
   asChild = false,
   action,
+  flyout,
+  description,
+  flyoutSize = 'sm',
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
+  const describedBy = useId();
+  const described = description !== undefined && description !== null;
+  const fly = useFlyout();
   const Comp = asChild ? Slot : 'a';
   /*
    * With `asChild` the one child is the link, and the label is its children.
@@ -153,7 +226,9 @@ export function NavItem({
    * inside that element rather than beside it — which is what they are inside
    * the `<a>`.
    */
-  const child = asChild ? (Children.only(children) as ReactElement<{ children?: ReactNode }>) : null;
+  const child = asChild
+    ? (Children.only(children) as ReactElement<{ children?: ReactNode }>)
+    : null;
   const label = child === null ? children : child.props.children;
   // Only a level-1 item with an icon can survive as a rail.
   const asIcon = collapsed && level === 1 && Boolean(icon);
@@ -173,7 +248,20 @@ export function NavItem({
       {icon ? (
         <span
           aria-hidden
-          className={cn('shrink-0', level === 1 ? '[&_svg]:size-4' : '[&_svg]:size-3.5')}
+          className={cn(
+            'shrink-0',
+            described
+              ? cn(
+                  'flex size-8 items-center justify-center rounded-md border [&_svg]:size-4',
+                  'transition-colors duration-(--animate-duration-fast)',
+                  current
+                    ? 'border-transparent bg-accent-subtle text-accent-fg'
+                    : 'border-border bg-surface text-fg-muted group-hover/nav-item:border-border-strong group-hover/nav-item:text-fg',
+                )
+              : level === 1
+                ? '[&_svg]:size-4'
+                : '[&_svg]:size-3.5',
+          )}
         >
           {icon}
         </span>
@@ -184,7 +272,22 @@ export function NavItem({
        * accessible name is a rail nobody can navigate with a screen reader,
        * and `sr-only` costs nothing.
        */}
-      <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
+      {described && !asIcon ? (
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate font-medium text-fg">{label}</span>
+          {/* Out of the link's name, into its description: the item is still
+              announced as its label, then this line. */}
+          <span
+            id={describedBy}
+            aria-hidden
+            className="line-clamp-2 text-xs leading-snug text-fg-muted"
+          >
+            {description}
+          </span>
+        </span>
+      ) : (
+        <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
+      )}
 
       {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
 
@@ -207,8 +310,12 @@ export function NavItem({
     <Comp
       // `aria-current` is the state. The background is the reminder.
       aria-current={current ? 'page' : undefined}
+      aria-describedby={described && !asIcon ? describedBy : undefined}
       className={cn(
         'group/nav-item relative flex items-center rounded-md',
+        // A described item is two lines and a tile: aligned to the top, with
+        // room around it, and a floor that is a tap target on any pointer.
+        described && !asIcon && 'min-h-tap items-start py-2',
         'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         itemByLevel[level],
@@ -219,10 +326,42 @@ export function NavItem({
         className,
       )}
       {...props}
+      {...(flyout === undefined ? {} : fly.triggerProps)}
     >
       {child === null ? inside : cloneElement(child, undefined, inside)}
     </Comp>
   );
+
+  if (flyout !== undefined) {
+    return (
+      <Popover open={fly.open} onOpenChange={fly.setOpen} modal={false}>
+        <PopoverAnchor asChild>
+          <li className="min-w-0" {...fly.anchorProps}>
+            {link}
+            <PopoverContent
+              {...fly.contentProps}
+              portal={false}
+              side="right"
+              align="start"
+              // Clear of the sidebar's own padding and border.
+              sideOffset={asIcon ? 10 : 16}
+              // Not a dialog: Radix gives its content `role="dialog"`, and what
+              // is inside is navigation that names itself.
+              role={undefined}
+              className={cn(
+                flyoutSize === 'lg' ? 'w-[min(46rem,calc(100vw-6rem))] p-4' : 'w-60 p-2',
+                // Out of the item and back into it, rather than the popover's zoom.
+                'origin-left popover-motion',
+              )}
+            >
+              {/* Its items are not in the rail, even when this one is. */}
+              <RailContext value={{ collapsed: false }}>{flyout}</RailContext>
+            </PopoverContent>
+          </li>
+        </PopoverAnchor>
+      </Popover>
+    );
+  }
 
   // The tooltip only exists in the rail, where the label is not on screen.
   // Wrapping it everywhere would put a tooltip on text that is already there.
@@ -249,6 +388,138 @@ export function NavItem({
   ) : (
     <li className="min-w-0">{link}</li>
   );
+}
+
+/** How long a pointer rests before a flyout opens, and lingers before it closes. */
+const FLYOUT_OPEN_MS = HOVER_OPEN_MS;
+const FLYOUT_CLOSE_MS = HOVER_CLOSE_MS;
+
+/**
+ * The state and handlers behind `NavItem`'s `flyout`.
+ *
+ * The pointer is asked what it is (`pointerType`) at the moment it acts, which
+ * is the only honest answer: a laptop with a touch screen has both, and no
+ * media query says which one is in use right now.
+ */
+function useFlyout() {
+  const [open, setOpen] = useState(false);
+  const contentId = useId();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trigger = useRef<HTMLElement | null>(null);
+  const content = useRef<HTMLDivElement | null>(null);
+  // Whether it was open when a touch began: the first tap opens, the second goes.
+  const openAtTouch = useRef<boolean | null>(null);
+  // Focus handed back on close must not open it again.
+  const returning = useRef(false);
+
+  const clear = (): void => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const later = (next: boolean, ms: number): void => {
+    clear();
+    timer.current = setTimeout(() => {
+      setOpen(next);
+    }, ms);
+  };
+  useEffect(() => clear, []);
+
+  // Opening now cancels a close the pointer scheduled on its way out.
+  const show = (): void => {
+    clear();
+    setOpen(true);
+  };
+  const close = (focusTrigger: boolean): void => {
+    clear();
+    setOpen(false);
+    if (focusTrigger) {
+      returning.current = true;
+      trigger.current?.focus();
+      returning.current = false;
+    }
+  };
+
+  return {
+    open,
+    setOpen: (next: boolean): void => {
+      clear();
+      setOpen(next);
+    },
+    anchorProps: {
+      onPointerEnter: (event: { pointerType: string }): void => {
+        if (event.pointerType === 'mouse') later(true, FLYOUT_OPEN_MS);
+      },
+      // Not while the keyboard is in it: a pointer drifting off must not take
+      // the sections out from under the focus.
+      onPointerLeave: (event: { pointerType: string; currentTarget: Element }): void => {
+        if (event.pointerType !== 'mouse') return;
+        if (event.currentTarget.contains(document.activeElement)) return;
+        later(false, FLYOUT_CLOSE_MS);
+      },
+      // Focus moving anywhere outside the item and its sections closes them at
+      // once: tabbing on past the menu, or into the page, is leaving it.
+      onBlur: (event: { currentTarget: Element; relatedTarget: EventTarget | null }): void => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        clear();
+        setOpen(false);
+      },
+    },
+    triggerProps: {
+      ref: (node: HTMLElement | null): void => {
+        trigger.current = node;
+      },
+      'aria-expanded': open,
+      'aria-controls': open ? contentId : undefined,
+      onPointerDown: (event: { pointerType: string }): void => {
+        openAtTouch.current = event.pointerType === 'mouse' ? null : open;
+      },
+      onFocus: (): void => {
+        if (!returning.current) show();
+      },
+      onClick: (event: { preventDefault: () => void }): void => {
+        if (openAtTouch.current === false) {
+          event.preventDefault();
+          show();
+        }
+        openAtTouch.current = null;
+      },
+      onKeyDown: (event: KeyboardEvent): void => {
+        if (event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        show();
+        // After the content has mounted.
+        requestAnimationFrame(() => {
+          content.current?.querySelector<HTMLElement>('a[href], button:not(:disabled)')?.focus();
+        });
+      },
+    },
+    contentProps: {
+      id: contentId,
+      ref: content,
+      onOpenAutoFocus: (event: Event): void => {
+        event.preventDefault();
+      },
+      onCloseAutoFocus: (event: Event): void => {
+        event.preventDefault();
+      },
+      onEscapeKeyDown: (event: globalThis.KeyboardEvent): void => {
+        event.preventDefault();
+        close(content.current?.contains(document.activeElement) === true);
+      },
+      onKeyDown: (event: KeyboardEvent): void => {
+        if (event.key !== 'ArrowLeft') return;
+        event.preventDefault();
+        close(true);
+      },
+      // Following one of its links closes it; the page it goes to is the answer.
+      onClick: (event: { target: EventTarget }): void => {
+        if (event.target instanceof Element && event.target.closest('a[href]') !== null) {
+          close(false);
+        }
+      },
+    },
+  };
 }
 
 export interface NavGroupProps extends ComponentPropsWithoutRef<'li'> {
@@ -282,6 +553,7 @@ export function NavGroup({
 }: NavGroupProps): JSX.Element {
   const collapsed = useRailCollapsed();
   const labelId = useId();
+  const menuColumn = use(MenuColumns);
 
   if (collapsed) {
     // A heading with nothing to head. The rule keeps the grouping legible
@@ -311,7 +583,13 @@ export function NavGroup({
       <li className={cn('min-w-0 pt-3 first:pt-0', className)} {...props}>
         <h3
           id={labelId}
-          className="px-3 pb-1 text-2xs font-semibold tracking-wide text-fg-subtle uppercase"
+          className={cn(
+            'px-3 pb-1 text-xs font-semibold text-fg-muted',
+            // A menu column's heading: small capitals over a hairline, the
+            // way a console heads a column of destinations.
+            menuColumn &&
+              'mx-2.5 mb-1.5 border-b border-border px-0 pb-2 text-2xs tracking-[0.08em] uppercase text-fg-subtle',
+          )}
         >
           {label}
         </h3>
@@ -328,7 +606,7 @@ export function NavGroup({
         <CollapsiblePrimitive.Trigger
           className={cn(
             'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-md px-3 text-start',
-            'text-2xs font-semibold tracking-wide text-fg-subtle uppercase',
+            'text-xs font-semibold text-fg-muted',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
           )}

@@ -1,5 +1,7 @@
 import { logger } from '@kithena/telemetry';
 
+import { chatNotifierFrom, reminderWithChat } from './chat-notifier.js';
+import type { TenantReads } from './chat-notifier.js';
 import type { ReminderMailer } from '../application/completeness/reminders.js';
 
 /**
@@ -53,12 +55,17 @@ export function httpReminderMailer(config: ReminderMailerConfig): ReminderMailer
 }
 
 /** The mailer when `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN` are set; else nothing, said once. */
-export function reminderMailerFrom(env: NodeJS.ProcessEnv): ReminderMailer | undefined {
+export function reminderMailerFrom(
+  env: NodeJS.ProcessEnv,
+  /** Where the chat notice's switch is read; absent, email only. */
+  inTenant?: TenantReads,
+  /** Which chat notice it also is: the weekly sweep's, or somebody asking. */
+  event: 'details_requested' | 'profile_reminder' = 'profile_reminder',
+): ReminderMailer | undefined {
   const baseUrl = env['MESSAGING_URL'];
   const token = env['MESSAGING_PEOPLE_TOKEN'];
-  if (!baseUrl || !token) {
-    logger.info('MESSAGING_URL or MESSAGING_PEOPLE_TOKEN unset; no reminder mailer');
-    return undefined;
-  }
-  return httpReminderMailer({ baseUrl, token });
+  const mailer = !baseUrl || !token ? undefined : httpReminderMailer({ baseUrl, token });
+  if (mailer === undefined) logger.info('MESSAGING_URL or MESSAGING_PEOPLE_TOKEN unset; no reminder mailer');
+  const chat = inTenant === undefined ? undefined : chatNotifierFrom(env, inTenant);
+  return reminderWithChat(mailer, chat, event, profileUrl);
 }

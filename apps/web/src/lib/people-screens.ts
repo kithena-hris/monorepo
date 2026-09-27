@@ -52,6 +52,32 @@ async function read(
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
+/**
+ * The directory's conditions from `?conditions=`, a JSON list, or null. Only
+ * their shape is checked here; People decides what may be asked.
+ */
+export function conditionsOf(
+  raw: string | undefined,
+): { key: string; op: string; values: string[] }[] | null {
+  if (raw === undefined || raw === '') return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const ok = parsed.filter(
+      (c): c is { key: string; op: string; values: string[] } =>
+        typeof c === 'object' &&
+        c !== null &&
+        typeof (c as { key?: unknown }).key === 'string' &&
+        typeof (c as { op?: unknown }).op === 'string' &&
+        Array.isArray((c as { values?: unknown }).values) &&
+        (c as { values: unknown[] }).values.every((v) => typeof v === 'string'),
+    );
+    return ok.length === 0 ? null : ok.map(({ key, op, values }) => ({ key, op, values }));
+  } catch {
+    return null;
+  }
+}
+
 /** A query-string value, or null for one that was not given. */
 const given = (value: string | undefined): string | null =>
   value === undefined || value === '' ? null : value;
@@ -66,6 +92,10 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           filter: given(query.search['filter']),
           after: given(query.search['after']),
           segment: given(query.search['segment']),
+          incomplete: query.search['incomplete'] === 'true' ? true : null,
+          conditions: conditionsOf(query.search['conditions']),
+          match: query.search['match'] === 'any' ? 'any' : null,
+          sort: given(query.search['sort']),
         },
         VIEWS.Directory,
       );
@@ -89,14 +119,31 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('Completeness', { after: given(query.search['after']) });
     case 'FieldRegistry':
       return read('Registry');
-    case 'Integrations':
-      return read('Integrations');
+    case 'SettingsActivity':
+      return read('SettingsActivity', {
+        before: given(query.search['before']),
+        area: given(query.search['area']),
+      });
+    case 'Integrations': {
+      // Chat apps beside the rest; a chat service that is down hides its section, not the page.
+      const [integrations, chat] = await Promise.all([read('Integrations'), read('Chat')]);
+      if (integrations.status !== 'ready') return integrations;
+      return {
+        status: 'ready',
+        data: {
+          ...(integrations.data as Record<string, unknown>),
+          ...(chat.status === 'ready' ? { chat: chat.data } : {}),
+        },
+      };
+    }
     case 'RoleSettings':
       return read('RoleSettings');
     case 'PeopleHome':
-      return read('Home');
+      return read('Overview');
     case 'Organisation':
       return read('Organisation');
+    case 'PeopleSettings':
+      return settingsOverview();
     case 'FullValues':
       return read('FullValues');
     case 'IdentifierReviews':
@@ -158,3 +205,24 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
 }
 
 export { today };
+
+/**
+ * People's settings read back for the Settings page: the four screens' own
+ * queries, side by side. Each one People refuses this viewer (Employee fields
+ * and Integrations are its administrators', Roles HR's) is left out rather
+ * than failing the page; only an unreachable People is an error.
+ */
+export async function settingsOverview(): Promise<ScreenLoad> {
+  const parts = await Promise.all([
+    read('Registry'),
+    read('Organisation'),
+    read('RoleSettings'),
+    read('Integrations'),
+  ]);
+  const down = parts.find((p) => p.status === 'error' && p.unreachable === true);
+  if (down !== undefined) return down;
+  const [fields, organisation, roles, integrations] = parts.map((p) =>
+    p.status === 'ready' ? p.data : null,
+  );
+  return { status: 'ready', data: { fields, organisation, roles, integrations } };
+}

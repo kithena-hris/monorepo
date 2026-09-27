@@ -76,6 +76,8 @@ export default ModuleManifest.parse({
   consumes: [
     'identity.account.provisioned',
     'identity.account.profile_captured',
+    // The tenant's sign-up questions, answered on identity's page.
+    'identity.account.signup_answered',
     'identity.tenant.provisioned',
     'identity.tenant.amended',
     'identity.tenant.entitlements_changed',

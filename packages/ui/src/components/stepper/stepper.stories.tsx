@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 
 import { Button } from '../button/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
@@ -35,6 +35,10 @@ const meta = {
           '### Going back is a button; going forward is not',
           '',
           'With `onStepChange`, finished steps become buttons and the ones ahead stay inert. That is not styling: jumping to step 5 from step 2 skips the validation steps 3 and 4 exist to do, and a wizard that can be short-circuited is a wizard that files bad data.',
+          '',
+          '### On a phone, one label',
+          '',
+          'Five labels across a phone truncate to a letter each. Under a coarse pointer a horizontal stepper keeps every marker and shows only the current step\'s label, with *"Step 3 of 5"* under it. The other labels stay in the accessibility tree. The pointer decides, not the width.',
         ].join('\n'),
       },
     },
@@ -182,5 +186,43 @@ export const Wizard: Story = {
         </CardContent>
       </Card>
     );
+  },
+};
+
+export const OnAPhone: Story = {
+  name: 'On a phone',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Under a coarse pointer the markers stay and only the current step is named, with where it sits in the sequence. Switch the toolbar to an iPhone viewport with touch emulation to see it; with a mouse this is the ordinary horizontal stepper.',
+      },
+    },
+  },
+  render: (args) => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Onboarding</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Stepper {...args} />
+      </CardContent>
+    </Card>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const current = canvas.getByText('Contract');
+    const other = canvas.getByText('Payroll');
+    const where = canvas.getByText('Step 3 of 5');
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      // The current label whole, not a letter; the others read, not drawn.
+      await expect(current).toBeVisible();
+      await expect(current.scrollWidth).toBeLessThanOrEqual(current.clientWidth);
+      await expect(where).toBeVisible();
+      await expect(other.parentElement?.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+    } else {
+      await expect(other).toBeVisible();
+      await expect(where).not.toBeVisible();
+    }
   },
 };

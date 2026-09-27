@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { tenantPolicies, type PolicyRegistry, type TenantField } from '@kithena/telemetry';
 
@@ -49,13 +49,44 @@ export async function publishedAttributes(
   return rows.flatMap(({ document }) => (document as SchemaDocument).attributes);
 }
 
+/**
+ * Every version's attributes, with whether each may go to the assistant taken
+ * from the version in force.
+ *
+ * Redaction reads every version, so a field once confidential stays redacted
+ * in the logs. Sharing with the assistant is the company's current choice:
+ * a field it has just shared is shared from that publish, and one it has
+ * just stopped sharing stops. A field no longer in the current version keeps
+ * what its last version said, which for a withdrawn field is the safe side.
+ */
+export function withCurrentAiChoice(
+  every: SchemaDocument['attributes'],
+  current: SchemaDocument['attributes'],
+): SchemaDocument['attributes'] {
+  const now = new Map(current.map((a) => [a.key as string, a.classification.aiEligible]));
+  return every.map((a) => {
+    const choice = now.get(a.key);
+    return choice === undefined
+      ? a
+      : { ...a, classification: { ...a.classification, aiEligible: choice } };
+  });
+}
+
 /** Load one tenant into the registry, in the caller's tenant transaction. */
 export async function loadTenantPolicies(
   tx: PostgresJsDatabase,
   tenantId: string,
   registry: PolicyRegistry = tenantPolicies,
 ): Promise<void> {
-  const fields: TenantField[] = (await publishedAttributes(tx, tenantId)).map((a) => ({
+  const [latest] = await tx
+    .select({ document: schemaVersion.document })
+    .from(schemaVersion)
+    .where(eq(schemaVersion.tenantId, tenantId))
+    .orderBy(desc(schemaVersion.version))
+    .limit(1);
+  const current = (latest?.document as SchemaDocument | undefined)?.attributes ?? [];
+  const every = withCurrentAiChoice(await publishedAttributes(tx, tenantId), current);
+  const fields: TenantField[] = every.map((a) => ({
     key: a.key,
     policy: a.classification,
     encrypted: a.encrypted,

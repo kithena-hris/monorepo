@@ -1,4 +1,4 @@
-h1:DxjclrlZ+g2ZhPZMVKfdbVUMAMXKEd8QPEWUww0x83A=
+h1:cKcvcfdTwOIAFvicRGetK1EUI/7Q3mCxsHZzBo5/Lag=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -61,3 +61,11 @@ h1:DxjclrlZ+g2ZhPZMVKfdbVUMAMXKEd8QPEWUww0x83A=
 20260926230100_people_identifier_review_held.sql h1:VATYOU+HLfo4u5uMzwaBm1q4IUAjZFBOf1O/KAj5PAY=
 20260926231500_people_bulk_answer.sql h1:SBMdOjcx5ZAa7H+uYkB5W0aH8KpBubaepMJ3K7zX9LE=
 20260927143500_people_unmerge.sql h1:02SXryGNJkGQ4hkncm9Gqu/iUVnut4yH4wyImAeic+E=
+20260927160000_signup_questions.sql h1:nomr9fkTqkqbb0rQsEuqbRxpCxdl18x1rl8uaEgJsy0=
+20260927161000_people_person_photo.sql h1:zkRhiG/2CR5MPw2ad0Q8wbar2MS4ZCoNpEC6HgNzeDs=
+20260927170000_people_detail_request.sql h1:1V9Yvq774HQlruXifgyC1PK4v9nEqWBvRDuzQAY6iG0=
+20260927180000_people_files.sql h1:cpkx32X6GDSXzM29ERWI7n6u1prYiOI4fXk4bBBBcT0=
+20260927190000_people_settings_activity.sql h1:TLPghIjfxu620EWiOalgY+Y9kKA6VTXnrnJA4NBK2jM=
+20260927200000_slack.sql h1:xeYMVMPlbPqI8zQcfjtufN7A/olVN4XWbPR+xG6S5UE=
+20260927200100_people_chat_notice.sql h1:J2dca2Fx4TBaULbQMo5oZ+wejZlLTMedU8slfqeC/+0=
+20260927200200_people_settings_activity_detail.sql h1:3OlgYdteZpC9o6OrQDJntD6dY0E/JSc+/s7331yPJV4=

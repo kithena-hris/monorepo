@@ -986,6 +986,8 @@ export const TenantSettingsChanged = defineEvent(
   z.object({
     defaultTimeZone: ZoneName,
     cohortMinimum: z.int().min(10).register(policy, asInternal()),
+    /** Whether signing up asks for a photo. Absent from events before it existed. */
+    photoAtSignup: z.enum(['off', 'optional', 'required']).optional().register(policy, asPublic()),
     fieldsChanged: z.array(z.string()).register(policy, asInternal()),
   }),
 );

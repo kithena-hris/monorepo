@@ -49,6 +49,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   CircleCheck,
+  CircleDashed,
   CircleQuestionMark,
   CircleX,
   Clock,
@@ -122,6 +123,12 @@ import {
   Wallet,
   X,
   type LucideIcon,
+  ChartColumn,
+  FileChartColumn,
+  GitMerge,
+  Cpu,
+  ScanSearch,
+  Sparkles,
 } from 'lucide-react';
 
 /**
@@ -182,6 +189,8 @@ export const iconGroups = {
     reject: ThumbsDown,
     /** Handled with more care than most: a change to it waits for a second person. */
     sensitive: ShieldAlert,
+    /** Something that should be there and is not: a field nobody has filled in. */
+    missing: CircleDashed,
   },
   /** Getting around. */
   navigation: {
@@ -217,11 +226,23 @@ export const iconGroups = {
     file: File,
     folder: Folder,
     table: Table2,
+    /** Charts of a population: headcount, movement, pay. */
+    analytics: ChartColumn,
+    /** A report as a document somebody receives. */
+    report: FileChartColumn,
+    /** Something waiting to be checked by a person. */
+    review: ScanSearch,
+    /** Two records becoming one. */
+    merge: GitMerge,
+    /** Done by the product itself, not a person: a scheduled job, a rule. */
+    system: Cpu,
     tag: Tag,
     identifier: Hash,
     email: Mail,
     phone: Phone,
     message: MessageSquare,
+    /** Asking the assistant: a question answered in words. */
+    assistant: Sparkles,
     permission: Shield,
     locked: Lock,
     unlocked: LockOpen,

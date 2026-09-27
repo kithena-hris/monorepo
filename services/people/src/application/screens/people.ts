@@ -4,9 +4,14 @@ import { requiresApproval, type Actor, type AttributeDefinition } from '@kithena
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
 import { visibleTo } from '../../domain/access/field-access.js';
-import { filterable, type Asking, type PersonView } from '../person/person-access.js';
+import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
+import { mayChangePhoto } from '../../domain/person/photo.js';
+import { askable } from '../../domain/person/detail-request.js';
+import type { FileInfoView } from './files.js';
+import { avatarsOf } from './photo.js';
 import { run } from '../person/service.js';
-import { LEAVERS } from '../person/ports.js';
+import { LEAVERS, type Condition } from '../person/ports.js';
+import { isCoreKey } from '../person/core.js';
 import { segmentFor, segmentsFor } from './segments.js';
 import type {
   FormValue,
@@ -171,13 +176,23 @@ export async function onboardingView(
   });
 }
 
-async function ownRecord(
+/** A record as its screens draw it: the read, its sections, and what is missing of it. */
+export interface OwnRecord {
+  readonly view: PersonView;
+  readonly sections: RecordSection[];
+  readonly version: NonNullable<Awaited<ReturnType<ScreenDeps['service']['schemas']['current']>>>;
+  /** How many required values are missing; null when this viewer is not shown it. */
+  readonly missing: number | null;
+  readonly reviews: IdentifierReviewEntry[];
+}
+
+export async function ownRecord(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
   personId: string,
   include: (d: AttributeDefinition) => boolean,
-) {
+): Promise<Result<OwnRecord>> {
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
   const view = await deps.service.access.read(tx, { ...asking, personId });
@@ -227,6 +242,8 @@ export interface ProfileView {
     readonly summary: string | null;
     readonly avatarUrl: string | null;
     readonly missing: number | null;
+    /** The viewer may choose their photo: it is theirs, or they are HR. */
+    readonly canChangePhoto: boolean;
   };
   readonly sections: readonly (RecordSection & { readonly readsLogged: boolean })[];
   readonly values: FormValues;
@@ -250,6 +267,19 @@ export interface ProfileView {
    * reads. Never in `values`: those are what is in force.
    */
   readonly pending: readonly PendingFieldView[];
+  /**
+   * Fields somebody asked this person to fill in that are still empty, and
+   * who asked: shown to the person as what they were asked for, and to
+   * whoever may ask as already asked.
+   */
+  readonly requests: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly requestedAt: string;
+    readonly by: string;
+  }[];
+  /** What each image or document value is: its name and type, to draw it. */
+  readonly files: readonly FileInfoView[];
 }
 
 export interface PlacementView {
@@ -289,7 +319,7 @@ export async function profileView(
       ? await deps.service.access.employmentPeriods(tx, { ...asking, personId: id.value })
       : null;
     const title = view.attributes['job_title'];
-    const photo = view.attributes['photo'];
+    const avatars = await avatarsOf(deps, tx, asking.tenantId, [id.value]);
 
     // Entities and locations by name, and the placement control for HR.
     const org = await deps.calendars.load(tx, asking.tenantId);
@@ -311,6 +341,9 @@ export async function profileView(
       status !== null &&
       !(LEAVERS as readonly string[]).includes(status) &&
       sections.some((s) => s.fields.some((f) => PLACED.has(f.key)));
+    const definitions = new Map(
+      record.value.version.document.attributes.map((d) => [d.key as string, d]),
+    );
     const named = sections.map((s) => ({
       ...s,
       fields: s.fields.map((f) => {
@@ -320,10 +353,12 @@ export async function profileView(
             : f.key === 'location_id'
               ? locations.map(({ value, label }) => ({ value, label }))
               : f.options;
+        const definition = definitions.get(f.key);
+        const asked = definition !== undefined && askable(definition, relations);
         // Moved through the placement control, where the date and the transfer are.
         return PLACED.has(f.key) && placeable
-          ? { ...f, options, readOnly: true }
-          : { ...f, options };
+          ? { ...f, options, readOnly: true, askable: asked }
+          : { ...f, options, askable: asked };
       }),
     }));
 
@@ -331,8 +366,9 @@ export async function profileView(
       person: {
         name: nameOf(view.attributes) ?? 'Unnamed',
         summary: typeof title === 'string' ? title : null,
-        avatarUrl: typeof photo === 'string' && photo.startsWith('https://') ? photo : null,
+        avatarUrl: avatars.get(id.value) ?? null,
         missing: record.value.missing,
+        canChangePhoto: deps.photos !== undefined && mayChangePhoto(relations),
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,
@@ -349,9 +385,69 @@ export async function profileView(
         : null,
       reviews: record.value.reviews,
       pending: await pendingOnRecord(deps, tx, asking, id.value),
+      requests: await openRequests(deps, tx, asking, id.value, named, formValues(view, named)),
+      files: await filesOn(deps, tx, asking.tenantId, id.value, named, formValues(view, named)),
     });
   });
 }
+
+/**
+ * The files a record's image and document values name, as a form draws them.
+ * Only this person's: a value naming somebody else's file draws nothing.
+ */
+export async function filesOn(
+  deps: ScreenDeps,
+  tx: Tx,
+  tenantId: string,
+  personId: string,
+  sections: readonly RecordSection[],
+  values: FormValues,
+): Promise<FileInfoView[]> {
+  if (deps.files === undefined) return [];
+  const ids = sections
+    .flatMap((s) => s.fields)
+    .filter((f) => f.dataType === 'image' || f.dataType === 'document_ref')
+    .map((f) => values[f.key])
+    .filter((v): v is string => typeof v === 'string' && v !== '');
+  const found = await deps.files.describe(tx, tenantId, ids);
+  return [...found.values()]
+    .filter((f) => f.personId === personId)
+    .map(({ id, name, mediaType, size }) => ({ id, name, mediaType, size }));
+}
+
+/** What somebody asked this person for that is still empty, on fields this viewer reads. */
+async function openRequests(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personId: string,
+  sections: readonly RecordSection[],
+  values: FormValues,
+): Promise<ProfileView['requests']> {
+  if (deps.requests === undefined) return [];
+  const labels = new Map(sections.flatMap((s) => s.fields.map((f) => [f.key, f.label] as const)));
+  const open = (await deps.requests.store.of(tx, asking.tenantId, personId)).filter(
+    (r) => labels.has(r.key) && empty(values[r.key]),
+  );
+  const by = await actors(
+    deps,
+    tx,
+    asking,
+    open.map((r) => ({ kind: 'user' as const, userId: r.requestedBy })),
+  );
+  return open.map((r) => ({
+    key: r.key,
+    label: labels.get(r.key) ?? r.key,
+    requestedAt: r.requestedAt,
+    by: by({ kind: 'user', userId: r.requestedBy }),
+  }));
+}
+
+const empty = (value: FormValue | undefined): boolean =>
+  value === undefined ||
+  value === null ||
+  (typeof value === 'string' && value.trim() === '') ||
+  (Array.isArray(value) && value.length === 0);
 
 /** A person's changes waiting for HR, as this viewer may see them (PEO-077). */
 export async function pendingOnRecord(
@@ -483,6 +579,11 @@ export interface HistoryChange {
   readonly recordedAt: string;
   /** Who recorded it, in words: "You", a name the viewer may read, an integration. */
   readonly by: string;
+  /** Who, to draw: a person with their photo if the viewer may read them, or not a person. */
+  readonly actor: {
+    readonly kind: 'person' | 'integration' | 'system';
+    readonly avatarUrl: string | null;
+  };
   /** The change this one corrects. */
   readonly supersedes: string | null;
   /** The correction that replaced this one; it no longer stands. */
@@ -574,6 +675,12 @@ export async function historyView(
       asking,
       history.value.map((e) => e.actor),
     );
+    const faces = await actorFaces(
+      deps,
+      tx,
+      asking,
+      history.value.map((e) => e.actor),
+    );
     const changes = history.value
       .filter((e) => shown.has(e.attributeKey))
       .toSorted(
@@ -588,6 +695,15 @@ export async function historyView(
         effectiveFrom: e.effectiveFrom,
         recordedAt: e.recordedAt,
         by: by(e.actor),
+        actor: {
+          kind:
+            e.actor.kind === 'user'
+              ? ('person' as const)
+              : e.actor.kind === 'integration'
+                ? ('integration' as const)
+                : ('system' as const),
+          avatarUrl: e.actor.kind === 'user' ? (faces.get(e.actor.userId) ?? null) : null,
+        },
         supersedes: e.supersedes,
         supersededBy: supersededBy.get(e.id) ?? null,
       }));
@@ -606,11 +722,35 @@ export async function historyView(
   });
 }
 
+/** The photo of each person among these actors whom the viewer may read, by account. */
+async function actorFaces(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  all: readonly Actor[],
+): Promise<ReadonlyMap<string, string>> {
+  const people = new Map<string, string>();
+  for (const actor of all) {
+    if (actor.kind !== 'user' || people.has(actor.userId)) continue;
+    const personId = await deps.personOf(tx, asking.tenantId, actor.userId);
+    if (personId === null) continue;
+    const read = await deps.service.access.read(tx, { ...asking, personId });
+    if (read.ok) people.set(actor.userId, personId);
+  }
+  const avatars = await avatarsOf(deps, tx, asking.tenantId, [...people.values()]);
+  return new Map(
+    [...people].flatMap(([account, personId]) => {
+      const url = avatars.get(personId);
+      return url === undefined ? [] : [[account, url] as const];
+    }),
+  );
+}
+
 /**
  * Who made each change, in words the viewer may read. A person is named only
  * if this viewer can read their name; otherwise "A colleague".
  */
-async function actors(
+export async function actors(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
@@ -899,7 +1039,32 @@ export interface DirectoryView {
   /** Provisional or pre-hire among them; null when this viewer is not shown statuses. */
   readonly notStarted: number | null;
   readonly incomplete: number | null;
-  readonly columns: readonly { readonly key: string; readonly label: string }[];
+  /**
+   * Every column this viewer may show, in order; `shown` is the default set
+   * (the fields marked for the directory). The screen lets the viewer choose.
+   */
+  readonly columns: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly shown: boolean;
+    readonly sortable: boolean;
+  }[];
+  /**
+   * Every field this viewer may build a condition on, with what kind of value
+   * it holds (which operators fit) and, for a choice, its options.
+   */
+  readonly fields: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly kind: 'text' | 'select' | 'date' | 'number' | 'person' | 'status';
+    readonly options: readonly { readonly value: string; readonly label: string }[];
+  }[];
+  /** The conditions, match and order this page answers, as asked. */
+  readonly query: {
+    readonly conditions: readonly Condition[];
+    readonly match: 'all' | 'any';
+    readonly sort: { readonly key: string; readonly direction: 'asc' | 'desc' } | null;
+  };
   readonly filterable: readonly {
     readonly key: string;
     readonly label: string;
@@ -911,6 +1076,13 @@ export interface DirectoryView {
     readonly email: string | null;
     readonly avatarUrl: string | null;
     readonly values: Readonly<Record<string, string>>;
+    /** Each person column (a manager): who, with their photo, to draw as a person. */
+    readonly people: readonly {
+      readonly key: string;
+      readonly id: string;
+      readonly name: string;
+      readonly avatarUrl: string | null;
+    }[];
     readonly missing: number | null;
   }[];
   /** The cursor for the page after this one; null on the last page. */
@@ -924,6 +1096,76 @@ export interface DirectoryView {
 
 /** Shown as columns: in the directory, and readable on everybody. */
 const COLUMN_SKIP = new Set(['given_name', 'family_name', 'preferred_name', 'work_email']);
+
+/** Core fields the directory offers as columns and conditions, besides tenant fields. */
+const COLUMN_CHOICES = new Set([
+  'manager_id',
+  'location_id',
+  'legal_entity_id',
+  'hire_date',
+  'employee_number',
+]);
+
+/** Core columns a directory shows until the viewer chooses: where, since when, and to whom. */
+const COLUMN_DEFAULTS = new Set(['manager_id', 'location_id', 'hire_date']);
+
+/**
+ * Shown until the viewer chooses: the directory's own set, the core defaults,
+ * and a tenant's short fields everybody may read (a job title, a department),
+ * never contact details. At most `SHOWN_MAX`, in schema order.
+ */
+const SHOWN_MAX = 7;
+function shownByDefault(d: AttributeDefinition): boolean {
+  if (d.includeInDirectory || COLUMN_DEFAULTS.has(d.key)) return true;
+  return (
+    !isCoreKey(d.key) &&
+    d.visibility.includes('directory') &&
+    d.classification.piiKind === 'none' &&
+    (d.typeConfig.kind === 'select' || d.dataType === 'text')
+  );
+}
+
+export const STATUS_OPTIONS = [
+  { value: 'provisional', label: 'Not started' },
+  { value: 'pre_hire', label: 'Starting soon' },
+  { value: 'active', label: 'Active' },
+  { value: 'on_leave', label: 'On leave' },
+  { value: 'notice', label: 'On notice' },
+  { value: 'terminated', label: 'Left' },
+];
+
+/** Which kind of condition a field takes; null for one the directory does not filter by. */
+export function fieldKind(kind: string): 'text' | 'select' | 'date' | 'number' | 'person' | null {
+  switch (kind) {
+    case 'select':
+    case 'location_ref':
+    case 'legal_entity_ref':
+      return 'select';
+    case 'date':
+      return 'date';
+    case 'number':
+    case 'decimal':
+    case 'percentage':
+      return 'number';
+    case 'person_ref':
+      return 'person';
+    case 'text':
+    case 'long_text':
+    case 'email':
+    case 'phone':
+    case 'url':
+      return 'text';
+    default:
+      return null;
+  }
+}
+
+/** A choice's label, for a cell. */
+function optionLabel(definition: AttributeDefinition, value: string): string | undefined {
+  return definition.typeConfig.kind === 'select'
+    ? definition.typeConfig.options.find((o) => o.value === value)?.label.default
+    : undefined;
+}
 
 /** A directory page. Keyset, so the last page of 50,000 costs what the first does. */
 export const DIRECTORY_PAGE = 50;
@@ -945,6 +1187,12 @@ export async function directoryView(
     readonly after?: string | null;
     /** A saved segment's filter, under any typed alongside it (PEO-068). */
     readonly segmentId?: string;
+    /** Only people with a required detail missing: HR's alone. */
+    readonly incomplete?: boolean;
+    /** Conditions, all or any, and an order (`refinable` authorizes them). */
+    readonly conditions?: readonly Condition[];
+    readonly match?: 'all' | 'any';
+    readonly sort?: { readonly key: string; readonly direction: 'asc' | 'desc' };
   },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
@@ -958,14 +1206,35 @@ export async function directoryView(
     const segment =
       query.segmentId === undefined ? null : await segmentFor(deps, tx, asking, query.segmentId);
     if (segment !== null && !segment.ok) return segment;
+    // Missing anything the viewer may see on everybody: HR's, as the grid is.
+    const gaps =
+      query.incomplete === true
+        ? {
+            gaps: definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
+            gapsIn: 'any' as const,
+          }
+        : {};
+    // A sorted directory's cursor is its offset (`@150`); an unsorted one's,
+    // the last person's id, as ever.
+    const offset =
+      query.sort !== undefined && query.after?.startsWith('@') === true
+        ? Number.parseInt(query.after.slice(1), 10) || 0
+        : 0;
+    const refine = {
+      conditions: query.conditions ?? [],
+      match: query.match ?? ('all' as const),
+      ...(query.sort === undefined ? {} : { sort: query.sort, offset }),
+    };
     const narrowed = {
       ...asking,
       where: { ...segment?.value.filter, ...query.filters },
       ...(query.search.trim() === '' ? {} : { search: query.search }),
+      ...gaps,
+      refine,
     };
     const listed = await deps.service.access.list(tx, {
       ...narrowed,
-      after: query.after ?? null,
+      after: query.sort === undefined ? (query.after ?? null) : null,
       limit: DIRECTORY_PAGE,
     });
     if (!listed.ok) return listed;
@@ -973,9 +1242,27 @@ export async function directoryView(
     if (!counted.ok) return counted;
     const page = listed.value.items;
 
+    // Every column this viewer may read on everybody; the directory's own set
+    // shown by default, the rest a choice away. Location and legal entity are
+    // named, the manager too, the start date and (HR's) status read as is.
     const columns = definitions.filter(
-      (d) => d.includeInDirectory && !COLUMN_SKIP.has(d.key) && visibleTo(d, everyone),
+      (d) =>
+        !COLUMN_SKIP.has(d.key) &&
+        !d.encrypted &&
+        visibleTo(d, everyone) &&
+        (d.includeInDirectory || COLUMN_CHOICES.has(d.key) || !isCoreKey(d.key)),
     );
+    const shownDefault = new Set(
+      columns
+        .filter(shownByDefault)
+        .slice(0, SHOWN_MAX)
+        .map((c) => c.key as string),
+    );
+    const org = await deps.calendars.load(tx, asking.tenantId);
+    const placeName = new Map<string, string>([
+      ...[...org.entities.values()].map((e) => [e.id, e.name] as const),
+      ...[...org.locations.values()].map((l) => [l.id, l.name] as const),
+    ]);
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
     );
@@ -994,44 +1281,150 @@ export async function directoryView(
       const name = read.ok ? nameOf(read.value.attributes) : null;
       if (name !== null) names.set(personId, name);
     }
+    // Who reports to whom, when the directory is narrowed by it: named, so
+    // the filter shows as one the viewer can clear.
+    const reportsTo = query.filters[REPORTS_TO];
+    if (reportsTo !== undefined && !names.has(reportsTo)) {
+      const read = await deps.service.access.read(tx, { ...asking, personId: reportsTo });
+      const name = read.ok ? nameOf(read.value.attributes) : null;
+      if (name !== null) names.set(reportsTo, name);
+    }
+    const personColumns = columns.filter((c) => c.typeConfig.kind === 'person_ref');
+    const avatars = await avatarsOf(deps, tx, asking.tenantId, [
+      ...page.map((p) => p.id),
+      ...names.keys(),
+    ]);
+    // HR's per-row count of what is missing, as the verdict counts it: only
+    // fields HR may see on that person. One verdict per row, as the grid.
+    const missing = new Map<string, number>();
+    if (everyone.isHr) {
+      for (const p of page) {
+        const verdict = await deps.service.access.completeness(tx, { ...asking, personId: p.id });
+        if (verdict.ok) missing.set(p.id, verdict.value.missing.length);
+      }
+    }
+    const incomplete = everyone.isHr
+      ? await deps.service.access.count(tx, {
+          ...narrowed,
+          gaps: definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
+          gapsIn: 'any',
+        })
+      : null;
+
+    // HR's: the status in words, beside the columns.
+    const withStatus = (status: string | undefined, values: Record<string, string>) =>
+      everyone.isHr && status !== undefined
+        ? { ...values, status: STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status }
+        : values;
 
     return ok({
       total: counted.value.all,
       active: counted.value.active,
       notStarted: everyone.isHr ? counted.value.notStarted : null,
-      incomplete: null,
-      columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
-      filterable: selects.map((d) => ({
-        key: d.key,
-        label: d.label.default,
-        options:
-          d.typeConfig.kind === 'select'
-            ? d.typeConfig.options
-                .filter((o) => o.retiredAt === null)
-                .map((o) => ({ value: o.value, label: o.label.default }))
-            : [],
-      })),
+      incomplete: incomplete?.ok === true ? incomplete.value.all : null,
+      columns: [
+        ...columns.map((c) => ({
+          key: c.key,
+          label: c.label.default,
+          shown: shownDefault.has(c.key),
+          sortable: true,
+        })),
+        ...(everyone.isHr
+          ? [{ key: 'status', label: 'Status', shown: true, sortable: true }]
+          : []),
+      ],
+      fields: [
+        ...columns.flatMap((c) => {
+          const kind = fieldKind(c.typeConfig.kind);
+          if (kind === null) return [];
+          const options =
+            c.typeConfig.kind === 'select'
+              ? c.typeConfig.options
+                  .filter((o) => o.retiredAt === null)
+                  .map((o) => ({ value: o.value, label: o.label.default }))
+              : c.typeConfig.kind === 'location_ref'
+                ? [...org.locations.values()]
+                    .filter((l) => l.archived !== true)
+                    .map((l) => ({ value: l.id, label: l.name }))
+                : c.typeConfig.kind === 'legal_entity_ref'
+                  ? [...org.entities.values()]
+                      .filter((e) => e.archived !== true)
+                      .map((e) => ({ value: e.id, label: e.name }))
+                  : [];
+          return [{ key: c.key, label: c.label.default, kind, options }];
+        }),
+        ...(everyone.isHr
+          ? [
+              {
+                key: 'status',
+                label: 'Status',
+                kind: 'status' as const,
+                options: STATUS_OPTIONS,
+              },
+            ]
+          : []),
+      ],
+      query: {
+        conditions: refine.conditions,
+        match: refine.match,
+        sort: query.sort ?? null,
+      },
+      filterable: [
+        ...(reportsTo === undefined
+          ? []
+          : [
+              {
+                key: REPORTS_TO,
+                label: 'Reports to',
+                options: [{ value: reportsTo, label: names.get(reportsTo) ?? 'Somebody' }],
+              },
+            ]),
+        ...selects.map((d) => ({
+          key: d.key,
+          label: d.label.default,
+          options:
+            d.typeConfig.kind === 'select'
+              ? d.typeConfig.options
+                  .filter((o) => o.retiredAt === null)
+                  .map((o) => ({ value: o.value, label: o.label.default }))
+              : [],
+        })),
+      ],
       people: page.map((p) => {
         const email = p.attributes['work_email'];
         return {
           id: p.id,
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
-          avatarUrl: null,
-          values: Object.fromEntries(
+          avatarUrl: avatars.get(p.id) ?? null,
+          values: withStatus(p.status, Object.fromEntries(
             columns.flatMap((c) => {
               const value = p.attributes[c.key];
               if (value === undefined || value === null) return [];
+              const kind = c.typeConfig.kind;
               const shown =
-                c.typeConfig.kind === 'person_ref'
+                kind === 'person_ref'
                   ? typeof value === 'string'
                     ? names.get(value)
                     : undefined
-                  : toForm(value);
+                  : kind === 'location_ref' || kind === 'legal_entity_ref'
+                    ? typeof value === 'string'
+                      ? placeName.get(value)
+                      : undefined
+                    : kind === 'select' && typeof value === 'string'
+                      ? (optionLabel(c, value) ?? value)
+                      : toForm(value);
               return typeof shown === 'string' ? [[c.key, shown]] : [];
             }),
-          ),
-          missing: null,
+          )),
+          people: personColumns.flatMap((c) => {
+            const id = p.attributes[c.key];
+            const name = typeof id === 'string' ? names.get(id) : undefined;
+            return typeof id === 'string' && name !== undefined
+              ? [{ key: c.key, id, name, avatarUrl: avatars.get(id) ?? null }]
+              : [];
+          }),
+          missing: missing.get(p.id) ?? null,
         };
       }),
       next: listed.value.next,

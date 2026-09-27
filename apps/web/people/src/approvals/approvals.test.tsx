@@ -46,7 +46,8 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    const row = screen.getByRole('row', { name: /Lucía Ortega/ });
+    // Under her group's heading row, her change.
+    const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
     expect(within(row).getByText('Sensitive')).toBeInTheDocument();
     expect(within(row).getByText('Pending approval')).toBeInTheDocument();
     expect(within(row).getByText('•••• 3000')).toBeInTheDocument();
@@ -141,7 +142,8 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    const row = screen.getByRole('row', { name: /Lucía Ortega/ });
+    // Under her group's heading row, her change.
+    const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
     expect(within(row).getByText('Awaiting identifier review')).toBeInTheDocument();
     expect(within(row).queryByText('Pending approval')).toBeNull();
     expect(within(row).getByText('The control letter does not compute.')).toBeInTheDocument();
@@ -301,5 +303,25 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
     expect(screen.getByText('HR could not accept your NIF / NIE')).toBeInTheDocument();
     await fast().click(screen.getByRole('button', { name: 'Correct NIF / NIE' }));
     expect(screen.getByRole('form', { name: 'Identification' })).toBeInTheDocument();
+  });
+
+  it('groups the inbox by employee, and shows every change as one list when asked', async () => {
+    const user = fast();
+    render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: { isHr: true, items: [item, { ...item, id: 'second', key: 'iban', label: 'IBAN' }] },
+        }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+      />,
+    );
+    const groups = screen.getAllByRole('rowheader');
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups[0]).toHaveTextContent('2 changes');
+    await user.click(screen.getByRole('radio', { name: 'All changes' }));
+    expect(screen.queryAllByRole('rowheader')).toHaveLength(0);
+    expect(screen.getByRole('columnheader', { name: 'Person' })).toBeInTheDocument();
   });
 });

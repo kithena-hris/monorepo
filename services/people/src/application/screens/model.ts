@@ -31,6 +31,11 @@ export interface RecordField {
   readonly dataType: string;
   readonly options: readonly { readonly value: string; readonly label: string }[];
   readonly required: boolean;
+  /**
+   * Required of this person and empty, as the completeness verdict says: a
+   * field required only of some people is missing only on theirs.
+   */
+  readonly missing: boolean;
   readonly readOnly: boolean;
   readonly currency?: string;
   readonly ownedBy?: string;
@@ -41,6 +46,8 @@ export interface RecordField {
    * (PEO-073): read-only for everybody here, changed there.
    */
   readonly keptIn?: string;
+  /** The viewer may ask the person to fill it in: HR or a manager, on a field the employee fills. */
+  readonly askable?: boolean;
 }
 
 /**

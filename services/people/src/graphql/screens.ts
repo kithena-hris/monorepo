@@ -110,16 +110,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description:
           'A change to it waits for HR approval (PEO-077); mark it wherever it is drawn.',
       }),
+      askable: t.boolean({
+        description:
+          'The viewer may ask the person to fill it in: HR or a manager, on a field the employee fills.',
+        resolve: (f) => f.askable === true,
+      }),
+      missing: t.exposeBoolean('missing', {
+        description:
+          'Required of this person and empty, as their completeness verdict says; only fields the viewer reads.',
+      }),
     }),
   });
 
   const RecordSectionRef = builder.objectRef<RecordSection>('RecordSection').implement({
-      fields: (t) => ({
-        key: t.exposeString('key'),
-        label: t.exposeString('label'),
-        visibility: t.stringList({ resolve: (s) => list<Scope>(s.visibility) }),
-        fields: t.field({ type: [RecordFieldRef], resolve: (s) => list(s.fields) }),
-      }),
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      visibility: t.stringList({ resolve: (s) => list<Scope>(s.visibility) }),
+      fields: t.field({ type: [RecordFieldRef], resolve: (s) => list(s.fields) }),
+    }),
   });
   const OnboardingSectionRef = builder
     .objectRef<OnboardingView['sections'][number]>('OnboardingSection')
@@ -153,7 +162,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
   const FlagEntry = entry('FlagEntry').implement({
-    fields: (t) => ({ key: t.exposeString('key'), flag: t.boolean({ resolve: (e) => e.value === true }) }),
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      flag: t.boolean({ resolve: (e) => e.value === true }),
+    }),
   });
   const ListEntry = entry('ListEntry').implement({
     fields: (t) => ({
@@ -252,14 +264,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
       }),
     });
-  const ReviewsRef = builder
-    .objectRef<IdentifierReviewsView>('PeopleIdentifierReviews')
-    .implement({
-      description: 'HR’s queue of doubted national identifiers, oldest first.',
-      fields: (t) => ({
-        items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
-      }),
-    });
+  const ReviewsRef = builder.objectRef<IdentifierReviewsView>('PeopleIdentifierReviews').implement({
+    description: 'HR’s queue of doubted national identifiers, oldest first.',
+    fields: (t) => ({
+      items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
+    }),
+  });
   /* ------------------------------------------------- duplicates (PEO-074) -- */
 
   const DuplicateItemRef = builder
@@ -284,11 +294,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
   const ComparedRowRef = builder.objectRef<ComparedRow>('ComparedRow').implement({
-    description: 'One attribute side by side, as the viewer may read it. A sealed value is its last four.',
+    description:
+      'One attribute side by side, as the viewer may read it. A sealed value is its last four.',
     fields: (t) => ({
       key: t.exposeString('key'),
       label: t.exposeString('label'),
-      values: t.field({ type: ['String'], nullable: { items: true, list: false }, resolve: (r) => [...r.values] }),
+      values: t.field({
+        type: ['String'],
+        nullable: { items: true, list: false },
+        resolve: (r) => [...r.values],
+      }),
       same: t.exposeBoolean('same'),
       takeable: t.field({ type: ['Boolean'], resolve: (r) => [...r.takeable] }),
     }),
@@ -302,7 +317,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
     });
   const MergedPairRef = builder.objectRef<MergedPair>('MergedPair').implement({
-    description: 'A merge still standing, and what undoing it would reverse and keep. Labels, never values.',
+    description:
+      'A merge still standing, and what undoing it would reverse and keep. Labels, never values.',
     fields: (t) => ({
       absorbedId: t.exposeID('absorbedId'),
       survivorId: t.exposeID('survivorId'),
@@ -322,7 +338,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
   const DuplicatesRef = builder.objectRef<DuplicatesView>('PeopleDuplicates').implement({
-    description: 'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
+    description:
+      'HR’s queue of suspected duplicates, strongest first; a merge is always HR’s decision.',
     fields: (t) => ({
       items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
       merges: t.field({ type: [MergedPairRef], resolve: (v) => list(v.merges) }),
@@ -347,7 +364,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         if (args.a) query.set('a', args.a);
         if (args.b) query.set('b', args.b);
         const qs = query.toString();
-        return viaRest<DuplicatesView>(ctx, 'GET', `/v1/views/duplicates${qs === '' ? '' : `?${qs}`}`);
+        return viaRest<DuplicatesView>(
+          ctx,
+          'GET',
+          `/v1/views/duplicates${qs === '' ? '' : `?${qs}`}`,
+        );
       },
     }),
   );
@@ -360,10 +381,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: (_root, args, ctx) =>
-        viaRest<{ personIds: string[]; decision: string }>(ctx, 'POST', '/v1/duplicates/dismissals', {
-          body: { personIds: args.personIds.map(String) },
-          key: args.idempotencyKey,
-        }),
+        viaRest<{ personIds: string[]; decision: string }>(
+          ctx,
+          'POST',
+          '/v1/duplicates/dismissals',
+          {
+            body: { personIds: args.personIds.map(String) },
+            key: args.idempotencyKey,
+          },
+        ),
     }),
   );
 
@@ -395,6 +421,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       missing: t.exposeInt('missing', {
         nullable: true,
         description: 'Null when the viewer may not judge this record’s completeness.',
+      }),
+      canChangePhoto: t.exposeBoolean('canChangePhoto', {
+        description: 'The viewer may choose this photo: it is theirs, or they are HR.',
       }),
     }),
   });
@@ -476,11 +505,41 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           'Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.',
         resolve: (v) => list(v.pending),
       }),
+      files: t.field({
+        type: [FileInfoRef],
+        description: 'What each image or document value on the record is: its name and type.',
+        resolve: (v) => list(v.files),
+      }),
+      requests: t.field({
+        type: [DetailRequestRef],
+        description:
+          'Fields somebody asked this person to fill in that are still empty, on fields the viewer reads.',
+        resolve: (v) => list(v.requests),
+      }),
     }),
   });
 
   /* ------------------------------------------ held changes (PEO-077) -- */
 
+  const FileInfoRef = builder.objectRef<ProfileView['files'][number]>('PeopleFileInfo').implement({
+    fields: (t) => ({
+      id: t.exposeID('id'),
+      name: t.exposeString('name'),
+      mediaType: t.exposeString('mediaType'),
+      size: t.exposeInt('size'),
+    }),
+  });
+  const DetailRequestRef = builder
+    .objectRef<ProfileView['requests'][number]>('DetailRequest')
+    .implement({
+      description: 'A field somebody asked the person to fill in, still empty.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        requestedAt: t.exposeString('requestedAt'),
+        by: t.exposeString('by', { description: 'Who asked, in words the viewer may read.' }),
+      }),
+    });
   const PendingFieldRef = builder.objectRef<PendingFieldView>('PendingField').implement({
     description:
       'A value waiting for HR approval. Never the field’s value, which stays what is in force.',
@@ -552,6 +611,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
 
+  const HistoryActorRef = builder.objectRef<HistoryChange['actor']>('HistoryActor').implement({
+    description: 'Who made a change, to draw: a person with their photo, or not a person.',
+    fields: (t) => ({
+      kind: t.exposeString('kind', { description: 'person, integration or system.' }),
+      avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+    }),
+  });
   const HistoryChangeRef = builder.objectRef<HistoryChange>('HistoryChange').implement({
     description:
       'One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.',
@@ -562,6 +628,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       effectiveFrom: t.exposeString('effectiveFrom'),
       recordedAt: t.exposeString('recordedAt'),
       by: t.exposeString('by'),
+      actor: t.field({ type: HistoryActorRef, resolve: (c) => c.actor }),
       supersedes: t.exposeID('supersedes', { nullable: true }),
       supersededBy: t.exposeID('supersededBy', { nullable: true }),
     }),
@@ -585,7 +652,56 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   type Directory = DirectoryView;
   type Listed = Directory['people'][number];
   const Column = builder.objectRef<Directory['columns'][number]>('DirectoryColumn').implement({
-    fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      shown: t.exposeBoolean('shown', { description: 'In the default set of columns.' }),
+      sortable: t.exposeBoolean('sortable'),
+    }),
+  });
+  const DirectoryField = builder
+    .objectRef<Directory['fields'][number]>('DirectoryField')
+    .implement({
+      description: 'A field a condition may name, with the kind of value it holds.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        kind: t.exposeString('kind', {
+          description: 'text, select, date, number, person or status: which operators fit.',
+        }),
+        options: t.field({ type: [OptionRef], resolve: (f) => list(f.options) }),
+      }),
+    });
+  const DirectoryCondition = builder
+    .objectRef<Directory['query']['conditions'][number]>('DirectoryCondition')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        op: t.exposeString('op'),
+        values: t.exposeStringList('values'),
+      }),
+    });
+  const DirectorySort = builder
+    .objectRef<NonNullable<Directory['query']['sort']>>('DirectorySort')
+    .implement({
+      fields: (t) => ({ key: t.exposeString('key'), direction: t.exposeString('direction') }),
+    });
+  const DirectoryQuery = builder.objectRef<Directory['query']>('DirectoryQuery').implement({
+    description: 'The conditions, match and order this page answers.',
+    fields: (t) => ({
+      conditions: t.field({ type: [DirectoryCondition], resolve: (q) => list(q.conditions) }),
+      match: t.exposeString('match'),
+      sort: t.field({ type: DirectorySort, nullable: true, resolve: (q) => q.sort }),
+    }),
+  });
+  const DirectoryConditionInput = builder.inputType('DirectoryConditionInput', {
+    description:
+      'One condition: is, in, contains, before, after, between, empty, not_empty, or under (the reporting line).',
+    fields: (t) => ({
+      key: t.string({ required: true }),
+      op: t.string({ required: true }),
+      values: t.stringList({ required: true }),
+    }),
   });
   const Filterable = builder
     .objectRef<Directory['filterable'][number]>('DirectoryFilter')
@@ -610,14 +726,31 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         type: [Cell],
         resolve: (p) => Object.entries(p.values).map(([key, value]) => ({ key, value })),
       }),
+      people: t.field({
+        type: [DirectoryPersonRefRef],
+        description: 'Each person column (a manager), to draw as a person: who, and their photo.',
+        resolve: (p) => list(p.people),
+      }),
       missing: t.exposeInt('missing', { nullable: true }),
     }),
   });
+  const DirectoryPersonRefRef = builder
+    .objectRef<Listed['people'][number]>('DirectoryPersonRef')
+    .implement({
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        id: t.exposeID('id'),
+        name: t.exposeString('name'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      }),
+    });
   const DirectoryCan = builder.objectRef<Directory['can']>('DirectoryActions').implement({
     fields: (t) => ({
       import: t.exposeBoolean('import'),
       export: t.exposeBoolean('export'),
-      bulkEdit: t.exposeBoolean('bulkEdit', { description: 'HR’s: set values on the people chosen (PEO-071).' }),
+      bulkEdit: t.exposeBoolean('bulkEdit', {
+        description: 'HR’s: set values on the people chosen (PEO-071).',
+      }),
     }),
   });
   const SegmentRef = builder
@@ -640,6 +773,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       incomplete: t.exposeInt('incomplete', { nullable: true }),
       columns: t.field({ type: [Column], resolve: (v) => list(v.columns) }),
       filterable: t.field({ type: [Filterable], resolve: (v) => list(v.filterable) }),
+      fields: t.field({ type: [DirectoryField], resolve: (v) => list(v.fields) }),
+      query: t.field({ type: DirectoryQuery, resolve: (v) => v.query }),
       people: t.field({ type: [DirectoryPerson], resolve: (v) => list(v.people) }),
       next: t.exposeString('next', { nullable: true }),
       can: t.field({ type: DirectoryCan, resolve: (v) => v.can }),
@@ -813,9 +948,23 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         classification: t.exposeString('classification'),
         piiKind: t.exposeString('piiKind'),
         requiresApproval: t.exposeBoolean('requiresApproval', {
-          description: 'Whether a change waits for HR approval: the tenant’s choice, else the default.',
+          description:
+            'Whether a change waits for HR approval: the tenant’s choice, else the default.',
         }),
         origin: t.exposeString('origin'),
+        signup: t.exposeString('signup', {
+          nullable: true,
+          description:
+            'page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.',
+        }),
+        signupAskable: t.exposeBoolean('signupAskable'),
+        aiEligible: t.exposeBoolean('aiEligible', {
+          description: 'The assistant may name it: its label and options, never a value.',
+        }),
+        aiShareable: t.exposeBoolean('aiShareable'),
+        encrypted: t.exposeBoolean('encrypted', {
+          description: 'Stored sealed: only the last four characters are ever shown.',
+        }),
         pending: t.exposeString('pending', {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
@@ -906,21 +1055,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       sections: t.field({ type: [PackSection], resolve: (p) => list(p.sections) }),
     }),
   });
-  const SetupProfile = builder
-    .objectRef<NonNullable<Setup['profile']>>('SetupProfile')
-    .implement({
-      fields: (t) => ({
-        sections: t.field({ type: [RecordSectionRef], resolve: (p) => list(p.sections) }),
-        values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
-        pending: t.field({ type: [PendingFieldRef], resolve: (p) => list(p.pending) }),
-      }),
-    });
+  const SetupProfile = builder.objectRef<NonNullable<Setup['profile']>>('SetupProfile').implement({
+    fields: (t) => ({
+      sections: t.field({ type: [RecordSectionRef], resolve: (p) => list(p.sections) }),
+      values: t.field({ type: [FormEntry], resolve: (v) => entries(v.values) }),
+      pending: t.field({ type: [PendingFieldRef], resolve: (p) => list(p.pending) }),
+    }),
+  });
   const SetupRef = builder.objectRef<Setup>('PeopleSetup').implement({
     fields: (t) => ({
       legalEntity: t.field({
         type: Entity,
         nullable: true,
-        description: 'The company’s first legal entity; null until the back office or an admin made one.',
+        description:
+          'The company’s first legal entity; null until the back office or an admin made one.',
         resolve: (v) => v.legalEntity ?? null,
       }),
       entityConfirmed: t.exposeBoolean('entityConfirmed'),
@@ -1025,15 +1173,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     .implement({
       fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
     });
-  const ExportSection = builder
-    .objectRef<Builder_['sections'][number]>('ExportSection')
-    .implement({
-      fields: (t) => ({
-        key: t.exposeString('key'),
-        label: t.exposeString('label'),
-        fields: t.field({ type: [ExportField], resolve: (s) => list(s.fields) }),
-      }),
-    });
+  const ExportSection = builder.objectRef<Builder_['sections'][number]>('ExportSection').implement({
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      fields: t.field({ type: [ExportField], resolve: (s) => list(s.fields) }),
+    }),
+  });
   const ExportBuilder = builder.objectRef<Builder_>('PeopleExportBuilder').implement({
     description: 'Only what the requester can read is offered (§15.1).',
     fields: (t) => ({
@@ -1044,11 +1190,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   });
 
   type A = AnalyticsView;
-  const Point = builder
-    .objectRef<A['headcount']['trend'][number]>('AnalyticsPoint')
-    .implement({
-      fields: (t) => ({ label: t.exposeString('label'), value: t.exposeFloat('value') }),
-    });
+  const Point = builder.objectRef<A['headcount']['trend'][number]>('AnalyticsPoint').implement({
+    fields: (t) => ({ label: t.exposeString('label'), value: t.exposeFloat('value') }),
+  });
   const Headcount = builder.objectRef<A['headcount']>('AnalyticsHeadcount').implement({
     fields: (t) => ({
       value: t.exposeInt('value'),
@@ -1144,7 +1288,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   });
   type Expiries = NonNullable<A['expiries']>;
   const Expiry = builder.objectRef<Expiries['items'][number]>('AnalyticsExpiry').implement({
-    description: 'One dated value about to lapse, shown only when the viewer reads it on that person.',
+    description:
+      'One dated value about to lapse, shown only when the viewer reads it on that person.',
     fields: (t) => ({
       kind: t.exposeString('kind', {
         description: 'work_permit, fixed_term, probation or certification',
@@ -1324,7 +1469,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   });
   const ByField = builder
     .objectRef<DryRun['incomplete']['byField'][number]>('ImportIncompleteField')
-    .implement({ fields: (t) => ({ label: t.exposeString('label'), count: t.exposeInt('count') }) });
+    .implement({
+      fields: (t) => ({ label: t.exposeString('label'), count: t.exposeInt('count') }),
+    });
   const Incomplete = builder.objectRef<DryRun['incomplete']>('ImportIncomplete').implement({
     fields: (t) => ({
       count: t.exposeInt('count'),
@@ -1386,7 +1533,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       blocked: t.field({ type: [Blocked], resolve: (d) => list(d.blocked) }),
       findings: t.field({
         type: [CellFindingRef],
-        description: 'Doubted national identifiers, per cell: imported, then reviewed by HR (PEO-125).',
+        description:
+          'Doubted national identifiers, per cell: imported, then reviewed by HR (PEO-125).',
         resolve: (d) => list(d.findings),
       }),
       sensitive: t.field({ type: SensitiveRef, resolve: (d) => d.sensitive }),
@@ -1453,10 +1601,31 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       expiresAt: t.exposeString('expiresAt'),
     }),
   });
+  const DetailRequestSent = builder
+    .objectRef<{ readonly asked: readonly string[]; readonly emailed: boolean }>(
+      'DetailRequestSent',
+    )
+    .implement({
+      fields: (t) => ({
+        asked: t.exposeStringList('asked'),
+        emailed: t.exposeBoolean('emailed', {
+          description: 'False when it was asked for within the day, or no email is configured.',
+        }),
+      }),
+    });
+  const PhotoSaved = builder
+    .objectRef<{ readonly avatarUrl: string | null }>('PeoplePhotoSaved')
+    .implement({
+      fields: (t) => ({ avatarUrl: t.exposeString('avatarUrl', { nullable: true }) }),
+    });
   const ImportStage = builder.unionType('ImportStage', {
     types: [MapStage, ReviewStage, DoneStage],
     resolveType: (s) =>
-      s.step === 'map' ? 'ImportMapStage' : s.step === 'review' ? 'ImportReviewStage' : 'ImportDoneStage',
+      s.step === 'map'
+        ? 'ImportMapStage'
+        : s.step === 'review'
+          ? 'ImportReviewStage'
+          : 'ImportDoneStage',
   });
 
   /* ------------------------------------------------ exports, full values -- */
@@ -1542,11 +1711,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   });
 
   type Screen = FullValuesScreen;
-  const FullValuesField = builder
-    .objectRef<Screen['fields'][number]>('FullValuesField')
-    .implement({
-      fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
-    });
+  const FullValuesField = builder.objectRef<Screen['fields'][number]>('FullValuesField').implement({
+    fields: (t) => ({ key: t.exposeString('key'), label: t.exposeString('label') }),
+  });
   const FullValuesItem = builder
     .objectRef<Screen['requests'][number]>('FullValuesListed')
     .implement({
@@ -1624,15 +1791,31 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         filter: t.arg.string(),
         after: t.arg.id(),
         segment: t.arg.id(),
+        incomplete: t.arg.boolean({
+          description: 'Only people with a required detail missing; HR’s alone.',
+        }),
+        conditions: t.arg({ type: [DirectoryConditionInput] }),
+        match: t.arg.string({ description: 'all (default) or any.' }),
+        sort: t.arg.string({ description: '`key:asc` or `key:desc`; `name` sorts by name.' }),
       },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
+        if (args.conditions && args.conditions.length > 0) {
+          query.set('conditions', JSON.stringify(args.conditions));
+        }
+        if (args.match) query.set('match', args.match);
+        if (args.sort) query.set('sort', args.sort);
         if (args.search) query.set('search', args.search);
         if (args.filter) query.set('filter', args.filter);
         if (args.segment) query.set('segment', args.segment);
+        if (args.incomplete === true) query.set('incomplete', 'true');
         if (args.after) query.set('after', args.after);
         const qs = query.toString();
-        return viaRest<DirectoryView>(ctx, 'GET', `/v1/views/directory${qs === '' ? '' : `?${qs}`}`);
+        return viaRest<DirectoryView>(
+          ctx,
+          'GET',
+          `/v1/views/directory${qs === '' ? '' : `?${qs}`}`,
+        );
       },
     }),
     peopleCompleteness: t.field({
@@ -1656,7 +1839,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         if (args.search) query.set('search', args.search);
         if (args.after) query.set('after', args.after);
         const qs = query.toString();
-        return viaRest<PickerView>(ctx, 'GET', `/v1/views/people-picker${qs === '' ? '' : `?${qs}`}`);
+        return viaRest<PickerView>(
+          ctx,
+          'GET',
+          `/v1/views/people-picker${qs === '' ? '' : `?${qs}`}`,
+        );
       },
     }),
     peopleRoleSettings: t.field({
@@ -1818,9 +2005,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({ ok: t.boolean({ resolve: () => true }) }),
   });
   const done = () => ({ ok: true as const });
-  const Version = builder.objectRef<{ version: number | null }>('PublishedVersionNumber').implement({
-    fields: (t) => ({ version: t.exposeInt('version', { nullable: true }) }),
-  });
+  const Version = builder
+    .objectRef<{ version: number | null }>('PublishedVersionNumber')
+    .implement({
+      fields: (t) => ({ version: t.exposeInt('version', { nullable: true }) }),
+    });
   const Secret = builder
     .objectRef<{ id: string; secret: string | null }>('WebhookEndpointSecret')
     .implement({
@@ -1892,7 +2081,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         ok: t.boolean({ resolve: () => true }),
         findings: t.field({
           type: [FindingNoticeRef],
-          description: 'Warnings on national identifiers the save carried (PEO-125); saved all the same.',
+          description:
+            'Warnings on national identifiers the save carried (PEO-125); saved all the same.',
           resolve: (v) => list(v.findings),
         }),
         held: t.stringList({
@@ -1956,7 +2146,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     });
   /** The grid's cells as REST takes them. */
   const gridChanges = (
-    changes: readonly { personId: string | number; values: readonly { key: string; value: string }[] }[],
+    changes: readonly {
+      personId: string | number;
+      values: readonly { key: string; value: string }[];
+    }[],
   ) =>
     changes.map((c) => ({
       personId: String(c.personId),
@@ -1968,9 +2161,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       description: 'What saving these grid cells would be warned about (PEO-125); nothing is kept.',
       args: { changes: t.arg({ type: [GridChange], required: true }) },
       resolve: (_root, args, ctx) =>
-        viaRest<{ findings: GridFinding[] }>(ctx, 'POST', '/v1/views/completeness/identifier-check', {
-          body: { changes: gridChanges(args.changes) },
-        }),
+        viaRest<{ findings: GridFinding[] }>(
+          ctx,
+          'POST',
+          '/v1/views/completeness/identifier-check',
+          {
+            body: { changes: gridChanges(args.changes) },
+          },
+        ),
     }),
   );
   /* ------------------------------------------------ bulk edit (PEO-071) -- */
@@ -1995,19 +2193,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
     }),
   });
-  const BulkChangeRef = builder
-    .objectRef<BulkRow['changes'][number]>('BulkEditChange')
-    .implement({
-      fields: (t) => ({
-        key: t.exposeString('key'),
-        label: t.exposeString('label'),
-        dated: t.exposeBoolean('dated', {
-          description: 'False: kept without dates, so it changes on the day whatever the date says.',
-        }),
-        before: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.before }) }),
-        after: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.after }) }),
+  const BulkChangeRef = builder.objectRef<BulkRow['changes'][number]>('BulkEditChange').implement({
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      label: t.exposeString('label'),
+      dated: t.exposeBoolean('dated', {
+        description: 'False: kept without dates, so it changes on the day whatever the date says.',
       }),
-    });
+      before: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.before }) }),
+      after: t.field({ type: FormEntry, resolve: (c) => ({ key: c.key, value: c.after }) }),
+    }),
+  });
   const BulkRefusalRef = builder
     .objectRef<NonNullable<BulkRow['refusal']>>('BulkEditRefusal')
     .implement({
@@ -2022,7 +2218,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       personId: t.exposeID('personId'),
       name: t.exposeString('name'),
       outcome: t.exposeString('outcome', {
-        description: 'changed, unchanged, refused, or held: every value it would change waits for approval',
+        description:
+          'changed, unchanged, refused, or held: every value it would change waits for approval',
       }),
       changes: t.field({ type: [BulkChangeRef], resolve: (r) => list(r.changes) }),
       held: t.stringList({
@@ -2063,7 +2260,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleBulkEditPreview: t.field({
       type: BulkResultRef,
-      description: 'What a bulk edit would change and refuse, per person, and why; nothing is kept.',
+      description:
+        'What a bulk edit would change and refuse, per person, and why; nothing is kept.',
       args: {
         personIds: t.arg.idList({ required: true }),
         values: t.arg({ type: [FormValueInput], required: true }),
@@ -2077,7 +2275,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   builder.mutationField('bulkEditPeople', (t) =>
     t.field({
       type: BulkResultRef,
-      description: 'A page of a bulk edit: one ordinary write per person, each atomic, each answered.',
+      description:
+        'A page of a bulk edit: one ordinary write per person, each atomic, each answered.',
       args: {
         personIds: t.arg.idList({ required: true }),
         values: t.arg({ type: [FormValueInput], required: true }),
@@ -2268,7 +2467,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     addDraftSection: t.field({
       type: Outcome,
-      args: { label: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      args: {
+        label: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
       resolve: async (_root, args, ctx) => {
         await viaRest(ctx, 'POST', '/v1/schema/draft/sections', {
           body: { label: args.label },
@@ -2279,7 +2481,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     reorderDraftSections: t.field({
       type: Outcome,
-      args: { order: t.arg.stringList({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      args: {
+        order: t.arg.stringList({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
       resolve: async (_root, args, ctx) => {
         await viaRest(ctx, 'PUT', '/v1/schema/draft/sections/order', {
           body: { order: args.order },
@@ -2324,10 +2529,50 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         return done();
       },
     }),
+    setFieldAssistant: t.field({
+      type: Outcome,
+      description: 'Share a field with the assistant, or stop. A draft change.',
+      args: {
+        key: t.arg.string({ required: true }),
+        share: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/schema/draft/attributes/${encodeURIComponent(args.key)}/assistant`,
+          { body: { share: args.share }, key: args.idempotencyKey },
+        );
+        return done();
+      },
+    }),
+    setFieldSignup: t.field({
+      type: Outcome,
+      description:
+        'Put a field on the sign-up flow (optional or required), or take it off. A draft change.',
+      args: {
+        key: t.arg.string({ required: true }),
+        ask: t.arg.string({ required: true, description: 'off, optional or required.' }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/schema/draft/attributes/${encodeURIComponent(args.key)}/signup`,
+          { body: { ask: args.ask }, key: args.idempotencyKey },
+        );
+        return done();
+      },
+    }),
     publishDraft: t.field({
       type: Version,
       description: 'Publish the draft. A retry answers the version in force.',
-      args: { requiredFrom: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      args: {
+        requiredFrom: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
       resolve: (_root, args, ctx) =>
         viaRest<{ version: number | null }>(ctx, 'POST', '/v1/schema/draft/publish', {
           body: { requiredFrom: args.requiredFrom },
@@ -2398,12 +2643,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     createScimConnection: t.field({
       type: ScimToken,
-      args: { system: t.arg.string({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      args: {
+        system: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
       resolve: async (_root, args, ctx) => {
-        const made = await viaRest<{ id: string; token?: string }>(ctx, 'POST', '/v1/scim/connections', {
-          body: { system: args.system },
-          key: args.idempotencyKey,
-        });
+        const made = await viaRest<{ id: string; token?: string }>(
+          ctx,
+          'POST',
+          '/v1/scim/connections',
+          {
+            body: { system: args.system },
+            key: args.idempotencyKey,
+          },
+        );
         return { id: made.id, token: made.token ?? null };
       },
     }),
@@ -2448,7 +2701,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     replayWebhookDelivery: t.field({
       type: Replayed,
-      args: { deliveryId: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      args: {
+        deliveryId: t.arg.id({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
       resolve: (_root, args, ctx) =>
         viaRest<{ deliveryId: string }>(
           ctx,
@@ -2463,16 +2719,118 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         'Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.',
       args: {
         name: t.arg.string({ required: true }),
-        size: t.arg.int({ required: true, description: 'Bytes, exactly: the PUT is signed for this length.' }),
+        size: t.arg.int({
+          required: true,
+          description: 'Bytes, exactly: the PUT is signed for this length.',
+        }),
       },
       resolve: (_root, args, ctx) =>
         viaRest<ImportUploadView>(ctx, 'POST', '/v1/imports/uploads', {
           body: { name: args.name, size: args.size },
         }),
     }),
+    startPhotoUpload: t.field({
+      type: UploadTarget,
+      description:
+        'Where to upload a person’s photo (no id: the viewer’s own), shrunk by the browser first: a presigned PUT. Theirs or HR’s.',
+      args: {
+        personId: t.arg.id(),
+        size: t.arg.int({
+          required: true,
+          description: 'Bytes, exactly: the PUT is signed for this length.',
+        }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ImportUploadView>(ctx, 'POST', '/v1/views/photos/uploads', {
+          body: { personId: args.personId ?? null, size: args.size },
+        }),
+    }),
+    completePhotoUpload: t.field({
+      type: PhotoSaved,
+      description: 'The photo is uploaded: check it is a photo, keep it without its metadata.',
+      args: {
+        personId: t.arg.id(),
+        uploadId: t.arg.id({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ avatarUrl: string | null }>(
+          ctx,
+          'POST',
+          `/v1/views/photos/uploads/${encodeURIComponent(args.uploadId)}/complete`,
+          { body: { personId: args.personId ?? null }, key: args.idempotencyKey },
+        ),
+    }),
+    startFileUpload: t.field({
+      type: UploadTarget,
+      description:
+        'Where to upload a file for an image or document field (no personId: the viewer’s own): a presigned PUT.',
+      args: {
+        personId: t.arg.id(),
+        key: t.arg.string({ required: true }),
+        name: t.arg.string({ required: true }),
+        size: t.arg.int({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ImportUploadView>(ctx, 'POST', '/v1/views/files/uploads', {
+          body: {
+            personId: args.personId ?? null,
+            key: args.key,
+            name: args.name,
+            size: args.size,
+          },
+        }),
+    }),
+    completeFileUpload: t.field({
+      type: FileInfoRef,
+      description:
+        'The file is uploaded: check it and keep it. Saving the field points the record at it.',
+      args: {
+        personId: t.arg.id(),
+        key: t.arg.string({ required: true }),
+        uploadId: t.arg.id({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<ProfileView['files'][number]>(
+          ctx,
+          'POST',
+          `/v1/views/files/uploads/${encodeURIComponent(args.uploadId)}/complete`,
+          { body: { personId: args.personId ?? null, key: args.key }, key: args.idempotencyKey },
+        ),
+    }),
+    requestDetails: t.field({
+      type: DetailRequestSent,
+      description:
+        'Ask somebody to fill in empty details of theirs: recorded, and they are emailed at most once a day.',
+      args: {
+        personId: t.arg.id({ required: true }),
+        keys: t.arg.stringList({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ asked: readonly string[]; emailed: boolean }>(
+          ctx,
+          'POST',
+          `/v1/views/profile/${encodeURIComponent(args.personId)}/requests`,
+          { body: { keys: args.keys }, key: args.idempotencyKey },
+        ),
+    }),
+    removePhoto: t.field({
+      type: PhotoSaved,
+      args: { personId: t.arg.id(), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', '/v1/views/photos/remove', {
+          body: { personId: args.personId ?? null },
+          key: args.idempotencyKey,
+        });
+        return { avatarUrl: null };
+      },
+    }),
     completeImportUpload: t.field({
       type: ImportStage,
-      description: 'The file is uploaded: check it, then the proposed mapping. Changes nothing else.',
+      description:
+        'The file is uploaded: check it, then the proposed mapping. Changes nothing else.',
       args: { uploadId: t.arg.id({ required: true }) },
       resolve: (_root, args, ctx) =>
         viaRest<Stage>(

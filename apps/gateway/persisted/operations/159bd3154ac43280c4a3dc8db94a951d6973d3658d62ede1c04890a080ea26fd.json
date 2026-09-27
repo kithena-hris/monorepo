@@ -1,0 +1,1 @@
+{"version":1,"body":"query Chat {\n    peopleChat {\n      apps { key name canConnect connection { workspace connectedAt } }\n      notices { key label description to action on }\n      fields { on { key label } shareable }\n    }\n  }"}

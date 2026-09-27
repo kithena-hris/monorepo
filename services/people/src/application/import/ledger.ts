@@ -139,6 +139,7 @@ export function drizzleUploadIntents(): UploadIntents {
     tenant_id: string;
     id: string;
     actor_id: string;
+    purpose: string;
     name: string;
     size: string | number;
     object_key: string;
@@ -152,7 +153,7 @@ export function drizzleUploadIntents(): UploadIntents {
     id: r.id,
     tenantId: r.tenant_id,
     actorId: r.actor_id,
-    purpose: 'import',
+    purpose: r.purpose === 'photo' || r.purpose === 'file' ? r.purpose : 'import',
     name: r.name,
     size: Number(r.size),
     objectKey: r.object_key,
@@ -174,7 +175,7 @@ export function drizzleUploadIntents(): UploadIntents {
 
     async find(tx, tenantId, id) {
       const rows = await tx.execute<Row>(sql`
-        SELECT tenant_id, id, actor_id, name, size, object_key,
+        SELECT tenant_id, id, actor_id, purpose, name, size, object_key,
                created_at, url_expires_at, expires_at, checksum
           FROM people.import_upload
          WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid`);
@@ -188,11 +189,12 @@ export function drizzleUploadIntents(): UploadIntents {
          WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid`);
     },
 
-    async release(tx, tenantId, actorId, now) {
+    async release(tx, tenantId, actorId, now, purpose = 'import') {
       const rows = await tx.execute<{ object_key: string }>(sql`
         DELETE FROM people.import_upload
          WHERE tenant_id = ${tenantId}::uuid
-           AND (actor_id = ${actorId}::uuid OR expires_at <= ${now}::timestamptz)
+           AND ((actor_id = ${actorId}::uuid AND purpose = ${purpose})
+                OR expires_at <= ${now}::timestamptz)
         RETURNING object_key`);
       return [...rows].map((r) => r.object_key);
     },

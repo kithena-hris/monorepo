@@ -1,6 +1,7 @@
 import { Badge, Money } from '@reach/ui';
 import type { JSX } from 'react';
 
+import { FileValue, isFileField } from './files';
 import { isMissing, type AttributeValue, type RecordField } from './model';
 
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
@@ -28,6 +29,7 @@ export function DisplayValue({
     return <span className="text-fg-muted">Not provided</span>;
   }
   if (typeof value === 'boolean') return <>{value ? 'Yes' : 'No'}</>;
+  if (typeof value === 'string' && isFileField(field)) return <FileValue field={field} id={value} />;
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;

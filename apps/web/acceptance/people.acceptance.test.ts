@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
@@ -80,8 +80,22 @@ async function eventually<T>(
   return last;
 }
 
-/** People's own navigation, beside every People screen on a wide window. */
-const sections = (page: Page) => page.getByRole('navigation', { name: 'People sections' });
+/** The People item in the shell's sidebar, which People's sections hang off. */
+const peopleItem = (page: Page) =>
+  page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name: 'People' });
+
+/**
+ * People's own navigation, opened the way a keyboard opens it: focus on the
+ * People item in the sidebar brings its sections out beside it, and they are
+ * next in Tab order.
+ */
+async function sections(page: Page) {
+  await page.waitForLoadState('networkidle');
+  await peopleItem(page).focus();
+  const nav = page.getByRole('navigation', { name: 'People sections' });
+  await nav.waitFor();
+  return nav;
+}
 
 const person = (id: string) =>
   stack.sql<{ given_name: string | null; family_name: string | null; status: string }[]>`
@@ -526,7 +540,7 @@ describe('PEO-112: granting a role on the roles screen', () => {
   it('grants Finance to an employee with a reason, audited; the employee cannot see the screen', async () => {
     const context = await signedIn(ADMIN.session);
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/settings/roles`);
+    await page.goto(`${stack.shell}/settings/people/roles`);
     // Hydrated first, as elsewhere here: a press on the server's markup is lost.
     await page.waitForLoadState('networkidle');
     await page.getByRole('checkbox', { name: `Finance for ${EMPLOYEE.email}` }).click();
@@ -554,7 +568,7 @@ describe('PEO-112: granting a role on the roles screen', () => {
 
     const employee = await signedIn(EMPLOYEE.session);
     const theirs = await employee.newPage();
-    await theirs.goto(`${stack.shell}/people/settings/roles`);
+    await theirs.goto(`${stack.shell}/settings/people/roles`);
     await theirs.getByText('Could not load the roles').waitFor({ timeout: 30_000 });
     await employee.close();
   });
@@ -574,10 +588,10 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
 
-    // Reached from People's own navigation, not typed.
-    await page.goto(`${stack.shell}/people`);
-    await sections(page).getByRole('link', { name: 'Organisation' }).click();
-    await page.waitForURL(/\/people\/settings\/organisation$/);
+    // Reached from Settings, not typed.
+    await page.goto(`${stack.shell}/settings`);
+    await page.getByRole('link', { name: /^Organisation/ }).click();
+    await page.waitForURL(/\/settings\/people\/organisation$/);
     await page.waitForLoadState('networkidle');
 
     await page.getByRole('tab', { name: 'Locations' }).click();
@@ -624,7 +638,7 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
 
     // The office moves across the date line from today there: 25 hours
     // ahead, so his day is always a different date.
-    await page.goto(`${stack.shell}/people/settings/organisation`);
+    await page.goto(`${stack.shell}/settings/people/organisation`);
     await page.waitForLoadState('networkidle');
     await page.getByRole('tab', { name: 'Locations' }).click();
     await page.getByRole('button', { name: 'Change the time zone of Pago Pago office' }).click();
@@ -660,7 +674,9 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     await page.goto(`${stack.shell}/people/${ada.id}`);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: 'Terminate' }).click();
+    // A move is in the profile's Actions menu.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Terminate' }).click();
     const terminate = page.getByRole('dialog', { name: 'Terminate' });
     await terminate.getByRole('combobox', { name: /Reason/ }).click();
     await page.getByRole('option', { name: 'Dismissed' }).click();
@@ -673,7 +689,9 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     expect(ended).toHaveLength(1);
 
     // The page comes back from People with the leaver's move offered.
-    await page.getByRole('button', { name: 'Rehire' }).click();
+    // A move is in the profile's Actions menu.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Rehire' }).click();
     const rehire = page.getByRole('dialog', { name: 'Rehire' });
     await rehire.getByRole('button', { name: 'Rehire' }).click();
     // From the day after the last working day, which is still ahead: pre-hire.
@@ -681,10 +699,10 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
     const periods = await stack.sql<{ period: number }[]>`
       SELECT period FROM people.employment_period WHERE person_id = ${ada.id} ORDER BY period`;
     expect(periods.map((p) => p.period)).toEqual([1, 2]);
-    await page
-      .getByRole('table', { name: 'Employment periods' })
-      .getByRole('cell', { name: '2', exact: true })
-      .waitFor({ timeout: 30_000 });
+    // Both periods, newest first, under their header row.
+    const table = page.getByRole('table', { name: 'Employment periods' });
+    await table.waitFor({ timeout: 30_000 });
+    await expect.poll(() => table.getByRole('row').count()).toBe(3);
     await context.close();
   });
 });
@@ -712,7 +730,9 @@ describe('Hiring somebody added without a start date', () => {
     expect(await statusOf('edith@acme.example')).toBe('provisional');
 
     // Placed nowhere yet: the hire asks where, and starts today.
-    await page.getByRole('button', { name: 'Hire' }).click();
+    // A move is in the profile's Actions menu.
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Hire' }).click();
     const hire = page.getByRole('dialog', { name: 'Hire' });
     await hire.getByText(/Edith Clarke becomes an employee from/).waitFor();
     await hire.getByRole('combobox', { name: /Legal entity/ }).click();
@@ -805,7 +825,7 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const asks = await finance.newPage();
     await asks.goto(`${stack.shell}/people`);
-    await sections(asks).getByRole('link', { name: 'Full values' }).click();
+    await (await sections(asks)).getByRole('link', { name: 'Sensitive data access' }).click();
     await asks.waitForURL(/\/people\/full-values$/);
     await asks.waitForLoadState('networkidle');
     await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
@@ -887,12 +907,12 @@ describe('PEO-121: the webhook delivery log', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/settings/integrations`);
+    await page.goto(`${stack.shell}/settings/people/integrations`);
     await page.waitForLoadState('networkidle');
     await page
       .getByRole('button', { name: `Delivery log for ${hookUrl}` })
       .click();
-    await page.waitForURL(new RegExp(`/people/settings/integrations/${endpointId}$`));
+    await page.waitForURL(new RegExp(`/settings/people/integrations/${endpointId}$`));
     await page.waitForLoadState('networkidle');
     const table = page.getByRole('table', { name: 'Deliveries' });
     await table.getByText('Failed').waitFor({ timeout: 30_000 });
@@ -914,6 +934,52 @@ describe('PEO-121: the webhook delivery log', () => {
     const [sent] = stack.receiver.received.filter((r) => r.path === '/kithena-acceptance');
     expect(sent?.headers['kithena-event-id']).toBe(eventId);
     expect(sent?.headers['kithena-signature']).toBeTruthy();
+    await context.close();
+  });
+});
+
+describe('Employee fields: a field from a template, explained, then published', () => {
+  it('adds T-shirt size in four steps, says when it is asked, and publishes it', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/settings/people/fields`);
+    await page.getByRole('heading', { name: 'Employee fields' }).waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Add field' }).click();
+    const sheet = page.getByRole('dialog', { name: 'New field' });
+    await sheet.getByRole('button', { name: 'T-shirt size' }).click();
+    await sheet.getByRole('button', { name: 'Next' }).click();
+    await sheet.getByRole('group', { name: 'Who can see it?' }).waitFor();
+    await sheet.getByRole('button', { name: 'Next' }).click();
+    // Each moment it can be asked, with what it does.
+    const onboarding = sheet.getByRole('radio', { name: 'During onboarding' });
+    expect(await onboarding.isChecked()).toBe(true);
+    expect(await onboarding.getAttribute('aria-describedby')).toBeTruthy();
+    await sheet.getByRole('button', { name: 'Next' }).click();
+    await sheet
+      .getByText(/The employee is asked for their T-shirt size during onboarding\./)
+      .waitFor({ timeout: 30_000 });
+    // The least protection offered: whatever the suggestion, never below its floor.
+    const least = sheet
+      .getByRole('group', { name: 'What kind of data is this?' })
+      .getByRole('radio')
+      .last();
+    await least.waitFor({ timeout: 30_000 });
+    await least.click();
+    await sheet.getByRole('button', { name: 'Add field' }).click();
+    await sheet.waitFor({ state: 'detached', timeout: 30_000 });
+
+    await page.getByRole('button', { name: /^Publish version/ }).click();
+    const dialog = page.getByRole('dialog', { name: /^Publish/ });
+    await dialog.getByRole('button', { name: /^Publish version/ }).click({ timeout: 30_000 });
+    await eventually(
+      'the published field',
+      () => stack.sql<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM people.schema_version
+         WHERE tenant_id = ${TENANT} AND document::text LIKE '%t_shirt_size%'`,
+      ([row]) => (row?.n ?? 0) > 0,
+    );
     await context.close();
   });
 });
@@ -1063,7 +1129,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // HR sees what the checks found, reveals the held value, and accepts it.
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
-    await sections(reviews).getByRole('link', { name: 'Identifiers to review' }).click();
+    await (await sections(reviews)).getByRole('link', { name: 'ID verification' }).click();
     await reviews.waitForURL(/\/people\/identifier-reviews$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('table', { name: 'Identifiers to review' });
@@ -1323,13 +1389,26 @@ describe('People inside the shell: its sections, and always a way to add somebod
       (rows) => rows.length === 1,
     );
 
-    // The shell's sidebar and People's sections, both on screen, around the screen.
+    // The shell's sidebar, and People's sections only when asked for: the
+    // screen has the width until then.
     await page.goto(`${shell}/people`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
-    const nav = sections(page);
-    expect(await nav.isVisible()).toBe(true);
+    const closed = page.getByRole('navigation', { name: 'People sections' });
+    expect(await closed.count()).toBe(0);
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
+    // Hover opens them, after a moment, beside People.
+    await peopleItem(page).hover();
+    await closed.waitFor();
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
+    // Escape closes them.
+    await page.keyboard.press('Escape');
+    await closed.waitFor({ state: 'detached' });
+    await page.mouse.move(900, 600);
+    const nav = await sections(page);
     expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+    // People's front page needs no trail; a section under it gets one.
+    expect(await page.getByRole('navigation', { name: 'Breadcrumb' }).count()).toBe(0);
 
     // A marker on the window: it survives a client-side move and not a reload.
     await page.evaluate(() => {
@@ -1341,12 +1420,25 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.waitForURL(/\/people\/directory$/);
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
+    // One header: where you are stays on screen once the sections close, in
+    // the screen's own header above its title.
+    const screenHeader = page.locator('[data-remote="people"]');
+    expect(
+      await screenHeader
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByText('Directory')
+        .isVisible(),
+    ).toBe(true);
 
-    // One Add employee on the screen, beside the sections: never repeated in
-    // the header or the empty state.
+    // One Add employee on the screen, last in the row with the screen's own
+    // actions: never repeated in a bar above it or in the empty state.
     await page.waitForLoadState('networkidle');
     const add = page.getByRole('main').getByRole('link', { name: 'Add employee' });
     expect(await add.count()).toBe(1);
+    expect(await screenHeader.getByRole('link', { name: 'Add employee' }).count()).toBe(1);
+    expect(
+      await add.evaluate((a) => /Export|Import/.test(a.previousElementSibling?.textContent ?? '')),
+    ).toBe(true);
     expect(await page.getByRole('main').getByRole('button', { name: 'Add employee' }).count()).toBe(0);
     await add.click();
     await page.waitForURL(/\/people\/new$/);
@@ -1357,7 +1449,8 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // On its own screen the form's button is the only Add employee, and no
     // section is current.
     expect(await add.count()).toBe(0);
-    expect(await nav.locator('[aria-current="page"]').count()).toBe(0);
+    expect(await (await sections(page)).locator('[aria-current="page"]').count()).toBe(0);
+    await page.keyboard.press('Escape');
     await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
     await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
     await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
@@ -1369,28 +1462,45 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // Her record, to fill in the rest, under the Directory; and she is in it.
     await page.waitForURL(/\/people\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
-    expect(await nav.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe(
-      'page',
-    );
+    expect(
+      await (await sections(page)).getByRole('link', { name: 'Directory' }).getAttribute('aria-current'),
+    ).toBe('page');
     const [lena] = await stack.sql<{ status: string; hire_date: string | null }[]>`
       SELECT status, hire_date::text FROM people.person
        WHERE tenant_id = ${GLOBEX.tenant} AND work_email = 'lena@globex.example'`;
     expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
-    await nav.getByRole('link', { name: 'Directory' }).click();
+    await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory$/);
     await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
     // Counts that say what the list holds: everybody, then who is active.
     await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
     expect(await kept()).toBe(true);
 
-    // Every section stays inside the shell: a client-side move, the sidebar
-    // still there, and never another origin.
-    const hrefs = await nav
+    // Every section is reachable from the keyboard and stays inside the shell:
+    // focus on People, ArrowRight into its sections, Tab to the one wanted,
+    // Enter — a client-side move, the sidebar still there, never another origin.
+    const hrefs = await (await sections(page))
       .getByRole('link')
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs).toContain('/people/import');
     for (const href of hrefs) {
-      await nav.locator(`a[href="${href}"]`).click();
+      await sections(page);
+      await page.keyboard.press('ArrowRight');
+      // ArrowRight moves focus into the sections, once they have drawn.
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.activeElement?.closest('[aria-label="People sections"]') != null,
+          ),
+        )
+        .toBe(true);
+      for (let tabs = 0; tabs <= hrefs.length; tabs += 1) {
+        const at = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
+        if (at === href) break;
+        await page.keyboard.press('Tab');
+      }
+      expect(await page.evaluate(() => document.activeElement?.getAttribute('href'))).toBe(href);
+      await page.keyboard.press('Enter');
       await page.waitForURL((url) => url.pathname === href);
       expect(new URL(page.url()).origin).toBe(new URL(shell).origin);
       expect(await kept()).toBe(true);
@@ -1402,10 +1512,235 @@ describe('People inside the shell: its sections, and always a way to add somebod
     const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const theirs = await employee.newPage();
     await theirs.goto(`${stack.shell}/people/directory`);
-    await sections(theirs).waitFor();
-    expect(await sections(theirs).getByRole('link', { name: 'Import' }).count()).toBe(0);
+    expect(await (await sections(theirs)).getByRole('link', { name: 'Import' }).count()).toBe(0);
     expect(await theirs.getByRole('link', { name: 'Add employee' }).count()).toBe(0);
     expect(await theirs.getByRole('button', { name: 'Add employee' }).count()).toBe(0);
     await employee.close();
+  });
+});
+
+describe('People overview: who you are here, what needs you, what is missing', () => {
+  /** Where the screenshots go, when a run is asked for them. */
+  const shots = process.env['OVERVIEW_SHOTS'];
+  const shot = async (page: Page, name: string): Promise<void> => {
+    if (shots === undefined || shots === '') return;
+    await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true });
+  };
+  const desktop = { viewport: { width: 1440, height: 1000 } };
+  const phone = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
+  const titled = (page: Page, name: string) =>
+    page.locator('section', { has: page.getByRole('heading', { level: 2, name }) });
+
+  it('shows HR themselves, their report and the change waiting; the employee their gap, and their photo', async () => {
+    // Published, as the wizard would; then a detail each employee gives, one
+    // whose change HR approves, and a title.
+    await stack.writeAsPeople(ADMIN.account, '/v1/views/setup/publish', { country: 'ES', sections: [] });
+    const field = (key: string, label: string, over: Record<string, unknown>) =>
+      stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/attributes', {
+        input: {
+          key,
+          sectionKey: 'personal',
+          label,
+          description: null,
+          dataType: 'text',
+          options: [],
+          requiredness: 'never',
+          requiredWhen: null,
+          ownership: ['employee', 'hr'],
+          collectAt: 'onboarding',
+          visibility: ['self', 'hr'],
+          visibilityRules: [],
+          classification: 'confidential',
+          piiKind: 'contact',
+          classificationSource: 'human',
+          requiresApproval: null,
+          ...over,
+        },
+        editing: null,
+      });
+    await field('emergency_contact', 'Emergency contact', { requiredness: 'always' });
+    await field('desk', 'Desk', { requiresApproval: true, piiKind: 'none', classification: 'internal' });
+    await field('job_title', 'Job title', {
+      sectionKey: 'employment',
+      ownership: ['hr'],
+      collectAt: 'hr_only',
+      visibility: ['self', 'manager', 'manager_chain', 'hr', 'directory'],
+      classification: 'internal',
+      piiKind: 'none',
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    await stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/publish', { requiredFrom: today });
+
+    // Adam reports to Priya; each has a title.
+    const patch = (id: string, attributes: Record<string, unknown>) =>
+      fetch(`${stack.peopleUrl}/v1/people/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': randomUUID(),
+          'x-internal-token': 'acceptance-people-token',
+          'x-correlation-id': randomUUID(),
+          'x-kithena-principal': JSON.stringify({
+            userId: ADMIN.account,
+            tenantId: TENANT,
+            roles: [],
+            entitlements: ['module.people'],
+          }),
+        },
+        body: JSON.stringify({ attributes }),
+      });
+    // Named, when an earlier test has not named them already, and Adam hired,
+    // so People judges his record complete or not.
+    for (const [id, given, family] of [
+      [ADMIN.person, 'Priya', 'Shah'],
+      [EMPLOYEE.person, 'Adam', 'Ruiz'],
+    ] as const) {
+      const [row] = await person(id);
+      if (row?.given_name === null) {
+        expect((await patch(id, { given_name: given, family_name: family })).status).toBeLessThan(300);
+      }
+    }
+    const [adam] = await person(EMPLOYEE.person);
+    if (adam?.status === 'provisional') {
+      const [entity] = await stack.sql<{ id: string }[]>`
+        SELECT id FROM people.legal_entity WHERE tenant_id = ${TENANT} ORDER BY id LIMIT 1`;
+      const hired = await stack.writeAsPeople(ADMIN.account, `/v1/people/${EMPLOYEE.person}/hire`, {
+        hireDate: '2025-02-03',
+        ...(entity === undefined ? {} : { legalEntityId: entity.id }),
+      });
+      expect(hired.status).toBeLessThan(300);
+    }
+    // As People names somebody: the preferred name first, when there is one.
+    const nameOf = async (id: string) => {
+      const [row] = await stack.sql<{ name: string }[]>`
+        SELECT concat_ws(' ', coalesce(nullif(preferred_name, ''), given_name), family_name) AS name
+          FROM people.person WHERE id = ${id}`;
+      return row?.name ?? '';
+    };
+    const priya = await nameOf(ADMIN.person);
+    const adamName = await nameOf(EMPLOYEE.person);
+    expect((await patch(ADMIN.person, { job_title: 'Head of People' })).status).toBeLessThan(300);
+    expect(
+      (await patch(EMPLOYEE.person, { manager_id: ADMIN.person, job_title: 'Support Engineer' }))
+        .status,
+    ).toBeLessThan(300);
+    // Adam asks for a new desk: held for HR.
+    const asked = await stack.writeAsPeople(EMPLOYEE.account, '/v1/views/me/sections', {
+      changed: { desk: 'B-204' },
+    });
+    expect(asked.status).toBeLessThan(300);
+
+    // HR's overview: Priya, her report, and Adam's change in the list.
+    for (const [scheme, options, name] of [
+      ['light', desktop, 'overview-hr-desktop-light'],
+      ['dark', desktop, 'overview-hr-desktop-dark'],
+      ['light', phone, 'overview-hr-phone-light'],
+    ] as const) {
+      const context = await signedIn(ADMIN.session, { ...options, colorScheme: scheme });
+      const page = await context.newPage();
+      await page.goto(`${stack.shell}/people`);
+      await page.getByRole('heading', { level: 1, name: priya }).waitFor({ timeout: 30_000 });
+      await page.waitForLoadState('networkidle');
+      await titled(page, 'Your reporting line').getByRole('link', { name: adamName }).waitFor();
+      const waiting = titled(page, 'Waiting for your approval');
+      await waiting.getByRole('link', { name: `${adamName} · Desk` }).waitFor();
+      expect(
+        await waiting.getByRole('link', { name: /Show all|Open approvals/ }).getAttribute('href'),
+      ).toBe('/people/approvals');
+      await shot(page, name);
+      await context.close();
+    }
+
+    // The employee's overview: his manager above him, and the detail only he can give.
+    const context = await signedIn(EMPLOYEE.session, { ...desktop, colorScheme: 'light' });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people`);
+    await page.getByRole('heading', { level: 1, name: adamName }).waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
+    const gap = titled(page, 'Your missing information').getByRole('link', {
+      name: /Emergency contact/,
+    });
+    await gap.waitFor();
+    await shot(page, 'overview-employee-desktop-light');
+
+    // The link opens his profile at that field, cursor in it, marked missing.
+    await gap.click();
+    await page.waitForURL(/\/people\/me\?field=emergency_contact$/);
+    const input = page.getByRole('textbox', { name: /Emergency contact/ });
+    await input.waitFor({ timeout: 30_000 });
+    await expect.poll(() => input.evaluate((el) => el === document.activeElement)).toBe(true);
+    await page.getByText(/^(\d+ missing|Missing)$/).first().waitFor();
+    await shot(page, 'profile-missing-editing-desktop-light');
+
+    // His photo: picked on his profile, shrunk, straight to storage, kept by People.
+    await page.goto(`${stack.shell}/people/me`);
+    await page.waitForLoadState('networkidle');
+    const png = Buffer.from(
+      await page.evaluate(async () => {
+        const canvas = new OffscreenCanvas(600, 600);
+        const g = canvas.getContext('2d');
+        if (g === null) throw new Error('no canvas');
+        g.fillStyle = '#dbeafe';
+        g.fillRect(0, 0, 600, 600);
+        g.fillStyle = '#1d4ed8';
+        g.beginPath();
+        g.arc(300, 250, 110, 0, Math.PI * 2);
+        g.fill();
+        g.fillRect(140, 400, 320, 200);
+        const blob = await canvas.convertToBlob({ type: 'image/png' });
+        return [...new Uint8Array(await blob.arrayBuffer())];
+      }),
+    );
+    await page
+      .getByLabel('Photo')
+      .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png });
+    const [kept] = await eventually(
+      'the photo kept',
+      () => stack.sql<{ media_type: string }[]>`
+        SELECT media_type FROM people.person_photo WHERE person_id = ${EMPLOYEE.person}`,
+      (rows) => rows.length === 1,
+    );
+    // The browser sent a small JPEG drawn from it, not the file picked.
+    expect(kept?.media_type).toBe('image/jpeg');
+    await page.reload();
+    const photo = page.locator('img[src*="/people/photos/"]').first();
+    await photo.waitFor({ timeout: 30_000 });
+    await expect
+      .poll(() => photo.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+    await context.close();
+
+    // And HR sees it beside his name in her reporting line.
+    const hr = await signedIn(ADMIN.session, desktop);
+    const hrPage = await hr.newPage();
+    await hrPage.goto(`${stack.shell}/people`);
+    await hrPage.getByRole('heading', { level: 1, name: priya }).waitFor({ timeout: 30_000 });
+    const his = hrPage.locator(`img[src*="/people/photos/${EMPLOYEE.person}"]`).first();
+    await his.waitFor();
+    await expect
+      .poll(() => his.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+    // The URL itself opens nothing: without a session there is no photo.
+    const src = (await his.getAttribute('src')) ?? '';
+    const anonymous = await fetch(new URL(src, stack.shell), { redirect: 'manual' });
+    expect(anonymous.status).not.toBe(200);
+    await shot(hrPage, 'overview-hr-with-photo-desktop-light');
+    await hr.close();
+
+    // The profile with its gaps marked, light and dark, and on a phone.
+    for (const [scheme, options, name] of [
+      ['light', desktop, 'profile-missing-desktop-light'],
+      ['dark', desktop, 'profile-missing-desktop-dark'],
+      ['light', phone, 'profile-missing-phone-light'],
+    ] as const) {
+      const c = await signedIn(EMPLOYEE.session, { ...options, colorScheme: scheme });
+      const p = await c.newPage();
+      await p.goto(`${stack.shell}/people/me`);
+      await p.getByText(/^(\d+ missing|Missing)$/).first().waitFor({ timeout: 30_000 });
+      await p.waitForLoadState('networkidle');
+      await shot(p, name);
+      await c.close();
+    }
   });
 });

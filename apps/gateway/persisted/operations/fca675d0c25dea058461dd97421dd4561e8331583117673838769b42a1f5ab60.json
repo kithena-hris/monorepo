@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CompleteChatApp($app: String!, $code: String!, $state: String!, $key: String!) {\n    completeChatApp(app: $app, code: $code, state: $state, idempotencyKey: $key) { apps { key } }\n  }"}

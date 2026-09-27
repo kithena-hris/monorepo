@@ -141,7 +141,8 @@ export function Input({
   );
 }
 
-export interface TextareaProps extends ComponentPropsWithoutRef<'textarea'> {
+// With its ref, as `Input` has: a caller focuses the box (a chat panel opening).
+export interface TextareaProps extends ComponentPropsWithRef<'textarea'> {
   /** Grow with content instead of scrolling, via CSS `field-sizing`. */
   autoResize?: boolean;
 }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -85,13 +85,83 @@ describe('Directory', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('asks the shell to filter, rather than filtering what it was given', async () => {
+  it('shows the conditions in force as chips, each removable, and applies new ones from the panel', async () => {
     const user = fast();
+    const onConditionsChange = vi.fn();
     const onFiltersChange = vi.fn();
-    render(<Directory {...props({ onFiltersChange })} />);
-    await user.click(screen.getByRole('combobox', { name: 'Cost centre' }));
-    await user.click(await screen.findByRole('option', { name: 'Cost centre: ENG-201' }));
-    expect(onFiltersChange).toHaveBeenCalledWith({ cost_centre: 'ENG-201' });
+    const filtered: DirectoryState = {
+      ...state,
+      fields: [
+        {
+          key: 'cost_centre',
+          label: 'Cost centre',
+          kind: 'select',
+          options: [{ value: 'ENG-201', label: 'Engineering 201' }],
+        },
+        { key: 'hire_date', label: 'Start date', kind: 'date', options: [] },
+      ],
+      query: {
+        conditions: [
+          { key: 'cost_centre', op: 'in', values: ['ENG-201'] },
+          { key: 'hire_date', op: 'between', values: ['2026-01-01', ''] },
+        ],
+        match: 'all',
+        sort: null,
+      },
+    };
+    const { container } = render(
+      <Directory
+        {...props({
+          load: { status: 'ready', data: filtered },
+          filters: { reports_to: 'x' },
+          onConditionsChange,
+          onFiltersChange,
+        })}
+      />,
+    );
+    expect(screen.getByText('Cost centre is any of Engineering 201')).toBeInTheDocument();
+    expect(screen.getByText('Start date is on or after January 1, 2026')).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Remove Cost centre is any of Engineering 201' }),
+    );
+    expect(onConditionsChange).toHaveBeenCalledWith(
+      [{ key: 'hire_date', op: 'between', values: ['2026-01-01', ''] }],
+      'all',
+    );
+    await user.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(onConditionsChange).toHaveBeenLastCalledWith([], 'all');
+    expect(onFiltersChange).toHaveBeenCalledWith({});
+
+    // The panel opens with what is in force, and applies it back.
+    await user.click(screen.getByRole('button', { name: 'Filters (2)' }));
+    const panel = screen.getByRole('dialog', { name: 'Filter people' });
+    await user.click(within(panel).getByRole('button', { name: 'Apply 2 conditions' }));
+    expect(onConditionsChange).toHaveBeenLastCalledWith(filtered.query?.conditions, 'all');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('orders by a column on the server, not in the browser', async () => {
+    const user = fast();
+    const onSortChange = vi.fn();
+    render(<Directory {...props({ onSortChange })} />);
+    await user.click(screen.getByRole('button', { name: /Cost centre/ }));
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'cost_centre', direction: 'asc' });
+  });
+
+  it('lets HR narrow to people with something missing, through the shell', async () => {
+    const user = fast();
+    const onIncompleteChange = vi.fn();
+    const { rerender } = render(<Directory {...props({ onIncompleteChange })} />);
+    await user.click(screen.getByRole('combobox', { name: 'Record' }));
+    await user.click(await screen.findByRole('option', { name: 'Missing information' }));
+    expect(onIncompleteChange).toHaveBeenCalledWith(true);
+    // Nobody but HR is counted, so nobody else is offered it.
+    rerender(
+      <Directory
+        {...props({ onIncompleteChange, load: { status: 'ready', data: { ...state, incomplete: null } } })}
+      />,
+    );
+    expect(screen.queryByRole('combobox', { name: 'Record' })).toBeNull();
   });
 
   it('opens a person', async () => {
@@ -206,5 +276,74 @@ describe('Directory', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSaveSegment).toHaveBeenCalledWith({ name: 'ENG-204', shared: true });
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('draws a manager as a person, and loads the next page as the table nears its end', async () => {
+    const withManager: DirectoryState = {
+      ...state,
+      columns: [...state.columns, { key: 'manager_id', label: 'Manager' }],
+      people: state.people.map((p) => ({
+        ...p,
+        values: { ...p.values, manager_id: 'Grace Hopper' },
+        people: [{ key: 'manager_id', id: 'g', name: 'Grace Hopper', avatarUrl: null }],
+      })),
+    };
+    const onLoadMore = vi.fn(() =>
+      Promise.resolve({
+        people: [
+          {
+            id: 'k',
+            name: 'Katherine Johnson',
+            email: null,
+            avatarUrl: null,
+            values: {},
+            missing: 0,
+          },
+        ],
+        next: null,
+      }),
+    );
+    const { container } = render(
+      <Directory
+        {...props({ load: { status: 'ready', data: withManager }, onLoadMore, next: 'cursor-1' })}
+      />,
+    );
+    // jsdom measures nothing, so the first page never fills the table: it asks at once.
+    expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
+    expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
+    expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
+    expect(screen.getByText('Showing 3 of 420')).toBeInTheDocument();
+    // No pager beside an infinite table.
+    expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
+    expect(onLoadMore).toHaveBeenCalledOnce();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('groups people under a heading per value, ordered by it on the server', async () => {
+    const user = fast();
+    const onGroupChange = vi.fn();
+    const grouped: DirectoryState = {
+      ...state,
+      fields: [
+        {
+          key: 'cost_centre',
+          label: 'Cost centre',
+          kind: 'select',
+          options: [{ value: 'ENG-204', label: 'ENG-204' }],
+        },
+      ],
+    };
+    const { rerender } = render(
+      <Directory {...props({ load: { status: 'ready', data: grouped }, onGroupChange })} />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Group by' }));
+    await user.click(await screen.findByRole('option', { name: 'Group by cost centre' }));
+    expect(onGroupChange).toHaveBeenCalledWith('cost_centre');
+    rerender(
+      <Directory
+        {...props({ load: { status: 'ready', data: grouped }, onGroupChange, group: 'cost_centre' })}
+      />,
+    );
+    expect(screen.getByRole('rowheader')).toHaveTextContent('ENG-2042');
   });
 });

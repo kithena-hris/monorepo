@@ -25,6 +25,7 @@ const meta = {
           '| `danger` | A terminal bad outcome: rejected, failed, expired. |',
           '| `info` | Metadata about the record: superseded, imported, synced. |',
           '| `sensitive` | Not a state but a property: handled with more care, a change waits for somebody else. Outlined, and always with its glyph. |',
+          '| `attention` | Wanted and missing: a field nobody has filled in. Dashed, and always with its glyph. |',
           '',
           'A badge is not a button. If it can be pressed. It is a `Button` with `variant="subtle"`.',
         ].join('\n'),
@@ -35,10 +36,10 @@ const meta = {
     tone: {
       description: 'Semantic meaning. Reinforces the label; never replaces it.',
       control: 'inline-radio',
-      options: ['neutral', 'accent', 'success', 'warning', 'danger', 'info', 'sensitive'],
+      options: ['neutral', 'accent', 'success', 'warning', 'danger', 'info', 'sensitive', 'attention'],
       table: {
         type: {
-          summary: "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive'",
+          summary: "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive' | 'attention'",
         },
         defaultValue: { summary: 'neutral' },
         category: 'Appearance',
@@ -113,6 +114,9 @@ export const Tones: Story = {
       <Badge {...args} tone="sensitive">
         Sensitive
       </Badge>
+      <Badge {...args} tone="attention">
+        Missing
+      </Badge>
     </div>
   ),
 };
@@ -131,6 +135,27 @@ export const Sensitive: Story = {
     <div className="flex flex-wrap items-center gap-2">
       <Badge {...args} />
       <Badge tone="warning">Pending approval</Badge>
+    </div>
+  ),
+};
+
+export const Attention: Story = {
+  args: { tone: 'attention', children: 'Missing' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Something that should be there and is not: a date of birth nobody entered, a work location never set. The warning wash says "look here", the dashed edge and the empty-circle glyph say "not filled in" rather than "something went wrong", and the word says it to everybody else. Put it where the value would be, or beside a count of what is missing.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge {...args} />
+      <Badge {...args}>3 missing</Badge>
+      <Badge {...args} size="sm">
+        Missing
+      </Badge>
     </div>
   ),
 };
@@ -210,5 +235,26 @@ export const InATableRow: Story = {
         </div>
       ))}
     </div>
+  ),
+};
+
+export const Removable: Story = {
+  name: 'Removable, as a chip',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`onRemove` turns a badge into a chip: an applied filter, a chosen tag. The remove button is a real button named for what it removes ("Remove Team: Engineering"), because "×" read aloud is "times".',
+      },
+    },
+  },
+  render: () => (
+    <ul aria-label="Active filters" className="flex flex-wrap gap-2">
+      {['Team: Engineering', 'Started after 1 Jan 2026', 'Has missing information'].map((chip) => (
+        <li key={chip}>
+          <Badge onRemove={() => undefined}>{chip}</Badge>
+        </li>
+      ))}
+    </ul>
   ),
 };

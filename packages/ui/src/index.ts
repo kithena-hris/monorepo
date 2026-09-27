@@ -38,9 +38,11 @@ export {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbMenu,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from './components/breadcrumb/breadcrumb';
+export type { BreadcrumbMenuProps } from './components/breadcrumb/breadcrumb';
 export type { BreadcrumbItemProps, BreadcrumbLinkProps } from './components/breadcrumb/breadcrumb';
 
 export {
@@ -153,6 +155,8 @@ export type { AvatarGroupProps, AvatarProps } from './components/avatar/avatar';
 
 export { ReachLogo, ReachMark, ReachWordmark } from './brand/reach-logo';
 export type { ReachLogoProps, ReachMarkProps, ReachWordmarkProps } from './brand/reach-logo';
+export { AppMark } from './brand/app-mark';
+export type { AppMarkProps, ThirdPartyApp } from './brand/app-mark';
 export { KithenaLogo, KithenaMark, KithenaWordmark } from './brand/kithena-logo';
 export type {
   KithenaLogoProps,
@@ -160,6 +164,10 @@ export type {
   KithenaWordmarkProps,
 } from './brand/kithena-logo';
 
+export { ChatComposer, ChatLog, ChatMessage } from './components/chat/chat';
+export { ChatWindow } from './components/chat/chat-window';
+export type { ChatWindowProps } from './components/chat/chat-window';
+export type { ChatComposerProps, ChatLogProps, ChatMessageProps } from './components/chat/chat';
 export { Badge } from './components/badge/badge';
 export type { BadgeProps } from './components/badge/badge';
 
@@ -251,6 +259,8 @@ export { Input, Textarea } from './components/input/input';
 export type { InputProps, TextareaProps } from './components/input/input';
 
 export { Kbd } from './components/kbd/kbd';
+export { KeyValues } from './components/key-values/key-values';
+export type { KeyValuesProps } from './components/key-values/key-values';
 export type { KbdProps } from './components/kbd/kbd';
 
 export { Nav, NavGroup, NavItem, NavList, TertiaryNav } from './components/nav/nav';
@@ -321,12 +331,14 @@ export type {
 
 export {
   PageHeader,
+  PageHeaderFrame,
   PageLayout,
   PageSection,
   Toolbar,
   useRailCollapsed,
 } from './components/page-layout/page-layout';
 export type {
+  PageHeaderFrameProps,
   PageHeaderProps,
   PageLayoutProps,
   PageRailCollapse,
@@ -424,6 +436,23 @@ export type {
   TableProps,
   TableRowProps,
 } from './components/table/table';
+
+export { ColumnChooser, orderColumns } from './components/table/column-chooser';
+export type {
+  ColumnChoice,
+  ColumnChooserProps,
+  ColumnChooserValue,
+} from './components/table/column-chooser';
+
+export { FilterBuilder, isConditionComplete } from './components/filter-builder/filter-builder';
+export type {
+  FilterBuilderProps,
+  FilterCondition,
+  FilterField,
+  FilterGroup,
+  FilterOperator,
+  FilterValueKind,
+} from './components/filter-builder/filter-builder';
 
 export { DataTable } from './components/table/data-table';
 export type {

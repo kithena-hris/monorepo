@@ -1,6 +1,8 @@
 import { defineServerConfig } from '@modern-js/server-runtime';
 import type { MiddlewareHandler } from '@modern-js/server-runtime';
 
+import { chatReturn } from './chat-return';
+
 /**
  * The auth origin's server half.
  *
@@ -250,6 +252,7 @@ export default defineServerConfig({
     // Before the proxy: this path is not under `/api/identity/`, but ordering
     // the specific handler first keeps it that way by construction rather than
     // by the prefix happening not to overlap.
+    { name: 'chat-return', handler: chatReturn },
     { name: 'handoff-issuer', handler: handoffIssuer },
     { name: 'identity-proxy', handler: identityProxy },
   ],
