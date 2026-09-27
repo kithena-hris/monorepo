@@ -31,6 +31,10 @@ import {
   Combobox,
   type ComboboxOption,
   icons,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -197,84 +201,109 @@ function Endpoints({
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
+  // Back where Slack sent them: straight to its tab.
+  const [tab, setTab] = useState<string>(
+    chat?.returned === undefined || chat.returned === null ? 'overview' : 'chat',
+  );
   const refusedLabels = state.fields.filter((f) => f.refused !== null).map((f) => f.key);
 
   return (
     <Stack gap={6}>
       <PageHeader
         title="Integrations"
-        description="Connect People to tools outside Kithena, such as your chat app, your payroll provider or your identity provider. Everything inside Kithena works together on its own."
+        description="Connect People to the tools your company already uses."
       />
-      <Directory state={state} chatShown={chat !== undefined} scimShown={scim !== undefined} />
-      <Outgoing state={state} />
-      {chat === undefined || state.chat === undefined ? null : (
-        <div id="chat" className="scroll-mt-6">
-          <ChatApps {...chat} state={state.chat} />
-        </div>
-      )}
-      <PageSection
-        id="webhooks"
-        className="scroll-mt-6"
-        title="Webhooks to third-party tools"
-        description={`When something happens in People (somebody is hired, changes job or leaves) People tells the tools you add here, so nobody types it twice. Each is told only the events you choose, carrying only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last day · schema version ${String(state.schemaVersion)}.`}
-        actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setAdding(true);
-            }}
-          >
-            Add endpoint
-          </Button>
-        }
-      >
-        <Stack gap={4}>
-          {secret === null ? null : (
-            <Alert tone="warning" title="Copy the signing secret now">
-              <Stack gap={2}>
-                <p>
-                  This is the only time it is shown for {secret.url}. It cannot be retrieved later;
-                  if it is lost, rotate it.
-                </p>
-                <CopyField value={secret.value} label="Copy the signing secret" />
-              </Stack>
-            </Alert>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList aria-label="Integrations">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          {chat === undefined || state.chat === undefined ? null : (
+            <TabsTrigger value="chat">Slack</TabsTrigger>
           )}
-          {state.endpoints.length === 0 ? (
-            <EmptyState
-              title="No third-party tools connected"
-              description="Add the address a tool gives you for incoming webhooks, usually in its settings under Webhooks or API. For example, your payroll provider, to hear about starters and leavers."
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          {state.scim === undefined || scim === undefined ? null : (
+            <TabsTrigger value="provisioning">Provisioning</TabsTrigger>
+          )}
+        </TabsList>
+        <TabsContent value="overview" className="pt-6">
+          <Stack gap={6}>
+            <Directory
+              state={state}
+              chatShown={chat !== undefined}
+              scimShown={scim !== undefined}
+              onOpen={setTab}
             />
-          ) : (
-            state.endpoints.map((endpoint) => (
-              <EndpointCard
-                key={endpoint.id}
-                endpoint={endpoint}
-                state={state}
-                refusedKeys={refusedLabels}
-                onUpdate={onUpdate}
-                {...(onOpenLog === undefined
-                  ? {}
-                  : {
-                      onOpenLog: () => {
-                        onOpenLog(endpoint.id);
-                      },
-                    })}
-                onRotate={async () => {
-                  const rotated = await onRotate(endpoint.id);
-                  if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
-                  return rotated.ok ? { ok: true } : rotated;
+            <Outgoing state={state} />
+          </Stack>
+        </TabsContent>
+        {chat === undefined || state.chat === undefined ? null : (
+          <TabsContent value="chat" className="pt-6">
+            <ChatApps {...chat} state={state.chat} />
+          </TabsContent>
+        )}
+        <TabsContent value="webhooks" className="pt-6">
+          <PageSection
+            title="Webhooks"
+            description={`Send People events to other tools, with only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last 24 hours.`}
+            actions={
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setAdding(true);
                 }}
-              />
-            ))
-          )}
-        </Stack>
-      </PageSection>
-      {state.scim === undefined || scim === undefined ? null : (
-        <div id="provisioning" className="scroll-mt-6">
-          <Provisioning scim={state.scim} {...scim} />
-        </div>
-      )}
+              >
+                Add endpoint
+              </Button>
+            }
+          >
+            <Stack gap={4}>
+              {secret === null ? null : (
+                <Alert tone="warning" title="Copy the signing secret now">
+                  <Stack gap={2}>
+                    <p>
+                      This is the only time it is shown for {secret.url}. It cannot be retrieved
+                      later; if it is lost, rotate it.
+                    </p>
+                    <CopyField value={secret.value} label="Copy the signing secret" />
+                  </Stack>
+                </Alert>
+              )}
+              {state.endpoints.length === 0 ? (
+                <EmptyState
+                  title="No third-party tools connected"
+                  description="Add the address a tool gives you for incoming webhooks, usually in its settings under Webhooks or API. For example, your payroll provider, to hear about starters and leavers."
+                />
+              ) : (
+                state.endpoints.map((endpoint) => (
+                  <EndpointCard
+                    key={endpoint.id}
+                    endpoint={endpoint}
+                    state={state}
+                    refusedKeys={refusedLabels}
+                    onUpdate={onUpdate}
+                    {...(onOpenLog === undefined
+                      ? {}
+                      : {
+                          onOpenLog: () => {
+                            onOpenLog(endpoint.id);
+                          },
+                        })}
+                    onRotate={async () => {
+                      const rotated = await onRotate(endpoint.id);
+                      if (rotated.ok) setSecret({ url: endpoint.url, value: rotated.secret });
+                      return rotated.ok ? { ok: true } : rotated;
+                    }}
+                  />
+                ))
+              )}
+            </Stack>
+          </PageSection>
+        </TabsContent>
+        {state.scim === undefined || scim === undefined ? null : (
+          <TabsContent value="provisioning" className="pt-6">
+            <Provisioning scim={state.scim} {...scim} />
+          </TabsContent>
+        )}
+      </Tabs>
       <AddEndpoint
         open={adding}
         onOpenChange={setAdding}
@@ -297,10 +326,12 @@ function Directory({
   state,
   chatShown,
   scimShown,
+  onOpen,
 }: {
   readonly state: IntegrationsState;
   readonly chatShown: boolean;
   readonly scimShown: boolean;
+  readonly onOpen: (tab: string) => void;
 }): JSX.Element {
   const slack = state.chat?.apps.find((a) => a.key === 'slack');
   const live = state.endpoints.filter((e) => e.enabled);
@@ -320,7 +351,7 @@ function Directory({
             id: 'chat',
             name: 'Slack',
             mark: <AppMark app="slack" className="size-7" />,
-            says: 'Questions, approvals and reminders, answered right in Slack.',
+            says: 'Answer questions and approve changes in Slack.',
             status:
               slack.connection === null
                 ? { tone: 'neutral' as const, text: 'Not connected' }
@@ -333,7 +364,7 @@ function Directory({
       id: 'webhooks',
       name: 'Webhooks',
       mark: <icons.send aria-hidden className="size-6 text-fg-muted" />,
-      says: 'Tell payroll, benefits or any tool when somebody joins, moves or leaves.',
+      says: 'Notify other tools when people join, move or leave.',
       status:
         live.length === 0
           ? { tone: 'neutral', text: 'None yet' }
@@ -348,7 +379,7 @@ function Directory({
             id: 'provisioning',
             name: 'Provisioning',
             mark: <icons.people aria-hidden className="size-6 text-fg-muted" />,
-            says: 'Keep people in step with your identity provider, over SCIM.',
+            says: 'Sync people with your identity provider (SCIM).',
             status:
               scimLive.length === 0
                 ? { tone: 'neutral' as const, text: 'Not connected' }
@@ -377,10 +408,15 @@ function Directory({
               <p className="text-sm text-fg-muted">{c.says}</p>
             </CardContent>
             <CardFooter>
-              <Button asChild size="sm" variant="secondary">
-                <a href={`#${c.id}`} aria-label={`${c.action}: ${c.name}`}>
-                  {c.action}
-                </a>
+              <Button
+                size="sm"
+                variant="secondary"
+                aria-label={`${c.action}: ${c.name}`}
+                onClick={() => {
+                  onOpen(c.id);
+                }}
+              >
+                {c.action}
               </Button>
             </CardFooter>
           </Card>
@@ -408,7 +444,7 @@ function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element
   return (
     <PageSection
       surface
-      title="What can leave Kithena"
+      title="Data shared outside Kithena"
       description="A webhook sends only the fields you allow on it, and only to that tool. A chat app shows a value only for a field marked for the assistant, and only to somebody who may see it in Kithena. The assistant’s model learns field names, never values."
     >
       <Stack gap={4}>

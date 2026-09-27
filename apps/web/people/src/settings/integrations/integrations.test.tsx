@@ -9,6 +9,8 @@ import { Integrations, type IntegrationsProps, type IntegrationsState } from './
 
 /** The shell wraps every screen in a TooltipProvider; `CopyField` needs one. */
 const render = (ui: ReactElement) => mount(ui, { wrapper: TooltipProvider });
+/** The endpoints are on their own tab. */
+const openWebhooks = () => fast().click(screen.getByRole('tab', { name: 'Webhooks' }));
 
 const state: IntegrationsState = {
   schemaVersion: 4,
@@ -64,8 +66,9 @@ const allowlistOf = (url: string) => {
 describe('Integrations', () => {
   it('shows each endpoint, its health and what it receives', async () => {
     const { container } = render(<Integrations {...props()} />);
+    await openWebhooks();
     expect(
-      screen.getByText(/2 endpoints · 1,284 deliveries in the last day · schema version 4/),
+      screen.getByText(/2 endpoints · 1,284 deliveries in the last 24 hours/),
     ).toBeInTheDocument();
     expect(screen.getByText('Healthy')).toBeInTheDocument();
     expect(screen.getByText('3 retrying')).toBeInTheDocument();
@@ -77,6 +80,7 @@ describe('Integrations', () => {
     const user = fast();
     const onUpdate = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<Integrations {...props({ onUpdate })} />);
+    await openWebhooks();
     await user.click(allowlistOf('https://api.nominacloud.es/hooks/kithena'));
     expect(await screen.findByRole('option', { name: /Accommodation notes/ })).toHaveAttribute(
       'aria-disabled',
@@ -93,6 +97,7 @@ describe('Integrations', () => {
     const user = fast();
     const onUpdate = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<Integrations {...props({ onUpdate })} />);
+    await openWebhooks();
     await user.click(allowlistOf('https://api.nominacloud.es/hooks/kithena'));
     await user.click(await screen.findByRole('option', { name: /Cost centre/ }));
     await user.keyboard('{Escape}');
@@ -109,6 +114,7 @@ describe('Integrations', () => {
   it('shows a new signing secret once, to copy', async () => {
     const user = fast();
     render(<Integrations {...props()} />);
+    await openWebhooks();
     const section = screen.getByRole('region', {
       name: 'https://api.nominacloud.es/hooks/kithena',
     });
@@ -126,6 +132,7 @@ describe('Integrations', () => {
         })}
       />,
     );
+    await openWebhooks();
     const section = screen.getByRole('region', { name: 'https://acme.okta.com/scim/v2' });
     await user.click(within(section).getByRole('switch', { name: 'Enabled' }));
     expect(await within(section).findByText('hooks.example is not public')).toBeInTheDocument();
@@ -135,6 +142,7 @@ describe('Integrations', () => {
     const user = fast();
     const onCreate = vi.fn(() => Promise.resolve({ ok: true as const, secret: 'whsec_once' }));
     render(<Integrations {...props({ onCreate })} />);
+    await openWebhooks();
     await user.click(screen.getByRole('button', { name: 'Add endpoint' }));
     const dialog = await screen.findByRole('dialog');
     await user.type(
@@ -171,6 +179,7 @@ describe('Integrations', () => {
     rerender(
       <Integrations {...props({ load: { status: 'ready', data: { ...state, endpoints: [] } } })} />,
     );
+    await openWebhooks();
     expect(screen.getByText('No third-party tools connected')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
