@@ -932,6 +932,52 @@ describe('PEO-121: the webhook delivery log', () => {
   });
 });
 
+describe('Employee fields: a field from a template, explained, then published', () => {
+  it('adds T-shirt size in four steps, says when it is asked, and publishes it', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/settings/fields`);
+    await page.getByRole('heading', { name: 'Employee fields' }).waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+
+    await page.getByRole('button', { name: 'Add field' }).click();
+    const sheet = page.getByRole('dialog', { name: 'New field' });
+    await sheet.getByRole('button', { name: 'T-shirt size' }).click();
+    await sheet.getByRole('button', { name: 'Next' }).click();
+    await sheet.getByRole('group', { name: 'Who can see it?' }).waitFor();
+    await sheet.getByRole('button', { name: 'Next' }).click();
+    // Each moment it can be asked, with what it does.
+    const onboarding = sheet.getByRole('radio', { name: 'During onboarding' });
+    expect(await onboarding.isChecked()).toBe(true);
+    expect(await onboarding.getAttribute('aria-describedby')).toBeTruthy();
+    await sheet.getByRole('button', { name: 'Next' }).click();
+    await sheet
+      .getByText(/The employee is asked for their T-shirt size during onboarding\./)
+      .waitFor({ timeout: 30_000 });
+    // The least protection offered: whatever the suggestion, never below its floor.
+    const least = sheet
+      .getByRole('group', { name: 'What kind of data is this?' })
+      .getByRole('radio')
+      .last();
+    await least.waitFor({ timeout: 30_000 });
+    await least.click();
+    await sheet.getByRole('button', { name: 'Add field' }).click();
+    await sheet.waitFor({ state: 'detached', timeout: 30_000 });
+
+    await page.getByRole('button', { name: /^Publish version/ }).click();
+    const dialog = page.getByRole('dialog', { name: /^Publish/ });
+    await dialog.getByRole('button', { name: /^Publish version/ }).click({ timeout: 30_000 });
+    await eventually(
+      'the published field',
+      () => stack.sql<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM people.schema_version
+         WHERE tenant_id = ${TENANT} AND document::text LIKE '%t_shirt_size%'`,
+      ([row]) => (row?.n ?? 0) > 0,
+    );
+    await context.close();
+  });
+});
+
 // Last: it adds two people, which the counts in the tests above would see.
 describe('PEO-122: what is about to expire, to whom', () => {
   it('shows HR a permit expiring in 30 days; a manager outside the chain does not see it', async () => {
