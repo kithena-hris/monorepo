@@ -104,7 +104,7 @@ services:
         limits: { memory: 160m, cpus: '0.5' }
 
   # The outbox relay: Debezium Server, one per database, each tailing one
-  # outbox and publishing its rows to Redpanda (`debezium.properties` has the
+  # outbox and publishing its rows to Redpanda (`debezium.env` has the
   # shared settings and why). Started by `deploy.sh migrate`, after the
   # migration that makes their publication and role.
   #
@@ -115,6 +115,7 @@ services:
   relay-people:
     image: &relay-image quay.io/debezium/server:3.6.3.Final@sha256:e1c8e29cbb0c44f3cd9b742222e7899520ed1c210906ba071e80dbb8b987d0bd
     restart: unless-stopped
+    env_file: debezium.env
     environment:
       OTEL_ENABLED: 'false'
       JAVA_OPTS: &relay-java -Xms32m -Xmx64m -XX:MaxMetaspaceSize=80m -XX:ReservedCodeCacheSize=24m -XX:MaxDirectMemorySize=16m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:CICompilerCount=1
@@ -129,9 +130,7 @@ services:
       # it was decided. The slot lives on this VM's own Postgres, so it is not
       # lost short of a restore.
       DEBEZIUM_SOURCE_SNAPSHOT_MODE: no_data
-    volumes:
-      - ./debezium.properties:/debezium/config/application.properties:ro
-      - relay-people:/debezium/data
+    volumes: [relay-people:/debezium/data]
     healthcheck: &relay-health
       test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/q/health']
       interval: 30s
@@ -155,16 +154,14 @@ services:
   relay-identity:
     image: *relay-image
     restart: unless-stopped
-    env_file: relay.env
+    env_file: [debezium.env, relay.env]
     environment:
       OTEL_ENABLED: 'false'
       JAVA_OPTS: *relay-java
       DEBEZIUM_SOURCE_DATABASE_SSLMODE: require
       DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: platform.outbox
       DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_identity
-    volumes:
-      - ./debezium.properties:/debezium/config/application.properties:ro
-      - relay-identity:/debezium/data
+    volumes: [relay-identity:/debezium/data]
     healthcheck: *relay-health
     depends_on:
       redpanda: { condition: service_healthy }
