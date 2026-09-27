@@ -42,6 +42,9 @@ chmod 700 "$root" "$dir"
 cp "$here/compose.yaml" "$here/compose.staging.yaml" "$here/debezium.properties" "$dir/"
 touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/secrets.env" "$dir/relay.env"
 chmod 600 "$dir"/*
+# Read by the relays, which run as the image's own user (uid 185), not root.
+# Settings only; the password comes from the environment.
+chmod 644 "$dir/debezium.properties"
 
 get() { sed -n "s/^$1=//p" "$dir/state.env" | tail -n 1; }
 put() {
