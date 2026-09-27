@@ -65,7 +65,7 @@ describe('reason', () => {
   });
 
   it('rebuilds both VM images when the Compose files change', () => {
-    expect(chosen(change(['deploy/vm/compose.yaml']))).toEqual(['people', 'router']);
+    expect(chosen(change(['deploy/vm/compose.yaml']))).toEqual(['people', 'slack', 'router']);
   });
 
   it("rebuilds the router for People's schema, not for the rest of People", () => {

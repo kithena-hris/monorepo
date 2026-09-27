@@ -210,6 +210,8 @@ async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>
 const str = (v: unknown, max = 500) => (typeof v === 'string' && v.length > 0 && v.length <= max ? v : null);
 
 async function route(request: IncomingMessage): Promise<{ status: number; body: unknown }> {
+  // For the container's healthcheck and the deploy: up, and nothing more.
+  if (request.url === '/health' && request.method === 'GET') return { status: 200, body: { ok: true } };
   if (!presents(request)) return { status: 401, body: { message: 'Not People' } };
   const path = new URL(request.url ?? '/', 'http://slack.internal');
   const body = request.method === 'GET' ? {} : await bodyOf(request);

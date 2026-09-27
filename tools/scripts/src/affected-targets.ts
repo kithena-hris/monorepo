@@ -44,6 +44,9 @@ export const TARGETS = {
   'people-remote': { packages: ['@kithena/web-people'] },
   // The image is People plus the Compose files that run it on the VM.
   people: { packages: ['@kithena/people'], paths: [/^deploy\/vm\//u] },
+  // The Slack service: a container beside People on the VM, holding the
+  // Socket Mode connection a serverless function could not.
+  slack: { packages: ['@kithena/slack'], paths: [/^deploy\/vm\//u] },
   // The router image bakes in the supergraph, composed from People's schema,
   // and `apps/gateway` holds its config and the persisted operations.
   router: {
@@ -64,6 +67,7 @@ export const ENV_TARGETS: Record<Env, readonly Target[]> = {
     'migrations',
     'people',
     'router',
+    'slack',
     'people-remote',
     'shell',
     'identity',
@@ -231,7 +235,9 @@ function main(argv: string[]): void {
     lines.push(`${target}=${String(why !== null)}`);
     if (why !== null) chosen.push(target);
   }
-  const vm = chosen.some((t) => t === 'people' || t === 'router' || t === 'migrations');
+  const vm = chosen.some(
+    (t) => t === 'people' || t === 'router' || t === 'slack' || t === 'migrations',
+  );
   lines.push(`vm=${String(vm)}`, `any=${String(chosen.length > 0)}`, `targets=${chosen.join(',')}`);
   const out = process.env['GITHUB_OUTPUT'];
   if (out) appendFileSync(out, `${lines.join('\n')}\n`);

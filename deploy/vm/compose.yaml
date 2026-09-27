@@ -68,6 +68,41 @@ services:
       resources:
         limits: { memory: 768m, cpus: '1.0' }
 
+  # Slack, the first chat app (`platform/slack`): Socket Mode, so it dials out
+  # to Slack and publishes nothing, like everything here. People reaches it at
+  # `http://slack:4102` and it reaches People at `http://people:4001`, both
+  # with `SLACK_PEOPLE_TOKEN`. Its own schema in People's database, as
+  # `svc_slack`. Optional: with no `slack.env` settings it starts and stays off.
+  slack:
+    image: ${SLACK_IMAGE:?SLACK_IMAGE is set by deploy.sh}
+    restart: unless-stopped
+    env_file: slack.env
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=96
+      PEOPLE_URL: http://people:4001
+      SLACK_DATABASE_URL: postgres://svc_slack:${SLACK_DB_PASSWORD:?SLACK_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4102/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 3s
+      retries: 3
+    depends_on:
+      postgres: { condition: service_healthy }
+      people: { condition: service_started }
+    deploy:
+      resources:
+        limits: { memory: 160m, cpus: '0.5' }
+
   # Distroless: no shell to run a healthcheck in. `deploy.sh` asks
   # `/health/ready` from the People container instead.
   router:
