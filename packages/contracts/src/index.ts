@@ -19,3 +19,4 @@ export * from './people/policy.js';
 export * from './people/attribute-definition.js';
 export * from './account-directory.js';
 export * from './module-roles.js';
+export * from './signup-questions.js';

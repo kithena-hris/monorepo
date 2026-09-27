@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AccountProfileCaptured } from './identity.js';
+import { AccountProfileCaptured, AccountSignupAnswered } from './identity.js';
 
 /**
  * What the enrolment event is allowed to carry.
@@ -53,5 +53,34 @@ describe('identity.account.profile_captured', () => {
 
   it('accepts the shape the aggregate raises', () => {
     expect(AccountProfileCaptured.payload.safeParse(payload).success).toBe(true);
+  });
+});
+
+/**
+ * The values ride this event, which is acceptable only because they can be
+ * nothing but flat answers to questions classified no higher than internal.
+ */
+describe('identity.account.signup_answered', () => {
+  const payload = {
+    accountId: '00000000-0000-4000-8000-0000000000a1',
+    schemaVersion: 3,
+    answers: { t_shirt: 'm', years_experience: 4, badge_photo_ok: true },
+    answeredAt: '2026-09-27T09:00:00.000Z',
+  };
+
+  it('accepts the shape the aggregate raises', () => {
+    expect(AccountSignupAnswered.payload.safeParse(payload).success).toBe(true);
+  });
+
+  it('refuses an answer that is an object or a list', () => {
+    for (const bad of [{ line1: 'x' }, ['a']]) {
+      const answers = { ...payload.answers, address: bad };
+      expect(AccountSignupAnswered.payload.safeParse({ ...payload, answers }).success).toBe(false);
+    }
+  });
+
+  it('refuses a key the registry could not hold', () => {
+    const answers = { 'Not A Key': 'x' };
+    expect(AccountSignupAnswered.payload.safeParse({ ...payload, answers }).success).toBe(false);
   });
 });

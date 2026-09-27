@@ -10,11 +10,11 @@ import {
 } from '@kithena/domain-kit';
 import { TenantId, type Actor } from '@kithena/contracts';
 
-import type { CapturedProfile } from '../../shared/captured-profile.js';
+import type { CapturedProfile, SignupAnswers } from '../../shared/captured-profile.js';
 
 import { allocateSlot, type Session, type SessionDevice, type SlotAllocation } from './session.js';
 
-export type { CapturedProfile };
+export type { CapturedProfile, SignupAnswers };
 
 /**
  * One human at one company, and the devices they are signed in on.
@@ -272,10 +272,20 @@ export class Account extends AggregateRoot<string> {
    * and one identity's passkey serves every account they hold. Revoking is
    * therefore a decision about the *identity*, made where that is visible.
    */
-  recover(credentialId: string, ctx: EventContext): Result<void> {
+  recover(
+    credentialId: string,
+    ctx: EventContext,
+    captured?: CapturedProfile,
+    answers?: SignupAnswers,
+  ): Result<void> {
     if (this.#status !== 'active') return err(InvalidTransition(this.#status, 'recovered'));
 
     this.#raise('identity.account.recovered', { accountId: this.id, credentialId }, ctx);
+    // What the recovery form asked, when it asked: a name for an account that
+    // had none, one the person corrected, or a sign-up question they had not
+    // answered. Published exactly as a first enrolment publishes it, so People
+    // hears a correction whichever link it came through.
+    this.#announce(ctx, captured, answers);
     return ok(undefined);
   }
 
@@ -292,7 +302,12 @@ export class Account extends AggregateRoot<string> {
    * names: People needs it, and reading `platform.account` across a service
    * boundary is not how this system answers that.
    */
-  enrol(credentialId: string, ctx: EventContext, captured?: CapturedProfile): Result<void> {
+  enrol(
+    credentialId: string,
+    ctx: EventContext,
+    captured?: CapturedProfile,
+    answers?: SignupAnswers,
+  ): Result<void> {
     if (this.#status !== 'invited') return err(InvalidTransition(this.#status, 'enrolled'));
 
     if (ctx.clock.date(this.#timeZone) < this.#employmentStart) {
@@ -305,7 +320,12 @@ export class Account extends AggregateRoot<string> {
 
     this.#status = 'active';
     this.#raise('identity.account.enrolled', { accountId: this.id, credentialId }, ctx);
+    this.#announce(ctx, captured, answers);
+    return ok(undefined);
+  }
 
+  /** What the form captured, after the event that made the account usable. */
+  #announce(ctx: EventContext, captured?: CapturedProfile, answers?: SignupAnswers): void {
     if (captured) {
       this.#raise(
         'identity.account.profile_captured',
@@ -321,7 +341,19 @@ export class Account extends AggregateRoot<string> {
       );
     }
 
-    return ok(undefined);
+    // The values are forwarded and never kept here; see `SignupAnswers`.
+    if (answers && Object.keys(answers.answers).length > 0) {
+      this.#raise(
+        'identity.account.signup_answered',
+        {
+          accountId: this.id,
+          schemaVersion: answers.schemaVersion,
+          answers: answers.answers,
+          answeredAt: ctx.clock.instant(),
+        },
+        ctx,
+      );
+    }
   }
 
   /** Sign a device in, evicting the least recently used one if there is no room. */
