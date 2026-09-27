@@ -80,8 +80,22 @@ async function eventually<T>(
   return last;
 }
 
-/** People's own navigation, beside every People screen on a wide window. */
-const sections = (page: Page) => page.getByRole('navigation', { name: 'People sections' });
+/** The People item in the shell's sidebar, which People's sections hang off. */
+const peopleItem = (page: Page) =>
+  page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name: 'People' });
+
+/**
+ * People's own navigation, opened the way a keyboard opens it: focus on the
+ * People item in the sidebar brings its sections out beside it, and they are
+ * next in Tab order.
+ */
+async function sections(page: Page) {
+  await page.waitForLoadState('networkidle');
+  await peopleItem(page).focus();
+  const nav = page.getByRole('navigation', { name: 'People sections' });
+  await nav.waitFor();
+  return nav;
+}
 
 const person = (id: string) =>
   stack.sql<{ given_name: string | null; family_name: string | null; status: string }[]>`
@@ -576,7 +590,7 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
 
     // Reached from People's own navigation, not typed.
     await page.goto(`${stack.shell}/people`);
-    await sections(page).getByRole('link', { name: 'Organisation' }).click();
+    await (await sections(page)).getByRole('link', { name: 'Organisation' }).click();
     await page.waitForURL(/\/people\/settings\/organisation$/);
     await page.waitForLoadState('networkidle');
 
@@ -805,7 +819,7 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const asks = await finance.newPage();
     await asks.goto(`${stack.shell}/people`);
-    await sections(asks).getByRole('link', { name: 'Full values' }).click();
+    await (await sections(asks)).getByRole('link', { name: 'Full values' }).click();
     await asks.waitForURL(/\/people\/full-values$/);
     await asks.waitForLoadState('networkidle');
     await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
@@ -1063,7 +1077,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // HR sees what the checks found, reveals the held value, and accepts it.
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
-    await sections(reviews).getByRole('link', { name: 'Identifiers to review' }).click();
+    await (await sections(reviews)).getByRole('link', { name: 'Identifiers to review' }).click();
     await reviews.waitForURL(/\/people\/identifier-reviews$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('table', { name: 'Identifiers to review' });
@@ -1323,13 +1337,26 @@ describe('People inside the shell: its sections, and always a way to add somebod
       (rows) => rows.length === 1,
     );
 
-    // The shell's sidebar and People's sections, both on screen, around the screen.
+    // The shell's sidebar, and People's sections only when asked for: the
+    // screen has the width until then.
     await page.goto(`${shell}/people`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
-    const nav = sections(page);
-    expect(await nav.isVisible()).toBe(true);
+    const closed = page.getByRole('navigation', { name: 'People sections' });
+    expect(await closed.count()).toBe(0);
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
+    // Hover opens them, after a moment, beside People.
+    await peopleItem(page).hover();
+    await closed.waitFor();
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
+    // Escape closes them.
+    await page.keyboard.press('Escape');
+    await closed.waitFor({ state: 'detached' });
+    await page.mouse.move(900, 600);
+    const nav = await sections(page);
     expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+    // People's front page needs no trail; a section under it gets one.
+    expect(await page.getByRole('navigation', { name: 'Breadcrumb' }).count()).toBe(0);
 
     // A marker on the window: it survives a client-side move and not a reload.
     await page.evaluate(() => {
@@ -1341,6 +1368,10 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.waitForURL(/\/people\/directory$/);
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
+    // Where you are stays on screen once the sections close.
+    expect(
+      await page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Directory').isVisible(),
+    ).toBe(true);
 
     // One Add employee on the screen, beside the sections: never repeated in
     // the header or the empty state.
@@ -1357,7 +1388,8 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // On its own screen the form's button is the only Add employee, and no
     // section is current.
     expect(await add.count()).toBe(0);
-    expect(await nav.locator('[aria-current="page"]').count()).toBe(0);
+    expect(await (await sections(page)).locator('[aria-current="page"]').count()).toBe(0);
+    await page.keyboard.press('Escape');
     await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
     await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
     await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
@@ -1369,28 +1401,45 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // Her record, to fill in the rest, under the Directory; and she is in it.
     await page.waitForURL(/\/people\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
-    expect(await nav.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe(
-      'page',
-    );
+    expect(
+      await (await sections(page)).getByRole('link', { name: 'Directory' }).getAttribute('aria-current'),
+    ).toBe('page');
     const [lena] = await stack.sql<{ status: string; hire_date: string | null }[]>`
       SELECT status, hire_date::text FROM people.person
        WHERE tenant_id = ${GLOBEX.tenant} AND work_email = 'lena@globex.example'`;
     expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
-    await nav.getByRole('link', { name: 'Directory' }).click();
+    await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory$/);
     await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
     // Counts that say what the list holds: everybody, then who is active.
     await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
     expect(await kept()).toBe(true);
 
-    // Every section stays inside the shell: a client-side move, the sidebar
-    // still there, and never another origin.
-    const hrefs = await nav
+    // Every section is reachable from the keyboard and stays inside the shell:
+    // focus on People, ArrowRight into its sections, Tab to the one wanted,
+    // Enter — a client-side move, the sidebar still there, never another origin.
+    const hrefs = await (await sections(page))
       .getByRole('link')
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs).toContain('/people/import');
     for (const href of hrefs) {
-      await nav.locator(`a[href="${href}"]`).click();
+      await sections(page);
+      await page.keyboard.press('ArrowRight');
+      // ArrowRight moves focus into the sections, once they have drawn.
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.activeElement?.closest('[aria-label="People sections"]') != null,
+          ),
+        )
+        .toBe(true);
+      for (let tabs = 0; tabs <= hrefs.length; tabs += 1) {
+        const at = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
+        if (at === href) break;
+        await page.keyboard.press('Tab');
+      }
+      expect(await page.evaluate(() => document.activeElement?.getAttribute('href'))).toBe(href);
+      await page.keyboard.press('Enter');
       await page.waitForURL((url) => url.pathname === href);
       expect(new URL(page.url()).origin).toBe(new URL(shell).origin);
       expect(await kept()).toBe(true);
@@ -1402,8 +1451,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const theirs = await employee.newPage();
     await theirs.goto(`${stack.shell}/people/directory`);
-    await sections(theirs).waitFor();
-    expect(await sections(theirs).getByRole('link', { name: 'Import' }).count()).toBe(0);
+    expect(await (await sections(theirs)).getByRole('link', { name: 'Import' }).count()).toBe(0);
     expect(await theirs.getByRole('link', { name: 'Add employee' }).count()).toBe(0);
     expect(await theirs.getByRole('button', { name: 'Add employee' }).count()).toBe(0);
     await employee.close();

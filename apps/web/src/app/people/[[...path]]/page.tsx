@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { AppShell } from '../../../components/app-shell';
-import { PeopleNav } from '../../../components/people-nav';
+import { PeopleBar, PeopleSections } from '../../../components/people-nav';
 import { PeopleScreen } from '../../../components/people-screen';
 import { WorkspaceAsleep } from '../../../components/workspace-asleep';
 import { currentTenant } from '../../../lib/branding';
@@ -85,19 +85,30 @@ export default async function People({
       companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
+      // People's sections hang off its sidebar item, on demand; the screen
+      // keeps the full width.
+      sections={
+        places.sections.length === 0
+          ? {}
+          : {
+              '/people': (
+                <PeopleSections sections={places.sections} route={route?.path ?? null} />
+              ),
+            }
+      }
     >
       {/* Nothing answered at the router and the VM can be woken: wake it. */}
       {load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
         <WorkspaceAsleep />
       ) : (
-        // The shell's sidebar, then People's own sections, then the screen.
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-          <PeopleNav
+        // Where you are in People and what you can start, then the screen.
+        <div className="flex flex-col gap-6">
+          <PeopleBar
             sections={places.sections}
             actions={places.actions}
             route={route?.path ?? null}
           />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <PeopleScreen
               route={
                 route === null

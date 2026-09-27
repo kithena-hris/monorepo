@@ -11,7 +11,7 @@ vi.mock('next/link', () => ({
   default: (props: ComponentPropsWithoutRef<'a'>) => <a data-next-link="" {...props} />,
 }));
 
-const { PeopleNav, currentPlace } = await import('./people-nav');
+const { PeopleBar, PeopleSections, currentPlace } = await import('./people-nav');
 const { placesFor } = await import('../lib/remotes');
 const manifest = (await import('../../people/public/routes.json')).default;
 
@@ -21,10 +21,22 @@ afterEach(() => {
 
 const nav = { sections: manifest.sections, actions: manifest.actions };
 
-describe('PeopleNav', () => {
+/** The flyout's sections and the bar above the screen, as one People screen draws them. */
+function People(props: Parameters<typeof PeopleBar>[0]) {
+  return (
+    <>
+      <PeopleSections sections={props.sections} route={props.route} />
+      <main>
+        <PeopleBar {...props} />
+      </main>
+    </>
+  );
+}
+
+describe('PeopleSections and PeopleBar', () => {
   it('lists HR’s sections as client-side links, marks the current one, and offers adding somebody', async () => {
     const { container } = render(
-      <PeopleNav
+      <People
         {...placesFor(nav, { hr: true, admin: false, finance: false })}
         route="/people/directory"
       />,
@@ -38,6 +50,10 @@ describe('PeopleNav', () => {
     expect(screen.getByRole('link', { name: 'Add employee' }).getAttribute('href')).toBe(
       '/people/new',
     );
+    // Where you are, above the screen: People, then the section.
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    expect(trail.getByRole('link', { name: 'People' }).getAttribute('href')).toBe('/people');
+    expect(trail.getByText('Directory').getAttribute('aria-current')).toBe('page');
     const result = await axe.run(container, {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
     });
@@ -46,7 +62,7 @@ describe('PeopleNav', () => {
 
   it('shows an employee only what their roles open, and no way to add anybody', () => {
     render(
-      <PeopleNav
+      <People
         {...placesFor(nav, { hr: false, admin: false, finance: false })}
         route="/people/me"
       />,
@@ -79,16 +95,17 @@ describe('currentPlace', () => {
 
   it('marks the section of a profile, and leaves Add employee off its own screen', () => {
     const hr = placesFor(nav, { hr: true, admin: false, finance: false });
-    const { unmount } = render(<PeopleNav {...hr} route="/people/:id" />);
+    const { unmount } = render(<People {...hr} route="/people/:id" />);
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
     expect(links.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Add employee' })).toBeTruthy();
     unmount();
 
     // Its form's own Add employee is the only one there; no section is current.
-    render(<PeopleNav {...hr} route="/people/new" />);
+    render(<People {...hr} route="/people/new" />);
     expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
-    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    const sections = screen.getByRole('navigation', { name: 'People sections' });
+    expect(sections.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
   });
 
   it('is nothing for a route no place claims', () => {
