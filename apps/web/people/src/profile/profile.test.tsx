@@ -314,3 +314,113 @@ describe('Profile', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('Profile: what is missing', () => {
+  /**
+   * Ada's own record: two gaps People's verdict names — one hers to give, one
+   * HR's — and a field required only of other people, empty here and not a gap.
+   */
+  const own: ProfileState = {
+    person: { ...person, name: 'Ada Lovelace', missing: 2, canChangePhoto: true },
+    sections: [
+      {
+        key: 'personal',
+        label: 'Personal information',
+        visibility: ['self', 'hr'],
+        readsLogged: false,
+        fields: [
+          field({ key: 'phone', label: 'Personal phone', readOnly: false }),
+          field({
+            key: 'emergency_contact',
+            label: 'Emergency contact',
+            readOnly: false,
+            required: true,
+            missing: true,
+          }),
+          // Required of contractors only: empty on Ada's record, and not missing.
+          field({ key: 'agency', label: 'Agency', readOnly: false, required: false, missing: false }),
+        ],
+      },
+      {
+        key: 'employment',
+        label: 'Employment',
+        visibility: ['self', 'hr'],
+        readsLogged: false,
+        fields: [
+          field({ key: 'job_title', label: 'Job title', required: true }),
+          field({
+            key: 'cost_centre',
+            label: 'Cost centre',
+            required: true,
+            missing: true,
+            ownedBy: 'HR',
+          }),
+        ],
+      },
+    ],
+    values: { phone: '+34 600 000 000', job_title: 'Engineer' },
+  };
+
+  it('marks each gap in place, counts them per section and overall, in words', async () => {
+    const { container } = render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
+    expect(
+      screen.getByText(
+        (_, el) => el?.tagName === 'P' && el.textContent === '2 of 3 required details missing',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('1 missing')).toHaveLength(2);
+    expect(screen.getAllByText('Missing')).toHaveLength(2);
+    expect(screen.getByText('Not provided yet. HR fills this in.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Emergency contact' })).toBeInTheDocument();
+    // Only what the verdict says: an empty field required of somebody else is not a gap.
+    const agency = screen.getByText('Agency').closest('dt');
+    expect(agency).not.toHaveTextContent('Missing');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('opens a linked gap in its section with the cursor in it, and says it is missing', () => {
+    render(
+      <Profile
+        load={{ status: 'ready', data: own }}
+        onSave={vi.fn()}
+        focusField="emergency_contact"
+      />,
+    );
+    const input = screen.getByRole('textbox', { name: /Emergency contact/ });
+    expect(input).toHaveFocus();
+    expect(input).toHaveAccessibleDescription(/Missing: this is required/);
+  });
+
+  it('fills in the first gap from the header', async () => {
+    const user = fast();
+    render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Fill in the first' }));
+    expect(screen.getByRole('textbox', { name: /Emergency contact/ })).toHaveFocus();
+  });
+
+  it('lets the person change their photo, and hands the file to the shell', async () => {
+    const user = fast();
+    const onPhoto = vi.fn(() =>
+      Promise.resolve({ ok: true as const, avatarUrl: '/people/photos/x?v=1' }),
+    );
+    const { container, rerender } = render(
+      <Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} onPhoto={onPhoto} />,
+    );
+    // jsdom has no object URLs; the picker's preview needs one.
+    URL.createObjectURL = vi.fn(() => 'blob:preview');
+    URL.revokeObjectURL = vi.fn();
+    const file = new File(['png'], 'me.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText('Photo'), file);
+    expect(onPhoto).toHaveBeenCalledWith(file);
+    expect(await axeViolations(container)).toEqual([]);
+    // Somebody who may not change it sees the photo, not a picker.
+    rerender(
+      <Profile
+        load={{ status: 'ready', data: { ...own, person: { ...own.person, canChangePhoto: false } } }}
+        onSave={vi.fn()}
+        onPhoto={onPhoto}
+      />,
+    );
+    expect(screen.queryByLabelText('Photo')).toBeNull();
+  });
+});

@@ -10,6 +10,7 @@ import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
 import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
+import type { PhotoStore } from './photo.js';
 import type {
   FormValue,
   FormValues,
@@ -41,6 +42,8 @@ export interface ScreenDeps {
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
   /** Saved segments (PEO-068). Absent, their routes answer UNAVAILABLE. */
   readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
+  /** People's photos. Absent, nobody has one and none may be set. */
+  readonly photos?: PhotoStore;
 }
 
 /** HR's share of the completeness grid, counted over everybody (PEO-122). */
@@ -140,6 +143,7 @@ function fieldOf(
     dataType: d.dataType,
     options,
     required: d.requiredness.mode === 'always' || missing.has(d.key),
+    missing: missing.has(d.key),
     readOnly,
     ...(config.kind === 'money' && config.currency !== null ? { currency: config.currency } : {}),
     ...(readOnly ? { ownedBy: keptIn ?? ownedBy(d) } : {}),

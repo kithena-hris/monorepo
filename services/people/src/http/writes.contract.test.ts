@@ -32,6 +32,8 @@ const SAFE = [
   'POST /v1/imports/uploads',
   'POST /v1/imports/uploads/{id}/complete',
   'POST /v1/imports/dry-run',
+  // A photo's upload: a retried start is a fresh upload. Keeping it is keyed.
+  'POST /v1/views/photos/uploads',
   // PEO-125: a check that stores nothing, and an audited read.
   'POST /v1/views/me/identifier-check',
   'POST /v1/views/people/{id}/identifier-check',

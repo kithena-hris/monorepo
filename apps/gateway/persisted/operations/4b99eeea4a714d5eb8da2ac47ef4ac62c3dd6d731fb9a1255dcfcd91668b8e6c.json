@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CompletePhotoUpload($personId: ID, $uploadId: ID!, $key: String!) {\n    completePhotoUpload(personId: $personId, uploadId: $uploadId, idempotencyKey: $key) { avatarUrl }\n  }"}

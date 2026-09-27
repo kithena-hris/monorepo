@@ -635,6 +635,41 @@ export async function startImportUpload(file: {
   };
 }
 
+/* -------------------------------------------------------------- photos -- */
+
+/**
+ * Where to put a person's photo (no id: the viewer's own): a presigned PUT,
+ * as an import's file. The browser has already shrunk it.
+ */
+export async function startPhotoUpload(personId: string | null, size: number): Promise<UploadTarget> {
+  const answer = await people<{
+    uploadId: string;
+    url: string;
+    method: string;
+    headers: { name: string; value: string }[];
+  }>('StartPhotoUpload', { personId, size });
+  if (!answer.ok) return { ok: false, message: answer.message };
+  return {
+    ok: true,
+    uploadId: answer.data.uploadId,
+    url: answer.data.url,
+    method: answer.data.method,
+    headers: Object.fromEntries(answer.data.headers.map((h) => [h.name, h.value])),
+  };
+}
+
+export async function completePhotoUpload(
+  personId: string | null,
+  uploadId: string,
+): Promise<{ readonly ok: true; readonly avatarUrl: string | null } | { readonly ok: false; readonly message: string }> {
+  const a = await people<{ avatarUrl: string | null }>('CompletePhotoUpload', { personId, uploadId });
+  return a.ok ? { ok: true, avatarUrl: a.data.avatarUrl } : { ok: false, message: a.message };
+}
+
+export async function removePhoto(personId: string | null): Promise<Outcome> {
+  return outcome(people('RemovePhoto', { personId }));
+}
+
 export type Staged = { ok: true; stage: unknown } | { ok: false; message: string };
 
 const staged = async (answer: Promise<PeopleAnswer<Record<string, unknown>>>): Promise<Staged> => {

@@ -94,6 +94,22 @@ describe('Directory', () => {
     expect(onFiltersChange).toHaveBeenCalledWith({ cost_centre: 'ENG-201' });
   });
 
+  it('lets HR narrow to people with something missing, through the shell', async () => {
+    const user = fast();
+    const onIncompleteChange = vi.fn();
+    const { rerender } = render(<Directory {...props({ onIncompleteChange })} />);
+    await user.click(screen.getByRole('combobox', { name: 'Record' }));
+    await user.click(await screen.findByRole('option', { name: 'Record: has missing information' }));
+    expect(onIncompleteChange).toHaveBeenCalledWith(true);
+    // Nobody but HR is counted, so nobody else is offered it.
+    rerender(
+      <Directory
+        {...props({ onIncompleteChange, load: { status: 'ready', data: { ...state, incomplete: null } } })}
+      />,
+    );
+    expect(screen.queryByRole('combobox', { name: 'Record' })).toBeNull();
+  });
+
   it('opens a person', async () => {
     const user = fast();
     const onOpen = vi.fn();

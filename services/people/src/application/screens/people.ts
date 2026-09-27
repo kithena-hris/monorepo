@@ -4,7 +4,9 @@ import { requiresApproval, type Actor, type AttributeDefinition } from '@kithena
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
 import { visibleTo } from '../../domain/access/field-access.js';
-import { filterable, type Asking, type PersonView } from '../person/person-access.js';
+import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
+import { mayChangePhoto } from '../../domain/person/photo.js';
+import { avatarsOf } from './photo.js';
 import { run } from '../person/service.js';
 import { LEAVERS } from '../person/ports.js';
 import { segmentFor, segmentsFor } from './segments.js';
@@ -171,13 +173,23 @@ export async function onboardingView(
   });
 }
 
-async function ownRecord(
+/** A record as its screens draw it: the read, its sections, and what is missing of it. */
+export interface OwnRecord {
+  readonly view: PersonView;
+  readonly sections: RecordSection[];
+  readonly version: NonNullable<Awaited<ReturnType<ScreenDeps['service']['schemas']['current']>>>;
+  /** How many required values are missing; null when this viewer is not shown it. */
+  readonly missing: number | null;
+  readonly reviews: IdentifierReviewEntry[];
+}
+
+export async function ownRecord(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
   personId: string,
   include: (d: AttributeDefinition) => boolean,
-) {
+): Promise<Result<OwnRecord>> {
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
   const view = await deps.service.access.read(tx, { ...asking, personId });
@@ -227,6 +239,8 @@ export interface ProfileView {
     readonly summary: string | null;
     readonly avatarUrl: string | null;
     readonly missing: number | null;
+    /** The viewer may choose their photo: it is theirs, or they are HR. */
+    readonly canChangePhoto: boolean;
   };
   readonly sections: readonly (RecordSection & { readonly readsLogged: boolean })[];
   readonly values: FormValues;
@@ -289,7 +303,7 @@ export async function profileView(
       ? await deps.service.access.employmentPeriods(tx, { ...asking, personId: id.value })
       : null;
     const title = view.attributes['job_title'];
-    const photo = view.attributes['photo'];
+    const avatars = await avatarsOf(deps, tx, asking.tenantId, [id.value]);
 
     // Entities and locations by name, and the placement control for HR.
     const org = await deps.calendars.load(tx, asking.tenantId);
@@ -331,8 +345,9 @@ export async function profileView(
       person: {
         name: nameOf(view.attributes) ?? 'Unnamed',
         summary: typeof title === 'string' ? title : null,
-        avatarUrl: typeof photo === 'string' && photo.startsWith('https://') ? photo : null,
+        avatarUrl: avatars.get(id.value) ?? null,
         missing: record.value.missing,
+        canChangePhoto: deps.photos !== undefined && mayChangePhoto(relations),
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,
@@ -610,7 +625,7 @@ export async function historyView(
  * Who made each change, in words the viewer may read. A person is named only
  * if this viewer can read their name; otherwise "A colleague".
  */
-async function actors(
+export async function actors(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
@@ -945,6 +960,8 @@ export async function directoryView(
     readonly after?: string | null;
     /** A saved segment's filter, under any typed alongside it (PEO-068). */
     readonly segmentId?: string;
+    /** Only people with a required detail missing: HR's alone. */
+    readonly incomplete?: boolean;
   },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
@@ -958,10 +975,19 @@ export async function directoryView(
     const segment =
       query.segmentId === undefined ? null : await segmentFor(deps, tx, asking, query.segmentId);
     if (segment !== null && !segment.ok) return segment;
+    // Missing anything the viewer may see on everybody: HR's, as the grid is.
+    const gaps =
+      query.incomplete === true
+        ? {
+            gaps: definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
+            gapsIn: 'any' as const,
+          }
+        : {};
     const narrowed = {
       ...asking,
       where: { ...segment?.value.filter, ...query.filters },
       ...(query.search.trim() === '' ? {} : { search: query.search }),
+      ...gaps,
     };
     const listed = await deps.service.access.list(tx, {
       ...narrowed,
@@ -994,14 +1020,54 @@ export async function directoryView(
       const name = read.ok ? nameOf(read.value.attributes) : null;
       if (name !== null) names.set(personId, name);
     }
+    // Who reports to whom, when the directory is narrowed by it: named, so
+    // the filter shows as one the viewer can clear.
+    const reportsTo = query.filters[REPORTS_TO];
+    if (reportsTo !== undefined && !names.has(reportsTo)) {
+      const read = await deps.service.access.read(tx, { ...asking, personId: reportsTo });
+      const name = read.ok ? nameOf(read.value.attributes) : null;
+      if (name !== null) names.set(reportsTo, name);
+    }
+    const avatars = await avatarsOf(
+      deps,
+      tx,
+      asking.tenantId,
+      page.map((p) => p.id),
+    );
+    // HR's per-row count of what is missing, as the verdict counts it: only
+    // fields HR may see on that person. One verdict per row, as the grid.
+    const missing = new Map<string, number>();
+    if (everyone.isHr) {
+      for (const p of page) {
+        const verdict = await deps.service.access.completeness(tx, { ...asking, personId: p.id });
+        if (verdict.ok) missing.set(p.id, verdict.value.missing.length);
+      }
+    }
+    const incomplete = everyone.isHr
+      ? await deps.service.access.count(tx, {
+          ...narrowed,
+          gaps: definitions.filter((d) => visibleTo(d, everyone)).map((d) => d.key as string),
+          gapsIn: 'any',
+        })
+      : null;
 
     return ok({
       total: counted.value.all,
       active: counted.value.active,
       notStarted: everyone.isHr ? counted.value.notStarted : null,
-      incomplete: null,
+      incomplete: incomplete?.ok === true ? incomplete.value.all : null,
       columns: columns.map((c) => ({ key: c.key, label: c.label.default })),
-      filterable: selects.map((d) => ({
+      filterable: [
+        ...(reportsTo === undefined
+          ? []
+          : [
+              {
+                key: REPORTS_TO,
+                label: 'Reports to',
+                options: [{ value: reportsTo, label: names.get(reportsTo) ?? 'Somebody' }],
+              },
+            ]),
+        ...selects.map((d) => ({
         key: d.key,
         label: d.label.default,
         options:
@@ -1010,14 +1076,15 @@ export async function directoryView(
                 .filter((o) => o.retiredAt === null)
                 .map((o) => ({ value: o.value, label: o.label.default }))
             : [],
-      })),
+        })),
+      ],
       people: page.map((p) => {
         const email = p.attributes['work_email'];
         return {
           id: p.id,
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
-          avatarUrl: null,
+          avatarUrl: avatars.get(p.id) ?? null,
           values: Object.fromEntries(
             columns.flatMap((c) => {
               const value = p.attributes[c.key];
@@ -1031,7 +1098,7 @@ export async function directoryView(
               return typeof shown === 'string' ? [[c.key, shown]] : [];
             }),
           ),
-          missing: null,
+          missing: missing.get(p.id) ?? null,
         };
       }),
       next: listed.value.next,

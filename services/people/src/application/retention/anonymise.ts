@@ -14,6 +14,10 @@ import { personZone, type Placement } from '../../domain/org/calendar.js';
 import { mayErase, type ErasureMode } from '../../domain/retention/floors.js';
 import { forgetImportReports, type StoredReports } from '../import/commit.js';
 import type { Calendars } from '../org/org.js';
+import type { PhotoStore } from '../screens/photo.js';
+
+/** Whose erasure takes the photo with it: the keys that name somebody. */
+const NAMES: ReadonlySet<string> = new Set(['given_name', 'family_name', 'preferred_name']);
 import { dueForAnonymisation, type RetentionDecision } from './schedule.js';
 
 /**
@@ -122,6 +126,8 @@ export function anonymiseDue(deps: {
   readonly calendars: Calendars;
   /** Import reports, deleted when they contain the person anonymised. */
   readonly reports: StoredReports;
+  /** Their photo, deleted with their name: a face outlives nothing a name does not. */
+  readonly photos?: Pick<PhotoStore, 'remove'>;
   /** Counsel's reviews of the floors; `FLOOR_REVIEWS` unless a test says otherwise. */
   readonly reviews?: Parameters<typeof mayErase>[2];
 }): (tx: PostgresJsDatabase, request: AnonymiseRequest) => Promise<Result<{ cleared: readonly string[] }>> {
@@ -175,6 +181,10 @@ export function anonymiseDue(deps: {
       await deps.store.clear(tx, tenantId, id, keys, events);
       // eslint-disable-next-line no-await-in-loop -- as above
       await forgetImportReports(tx, deps.reports, tenantId, id);
+      if (keys.some((k) => NAMES.has(k))) {
+        // eslint-disable-next-line no-await-in-loop -- as above
+        await deps.photos?.remove(tx, tenantId, id);
+      }
       for (const k of keys) cleared.add(k);
     }
     return ok({ cleared: [...cleared] });

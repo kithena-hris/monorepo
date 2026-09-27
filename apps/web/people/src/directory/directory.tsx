@@ -21,6 +21,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { MissingMark } from '../record/missing';
 import { SaveSegment, SegmentSelect, type SegmentRef } from '../segments';
 
 /** A column, generated from the published schema: only what this viewer may read. */
@@ -87,6 +88,9 @@ export interface DirectoryProps {
   readonly onNextPage?: () => void;
   /** Present when this is not the first page. */
   readonly onFirstPage?: () => void;
+  /** Only people with a required detail missing: HR's, server-side (`?incomplete=true`). */
+  readonly incomplete?: boolean;
+  readonly onIncompleteChange?: (incomplete: boolean) => void;
 }
 
 const ANY = '__any';
@@ -155,6 +159,8 @@ function Table({
   onBulkEdit,
   onNextPage,
   onFirstPage,
+  incomplete = false,
+  onIncompleteChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const wide = useBreakpoint('md');
   // Nobody at all, rather than nobody matching: say so, and where adding
@@ -164,6 +170,7 @@ function Table({
   const narrowed =
     search.trim() !== '' ||
     Object.keys(filters).length > 0 ||
+    incomplete ||
     segmentId !== null ||
     onFirstPage !== undefined;
   if (state.people.length === 0 && !narrowed) {
@@ -209,10 +216,12 @@ function Table({
       header: 'Record',
       sortBy: (p) => p.missing ?? -1,
       cell: (p) =>
-        p.missing === null ? null : (
-          <Badge tone={p.missing === 0 ? 'success' : 'warning'} size="sm">
-            {p.missing === 0 ? 'Complete' : `${String(p.missing)} missing`}
+        p.missing === null ? null : p.missing === 0 ? (
+          <Badge tone="success" size="sm">
+            Complete
           </Badge>
+        ) : (
+          <MissingMark count={p.missing} />
         ),
     });
   }
@@ -234,6 +243,24 @@ function Table({
               value={segmentId}
               onChange={onSegmentChange}
             />
+          ),
+          // HR's: only the people with something missing (the verdict's, as HR may see it).
+          state.incomplete === null || onIncompleteChange === undefined ? null : (
+            <Select
+              key="incomplete"
+              value={incomplete ? 'missing' : ANY}
+              onValueChange={(value) => {
+                onIncompleteChange(value === 'missing');
+              }}
+            >
+              <SelectTrigger aria-label="Record" className="w-auto min-w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>Record: any</SelectItem>
+                <SelectItem value="missing">Record: has missing information</SelectItem>
+              </SelectContent>
+            </Select>
           ),
           ...state.filterable.map((f) => (
             <Select
@@ -357,11 +384,7 @@ function Cards({
                       .join(' · ')}
                   </span>
                 </span>
-                {p.missing === null || p.missing === 0 ? null : (
-                  <Badge tone="warning" size="sm">
-                    {p.missing} missing
-                  </Badge>
-                )}
+                {p.missing === null || p.missing === 0 ? null : <MissingMark count={p.missing} />}
                 <Button
                   size="sm"
                   aria-label={`Details for ${p.name}`}

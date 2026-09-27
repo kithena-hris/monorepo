@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
 import { PeopleHome } from '../home/people-home';
+import { nobody } from '../home/people-home.fixture';
 import {
   numberOf,
   Organisation,
@@ -198,7 +199,7 @@ describe('the organisation settings (PEO-119)', () => {
 describe('People home (PEO-119)', () => {
   it('lists the settings a People administrator uses, and not to an employee', () => {
     const { unmount } = render(
-      <PeopleHome load={{ status: 'ready', data: { hr: false, admin: true, finance: false } }} />,
+      <PeopleHome load={{ status: 'ready', data: nobody({ admin: true }) }} />,
     );
     const settings = screen.getByRole('navigation', { name: 'Settings' });
     for (const name of ['Employee fields', 'Roles', 'Integrations', 'Organisation']) {
@@ -206,13 +207,13 @@ describe('People home (PEO-119)', () => {
     }
     unmount();
     const hr = render(
-      <PeopleHome load={{ status: 'ready', data: { hr: true, admin: false, finance: false } }} />,
+      <PeopleHome load={{ status: 'ready', data: nobody({ hr: true }) }} />,
     );
     // Add employee is the host's, beside every screen, and never repeated here.
     expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Approvals' })).toBeInTheDocument();
     hr.unmount();
-    render(<PeopleHome load={{ status: 'ready', data: { hr: false, admin: false, finance: false } }} />);
+    render(<PeopleHome load={{ status: 'ready', data: nobody() }} />);
     expect(screen.queryByRole('link', { name: 'Integrations' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Directory' })).toHaveAttribute('href', '/people/directory');

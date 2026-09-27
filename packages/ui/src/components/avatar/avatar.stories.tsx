@@ -42,11 +42,12 @@ const meta = {
       table: { type: { summary: 'ReactNode' }, category: 'Content' },
     },
     size: {
-      description: 'xs and sm for rows, md for lists, lg for cards, xl for profile headers.',
+      description:
+        'xs and sm for rows, md for lists, lg for cards, xl and 2xl for profile headers, 3xl for the one person a page is about.',
       control: 'inline-radio',
-      options: ['xs', 'sm', 'md', 'lg', 'xl'],
+      options: ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'],
       table: {
-        type: { summary: "'xs' | 'sm' | 'md' | 'lg' | 'xl'" },
+        type: { summary: "'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'" },
         defaultValue: { summary: 'md' },
         category: 'Appearance',
       },
@@ -79,6 +80,8 @@ export const Sizes: Story = {
       <Avatar {...args} size="md" />
       <Avatar {...args} size="lg" />
       <Avatar {...args} size="xl" />
+      <Avatar {...args} size="2xl" />
+      <Avatar {...args} size="3xl" />
     </div>
   ),
 };

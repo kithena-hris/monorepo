@@ -88,12 +88,15 @@ beforeAll(async () => {
     '20260924270100_people_entitlements.sql',
     '20260924270200_people_role_grant.sql',
     '20260924330000_people_identifier_review.sql',
+    '20260926230100_people_identifier_review_held.sql',
     '20260926143000_people_duplicates.sql',
     '20260926160000_people_scim.sql',
     '20260924340000_people_person_key_lookup.sql',
     '20260924370000_people_directory_search.sql',
     '20260926120000_people_custom_filter.sql',
     '20260926130000_people_segment.sql',
+    '20260924360000_people_import_upload.sql',
+    '20260927160000_people_person_photo.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }

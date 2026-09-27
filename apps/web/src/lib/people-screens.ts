@@ -66,6 +66,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           filter: given(query.search['filter']),
           after: given(query.search['after']),
           segment: given(query.search['segment']),
+          incomplete: query.search['incomplete'] === 'true' ? true : null,
         },
         VIEWS.Directory,
       );
@@ -94,7 +95,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'RoleSettings':
       return read('RoleSettings');
     case 'PeopleHome':
-      return read('Home');
+      return read('Overview');
     case 'Organisation':
       return read('Organisation');
     case 'FullValues':

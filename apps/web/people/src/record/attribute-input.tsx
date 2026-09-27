@@ -29,7 +29,7 @@ import {
   type JSX,
 } from 'react';
 
-import type { AttributeValue, RecordField } from './model';
+import { isMissing, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
 
 /** The `type` a plain text input takes for each data type that is one. */
@@ -188,12 +188,20 @@ export function AttributeInput({
       : field.readOnly && field.ownedBy !== undefined
         ? `Changed by ${field.ownedBy}.`
         : null;
-  const note = [field.description, owner].filter((x) => x !== null).join(' ');
+  // Required of this person and still empty: said in words, in the
+  // description the control points at, so it is announced with the field.
+  const gap =
+    field.missing === true && isMissing(value)
+      ? field.readOnly
+        ? `Missing: ${field.ownedBy ?? 'HR'} fills this in.`
+        : 'Missing: this is required.'
+      : null;
+  const note = [gap, field.description, owner].filter((x) => x !== null).join(' ');
   // A caution about a value that was accepted (PEO-125) is read with the
   // field's own help, in the one description the control points at.
   const described =
-    warning !== undefined ? (
-      <FieldDescription tone="warning">{[note, warning].filter((x) => x !== '').join(' ')}</FieldDescription>
+    warning !== undefined || gap !== null ? (
+      <FieldDescription tone="warning">{[note, warning ?? ''].filter((x) => x !== '').join(' ')}</FieldDescription>
     ) : note === '' ? null : (
       <FieldDescription>{note}</FieldDescription>
     );

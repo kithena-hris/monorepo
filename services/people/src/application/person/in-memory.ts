@@ -190,7 +190,14 @@ export function inMemoryPeople(
     leavers = true,
   ): boolean => {
     if (!leavers && (LEAVERS as readonly string[]).includes(r.snapshot.status)) return false;
-    if (!Object.entries(where).every(([k, v]) => r.fields.custom[k] === v)) return false;
+    // `manager_id` is a typed column; the rest are `custom`, as the reader's.
+    if (
+      !Object.entries(where).every(([k, v]) =>
+        k === 'manager_id' ? r.fields.managerId === v : r.fields.custom[k] === v,
+      )
+    ) {
+      return false;
+    }
     const text = search?.text.trim().toLocaleLowerCase('en') ?? '';
     if (text === '') return true;
     const values = toRecord(r).values;
