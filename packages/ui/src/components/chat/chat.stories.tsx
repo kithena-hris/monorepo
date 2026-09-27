@@ -2,7 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
 import { Avatar } from '../avatar/avatar';
+import { MessageSquare } from 'lucide-react';
+
 import { ChatComposer, ChatLog, ChatMessage } from './chat';
+import { ChatWindow } from './chat-window';
 
 const meta = {
   title: 'Components/Chat',
@@ -75,3 +78,31 @@ export const Conversation: Story = {
 export const Writing: Story = { args: { pending: true } };
 
 export const FromYou: Story = { args: { from: 'self', author: 'You', children: 'How many people are in Scranton?' } };
+
+/** The launcher and its window: a conversation beside the page, not over it. */
+export const InAWindow: Story = {
+  parameters: { layout: 'fullscreen' },
+  render: function InAWindow() {
+    const [open, setOpen] = useState(true);
+    return (
+      <div className="h-[40rem] p-6">
+        <p className="text-sm text-fg-muted">The page stays usable while the window is open.</p>
+        <ChatWindow
+          open={open}
+          onOpenChange={setOpen}
+          title="Ask the assistant"
+          description="Answers only with what you can see."
+          launcherLabel="Ask the assistant"
+          launcherIcon={<MessageSquare aria-hidden />}
+          footer={<ChatComposer label="Ask a question" onSend={() => undefined} />}
+        >
+          <ChatLog label="Conversation with the assistant" className="flex-1">
+            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />}>
+              Hi! What would you like to know?
+            </ChatMessage>
+          </ChatLog>
+        </ChatWindow>
+      </div>
+    );
+  },
+};

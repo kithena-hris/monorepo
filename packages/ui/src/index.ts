@@ -165,6 +165,8 @@ export type {
 } from './brand/kithena-logo';
 
 export { ChatComposer, ChatLog, ChatMessage } from './components/chat/chat';
+export { ChatWindow } from './components/chat/chat-window';
+export type { ChatWindowProps } from './components/chat/chat-window';
 export type { ChatComposerProps, ChatLogProps, ChatMessageProps } from './components/chat/chat';
 export { Badge } from './components/badge/badge';
 export type { BadgeProps } from './components/badge/badge';

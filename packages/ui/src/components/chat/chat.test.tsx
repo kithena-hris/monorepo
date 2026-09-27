@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ChatComposer, ChatLog, ChatMessage } from './chat';
+import { ChatWindow } from './chat-window';
 
 describe('ChatLog and ChatMessage', () => {
   it('is a live log, and every message says who said it', () => {
@@ -39,5 +40,34 @@ describe('ChatComposer', () => {
     rerender(<ChatComposer label="Ask" onSend={onSend} busy />);
     await userEvent.type(screen.getByRole('textbox'), 'hi{Enter}');
     expect(onSend).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChatWindow', () => {
+  it('opens from its floating button, stays open while the page is used, and closes on its own button', async () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <>
+        <button type="button">On the page</button>
+        <ChatWindow open={false} onOpenChange={onOpenChange} title="Ask" launcherLabel="Ask Kithena" launcherIcon={null}>
+          <p>Hello</p>
+        </ChatWindow>
+      </>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Ask Kithena' }));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    rerender(
+      <>
+        <button type="button">On the page</button>
+        <ChatWindow open onOpenChange={onOpenChange} title="Ask" launcherLabel="Ask Kithena" launcherIcon={null}>
+          <p>Hello</p>
+        </ChatWindow>
+      </>,
+    );
+    onOpenChange.mockClear();
+    await userEvent.click(screen.getByRole('button', { name: 'On the page' }));
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 });

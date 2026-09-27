@@ -6,13 +6,9 @@ import {
   ChatComposer,
   ChatLog,
   ChatMessage,
+  ChatWindow,
+  icons,
   KithenaMark,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
 } from '@reach/ui';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -22,8 +18,9 @@ import { askAssistant } from '../app/assistant/actions';
 import type { AssistantReply } from '../lib/assistant';
 
 /**
- * The assistant, in the app: a conversation in a side panel, opened from the
- * sidebar or with ⌘J from anywhere.
+ * The assistant, in the app: a small chat window from a button floating in
+ * the bottom-right corner of every page, or ⌘J from anywhere. The page stays
+ * in view and usable beside it.
  *
  * It asks every module the company has (`lib/assistant.ts`) and answers as the
  * person asking, with only what they could see themselves. The conversation
@@ -46,15 +43,10 @@ const SUGGESTIONS = [
   'What is waiting for my approval?',
 ];
 
-const Mark = (): JSX.Element => <KithenaMark className="size-7" />;
+const Mark = (): JSX.Element => <KithenaMark className="size-6" />;
 
-export function Assistant({
-  open,
-  onOpenChange,
-}: {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}): JSX.Element {
+export function Assistant(): JSX.Element {
+  const [open, onOpenChange] = useState(false);
   const [turns, setTurns] = useState<readonly Turn[]>([]);
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -95,67 +87,71 @@ export function Assistant({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          box.current?.focus();
-        }}
-      >
-        <SheetHeader>
-          <SheetTitle>Ask Kithena</SheetTitle>
-          <SheetDescription>
-            Answers only with what you can see in Kithena yourself.
-          </SheetDescription>
-        </SheetHeader>
-        <SheetBody className="flex min-h-0 flex-1 flex-col gap-4">
-          <ChatLog label="Conversation with Kithena" className="min-h-0 flex-1 pb-2">
-            <ChatMessage from="other" author="Kithena" avatar={<Mark />}>
-              Hi! Ask me about the people in your company: who is in a team, who reports to whom,
-              how many people work where, or what is waiting for you.
-            </ChatMessage>
-            {turns.length === 0 ? (
-              <div className="flex flex-wrap gap-2 pl-9">
-                {SUGGESTIONS.map((s) => (
-                  <Button
-                    key={s}
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      ask(s);
-                    }}
-                  >
-                    {s}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-            {turns.map((t) => (
-              <ChatMessage
-                key={t.id}
-                from={t.from}
-                author={t.from === 'self' ? 'You' : 'Kithena'}
-                {...(t.from === 'other' ? { avatar: <Mark /> } : {})}
-                {...(t.people !== undefined && t.people.length > 0
-                  ? { footer: <Mentioned people={t.people} onOpen={() => { onOpenChange(false); }} /> }
-                  : {})}
+    <ChatWindow
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Ask Kithena"
+      description="Answers only with what you can see in Kithena yourself."
+      launcherLabel="Ask Kithena"
+      launcherIcon={<icons.assistant aria-hidden />}
+      // Clear of the phone's tab bar; the corner on a desk.
+      launcherClassName="bottom-20 md:bottom-6"
+      footer={
+        <ChatComposer
+          inputRef={box}
+          label="Ask Kithena a question"
+          placeholder="Ask about your people…"
+          busy={busy}
+          onSend={ask}
+        />
+      }
+    >
+      <ChatLog label="Conversation with Kithena" className="min-h-0 flex-1">
+        <ChatMessage from="other" author="Kithena" avatar={<Mark />}>
+          Hi! Ask me about the people in your company: who is in a team, who reports to whom, how
+          many people work where, or what is waiting for you.
+        </ChatMessage>
+        {turns.length === 0 ? (
+          <div className="flex flex-wrap gap-2 pl-9">
+            {SUGGESTIONS.map((s) => (
+              <Button
+                key={s}
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  ask(s);
+                }}
               >
-                {t.text}
-              </ChatMessage>
+                {s}
+              </Button>
             ))}
-            {busy ? <ChatMessage from="other" author="Kithena" avatar={<Mark />} pending /> : null}
-          </ChatLog>
-          <ChatComposer
-            inputRef={box}
-            label="Ask Kithena a question"
-            placeholder="Ask about your people…"
-            busy={busy}
-            onSend={ask}
-          />
-        </SheetBody>
-      </SheetContent>
-    </Sheet>
+          </div>
+        ) : null}
+        {turns.map((t) => (
+          <ChatMessage
+            key={t.id}
+            from={t.from}
+            author={t.from === 'self' ? 'You' : 'Kithena'}
+            {...(t.from === 'other' ? { avatar: <Mark /> } : {})}
+            {...(t.people !== undefined && t.people.length > 0
+              ? {
+                  footer: (
+                    <Mentioned
+                      people={t.people}
+                      onOpen={() => {
+                        onOpenChange(false);
+                      }}
+                    />
+                  ),
+                }
+              : {})}
+          >
+            {t.text}
+          </ChatMessage>
+        ))}
+        {busy ? <ChatMessage from="other" author="Kithena" avatar={<Mark />} pending /> : null}
+      </ChatLog>
+    </ChatWindow>
   );
 }
 
