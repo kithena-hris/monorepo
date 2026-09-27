@@ -4,6 +4,15 @@ import { useState } from 'react';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
+import { Button } from '../button/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../dialog/dialog';
 import { Field, FieldControl, FieldDescription, FieldError, FieldLabel } from '../field/field';
 import { Combobox, type ComboboxOption } from './combobox';
 
@@ -494,6 +503,42 @@ export const InAField: Story = {
           <FieldError>Choose one.</FieldError>
         </Field>
       </div>
+    );
+  },
+};
+
+const manyFields: ComboboxOption[] = Array.from({ length: 60 }, (_, i) => ({
+  value: `field_${String(i)}`,
+  label: `Field ${String(i + 1)}`,
+}));
+
+/** A long list inside a Dialog: the list scrolls, by wheel and by touch, and the page behind does not. */
+export const InADialog: Story = {
+  args: { multiple: true, label: 'Fields this endpoint receives', placeholder: 'Choose fields', options: manyFields },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The panel is portalled out of the dialog, and a dialog locks scrolling outside itself. The combobox’s popover is modal so it brings a scroll lock of its own that lets the list scroll; without that, sixty fields could not be reached with a mouse wheel.',
+      },
+    },
+  },
+  render: function InDialog(args) {
+    const [value, setValue] = useState<string | readonly string[] | null>([]);
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button>Add endpoint</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add endpoint</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <Combobox {...args} value={value} onChange={setValue} />
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     );
   },
 };

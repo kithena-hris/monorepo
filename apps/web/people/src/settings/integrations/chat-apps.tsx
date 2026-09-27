@@ -311,8 +311,8 @@ function Answers({
   return (
     <PageSection
       surface
-      title="What the assistant can answer"
-      description={`${String(fields.on.length)} of ${String(fields.shareable)} fields that may be shared are. The assistant learns a field’s name and options, never anybody’s value, and answers each person only with what they could see in Kithena.`}
+      title="What the assistant and chat can use"
+      description={`${String(fields.on.length)} of ${String(fields.shareable)} fields that may be shared are. The assistant can answer questions about them, and a chat message may show their values to somebody who can see them in Kithena. The model itself learns a field’s name and options, never anybody’s value.`}
       actions={
         <Button asChild variant="secondary">
           <a href={fieldsHref}>Choose fields</a>

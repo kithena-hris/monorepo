@@ -197,6 +197,7 @@ function Endpoints({
         title="Integrations"
         description="Connect People to tools outside Kithena, such as your chat app, your payroll provider or your identity provider. Everything inside Kithena works together on its own."
       />
+      <Outgoing state={state} />
       {chat === undefined || state.chat === undefined ? null : (
         <ChatApps {...chat} state={state.chat} />
       )}
@@ -270,6 +271,68 @@ function Endpoints({
         }}
       />
     </Stack>
+  );
+}
+
+/**
+ * What can leave Kithena, at a glance: the fields some tool receives, and
+ * the ones no tool ever may. Read from the same allowlists and policy the
+ * webhook service enforces, so it cannot promise what People would refuse.
+ */
+function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element {
+  const label = new Map(state.fields.map((f) => [f.key, f.label]));
+  const receivers = new Map<string, number>();
+  for (const e of state.endpoints.filter((x) => x.enabled)) {
+    for (const key of e.allowlist) receivers.set(key, (receivers.get(key) ?? 0) + 1);
+  }
+  const sent = [...receivers.entries()].toSorted(([a], [b]) =>
+    (label.get(a) ?? a).localeCompare(label.get(b) ?? b),
+  );
+  const never = state.fields.filter((f) => f.refused !== null);
+  return (
+    <PageSection
+      surface
+      title="What can leave Kithena"
+      description="A webhook sends only the fields you allow on it, and only to that tool. A chat app shows a value only for a field marked for the assistant, and only to somebody who may see it in Kithena. The assistant’s model learns field names, never values."
+    >
+      <Stack gap={4}>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-fg">
+            Sent to third-party tools ({String(sent.length)})
+          </p>
+          {sent.length === 0 ? (
+            <p className="text-sm text-fg-muted">
+              Nothing yet. A field is sent only once you allow it on an enabled endpoint.
+            </p>
+          ) : (
+            <span className="flex flex-wrap gap-1.5">
+              {sent.map(([key, n]) => (
+                <Badge key={key} tone="info">
+                  {label.get(key) ?? key}
+                  {state.endpoints.length > 1 ? ` · ${String(n)} ${n === 1 ? 'tool' : 'tools'}` : ''}
+                </Badge>
+              ))}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-fg">Never sent, whatever is chosen ({String(never.length)})</p>
+          <p className="text-sm text-fg-muted">
+            Special-category data (health, beliefs and the like) and encrypted fields such as bank
+            details cannot be added to any endpoint.
+          </p>
+          {never.length === 0 ? null : (
+            <span className="flex flex-wrap gap-1.5">
+              {never.map((f) => (
+                <Badge key={f.key} tone="neutral">
+                  {f.label}
+                </Badge>
+              ))}
+            </span>
+          )}
+        </div>
+      </Stack>
+    </PageSection>
   );
 }
 

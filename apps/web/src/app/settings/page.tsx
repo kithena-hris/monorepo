@@ -84,6 +84,13 @@ function peopleNow(data: {
         ? null
         : [
             endpoints.length === 0 ? 'No webhooks' : plural(endpoints.length, 'webhook'),
+            // What leaves: every field some enabled endpoint receives.
+            `${plural(
+              new Set(
+                endpoints.filter((e) => e['enabled'] !== false).flatMap((e) => list(e['allowlist'])),
+              ).size,
+              'field',
+            )} sent out`,
             scim.length === 0 ? 'no provisioning' : `provisioning from ${String(scim[0]?.['system'])}`,
           ].join(' · '),
   };

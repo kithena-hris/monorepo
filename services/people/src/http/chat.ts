@@ -73,8 +73,16 @@ interface ProfileLike {
   readonly requests: readonly { readonly key: string }[];
 }
 
-/** The person's own details still to give: the ones asked for, then the missing ones. */
-export function chatForm(profile: ProfileLike): ChatForm {
+/**
+ * The person's own details still to give: the ones asked for, then the
+ * missing ones. A value already there is shown only on a field marked for the
+ * assistant (`shown`): what a chat app's servers receive is what the company
+ * chose to share with it.
+ */
+export function chatForm(
+  profile: ProfileLike,
+  shown: ReadonlySet<string> = new Set(),
+): ChatForm {
   const asked = new Set(profile.requests.map((r) => r.key));
   const fields: ChatField[] = [];
   const elsewhere: string[] = [];
@@ -85,7 +93,7 @@ export function chatForm(profile: ProfileLike): ChatForm {
         elsewhere.push(f.label);
         continue;
       }
-      const v = profile.values[f.key];
+      const v = shown.has(f.key) ? profile.values[f.key] : null;
       fields.push({
         key: f.key,
         label: f.label,
@@ -147,6 +155,7 @@ interface ApprovalsLike {
   readonly items: readonly {
     readonly id: string;
     readonly name: string;
+    readonly key: string;
     readonly label: string;
     readonly value: FormValue;
     readonly current: FormValue;
@@ -159,16 +168,24 @@ interface ApprovalsLike {
   }[];
 }
 
-/** What waits for this person's decision, and nothing they could not decide in the inbox. */
-export function chatApprovals(view: ApprovalsLike): readonly ChatApproval[] {
+const WITHHELD = 'a value you can see in Kithena';
+
+/**
+ * What waits for this person's decision, and nothing they could not decide in
+ * the inbox. A value is shown only on a field marked for the assistant.
+ */
+export function chatApprovals(
+  view: ApprovalsLike,
+  shown: ReadonlySet<string> = new Set(),
+): readonly ChatApproval[] {
   return view.items
     .filter((i) => i.canDecide && !i.awaitingReview)
     .map((i) => ({
       id: i.id,
       name: i.name,
       label: i.label,
-      from: i.readable ? spoken(i.current) : 'a value you cannot see',
-      to: i.readable ? spoken(i.value) : 'a value you cannot see',
+      from: !i.readable ? 'a value you cannot see' : shown.has(i.key) ? spoken(i.current) : WITHHELD,
+      to: !i.readable ? 'a value you cannot see' : shown.has(i.key) ? spoken(i.value) : WITHHELD,
       requestedBy: i.requestedBy,
       reason: i.reason,
       effectiveFrom: i.effectiveFrom,
@@ -203,6 +220,8 @@ export interface ChatActDeps {
   readonly apiToken: string;
   readonly accountOf: (tenantId: string, email: string) => Promise<string | null>;
   readonly rest: (request: RestRequest) => Promise<RestResponse | null>;
+  /** The fields marked for the assistant: the only values a chat message carries. */
+  readonly shown: (tenantId: string) => Promise<ReadonlySet<string>>;
 }
 
 export type ChatOutcome =
@@ -246,10 +265,11 @@ export async function chatAct(deps: ChatActDeps, action: ChatAction): Promise<Ch
     };
   };
 
+  const shown = await deps.shown(action.tenantId);
   switch (action.action) {
     case 'approvals':
       return outcome(await as('GET', '/v1/views/approvals'), (b) => ({
-        items: chatApprovals(b as ApprovalsLike),
+        items: chatApprovals(b as ApprovalsLike, shown),
       }));
     case 'decide':
       return outcome(
@@ -262,7 +282,7 @@ export async function chatAct(deps: ChatActDeps, action: ChatAction): Promise<Ch
         () => ({ decided: action.approve ? 'approved' : 'rejected' }),
       );
     case 'form':
-      return outcome(await as('GET', '/v1/views/profile'), (b) => chatForm(b as ProfileLike));
+      return outcome(await as('GET', '/v1/views/profile'), (b) => chatForm(b as ProfileLike, shown));
     case 'fill': {
       const read = await as('GET', '/v1/views/profile');
       if (read === null || read.status >= 300) return outcome(read, () => null);

@@ -30,7 +30,7 @@ describe('chatForm', () => {
       ],
       values: { pronouns: 'they/them' },
       requests: [{ key: 'pronouns' }],
-    });
+    }, new Set(['pronouns']));
     expect(form.fields.map((f) => f.key)).toEqual(['pronouns', 'phone']);
     expect(form.fields[0]?.value).toBe('they/them');
     expect(form.elsewhere).toEqual(['Passport']);
@@ -71,6 +71,7 @@ describe('chatApprovals', () => {
   it('lists only what this person may decide now, and hides what they cannot read', () => {
     const base = {
       name: 'Pam',
+      key: 'salary',
       label: 'Salary',
       value: 'x',
       current: 'y',
@@ -90,5 +91,28 @@ describe('chatApprovals', () => {
     });
     expect(items.map((i) => i.id)).toEqual(['a']);
     expect(items[0]?.to).toBe('a value you cannot see');
+  });
+
+  it('carries a value to the chat app only for a field marked for the assistant', () => {
+    const item = {
+      id: 'a',
+      name: 'Pam',
+      key: 'phone',
+      label: 'Phone',
+      value: '555',
+      current: null,
+      readable: true,
+      requestedBy: 'Jim',
+      reason: null,
+      effectiveFrom: '2026-10-01',
+      canDecide: true,
+      awaitingReview: false,
+    };
+    expect(chatApprovals({ items: [item] })[0]?.to).toBe('a value you can see in Kithena');
+    expect(chatApprovals({ items: [item] }, new Set(['phone']))[0]?.to).toBe('555');
+    const form = chatForm(
+      { sections: [{ fields: [field('phone', { missing: true })] }], values: { phone: '555' }, requests: [{ key: 'phone' }] },
+    );
+    expect(form.fields[0]?.value).toBe(null);
   });
 });

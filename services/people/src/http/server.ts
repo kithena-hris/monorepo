@@ -834,6 +834,15 @@ export function wirePeople(server: Server): void {
           accountOf: (tenantId, email) =>
             service.inTenant(tenantId, ({ tx }) => chatDeps.accountByEmail(tx, tenantId, email)),
           rest: async (r) => rest(r),
+          shown: (tenantId) =>
+            service.inTenant(tenantId, async ({ tx }) => {
+              const version = await service.schemas.current(tx, tenantId);
+              return new Set(
+                (version?.document.attributes ?? [])
+                  .filter((d) => d.classification.aiEligible)
+                  .map((d) => d.key as string),
+              );
+            }),
         },
         input.data,
       );

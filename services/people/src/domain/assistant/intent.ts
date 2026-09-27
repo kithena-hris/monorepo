@@ -167,7 +167,7 @@ function readBare(text: string, catalogue: readonly CatalogueField[]): Intent {
     case 'unclear':
       return { kind: 'unclear', reply: intent.reply === '' ? UNCLEAR : intent.reply };
     default:
-      return intent as Intent;
+      return intent;
   }
 }
 
