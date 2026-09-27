@@ -103,6 +103,10 @@
     {
       "path": "/settings/people",
       "component": "PeopleSettings"
+    },
+    {
+      "path": "/settings/people/activity",
+      "component": "SettingsActivity"
     }
   ],
   "actions": [
@@ -276,6 +280,16 @@
       ],
       "description": "Webhooks that tell other systems about changes, and provisioning from an identity provider.",
       "icon": "link"
+    },
+    {
+      "path": "/settings/people/activity",
+      "label": "Activity",
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "description": "Every change to these settings: who made it, when, and what.",
+      "icon": "history"
     }
   ]
 }

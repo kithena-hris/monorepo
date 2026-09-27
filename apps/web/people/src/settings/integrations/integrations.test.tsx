@@ -58,7 +58,7 @@ function props(over: Partial<IntegrationsProps> = {}): IntegrationsProps {
 
 const allowlistOf = (url: string) => {
   const section = screen.getByRole('region', { name: url });
-  return within(section).getByRole('textbox', { name: 'Fields this endpoint receives' });
+  return within(section).getByRole('button', { name: 'Fields this endpoint receives' });
 };
 
 describe('Integrations', () => {
@@ -73,34 +73,19 @@ describe('Integrations', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('cannot add a special-category or encrypted field, nor one the schema lacks', async () => {
+  it('offers every field of the schema, and none that may never be sent', async () => {
     const user = fast();
     const onUpdate = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<Integrations {...props({ onUpdate })} />);
-    const input = allowlistOf('https://api.nominacloud.es/hooks/kithena');
-
-    await user.type(input, 'accommodation_notes{Enter}');
-    expect(
-      screen.getByText(
-        'Accommodation notes is special-category data and never leaves in a webhook.',
-      ),
-    ).toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, 'bank_account{Enter}');
-    expect(
-      screen.getByText('Bank account is encrypted and never leaves in a webhook.'),
-    ).toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, 'shoe_size{Enter}');
-    expect(
-      screen.getByText('shoe_size is not a field in the published schema.'),
-    ).toBeInTheDocument();
-
-    // Nothing was accepted, so there is nothing to save.
-    const section = screen.getByRole('region', {
-      name: 'https://api.nominacloud.es/hooks/kithena',
-    });
-    expect(within(section).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    await user.click(allowlistOf('https://api.nominacloud.es/hooks/kithena'));
+    expect(await screen.findByRole('option', { name: /Accommodation notes/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('option', { name: /Bank account/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
@@ -108,7 +93,9 @@ describe('Integrations', () => {
     const user = fast();
     const onUpdate = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<Integrations {...props({ onUpdate })} />);
-    await user.type(allowlistOf('https://api.nominacloud.es/hooks/kithena'), 'cost_centre{Enter}');
+    await user.click(allowlistOf('https://api.nominacloud.es/hooks/kithena'));
+    await user.click(await screen.findByRole('option', { name: /Cost centre/ }));
+    await user.keyboard('{Escape}');
     const section = screen.getByRole('region', {
       name: 'https://api.nominacloud.es/hooks/kithena',
     });
@@ -154,10 +141,9 @@ describe('Integrations', () => {
       within(dialog).getByRole('textbox', { name: /URL/ }),
       'https://hooks.example.com/in',
     );
-    await user.type(
-      within(dialog).getByRole('textbox', { name: /Events/ }),
-      'people.person.hired{Enter}',
-    );
+    await user.click(within(dialog).getByRole('button', { name: 'Events' }));
+    await user.click(await screen.findByRole('option', { name: /Person hired/ }));
+    await user.keyboard('{Escape}');
     await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));
     expect(onCreate).not.toHaveBeenCalled();
     expect(within(dialog).getByText('An email address to tell.')).toBeVisible();

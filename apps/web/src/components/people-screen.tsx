@@ -581,6 +581,31 @@ export function PeopleScreen({
         };
       case 'PeopleSettings':
         return { load: loadable };
+      // Pages of the log are URLs, so Back returns to the one before.
+      case 'SettingsActivity': {
+        const area = search['area'] ?? null;
+        const to = (q: Record<string, string>) => {
+          const qs = new URLSearchParams(q).toString();
+          router.push(`/settings/people/activity${qs === '' ? '' : `?${qs}`}` as Route);
+        };
+        return {
+          load: loadable,
+          area,
+          onArea: (next: string | null) => {
+            to(next === null ? {} : { area: next });
+          },
+          onOlder: (before: string) => {
+            to({ ...(area === null ? {} : { area }), before });
+          },
+          ...(search['before'] === undefined
+            ? {}
+            : {
+                onNewest: () => {
+                  to(area === null ? {} : { area });
+                },
+              }),
+        };
+      }
       case 'FullValues':
         return {
           load: loadable,

@@ -119,6 +119,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('Completeness', { after: given(query.search['after']) });
     case 'FieldRegistry':
       return read('Registry');
+    case 'SettingsActivity':
+      return read('SettingsActivity', {
+        before: given(query.search['before']),
+        area: given(query.search['area']),
+      });
     case 'Integrations':
       return read('Integrations');
     case 'RoleSettings':

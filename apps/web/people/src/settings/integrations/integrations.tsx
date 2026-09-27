@@ -21,7 +21,8 @@ import {
   PageSection,
   Stack,
   Switch,
-  TagsInput,
+  Combobox,
+  type ComboboxOption,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -87,16 +88,11 @@ export interface IntegrationsProps {
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
 }
 
-const REASON = {
-  'special-category': 'is special-category data and never leaves in a webhook',
-  encrypted: 'is encrypted and never leaves in a webhook',
-} as const;
-
 /**
  * What leaves the building, and to whom (PRD §13.3, design screen 9).
  *
  * Each endpoint subscribes to events and to a field allowlist. The allowlist
- * is a `TagsInput` backed by the published schema, so it cannot name a field
+ * is chosen from the published schema's fields, so it cannot name a field
  * that does not exist or one the policy forbids — and People refuses the same
  * two things if anything else tries (`allowable` in the webhook service). A
  * signing secret is a `CopyField`, shown once and never retrievable, the shape
@@ -110,13 +106,71 @@ export function Integrations(props: IntegrationsProps): JSX.Element {
   );
 }
 
-function allowlistCheck(fields: readonly AllowableField[]) {
-  const byKey = new Map(fields.map((f) => [f.key, f]));
-  return (key: string): string | null => {
-    const field = byKey.get(key);
-    if (field === undefined) return `${key} is not a field in the published schema.`;
-    return field.refused === null ? null : `${field.label} ${REASON[field.refused]}.`;
-  };
+/** "people.person.hired" as "Person hired", with the name itself beneath. */
+function eventOptions(events: readonly string[]): ComboboxOption[] {
+  return events.map((e) => {
+    const words = e.replace(/^people\./, '').replaceAll(/[._]/g, ' ');
+    return {
+      value: e,
+      label: words.charAt(0).toUpperCase() + words.slice(1),
+      description: e,
+      group: e.split('.')[1] === 'person' ? 'A person' : 'The company',
+    };
+  });
+}
+
+/** Every field of the published schema; one no endpoint may receive is shown and cannot be chosen. */
+function fieldOptions(fields: readonly AllowableField[]): ComboboxOption[] {
+  return fields.map((f) => ({
+    value: f.key,
+    label: f.label,
+    description:
+      f.refused === 'special-category'
+        ? `${f.key} · special-category data, never sent`
+        : f.refused === 'encrypted'
+          ? `${f.key} · encrypted, never sent`
+          : f.key,
+    disabled: f.refused !== null,
+  }));
+}
+
+/** Several of a known list, searched and chosen, shown as chips. */
+function PickMany({
+  label,
+  options,
+  value,
+  onChange,
+  hint,
+  invalid = false,
+}: {
+  readonly label: string;
+  readonly options: readonly ComboboxOption[];
+  readonly value: readonly string[];
+  readonly onChange: (value: readonly string[]) => void;
+  readonly hint?: string | undefined;
+  readonly invalid?: boolean;
+}): JSX.Element {
+  return (
+    <Field invalid={invalid}>
+      <FieldLabel>{label}</FieldLabel>
+      <FieldControl>
+        <Combobox
+          multiple
+          chips
+          label={label}
+          options={options}
+          value={value}
+          placeholder={value.length === 0 ? 'Choose' : `${String(value.length)} chosen`}
+          searchPlaceholder="Search"
+          emptyMessage="Nothing by that name."
+          onChange={(next) => {
+            onChange(Array.isArray(next) ? next : []);
+          }}
+        />
+      </FieldControl>
+      {hint === undefined ? null : <FieldDescription>{hint}</FieldDescription>}
+    </Field>
+  );
 }
 
 function Endpoints({
@@ -275,20 +329,20 @@ function EndpointCard({
     >
       <Stack gap={4}>
         {endpoint.problem === null ? null : <Alert tone="warning">{endpoint.problem}</Alert>}
-        <TagsInput
+        <PickMany
           label="Events"
-          value={events}
-          validate={(e) => (knownEvents.has(e) ? null : `${e} is not an event People raises.`)}
+          options={eventOptions(state.events)}
+          value={events.filter((e) => knownEvents.has(e))}
           onChange={setEvents}
         />
-        <TagsInput
+        <PickMany
           label="Fields this endpoint receives"
+          options={fieldOptions(state.fields)}
           value={allowlist}
-          validate={allowlistCheck(state.fields)}
           hint={
             refusedKeys.length === 0
-              ? 'Field keys from the published schema.'
-              : `Field keys from the published schema. ${refusedKeys.join(' and ')} cannot be added to any allowlist.`
+              ? undefined
+              : `${refusedKeys.join(' and ')} can never be sent to an endpoint.`
           }
           onChange={setAllowlist}
         />
@@ -346,7 +400,6 @@ function AddEndpoint({
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const knownEvents = new Set(state.events);
   const badUrl = !/^https:\/\/\S+$/.test(url);
   const badEmail = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alertEmail);
 
@@ -410,18 +463,18 @@ function AddEndpoint({
               </FieldDescription>
               <FieldError>An email address to tell.</FieldError>
             </Field>
-            <TagsInput
+            <PickMany
               label="Events"
+              options={eventOptions(state.events)}
               value={events}
               invalid={shown && events.length === 0}
               hint={shown && events.length === 0 ? 'Subscribe to at least one event.' : undefined}
-              validate={(e) => (knownEvents.has(e) ? null : `${e} is not an event People raises.`)}
               onChange={setEvents}
             />
-            <TagsInput
+            <PickMany
               label="Fields this endpoint receives"
+              options={fieldOptions(state.fields)}
               value={allowlist}
-              validate={allowlistCheck(state.fields)}
               onChange={setAllowlist}
             />
             {refused === null ? null : (

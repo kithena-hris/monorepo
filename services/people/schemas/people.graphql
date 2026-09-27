@@ -1741,6 +1741,23 @@ type PeopleSettings {
   slug: String
 }
 
+"""Every change to People’s settings, newest first: who, when and what."""
+type PeopleSettingsActivity {
+  entries: [PeopleSettingsActivityEntry!]
+  next: String
+}
+
+type PeopleSettingsActivityEntry {
+  action: String
+  """fields, organisation, roles or integrations."""
+  area: String
+  at: String
+  avatarUrl: String
+  by: String
+  id: ID
+  subject: String
+}
+
 type PeopleSetup {
   countries: [SetupCountry!]
   entityConfirmed: Boolean
@@ -1977,6 +1994,7 @@ type Query {
   """The saved segments you see and could use somewhere (PEO-068)."""
   peopleSegments: [PeopleSegment!]
   peopleSettings: PeopleSettings
+  peopleSettingsActivity(area: String, before: ID): PeopleSettingsActivity
   peopleSetup: PeopleSetup
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.

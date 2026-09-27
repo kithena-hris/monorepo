@@ -78,6 +78,7 @@ import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
 import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
+import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
 import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
 import {
@@ -500,6 +501,7 @@ function screenDeps(
     segments: { store: drizzleSegments(), newId: uuidv7 },
     photos: drizzlePhotos(),
     files: drizzleFiles(),
+    activity: drizzleActivity(),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars),
     schedules: scheduleAdmin(),
@@ -682,6 +684,11 @@ export function wirePeople(server: Server): void {
     fullValues: exports.fullValues,
     segments: drizzleSegments(),
     screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+    activity: {
+      store: drizzleActivity(),
+      newId: uuidv7,
+      now: () => systemClock.instant(),
+    },
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
   configureGraphQL({ service, callerFrom, rest });

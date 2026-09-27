@@ -240,6 +240,13 @@ export const OPERATIONS = {
     peoplePhoto(personId: $personId) { mediaType data checksum }
   }`,
 
+  SettingsActivity: `query SettingsActivity($before: ID, $area: String) {
+    peopleSettingsActivity(before: $before, area: $area) {
+      entries { id at action subject area by avatarUrl }
+      next
+    }
+  }`,
+
   /** A field's file, to somebody who may read that field: the tenant app's file route. */
   File: `query File($id: ID!) {
     peopleFile(id: $id) { name mediaType data }

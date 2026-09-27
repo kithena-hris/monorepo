@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
+import { logger } from '@kithena/telemetry';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
+import type { ActivityStore } from '../application/settings/activity-store.js';
 import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.js';
 import { linksOf } from '../application/export/job.js';
 import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
@@ -24,6 +26,7 @@ import {
   type PendingValue,
 } from '../application/person/pending-changes.js';
 import { run, type PeopleService } from '../application/person/service.js';
+import { settingsActivity } from './activity.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
@@ -649,6 +652,12 @@ export interface RestDeps {
   readonly screens?: readonly Route[];
   /** Saved segments, for an export of one (PEO-068). */
   readonly segments?: SegmentStore;
+  /** The Settings activity log: each successful settings command, in words (`activity.ts`). */
+  readonly activity?: {
+    readonly store: ActivityStore;
+    readonly newId: () => string;
+    readonly now: () => string;
+  };
 }
 
 export type Handler = (
@@ -1792,6 +1801,48 @@ export function restHandler(
     }
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];
-    return route.handle(asking.value, request, id === undefined ? {} : { id }, url.searchParams);
+    const answer = await route.handle(
+      asking.value,
+      request,
+      id === undefined ? {} : { id },
+      url.searchParams,
+    );
+    await logged(deps, asking.value, request, url.pathname, answer);
+    return answer;
   };
+}
+
+/**
+ * A settings command that succeeded, into the Settings activity log. After the
+ * command, never instead of it: a log that cannot be written is said in the
+ * service's own log and the command still stands.
+ */
+async function logged(
+  deps: RestDeps,
+  asking: Asking,
+  request: RestRequest,
+  path: string,
+  answer: RestResponse,
+): Promise<void> {
+  const activity = deps.activity;
+  const key = request.headers['idempotency-key'];
+  if (activity === undefined || answer.status >= 300 || typeof key !== 'string') return;
+  const said = settingsActivity(request.method, path, request.body);
+  if (said === null) return;
+  try {
+    await run(deps.service, asking.tenantId, async (tx) => {
+      await activity.store.record(tx, asking.tenantId, {
+        id: activity.newId(),
+        at: activity.now(),
+        actor: asking.viewer.accountId,
+        action: said.action,
+        subject: said.subject ?? null,
+        area: said.area,
+        idempotencyKey: key,
+      });
+      return ok(undefined);
+    });
+  } catch (error) {
+    logger.warn({ err: error, path }, 'settings activity not recorded');
+  }
 }

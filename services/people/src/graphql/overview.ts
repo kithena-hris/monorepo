@@ -1,6 +1,7 @@
 import type { OverviewView } from '../application/screens/overview.js';
 import type { PhotoView } from '../application/screens/photo.js';
 import type { FileView } from '../application/screens/files.js';
+import type { ActivityView } from '../application/settings/activity.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
 
 /**
@@ -119,22 +120,20 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     .implement({
       fields: (t) => ({ value: t.exposeString('value'), label: t.exposeString('label') }),
     });
-  const SetupField = builder
-    .objectRef<Setup['fields'][number]>('PeopleSetupField')
-    .implement({
-      fields: (t) => ({
-        key: t.exposeString('key'),
-        sectionKey: t.exposeString('sectionKey'),
-        label: t.exposeString('label'),
-        description: t.exposeString('description', { nullable: true }),
-        dataType: t.exposeString('dataType'),
-        options: t.field({
-          type: [SetupOption],
-          resolve: (f) => list(f.options),
-        }),
-        required: t.exposeBoolean('required'),
+  const SetupField = builder.objectRef<Setup['fields'][number]>('PeopleSetupField').implement({
+    fields: (t) => ({
+      key: t.exposeString('key'),
+      sectionKey: t.exposeString('sectionKey'),
+      label: t.exposeString('label'),
+      description: t.exposeString('description', { nullable: true }),
+      dataType: t.exposeString('dataType'),
+      options: t.field({
+        type: [SetupOption],
+        resolve: (f) => list(f.options),
       }),
-    });
+      required: t.exposeBoolean('required'),
+    }),
+  });
   const SetupRef = builder.objectRef<Setup>('PeopleOverviewSetup').implement({
     description:
       'What signing up still asks of the viewer: a photo, and the image and document fields collected at sign-up.',
@@ -181,7 +180,45 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
+  const ActivityEntry = builder
+    .objectRef<ActivityView['entries'][number]>('PeopleSettingsActivityEntry')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        at: t.exposeString('at'),
+        action: t.exposeString('action'),
+        subject: t.exposeString('subject', { nullable: true }),
+        area: t.exposeString('area', {
+          description: 'fields, organisation, roles or integrations.',
+        }),
+        by: t.exposeString('by'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      }),
+    });
+  const Activity = builder.objectRef<ActivityView>('PeopleSettingsActivity').implement({
+    description: 'Every change to People’s settings, newest first: who, when and what.',
+    fields: (t) => ({
+      entries: t.field({ type: [ActivityEntry], resolve: (v) => list(v.entries) }),
+      next: t.exposeString('next', { nullable: true }),
+    }),
+  });
+
   builder.queryFields((t) => ({
+    peopleSettingsActivity: t.field({
+      type: Activity,
+      args: { before: t.arg.id(), area: t.arg.string() },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.before) query.set('before', args.before);
+        if (args.area) query.set('area', args.area);
+        const qs = query.toString();
+        return viaRest<ActivityView>(
+          ctx,
+          'GET',
+          `/v1/views/settings/activity${qs === '' ? '' : `?${qs}`}`,
+        );
+      },
+    }),
     peopleFile: t.field({
       type: File,
       args: { id: t.arg.id({ required: true }) },
