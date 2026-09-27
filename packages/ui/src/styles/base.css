@@ -141,6 +141,17 @@
     overscroll-behavior: contain;
   }
 
+  /* The parts nobody draws still carry the palette: the scrollbar and the
+     caret, beside the selection below and the focus ring above. */
+  html {
+    scrollbar-color: var(--reach-color-border-strong) transparent;
+  }
+  input,
+  textarea,
+  [contenteditable='true'] {
+    caret-color: var(--reach-color-accent);
+  }
+
   ::selection {
     background-color: var(--reach-color-accent-subtle);
     color: var(--reach-color-accent-fg);

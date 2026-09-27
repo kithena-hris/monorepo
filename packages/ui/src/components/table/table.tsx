@@ -194,7 +194,9 @@ export function TableHead({
       // sorted by this column, an arrow glyph does not.
       aria-sort={sortable ? (sortDirection ?? 'none') : undefined}
       className={cn(
-        'h-9 px-3 text-left align-middle text-2xs font-semibold tracking-wide text-fg-subtle uppercase',
+        // Sentence case at `xs`, not capitals at `2xs`: a header is read, and
+        // eleven-pixel capitals are the hardest thing on the page to read.
+        'h-10 px-3 text-left align-middle text-xs font-semibold text-fg-muted',
         numeric && 'text-right',
         sticky && 'sticky left-0 z-20 bg-surface-sunken',
         className,
@@ -208,7 +210,7 @@ export function TableHead({
             onSort?.(sortDirection === 'ascending' ? 'descending' : 'ascending');
           }}
           className={cn(
-            'group -mx-1 inline-flex min-h-tap items-center gap-1 rounded-xs px-1 uppercase',
+            'group -mx-1 inline-flex min-h-tap items-center gap-1 rounded-xs px-1',
             'transition-colors hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
             numeric && 'flex-row-reverse',
@@ -247,7 +249,7 @@ export function TableCell({
     <td
       data-numeric={numeric || undefined}
       className={cn(
-        'px-3 py-2.5 align-middle text-fg',
+        'px-3 py-3 align-middle text-fg',
         numeric && 'text-right',
         // The identity column stays put while the other twelve scroll past.
         // Without it, a wide table on a phone is a grid of numbers with no

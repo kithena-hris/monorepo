@@ -165,7 +165,7 @@ export function FieldDescription({
   return (
     <p
       id={descriptionId}
-      className={cn('text-xs', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
+      className={cn('text-sm', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
       {...props}
     />
   );
