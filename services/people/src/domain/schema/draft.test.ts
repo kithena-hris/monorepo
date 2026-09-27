@@ -499,3 +499,36 @@ describe('a requiredness predicate', () => {
     expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
   });
 });
+
+describe('encrypting a field', () => {
+  it('may be switched on for a field that can be sealed, whoever shipped it', () => {
+    const d = draft();
+    const done = d.updateAttribute('employee_number', { encrypted: true });
+    expect(done.ok && done.value.encrypted).toBe(true);
+  });
+
+  it('is never switched off: what was sealed stays sealed', () => {
+    const d = draft();
+    expect(d.updateAttribute('employee_number', { encrypted: true }).ok).toBe(true);
+    const undone = d.updateAttribute('employee_number', { encrypted: false });
+    expect(!undone.ok && undone.error.code).toBe('ENCRYPTION_PERMANENT');
+  });
+
+  it('is refused for a choice, a reference, a file or an effective-dated field', () => {
+    const d = draft();
+    expect(
+      d.addAttribute({
+        ...attribute,
+        key: 'team_colour',
+        dataType: 'select',
+        typeConfig: { kind: 'select', options: [{ value: 'red', label: { default: 'Red' } }] },
+        encrypted: true,
+        origin: 'tenant',
+      }).ok,
+    ).toBe(false);
+    expect(
+      d.addAttribute({ ...attribute, key: 'grade', effectiveDated: true, encrypted: true, origin: 'tenant' })
+        .ok,
+    ).toBe(false);
+  });
+});

@@ -176,6 +176,7 @@ export const Field = z.strictObject({
     classificationSource: z.enum(['suggested', 'human', 'section_default']),
     // Null keeps the default from the policy (PEO-077).
     requiresApproval: z.boolean().nullable().default(null),
+    encrypted: z.boolean().nullable().default(null),
   }),
   editing: z.string().max(64).nullable(),
 });

@@ -1992,6 +1992,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       requiresApproval: t.boolean({
         description: 'Whether a change waits for HR approval; null keeps the default.',
       }),
+      encrypted: t.boolean({
+        description: 'Store it sealed: once on, never off. Existing values are sealed when it is published.',
+      }),
     }),
   });
   const ColumnInput = builder.inputType('ImportColumnInput', {
