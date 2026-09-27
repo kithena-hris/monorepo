@@ -102,8 +102,8 @@ describe('the approvals inbox (PEO-077)', () => {
       screen.getByRole('button', { name: "Approve the change to Priya Shah's IBAN yourself" }),
     );
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/no other HR member who can approve it/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/audit trail will show that you approved your own change because no other HR/))
+    expect(within(dialog).getByText(/No other HR member can approve this change/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/audit log will show you approved your own change because no one else could/))
       .toBeInTheDocument();
     expect(await axeViolations(document.body)).toEqual([]);
     expect(onSelfApprove).not.toHaveBeenCalled();

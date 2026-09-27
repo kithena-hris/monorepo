@@ -165,8 +165,7 @@ export function SignupPreview({
               >
                 <Stack gap={4}>
                   <p className="text-sm text-fg-muted">
-                    Asked on the first screen after they sign in: the sign-up page never holds a
-                    file or confidential data.
+                    Asked after sign-in. Sign-up never asks for files or confidential data.
                   </p>
                   {inputs(after)}
                 </Stack>

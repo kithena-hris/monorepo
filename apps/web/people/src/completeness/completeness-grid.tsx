@@ -324,8 +324,7 @@ function Grid({
 
       {shown.length === 0 ? null : (
         <Alert tone="warning" title="Our checks suggest some of these may be wrong">
-          Look again at the cells marked below. If they are right as they are, save anyway: HR will
-          review them, and what HR decides is final.
+          Check the marked cells. If they’re correct, save anyway and HR will review them.
         </Alert>
       )}
       {outcome === null ? null : outcome.ok ? (

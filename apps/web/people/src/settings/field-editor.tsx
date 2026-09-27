@@ -535,8 +535,7 @@ export function FieldEditor({
             <Stack gap={6} className="min-w-0">
               {field !== null && field.origin !== 'tenant' ? (
                 <Alert tone="info" title="Built into Kithena">
-                  You can rename it, explain it, and change who fills it in and who sees it. Its
-                  type stays, and its protection can be made stricter but never looser.
+                  You can change its name, description and access. Its type is fixed, and protection can only be increased.
                 </Alert>
               ) : null}
               <Stepper
@@ -676,8 +675,7 @@ export function FieldEditor({
                             />
                           </FieldControl>
                           <FieldDescription>
-                            Made from the name; most people never change it. What exports, webhooks
-                            and integrations call the field. It cannot change once published.
+                            Used by exports and integrations. Generated from the name and fixed once published.
                           </FieldDescription>
                           <FieldError>{show.key}</FieldError>
                         </Field>
@@ -765,8 +763,7 @@ export function FieldEditor({
                             Let more people see it, on some records only
                           </legend>
                           <p className="text-sm text-fg-muted">
-                            An exception to “Who can see it?” above. For example: managers may also
-                            see Agency, but only on contractors’ records. Nobody loses access here.
+                            Give extra access on matching records only, for example managers on contractors’ records.
                           </p>
                           {draft.visibilityRules.map((rule, index) => {
                             const name = `Rule ${String(index + 1)}`;
@@ -855,9 +852,7 @@ export function FieldEditor({
                             </div>
                           ) : null}
                           <p className="text-sm text-fg-muted">
-                            A rule shows the field to somebody only on the records its conditions
-                            hold for, and only if they can already see every field a condition
-                            reads. Never for special-category data.
+                            A rule applies only to matching records, and only to people who can see the fields it checks.
                           </p>
                         </fieldset>
                       </AccordionContent>
@@ -1143,8 +1138,7 @@ function Classify({
             />
           </FieldControl>
           <FieldLabel>
-            I confirm this field may hold special-category data, and that it will be kept out of AI
-            prompts, event payloads and the standard export.
+            I confirm this is special-category data. It will be excluded from AI, events and standard exports.
           </FieldLabel>
         </Field>
       ) : null}
@@ -1227,7 +1221,7 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
     return (
       <Alert tone="info" title="Asked on the first screen after sign-up">
         {employee
-          ? 'A file is never taken on the account setup page. It is asked for on the first screen they see once their account is set up, beside their photo if you ask for one.'
+          ? 'Files are requested on the first screen after account setup.'
           : 'Only the employee can answer there. Tick The employee under Who can change it, or choose another moment.'}
       </Alert>
     );
@@ -1254,8 +1248,7 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
   if (draft.collectAt !== 'hr_only' && !employee) {
     return (
       <Alert tone="info">
-        The employee cannot change this field, so they see it read-only rather than being asked for
-        it. To ask them, tick The employee under Who can change it.
+        Employees can’t edit this field. To ask them for it, allow the employee to change it.
       </Alert>
     );
   }

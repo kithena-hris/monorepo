@@ -270,7 +270,7 @@ function Endpoints({
               {state.endpoints.length === 0 ? (
                 <EmptyState
                   title="No third-party tools connected"
-                  description="Add the address a tool gives you for incoming webhooks, usually in its settings under Webhooks or API. For example, your payroll provider, to hear about starters and leavers."
+                  description="Add a webhook address from another tool, such as your payroll provider."
                 />
               ) : (
                 state.endpoints.map((endpoint) => (
@@ -445,7 +445,7 @@ function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element
     <PageSection
       surface
       title="Data shared outside Kithena"
-      description="A webhook sends only the fields you allow on it, and only to that tool. A chat app shows a value only for a field marked for the assistant, and only to somebody who may see it in Kithena. The assistant’s model learns field names, never values."
+      description="Webhooks send only the fields you allow. Chat apps show only fields shared with the assistant, to people who can already see them. The AI model never sees values."
     >
       <Stack gap={4}>
         <div className="flex flex-col gap-2">
@@ -474,8 +474,7 @@ function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element
             Never sent, whatever is chosen ({String(never.length)})
           </p>
           <p className="text-sm text-fg-muted">
-            Special-category data (health, beliefs and the like) and encrypted fields such as bank
-            details cannot be added to any endpoint.
+            Special-category and encrypted fields are never sent.
           </p>
           {never.length === 0 ? null : (
             <span className="flex flex-wrap gap-1.5">
@@ -663,9 +662,7 @@ function AddEndpoint({
         <DialogHeader>
           <DialogTitle>Add an endpoint</DialogTitle>
           <DialogDescription>
-            People sends this address a signed message whenever one of the events you choose
-            happens. The signing secret is shown once, after this, for the tool to check each
-            message came from you.
+            People sends a signed message to this address for each selected event. The signing secret is shown once.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
