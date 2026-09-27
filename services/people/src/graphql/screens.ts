@@ -2897,6 +2897,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         filter: t.arg.string(),
         segmentId: t.arg.id(),
         reason: t.arg.string(),
+        includePhotos: t.arg.boolean({
+          description: 'Profile photos too, as a ZIP beside a CSV or spreadsheet.',
+        }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: (_root, { idempotencyKey, ...asked }, ctx) =>

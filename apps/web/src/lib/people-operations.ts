@@ -757,11 +757,12 @@ export const OPERATIONS = {
   }`,
 
   RequestExport: `mutation RequestExport(
-    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String, $key: String!
+    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String,
+    $includePhotos: Boolean, $key: String!
   ) {
     requestExport(
       format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
-      idempotencyKey: $key
+      includePhotos: $includePhotos, idempotencyKey: $key
     ) {
       id status rowCount expiresAt links { name url }
     }

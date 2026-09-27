@@ -1135,6 +1135,8 @@ type Mutation {
     format: String!
     idempotencyKey: String!
     includeArchived: Boolean
+    """Profile photos too, as a ZIP beside a CSV or spreadsheet."""
+    includePhotos: Boolean
     personIds: [ID!]
     reason: String
     """With pdf: this person’s employee record instead of a roster."""
