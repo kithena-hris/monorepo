@@ -220,6 +220,9 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     fields: (t) => ({
       text: t.exposeString('text'),
       understood: t.exposeString('understood', { description: 'How the question was read.' }),
+      answered: t.exposeBoolean('answered', {
+        description: 'People understood the question and answered it: how an answer is chosen when several modules are asked.',
+      }),
       people: t.field({ type: [AnswerPerson], resolve: (a) => list(a.people) }),
     }),
   });

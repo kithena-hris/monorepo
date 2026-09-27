@@ -488,6 +488,10 @@ export const OPERATIONS = {
     reorderDraftFields(sectionKey: $sectionKey, order: $order, idempotencyKey: $key) { ok }
   }`,
 
+  Ask: `query Ask($question: String!, $earlier: [String!]) {
+    peopleAsk(question: $question, earlier: $earlier) { text understood answered people { id name title } }
+  }`,
+
   Chat: `query Chat {
     peopleChat {
       apps { key name canConnect connection { workspace connectedAt } }

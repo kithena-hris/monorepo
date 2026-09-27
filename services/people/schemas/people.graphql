@@ -1357,6 +1357,10 @@ type PeopleAnalytics {
 A question in words, answered as the asker: the model reads only the question and field names; People runs the query.
 """
 type PeopleAnswer {
+  """
+  People understood the question and answered it: how an answer is chosen when several modules are asked.
+  """
+  answered: Boolean
   people: [PeopleAnswerPerson!]
   text: String
   """How the question was read."""

@@ -22,12 +22,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   AutoGrid,
+  Avatar,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
   Button,
   Calendar,
   Combobox,
@@ -803,6 +807,41 @@ const feedback: DocPage = {
   ],
 };
 
+const chatPage: DocPage = {
+  slug: 'chat',
+  title: 'Chat',
+  description: 'A conversation: the messages so far, and the box to write the next one.',
+  when: 'An assistant or a thread of replies. The log is a polite live region, so each new message is read aloud once; Enter sends and Shift+Enter is a new line.',
+  importLine: "import { ChatComposer, ChatLog, ChatMessage } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'A question and its answer',
+      render: () => (
+        <div className="flex w-full max-w-md flex-col gap-3">
+          <ChatLog label="Conversation with the assistant">
+            <ChatMessage from="self" author="You">
+              Who is on the design team?
+            </ChatMessage>
+            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />}>
+              {'Sure! Three people are on the design team:\n• Ada Lovelace\n• Grace Hopper\n• Alan Kay'}
+            </ChatMessage>
+            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />} pending />
+          </ChatLog>
+          <ChatComposer label="Ask a question" placeholder="Ask anything…" onSend={() => undefined} />
+        </div>
+      ),
+      code: `<ChatLog label="Conversation with the assistant">
+  <ChatMessage from="self" author="You">Who is on the design team?</ChatMessage>
+  <ChatMessage from="other" author="Assistant" avatar={<Avatar name="Assistant" />}>
+    Sure! Three people are on the design team…
+  </ChatMessage>
+</ChatLog>
+<ChatComposer label="Ask a question" onSend={send} />`,
+    },
+  ],
+};
+
 const clipboard: DocPage = {
   slug: 'clipboard',
   title: 'Clipboard',
@@ -1375,6 +1414,7 @@ export const MORE_PAGES: readonly DocPage[] = [
   alertDialog,
   breadcrumb,
   calendar,
+  chatPage,
   clipboard,
   columnChooser,
   combobox,

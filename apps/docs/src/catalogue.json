@@ -3,7 +3,7 @@
     "id": "foundations",
     "title": "Foundations",
     "blurb": "The decisions everything else inherits. Colour, type, elevation, shape and motion are read live from the shipped stylesheet, so what you see is what the components resolve. Typography is documented as utilities rather than a text component, because a system with a <Text> ends up with two ways to write a heading.",
-    "items": ["Tokens", "Typography", "Motion", "Responsive", "Patterns", "Brand"]
+    "items": ["Tokens", "Typography", "Motion", "Responsive", "Patterns", "Brand", "App marks"]
   },
   {
     "id": "layouts",
@@ -68,6 +68,7 @@
       "Breadcrumb",
       "Button",
       "Card",
+      "Chat",
       "Clipboard",
       "ColumnChooser",
       "ContextMenu",
@@ -96,8 +97,8 @@
       "Tabs",
       "Timeline",
       "Toast",
-      "VirtualList",
-      "Tooltip"
+      "Tooltip",
+      "VirtualList"
     ]
   },
   {

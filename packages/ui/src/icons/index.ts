@@ -128,6 +128,7 @@ import {
   GitMerge,
   Cpu,
   ScanSearch,
+  Sparkles,
 } from 'lucide-react';
 
 /**
@@ -240,6 +241,8 @@ export const iconGroups = {
     email: Mail,
     phone: Phone,
     message: MessageSquare,
+    /** Asking the assistant: a question answered in words. */
+    assistant: Sparkles,
     permission: Shield,
     locked: Lock,
     unlocked: LockOpen,

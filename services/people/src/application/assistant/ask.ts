@@ -42,6 +42,12 @@ export interface AssistantAnswer {
   }[];
   /** How the question was read, for somebody checking the answer. */
   readonly understood: string;
+  /**
+   * People understood the question and answered it (even with "nobody"):
+   * false when it was not a question for People, or not sent. Where several
+   * modules are asked the same question, this is how an answer is chosen.
+   */
+  readonly answered: boolean;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
@@ -106,7 +112,12 @@ function spokenDate(iso: string): string {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    : d.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
 }
 
 /**
@@ -174,14 +185,20 @@ async function answer(
 ): Promise<AssistantAnswer> {
   switch (intent.kind) {
     case 'unclear':
-      return { text: intent.reply, people: [], understood: 'Not a question People can answer' };
+      return {
+        text: intent.reply,
+        people: [],
+        understood: 'Not a question People can answer',
+        answered: false,
+      };
     case 'people': {
       const refine = { conditions: intent.conditions, match: intent.match };
       const [found, counted] = await Promise.all([
         deps.service.access.list(tx, { ...asking, refine, limit: intent.limit }),
         deps.service.access.count(tx, { ...asking, refine }),
       ]);
-      if (!found.ok) return { text: found.error.message, people: [], understood: 'Refused' };
+      if (!found.ok)
+        return { text: found.error.message, people: [], understood: 'Refused', answered: false };
       const people = found.value.items.map(personLine);
       const total = counted.ok ? counted.value.all : people.length;
       const what = describe(intent.conditions, catalogue, intent.match);
@@ -191,14 +208,14 @@ async function answer(
         `I found ${String(total)} ${plural(total, 'person', 'people')} ${what}.`,
       );
       const more =
-        total > people.length ? ` Here are the first ${String(people.length)}; the directory has the rest.` : '';
+        total > people.length
+          ? ` Here are the first ${String(people.length)}; the directory has the rest.`
+          : '';
       return {
-        text:
-          total === 0
-            ? `I couldn’t find anyone ${what}.`
-            : `${open}${more}\n${listed(people)}`,
+        text: total === 0 ? `I couldn’t find anyone ${what}.` : `${open}${more}\n${listed(people)}`,
         people,
         understood: `People ${what}`,
+        answered: true,
       };
     }
     case 'count': {
@@ -207,7 +224,13 @@ async function answer(
       const group = catalogue.find((f) => f.key === intent.groupBy);
       if (group === undefined) {
         const counted = await deps.service.access.count(tx, { ...asking, refine });
-        if (!counted.ok) return { text: counted.error.message, people: [], understood: 'Refused' };
+        if (!counted.ok)
+          return {
+            text: counted.error.message,
+            people: [],
+            understood: 'Refused',
+            answered: false,
+          };
         const n = counted.value.all;
         return {
           text:
@@ -220,6 +243,7 @@ async function answer(
                 ),
           people: [],
           understood: `How many ${what}`,
+          answered: true,
         };
       }
       const rows: string[] = [];
@@ -247,6 +271,7 @@ async function answer(
             : `${opening(intent, sum, `Here’s how the ${String(sum)} ${plural(sum, 'person', 'people')} ${what} split by ${group.label.toLowerCase()}:`)}\n${rows.join('\n')}`,
         people: [],
         understood: `How many ${what}, by ${group.label.toLowerCase()}`,
+        answered: true,
       };
     }
     case 'person': {
@@ -257,11 +282,13 @@ async function answer(
               text: `I couldn’t find anyone called ${intent.name}. Could you check the spelling?`,
               people: [],
               understood: `About ${intent.name}`,
+              answered: true,
             }
           : {
               text: `A few people are called ${intent.name}. Which one did you mean?\n${listed(several.map(personLine))}`,
               people: several.map(personLine),
               understood: `About ${intent.name}`,
+              answered: true,
             };
       }
       const line = personLine(person);
@@ -288,6 +315,7 @@ async function answer(
         text: [intent.say ?? null, ...sentences].filter((x) => x !== null).join(' '),
         people: [line],
         understood: `About ${line.name}`,
+        answered: true,
       };
     }
     case 'reports': {
@@ -300,6 +328,7 @@ async function answer(
               : `A few people are called ${intent.name}. Which one did you mean?\n${listed(several.map(personLine))}`,
           people: several.map(personLine),
           understood: `Who reports to ${intent.name}`,
+          answered: true,
         };
       }
       const manager = personLine(person);
@@ -316,6 +345,7 @@ async function answer(
             : `${opening(intent, people.length, `${manager.name} has ${String(people.length)} direct ${plural(people.length, 'report', 'reports')}:`)}\n${listed(people)}`,
         people,
         understood: `Who reports to ${manager.name}`,
+        answered: true,
       };
     }
     case 'approvals': {
@@ -331,6 +361,7 @@ async function answer(
                 .join('\n')}`,
         people: [],
         understood: 'What waits for approval',
+        answered: true,
       };
     }
   }
@@ -378,6 +409,7 @@ export async function ask(
           : 'Sorry, I couldn’t take that question just now. Could you try again in a moment?',
       people: [],
       understood: 'Not sent to the assistant',
+      answered: false,
     });
   }
   const intent = readIntent(completed.value, catalogue.value);

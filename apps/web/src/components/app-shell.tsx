@@ -31,6 +31,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { THEME_KEY } from '../lib/theme';
+import { Assistant } from './assistant';
 
 /*
  * Reach's icon set, by meaning rather than by drawing.
@@ -156,6 +157,7 @@ export function AppShell({
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
+  const [asking, setAsking] = useState(false);
   const areas = areasFor(entitlements);
   const pathname = usePathname();
   /*
@@ -187,7 +189,17 @@ export function AppShell({
           and hides where you are. It is the pattern every app on the device
           already uses, which is the argument for it.
         */
-        bottomBar={<MobileTabs areas={areas} person={person} dark={dark} onTheme={setTheme} />}
+        bottomBar={
+          <MobileTabs
+            areas={areas}
+            person={person}
+            dark={dark}
+            onTheme={setTheme}
+            onAsk={() => {
+              setAsking(true);
+            }}
+          />
+        }
         bottomBarClassName="md:hidden"
         contentClassName="px-6 py-8"
         /*
@@ -285,6 +297,22 @@ export function AppShell({
             <div className="border-border mt-auto flex shrink-0 flex-col gap-3 border-t pt-3">
               <Nav label="Account">
                 <NavList>
+                  {/* A link to `#ask` that opens the panel rather than
+                      leaving: a sidebar entry, with the rail's tooltip, and
+                      ⌘J from anywhere. */}
+                  <NavItem asChild icon={<icons.assistant />}>
+                    <a
+                      href="#ask"
+                      aria-haspopup="dialog"
+                      aria-keyshortcuts="Meta+J Control+J"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setAsking(true);
+                      }}
+                    >
+                      Ask Kithena
+                    </a>
+                  </NavItem>
                   <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
                     <Link href="/settings">Settings</Link>
                   </NavItem>
@@ -297,6 +325,7 @@ export function AppShell({
       >
         {children}
       </PageLayout>
+      <Assistant open={asking} onOpenChange={setAsking} />
     </TooltipProvider>
   );
 }
@@ -400,11 +429,13 @@ function MobileTabs({
   person,
   dark,
   onTheme,
+  onAsk,
 }: {
   readonly areas: typeof AREAS;
   readonly person: AppShellProps['person'];
   readonly dark: boolean;
   readonly onTheme: (next: boolean) => void;
+  readonly onAsk: () => void;
 }): JSX.Element {
   const pathname = usePathname();
   return (
@@ -451,6 +482,17 @@ function MobileTabs({
                 </NavItem>
               </NavList>
             </Nav>
+
+            <Button
+              variant="ghost"
+              fullWidth
+              aria-haspopup="dialog"
+              startIcon={<icons.assistant />}
+              className="mt-2 justify-start"
+              onClick={onAsk}
+            >
+              Ask Kithena
+            </Button>
 
             <Button
               variant="ghost"

@@ -801,7 +801,7 @@ export function wirePeople(server: Server): void {
         response,
         answered.ok
           ? { status: 200, body: answered.value }
-          : { status: 200, body: { text: answered.error.message, people: [], understood: answered.error.code } },
+          : { status: 200, body: { text: answered.error.message, people: [], understood: answered.error.code, answered: false } },
       );
     } catch (cause) {
       logger.error({ err: cause }, 'a chat question failed');
