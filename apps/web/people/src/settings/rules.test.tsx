@@ -245,7 +245,7 @@ describe('custom visibility rules (PEO-066)', () => {
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     await user.click(
-      within(sheet).getByRole('button', { name: /^Also visible, on some records/ }),
+      within(sheet).getByRole('button', { name: /^Let more people see it, on some records only/ }),
     );
     await user.click(within(sheet).getByRole('button', { name: 'Add a rule' }));
     const n = 'Rule 1: when, condition 1';

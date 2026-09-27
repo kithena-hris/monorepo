@@ -2138,6 +2138,8 @@ type RegistryField {
   collectAt: String
   dataType: String
   description: String
+  """Stored sealed: only the last four characters are ever shown."""
+  encrypted: Boolean
   key: String
   label: String
   options: [String!]

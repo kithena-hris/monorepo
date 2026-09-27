@@ -42,6 +42,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -181,6 +184,7 @@ function Registry({
         description={`${status} · ${pending}`}
         actions={
           <>
+            <Legend />
             <Button
               startIcon={<icons.visible aria-hidden />}
               onClick={() => {
@@ -446,9 +450,6 @@ function SectionFields({
             {(f) => (
               <FieldRow
                 field={f}
-                editable={
-                  !section.fixed && f.origin !== 'core' && f.classification !== 'special-category'
-                }
                 onEdit={onEdit}
                 {...(onSignup === undefined ? {} : { onSignup })}
                 {...(onAssistant === undefined ? {} : { onAssistant })}
@@ -565,13 +566,7 @@ function Found({
                 </div>
               </TableCell>
               <TableCell>
-                <EditOrWhy
-                  field={f}
-                  editable={
-                    !section.fixed && f.origin !== 'core' && f.classification !== 'special-category'
-                  }
-                  onEdit={onEdit}
-                />
+                <EditField field={f} onEdit={onEdit} />
               </TableCell>
             </TableRow>
           ))}
@@ -594,6 +589,78 @@ function seenBy(field: RegistryField): string {
 }
 
 /** Draft status, requiredness and protection, each in words as well as tone. */
+/** What each label on a field means: a key, one click away. */
+const LEGEND: readonly { readonly badge: JSX.Element; readonly means: string }[] = [
+  {
+    badge: (
+      <Badge tone="accent" size="sm">
+        Required
+      </Badge>
+    ),
+    means: 'Everyone it applies to must fill it in.',
+  },
+  {
+    badge: (
+      <Badge tone="sensitive" size="sm">
+        Needs approval
+      </Badge>
+    ),
+    means: 'A change waits for a second person in HR to approve it before it counts.',
+  },
+  {
+    badge: (
+      <Badge size="sm">
+        <icons.locked aria-hidden className="size-3" />
+        Encrypted
+      </Badge>
+    ),
+    means:
+      'Stored sealed. Screens show only its last four characters, and it never reaches the assistant, a chat app or a webhook.',
+  },
+  {
+    badge: <Badge size="sm">Confidential</Badge>,
+    means: 'Shown only to the people chosen for it, and never to the assistant.',
+  },
+  {
+    badge: (
+      <Badge tone="warning" size="sm">
+        Special category
+      </Badge>
+    ),
+    means: 'Health, beliefs and the like: the strictest protection, never sent outside Kithena.',
+  },
+  {
+    badge: (
+      <Badge tone="warning" size="sm">
+        ~ Changed
+      </Badge>
+    ),
+    means: 'Added, changed or archived in the draft: nobody sees it until you publish.',
+  },
+];
+
+function Legend(): JSX.Element {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" startIcon={<icons.help aria-hidden />}>
+          What the labels mean
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)]">
+        <dl className="flex flex-col gap-3">
+          {LEGEND.map((l) => (
+            <div key={l.means} className="grid grid-cols-[8.5rem_1fr] items-start gap-3">
+              <dt>{l.badge}</dt>
+              <dd className="text-sm text-fg-muted">{l.means}</dd>
+            </div>
+          ))}
+        </dl>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
   const pending = field.pending === null ? null : PENDING[field.pending];
   return (
@@ -613,6 +680,12 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
           Needs approval
         </Badge>
       ) : null}
+      {field.encrypted === true ? (
+        <Badge size="sm">
+          <icons.locked aria-hidden className="size-3" />
+          Encrypted
+        </Badge>
+      ) : null}
       {field.classification === 'confidential' ? (
         <Badge size="sm">Confidential</Badge>
       ) : field.classification === 'special-category' ? (
@@ -625,20 +698,18 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
 }
 
 /*
- * A core field has no edit affordance at all, which is what "core" means
- * here: its requiredness and classification have a floor the tenant cannot
- * lower. The word says so rather than a greyed-out button.
+ * Every field can be edited. A built-in one keeps a floor — its type, and
+ * protection that can be tightened but never loosened — which the editor
+ * says, and People enforces.
  */
-function EditOrWhy({
+function EditField({
   field,
-  editable,
   onEdit,
 }: {
   readonly field: RegistryField;
-  readonly editable: boolean;
   readonly onEdit: (field: RegistryField) => void;
 }): JSX.Element {
-  return editable ? (
+  return (
     <Button
       size="sm"
       variant="ghost"
@@ -649,8 +720,6 @@ function EditOrWhy({
     >
       Edit
     </Button>
-  ) : (
-    <span className="pt-1 text-xs text-fg-muted">{field.origin === 'core' ? 'Core' : 'Fixed'}</span>
   );
 }
 
@@ -782,13 +851,11 @@ function SignupAsk({
 
 function FieldRow({
   field,
-  editable,
   onEdit,
   onSignup,
   onAssistant,
 }: {
   readonly field: RegistryField;
-  readonly editable: boolean;
   readonly onEdit: (field: RegistryField) => void;
   readonly onSignup?: FieldRegistryProps['onSignup'];
   readonly onAssistant?: FieldRegistryProps['onAssistant'];
@@ -809,10 +876,8 @@ function FieldRow({
         {onAssistant === undefined ? null : (
           <AssistantShare field={field} onAssistant={onAssistant} />
         )}
-        {onSignup === undefined || !editable ? null : (
-          <SignupAsk field={field} onSignup={onSignup} />
-        )}
-        <EditOrWhy field={field} editable={editable} onEdit={onEdit} />
+        {onSignup === undefined ? null : <SignupAsk field={field} onSignup={onSignup} />}
+        <EditField field={field} onEdit={onEdit} />
       </div>
     </div>
   );

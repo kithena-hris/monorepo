@@ -115,6 +115,8 @@ export interface RegistryView {
     readonly aiEligible: boolean;
     /** It could be shared with the assistant: public or internal, and not sealed. */
     readonly aiShareable: boolean;
+    /** Stored sealed: the row keeps its last four and nothing else. */
+    readonly encrypted: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
@@ -176,6 +178,7 @@ export async function registryView(
         signupAskable: askAtSignup(a, 'optional').ok,
         aiEligible: a.classification.aiEligible,
         aiShareable: aiShareable(a),
+        encrypted: a.encrypted,
         origin: a.origin,
         pending: pendingOf(a, published),
       }));

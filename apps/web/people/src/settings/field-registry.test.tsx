@@ -211,10 +211,10 @@ describe('FieldRegistry', () => {
     );
   });
 
-  it('offers no edit on a core field and nothing at all in a fixed section', async () => {
+  it('offers edit on every field, the built-in ones too, and no new ones in a fixed section', async () => {
     const user = fast();
     render(<FieldRegistry {...props()} />);
-    expect(screen.queryByRole('button', { name: 'Edit Employee number' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Employee number' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit Cost centre' })).toBeInTheDocument();
     expect(screen.getByText('+ Added')).toBeInTheDocument();
 
@@ -226,6 +226,7 @@ describe('FieldRegistry', () => {
     expect(screen.getByText('These rules are fixed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add field' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Move Ethnicity up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Edit Ethnicity' })).toBeInTheDocument();
   });
 
   it('opens the editor for the section chosen', async () => {

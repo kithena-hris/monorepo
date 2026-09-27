@@ -131,6 +131,8 @@ export interface RegistryField {
   readonly aiEligible?: boolean;
   /** It could be shared with the assistant: public or internal, and not sealed. */
   readonly aiShareable?: boolean;
+  /** Stored sealed: only its last four characters are ever shown. */
+  readonly encrypted?: boolean;
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;

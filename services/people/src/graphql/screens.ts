@@ -962,6 +962,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'The assistant may name it: its label and options, never a value.',
         }),
         aiShareable: t.exposeBoolean('aiShareable'),
+        encrypted: t.exposeBoolean('encrypted', {
+          description: 'Stored sealed: only the last four characters are ever shown.',
+        }),
         pending: t.exposeString('pending', {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
