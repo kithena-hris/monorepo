@@ -1,8 +1,15 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Alert,
   Button,
   Card,
   CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Checkbox,
   Combobox,
   Field,
@@ -15,7 +22,9 @@ import {
   RadioGroup,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
   Sheet,
@@ -35,9 +44,10 @@ import {
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
+import { AttributeInput } from '../record/attribute-input';
+import type { AttributeValue } from '../record/model';
 import {
   CLASSIFICATION_ORDER,
-  DATA_TYPES,
   atLeast,
   type Classification,
   type ClassificationAdvice,
@@ -60,23 +70,33 @@ import {
   predicateProblem,
   type PredicateField,
 } from './predicate-editor';
-import { readBack } from './read-back';
+import { readBack, summary } from './read-back';
 import {
   CLASSIFICATION_LABEL,
   COLLECT_LABEL,
+  DATA_TYPE_GROUPS,
+  DATA_TYPE_HINT,
   DATA_TYPE_LABEL,
   REQUIREDNESS_LABEL,
+  SCOPE_HINT,
   SCOPE_LABEL,
+  WRITER_HINT,
   WRITER_LABEL,
   keyFromLabel,
+  listed,
 } from './words';
 
-/** The four steps, in the order §9.2 argues for. Classification is last. */
+/**
+ * The four steps: what it is, who sees and edits it, when it is asked, and a
+ * review. Classification sits in the review, last, as §9.2 argues: it is the
+ * choice most likely to be clicked through, and by then the form knows enough
+ * for the suggestion to be good.
+ */
 const STEPS = [
-  { id: 'what', label: 'What is it' },
-  { id: 'who', label: 'Who fills it in' },
-  { id: 'see', label: 'Who can see it' },
-  { id: 'kind', label: 'What kind of data' },
+  { id: 'what', label: 'The field' },
+  { id: 'who', label: 'Who sees it' },
+  { id: 'when', label: 'When asked' },
+  { id: 'review', label: 'Review' },
 ] as const;
 
 /** The people a form is filled in by. `system` and `external` are integrations. */
@@ -91,7 +111,54 @@ const SCOPES: readonly ViewerScope[] = [
 ];
 /** The contract's bound on custom visibility rules. */
 const MOST_RULES = 5;
-const COLLECT: readonly CollectAt[] = ['onboarding', 'anytime', 'hr_only', 'enrolment', 'signup'];
+/** In the order a person meets them. */
+const COLLECT: readonly CollectAt[] = ['signup', 'enrolment', 'onboarding', 'anytime', 'hr_only'];
+
+/**
+ * Common fields to start from. Only the answers a new field would otherwise
+ * be typed in from scratch; what kind of data it is is still judged in review.
+ */
+const TEMPLATES: readonly Pick<
+  Draft,
+  'label' | 'description' | 'dataType' | 'options' | 'ownership' | 'collectAt' | 'visibility'
+>[] = [
+  {
+    label: 'T-shirt size',
+    description: 'For company clothing.',
+    dataType: 'select',
+    options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    ownership: ['employee', 'hr'],
+    collectAt: 'onboarding',
+    visibility: ['self', 'hr'],
+  },
+  {
+    label: 'Pronouns',
+    description: 'How they would like to be referred to.',
+    dataType: 'text',
+    options: [],
+    ownership: ['employee'],
+    collectAt: 'signup',
+    visibility: ['self', 'manager', 'hr', 'directory'],
+  },
+  {
+    label: 'Emergency contact name',
+    description: 'Who to call if something happens at work.',
+    dataType: 'text',
+    options: [],
+    ownership: ['employee', 'hr'],
+    collectAt: 'onboarding',
+    visibility: ['self', 'hr'],
+  },
+  {
+    label: 'Emergency contact phone',
+    description: 'Their number, with the country code.',
+    dataType: 'phone',
+    options: [],
+    ownership: ['employee', 'hr'],
+    collectAt: 'onboarding',
+    visibility: ['self', 'hr'],
+  },
+];
 const WITH_OPTIONS: ReadonlySet<DataType> = new Set(['select', 'multi_select']);
 const KEY = /^[a-z][a-z0-9_]{0,62}$/;
 
@@ -142,7 +209,9 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     requiredness: 'never',
     requiredWhen: EMPTY_PREDICATE,
     ownership: section.ownership,
-    collectAt: 'anytime',
+    // Asked of the employee in onboarding when they fill the section in;
+    // otherwise HR's alone. Both choices are explained in step 3.
+    collectAt: section.ownership.includes('employee') ? 'onboarding' : 'hr_only',
     // Defaulted from the section, which is what §9.2 asks: most fields are
     // seen by whoever sees the rest of their section.
     visibility: section.visibility,
@@ -161,7 +230,6 @@ export function approvalByDefault(dataType: DataType, piiKind: string): boolean 
   return piiKind === 'financial' || dataType === 'bank_account' || dataType === 'national_id';
 }
 
-/** What stops each step from moving on, or null when it may. */
 /**
  * A condition on special-category data leaks through completeness: "missing"
  * tells whoever sees the gap that the condition held. People refuses it
@@ -189,7 +257,15 @@ function problemsIn(
 ) {
   const problems: Partial<
     Record<
-      'label' | 'key' | 'options' | 'ownership' | 'requiredWhen' | 'visibility' | 'rules' | 'kind',
+      | 'label'
+      | 'key'
+      | 'options'
+      | 'ownership'
+      | 'requiredWhen'
+      | 'visibility'
+      | 'rules'
+      | 'kind'
+      | 'unseen',
       string
     >
   > = {};
@@ -207,12 +283,18 @@ function problemsIn(
   if (step === 1 && draft.ownership.length === 0) {
     problems.ownership = 'Somebody has to be able to fill it in.';
   }
-  if (step === 1 && draft.requiredness === 'conditional') {
+  if (step === 2 && draft.requiredness === 'conditional') {
     const problem =
       predicateProblem(draft.requiredWhen) ?? specialCategoryProblem(draft.requiredWhen, others);
     if (problem !== null) problems.requiredWhen = problem;
   }
-  if (step === 2) {
+  // Checked again where requiredness is chosen: a required field needs
+  // somebody who can always read it, not only through a rule.
+  if (step === 2 && draft.requiredness !== 'never' && draft.visibility.length === 0) {
+    problems.unseen =
+      'A required field needs somebody who can always see it. Go back a step and choose who can see it.';
+  }
+  if (step === 1) {
     // A rule holds of some records, so it is no answer for a required field:
     // the contract asks for a preset reader then, and so does this.
     if (
@@ -235,7 +317,7 @@ function problemsIn(
       problems.kind = 'Special-category data needs your explicit confirmation.';
     } else if (draft.classification === 'special-category' && draft.visibilityRules.length > 0) {
       problems.kind =
-        'Special-category data is never shown by a rule. Remove the rules under Who can see it.';
+        'Special-category data is never shown by a rule. Remove the rules under Who sees it.';
     }
   }
   return problems;
@@ -284,6 +366,7 @@ export function FieldEditor({
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => draftFrom(section, field));
   const [keyEdited, setKeyEdited] = useState(false);
+  const [advanced, setAdvanced] = useState('');
   const [shown, setShown] = useState(false);
   const [advice, setAdvice] = useState<ClassificationAdvice | 'asking' | 'failed' | null>(null);
   const [saving, setSaving] = useState(false);
@@ -297,6 +380,7 @@ export function FieldEditor({
     setStep(0);
     setDraft(draftFrom(section, field));
     setKeyEdited(field !== null);
+    setAdvanced('');
     setShown(false);
     setAdvice(null);
     setRefused(null);
@@ -305,12 +389,7 @@ export function FieldEditor({
 
   const editing = field !== null;
   const others = fields.filter((f) => f.key !== draft.key);
-  const problems = problemsIn(
-    step,
-    draft,
-    (key) => !editing && takenKeys.includes(key),
-    others,
-  );
+  const problems = problemsIn(step, draft, (key) => !editing && takenKeys.includes(key), others);
   const blocked = Object.keys(problems).length > 0;
   const set = (patch: Partial<Draft>): void => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -397,6 +476,10 @@ export function FieldEditor({
   };
 
   const show = shown ? problems : {};
+  const piiKind = typeof advice === 'object' && advice !== null ? advice.piiKind : 'none';
+  // What People will store: encrypted for these, whatever the admin says.
+  const encrypted = approvalByDefault(draft.dataType, piiKind);
+  const approval = draft.requiresApproval ?? encrypted;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -421,52 +504,53 @@ export function FieldEditor({
             />
 
             {step === 0 ? (
-              <Stack gap={4}>
+              <Stack gap={5}>
+                {editing ? null : (
+                  <Stack gap={2}>
+                    <p className="text-sm font-medium">Start from a common field</p>
+                    <div className="flex flex-wrap gap-2">
+                      {TEMPLATES.map((template) => {
+                        const key = keyFromLabel(template.label);
+                        const taken = takenKeys.includes(key);
+                        return (
+                          <Button
+                            key={key}
+                            size="sm"
+                            disabled={taken}
+                            aria-pressed={draft.key === key}
+                            onClick={() => {
+                              setKeyEdited(false);
+                              set({ ...template, key, requiredness: 'never' });
+                            }}
+                          >
+                            {template.label}
+                            {taken ? ' (added)' : ''}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-sm text-fg-muted">
+                      Fills in every step with sensible answers. You can change any of them.
+                    </p>
+                  </Stack>
+                )}
                 <Field required invalid={show.label !== undefined}>
-                  <FieldLabel>Label</FieldLabel>
+                  <FieldLabel>Field name</FieldLabel>
                   <FieldControl>
                     <Input
                       value={draft.label}
+                      placeholder="T-shirt size"
                       onChange={(e) => {
                         const label = e.target.value;
                         set(keyEdited ? { label } : { label, key: keyFromLabel(label) });
                       }}
                     />
                   </FieldControl>
+                  <FieldDescription>What people see above the field on a form.</FieldDescription>
                   <FieldError>{show.label}</FieldError>
                 </Field>
-                <Field invalid={show.key !== undefined} disabled={editing}>
-                  <FieldLabel>Key</FieldLabel>
-                  <FieldControl>
-                    <Input
-                      className="font-mono"
-                      value={draft.key}
-                      onChange={(e) => {
-                        setKeyEdited(true);
-                        set({ key: e.target.value });
-                      }}
-                    />
-                  </FieldControl>
-                  <FieldDescription>
-                    What exports, webhooks and integrations call it. It cannot change once
-                    published.
-                  </FieldDescription>
-                  <FieldError>{show.key}</FieldError>
-                </Field>
-                <Field>
-                  <FieldLabel>Description</FieldLabel>
-                  <FieldControl>
-                    <Textarea
-                      value={draft.description}
-                      onChange={(e) => {
-                        set({ description: e.target.value });
-                      }}
-                    />
-                  </FieldControl>
-                  <FieldDescription>Shown under the field on every form.</FieldDescription>
-                </Field>
                 <Field disabled={editing}>
-                  <FieldLabel>Type</FieldLabel>
+                  <FieldLabel>Type of answer</FieldLabel>
                   <Select
                     value={draft.dataType}
                     disabled={editing}
@@ -480,34 +564,94 @@ export function FieldEditor({
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
-                      {DATA_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {DATA_TYPE_LABEL[type]}
-                        </SelectItem>
+                      {DATA_TYPE_GROUPS.map((group) => (
+                        <SelectGroup key={group.label}>
+                          <SelectLabel>{group.label}</SelectLabel>
+                          {group.types.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {DATA_TYPE_LABEL[type]}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                   </Select>
+                  <FieldDescription>
+                    {DATA_TYPE_HINT[draft.dataType]}
+                    {editing ? ' The type cannot change once the field exists.' : ''}
+                  </FieldDescription>
                 </Field>
                 {WITH_OPTIONS.has(draft.dataType) ? (
                   <TagsInput
                     label="Options"
                     value={draft.options}
                     invalid={show.options !== undefined}
-                    hint={show.options ?? 'Press Enter after each one.'}
+                    hint={show.options ?? 'Type one, then press Enter. Add as many as you need.'}
                     onChange={(options) => {
                       set({ options });
                     }}
                   />
                 ) : null}
+                <Field>
+                  <FieldLabel>Help text</FieldLabel>
+                  <FieldControl>
+                    <Textarea
+                      value={draft.description}
+                      onChange={(e) => {
+                        set({ description: e.target.value });
+                      }}
+                    />
+                  </FieldControl>
+                  <FieldDescription>
+                    Optional. Shown under the field on every form: what to enter, and why you ask.
+                  </FieldDescription>
+                </Field>
+                <Accordion
+                  type="single"
+                  collapsible
+                  value={show.key === undefined ? advanced : 'key'}
+                  onValueChange={setAdvanced}
+                >
+                  <AccordionItem value="key">
+                    <AccordionTrigger meta={<span className="font-mono">{draft.key}</span>}>
+                      Key for integrations
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <Field invalid={show.key !== undefined} disabled={editing}>
+                        <FieldLabel>Key</FieldLabel>
+                        <FieldControl>
+                          <Input
+                            className="font-mono"
+                            value={draft.key}
+                            onChange={(e) => {
+                              setKeyEdited(true);
+                              set({ key: e.target.value });
+                            }}
+                          />
+                        </FieldControl>
+                        <FieldDescription>
+                          Made from the name; most people never change it. What exports, webhooks
+                          and integrations call the field. It cannot change once published.
+                        </FieldDescription>
+                        <FieldError>{show.key}</FieldError>
+                      </Field>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                <Preview draft={draft} approval={approval} />
               </Stack>
             ) : null}
 
             {step === 1 ? (
               <Stack gap={5}>
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-2 text-sm font-medium">Filled in by</legend>
+                <fieldset className="flex flex-col gap-3">
+                  <legend className="mb-1 text-sm font-medium">Who can change it?</legend>
                   {OWNERS.map((owner) => (
-                    <Field key={owner} orientation="horizontal" className="justify-start">
+                    <Field
+                      key={owner}
+                      orientation="horizontal"
+                      className="items-start justify-start"
+                    >
                       <FieldControl>
                         <Checkbox
                           checked={draft.ownership.includes(owner)}
@@ -516,25 +660,210 @@ export function FieldEditor({
                           }}
                         />
                       </FieldControl>
-                      <FieldLabel>{WRITER_LABEL[owner]}</FieldLabel>
+                      <div>
+                        <FieldLabel>{WRITER_LABEL[owner]}</FieldLabel>
+                        <FieldDescription>{WRITER_HINT[owner]}</FieldDescription>
+                      </div>
                     </Field>
                   ))}
                   {show.ownership === undefined ? null : (
                     <Alert tone="danger">{show.ownership}</Alert>
                   )}
                 </fieldset>
+                <fieldset className="flex flex-col gap-3">
+                  <legend className="mb-1 text-sm font-medium">Who can see it?</legend>
+                  {SCOPES.map((scope) => (
+                    <Field
+                      key={scope}
+                      orientation="horizontal"
+                      className="items-start justify-start"
+                    >
+                      <FieldControl>
+                        <Checkbox
+                          checked={draft.visibility.includes(scope)}
+                          onCheckedChange={(on) => {
+                            set({ visibility: toggled(draft.visibility, scope, on === true) });
+                          }}
+                        />
+                      </FieldControl>
+                      <div>
+                        <FieldLabel>{SCOPE_LABEL[scope]}</FieldLabel>
+                        <FieldDescription>{SCOPE_HINT[scope]}</FieldDescription>
+                      </div>
+                    </Field>
+                  ))}
+                </fieldset>
+                {show.visibility === undefined ? (
+                  <Alert tone="info">{readBack(draft.ownership, draft.visibility)}</Alert>
+                ) : (
+                  <Alert tone="danger">{show.visibility}</Alert>
+                )}
+                <Accordion
+                  type="single"
+                  collapsible
+                  defaultValue={draft.visibilityRules.length > 0 ? 'rules' : ''}
+                >
+                  <AccordionItem value="rules">
+                    <AccordionTrigger
+                      meta={
+                        draft.visibilityRules.length === 0
+                          ? 'None'
+                          : `${String(draft.visibilityRules.length)} ${draft.visibilityRules.length === 1 ? 'rule' : 'rules'}`
+                      }
+                    >
+                      Also visible, on some records
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {/* Custom rules (PEO-066): a preset scope, on some records only. */}
+                      <fieldset className="flex flex-col gap-3">
+                        <legend className="mb-1 text-sm font-medium">
+                          Also visible, on some records
+                        </legend>
+                        {draft.visibilityRules.map((rule, index) => {
+                          const name = `Rule ${String(index + 1)}`;
+                          const change = (changed: VisibilityRule): void => {
+                            set({
+                              visibilityRules: draft.visibilityRules.map((r, i) =>
+                                i === index ? changed : r,
+                              ),
+                            });
+                          };
+                          return (
+                            // Positional: a rule has no identity beyond its place.
+                            <Card key={index}>
+                              <CardContent>
+                                <Stack gap={3}>
+                                  <Field>
+                                    <FieldLabel>{name}: who else can see it</FieldLabel>
+                                    <FieldControl>
+                                      <Combobox
+                                        label={`${name}: who else can see it`}
+                                        multiple
+                                        placeholder="Choose who"
+                                        options={SCOPES.map((scope) => ({
+                                          value: scope,
+                                          label: SCOPE_LABEL[scope],
+                                        }))}
+                                        value={rule.scopes}
+                                        onChange={(scopes) => {
+                                          change({
+                                            ...rule,
+                                            scopes: (Array.isArray(scopes)
+                                              ? scopes
+                                              : []) as ViewerScope[],
+                                          });
+                                        }}
+                                      />
+                                    </FieldControl>
+                                  </Field>
+                                  <PredicateEditor
+                                    legend={`${name}: when`}
+                                    value={rule.when}
+                                    onChange={(when) => {
+                                      change({ ...rule, when });
+                                    }}
+                                    choices={choices}
+                                    fields={others}
+                                  />
+                                  <div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        set({
+                                          visibilityRules: draft.visibilityRules.filter(
+                                            (_, i) => i !== index,
+                                          ),
+                                        });
+                                      }}
+                                    >
+                                      Remove {name.toLowerCase()}
+                                    </Button>
+                                  </div>
+                                </Stack>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        {show.rules === undefined ? null : (
+                          <Alert tone="danger">{show.rules}</Alert>
+                        )}
+                        {draft.visibilityRules.length < MOST_RULES ? (
+                          <div>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                set({
+                                  visibilityRules: [
+                                    ...draft.visibilityRules,
+                                    { scopes: ['manager'], when: EMPTY_PREDICATE },
+                                  ],
+                                });
+                              }}
+                            >
+                              Add a rule
+                            </Button>
+                          </div>
+                        ) : null}
+                        <p className="text-sm text-fg-muted">
+                          A rule shows the field to somebody only on the records its conditions hold
+                          for, and only if they can already see every field a condition reads. Never
+                          for special-category data.
+                        </p>
+                      </fieldset>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </Stack>
+            ) : null}
+
+            {step === 2 ? (
+              <Stack gap={5}>
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-2 text-sm font-medium">Required</legend>
+                  <legend className="mb-2 text-sm font-medium">When is it asked?</legend>
+                  <RadioGroup
+                    value={draft.collectAt}
+                    onValueChange={(value) => {
+                      set({ collectAt: value as CollectAt });
+                    }}
+                  >
+                    {COLLECT.map((when) => (
+                      <RadioCard
+                        key={when}
+                        value={when}
+                        description={
+                          <>
+                            {COLLECT_LABEL[when].description}
+                            <span className="mt-1 block text-fg-subtle">
+                              {COLLECT_LABEL[when].example}
+                            </span>
+                          </>
+                        }
+                      >
+                        {COLLECT_LABEL[when].label}
+                      </RadioCard>
+                    ))}
+                  </RadioGroup>
+                </fieldset>
+                <StageNote draft={draft} />
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-2 text-sm font-medium">Is it required?</legend>
                   <RadioGroup
                     value={draft.requiredness}
                     onValueChange={(requiredness) => {
                       set({ requiredness: requiredness as RequirednessMode });
                     }}
                   >
-                    <RadioCard value="never" description="Nobody is chased for it.">
+                    <RadioCard
+                      value="never"
+                      description="Nobody is reminded about it, and a record is complete without it."
+                    >
                       {REQUIREDNESS_LABEL.never}
                     </RadioCard>
-                    <RadioCard value="always" description="Every record is incomplete without it.">
+                    <RadioCard
+                      value="always"
+                      description="A record without it shows as incomplete, and whoever fills it in is reminded until it is."
+                    >
                       Required for everyone
                     </RadioCard>
                     <RadioCard
@@ -561,191 +890,80 @@ export function FieldEditor({
                     )}
                   </Stack>
                 ) : null}
-                <Field>
-                  <FieldLabel>Asked for</FieldLabel>
-                  <Select
-                    value={draft.collectAt}
-                    onValueChange={(value) => {
-                      set({ collectAt: value as CollectAt });
-                    }}
-                  >
-                    <FieldControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FieldControl>
-                    <SelectContent>
-                      {COLLECT.map((when) => (
-                        <SelectItem key={when} value={when}>
-                          {COLLECT_LABEL[when].label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>{COLLECT_LABEL[draft.collectAt].description}</FieldDescription>
-                </Field>
+                {show.unseen === undefined ? null : <Alert tone="danger">{show.unseen}</Alert>}
               </Stack>
             ) : null}
 
-            {step === 2 ? (
-              <Stack gap={4}>
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-2 text-sm font-medium">Who can see it</legend>
-                  {SCOPES.map((scope) => (
-                    <Field key={scope} orientation="horizontal" className="justify-start">
-                      <FieldControl>
-                        <Checkbox
-                          checked={draft.visibility.includes(scope)}
-                          onCheckedChange={(on) => {
-                            set({ visibility: toggled(draft.visibility, scope, on === true) });
-                          }}
-                        />
-                      </FieldControl>
-                      <FieldLabel>{SCOPE_LABEL[scope]}</FieldLabel>
-                    </Field>
-                  ))}
-                </fieldset>
-                {show.visibility === undefined ? (
-                  <Alert tone="info">{readBack(draft.ownership, draft.visibility)}</Alert>
-                ) : (
-                  <Alert tone="danger">{show.visibility}</Alert>
-                )}
-
-                {/* Custom rules (PEO-066): a preset scope, on some records only. */}
-                <fieldset className="flex flex-col gap-3">
-                  <legend className="mb-1 text-sm font-medium">
-                    Also visible, on some records
-                  </legend>
-                  {draft.visibilityRules.map((rule, index) => {
-                    const name = `Rule ${String(index + 1)}`;
-                    const change = (changed: VisibilityRule): void => {
-                      set({
-                        visibilityRules: draft.visibilityRules.map((r, i) =>
-                          i === index ? changed : r,
-                        ),
-                      });
-                    };
-                    return (
-                      // Positional: a rule has no identity beyond its place.
-                      <Card key={index}>
-                        <CardContent>
-                          <Stack gap={3}>
-                            <Field>
-                              <FieldLabel>{name}: who else can see it</FieldLabel>
-                              <FieldControl>
-                                <Combobox
-                                  label={`${name}: who else can see it`}
-                                  multiple
-                                  placeholder="Choose who"
-                                  options={SCOPES.map((scope) => ({
-                                    value: scope,
-                                    label: SCOPE_LABEL[scope],
-                                  }))}
-                                  value={rule.scopes}
-                                  onChange={(scopes) => {
-                                    change({
-                                      ...rule,
-                                      scopes: (Array.isArray(scopes)
-                                        ? scopes
-                                        : []) as ViewerScope[],
-                                    });
-                                  }}
-                                />
-                              </FieldControl>
-                            </Field>
-                            <PredicateEditor
-                              legend={`${name}: when`}
-                              value={rule.when}
-                              onChange={(when) => {
-                                change({ ...rule, when });
-                              }}
-                              choices={choices}
-                              fields={others}
-                            />
-                            <div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  set({
-                                    visibilityRules: draft.visibilityRules.filter(
-                                      (_, i) => i !== index,
-                                    ),
-                                  });
-                                }}
-                              >
-                                Remove {name.toLowerCase()}
-                              </Button>
-                            </div>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    );
+            {step === 3 ? (
+              <Stack gap={5}>
+                <Alert tone="info" title="In plain words">
+                  {summary({
+                    label: draft.label,
+                    ownership: draft.ownership,
+                    collectAt: draft.collectAt,
+                    requiredness: draft.requiredness,
+                    visibility: draft.visibility,
+                    rules: draft.visibilityRules.length,
+                    classification: draft.classification,
+                    requiresApproval: approval,
+                    encrypted,
                   })}
-                  {show.rules === undefined ? null : <Alert tone="danger">{show.rules}</Alert>}
-                  {draft.visibilityRules.length < MOST_RULES ? (
-                    <div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          set({
-                            visibilityRules: [
-                              ...draft.visibilityRules,
-                              { scopes: ['manager'], when: EMPTY_PREDICATE },
-                            ],
-                          });
-                        }}
-                      >
-                        Add a rule
-                      </Button>
-                    </div>
-                  ) : null}
-                  <p className="text-sm text-fg-muted">
-                    A rule shows the field to somebody only on the records its conditions hold for,
-                    and only if they can already see every field a condition reads. Never for
-                    special-category data.
-                  </p>
-                </fieldset>
+                </Alert>
+                {field === null ? null : (
+                  <Changes field={field} draft={draft} approval={approval} />
+                )}
+                <Classify
+                  advice={advice}
+                  value={draft.classification}
+                  confirmed={draft.confirmedSpecial}
+                  problem={show.kind}
+                  onChange={(classification) => {
+                    set({ classification, confirmedSpecial: false });
+                  }}
+                  onConfirm={(confirmedSpecial) => {
+                    set({ confirmedSpecial });
+                  }}
+                />
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="more">
+                    <AccordionTrigger meta={approval ? 'Changes need approval' : 'No approval'}>
+                      Approval, encryption and dates
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <Stack gap={4}>
+                        <Field orientation="horizontal" className="items-start justify-start">
+                          <FieldControl>
+                            <Checkbox
+                              checked={approval}
+                              onCheckedChange={(on) => {
+                                set({ requiresApproval: on === true });
+                              }}
+                            />
+                          </FieldControl>
+                          <div>
+                            <FieldLabel>Changes need a second person to approve them</FieldLabel>
+                            <FieldDescription>
+                              A new value is held until another HR member approves it, within seven
+                              days, and the field is marked Sensitive wherever it is shown. On by
+                              default for money, bank details and identity numbers.
+                            </FieldDescription>
+                          </div>
+                        </Field>
+                        {encrypted ? (
+                          <Alert tone="info" title="Stored encrypted">
+                            The value is kept apart from the rest of the record, and everyday
+                            screens show only its last characters.
+                          </Alert>
+                        ) : null}
+                        <p className="text-sm text-fg-muted">
+                          Custom fields are not effective-dated: a new value applies once it is
+                          saved (or approved), not from a date somebody chooses.
+                        </p>
+                      </Stack>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </Stack>
-            ) : null}
-
-            {step === 3 ? (
-              <Field orientation="horizontal" className="justify-start">
-                <FieldControl>
-                  <Checkbox
-                    checked={
-                      draft.requiresApproval ??
-                      approvalByDefault(
-                        draft.dataType,
-                        typeof advice === 'object' && advice !== null ? advice.piiKind : 'none',
-                      )
-                    }
-                    onCheckedChange={(on) => {
-                      set({ requiresApproval: on === true });
-                    }}
-                  />
-                </FieldControl>
-                <FieldLabel>Changes need a second person to approve them</FieldLabel>
-                <FieldDescription>
-                  Sensitive: a new value is held until another HR member approves it, within seven
-                  days, and is marked Sensitive wherever it is shown. On by default for financial
-                  and encrypted data.
-                </FieldDescription>
-              </Field>
-            ) : null}
-            {step === 3 ? (
-              <Classify
-                advice={advice}
-                value={draft.classification}
-                confirmed={draft.confirmedSpecial}
-                problem={show.kind}
-                onChange={(classification) => {
-                  set({ classification, confirmedSpecial: false });
-                }}
-                onConfirm={(confirmedSpecial) => {
-                  set({ confirmedSpecial });
-                }}
-              />
             ) : null}
 
             {refused === null ? null : (
@@ -882,5 +1100,160 @@ function Classify({
       ) : null}
       {problem === undefined ? null : <Alert tone="danger">{problem}</Alert>}
     </Stack>
+  );
+}
+
+/**
+ * The field as a form will draw it, from the same control the profile and
+ * onboarding use. Typing into it saves nothing.
+ */
+function Preview({ draft, approval }: { readonly draft: Draft; readonly approval: boolean }) {
+  const [value, setValue] = useState<AttributeValue>(null);
+  // A value typed for one type means nothing to the next.
+  useEffect(() => {
+    setValue(null);
+  }, [draft.dataType]);
+  const uploaded = draft.dataType === 'document_ref' || draft.dataType === 'image';
+  const field = {
+    key: 'preview',
+    label: draft.label.trim() === '' ? 'Your new field' : draft.label.trim(),
+    description: draft.description.trim() === '' ? null : draft.description.trim(),
+    dataType: draft.dataType,
+    options: draft.options.map((o) => ({ value: o, label: o })),
+    required: draft.requiredness === 'always',
+    readOnly: false,
+    sensitive: approval,
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Preview</CardTitle>
+        <CardDescription>How it looks on a form. Try it: nothing is saved.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {uploaded ? (
+          <p className="text-sm text-fg-muted">
+            Uploaded on the profile rather than typed into a form.
+          </p>
+        ) : (
+          <AttributeInput field={field} value={value} onChange={setValue} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** What the chosen stage means for who fills the field in, where the two disagree. */
+function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
+  const employee = draft.ownership.includes('employee');
+  if (draft.collectAt === 'signup' || draft.collectAt === 'enrolment') {
+    return (
+      <Alert tone="info" title="Shown on the account setup page">
+        {employee
+          ? 'The person answers it while setting up their account, before they have used Kithena.'
+          : 'Only the employee can answer on that page. Tick The employee under Who can change it, or choose another moment.'}
+      </Alert>
+    );
+  }
+  if (draft.collectAt === 'hr_only' && employee) {
+    return (
+      <Alert tone="warning" title="The employee is never shown this field">
+        They are allowed to change it, but no form ever asks them, so in practice only{' '}
+        {listed(draft.ownership.filter((w) => w !== 'employee').map((w) => WRITER_LABEL[w])) ||
+          'nobody'}{' '}
+        fills it in.
+      </Alert>
+    );
+  }
+  if (draft.collectAt !== 'hr_only' && !employee) {
+    return (
+      <Alert tone="info">
+        The employee cannot change this field, so they see it read-only rather than being asked for
+        it. To ask them, tick The employee under Who can change it.
+      </Alert>
+    );
+  }
+  return null;
+}
+
+const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && a.every((x) => b.includes(x));
+
+const writers = (w: readonly WriterRole[]) => listed(w.map((x) => WRITER_LABEL[x])) || 'nobody';
+const readers = (v: readonly ViewerScope[]) => listed(v.map((x) => SCOPE_LABEL[x])) || 'nobody';
+
+/** Editing a published field: what publishing this draft would change about it. */
+function Changes({
+  field,
+  draft,
+  approval,
+}: {
+  readonly field: RegistryField;
+  readonly draft: Draft;
+  readonly approval: boolean;
+}): JSX.Element {
+  const lines: string[] = [];
+  if (draft.label.trim() !== field.label)
+    lines.push(`Name: ${field.label} → ${draft.label.trim()}`);
+  if (draft.description.trim() !== (field.description ?? '')) lines.push('Help text reworded');
+  if (!sameSet(draft.options, field.options)) lines.push('Options changed');
+  if (draft.collectAt !== field.collectAt) {
+    lines.push(
+      `When it is asked: ${COLLECT_LABEL[field.collectAt].label} → ${COLLECT_LABEL[draft.collectAt].label}`,
+    );
+  }
+  if (draft.requiredness !== field.requiredness) {
+    lines.push(
+      `Required: ${REQUIREDNESS_LABEL[field.requiredness]} → ${REQUIREDNESS_LABEL[draft.requiredness]}`,
+    );
+  } else if (
+    draft.requiredness === 'conditional' &&
+    JSON.stringify(draft.requiredWhen) !== JSON.stringify(field.requiredWhen)
+  ) {
+    lines.push('The conditions that make it required');
+  }
+  if (!sameSet(draft.ownership, field.ownership)) {
+    lines.push(`Who can change it: ${writers(field.ownership)} → ${writers(draft.ownership)}`);
+  }
+  if (!sameSet(draft.visibility, field.visibility)) {
+    lines.push(`Who can see it: ${readers(field.visibility)} → ${readers(draft.visibility)}`);
+  }
+  if (JSON.stringify(draft.visibilityRules) !== JSON.stringify(field.visibilityRules)) {
+    lines.push('Who else can see it, on some records');
+  }
+  if (field.requiresApproval !== undefined && approval !== field.requiresApproval) {
+    lines.push(approval ? 'Changes will need approval' : 'Changes will no longer need approval');
+  }
+  if (draft.classification !== null && draft.classification !== field.classification) {
+    lines.push(
+      `What kind of data: ${CLASSIFICATION_LABEL[field.classification].label} → ${CLASSIFICATION_LABEL[draft.classification].label}`,
+    );
+  }
+  const tightened =
+    field.requiredness === 'never' && draft.requiredness !== 'never'
+      ? true
+      : field.requiredness === 'conditional' && draft.requiredness === 'always';
+
+  if (lines.length === 0) {
+    return (
+      <Alert tone="info" title="Nothing changed yet">
+        Saving keeps the field as it is.
+      </Alert>
+    );
+  }
+  return (
+    <Alert tone="warning" title="What changes when you publish">
+      <ul className="list-disc ps-5">
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p className="mt-2">
+        Saving changes the draft only; nobody’s forms change until you publish.
+        {tightened
+          ? ' Records without a value then become incomplete, and the publish step says how many.'
+          : ''}
+      </p>
+    </Alert>
   );
 }

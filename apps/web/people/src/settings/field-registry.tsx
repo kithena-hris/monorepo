@@ -20,8 +20,20 @@ import {
   Input,
   ListDetail,
   PageHeader,
+  SearchField,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SortableList,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   icons,
   type IsoDate,
 } from '@reach/ui';
@@ -39,7 +51,15 @@ import type {
 } from './model';
 import { FieldEditor } from './field-editor';
 import { PublishDialog } from './publish';
-import { DATA_TYPE_LABEL, REQUIREDNESS_LABEL, SCOPE_LABEL, WRITER_LABEL, listed } from './words';
+import {
+  COLLECT_LABEL,
+  DATA_TYPE_LABEL,
+  REQUIREDNESS_LABEL,
+  SCOPE_LABEL,
+  WRITER_LABEL,
+  inSentence,
+  listed,
+} from './words';
 
 const { add: Plus, locked: Lock } = icons;
 
@@ -108,6 +128,8 @@ function Registry({
   const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [only, setOnly] = useState<Filter>('all');
 
   const sections = arranged(draft.sections, sectionOrder);
   const section = sections.find((s) => s.key === chosen) ?? sections[0];
@@ -131,7 +153,7 @@ function Registry({
   const status =
     draft.published === null
       ? 'Nothing published yet'
-      : `Version ${String(draft.published.version)} published ${draft.published.publishedAt}`;
+      : `Version ${String(draft.published.version)} published ${day(draft.published.publishedAt)}`;
   const pending =
     draft.unpublishedChanges === 0
       ? 'no unpublished changes'
@@ -156,6 +178,46 @@ function Registry({
         }
       />
 
+      {draft.unpublishedChanges === 0 ? null : (
+        <Alert
+          tone="info"
+          title={`${String(draft.unpublishedChanges)} ${draft.unpublishedChanges === 1 ? 'change is' : 'changes are'} waiting to be published`}
+        >
+          Your edits are saved as a draft. Nobody’s forms change until you publish version {next},
+          and the publish step shows exactly what changes and who is affected first. Fields marked
+          Added, Changed or Archived below are the ones in the draft.
+        </Alert>
+      )}
+
+      {sections.length === 0 ? null : (
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchField
+            label="Search fields"
+            placeholder="Search by name or key"
+            value={query}
+            onValueChange={setQuery}
+            containerClassName="min-w-0 flex-1 basis-60"
+          />
+          <Select
+            value={only}
+            onValueChange={(value) => {
+              setOnly(value as Filter);
+            }}
+          >
+            <SelectTrigger aria-label="Show" className="w-auto min-w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(FILTERS).map(([value, { label }]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {failed === null ? null : (
         <Alert tone="danger" title="That change was not saved">
           {failed}
@@ -176,6 +238,16 @@ function Registry({
               Add section
             </Button>
           }
+        />
+      ) : query.trim() !== '' || only !== 'all' ? (
+        <Found
+          sections={sections}
+          fields={draft.fields.filter(
+            (f) => FILTERS[only].keep(f) && matches(f, query.trim().toLowerCase()),
+          )}
+          onEdit={(field) => {
+            setEditing({ field });
+          }}
         />
       ) : (
         <Card>
@@ -297,15 +369,15 @@ function SectionFields({
   readonly onAdd: () => void;
   readonly onReorder: (order: readonly string[]) => void;
 }): JSX.Element {
-  const seenBy = listed(section.visibility.map((s) => SCOPE_LABEL[s]));
-  const filledBy = listed(section.ownership.map((w) => WRITER_LABEL[w]));
+  const readers = listed(section.visibility.map((s) => inSentence(SCOPE_LABEL[s])));
+  const filledBy = listed(section.ownership.map((w) => inSentence(WRITER_LABEL[w])));
 
   return (
     <Stack gap={4} className="p-4">
       <CardHeader className="p-0">
         <CardTitle>{section.label}</CardTitle>
         <p className="text-sm text-fg-muted">
-          Seen by {seenBy} · Filled in by {filledBy}
+          Seen by {readers} · Filled in by {filledBy}
         </p>
       </CardHeader>
 
@@ -363,6 +435,181 @@ const PENDING = {
   archived: { tone: 'neutral', text: '− Archived' },
 } as const;
 
+type Filter = 'all' | 'required' | 'protected' | 'employee' | 'draft';
+
+/** The list's filters: each a question an HR admin asks of it. */
+const FILTERS: Record<Filter, { label: string; keep: (f: RegistryField) => boolean }> = {
+  all: { label: 'All fields', keep: () => true },
+  required: { label: 'Required', keep: (f) => f.requiredness !== 'never' },
+  protected: {
+    label: 'Sensitive or confidential',
+    keep: (f) =>
+      f.requiresApproval === true ||
+      f.classification === 'confidential' ||
+      f.classification === 'special-category',
+  },
+  employee: { label: 'Asked of employees', keep: (f) => f.collectAt !== 'hr_only' },
+  draft: { label: 'Not yet published', keep: (f) => f.pending !== null },
+};
+
+function matches(field: RegistryField, needle: string): boolean {
+  return needle === '' || field.label.toLowerCase().includes(needle) || field.key.includes(needle);
+}
+
+/** "2026-09-27T00:59:38.203Z" as the day it names; anything else as it came. */
+function day(at: string): string {
+  return /^\d{4}-\d{2}-\d{2}T/.test(at) ? at.slice(0, 10) : at;
+}
+
+/**
+ * Search or filter results, every section at once, as one table with a row
+ * naming each section above its fields: scanned down a column, not read
+ * card by card.
+ */
+function Found({
+  sections,
+  fields,
+  onEdit,
+}: {
+  readonly sections: readonly RegistrySection[];
+  readonly fields: readonly RegistryField[];
+  readonly onEdit: (field: RegistryField) => void;
+}): JSX.Element {
+  const groups = sections.flatMap((section) => {
+    const mine = fields.filter((f) => f.sectionKey === section.key);
+    return mine.length === 0 ? [] : [{ section, fields: mine }];
+  });
+  if (groups.length === 0) {
+    return (
+      <EmptyState
+        title="No fields match"
+        description="Clear the search, or show All fields, to see every field."
+      />
+    );
+  }
+  return (
+    <Table aria-label="Matching fields" className="min-w-3xl">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Field</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>When asked</TableHead>
+          <TableHead>Seen by</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>
+            <span className="sr-only">Actions</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      {groups.map(({ section, fields: mine }) => (
+        <TableBody key={section.key}>
+          <TableRow>
+            <TableHead scope="rowgroup" colSpan={6} className="bg-surface-sunken">
+              {section.label}
+            </TableHead>
+          </TableRow>
+          {mine.map((f) => (
+            <TableRow key={f.key}>
+              <TableCell sticky>
+                <p className="font-medium">{f.label}</p>
+                <p className="font-mono text-xs text-fg-muted">{f.key}</p>
+              </TableCell>
+              <TableCell>{typeOf(f)}</TableCell>
+              <TableCell className="whitespace-nowrap">{COLLECT_LABEL[f.collectAt].short}</TableCell>
+              <TableCell className="first-letter:uppercase">{seenBy(f)}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badges field={f} />
+                </div>
+              </TableCell>
+              <TableCell>
+                <EditOrWhy
+                  field={f}
+                  editable={!section.fixed && f.origin !== 'core'}
+                  onEdit={onEdit}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      ))}
+    </Table>
+  );
+}
+
+function typeOf(field: RegistryField): string {
+  return field.options.length > 0
+    ? `${DATA_TYPE_LABEL[field.dataType]} · ${String(field.options.length)} options`
+    : DATA_TYPE_LABEL[field.dataType];
+}
+
+/** Who reads it, shortest first: the directory makes it everyone's. */
+function seenBy(field: RegistryField): string {
+  if (field.visibility.includes('directory')) return 'everyone at the company';
+  return listed(field.visibility.map((s) => inSentence(SCOPE_LABEL[s]))) || 'nobody by default';
+}
+
+/** Draft status, requiredness and protection, each in words as well as tone. */
+function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
+  const pending = field.pending === null ? null : PENDING[field.pending];
+  return (
+    <>
+      {pending === null ? null : (
+        <Badge tone={pending.tone} size="sm">
+          {pending.text}
+        </Badge>
+      )}
+      {field.requiredness === 'never' ? null : (
+        <Badge tone="accent" size="sm">
+          {REQUIREDNESS_LABEL[field.requiredness]}
+        </Badge>
+      )}
+      {field.requiresApproval === true ? (
+        <Badge tone="sensitive" size="sm">
+          Sensitive · needs approval
+        </Badge>
+      ) : null}
+      {field.classification === 'confidential' ? (
+        <Badge size="sm">Confidential</Badge>
+      ) : field.classification === 'special-category' ? (
+        <Badge tone="warning" size="sm">
+          Special category
+        </Badge>
+      ) : null}
+    </>
+  );
+}
+
+/*
+ * A core field has no edit affordance at all, which is what "core" means
+ * here: its requiredness and classification have a floor the tenant cannot
+ * lower. The word says so rather than a greyed-out button.
+ */
+function EditOrWhy({
+  field,
+  editable,
+  onEdit,
+}: {
+  readonly field: RegistryField;
+  readonly editable: boolean;
+  readonly onEdit: (field: RegistryField) => void;
+}): JSX.Element {
+  return editable ? (
+    <Button
+      size="sm"
+      variant="ghost"
+      aria-label={`Edit ${field.label}`}
+      onClick={() => {
+        onEdit(field);
+      }}
+    >
+      Edit
+    </Button>
+  ) : (
+    <span className="pt-1 text-xs text-fg-muted">{field.origin === 'core' ? 'Core' : 'Fixed'}</span>
+  );
+}
+
 function FieldRow({
   field,
   editable,
@@ -372,54 +619,19 @@ function FieldRow({
   readonly editable: boolean;
   readonly onEdit: (field: RegistryField) => void;
 }): JSX.Element {
-  const type =
-    field.options.length > 0
-      ? `${DATA_TYPE_LABEL[field.dataType]} · ${String(field.options.length)} options`
-      : DATA_TYPE_LABEL[field.dataType];
-  const pending = field.pending === null ? null : PENDING[field.pending];
-
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+    <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
-          {field.label}
-          {pending === null ? null : (
-            <Badge tone={pending.tone} size="sm" className="ms-2 align-middle">
-              {pending.text}
-            </Badge>
-          )}
-          {field.requiresApproval === true ? (
-            <Badge tone="sensitive" size="sm" className="ms-2 align-middle">
-              Sensitive
-            </Badge>
-          ) : null}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="text-sm font-medium">{field.label}</p>
+          <Badges field={field} />
+        </div>
+        <p className="mt-0.5 text-sm text-fg-muted">
+          {typeOf(field)} · {COLLECT_LABEL[field.collectAt].short} · Seen by {seenBy(field)}
         </p>
         <p className="truncate font-mono text-xs text-fg-muted">{field.key}</p>
       </div>
-      <span className="text-sm text-fg-muted">{type}</span>
-      <span className="text-sm text-fg-muted">{REQUIREDNESS_LABEL[field.requiredness]}</span>
-      <span className="text-sm text-fg-muted">
-        {listed(field.ownership.map((w) => WRITER_LABEL[w]))}
-      </span>
-      {/*
-       * A core field has no edit affordance at all, which is what "core" means
-       * here: its requiredness and classification have a floor the tenant
-       * cannot lower. The word says so rather than a greyed-out button.
-       */}
-      {editable ? (
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label={`Edit ${field.label}`}
-          onClick={() => {
-            onEdit(field);
-          }}
-        >
-          Edit
-        </Button>
-      ) : (
-        <span className="text-xs text-fg-muted">{field.origin === 'core' ? 'Core' : 'Fixed'}</span>
-      )}
+      <EditOrWhy field={field} editable={editable} onEdit={onEdit} />
     </div>
   );
 }
