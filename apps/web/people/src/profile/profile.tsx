@@ -39,7 +39,7 @@ import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue, longDate } from '../record/display';
 import { FieldFiles, type FileInfo, type UploadOutcome } from '../record/files';
 import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
-import { MissingMark } from '../record/missing';
+import { MissingJump, MissingMark } from '../record/missing';
 import { PendingNote, SensitiveMark } from '../record/pending';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
@@ -269,6 +269,7 @@ function Record({
     // Once, for the link that opened the page.
   }, []);
   const [values, setValues] = useState<Values>(state.values);
+  const [placing, setPlacing] = useState(false);
   // What the server now holds, whenever the screen is read again (a move, a
   // decision, another tab): a save's own echo is kept locally until then.
   useEffect(() => {
@@ -324,7 +325,13 @@ function Record({
                   {person.missing === null ? null : gaps.length === 0 ? (
                     <Badge tone="success">Complete</Badge>
                   ) : (
-                    <MissingMark count={gaps.length} size="md" />
+                    <MissingJump
+                      labels={gaps.map((g) => g.label)}
+                      onJump={() => {
+                        const first = gaps[0];
+                        if (first !== undefined) open(first.key);
+                      }}
+                    />
                   )}
                   {/* HR's: what day it is for them, on their own clock (PEO-119). */}
                   {state.calendar ? (
@@ -342,6 +349,13 @@ function Record({
               <RecordActions
                 moves={onMove === undefined || !state.calendar ? [] : offeredMoves(status)}
                 onMove={setMoving}
+                {...(state.placement && onPlace
+                  ? {
+                      onPlacement: () => {
+                        setPlacing(true);
+                      },
+                    }
+                  : {})}
                 firstMissing={gaps[0] ?? null}
                 onFirstMissing={(key) => {
                   open(key);
@@ -443,9 +457,15 @@ function Record({
           {[...requests.values()].map((r) => r.label).join(', ')}.
         </Alert>
       )}
-      {/* Where they work, beside their employment (PEO-123). */}
-      {state.placement && onPlace ? (
-        <PlacementSection placement={state.placement} onPlace={onPlace} />
+      {/* Where they work (PEO-123): changed from Actions, dated, in a dialog. */}
+      {state.placement && onPlace && placing ? (
+        <PlacementDialog
+          placement={state.placement}
+          onPlace={onPlace}
+          onClose={() => {
+            setPlacing(false);
+          }}
+        />
       ) : null}
       {sections.length === 0 ? (
         <EmptyState title="Nothing else to show" />
@@ -680,9 +700,12 @@ function RecordActions({
   askFor,
   onHistory,
   onDownload,
+  onPlacement,
 }: {
   readonly moves: readonly MoveKind[];
   readonly onMove: (kind: MoveKind) => void;
+  /** Change their legal entity or work location, dated. */
+  readonly onPlacement?: () => void;
   readonly firstMissing: { readonly key: string; readonly readOnly: boolean } | null;
   readonly onFirstMissing: (key: string) => void;
   readonly askFor: { readonly label: string; readonly run: () => void } | null;
@@ -727,7 +750,25 @@ function RecordActions({
       </DropdownMenuItem>
     ),
   ].filter((x) => x !== null);
-  if (moves.length === 0 && record.length === 0) return null;
+  const employment = [
+    ...moves.map((kind) => (
+      <DropdownMenuItem
+        key={kind}
+        destructive={isDestructiveMove(kind)}
+        onSelect={() => {
+          onMove(kind);
+        }}
+      >
+        {moveLabel(kind)}
+      </DropdownMenuItem>
+    )),
+    onPlacement === undefined ? null : (
+      <DropdownMenuItem key="placement" onSelect={onPlacement}>
+        Change placement
+      </DropdownMenuItem>
+    ),
+  ].filter((x) => x !== null);
+  if (employment.length === 0 && record.length === 0) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -740,23 +781,13 @@ function RecordActions({
           moved.current = false;
         }}
       >
-        {moves.length === 0 ? null : (
+        {employment.length === 0 ? null : (
           <DropdownMenuGroup>
             <DropdownMenuLabel>Employment</DropdownMenuLabel>
-            {moves.map((kind) => (
-              <DropdownMenuItem
-                key={kind}
-                destructive={isDestructiveMove(kind)}
-                onSelect={() => {
-                  onMove(kind);
-                }}
-              >
-                {moveLabel(kind)}
-              </DropdownMenuItem>
-            ))}
+            {employment}
           </DropdownMenuGroup>
         )}
-        {moves.length === 0 || record.length === 0 ? null : <DropdownMenuSeparator />}
+        {employment.length === 0 || record.length === 0 ? null : <DropdownMenuSeparator />}
         {record.length === 0 ? null : (
           <DropdownMenuGroup>
             <DropdownMenuLabel>Record</DropdownMenuLabel>
@@ -831,12 +862,14 @@ function PhotoPicker({
  * date. A different entity is a transfer — People closes one employment
  * period and opens the next — so the screen says so before HR presses it.
  */
-function PlacementSection({
+function PlacementDialog({
   placement,
   onPlace,
+  onClose,
 }: {
   readonly placement: PlacementState;
   readonly onPlace: (placement: PlacementChange) => Promise<Outcome>;
+  readonly onClose: () => void;
 }): JSX.Element {
   const [entity, setEntity] = useState(placement.legalEntityId ?? '');
   const [location, setLocation] = useState(placement.locationId ?? '');
@@ -849,45 +882,64 @@ function PlacementSection({
     entity === (placement.legalEntityId ?? '') && location === (placement.locationId ?? '');
 
   return (
-    <PageSection surface title="Placement">
-      <form
-        noValidate
-        aria-label="Placement"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSaving(true);
-          setRefused(null);
-          void onPlace({
-            legalEntityId: entity === '' ? null : entity,
-            locationId: location === '' ? null : location,
-            ...(from === null ? {} : { effectiveFrom: from }),
-          }).then((outcome) => {
-            setSaving(false);
-            if (!outcome.ok) setRefused(outcome.message);
-          });
-        }}
-      >
-        <Stack gap={4}>
-          <PlacementPickers
-            placement={placement}
-            entity={entity}
-            location={location}
-            onEntity={setEntity}
-            onLocation={setLocation}
-            locationHint="Their day is this location’s, from the date below."
-          />
-          <DatePicker label="Effective from" value={from} onChange={setFrom} />
-          {transfer ? (
-            <Alert tone="info" title="This is a transfer">
-              Employment moves to the new legal entity on this date. Service stays continuous.
-            </Alert>
-          ) : null}
-          {refused === null ? null : (
-            <Alert tone="danger" title="Not moved">
-              {refused}
-            </Alert>
-          )}
-          <div>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <form
+          noValidate
+          aria-label="Placement"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSaving(true);
+            setRefused(null);
+            void onPlace({
+              legalEntityId: entity === '' ? null : entity,
+              locationId: location === '' ? null : location,
+              ...(from === null ? {} : { effectiveFrom: from }),
+            }).then((outcome) => {
+              setSaving(false);
+              if (outcome.ok) onClose();
+              else setRefused(outcome.message);
+            });
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Change placement</DialogTitle>
+            <DialogDescription>
+              Their legal entity and work location, from a date.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <Stack gap={4}>
+              <PlacementPickers
+                placement={placement}
+                entity={entity}
+                location={location}
+                onEntity={setEntity}
+                onLocation={setLocation}
+                locationHint="Their working day follows this location’s time zone."
+              />
+              <DatePicker label="Effective from" value={from} onChange={setFrom} />
+              {transfer ? (
+                <Alert tone="info" title="This is a transfer">
+                  Employment moves to the new legal entity on this date. Service stays continuous.
+                </Alert>
+              ) : null}
+              {refused === null ? null : (
+                <Alert tone="danger" title="Not moved">
+                  {refused}
+                </Alert>
+              )}
+            </Stack>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" onClick={onClose}>
+              Cancel
+            </Button>
             <Button
               type="submit"
               variant="primary"
@@ -897,10 +949,10 @@ function PlacementSection({
             >
               Move
             </Button>
-          </div>
-        </Stack>
-      </form>
-    </PageSection>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,11 +1,16 @@
 import { TooltipProvider } from '@reach/ui';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render as mount, screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import type { RecordField } from '../record/model';
 import { axeViolations } from '../test/axe';
 import { Profile, type ProfileState } from './profile';
+
+/** As the shell renders every screen: inside a TooltipProvider. */
+const render = (ui: ReactElement, options: Parameters<typeof mount>[1] = {}) =>
+  mount(ui, { wrapper: TooltipProvider, ...options });
 
 const field = (over: Partial<RecordField> & Pick<RecordField, 'key' | 'label'>): RecordField => ({
   description: null,
@@ -269,9 +274,12 @@ describe('Profile', () => {
     const { container } = render(
       <Profile load={{ status: 'ready', data: placed }} onSave={vi.fn()} onPlace={onPlace} />,
     );
-    const form = screen.getByRole('form', { name: 'Placement' });
-    expect(within(form).getByRole('button', { name: 'Move' })).toBeDisabled();
     expect(await axeViolations(container)).toEqual([]);
+    // From the Actions menu, in a dialog.
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Change placement' }));
+    const form = await screen.findByRole('form', { name: 'Placement' });
+    expect(within(form).getByRole('button', { name: 'Move' })).toBeDisabled();
 
     await user.click(within(form).getByRole('combobox', { name: 'Legal entity' }));
     await user.click(await screen.findByRole('option', { name: 'Acme US' }));
@@ -396,6 +404,16 @@ describe('Profile: what is missing', () => {
     render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: 'Actions' }));
     await user.click(screen.getByRole('menuitem', { name: 'Fill in missing details' }));
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: /Emergency contact/ })).toHaveFocus();
+    });
+  });
+
+  it('names what is missing on the count, and goes to the first when pressed', async () => {
+    const user = fast();
+    render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
+    const chip = screen.getByRole('button', { name: /missing: .*Emergency contact.*Go to the first/ });
+    await user.click(chip);
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /Emergency contact/ })).toHaveFocus();
     });
