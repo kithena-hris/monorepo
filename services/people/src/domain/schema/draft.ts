@@ -523,6 +523,11 @@ const ENCRYPTABLE = new Set([
  * filters and joins on, a file is not a string, and an effective-dated field
  * keeps a history of values that a seal of one value would not cover.
  */
+/** Whether a field could be stored encrypted: its type and its history allow it. */
+export function encryptable(a: Pick<AttributeDefinition, 'dataType' | 'effectiveDated'>): boolean {
+  return ENCRYPTABLE.has(a.dataType) && !a.effectiveDated;
+}
+
 function checkEncryptable(a: AttributeDefinition): Result<void> {
   if (!a.encrypted) return ok(undefined);
   if (!ENCRYPTABLE.has(a.dataType) || a.effectiveDated) {

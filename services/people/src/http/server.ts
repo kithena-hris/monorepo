@@ -39,6 +39,7 @@ import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { chatAct, parseChatAction } from './chat.js';
 import { chatAppsFrom } from '../infrastructure/chat-apps.js';
+import { sealExisting } from '../infrastructure/seal-existing.js';
 import { drizzleChatNotices } from '../infrastructure/drizzle-chat-notices.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
@@ -141,6 +142,8 @@ export function peopleService(
   secretKeys: string | undefined,
 ): PeopleService & {
   readonly webhooks: WebhookService;
+  /** Sealed values: where publishing a newly encrypted field moves the plain ones. */
+  readonly secrets: ReturnType<typeof drizzleSecretStore>;
   tenants(): Promise<string[]>;
   close(): Promise<void>;
 } {
@@ -313,6 +316,7 @@ export function peopleService(
       return result;
     },
     webhooks: hooks,
+    secrets,
     tenants: () => knownTenants(db),
     /** The poller and the retry timers stop, the passes in hand finish, then the pool (PEO-118). */
     async close() {
@@ -555,6 +559,7 @@ function screenDeps(
       clock: systemClock,
       newEventId: uuidv7,
       calendars,
+      sealExisting: sealExisting(service.secrets),
     }),
     artifactUrl: (version) => `${base}/v1/schema/versions/${String(version)}`,
     webhooks: service.webhooks,

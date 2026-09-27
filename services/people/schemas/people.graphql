@@ -429,6 +429,10 @@ input DraftFieldInput {
   collectAt: String!
   dataType: String!
   description: String
+  """
+  Store it sealed: once on, never off. Existing values are sealed when it is published.
+  """
+  encrypted: Boolean
   key: String!
   label: String!
   options: [String!]!
@@ -2142,6 +2146,10 @@ type RegistryField {
   collectAt: String
   dataType: String
   description: String
+  """
+  It may be switched to encrypted: a sealable type, not a column People sorts by.
+  """
+  encryptable: Boolean
   """Stored sealed: only the last four characters are ever shown."""
   encrypted: Boolean
   key: String

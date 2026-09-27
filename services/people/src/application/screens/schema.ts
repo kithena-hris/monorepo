@@ -14,6 +14,7 @@ import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
 import {
   aiShareable,
+  encryptable,
   SchemaDraft,
   type Attribute,
   type Section,
@@ -118,6 +119,8 @@ export interface RegistryView {
     readonly aiShareable: boolean;
     /** Stored sealed: the row keeps its last four and nothing else. */
     readonly encrypted: boolean;
+    /** It may be switched to encrypted: a sealable type, not a column People sorts by. */
+    readonly encryptable: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
@@ -180,6 +183,7 @@ export async function registryView(
         aiEligible: a.classification.aiEligible,
         aiShareable: aiShareable(a),
         encrypted: a.encrypted,
+        encryptable: !isCoreKey(a.key) && encryptable(a),
         origin: a.origin,
         pending: pendingOf(a, published),
       }));

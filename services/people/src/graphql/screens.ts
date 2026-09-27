@@ -965,6 +965,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         encrypted: t.exposeBoolean('encrypted', {
           description: 'Stored sealed: only the last four characters are ever shown.',
         }),
+        encryptable: t.exposeBoolean('encryptable', {
+          description: 'It may be switched to encrypted: a sealable type, not a column People sorts by.',
+        }),
         pending: t.exposeString('pending', {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
