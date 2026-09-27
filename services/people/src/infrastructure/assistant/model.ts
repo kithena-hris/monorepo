@@ -8,7 +8,7 @@ import type { ModelTransport } from '@kithena/telemetry';
  *
  * - `ASSISTANT_BASE_URL`: the API's address; Groq's by default.
  * - `ASSISTANT_API_KEY`: its key; none for a local Ollama.
- * - `ASSISTANT_MODEL`: the model; Llama 3.3 70B on Groq by default.
+ * - `ASSISTANT_MODEL`: the model; `openai/gpt-oss-120b` on Groq by default.
  *
  * Only reached through the AI gateway, which has already refused anything a
  * model may not see. The instruction goes as the system message and the
@@ -16,7 +16,7 @@ import type { ModelTransport } from '@kithena/telemetry';
  */
 
 const GROQ = 'https://api.groq.com/openai/v1';
-const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 
 export interface ModelConfig {
   readonly baseUrl: string;
@@ -48,7 +48,10 @@ export function chatModel(config: ModelConfig): ModelTransport {
       body: JSON.stringify({
         model: config.model,
         temperature: 0,
-        max_tokens: 400,
+        // Room for a reasoning model's thinking as well as its answer, which
+        // needs little of either: one small JSON object.
+        max_tokens: 1024,
+        ...(config.model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: prompt.instruction },
