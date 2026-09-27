@@ -66,6 +66,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           filter: given(query.search['filter']),
           after: given(query.search['after']),
           segment: given(query.search['segment']),
+          incomplete: query.search['incomplete'] === 'true' ? true : null,
         },
         VIEWS.Directory,
       );

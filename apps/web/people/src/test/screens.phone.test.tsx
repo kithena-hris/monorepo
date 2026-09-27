@@ -22,6 +22,7 @@ import { Organisation } from '../settings/organisation';
 import { WebhookLog } from '../settings/integrations/webhook-log';
 import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
+import { overview } from '../home/people-home.fixture';
 import { IdentifierReviews } from '../review/identifier-reviews';
 import { Duplicates } from '../review/duplicates';
 import { PublishDialog } from '../settings/publish';
@@ -386,7 +387,7 @@ describe('at 390×844, with a finger', () => {
 
   it('People home', async () => {
     await checked(
-      <PeopleHome load={{ status: 'ready', data: { hr: true, admin: true, finance: false } }} />,
+      <PeopleHome load={{ status: 'ready', data: overview({ roles: { hr: true, admin: true, finance: false } }) }} />,
     );
   });
 

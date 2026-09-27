@@ -29,6 +29,11 @@ export interface RecordField {
   /** For the list types, and for a reference: what may be picked. */
   readonly options: readonly { readonly value: string; readonly label: string }[];
   readonly required: boolean;
+  /**
+   * Required of this person and empty, by their completeness verdict: a field
+   * required only of some people is missing only on theirs. Absent: not judged.
+   */
+  readonly missing?: boolean;
   /** Readable by this viewer and not writable by them. */
   readonly readOnly: boolean;
   /** ISO 4217, for a money field. */

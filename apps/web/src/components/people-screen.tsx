@@ -38,7 +38,7 @@ export interface PeopleScreenProps {
  */
 function putFile(
   target: Extract<actions.UploadTarget, { ok: true }>,
-  file: File,
+  file: Blob,
   progress: (percent: number) => void,
 ): Promise<boolean> {
   return new Promise((resolve) => {
@@ -58,6 +58,48 @@ function putFile(
     };
     xhr.send(file);
   });
+}
+
+/**
+ * A picked photo as People keeps one: the centre square, at most 512 pixels a
+ * side, as a JPEG. Drawn through a canvas, so what leaves the browser is the
+ * picture and nothing a camera wrote beside it; a phone's 5 MB photo becomes a
+ * few tens of kB. People checks it again whatever arrives.
+ */
+async function shrink(file: File): Promise<Blob | null> {
+  try {
+    // `from-image`: a phone's portrait photo the right way up.
+    const image = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const side = Math.min(image.width, image.height);
+    const out = Math.min(512, side);
+    const canvas = document.createElement('canvas');
+    canvas.width = out;
+    canvas.height = out;
+    canvas
+      .getContext('2d')
+      ?.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, out, out);
+    image.close();
+    return await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.86);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Shrink, upload straight to storage, and have People keep it: a photo for `personId`, or one's own. */
+async function uploadPhoto(
+  personId: string | null,
+  file: File,
+): Promise<{ ok: true; avatarUrl: string | null } | { ok: false; message: string }> {
+  const small = await shrink(file);
+  if (small === null) return { ok: false, message: 'That image could not be read; try a PNG or a JPEG.' };
+  const target = await actions.startPhotoUpload(personId, small.size);
+  if (!target.ok) return target;
+  if (!(await putFile(target, small, () => undefined))) {
+    return { ok: false, message: 'The upload did not go through; try again.' };
+  }
+  return actions.completePhotoUpload(personId, target.uploadId);
 }
 
 type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
@@ -160,6 +202,10 @@ export function PeopleScreen({
         const id = params['id'];
         return {
           load: loadable,
+          // A link from the overview to one missing detail.
+          ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
+          // Offered to everybody; the screen shows it only where People says they may.
+          onPhoto: thenRefresh((file: File) => uploadPhoto(id ?? null, file)),
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(id ?? null, sectionKey, changed),
           onSave: thenRefresh(
@@ -220,12 +266,15 @@ export function PeopleScreen({
           filters?: Record<string, string>;
           after?: string;
           segment?: string | null;
+          incomplete?: boolean;
         }) => {
           const q = new URLSearchParams();
           const text = next.search ?? search['search'] ?? '';
           const f = next.filters ?? filters;
           const segment = next.segment === undefined ? (search['segment'] ?? null) : next.segment;
+          const incomplete = next.incomplete ?? search['incomplete'] === 'true';
           if (text !== '') q.set('search', text);
+          if (incomplete) q.set('incomplete', 'true');
           const joined = Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
             .join(',');
@@ -259,6 +308,10 @@ export function PeopleScreen({
           segmentId: search['segment'] ?? null,
           onSegmentChange: (segment: string | null) => {
             query({ segment });
+          },
+          incomplete: search['incomplete'] === 'true',
+          onIncompleteChange: (incomplete: boolean) => {
+            query({ incomplete });
           },
           onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
             actions.saveSegment({ ...segment, filter: filters }),

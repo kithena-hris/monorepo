@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
@@ -1407,5 +1407,228 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await theirs.getByRole('link', { name: 'Add employee' }).count()).toBe(0);
     expect(await theirs.getByRole('button', { name: 'Add employee' }).count()).toBe(0);
     await employee.close();
+  });
+});
+
+describe('People overview: who you are here, what needs you, what is missing', () => {
+  /** Where the screenshots go, when a run is asked for them. */
+  const shots = process.env['OVERVIEW_SHOTS'];
+  const shot = async (page: Page, name: string): Promise<void> => {
+    if (shots === undefined || shots === '') return;
+    await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true });
+  };
+  const desktop = { viewport: { width: 1440, height: 1000 } };
+  const phone = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
+  const titled = (page: Page, name: string) =>
+    page.locator('section', { has: page.getByRole('heading', { level: 2, name }) });
+
+  it('shows HR themselves, their report and the change waiting; the employee their gap, and their photo', async () => {
+    // Published, as the wizard would; then a detail each employee gives, one
+    // whose change HR approves, and a title.
+    await stack.writeAsPeople(ADMIN.account, '/v1/views/setup/publish', { country: 'ES', sections: [] });
+    const field = (key: string, label: string, over: Record<string, unknown>) =>
+      stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/attributes', {
+        input: {
+          key,
+          sectionKey: 'personal',
+          label,
+          description: null,
+          dataType: 'text',
+          options: [],
+          requiredness: 'never',
+          requiredWhen: null,
+          ownership: ['employee', 'hr'],
+          collectAt: 'onboarding',
+          visibility: ['self', 'hr'],
+          visibilityRules: [],
+          classification: 'confidential',
+          piiKind: 'contact',
+          classificationSource: 'human',
+          requiresApproval: null,
+          ...over,
+        },
+        editing: null,
+      });
+    await field('emergency_contact', 'Emergency contact', { requiredness: 'always' });
+    await field('desk', 'Desk', { requiresApproval: true, piiKind: 'none', classification: 'internal' });
+    await field('job_title', 'Job title', {
+      sectionKey: 'employment',
+      ownership: ['hr'],
+      collectAt: 'hr_only',
+      visibility: ['self', 'manager', 'manager_chain', 'hr', 'directory'],
+      classification: 'internal',
+      piiKind: 'none',
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    await stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/publish', { requiredFrom: today });
+
+    // Adam reports to Priya; each has a title.
+    const patch = (id: string, attributes: Record<string, unknown>) =>
+      fetch(`${stack.peopleUrl}/v1/people/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': randomUUID(),
+          'x-internal-token': 'acceptance-people-token',
+          'x-correlation-id': randomUUID(),
+          'x-kithena-principal': JSON.stringify({
+            userId: ADMIN.account,
+            tenantId: TENANT,
+            roles: [],
+            entitlements: ['module.people'],
+          }),
+        },
+        body: JSON.stringify({ attributes }),
+      });
+    // Named, when an earlier test has not named them already, and Adam hired,
+    // so People judges his record complete or not.
+    for (const [id, given, family] of [
+      [ADMIN.person, 'Priya', 'Shah'],
+      [EMPLOYEE.person, 'Adam', 'Ruiz'],
+    ] as const) {
+      const [row] = await person(id);
+      if (row?.given_name === null) {
+        expect((await patch(id, { given_name: given, family_name: family })).status).toBeLessThan(300);
+      }
+    }
+    const [adam] = await person(EMPLOYEE.person);
+    if (adam?.status === 'provisional') {
+      const [entity] = await stack.sql<{ id: string }[]>`
+        SELECT id FROM people.legal_entity WHERE tenant_id = ${TENANT} ORDER BY id LIMIT 1`;
+      const hired = await stack.writeAsPeople(ADMIN.account, `/v1/people/${EMPLOYEE.person}/hire`, {
+        hireDate: '2025-02-03',
+        ...(entity === undefined ? {} : { legalEntityId: entity.id }),
+      });
+      expect(hired.status).toBeLessThan(300);
+    }
+    const nameOf = async (id: string) => {
+      const [row] = await person(id);
+      return `${row?.given_name ?? ''} ${row?.family_name ?? ''}`;
+    };
+    const priya = await nameOf(ADMIN.person);
+    const adamName = await nameOf(EMPLOYEE.person);
+    expect((await patch(ADMIN.person, { job_title: 'Head of People' })).status).toBeLessThan(300);
+    expect(
+      (await patch(EMPLOYEE.person, { manager_id: ADMIN.person, job_title: 'Support Engineer' }))
+        .status,
+    ).toBeLessThan(300);
+    // Adam asks for a new desk: held for HR.
+    const asked = await stack.writeAsPeople(EMPLOYEE.account, '/v1/views/me/sections', {
+      changed: { desk: 'B-204' },
+    });
+    expect(asked.status).toBeLessThan(300);
+
+    // HR's overview: Priya, her report, and Adam's change in the list.
+    for (const [scheme, options, name] of [
+      ['light', desktop, 'overview-hr-desktop-light'],
+      ['dark', desktop, 'overview-hr-desktop-dark'],
+      ['light', phone, 'overview-hr-phone-light'],
+    ] as const) {
+      const context = await signedIn(ADMIN.session, { ...options, colorScheme: scheme });
+      const page = await context.newPage();
+      await page.goto(`${stack.shell}/people`);
+      await page.getByRole('heading', { level: 1, name: priya }).waitFor({ timeout: 30_000 });
+      await page.waitForLoadState('networkidle');
+      await titled(page, 'Your reporting line').getByRole('link', { name: adamName }).waitFor();
+      const waiting = titled(page, 'Waiting for your approval');
+      await waiting.getByRole('link', { name: `${adamName} · Desk` }).waitFor();
+      expect(
+        await waiting.getByRole('link', { name: /Show all|Open approvals/ }).getAttribute('href'),
+      ).toBe('/people/approvals');
+      await shot(page, name);
+      await context.close();
+    }
+
+    // The employee's overview: his manager above him, and the detail only he can give.
+    const context = await signedIn(EMPLOYEE.session, { ...desktop, colorScheme: 'light' });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people`);
+    await page.getByRole('heading', { level: 1, name: adamName }).waitFor({ timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
+    const gap = titled(page, 'Your missing information').getByRole('link', {
+      name: /Emergency contact/,
+    });
+    await gap.waitFor();
+    await shot(page, 'overview-employee-desktop-light');
+
+    // The link opens his profile at that field, cursor in it, marked missing.
+    await gap.click();
+    await page.waitForURL(/\/people\/me\?field=emergency_contact$/);
+    const input = page.getByRole('textbox', { name: /Emergency contact/ });
+    await input.waitFor({ timeout: 30_000 });
+    await expect.poll(() => input.evaluate((el) => el === document.activeElement)).toBe(true);
+    await page.getByText(/required details? missing/).first().waitFor();
+    await shot(page, 'profile-missing-editing-desktop-light');
+
+    // His photo: picked on his profile, shrunk, straight to storage, kept by People.
+    await page.goto(`${stack.shell}/people/me`);
+    await page.waitForLoadState('networkidle');
+    const png = Buffer.from(
+      await page.evaluate(async () => {
+        const canvas = new OffscreenCanvas(600, 600);
+        const g = canvas.getContext('2d');
+        if (g === null) throw new Error('no canvas');
+        g.fillStyle = '#dbeafe';
+        g.fillRect(0, 0, 600, 600);
+        g.fillStyle = '#1d4ed8';
+        g.beginPath();
+        g.arc(300, 250, 110, 0, Math.PI * 2);
+        g.fill();
+        g.fillRect(140, 400, 320, 200);
+        const blob = await canvas.convertToBlob({ type: 'image/png' });
+        return [...new Uint8Array(await blob.arrayBuffer())];
+      }),
+    );
+    await page
+      .getByLabel('Photo')
+      .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png });
+    const [kept] = await eventually(
+      'the photo kept',
+      () => stack.sql<{ media_type: string }[]>`
+        SELECT media_type FROM people.person_photo WHERE person_id = ${EMPLOYEE.person}`,
+      (rows) => rows.length === 1,
+    );
+    // The browser sent a small JPEG drawn from it, not the file picked.
+    expect(kept?.media_type).toBe('image/jpeg');
+    await page.reload();
+    const photo = page.locator('img[src*="/people/photos/"]').first();
+    await photo.waitFor({ timeout: 30_000 });
+    await expect
+      .poll(() => photo.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+    await context.close();
+
+    // And HR sees it beside his name in her reporting line.
+    const hr = await signedIn(ADMIN.session, desktop);
+    const hrPage = await hr.newPage();
+    await hrPage.goto(`${stack.shell}/people`);
+    await hrPage.getByRole('heading', { level: 1, name: priya }).waitFor({ timeout: 30_000 });
+    const his = hrPage.locator(`img[src*="/people/photos/${EMPLOYEE.person}"]`).first();
+    await his.waitFor();
+    await expect
+      .poll(() => his.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+    // The URL itself opens nothing: without a session there is no photo.
+    const src = (await his.getAttribute('src')) ?? '';
+    const anonymous = await fetch(new URL(src, stack.shell), { redirect: 'manual' });
+    expect(anonymous.status).not.toBe(200);
+    await shot(hrPage, 'overview-hr-with-photo-desktop-light');
+    await hr.close();
+
+    // The profile with its gaps marked, light and dark, and on a phone.
+    for (const [scheme, options, name] of [
+      ['light', desktop, 'profile-missing-desktop-light'],
+      ['dark', desktop, 'profile-missing-desktop-dark'],
+      ['light', phone, 'profile-missing-phone-light'],
+    ] as const) {
+      const c = await signedIn(EMPLOYEE.session, { ...options, colorScheme: scheme });
+      const p = await c.newPage();
+      await p.goto(`${stack.shell}/people/me`);
+      await p.getByText(/required details? missing/).first().waitFor({ timeout: 30_000 });
+      await p.waitForLoadState('networkidle');
+      await shot(p, name);
+      await c.close();
+    }
   });
 });

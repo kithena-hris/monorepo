@@ -1,5 +1,5 @@
 import { Alert, Button, Stack } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import type { Checked, IdentifierFinding, Outcome } from '../load';
 import { AttributeInput } from './attribute-input';
@@ -35,6 +35,7 @@ export function SectionForm({
   pending = [],
   onWithdraw,
   onSelfApprove,
+  focusKey,
 }: {
   readonly section: RecordSection;
   readonly values: Values;
@@ -49,7 +50,16 @@ export function SectionForm({
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
   /** A requester no other HR member can approve for, approving their own held change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
+  /** The field to put the cursor in once the form opens: a link to one missing detail. */
+  readonly focusKey?: string;
 }): JSX.Element {
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (focusKey === undefined) return;
+    const at = form.current?.querySelector<HTMLElement>(`[data-field="${CSS.escape(focusKey)}"]`);
+    at?.scrollIntoView({ block: 'center' });
+    at?.querySelector<HTMLElement>('input, textarea, button, [role="combobox"]')?.focus({ preventScroll: true });
+  }, [focusKey]);
   const [draft, setDraft] = useState<Values>(values);
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
@@ -137,6 +147,7 @@ export function SectionForm({
 
   return (
     <form
+      ref={form}
       noValidate
       aria-label={section.label}
       onSubmit={(e) => {
@@ -146,7 +157,7 @@ export function SectionForm({
     >
       <Stack gap={4}>
         {section.fields.map((field) => (
-          <div key={field.key} className="flex flex-col gap-1.5">
+          <div key={field.key} data-field={field.key} className="flex flex-col gap-1.5">
             <AttributeInput
               field={field}
               value={draft[field.key] ?? null}

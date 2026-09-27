@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required readOnly currency ownedBy keptIn sensitive
+    key label description dataType options { value label } required missing readOnly currency ownedBy keptIn sensitive
   }`;
 
 const ENTRY = `
@@ -87,7 +87,7 @@ export const OPERATIONS = {
 
   Profile: `query Profile($personId: ID) {
     peopleProfile(personId: $personId) {
-      person { name summary avatarUrl missing }
+      person { name summary avatarUrl missing canChangePhoto }
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
       calendar { today timeZone }
@@ -205,8 +205,30 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** Where People starts: the viewer, their line, and what waits for them. */
   Home: `query Home {
-    peopleHome { hr admin finance }
+    peopleOverview {
+      roles { hr admin finance }
+      now
+      me {
+        id name avatarUrl title department email phone location timeZone startedOn today
+        status missing required
+      }
+      reportingLine {
+        managers { id name title avatarUrl }
+        moreAbove peers
+        reports { id name title avatarUrl }
+        reportsTotal reportsFilter
+      }
+      approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy } }
+      missing { key label sectionKey section ownedBy }
+      team { waiting toFill }
+    }
+  }`,
+
+  /** A person's photo, to somebody who may read them: the tenant app's photo route. */
+  Photo: `query Photo($personId: ID!) {
+    peoplePhoto(personId: $personId) { mediaType data checksum }
   }`,
 
   Organisation: `query Organisation {
@@ -224,8 +246,8 @@ export const OPERATIONS = {
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID) {
-    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete) {
       total active notStarted incomplete
       segment { id name }
       segments { id name }
@@ -620,6 +642,18 @@ export const OPERATIONS = {
 
   StartImportUpload: `mutation StartImportUpload($name: String!, $size: Int!) {
     startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  StartPhotoUpload: `mutation StartPhotoUpload($personId: ID, $size: Int!) {
+    startPhotoUpload(personId: $personId, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  CompletePhotoUpload: `mutation CompletePhotoUpload($personId: ID, $uploadId: ID!, $key: String!) {
+    completePhotoUpload(personId: $personId, uploadId: $uploadId, idempotencyKey: $key) { avatarUrl }
+  }`,
+
+  RemovePhoto: `mutation RemovePhoto($personId: ID, $key: String!) {
+    removePhoto(personId: $personId, idempotencyKey: $key) { avatarUrl }
   }`,
 
   CompleteImportUpload: `mutation CompleteImportUpload($uploadId: ID!) {

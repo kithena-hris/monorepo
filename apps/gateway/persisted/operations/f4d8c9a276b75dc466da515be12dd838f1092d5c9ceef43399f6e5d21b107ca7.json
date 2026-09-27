@@ -1,0 +1,1 @@
+{"version":1,"body":"query Photo($personId: ID!) {\n    peoplePhoto(personId: $personId) { mediaType data checksum }\n  }"}
