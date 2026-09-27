@@ -387,7 +387,7 @@ jobs:
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
     #
-    # Sharded six ways, and each shard renders on six pages at once. The sweep
+    # Sharded six ways, and each shard renders on four pages at once. The sweep
     # renders every entry in two themes and two pointer profiles — 468 x 4
     # renders in series took 34 minutes, which was the whole pipeline. The
     # shards are a round-robin over a sorted index, verified to partition it
@@ -440,10 +440,12 @@ jobs:
           SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
           STORYBOOK_URL: http://localhost:6006
           SHARD: ${{ matrix.shard }}/6
-          # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs).
-          # Above the 4 vCPUs on purpose: much of each render is networkidle's
-          # idle wait, not CPU.
-          CONTRAST_WORKERS: 6
+          # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs):
+          # one per vCPU. Six tried on 2026-09-27 left two renders unsettled
+          # after 20 s on main — the dev server compiles each story on first
+          # request and the 4-vCPU runner could not keep up. The sixth shard is
+          # what buys the time now.
+          CONTRAST_WORKERS: 4
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
