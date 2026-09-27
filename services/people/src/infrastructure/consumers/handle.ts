@@ -2,6 +2,7 @@ import type * as z from 'zod';
 import {
   AccountProfileCaptured,
   AccountProvisioned,
+  AccountSignupAnswered,
   PersonAnonymised,
   PersonChangeDecided,
   PersonChangeRequested,
@@ -30,6 +31,8 @@ import { logger } from '@kithena/telemetry';
 
 import type { RecomputeCompleteness } from '../../application/completeness/recompute.js';
 import type { OrgAdmin } from '../../application/org/org.js';
+import type { EnterAsSelf, SelfEntryOutcome } from '../../application/person/self-entry.js';
+import type { ReportSignup } from '../signup-report.js';
 import type { ProvisionalPeople } from '../../application/reconcile.js';
 import type { TenantRoles } from '../../application/roles/roles.js';
 import type { OpenFga } from '../openfga.js';
@@ -70,6 +73,15 @@ export interface ConsumerDeps {
    * committed (`role-report.ts`). Never throws. Absent without `IDENTITY_URL`.
    */
   readonly reportRoles?: ReportRoles;
+  /**
+   * What a person entered about themselves on identity's sign-up or recovery
+   * page, written as their own entry through the normal write path
+   * (`self-entry.ts`). Absent without the secrets' keys the write path needs;
+   * a name is then only filled where empty, as before.
+   */
+  readonly enterAsSelf?: EnterAsSelf;
+  /** Tell identity what its sign-up page asks, after a publish. Never throws. */
+  readonly reportSignup?: ReportSignup;
   /** Legal entities and settings, for the company the back office created (PEO-099). */
   readonly org?: OrgAdmin;
   /**
@@ -131,13 +143,78 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         return wrote ? 'applied' : 'unchanged';
       }
 
+      /*
+       * A name typed on identity's page — at enrolment, or on a recovery that
+       * asked for one. The person's own entry: written through the write path
+       * when there is a record and a schema to write through, and then subject
+       * to everything a profile edit is (ownership, mirror mode, approvals,
+       * history). Before either exists — a provisional record in a tenant that
+       * has not published — the name is only filled where empty, as it
+       * always was. The zone is identity's and is always taken.
+       */
       case AccountProfileCaptured.name: {
         const event = parse(AccountProfileCaptured, raw);
         if (!event) return 'rejected';
-        const found = await deps.inTenant(event.tenantId, ({ tx }) =>
-          captureProfile(tx, event.tenantId, event.payload.accountId, event.payload),
+        const { payload } = event;
+        return deps.inTenant(event.tenantId, async ({ tx }) => {
+          const entered: SelfEntryOutcome = deps.enterAsSelf
+            ? await deps.enterAsSelf(tx, {
+                tenantId: event.tenantId,
+                accountId: payload.accountId,
+                correlationId: event.correlationId,
+                values: {
+                  given_name: payload.name.given,
+                  family_name: payload.name.family,
+                  preferred_name: payload.name.preferred,
+                },
+              })
+            : { kind: 'not_ready' };
+          if (entered.kind === 'refused') {
+            logger.info(
+              { eventId: event.eventId, code: entered.code },
+              'captured name not entered',
+            );
+          }
+          const found = await captureProfile(tx, event.tenantId, payload.accountId, payload, {
+            fillName: entered.kind === 'not_ready',
+          });
+          return entered.kind === 'entered' || found ? 'applied' : 'unchanged';
+        });
+      }
+
+      /*
+       * The tenant's sign-up questions, answered on identity's page before the
+       * passkey. The person's own entry, exactly as a name is above: a field
+       * that requires approval is held, one an upstream system owns is
+       * refused, and a value the schema in force refuses is left for the
+       * missing-information prompts to ask again. Nothing to write through —
+       * no record, no schema — is logged, since there is no page left to ask.
+       */
+      case AccountSignupAnswered.name: {
+        const event = parse(AccountSignupAnswered, raw);
+        if (!event) return 'rejected';
+        const { enterAsSelf } = deps;
+        if (!enterAsSelf) return 'ignored';
+        const entered = await deps.inTenant(event.tenantId, ({ tx }) =>
+          enterAsSelf(tx, {
+            tenantId: event.tenantId,
+            accountId: event.payload.accountId,
+            correlationId: event.correlationId,
+            values: event.payload.answers,
+          }),
         );
-        return found ? 'applied' : 'unchanged';
+        if (entered.kind === 'refused' || entered.kind === 'not_ready') {
+          logger.warn(
+            {
+              eventId: event.eventId,
+              outcome: entered.kind,
+              ...(entered.kind === 'refused' ? { code: entered.code } : {}),
+            },
+            'sign-up answers not entered',
+          );
+          return entered.kind === 'refused' ? 'rejected' : 'unchanged';
+        }
+        return entered.kind === 'entered' ? 'applied' : 'unchanged';
       }
 
       case SchemaPublished.name: {
@@ -158,6 +235,8 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           );
           return 'rejected';
         }
+        // What identity's sign-up page asks follows the schema in force.
+        await deps.reportSignup?.(event.tenantId);
         return 'applied';
       }
 

@@ -16,6 +16,17 @@ import { drizzleOrgStore } from '../drizzle-org-store.js';
 import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-repository.js';
 import { openFgaFrom } from '../openfga.js';
 import { roleReportFrom } from '../role-report.js';
+import { signupReportFrom } from '../signup-report.js';
+import { personAccess } from '../../application/person/person-access.js';
+import { enterAsSelf, type EnterAsSelf } from '../../application/person/self-entry.js';
+import { withSources, withSubjects } from '../../application/person/subject.js';
+import { drizzleEmployeeNumbers } from '../drizzle-org-store.js';
+import { drizzlePersonRepository } from '../drizzle-person-repository.js';
+import { drizzleRelations, drizzleSchemaVersions } from '../drizzle-person-reader.js';
+import { drizzleScimStore } from '../drizzle-scim-store.js';
+import { drizzleDuplicates } from '../drizzle-duplicates.js';
+import { drizzleUniqueClaims } from '../unique.js';
+import { recomputePerson } from '../../application/completeness/recompute.js';
 import { tenantTransaction } from '../unit-of-work.js';
 import { approvalMailerFrom } from '../approval-mailer.js';
 import { drizzlePersonReader } from '../drizzle-person-reader.js';
@@ -120,9 +131,13 @@ export function consumerFrom(
 ): ReturnType<typeof peopleConsumer> {
   const authz = openFgaFrom(env);
   const reportRoles = roleReportFrom(env, inTenant, systemClock);
+  const reportSignup = signupReportFrom(env, inTenant, systemClock);
+  const selfEntry = selfEntryFrom(env);
   return peopleConsumer({
     ...(authz === null ? {} : { authz }),
     ...(reportRoles === null ? {} : { reportRoles }),
+    ...(reportSignup === null ? {} : { reportSignup }),
+    ...(selfEntry === null ? {} : { enterAsSelf: selfEntry }),
     ...(approvals === null ? {} : { approvals }),
     inTenant,
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
@@ -137,6 +152,62 @@ export function consumerFrom(
     org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
   });
+}
+
+/**
+ * People's write path, for what a person entered about themselves on
+ * identity's page (`self-entry.ts`): the same `personAccess` the transports
+ * use, with the same relations — OpenFGA when configured, the owning
+ * upstream systems (mirror mode) on every answer — and the same holding of
+ * changes that need approval. Null without `PEOPLE_SECRET_KEYS`, which a
+ * unique claim and a held sealed value need; the consumer then only fills an
+ * empty name, as it did before.
+ */
+function selfEntryFrom(env: NodeJS.ProcessEnv): EnterAsSelf | null {
+  const keys = keysFrom(env['PEOPLE_SECRET_KEYS']);
+  if (keys.length === 0) {
+    logger.warn('PEOPLE_SECRET_KEYS unset; names and sign-up answers only fill empty fields');
+    return null;
+  }
+  const ring = staticKeyRing(keys);
+  const org = drizzleOrgStore();
+  const reader = drizzlePersonReader();
+  const secrets = drizzleSecretStore(ring, logger);
+  const access = personAccess({
+    people: drizzlePersonRepository(),
+    reader,
+    schemas: drizzleSchemaVersions(),
+    relations: withSources(
+      withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), reader),
+      drizzleScimStore(),
+    ),
+    approvals: {
+      store: drizzlePendingChangeStore({
+        seal: (plaintext) => seal(plaintext, ring),
+        open: (sealed) => open(sealed, ring),
+      }),
+      publish: outboxPendingChanges,
+      clock: systemClock,
+      newId: uuidv7,
+    },
+    secrets,
+    reviews: drizzleIdentifierReviews(ring, secrets),
+    duplicates: drizzleDuplicates(),
+    uniques: drizzleUniqueClaims(ring),
+    clock: systemClock,
+    newId: uuidv7,
+    calendars: org,
+    numbering: drizzleEmployeeNumbers(),
+    completeness: recomputePerson({
+      schema: drizzleSchemaRepository(),
+      people: drizzlePeopleFacts(),
+      store: drizzleCompletenessStore(),
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: org,
+    }),
+  });
+  return enterAsSelf(access, reader);
 }
 
 /**

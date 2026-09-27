@@ -23,6 +23,7 @@ import { exportStoreFrom } from './export-queue.js';
 import { tenantRoles } from '../application/roles/roles.js';
 import { drizzleRoleStore } from './drizzle-role-store.js';
 import { httpRoleReport } from './role-report.js';
+import { httpSignupReport } from './signup-report.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
@@ -404,6 +405,16 @@ export async function startBackground(
       inTenant,
       clock: systemClock,
     });
+    // And what identity's sign-up page asks (`signup-report.ts`), on the same
+    // schedule and for the same reason: the backfill for a publish whose
+    // report after the fact was lost, and the first report for a tenant that
+    // published before this existed.
+    const reportSignup = httpSignupReport({
+      baseUrl: identityUrl,
+      token: identityToken,
+      inTenant,
+      clock: systemClock,
+    });
     const run = reconcile({
       directory: httpAccountDirectory({ baseUrl: identityUrl, internalToken: identityToken }),
       people: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
@@ -434,6 +445,7 @@ export async function startBackground(
           }
           reconciledAt.set(tenantId, Date.now());
           await reportRoles(tenantId);
+          await reportSignup(tenantId);
           if (result.value.created > 0) logger.info({ tenantId, ...result.value }, 'reconciled');
         }),
       ),
