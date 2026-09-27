@@ -121,6 +121,13 @@ table is not a thing this system does.
 - **Done when** `just codegen` passes, a contract test asserts the payload has
   no `mobile` field, and an integration test sees the event in the outbox after
   an enrolment.
+- **As built, 2026-09-27** A recovery raised only `account.recovered`, so a
+  name entered on a recovery link never left identity. `Account.recover` now
+  publishes `profile_captured` exactly as `enrol` does, when the page asked
+  for a name (no name on file). Beside it, `identity.account.signup_answered`
+  `{ accountId, schemaVersion, answers, answeredAt }` carries the company's own
+  sign-up questions' answers (`answers` classified internal; see PEO-027).
+  Proven over HTTP in `platform/identity/src/credential/recovery.integration.test.ts`.
 
 ### [x] PEO-003 — `svc_people` and the schema bootstrap
 
@@ -448,6 +455,32 @@ check-strict` passes on the generated code.
   `identity.account.profile_captured` → fill the name.
 - **Done when** an integration test provisions an account and sees a
   provisional person within a second, idempotent on `identityAccountId`.
+- **As built, 2026-09-27** "Fill the name" filled only an empty one, with a
+  raw UPDATE and no history, so a name somebody corrected on identity's page
+  never reached their profile (reported by the user). The consumer now enters
+  a captured name as the person's own edit through `PersonAccess.update`
+  (`application/person/self-entry.ts`), and only what differs: ownership,
+  mirror mode (PEO-073, refused with the owner named, logged), approvals
+  (PEO-077, a field that requires one is held as a pending change — the core
+  name fields do not by default, so a self-entered legal name applies
+  directly, as a profile edit by the person would), effective from today on
+  their calendar, a history row with the person's account as actor, and
+  `profile_updated`; People then corrects identity's copy (PEO-029). Before a
+  schema is published — nothing to write through — it still only fills an
+  empty name. Without `PEOPLE_SECRET_KEYS` the consumer has no write path and
+  keeps the fill-only behaviour.
+
+  **Sign-up questions.** A field at `collectAt: signup | enrolment` is asked on
+  identity's page before the passkey. People reports the set to identity
+  (`signup-report.ts`, `PUT /api/internal/tenants/<id>/signup-questions`, a
+  `SignupQuestionSet`) after each publish and at boot and daily; only public or
+  internal, unencrypted, non-financial, single-valued, employee-writable
+  fields of a renderable type are in it (`domain/schema/signup.ts`), and never
+  the names identity already asks. The answers come back on
+  `identity.account.signup_answered` and are entered the same way. Identity
+  keeps the answered keys, never the values (migration
+  20260927160000_signup_questions). Proven in
+  `infrastructure/consumers/self-entry.integration.test.ts`.
 
 ### [x] PEO-028 — Reconciliation for tenants who buy People later
 

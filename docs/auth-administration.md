@@ -367,6 +367,81 @@ its own audited surface.
 
 ---
 
+## Setup links: one order, one ceremony
+
+An invitation and a self-service recovery link open the same page on the auth
+origin (`apps/auth/shell`, `/enrol`), and it runs in one order for both:
+
+1. **Check the link.** `POST /api/internal/enrolment/status` says whether it is
+   usable, why it was issued, what is on file, and which of the company's
+   sign-up questions it still has to ask.
+2. **Ask what is missing.** An invitation always shows the details form (name,
+   time zone, mobile). A recovery shows it only when something is missing: no
+   name on file, or a required sign-up question the person has not answered.
+   A recovery never shows the zone or the mobile — it would move a returning
+   employee to wherever they are sitting and blank the number HR just used to
+   verify them. Review follows.
+3. **Create the passkey, once, last.** Every answer has already passed the
+   service's own checks (`checkPersonName`, `checkPersonProfile`,
+   `checkSignupAnswers` from `@kithena/contracts`) before the device is asked
+   for anything. A recovery with a name on file and nothing to answer goes
+   straight here.
+
+Until 2026-09-27 a recovery link jumped to step 3 whatever was on file. For
+somebody with no name, identity refused the empty name after the ceremony, the
+page sent them back to the form, and the form led to a second ceremony — two
+prompts, and a passkey left on the device from the first that the service never
+stored.
+
+**A link is spent only with the credential it registered.** The token is
+claimed first, so a second presentation waits on its row, but the whole
+enrolment is one transaction and a refusal — a rejected attestation, a start
+date not yet reached, a missing required answer — rolls it back. The link stays
+live for another try and nothing (credential, name, answers) is left behind.
+Refreshing or going back mid-flow spends nothing: nothing is written until the
+ceremony's `finish`.
+
+**What the page captures reaches People.** A name entered at enrolment or on a
+recovery that asked for one is published on `identity.account.profile_captured`
+(a recovery used to publish nothing). People enters it as the person's own edit
+through its normal write path — ownership, mirror mode, approvals, history — and
+only what differs from the record. People then corrects identity's copy the
+usual way (PEO-029).
+
+### The company's own sign-up questions
+
+A People field placed at `collectAt: signup` or `enrolment` is asked on the
+details step, after the name and before the passkey (PRD §8.3). Identity may not
+read People's schema, so People reports the set:
+`PUT /api/internal/tenants/<id>/signup-questions` with `PEOPLE_IDENTITY_TOKEN`,
+a `SignupQuestionSet`, after every publish and for every tenant at boot and
+daily. Identity keeps the newest (`platform.signup_question_set`).
+
+- **Only what the page may hold.** Public or internal, not encrypted, not
+  financial, single-valued, a type the page renders, and one the employee may
+  write. People filters (`signupQuestions`); identity refuses a set that says
+  otherwise. A field placed at sign-up that fails this is still required where
+  it is required — the missing-information prompts ask for it after sign-in.
+- **Forwarded, never kept.** The answers ride
+  `identity.account.signup_answered` (classified internal, which is why nothing
+  above internal is ever asked) and People writes them as the person's own
+  entry; a field that requires approval is held as a pending change.
+  `platform.account.signup_answered` keeps which keys were answered, never the
+  values.
+- **Asked once.** A question already answered is not asked again. A first
+  enrolment asks everything outstanding; a recovery asks only the required ones
+  — a field made required after somebody joined. Optional questions added
+  later, and everybody already signed in, are People's missing-information
+  prompts' to ask.
+
+Locally there is no Debezium: `pnpm db:seed` pipes identity's outbox into
+People's consumer (`pnpm --silent --filter @kithena/identity events | pnpm
+--filter @kithena/people seed`), which applies `profile_captured` and
+`signup_answered` exactly as the Redpanda consumer does, and a publish in the
+seed reports the question set to identity when `IDENTITY_URL` is set.
+
+---
+
 ## Support access
 
 HR can allow or forbid CX from entering their tenant. That is the right control.
