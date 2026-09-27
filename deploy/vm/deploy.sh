@@ -39,8 +39,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 umask 077
 mkdir -p "$dir"
 chmod 700 "$root" "$dir"
-cp "$here/compose.yaml" "$here/compose.staging.yaml" "$dir/"
-touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/secrets.env"
+cp "$here/compose.yaml" "$here/compose.staging.yaml" "$here/debezium.properties" "$dir/"
+touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/secrets.env" "$dir/relay.env"
 chmod 600 "$dir"/*
 
 get() { sed -n "s/^$1=//p" "$dir/state.env" | tail -n 1; }
@@ -50,7 +50,7 @@ put() {
   mv "$dir/state.env.new" "$dir/state.env"
 }
 
-for secret in VM_POSTGRES_PASSWORD MIGRATOR_PASSWORD PEOPLE_DB_PASSWORD SLACK_DB_PASSWORD; do
+for secret in VM_POSTGRES_PASSWORD MIGRATOR_PASSWORD PEOPLE_DB_PASSWORD SLACK_DB_PASSWORD DEBEZIUM_DB_PASSWORD; do
   [ -n "$(get "$secret")" ] || put "$secret" "$(openssl rand -hex 24)"
 done
 # The copy of `migrations/` and `atlas.hcl` the workflow put beside this file.
@@ -221,7 +221,26 @@ SQL
   compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U kithena -d postgres <<SQL
 ALTER ROLE svc_people LOGIN PASSWORD '$(get PEOPLE_DB_PASSWORD)';
 ALTER ROLE svc_slack LOGIN PASSWORD '$(get SLACK_DB_PASSWORD)';
+-- The outbox relay's role, made NOLOGIN by its migration. REPLICATION only a
+-- superuser may give, which is why it is here and not in the migration.
+ALTER ROLE svc_debezium LOGIN REPLICATION PASSWORD '$(get DEBEZIUM_DB_PASSWORD)';
 SQL
+  # The outbox relays, after the migration that makes their publication. Up is
+  # idempotent: a relay already running with the same settings is left alone.
+  compose up --detach --wait --wait-timeout 180 relay-people || {
+    echo "::error::the People outbox relay never became healthy" >&2
+    compose logs --tail 80 relay-people >&2
+    exit 1
+  }
+  if grep -q '^DEBEZIUM_SOURCE_DATABASE_HOSTNAME=.' "$dir/relay.env"; then
+    compose up --detach --wait --wait-timeout 180 relay-identity || {
+      echo "::error::the identity outbox relay never became healthy" >&2
+      compose logs --tail 80 relay-identity >&2
+      exit 1
+    }
+  else
+    echo "::warning::relay.env names no identity database; identity's outbox is not relayed" >&2
+  fi
   echo "$env migrate: applied"
   exit 0
 fi
