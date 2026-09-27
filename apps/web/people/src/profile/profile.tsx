@@ -874,8 +874,7 @@ function PlacementSection({
           <DatePicker label="Effective from" value={from} onChange={setFrom} />
           {transfer ? (
             <Alert tone="info" title="This is a transfer">
-              Their employment in the current legal entity ends the day before, and a new one starts
-              on this date. Service is continuous.
+              Employment moves to the new legal entity on this date. Service stays continuous.
             </Alert>
           ) : null}
           {refused === null ? null : (

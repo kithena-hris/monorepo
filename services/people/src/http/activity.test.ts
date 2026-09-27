@@ -83,3 +83,25 @@ describe('the Settings activity log, in words', () => {
     );
   });
 });
+
+describe('what changed, from what', () => {
+  it('names only what differs, from → to', async () => {
+    const { changes } = await import('./activity.js');
+    expect(
+      changes(
+        { 'Seen by': 'HR', Required: 'No', Name: 'Phone' },
+        { 'Seen by': 'HR and their manager', Required: 'Yes', Name: 'Phone' },
+      ),
+    ).toBe('Seen by: HR → HR and their manager. Required: No → Yes.');
+    expect(changes({ Name: 'Phone' }, { Name: 'Phone' })).toBe(null);
+    expect(changes(null, { Name: 'Phone' })).toBe(null);
+  });
+
+  it('compares a field on its own routes and when edited, never when added', async () => {
+    const { activityTarget } = await import('./activity.js');
+    expect(activityTarget('POST', '/v1/schema/draft/attributes/phone/signup', '{}')).toEqual({ kind: 'field', key: 'phone' });
+    expect(activityTarget('POST', '/v1/schema/draft/attributes', '{"editing":"phone"}')).toEqual({ kind: 'field', key: 'phone' });
+    expect(activityTarget('POST', '/v1/schema/draft/attributes', '{"editing":null}')).toBe(null);
+    expect(activityTarget('PATCH', '/v1/settings', '{}')).toEqual({ kind: 'settings' });
+  });
+});

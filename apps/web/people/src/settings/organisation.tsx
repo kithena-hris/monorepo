@@ -224,7 +224,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
     <Stack gap={6}>
       <PageHeader
         title="Organisation"
-        description="Legal entities, locations and their time zones, employee numbering and the company’s settings. Every “today” in People is read on these calendars."
+        description="Legal entities, locations, time zones, employee numbering and company settings."
       />
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change these.</Alert>
@@ -931,8 +931,7 @@ function PayBands({
   return (
     <Stack gap={4}>
       <p className="text-sm text-fg-muted">
-        Compa-ratio on the analytics screen is salary over the midpoint of the band in force for
-        that grade and currency. A band change from a later day leaves the earlier one in history.
+        Compa-ratio is salary divided by the band midpoint for the grade and currency.
       </p>
       {onSet === undefined ? null : (
         <div>
@@ -1298,14 +1297,12 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
   return (
     <PageSection
       title="Statutory retention"
-      description="The least time the law keeps a leaver’s records. A longer retention policy on a field wins; a shorter one does not."
+      description="The minimum time a leaver’s records are kept by law."
     >
       <Stack gap={4}>
         {pending ? (
           <Alert tone="warning" title="Pending legal review">
-            These periods have not yet been confirmed by counsel. Nothing is erased automatically
-            under a period pending review; HR can still erase one person’s record by hand, with a
-            stated reason.
+            These periods await legal review. Nothing is erased automatically until they’re confirmed.
           </Alert>
         ) : null}
         <Table aria-label="Statutory retention floors">
@@ -1352,7 +1349,7 @@ function UpcomingErasures({
   return (
     <PageSection
       title="Automated erasure"
-      description="Leavers whose records are due to be erased in the next three months, or already are. Erasure clears what each field’s retention allows; the record itself stays."
+      description="Leavers whose data will be erased in the next three months."
     >
       {erasures.length === 0 ? (
         <EmptyState

@@ -65,6 +65,16 @@ export interface PublishSchemaDeps {
   readonly newEventId: () => string;
   /** Whose day each person's `requiredFrom` is read on. */
   readonly calendars: Calendars;
+  /**
+   * Seal the values already kept for fields this version encrypts, and drop
+   * their plain copies, in the publish's own transaction. Absent where no
+   * secret store is configured, and then encrypting a field is refused.
+   */
+  readonly sealExisting?: (
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    keys: readonly string[],
+  ) => Promise<void>;
 }
 
 export interface PublishSchema {
@@ -93,6 +103,8 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
       preview: PublishPreview;
       evaluatedOn: string;
       evaluatedAt: string;
+      /** Fields this version encrypts that the one in force did not. */
+      newlySealed: readonly string[];
     }>
   > {
     const [{ sections, attributes }, current] = await Promise.all([
@@ -106,6 +118,10 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
 
     const before = current?.document.attributes ?? [];
     const after = candidate.value.document.attributes;
+    const wasSealed = new Set(before.filter((a) => a.encrypted).map((a) => a.key as string));
+    const newlySealed = after
+      .filter((a) => a.encrypted && !wasSealed.has(a.key) && before.some((b) => b.key === a.key))
+      .map((a) => a.key as string);
 
     /*
      * Drained into memory here, and that is the bound worth naming.
@@ -139,6 +155,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
 
     return ok({
       candidate: candidate.value,
+      newlySealed,
       evaluatedOn,
       evaluatedAt,
       preview: {
@@ -162,7 +179,7 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
       const evaluated = await evaluate(tx, request);
       if (!evaluated.ok) return evaluated;
 
-      const { candidate, preview, evaluatedOn, evaluatedAt } = evaluated.value;
+      const { candidate, preview, evaluatedOn, evaluatedAt, newlySealed } = evaluated.value;
 
       /*
        * A version identical to the one in force is refused.
@@ -178,6 +195,17 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
             'version',
           ]),
         );
+      }
+
+      if (newlySealed.length > 0) {
+        if (deps.sealExisting === undefined) {
+          return err(
+            failure('UNAVAILABLE', 'Encrypting a field needs the secret store, which is not configured', [
+              'encrypted',
+            ]),
+          );
+        }
+        await deps.sealExisting(tx, request.tenantId, newlySealed);
       }
 
       await deps.schema.appendVersion(

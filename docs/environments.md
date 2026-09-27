@@ -226,6 +226,18 @@ Scoped to one tenant, `app_runtime` sees that tenant's row and no other. So the
 application connects as a role created `NOBYPASSRLS`; migrations may run as the
 owner, because they are supposed to see everything.
 
+**A new service role is created on Neon by hand, before the migration that
+grants to it ships.** The migrations grant to `svc_identity`, `svc_messaging`,
+`svc_people`, `svc_timeoff` and `svc_slack`; on Neon each exists, `NOLOGIN
+NOBYPASSRLS`, on both branches (`main` and `staging`). The VM and the local
+database create theirs (`deploy.sh migrate`, `tools/scripts/init-db.sql`); Neon
+does not, and a missing one fails the production migration at its first
+`GRANT`, as `svc_slack` did once:
+
+```sql
+CREATE ROLE svc_slack NOLOGIN NOBYPASSRLS;
+```
+
 Checking the attribute is one query, and worth doing after any role change:
 
 ```sql

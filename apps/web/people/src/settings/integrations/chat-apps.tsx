@@ -90,7 +90,7 @@ export function ChatApps({
   return (
     <PageSection
       title="Chat apps"
-      description="Let people ask Kithena questions, approve changes and fill in their details without leaving their chat app. Everyone sees only what they could see in Kithena itself."
+      description="Ask questions, approve changes and fill in details from your chat app, with the same access as in Kithena."
     >
       <Stack gap={4}>
         {returned === undefined || returned === null ? null : (

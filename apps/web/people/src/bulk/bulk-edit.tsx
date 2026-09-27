@@ -388,8 +388,7 @@ function Editor({
             </Alert>
           ) : (
             <Alert tone="info" title="Nothing is saved yet">
-              This is what applying would do, person by person. Each person is saved on their own:
-              one refused does not stop the others.
+              Preview of the changes for each person. Each person is saved separately, so one error won’t stop the rest.
             </Alert>
           )}
           <AutoGrid minItemWidth="10rem" gap={3}>
@@ -557,7 +556,7 @@ function Hire({
     <Stack gap={6}>
       <PageHeader
         title={`Hire ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}`}
-        description="People added without a start date become employees from it: active once it has begun on their calendar, starting soon until then."
+        description="People without a start date become employees on the date you choose."
         actions={onBack === undefined ? undefined : <Button onClick={onBack}>Directory</Button>}
       />
       <Card className="flex flex-col gap-4 p-4">
@@ -618,8 +617,7 @@ function Hire({
             </Alert>
           ) : (
             <Alert tone="info" title="Nobody is hired yet">
-              This is what hiring would do, person by person. Each person is hired on their own:
-              one skipped does not stop the others.
+              Preview of each hire. Each person is hired separately, so one skipped hire won’t stop the rest.
             </Alert>
           )}
           <AutoGrid minItemWidth="10rem" gap={3}>

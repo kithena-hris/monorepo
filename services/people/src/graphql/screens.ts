@@ -965,6 +965,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         encrypted: t.exposeBoolean('encrypted', {
           description: 'Stored sealed: only the last four characters are ever shown.',
         }),
+        encryptable: t.exposeBoolean('encryptable', {
+          description: 'It may be switched to encrypted: a sealable type, not a column People sorts by.',
+        }),
         pending: t.exposeString('pending', {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
@@ -1991,6 +1994,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       classificationSource: t.string({ required: true }),
       requiresApproval: t.boolean({
         description: 'Whether a change waits for HR approval; null keeps the default.',
+      }),
+      encrypted: t.boolean({
+        description: 'Store it sealed: once on, never off. Existing values are sealed when it is published.',
       }),
     }),
   });

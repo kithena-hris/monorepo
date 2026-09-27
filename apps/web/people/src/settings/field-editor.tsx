@@ -38,6 +38,7 @@ import {
   Spinner,
   Stack,
   Stepper,
+  Switch,
   TagsInput,
   Textarea,
   useBreakpoint,
@@ -180,6 +181,8 @@ interface Draft {
   confirmedSpecial: boolean;
   /** Whether a change waits for HR's approval (PEO-077); null until the admin says. */
   requiresApproval: boolean | null;
+  /** Stored sealed, by choice; financial details and identifiers are regardless. */
+  encrypted: boolean;
 }
 
 function draftFrom(section: RegistrySection, field: RegistryField | null): Draft {
@@ -199,6 +202,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
       classification: field.classification,
       confirmedSpecial: field.classification === 'special-category',
       requiresApproval: field.requiresApproval ?? null,
+      encrypted: field.encrypted === true,
     };
   }
   return {
@@ -220,6 +224,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     classification: null,
     confirmedSpecial: false,
     requiresApproval: null,
+    encrypted: false,
   };
 }
 
@@ -227,6 +232,21 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
  * What a field defaults to when nobody chose (PEO-077), as People computes
  * it: on for financial data and for anything stored encrypted.
  */
+/** The types a value can be sealed as (People's `encryptable`, for a new field). */
+const SEALABLE = new Set<string>([
+  'text',
+  'long_text',
+  'email',
+  'phone',
+  'url',
+  'number',
+  'decimal',
+  'date',
+  'national_id',
+  'bank_account',
+  'money',
+]);
+
 export function approvalByDefault(dataType: DataType, piiKind: string): boolean {
   return piiKind === 'financial' || dataType === 'bank_account' || dataType === 'national_id';
 }
@@ -470,6 +490,7 @@ export function FieldEditor({
       piiKind: judged?.piiKind ?? 'none',
       classificationSource: suggested === draft.classification ? 'suggested' : 'human',
       requiresApproval: draft.requiresApproval,
+      encrypted: sealed,
     });
     setSaving(false);
     if (outcome.ok) onOpenChange(false);
@@ -479,7 +500,22 @@ export function FieldEditor({
   const show = shown ? problems : {};
   const piiKind = typeof advice === 'object' && advice !== null ? advice.piiKind : 'none';
   // What People will store: encrypted for these, whatever the admin says.
-  const encrypted = approvalByDefault(draft.dataType, piiKind);
+  // Financial details and identifiers: encrypted, whatever the admin says.
+  const forced = approvalByDefault(draft.dataType, piiKind);
+  const sealed = forced || draft.encrypted;
+  const encrypted = sealed;
+  const wasSealed = field?.encrypted === true;
+  const canSeal = field === null ? SEALABLE.has(draft.dataType) : field.encryptable === true;
+  const sealLocked = forced || wasSealed || !canSeal;
+  const sealWhy = forced
+    ? 'Always on for financial details and ID numbers.'
+    : wasSealed
+      ? 'On. Encryption can’t be turned off.'
+      : !canSeal
+        ? 'Not available for this field type.'
+        : draft.encrypted && field !== null
+          ? 'Existing values are encrypted when you publish. This can’t be undone.'
+          : 'Only the last four characters are shown. Never searchable or shared.';
   const approval = draft.requiresApproval ?? encrypted;
 
   return (
@@ -499,8 +535,7 @@ export function FieldEditor({
             <Stack gap={6} className="min-w-0">
               {field !== null && field.origin !== 'tenant' ? (
                 <Alert tone="info" title="Built into Kithena">
-                  You can rename it, explain it, and change who fills it in and who sees it. Its
-                  type stays, and its protection can be made stricter but never looser.
+                  You can change its name, description and access. Its type is fixed, and protection can only be increased.
                 </Alert>
               ) : null}
               <Stepper
@@ -640,8 +675,7 @@ export function FieldEditor({
                             />
                           </FieldControl>
                           <FieldDescription>
-                            Made from the name; most people never change it. What exports, webhooks
-                            and integrations call the field. It cannot change once published.
+                            Used by exports and integrations. Generated from the name and fixed once published.
                           </FieldDescription>
                           <FieldError>{show.key}</FieldError>
                         </Field>
@@ -729,8 +763,7 @@ export function FieldEditor({
                             Let more people see it, on some records only
                           </legend>
                           <p className="text-sm text-fg-muted">
-                            An exception to “Who can see it?” above. For example: managers may also
-                            see Agency, but only on contractors’ records. Nobody loses access here.
+                            Give extra access on matching records only, for example managers on contractors’ records.
                           </p>
                           {draft.visibilityRules.map((rule, index) => {
                             const name = `Rule ${String(index + 1)}`;
@@ -819,9 +852,7 @@ export function FieldEditor({
                             </div>
                           ) : null}
                           <p className="text-sm text-fg-muted">
-                            A rule shows the field to somebody only on the records its conditions
-                            hold for, and only if they can already see every field a condition
-                            reads. Never for special-category data.
+                            A rule applies only to matching records, and only to people who can see the fields it checks.
                           </p>
                         </fieldset>
                       </AccordionContent>
@@ -937,45 +968,40 @@ export function FieldEditor({
                       set({ confirmedSpecial });
                     }}
                   />
-                  <Accordion type="single" collapsible>
-                    <AccordionItem value="more">
-                      <AccordionTrigger meta={approval ? 'Changes need approval' : 'No approval'}>
-                        Approval, encryption and dates
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <Stack gap={4}>
-                          <Field orientation="horizontal" className="items-start justify-start">
-                            <FieldControl>
-                              <Checkbox
-                                checked={approval}
-                                onCheckedChange={(on) => {
-                                  set({ requiresApproval: on === true });
-                                }}
-                              />
-                            </FieldControl>
-                            <div>
-                              <FieldLabel>Changes need a second person to approve them</FieldLabel>
-                              <FieldDescription>
-                                A new value is held until another HR member approves it, within
-                                seven days, and the field is marked Sensitive wherever it is shown.
-                                On by default for money, bank details and identity numbers.
-                              </FieldDescription>
-                            </div>
-                          </Field>
-                          {encrypted ? (
-                            <Alert tone="info" title="Stored encrypted">
-                              The value is kept apart from the rest of the record, and everyday
-                              screens show only its last characters.
-                            </Alert>
-                          ) : null}
-                          <p className="text-sm text-fg-muted">
-                            Custom fields are not effective-dated: a new value applies once it is
-                            saved (or approved), not from a date somebody chooses.
-                          </p>
-                        </Stack>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
+                  <fieldset className="flex flex-col gap-4">
+                    <legend className="mb-1 text-sm font-medium">Protection</legend>
+                    <Field orientation="horizontal" className="items-start justify-between gap-4">
+                      <div>
+                        <FieldLabel>Store it encrypted</FieldLabel>
+                        <FieldDescription>{sealWhy}</FieldDescription>
+                      </div>
+                      <FieldControl>
+                        <Switch
+                          checked={sealed}
+                          disabled={sealLocked}
+                          onCheckedChange={(on) => {
+                            set({ encrypted: on });
+                          }}
+                        />
+                      </FieldControl>
+                    </Field>
+                    <Field orientation="horizontal" className="items-start justify-between gap-4">
+                      <div>
+                        <FieldLabel>Changes need a second person to approve them</FieldLabel>
+                        <FieldDescription>
+                          Another HR member approves each change before it applies.
+                        </FieldDescription>
+                      </div>
+                      <FieldControl>
+                        <Switch
+                          checked={approval}
+                          onCheckedChange={(on) => {
+                            set({ requiresApproval: on });
+                          }}
+                        />
+                      </FieldControl>
+                    </Field>
+                  </fieldset>
                 </Stack>
               ) : null}
 
@@ -1112,8 +1138,7 @@ function Classify({
             />
           </FieldControl>
           <FieldLabel>
-            I confirm this field may hold special-category data, and that it will be kept out of AI
-            prompts, event payloads and the standard export.
+            I confirm this is special-category data. It will be excluded from AI, events and standard exports.
           </FieldLabel>
         </Field>
       ) : null}
@@ -1196,7 +1221,7 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
     return (
       <Alert tone="info" title="Asked on the first screen after sign-up">
         {employee
-          ? 'A file is never taken on the account setup page. It is asked for on the first screen they see once their account is set up, beside their photo if you ask for one.'
+          ? 'Files are requested on the first screen after account setup.'
           : 'Only the employee can answer there. Tick The employee under Who can change it, or choose another moment.'}
       </Alert>
     );
@@ -1223,8 +1248,7 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
   if (draft.collectAt !== 'hr_only' && !employee) {
     return (
       <Alert tone="info">
-        The employee cannot change this field, so they see it read-only rather than being asked for
-        it. To ask them, tick The employee under Who can change it.
+        Employees can’t edit this field. To ask them for it, allow the employee to change it.
       </Alert>
     );
   }

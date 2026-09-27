@@ -250,13 +250,13 @@
       "owns": [
         "/people/setup"
       ],
-      "description": "The details People keeps on each person: what they are, who sees them, and when they are asked.",
+      "description": "The details kept on each person, who sees them and when they’re asked.",
       "icon": "document"
     },
     {
       "path": "/settings/people/organisation",
       "label": "Organisation",
-      "description": "Legal entities, work locations, employee numbering, the default time zone and retention.",
+      "description": "Legal entities, locations, numbering, time zone and retention.",
       "icon": "organisation"
     },
     {
@@ -266,7 +266,7 @@
         "hr",
         "admin"
       ],
-      "description": "Who is an HR member, a People administrator or in finance here.",
+      "description": "Who has HR, administrator and finance access.",
       "icon": "permission"
     },
     {
@@ -278,7 +278,7 @@
       "owns": [
         "/settings/people/integrations/:id"
       ],
-      "description": "Tools outside Kithena: tell your payroll, benefits or IT tools about hires and leavers, and let Okta or Entra add and remove people.",
+      "description": "Slack, webhooks and identity provider sync.",
       "icon": "link"
     },
     {
@@ -288,7 +288,7 @@
         "hr",
         "admin"
       ],
-      "description": "Every change to these settings: who made it, when, and what.",
+      "description": "Every settings change, who made it and when.",
       "icon": "history"
     }
   ]

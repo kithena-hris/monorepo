@@ -133,6 +133,8 @@ export interface RegistryField {
   readonly aiShareable?: boolean;
   /** Stored sealed: only its last four characters are ever shown. */
   readonly encrypted?: boolean;
+  /** It may be switched to encrypted: a sealable type, not a column People sorts by. */
+  readonly encryptable?: boolean;
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;
@@ -171,6 +173,8 @@ export interface FieldInput {
   readonly classificationSource: 'suggested' | 'human' | 'section_default';
   /** Whether a change waits for HR's approval (PEO-077); null keeps the default. */
   readonly requiresApproval: boolean | null;
+  /** Store it sealed; once on, never off. */
+  readonly encrypted?: boolean;
 }
 
 /**

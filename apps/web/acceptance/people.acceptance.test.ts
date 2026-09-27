@@ -279,8 +279,8 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       .getByRole('button', { name: 'Approve the change to NIF / NIE yourself' })
       .click();
     const alone = page.getByRole('dialog');
-    await alone.getByText(/no other HR member who can approve it/).waitFor({ timeout: 30_000 });
-    await alone.getByText(/audit trail will show that you approved your own change because no other HR/).waitFor();
+    await alone.getByText(/No other HR member can approve this change/).waitFor({ timeout: 30_000 });
+    await alone.getByText(/audit log will show you approved your own change/).waitFor();
     await alone.getByRole('button', { name: 'Approve it myself' }).click();
     await eventually(
       'the NIF',
@@ -909,6 +909,7 @@ describe('PEO-121: the webhook delivery log', () => {
     const page = await context.newPage();
     await page.goto(`${stack.shell}/settings/people/integrations`);
     await page.waitForLoadState('networkidle');
+    await page.getByRole('tab', { name: 'Webhooks' }).click();
     await page
       .getByRole('button', { name: `Delivery log for ${hookUrl}` })
       .click();

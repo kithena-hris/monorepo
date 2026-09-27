@@ -193,9 +193,7 @@ function History({
               </Button>
             }
           >
-            Corrections made since are applied: this is what we now know was true that day. A
-            field kept without dates, like a phone number, has no value on a past day, only its
-            changes.
+            Includes later corrections. Fields without dates, like phone number, show only their changes.
           </Alert>
           {sections.map((section) => (
             <PageSection key={section.key} surface title={section.label}>

@@ -1,3 +1,4 @@
+import { isCoreKey } from '../person/core.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import {
   COUNTRIES,
@@ -13,6 +14,7 @@ import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
 import {
   aiShareable,
+  encryptable,
   SchemaDraft,
   type Attribute,
   type Section,
@@ -117,6 +119,8 @@ export interface RegistryView {
     readonly aiShareable: boolean;
     /** Stored sealed: the row keeps its last four and nothing else. */
     readonly encrypted: boolean;
+    /** It may be switched to encrypted: a sealable type, not a column People sorts by. */
+    readonly encryptable: boolean;
     readonly origin: string;
     readonly pending: Pending;
   }[];
@@ -179,6 +183,7 @@ export async function registryView(
         aiEligible: a.classification.aiEligible,
         aiShareable: aiShareable(a),
         encrypted: a.encrypted,
+        encryptable: !isCoreKey(a.key) && encryptable(a),
         origin: a.origin,
         pending: pendingOf(a, published),
       }));
@@ -312,11 +317,14 @@ export interface FieldInput {
    * without touching it follows its classification, now and later.
    */
   readonly requiresApproval: boolean | null;
+  /** Store it sealed. Once on, never off; forced on for financial data and identifiers. */
+  readonly encrypted?: boolean | null;
 }
 
 function definitionOf(input: FieldInput, order: number): AttributeDefinitionInput {
   const choice = input.dataType === 'select' || input.dataType === 'multi_select';
   const secret =
+    input.encrypted === true ||
     input.piiKind === 'financial' ||
     input.dataType === 'bank_account' ||
     input.dataType === 'national_id';
@@ -387,6 +395,16 @@ export async function saveField(
   // A key People stores in a typed column of its own (`employment_type`,
   // `work_model`) takes only that column's values: a choice outside them
   // would publish and then refuse every save.
+  // A column People sorts, filters and joins on cannot be sealed.
+  if (input.encrypted === true && isCoreKey(editing ?? input.key)) {
+    return err(
+      failure(
+        'NOT_ENCRYPTABLE',
+        `People keeps ${input.label} in a column of its own, which it sorts and filters by, so it cannot be encrypted`,
+        ['encrypted'],
+      ),
+    );
+  }
   const column = COLUMN_VALUES[input.key];
   if (editing === null && column !== undefined) {
     const refused = input.options.map(keyFrom).filter((v) => !column.includes(v));
@@ -412,9 +430,12 @@ export async function saveField(
           : (() => {
               // A key, an origin and a place in the order are not an edit's to change.
               const { key: _key, origin: _origin, order: _order, ...patch } = definition;
+              // Sealed stays sealed: a form that says nothing of it keeps it.
+              const was = current.attributes.find((a) => a.key === editing);
               // Named even when absent, so removing the last rule removes it.
               return draft.updateAttribute(editing, {
                 ...patch,
+                encrypted: patch.encrypted === true || was?.encrypted === true,
                 visibilityRules: patch.visibilityRules,
                 requiresApproval: patch.requiresApproval,
               });

@@ -26,7 +26,13 @@ import {
   type PendingValue,
 } from '../application/person/pending-changes.js';
 import { run, type PeopleService } from '../application/person/service.js';
-import { settingsActivity } from './activity.js';
+import {
+  activityTarget,
+  changes,
+  factsOf,
+  settingsActivity,
+  type ActivityReads,
+} from './activity.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
@@ -657,6 +663,8 @@ export interface RestDeps {
     readonly store: ActivityStore;
     readonly newId: () => string;
     readonly now: () => string;
+    /** What a change is compared on, before and after it, for "from → to". */
+    readonly reads?: (tx: PostgresJsDatabase, tenantId: string) => ActivityReads;
   };
 }
 
@@ -1801,13 +1809,18 @@ export function restHandler(
     }
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];
+    const before = await compared(deps, asking.value.tenantId, request, url.pathname);
     const answer = await route.handle(
       asking.value,
       request,
       id === undefined ? {} : { id },
       url.searchParams,
     );
-    await logged(deps, asking.value, request, url.pathname, answer);
+    const after =
+      before === undefined || answer.status >= 300
+        ? null
+        : await compared(deps, asking.value.tenantId, request, url.pathname);
+    await logged(deps, asking.value, request, url.pathname, answer, changes(before ?? null, after ?? null));
     return answer;
   };
 }
@@ -1817,12 +1830,35 @@ export function restHandler(
  * command, never instead of it: a log that cannot be written is said in the
  * service's own log and the command still stands.
  */
+/**
+ * The thing a settings command changes, as the log compares it: read just
+ * before and just after the command. Undefined when the command is not one
+ * compared; a failed read is no comparison, never a failed command.
+ */
+async function compared(
+  deps: RestDeps,
+  tenantId: string,
+  request: RestRequest,
+  path: string,
+): Promise<Record<string, string> | null | undefined> {
+  const reads = deps.activity?.reads;
+  const target = activityTarget(request.method, path, request.body);
+  if (reads === undefined || target === null) return undefined;
+  try {
+    const read = await run(deps.service, tenantId, async (tx) => ok(await factsOf(target, reads(tx, tenantId))));
+    return read.ok ? read.value : null;
+  } catch {
+    return null;
+  }
+}
+
 async function logged(
   deps: RestDeps,
   asking: Asking,
   request: RestRequest,
   path: string,
   answer: RestResponse,
+  changed: string | null,
 ): Promise<void> {
   const activity = deps.activity;
   const key = request.headers['idempotency-key'];
@@ -1837,7 +1873,7 @@ async function logged(
         actor: asking.viewer.accountId,
         action: said.action,
         subject: said.subject ?? null,
-        detail: said.detail ?? null,
+        detail: changed ?? said.detail ?? null,
         area: said.area,
         idempotencyKey: key,
       });

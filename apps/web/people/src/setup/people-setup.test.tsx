@@ -277,7 +277,7 @@ describe('the first administrator’s held NIF (PEO-077)', () => {
       screen.getByRole('button', { name: 'Approve the change to Legal name yourself' }),
     );
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/no other HR member who can approve it/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/No other HR member can approve this change/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Approve it myself' }));
     expect(onSelfApprove).toHaveBeenCalledWith('c1');
     await waitFor(() => {
