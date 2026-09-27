@@ -54,7 +54,8 @@ describe('PeopleSections and PeopleBar', () => {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
     });
     expect(result.violations.map((v) => v.id)).toEqual([]);
-  });
+    // The file's first axe run: its cold start alone can pass 5s on a busy runner.
+  }, 20_000);
 
   it('shows an employee only what their roles open', () => {
     render(

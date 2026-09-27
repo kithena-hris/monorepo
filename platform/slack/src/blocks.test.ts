@@ -95,4 +95,12 @@ describe('valuesOf', () => {
       }),
     ).toEqual({ a: 'x', b: '2026-01-02', c: 'true', d: ['en'], e: null });
   });
+
+  it('reads nothing but field keys, so a crafted block id reaches no prototype', () => {
+    const values = valuesOf(
+      JSON.parse('{"__proto__":{"value":{"value":"x"}},"constructor":{"value":{"value":"y"}},"Bad-Key":{"value":{"value":"z"}},"ok":{"value":{"value":"1"}}}') as never,
+    );
+    expect(values).toEqual({ ok: '1' });
+    expect(({} as Record<string, unknown>)['value']).toBeUndefined();
+  });
 });

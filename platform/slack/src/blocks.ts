@@ -375,18 +375,33 @@ type StateValue = {
   readonly selected_options?: readonly { readonly value: string }[];
 };
 
-/** A submitted form's values, by field. */
+/** A field's key, as People names them: the only block ids a form of ours has. */
+const FIELD_KEY = /^[a-z][a-z0-9_]{0,63}$/;
+const NEVER = new Set(['constructor', 'prototype']);
+
+/**
+ * A submitted form's values, by field. Only block ids shaped like a field key
+ * are read, and the result is built from entries rather than by assignment,
+ * so a payload naming `__proto__` or `constructor` reaches nothing.
+ */
 export function valuesOf(
   state: Readonly<Record<string, Readonly<Record<string, StateValue>>>>,
 ): Record<string, string | readonly string[] | null> {
-  const values: Record<string, string | readonly string[] | null> = {};
+  const entries: [string, string | readonly string[] | null][] = [];
   for (const [key, actions] of Object.entries(state)) {
+    if (!FIELD_KEY.test(key) || NEVER.has(key)) continue;
     const v = actions['value'];
     if (v === undefined) continue;
-    if (v.selected_options !== undefined) values[key] = v.selected_options.map((o) => o.value);
-    else if (v.selected_option !== undefined) values[key] = v.selected_option?.value ?? null;
-    else if (v.selected_date !== undefined) values[key] = v.selected_date ?? null;
-    else values[key] = v.value ?? null;
+    entries.push([
+      key,
+      v.selected_options !== undefined
+        ? v.selected_options.map((o) => o.value)
+        : v.selected_option !== undefined
+          ? (v.selected_option?.value ?? null)
+          : v.selected_date !== undefined
+            ? (v.selected_date ?? null)
+            : (v.value ?? null),
+    ]);
   }
-  return values;
+  return Object.fromEntries(entries);
 }
