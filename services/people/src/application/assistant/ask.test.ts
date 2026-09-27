@@ -7,6 +7,7 @@ import { personAccess } from '../person/person-access.js';
 import type { PeopleService } from '../person/service.js';
 import type { ScreenDeps } from '../screens/record.js';
 import { ask } from './ask.js';
+import { askFromChat } from './from-chat.js';
 
 /**
  * A question in words, answered as the asker: the model is shown the question
@@ -154,5 +155,29 @@ describe('asking People in words', () => {
     const { assistant: _none, ...bare } = w.deps;
     const answered = await ask(bare, w.asking, 'Who is in sales?');
     expect(!answered.ok && answered.error.code).toBe('UNAVAILABLE');
+  });
+
+  it('answers a question from Slack as whoever’s work email it carries, and nobody else', async () => {
+    const w = world(() => JSON.stringify({ kind: 'reports', name: 'Michael' }));
+    const chat = {
+      ...w.deps,
+      accountByEmail: (_tx: never, _tenant: string, email: string) =>
+        Promise.resolve(email === 'toby@dunder.example' ? TOBY_ACCOUNT : null),
+    };
+    const answered = await askFromChat(chat, {
+      tenantId: TENANT,
+      email: ' Toby@Dunder.example ',
+      question: 'Who reports to Michael?',
+      correlationId: '00000000-0000-4000-8000-0000000000c2',
+    });
+    expect(answered.ok && answered.value.text).toMatch(/report to Michael Scott/);
+
+    const stranger = await askFromChat(chat, {
+      tenantId: TENANT,
+      email: 'someone@elsewhere.example',
+      question: 'Who reports to Michael?',
+      correlationId: '00000000-0000-4000-8000-0000000000c3',
+    });
+    expect(!stranger.ok && stranger.error.code).toBe('NOT_A_KITHENA_USER');
   });
 });
