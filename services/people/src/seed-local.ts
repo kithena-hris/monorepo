@@ -7,6 +7,7 @@ import { logger } from '@kithena/telemetry';
 
 import { wirePeople } from './http/server.js';
 import { samplePhoto } from './seed-photos.js';
+import { COMPANIES, type SeedCompany } from './seed-companies.js';
 import { consumerFrom } from './infrastructure/consumers/wire.js';
 import { tenantTransaction } from './infrastructure/unit-of-work.js';
 
@@ -54,9 +55,11 @@ if (process.env['NODE_ENV'] === 'production') {
   process.exit(1);
 }
 
-const slug = process.argv[2] ?? 'acme';
+// One company, or every local one (`seed-companies.ts`).
+const slugs = process.argv[2] === undefined ? COMPANIES.map((c) => c.slug) : [process.argv[2]];
 const port = process.env['POSTGRES_PORT'] ?? '5432';
-const ownerUrl = process.env['DATABASE_URL'] ?? `postgres://kithena:kithena@localhost:${port}/kithena`;
+const ownerUrl =
+  process.env['DATABASE_URL'] ?? `postgres://kithena:kithena@localhost:${port}/kithena`;
 const peopleUrl =
   process.env['PEOPLE_DATABASE_URL'] ?? `postgres://svc_people:kithena@localhost:${port}/kithena`;
 
@@ -104,24 +107,6 @@ async function relay(): Promise<number> {
 logger.info({ delivered: await piped() }, 'events from stdin delivered to People');
 logger.info({ delivered: await relay() }, 'People’s own events delivered to People');
 
-const [company] = await owner<{ tenant_id: string }[]>`
-  SELECT tenant_id FROM people.tenant_settings WHERE slug = ${slug}`;
-const [admin] =
-  company === undefined
-    ? []
-    : await owner<{ account_id: string }[]>`
-        SELECT account_id FROM people.role_grant
-         WHERE tenant_id = ${company.tenant_id} AND role = 'people_admin'
-         ORDER BY account_id LIMIT 1`;
-if (company === undefined || admin === undefined) {
-  logger.error(
-    { slug },
-    'People has no such company or no administrator for it. Pipe identity’s events in (`pnpm db:seed`), on a fresh database (`just reset`).',
-  );
-  process.exit(1);
-}
-const tenantId = company.tenant_id;
-
 /* --------------------------------------------- as the administrator -- */
 
 const token = randomUUID();
@@ -140,268 +125,280 @@ await new Promise<void>((resolve) => {
 });
 const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
 
-async function asAdmin(
-  method: 'GET' | 'POST' | 'PATCH',
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: unknown }> {
-  const response = await fetch(`${base}${path}`, {
-    method,
-    headers: {
-      'x-internal-token': token,
-      'x-kithena-principal': JSON.stringify({
-        userId: admin?.account_id,
-        tenantId,
-        roles: ['people_admin', 'hr'],
-        entitlements: ['module.people'],
-      }),
-      'x-correlation-id': randomUUID(),
-      ...(body === undefined
-        ? {}
-        : { 'content-type': 'application/json', 'idempotency-key': randomUUID() }),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  return { status: response.status, body: await response.json().catch(() => null) };
-}
-
-// The setup wizard's publish, in the country of the company's first entity.
-const [entity] = await owner<{ country: string }[]>`
-  SELECT country FROM people.legal_entity WHERE tenant_id = ${tenantId} AND archived_at IS NULL ORDER BY id LIMIT 1`;
-const published = await asAdmin('POST', '/v1/views/setup/publish', {
-  country: entity?.country ?? '',
-  sections: [],
-});
-if (published.status >= 300) {
-  logger.error({ answer: published.body }, 'version 1 was not published');
-  process.exit(1);
-}
-logger.info({ answer: published.body }, 'employee fields published');
-
-/** A calendar date this many days from today, in UTC: seed data, not domain logic. */
-const inDays = (days: number): string =>
-  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
-
-const SAMPLE: readonly {
-  given: string;
-  family: string;
-  hireDate: string | null;
-}[] = [
-  { given: 'Grace', family: 'Hopper', hireDate: '2024-03-04' },
-  { given: 'Alan', family: 'Turing', hireDate: '2024-09-02' },
-  { given: 'Katherine', family: 'Johnson', hireDate: '2025-01-13' },
-  { given: 'Tim', family: 'Berners-Lee', hireDate: '2025-06-02' },
-  { given: 'Margaret', family: 'Hamilton', hireDate: '2025-11-03' },
-  { given: 'Edsger', family: 'Dijkstra', hireDate: '2026-02-02' },
-  // Hired, starting in a fortnight: pre-hire until then.
-  { given: 'Barbara', family: 'Liskov', hireDate: inDays(14) },
-  // Added and not hired yet: provisional.
-  { given: 'Donald', family: 'Knuth', hireDate: null },
-];
-
-const there = new Set(
-  (
-    await owner<{ email: string }[]>`
-      SELECT lower(work_email) AS email FROM people.person
-       WHERE tenant_id = ${tenantId} AND work_email IS NOT NULL`
-  ).map((r) => r.email),
-);
-let added = 0;
-for (const person of SAMPLE) {
-  const email = `${person.given}.${person.family}@${slug}.example`.toLowerCase();
-  if (there.has(email)) continue;
-  // eslint-disable-next-line no-await-in-loop -- a handful, in order
-  const made = await asAdmin('POST', '/v1/people', {
-    attributes: { given_name: person.given, family_name: person.family, work_email: email },
-    ...(person.hireDate === null ? {} : { hireDate: person.hireDate }),
-  });
-  if (made.status >= 300) {
-    logger.error({ email, answer: made.body }, 'employee not added');
-    process.exit(1);
-  }
-  added += 1;
-}
-logger.info({ added }, 'sample employees added');
-
-/* ----------------------------------------- what the overview draws -- */
-
-// A handful of the fields a company adds on its first day, through the
-// registry and a publish, as an administrator adds them: a job title and a
-// department to say what somebody does, a work phone, the start date, and one
-// detail each employee is asked for themselves, so there is something missing.
-const everyone = ['self', 'manager', 'manager_chain', 'hr', 'directory'];
-const FIELDS = [
-  { key: 'job_title', sectionKey: 'employment', label: 'Job title', dataType: 'text' },
-  {
-    key: 'department',
-    sectionKey: 'employment',
-    label: 'Department',
-    dataType: 'select',
-    options: ['Leadership', 'Engineering', 'Research', 'People'],
-  },
-  {
-    key: 'work_phone',
-    sectionKey: 'employment',
-    label: 'Work phone',
-    dataType: 'phone',
-    ownership: ['employee', 'hr'],
-    collectAt: 'onboarding',
-    piiKind: 'contact',
-  },
-  {
-    key: 'hire_date',
-    sectionKey: 'employment',
-    label: 'Start date',
-    dataType: 'date',
-    visibility: ['self', 'manager', 'hr'],
-  },
-  {
-    key: 'emergency_contact',
-    sectionKey: 'personal',
-    label: 'Emergency contact',
-    dataType: 'text',
-    visibility: ['self', 'hr'],
-    ownership: ['employee', 'hr'],
-    collectAt: 'onboarding',
-    requiredness: 'always',
-    classification: 'confidential',
-    piiKind: 'contact',
-  },
-] as const;
-const registry = (await asAdmin('GET', '/v1/views/registry')).body as {
-  fields?: { key: string }[];
-} | null;
-const known = new Set((registry?.fields ?? []).map((f) => f.key));
-let fields = 0;
-for (const f of FIELDS) {
-  if (known.has(f.key)) continue;
-  // eslint-disable-next-line no-await-in-loop -- a handful, in order
-  const saved = await asAdmin('POST', '/v1/schema/draft/attributes', {
-    input: {
-      key: f.key,
-      sectionKey: f.sectionKey,
-      label: f.label,
-      description: null,
-      dataType: f.dataType,
-      options: 'options' in f ? f.options : [],
-      requiredness: 'requiredness' in f ? f.requiredness : 'never',
-      requiredWhen: null,
-      ownership: 'ownership' in f ? f.ownership : ['hr'],
-      collectAt: 'collectAt' in f ? f.collectAt : 'hr_only',
-      visibility: 'visibility' in f ? f.visibility : everyone,
-      visibilityRules: [],
-      classification: 'classification' in f ? f.classification : 'internal',
-      piiKind: 'piiKind' in f ? f.piiKind : 'none',
-      classificationSource: 'human',
-      requiresApproval: null,
-    },
-    editing: null,
-  });
-  if (saved.status >= 300) {
-    logger.warn({ key: f.key, answer: saved.body }, 'sample field not added');
+for (const slug of slugs) {
+  const company = COMPANIES.find((c) => c.slug === slug);
+  if (company === undefined) {
+    logger.warn({ slug }, 'no such local company in seed-companies.ts');
     continue;
   }
-  fields += 1;
+  // eslint-disable-next-line no-await-in-loop -- one company at a time
+  await seedCompany(company);
 }
-if (fields > 0) {
-  const today = new Date().toISOString().slice(0, 10);
-  const next = await asAdmin('POST', '/v1/schema/draft/publish', { requiredFrom: today });
-  logger.info({ fields, answer: next.body }, 'sample fields published');
-}
-
-// Who reports to whom, and what each does: the reporting line the overview
-// draws. Ada, People's administrator, reports to Grace. Set once: a record
-// that already has a manager is left as it is.
-const LINE: Readonly<Record<string, { manager: string | null; title: string; department: string }>> = {
-  'grace.hopper': { manager: null, title: 'Chief Executive', department: 'leadership' },
-  'alan.turing': { manager: 'grace.hopper', title: 'VP Engineering', department: 'engineering' },
-  'katherine.johnson': { manager: 'grace.hopper', title: 'Head of Research', department: 'research' },
-  'tim.berners-lee': { manager: 'alan.turing', title: 'Staff Engineer', department: 'engineering' },
-  'margaret.hamilton': { manager: 'alan.turing', title: 'Engineering Manager', department: 'engineering' },
-  'edsger.dijkstra': { manager: 'margaret.hamilton', title: 'Engineer', department: 'engineering' },
-  'barbara.liskov': { manager: 'margaret.hamilton', title: 'Engineer', department: 'engineering' },
-  'donald.knuth': { manager: 'katherine.johnson', title: 'Researcher', department: 'research' },
-};
-const rows = await owner<{ id: string; email: string | null; account: string | null; manager: string | null }[]>`
-  SELECT id, lower(work_email) AS email, identity_account_id AS account, manager_id AS manager
-    FROM people.person WHERE tenant_id = ${tenantId}`;
-const byHandle = new Map(
-  rows.flatMap((r) => (r.email === null ? [] : [[r.email.split('@')[0] ?? '', r] as const])),
-);
-const ada = rows.find((r) => r.account === admin.account_id);
-const placed: [string, { manager: string | null; title: string; department: string }][] = [
-  ...Object.entries(LINE),
-  ...(ada === undefined
-    ? []
-    : [[`@${ada.id}`, { manager: 'grace.hopper', title: 'Head of People', department: 'people' }] as [string, { manager: string | null; title: string; department: string }]]),
-];
-let lined = 0;
-for (const [handle, line] of placed) {
-  const row = handle.startsWith('@') ? ada : byHandle.get(handle);
-  if (row === undefined || row.manager !== null) continue;
-  const manager = line.manager === null ? null : (byHandle.get(line.manager)?.id ?? null);
-  // eslint-disable-next-line no-await-in-loop -- a handful, in order
-  const patched = await asAdmin('PATCH', `/v1/people/${row.id}`, {
-    attributes: {
-      ...(manager === null ? {} : { manager_id: manager }),
-      job_title: line.title,
-      department: line.department,
-    },
-  });
-  if (patched.status >= 300) logger.warn({ handle, answer: patched.body }, 'reporting line not set');
-  else lined += 1;
-}
-logger.info({ lined }, 'reporting lines and job titles set');
-
-// A photo for each sample employee, uploaded the way the profile uploads one:
-// a presigned PUT to the upload bucket, then People checks and keeps it. Ada
-// is left without one, to add her own. Skipped, with a warning, when there is
-// no upload bucket to put them in.
-const photographed = new Set(
-  (
-    await owner<{ person_id: string }[]>`
-      SELECT person_id FROM people.person_photo WHERE tenant_id = ${tenantId}`
-  ).map((r) => r.person_id),
-);
-let photos = 0;
-for (const [index, handle] of Object.keys(LINE).entries()) {
-  const row = byHandle.get(handle);
-  if (row === undefined || photographed.has(row.id)) continue;
-  const bytes = samplePhoto(index);
-  // eslint-disable-next-line no-await-in-loop -- a handful, in order
-  const started = await asAdmin('POST', '/v1/views/photos/uploads', {
-    personId: row.id,
-    size: bytes.byteLength,
-  });
-  if (started.status >= 300) {
-    logger.warn({ answer: started.body }, 'sample photos skipped: is the upload bucket there? (`pnpm --filter @kithena/people upload-bucket`)');
-    break;
-  }
-  const target = started.body as { uploadId: string; url: string; headers: Record<string, string> };
-  const { 'content-length': _length, ...signed } = target.headers;
-  // eslint-disable-next-line no-await-in-loop -- as above
-  const put = await fetch(target.url, { method: 'PUT', headers: signed, body: bytes as Uint8Array<ArrayBuffer> }).catch(() => null);
-  if (put === null || !put.ok) {
-    logger.warn({ status: put?.status }, 'sample photo not uploaded');
-    continue;
-  }
-  // eslint-disable-next-line no-await-in-loop -- as above
-  const kept = await asAdmin('POST', `/v1/views/photos/uploads/${target.uploadId}/complete`, {
-    personId: row.id,
-  });
-  if (kept.status >= 300) logger.warn({ handle, answer: kept.body }, 'sample photo not kept');
-  else photos += 1;
-}
-logger.info({ photos }, 'sample photos added');
 
 logger.info({ delivered: await relay() }, 'People’s own events delivered to People');
-
-const people = await owner<{ status: string; n: number }[]>`
-  SELECT status, count(*)::int AS n FROM people.person WHERE tenant_id = ${tenantId}
-   GROUP BY status ORDER BY status`;
-process.stdout.write(
-  `\nPeople at ${slug}: ${people.map((r) => `${String(r.n)} ${r.status}`).join(', ')}\n\n`,
-);
-
 // The transports' pollers and pools stay open; this was a one-off.
 process.exit(0);
+
+async function seedCompany(company: SeedCompany): Promise<void> {
+  const { slug } = company;
+  const [found] = await owner<{ tenant_id: string }[]>`
+    SELECT tenant_id FROM people.tenant_settings WHERE slug = ${slug}`;
+  const [admin] =
+    found === undefined
+      ? []
+      : await owner<{ account_id: string }[]>`
+          SELECT account_id FROM people.role_grant
+           WHERE tenant_id = ${found.tenant_id} AND role = 'people_admin'
+           ORDER BY account_id LIMIT 1`;
+  if (found === undefined || admin === undefined) {
+    logger.warn(
+      { slug },
+      'People has no such company or no administrator for it. Pipe identity’s events in (`pnpm db:seed`), on a fresh database (`just reset`).',
+    );
+    return;
+  }
+  const tenantId = found.tenant_id;
+
+  async function asAdmin(
+    method: 'GET' | 'POST' | 'PATCH',
+    path: string,
+    body?: unknown,
+  ): Promise<{ status: number; body: unknown }> {
+    const response = await fetch(`${base}${path}`, {
+      method,
+      headers: {
+        'x-internal-token': token,
+        'x-kithena-principal': JSON.stringify({
+          userId: admin?.account_id,
+          tenantId,
+          roles: ['people_admin', 'hr'],
+          entitlements: ['module.people'],
+        }),
+        'x-correlation-id': randomUUID(),
+        ...(body === undefined
+          ? {}
+          : { 'content-type': 'application/json', 'idempotency-key': randomUUID() }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, body: await response.json().catch(() => null) };
+  }
+
+  // The setup wizard's publish, in the country of the company's first entity.
+  const [entity] = await owner<{ id: string; country: string }[]>`
+    SELECT id, country FROM people.legal_entity
+     WHERE tenant_id = ${tenantId} AND archived_at IS NULL ORDER BY id LIMIT 1`;
+  const published = await asAdmin('POST', '/v1/views/setup/publish', {
+    country: entity?.country ?? '',
+    sections: [],
+  });
+  if (published.status >= 300) {
+    logger.error({ slug, answer: published.body }, 'version 1 was not published');
+    return;
+  }
+
+  // Work locations, under the first legal entity, as Organisation adds them.
+  const existing = new Map(
+    (
+      await owner<{ id: string; name: string }[]>`
+        SELECT id, name FROM people.location WHERE tenant_id = ${tenantId}`
+    ).map((r) => [r.name, r.id]),
+  );
+  const locationId = new Map<string, string>();
+  for (const loc of company.locations) {
+    const had = existing.get(loc.name);
+    if (had !== undefined) {
+      locationId.set(loc.key, had);
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop -- a handful, in order
+    const made = await asAdmin('POST', '/v1/locations', {
+      legalEntityId: entity?.id,
+      name: loc.name,
+      country: company.country,
+      timeZone: loc.timeZone,
+    });
+    if (made.status >= 300)
+      logger.warn({ slug, location: loc.name, answer: made.body }, 'location not added');
+    else locationId.set(loc.key, (made.body as { id: string }).id);
+  }
+
+  // The fields a company adds on its first day, through the registry and a
+  // publish, as an administrator adds them.
+  const everyone = ['self', 'manager', 'manager_chain', 'hr', 'directory'];
+  const registry = (await asAdmin('GET', '/v1/views/registry')).body as {
+    fields?: { key: string }[];
+  } | null;
+  const known = new Set((registry?.fields ?? []).map((f) => f.key));
+  let fields = 0;
+  for (const f of company.fields) {
+    if (known.has(f.key)) continue;
+    // eslint-disable-next-line no-await-in-loop -- a handful, in order
+    const saved = await asAdmin('POST', '/v1/schema/draft/attributes', {
+      input: {
+        key: f.key,
+        sectionKey: f.sectionKey,
+        label: f.label,
+        description: f.description ?? null,
+        dataType: f.dataType,
+        options: f.options ?? [],
+        requiredness: f.requiredness ?? 'never',
+        requiredWhen: null,
+        ownership: f.ownership ?? ['hr'],
+        collectAt: f.collectAt ?? 'hr_only',
+        visibility: f.visibility ?? everyone,
+        visibilityRules: [],
+        classification: f.classification ?? 'internal',
+        piiKind: f.piiKind ?? 'none',
+        classificationSource: 'human',
+        requiresApproval: null,
+      },
+      editing: null,
+    });
+    if (saved.status >= 300) {
+      logger.warn({ slug, key: f.key, answer: saved.body }, 'sample field not added');
+      continue;
+    }
+    fields += 1;
+  }
+  if (fields > 0) {
+    const today = new Date().toISOString().slice(0, 10);
+    const next = await asAdmin('POST', '/v1/schema/draft/publish', { requiredFrom: today });
+    logger.info({ slug, fields, answer: next.body }, 'sample fields published');
+  }
+
+  // The employees, through `POST /v1/people`: most hired from a start date,
+  // one starting later and one not hired yet. The administrator's own record
+  // already exists (identity's account made it) and is completed below.
+  const emailOf = (handle: string): string => `${handle}@${slug}.example`.toLowerCase();
+  const there = new Set(
+    (
+      await owner<{ email: string }[]>`
+        SELECT lower(work_email) AS email FROM people.person
+         WHERE tenant_id = ${tenantId} AND work_email IS NOT NULL`
+    ).map((r) => r.email),
+  );
+  let added = 0;
+  for (const person of company.people) {
+    if (person.handle === company.admin.handle || there.has(emailOf(person.handle))) continue;
+    const location = person.location === undefined ? undefined : locationId.get(person.location);
+    // eslint-disable-next-line no-await-in-loop -- a few dozen, in order
+    const made = await asAdmin('POST', '/v1/people', {
+      attributes: {
+        given_name: person.given,
+        family_name: person.family,
+        work_email: emailOf(person.handle),
+        ...(entity === undefined ? {} : { legal_entity_id: entity.id }),
+        ...(location === undefined ? {} : { location_id: location }),
+      },
+      ...(person.hireDate === null ? {} : { hireDate: person.hireDate }),
+    });
+    if (made.status >= 300) {
+      logger.warn({ slug, handle: person.handle, answer: made.body }, 'employee not added');
+      continue;
+    }
+    added += 1;
+  }
+  logger.info({ slug, added }, 'sample employees added');
+
+  // Who reports to whom, what each does, and the rest of what is known of
+  // them. Set once: a record that already has a manager is left as it is.
+  const rows = await owner<
+    { id: string; email: string | null; account: string | null; manager: string | null }[]
+  >`
+    SELECT id, lower(work_email) AS email, identity_account_id AS account, manager_id AS manager
+      FROM people.person WHERE tenant_id = ${tenantId}`;
+  const byHandle = new Map(
+    rows.flatMap((r) => (r.email === null ? [] : [[r.email.split('@')[0] ?? '', r] as const])),
+  );
+  const adminRow = rows.find((r) => r.account === admin.account_id);
+  let lined = 0;
+  for (const person of company.people) {
+    const row = person.handle === company.admin.handle ? adminRow : byHandle.get(person.handle);
+    if (row === undefined || row.manager !== null) continue;
+    const manager = person.manager === null ? null : (byHandle.get(person.manager)?.id ?? null);
+    const location = person.location === undefined ? undefined : locationId.get(person.location);
+    // eslint-disable-next-line no-await-in-loop -- a few dozen, in order
+    const patched = await asAdmin('PATCH', `/v1/people/${row.id}`, {
+      attributes: {
+        ...(manager === null ? {} : { manager_id: manager }),
+        job_title: person.title,
+        department: person.department,
+        ...(row !== adminRow
+          ? {}
+          : {
+              given_name: person.given,
+              family_name: person.family,
+              ...(entity === undefined ? {} : { legal_entity_id: entity.id }),
+              ...(location === undefined ? {} : { location_id: location }),
+            }),
+        ...(person.details ?? {}),
+      },
+    });
+    if (patched.status >= 300)
+      logger.warn({ slug, handle: person.handle, answer: patched.body }, 'details not set');
+    else lined += 1;
+  }
+  logger.info({ slug, lined }, 'reporting lines, jobs and details set');
+
+  // A photo for each sample employee but the administrator, uploaded the way
+  // the profile uploads one: a presigned PUT to the upload bucket, then People
+  // checks and keeps it. Skipped, with a warning, without an upload bucket.
+  const photographed = new Set(
+    (
+      await owner<{ person_id: string }[]>`
+        SELECT person_id FROM people.person_photo WHERE tenant_id = ${tenantId}`
+    ).map((r) => r.person_id),
+  );
+  let photos = 0;
+  for (const [index, person] of company.people.entries()) {
+    if (person.handle === company.admin.handle) continue;
+    const row = byHandle.get(person.handle);
+    if (row === undefined || photographed.has(row.id)) continue;
+    const bytes = samplePhoto(index);
+    // eslint-disable-next-line no-await-in-loop -- in order
+    const started = await asAdmin('POST', '/v1/views/photos/uploads', {
+      personId: row.id,
+      size: bytes.byteLength,
+    });
+    if (started.status >= 300) {
+      logger.warn(
+        { answer: started.body },
+        'sample photos skipped: is the upload bucket there? (`pnpm --filter @kithena/people upload-bucket`)',
+      );
+      break;
+    }
+    const target = started.body as {
+      uploadId: string;
+      url: string;
+      headers: Record<string, string>;
+    };
+    const { 'content-length': _length, ...signed } = target.headers;
+    // eslint-disable-next-line no-await-in-loop -- as above
+    const put = await fetch(target.url, {
+      method: 'PUT',
+      headers: signed,
+      body: bytes as Uint8Array<ArrayBuffer>,
+    }).catch(() => null);
+    if (put === null || !put.ok) {
+      logger.warn({ status: put?.status }, 'sample photo not uploaded');
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop -- as above
+    const kept = await asAdmin('POST', `/v1/views/photos/uploads/${target.uploadId}/complete`, {
+      personId: row.id,
+    });
+    if (kept.status >= 300)
+      logger.warn({ handle: person.handle, answer: kept.body }, 'sample photo not kept');
+    else photos += 1;
+  }
+  logger.info({ slug, photos }, 'sample photos added');
+
+  logger.info({ delivered: await relay() }, 'People’s own events delivered to People');
+  const people = await owner<{ status: string; n: number }[]>`
+    SELECT status, count(*)::int AS n FROM people.person WHERE tenant_id = ${tenantId}
+     GROUP BY status ORDER BY status`;
+  process.stdout.write(
+    `\nPeople at ${slug}: ${people.map((r) => `${String(r.n)} ${r.status}`).join(', ')}\n\n`,
+  );
+}
