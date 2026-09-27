@@ -9,7 +9,7 @@ import { currentTenant } from '../../../lib/branding';
 import { people } from '../../../lib/people';
 import { loadScreen, today } from '../../../lib/people-screens';
 import { prepareRemoteSsr } from '../../../lib/remote-code';
-import { peopleRoute, placesFor } from '../../../lib/remotes';
+import { headerFrame, peopleRoute, placesFor } from '../../../lib/remotes';
 import { currentPerson, displayName } from '../../../lib/session';
 import { workspaceConfig } from '../../../lib/workspace';
 
@@ -101,13 +101,10 @@ export default async function People({
       {load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
         <WorkspaceAsleep />
       ) : (
-        // Where you are in People and what you can start, then the screen.
+        // A phone's section select, then the screen, whose own header carries
+        // the breadcrumb and what this person may start from here.
         <div className="flex flex-col gap-6">
-          <PeopleBar
-            sections={places.sections}
-            actions={places.actions}
-            route={route?.path ?? null}
-          />
+          <PeopleBar sections={places.sections} route={route?.path ?? null} />
           <div className="min-w-0">
             <PeopleScreen
               route={
@@ -123,6 +120,7 @@ export default async function People({
               params={route?.params ?? {}}
               search={search}
               today={today()}
+              frame={headerFrame(places, route?.path ?? null, '/people')}
             />
           </div>
         </div>

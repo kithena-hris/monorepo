@@ -1,13 +1,6 @@
 'use client';
 
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-  Button,
   Nav,
   NavGroup,
   NavItem,
@@ -25,41 +18,31 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { JSX } from 'react';
 
-import type { Place } from '../lib/remotes';
+import { currentPlace, type Place } from '../lib/remotes';
+
+export { currentPlace };
 
 /**
- * People's own navigation: the sections and actions the People remote's
- * manifest offers, already cut to what this viewer's roles open (`placesFor`).
+ * People's own navigation: the sections the People remote's manifest offers,
+ * already cut to what this viewer's roles open (`placesFor`).
  *
  * The shell draws it rather than the remote. The remote says which places
  * exist; the host decides what its chrome looks like — so a host that sells
  * People on its own draws its own. Every link is a Next `Link`, so moving
  * between sections never reloads the page.
  *
- * Two pieces, because the sections are not a column any more:
- *
  * - `PeopleSections`, the list itself, which the shell hangs off the People
  *   item in its sidebar as a flyout (`NavItem`'s `flyout`). It is there on
  *   hover, focus or a tap, and the screen keeps the full width otherwise.
- * - `PeopleBar`, above the screen: where you are (a breadcrumb, or on a phone,
- *   which has no sidebar, a select that is also the way to move), and the one
- *   action People offers here. Which of breadcrumb and select shows is CSS;
- *   nothing here asks how wide the window is.
+ * - `PeopleBar`, above the screen on a phone only.
+ *
+ * The breadcrumb and the actions are not here: they join the screen's own
+ * header (`headerFrame`), so a People page opens with one header.
  */
 export interface PeopleNavProps {
   readonly sections: readonly Place[];
-  readonly actions: readonly Place[];
   /** The manifest route this screen matched, as written there: `/people/:id`. */
   readonly route: string | null;
-}
-
-/**
- * The place this screen is under: the one at its route, or the one whose
- * `owns` lists it. The manifest decides, so a profile is the Directory's
- * because People says so, not because of what its URL looks like.
- */
-export function currentPlace(places: readonly Place[], route: string | null): Place | undefined {
-  return places.find((p) => p.path === route || p.owns?.includes(route ?? '') === true);
 }
 
 function groupsOf(sections: readonly Place[]): [string, Place[]][] {
@@ -75,7 +58,7 @@ function groupsOf(sections: readonly Place[]): [string, Place[]][] {
 export function PeopleSections({
   sections,
   route,
-}: Omit<PeopleNavProps, 'actions'>): JSX.Element | null {
+}: PeopleNavProps): JSX.Element | null {
   if (sections.length === 0) return null;
   const current = currentPlace(sections, route);
   return (
@@ -95,75 +78,44 @@ export function PeopleSections({
   );
 }
 
-/** Where you are in People, and what you can start from here. */
-export function PeopleBar({ sections, actions, route }: PeopleNavProps): JSX.Element | null {
+/**
+ * Where you are in People on a phone, which has no sidebar: a select that is
+ * also the way to move. Everywhere else the screen's own header carries the
+ * breadcrumb and the actions (`headerFrame`), so this row is a phone's only —
+ * which is CSS; nothing here asks how wide the window is.
+ */
+export function PeopleBar({
+  sections,
+  route,
+}: PeopleNavProps): JSX.Element | null {
   const router = useRouter();
-  if (sections.length === 0 && actions.length === 0) return null;
+  if (sections.length === 0) return null;
   const current = currentPlace(sections, route);
-  // Nested places only: on People's own front page a trail of one says nothing.
-  const found = current ?? currentPlace(actions, route);
-  const here = found?.path === '/people' ? undefined : found;
-  // The one Add employee on any People screen: screens never repeat an
-  // action, and on the action's own screen its form is the only copy.
-  const offered = actions.filter((a) => currentPlace([a], route) === undefined);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      {here === undefined ? (
-        // Keeps the action at the trailing edge when there is no trail.
-        <span className="max-md:hidden" />
-      ) : (
-        <Breadcrumb className="max-md:hidden">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/people">People</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{here.label}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      )}
-
-      {sections.length === 0 ? null : (
-        <div className="min-w-0 flex-1 md:hidden">
-          <Select
-            value={current?.path ?? ''}
-            onValueChange={(path) => {
-              router.push(path);
-            }}
-          >
-            <SelectTrigger aria-label="People section" className="w-full">
-              <SelectValue placeholder="Go to a People section" />
-            </SelectTrigger>
-            <SelectContent>
-              {groupsOf(sections).map(([group, places]) => (
-                <SelectGroup key={group}>
-                  <SelectLabel>{group}</SelectLabel>
-                  {places.map((s) => (
-                    <SelectItem key={s.path} value={s.path}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
+    <div className="md:hidden">
+      <Select
+        value={current?.path ?? ''}
+        onValueChange={(path) => {
+          router.push(path);
+        }}
+      >
+        <SelectTrigger aria-label="People section" className="w-full">
+          <SelectValue placeholder="Go to a People section" />
+        </SelectTrigger>
+        <SelectContent>
+          {groupsOf(sections).map(([group, places]) => (
+            <SelectGroup key={group}>
+              <SelectLabel>{group}</SelectLabel>
+              {places.map((s) => (
+                <SelectItem key={s.path} value={s.path}>
+                  {s.label}
+                </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {offered.length === 0 ? null : (
-        <div className="flex shrink-0 items-center gap-2">
-          {offered.map((a) => (
-            <Button key={a.path} variant="primary" asChild>
-              <Link href={a.path as Route}>{a.label}</Link>
-            </Button>
+            </SelectGroup>
           ))}
-        </div>
-      )}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

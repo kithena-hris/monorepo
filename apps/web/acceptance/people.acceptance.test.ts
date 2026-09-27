@@ -1414,16 +1414,25 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.waitForURL(/\/people\/directory$/);
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
-    // Where you are stays on screen once the sections close.
+    // One header: where you are stays on screen once the sections close, in
+    // the screen's own header above its title.
+    const screenHeader = page.locator('[data-remote="people"]');
     expect(
-      await page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Directory').isVisible(),
+      await screenHeader
+        .getByRole('navigation', { name: 'Breadcrumb' })
+        .getByText('Directory')
+        .isVisible(),
     ).toBe(true);
 
-    // One Add employee on the screen, beside the sections: never repeated in
-    // the header or the empty state.
+    // One Add employee on the screen, last in the row with the screen's own
+    // actions: never repeated in a bar above it or in the empty state.
     await page.waitForLoadState('networkidle');
     const add = page.getByRole('main').getByRole('link', { name: 'Add employee' });
     expect(await add.count()).toBe(1);
+    expect(await screenHeader.getByRole('link', { name: 'Add employee' }).count()).toBe(1);
+    expect(
+      await add.evaluate((a) => /Export|Import/.test(a.previousElementSibling?.textContent ?? '')),
+    ).toBe(true);
     expect(await page.getByRole('main').getByRole('button', { name: 'Add employee' }).count()).toBe(0);
     await add.click();
     await page.waitForURL(/\/people\/new$/);

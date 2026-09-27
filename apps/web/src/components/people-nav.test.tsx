@@ -12,7 +12,7 @@ vi.mock('next/link', () => ({
 }));
 
 const { PeopleBar, PeopleSections, currentPlace } = await import('./people-nav');
-const { placesFor } = await import('../lib/remotes');
+const { headerFrame, placesFor } = await import('../lib/remotes');
 const manifest = (await import('../../people/public/routes.json')).default;
 
 afterEach(() => {
@@ -34,7 +34,7 @@ function People(props: Parameters<typeof PeopleBar>[0]) {
 }
 
 describe('PeopleSections and PeopleBar', () => {
-  it('lists HR’s sections as client-side links, marks the current one, and offers adding somebody', async () => {
+  it('lists HR’s sections as client-side links and marks the current one', async () => {
     const { container } = render(
       <People
         {...placesFor(nav, { hr: true, admin: false, finance: false })}
@@ -47,20 +47,16 @@ describe('PeopleSections and PeopleBar', () => {
     expect(directory.hasAttribute('data-next-link')).toBe(true);
     expect(links.getByRole('link', { name: 'Import' })).toBeTruthy();
     expect(links.getByRole('link', { name: 'Approvals' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Add employee' }).getAttribute('href')).toBe(
-      '/people/new',
-    );
-    // Where you are, above the screen: People, then the section.
-    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
-    expect(trail.getByRole('link', { name: 'People' }).getAttribute('href')).toBe('/people');
-    expect(trail.getByText('Directory').getAttribute('aria-current')).toBe('page');
+    // No second header row: the breadcrumb and the actions are the screen's.
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     const result = await axe.run(container, {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
     });
     expect(result.violations.map((v) => v.id)).toEqual([]);
   });
 
-  it('shows an employee only what their roles open, and no way to add anybody', () => {
+  it('shows an employee only what their roles open', () => {
     render(
       <People
         {...placesFor(nav, { hr: false, admin: false, finance: false })}
@@ -72,7 +68,32 @@ describe('PeopleSections and PeopleBar', () => {
     for (const hidden of ['Import', 'Missing information', 'Analytics', 'Employee fields']) {
       expect(links.queryByRole('link', { name: hidden })).toBeNull();
     }
-    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
+  });
+});
+
+describe('headerFrame', () => {
+  const hr = placesFor(nav, { hr: true, admin: false, finance: false });
+
+  it('names the section for the breadcrumb and offers adding somebody', () => {
+    expect(headerFrame(hr, '/people/directory', '/people')).toEqual({
+      section: 'Directory',
+      actions: [{ href: '/people/new', label: 'Add employee' }],
+    });
+    // A profile is the Directory's.
+    expect(headerFrame(hr, '/people/:id', '/people').section).toBe('Directory');
+  });
+
+  it('has no trail on People’s front page, and no Add employee on its own form', () => {
+    expect(headerFrame(hr, '/people', '/people').section).toBeNull();
+    expect(headerFrame(hr, '/people/new', '/people')).toEqual({
+      section: 'Add employee',
+      actions: [],
+    });
+  });
+
+  it('offers an employee nothing to start', () => {
+    const employee = placesFor(nav, { hr: false, admin: false, finance: false });
+    expect(headerFrame(employee, '/people/me', '/people').actions).toEqual([]);
   });
 });
 
@@ -93,17 +114,14 @@ describe('currentPlace', () => {
     expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add employee');
   });
 
-  it('marks the section of a profile, and leaves Add employee off its own screen', () => {
+  it('marks the section of a profile, and no section on adding somebody', () => {
     const hr = placesFor(nav, { hr: true, admin: false, finance: false });
     const { unmount } = render(<People {...hr} route="/people/:id" />);
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
     expect(links.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('link', { name: 'Add employee' })).toBeTruthy();
     unmount();
 
-    // Its form's own Add employee is the only one there; no section is current.
     render(<People {...hr} route="/people/new" />);
-    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
     const sections = screen.getByRole('navigation', { name: 'People sections' });
     expect(sections.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
   });

@@ -321,12 +321,14 @@ export type {
 
 export {
   PageHeader,
+  PageHeaderFrame,
   PageLayout,
   PageSection,
   Toolbar,
   useRailCollapsed,
 } from './components/page-layout/page-layout';
 export type {
+  PageHeaderFrameProps,
   PageHeaderProps,
   PageLayoutProps,
   PageRailCollapse,

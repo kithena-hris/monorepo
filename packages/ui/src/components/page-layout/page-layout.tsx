@@ -585,6 +585,32 @@ function RailToggle({
   );
 }
 
+interface PageHeaderFrameValue {
+  readonly breadcrumb?: ReactNode;
+  readonly actions?: ReactNode;
+}
+
+const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
+
+export interface PageHeaderFrameProps extends PageHeaderFrameValue {
+  readonly children?: ReactNode;
+}
+
+/**
+ * What a frame around a page adds to that page's header, when the frame does
+ * not render the page itself.
+ *
+ * A host that draws its chrome around a screen it only mounts would otherwise
+ * put its breadcrumb and its actions in a row of their own above the screen's
+ * header, and the page would open with two headers. Under this, every
+ * `PageHeader` shows the frame's `breadcrumb` when it has none of its own, and
+ * the frame's `actions` after its own — so a frame's primary action lands at
+ * the trailing edge, where a primary action goes.
+ */
+export function PageHeaderFrame({ breadcrumb, actions, children }: PageHeaderFrameProps): JSX.Element {
+  return <PageHeaderFrameContext value={{ breadcrumb, actions }}>{children}</PageHeaderFrameContext>;
+}
+
 export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
   /** A `Breadcrumb`, above the title. */
   breadcrumb?: ReactNode;
@@ -618,9 +644,20 @@ export function PageHeader({
   size = 'lg',
   ...props
 }: PageHeaderProps): JSX.Element {
+  const frame = useContext(PageHeaderFrameContext);
+  const trail = breadcrumb ?? frame.breadcrumb;
+  const allActions =
+    frame.actions === undefined || frame.actions === null ? (
+      actions
+    ) : (
+      <>
+        {actions}
+        {frame.actions}
+      </>
+    );
   return (
     <div className={cn('flex flex-col gap-3', className)} {...props}>
-      {breadcrumb}
+      {trail}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -640,9 +677,9 @@ export function PageHeader({
             <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">{description}</p>
           ) : null}
         </div>
-        {actions ? (
+        {allActions ? (
           <div className="flex shrink-0 flex-wrap items-center gap-2 max-xs:w-full max-xs:[&>*]:flex-1">
-            {actions}
+            {allActions}
           </div>
         ) : null}
       </div>

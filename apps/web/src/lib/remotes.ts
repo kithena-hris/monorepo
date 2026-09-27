@@ -49,6 +49,38 @@ export function placesFor(
   return { sections: nav.sections.filter(opens), actions: nav.actions.filter(opens) };
 }
 
+/**
+ * The place this screen is under: the one at its route, or the one whose
+ * `owns` lists it. The manifest decides, so a profile is the Directory's
+ * because People says so, not because of what its URL looks like.
+ */
+export function currentPlace(places: readonly Place[], route: string | null): Place | undefined {
+  return places.find((p) => p.path === route || p.owns?.includes(route ?? '') === true);
+}
+
+/**
+ * What a screen's own header shows of the host's navigation: the section it
+ * is under, for the breadcrumb (none on the area's front page, where a trail
+ * of one says nothing), and the actions this viewer may start. An action is
+ * left off its own screen, whose form is then the only copy of it.
+ */
+export function headerFrame(
+  places: { readonly sections: readonly Place[]; readonly actions: readonly Place[] },
+  route: string | null,
+  home: string,
+): {
+  readonly section: string | null;
+  readonly actions: readonly { readonly href: string; readonly label: string }[];
+} {
+  const here = currentPlace(places.sections, route) ?? currentPlace(places.actions, route);
+  return {
+    section: here === undefined || here.path === home ? null : here.label,
+    actions: places.actions
+      .filter((a) => currentPlace([a], route) === undefined)
+      .map((a) => ({ href: a.path, label: a.label })),
+  };
+}
+
 export interface RemoteRoute {
   /** The remote's `remoteEntry.js`, loaded by the browser. */
   readonly entry: string;

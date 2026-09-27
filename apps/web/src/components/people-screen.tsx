@@ -27,6 +27,11 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
+  /** The breadcrumb's section and the actions, for the screen's own header (`headerFrame`). */
+  readonly frame?: {
+    readonly section: string | null;
+    readonly actions: readonly { readonly href: string; readonly label: string }[];
+  };
 }
 
 /**
@@ -123,6 +128,7 @@ export function PeopleScreen({
   params,
   search,
   today,
+  frame,
 }: PeopleScreenProps): JSX.Element {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -628,5 +634,13 @@ export function PeopleScreen({
     }
   })();
 
-  return <RemoteScreen name="people" area="People" route={route} props={props} onNavigate={go} />;
+  return (
+    <RemoteScreen
+      name="people"
+      area="People"
+      route={route}
+      props={frame === undefined ? props : { ...props, frame }}
+      onNavigate={go}
+    />
+  );
 }
