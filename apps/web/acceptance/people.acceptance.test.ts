@@ -1501,9 +1501,12 @@ describe('People overview: who you are here, what needs you, what is missing', (
       });
       expect(hired.status).toBeLessThan(300);
     }
+    // As People names somebody: the preferred name first, when there is one.
     const nameOf = async (id: string) => {
-      const [row] = await person(id);
-      return `${row?.given_name ?? ''} ${row?.family_name ?? ''}`;
+      const [row] = await stack.sql<{ name: string }[]>`
+        SELECT concat_ws(' ', coalesce(nullif(preferred_name, ''), given_name), family_name) AS name
+          FROM people.person WHERE id = ${id}`;
+      return row?.name ?? '';
     };
     const priya = await nameOf(ADMIN.person);
     const adamName = await nameOf(EMPLOYEE.person);

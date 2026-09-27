@@ -205,8 +205,13 @@ export const OPERATIONS = {
     }
   }`,
 
-  /** Where People starts: the viewer, their line, and what waits for them. */
+  /** The viewer's roles: which of People's sections the shell draws, beside every screen. */
   Home: `query Home {
+    peopleHome { hr admin finance }
+  }`,
+
+  /** Where People starts: the viewer, their line, and what waits for them. */
+  Overview: `query Overview {
     peopleOverview {
       roles { hr admin finance }
       now

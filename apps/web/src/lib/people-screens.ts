@@ -95,7 +95,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'RoleSettings':
       return read('RoleSettings');
     case 'PeopleHome':
-      return read('Home');
+      return read('Overview');
     case 'Organisation':
       return read('Organisation');
     case 'FullValues':
