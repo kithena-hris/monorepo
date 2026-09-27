@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   KithenaLogo,
+  KithenaMark,
   Nav,
   NavItem,
   NavList,
@@ -207,7 +208,14 @@ export function AppShell({
         */
         sidebarHeader={
           logoUrl === null ? (
-            <KithenaLogo className="text-fg h-6 w-auto shrink-0" />
+            <>
+              <KithenaLogo className="text-fg h-6 w-auto shrink-0 group-data-[collapsed]/sidebar:hidden" />
+              {/* As a rail, the mark alone: the wordmark has no room. */}
+              <KithenaMark
+                title="Kithena"
+                className="text-fg hidden size-7 group-data-[collapsed]/sidebar:block"
+              />
+            </>
           ) : (
             <div className="flex min-w-0 items-center gap-2.5">
               <Avatar size="md" shape="rounded" fit="contain" src={logoUrl} name={companyName} />
@@ -330,7 +338,8 @@ function PersonMenu({
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side="top" align="start" className="w-56">
+      {/* Out to the right like the navigation's flyouts, its foot level with the trigger's. */}
+      <DropdownMenuContent side="right" align="end" sideOffset={16} className="w-56">
         <DropdownMenuLabel className="truncate font-normal">
           {person.email ?? person.name}
         </DropdownMenuLabel>
