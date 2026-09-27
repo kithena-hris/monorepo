@@ -18,6 +18,10 @@ const badge = cva(
         // Not a status but a property of what is marked: outlined rather than
         // washed, and always with its glyph, so it reads apart from a state.
         sensitive: 'border-border-strong bg-surface text-fg',
+        // Something that should be there and is not. The warning wash, but
+        // dashed and with its own glyph, so it reads as "fill this in" rather
+        // than as a status somebody set — and never as colour alone.
+        attention: 'border-dashed border-warning-border bg-warning-subtle text-warning-fg',
       },
       size: {
         sm: 'h-5 px-2 text-2xs',
@@ -43,6 +47,8 @@ export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantPro
  * roughly one in twelve men cannot separate the success and danger washes.
  * `tone="sensitive"` marks what is handled with more care than most — a
  * value whose change waits for somebody else — and brings its own glyph.
+ * `tone="attention"` marks what is missing and wanted — a field nobody has
+ * filled in — and brings its own glyph too: `<Badge tone="attention">Missing</Badge>`.
  */
 export function Badge({
   className,
@@ -56,6 +62,7 @@ export function Badge({
     <span className={cn(badge({ tone, size }), className)} {...props}>
       {dot ? <span className="size-1.5 rounded-full bg-current" aria-hidden="true" /> : null}
       {tone === 'sensitive' ? <icons.sensitive aria-hidden="true" /> : null}
+      {tone === 'attention' ? <icons.missing aria-hidden="true" /> : null}
       {children}
     </span>
   );

@@ -49,6 +49,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   CircleCheck,
+  CircleDashed,
   CircleQuestionMark,
   CircleX,
   Clock,
@@ -182,6 +183,8 @@ export const iconGroups = {
     reject: ThumbsDown,
     /** Handled with more care than most: a change to it waits for a second person. */
     sensitive: ShieldAlert,
+    /** Something that should be there and is not: a field nobody has filled in. */
+    missing: CircleDashed,
   },
   /** Getting around. */
   navigation: {
