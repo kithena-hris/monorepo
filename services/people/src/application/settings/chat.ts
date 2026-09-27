@@ -25,23 +25,23 @@ export const PEOPLE_NOTICES = [
   {
     key: 'approval_requested',
     label: 'A change needs approval',
-    description: 'Each change arrives with Approve and Reject buttons. Deciding there is the same as deciding in Approvals.',
+    description: 'Deciding there counts exactly as deciding in Approvals.',
     to: 'Approvers',
     action: 'Approve or reject',
   },
   {
     key: 'details_requested',
     label: 'Someone is asked for their details',
-    description: 'When HR or a manager asks for a missing detail, the employee fills it in from a form right in the chat.',
+    description: 'When HR or a manager asks for a missing detail; a form opens right in the chat.',
     to: 'The employee',
-    action: 'Fill in',
+    action: 'Fill it in',
   },
   {
     key: 'profile_reminder',
     label: 'Weekly reminder of missing details',
-    description: 'At most once a week, in their working hours, while their profile is incomplete. Fillable in the chat.',
+    description: 'At most once a week, in their working hours, while their profile is incomplete.',
     to: 'The employee',
-    action: 'Fill in',
+    action: 'Fill it in',
   },
   {
     key: 'approval_decided',

@@ -1,7 +1,14 @@
 import {
   Alert,
+  AppMark,
+  AutoGrid,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
   CopyField,
   Dialog,
   DialogBody,
@@ -23,6 +30,7 @@ import {
   Switch,
   Combobox,
   type ComboboxOption,
+  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -197,11 +205,16 @@ function Endpoints({
         title="Integrations"
         description="Connect People to tools outside Kithena, such as your chat app, your payroll provider or your identity provider. Everything inside Kithena works together on its own."
       />
+      <Directory state={state} chatShown={chat !== undefined} scimShown={scim !== undefined} />
       <Outgoing state={state} />
       {chat === undefined || state.chat === undefined ? null : (
-        <ChatApps {...chat} state={state.chat} />
+        <div id="chat" className="scroll-mt-6">
+          <ChatApps {...chat} state={state.chat} />
+        </div>
       )}
       <PageSection
+        id="webhooks"
+        className="scroll-mt-6"
         title="Webhooks to third-party tools"
         description={`When something happens in People (somebody is hired, changes job or leaves) People tells the tools you add here, so nobody types it twice. Each is told only the events you choose, carrying only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last day · schema version ${String(state.schemaVersion)}.`}
         actions={
@@ -258,7 +271,9 @@ function Endpoints({
         </Stack>
       </PageSection>
       {state.scim === undefined || scim === undefined ? null : (
-        <Provisioning scim={state.scim} {...scim} />
+        <div id="provisioning" className="scroll-mt-6">
+          <Provisioning scim={state.scim} {...scim} />
+        </div>
       )}
       <AddEndpoint
         open={adding}
@@ -271,6 +286,107 @@ function Endpoints({
         }}
       />
     </Stack>
+  );
+}
+
+/**
+ * Every integration side by side, the way integration directories are laid
+ * out: what it is, whether it is on, and one way into its settings below.
+ */
+function Directory({
+  state,
+  chatShown,
+  scimShown,
+}: {
+  readonly state: IntegrationsState;
+  readonly chatShown: boolean;
+  readonly scimShown: boolean;
+}): JSX.Element {
+  const slack = state.chat?.apps.find((a) => a.key === 'slack');
+  const live = state.endpoints.filter((e) => e.enabled);
+  const retrying = live.filter((e) => e.retrying > 0).length;
+  const scimLive = (state.scim?.connections ?? []).filter((c) => c.revokedAt === null);
+  const cards: {
+    readonly id: string;
+    readonly name: string;
+    readonly mark: JSX.Element;
+    readonly says: string;
+    readonly status: { readonly tone: 'success' | 'neutral' | 'warning'; readonly text: string };
+    readonly action: string;
+  }[] = [
+    ...(chatShown && slack !== undefined
+      ? [
+          {
+            id: 'chat',
+            name: 'Slack',
+            mark: <AppMark app="slack" className="size-7" />,
+            says: 'Questions, approvals and reminders, answered right in Slack.',
+            status:
+              slack.connection === null
+                ? { tone: 'neutral' as const, text: 'Not connected' }
+                : { tone: 'success' as const, text: `Connected to ${slack.connection.workspace}` },
+            action: slack.connection === null ? 'Connect' : 'Manage',
+          },
+        ]
+      : []),
+    {
+      id: 'webhooks',
+      name: 'Webhooks',
+      mark: <icons.send aria-hidden className="size-6 text-fg-muted" />,
+      says: 'Tell payroll, benefits or any tool when somebody joins, moves or leaves.',
+      status:
+        live.length === 0
+          ? { tone: 'neutral', text: 'None yet' }
+          : retrying > 0
+            ? { tone: 'warning', text: `${String(retrying)} retrying` }
+            : { tone: 'success', text: `${String(live.length)} active` },
+      action: live.length === 0 ? 'Add one' : 'Manage',
+    },
+    ...(scimShown && state.scim !== undefined
+      ? [
+          {
+            id: 'provisioning',
+            name: 'Provisioning',
+            mark: <icons.people aria-hidden className="size-6 text-fg-muted" />,
+            says: 'Keep people in step with your identity provider, over SCIM.',
+            status:
+              scimLive.length === 0
+                ? { tone: 'neutral' as const, text: 'Not connected' }
+                : { tone: 'success' as const, text: `From ${scimLive[0]?.system ?? 'one system'}` },
+            action: scimLive.length === 0 ? 'Connect' : 'Manage',
+          },
+        ]
+      : []),
+  ];
+  return (
+    <section aria-labelledby="all-integrations">
+      <h2 id="all-integrations" className="sr-only">
+        All integrations
+      </h2>
+      <AutoGrid minItemWidth="15rem" gap={4}>
+        {cards.map((c) => (
+          <Card key={c.id} className="flex flex-col">
+            <CardHeader className="flex-row items-center gap-3">
+              {c.mark}
+              <CardTitle className="flex-1">{c.name}</CardTitle>
+              <Badge tone={c.status.tone} size="sm">
+                {c.status.text}
+              </Badge>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <p className="text-sm text-fg-muted">{c.says}</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild size="sm" variant="secondary">
+                <a href={`#${c.id}`} aria-label={`${c.action}: ${c.name}`}>
+                  {c.action}
+                </a>
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </AutoGrid>
+    </section>
   );
 }
 
@@ -309,14 +425,18 @@ function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element
               {sent.map(([key, n]) => (
                 <Badge key={key} tone="info">
                   {label.get(key) ?? key}
-                  {state.endpoints.length > 1 ? ` · ${String(n)} ${n === 1 ? 'tool' : 'tools'}` : ''}
+                  {state.endpoints.length > 1
+                    ? ` · ${String(n)} ${n === 1 ? 'tool' : 'tools'}`
+                    : ''}
                 </Badge>
               ))}
             </span>
           )}
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-fg">Never sent, whatever is chosen ({String(never.length)})</p>
+          <p className="text-sm font-medium text-fg">
+            Never sent, whatever is chosen ({String(never.length)})
+          </p>
           <p className="text-sm text-fg-muted">
             Special-category data (health, beliefs and the like) and encrypted fields such as bank
             details cannot be added to any endpoint.

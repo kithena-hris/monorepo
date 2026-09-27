@@ -26,7 +26,9 @@ const state = (over: Partial<ChatAppsState> = {}): ChatAppsState => ({
 });
 
 const props = (over: Partial<ChatAppsProps> = {}): ChatAppsProps => ({
-  onConnect: vi.fn(() => Promise.resolve({ ok: false as const, message: 'Slack is not set up here.' })),
+  onConnect: vi.fn(() =>
+    Promise.resolve({ ok: false as const, message: 'Slack is not set up here.' }),
+  ),
   onDisconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
   onNotice: vi.fn(() => Promise.resolve({ ok: true as const })),
   fieldsHref: '/settings/people/fields',
@@ -65,7 +67,9 @@ describe('ChatApps', () => {
   });
 
   it('turns a notice on, and back off when it was not saved', async () => {
-    const onNotice = vi.fn(() => Promise.resolve({ ok: false as const, message: 'Only an administrator' }));
+    const onNotice = vi.fn(() =>
+      Promise.resolve({ ok: false as const, message: 'Only an administrator' }),
+    );
     render(<ChatApps {...props({ onNotice })} state={state()} />);
     const toggle = screen.getByRole('switch', { name: 'A change needs approval' });
     await fast().click(toggle);

@@ -257,43 +257,66 @@ function Notices({
     }
   };
 
+  const row = (n: ChatNoticeView): JSX.Element => (
+    <li key={n.key} className="py-3 first:pt-0 last:pb-0">
+      <Field orientation="horizontal" className="items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <FieldLabel>{n.label}</FieldLabel>
+          <FieldDescription>
+            {n.action === null
+              ? `To ${n.to.toLowerCase()}. ${n.description}`
+              : `To ${n.to.toLowerCase()}, who can ${n.action.toLowerCase()} from the message itself. ${n.description}`}
+          </FieldDescription>
+        </div>
+        <FieldControl>
+          <Switch
+            checked={on.get(n.key) === true}
+            disabled={busy === n.key}
+            onCheckedChange={(next) => {
+              void toggle(n.key, next);
+            }}
+          />
+        </FieldControl>
+      </Field>
+    </li>
+  );
+  const actions = notices.filter((n) => n.action !== null);
+  const updates = notices.filter((n) => n.action === null);
+
   return (
     <PageSection
       surface
-      title="Notices"
+      title="What Kithena sends in chat"
       description={
         connected.length === 0
-          ? 'Choose what People sends to chat. Nothing is sent until a chat app is connected; email carries on as it does now.'
-          : `${String(count)} of ${String(notices.length)} sent to ${connected.join(' and ')}, as well as by email. Each goes to the person it is for, as a direct message.`
+          ? 'Choose what goes to chat. Nothing is sent until a chat app is connected; email carries on as it does now.'
+          : `${String(count)} of ${String(notices.length)} on, sent to ${connected.join(' and ')} as a direct message to the person it is for, as well as by email.`
       }
     >
-      <Stack gap={4}>
+      <Stack gap={6}>
         {problem === null ? null : <Alert tone="danger" title={problem} />}
-        <ul className="flex flex-col divide-y divide-border">
-          {notices.map((n) => (
-            <li key={n.key} className="py-3 first:pt-0 last:pb-0">
-              <Field orientation="horizontal" className="items-start justify-between gap-4">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <FieldLabel>{n.label}</FieldLabel>
-                  <FieldDescription>{n.description}</FieldDescription>
-                  <span className="flex flex-wrap gap-1.5 pt-1">
-                    <Badge tone="neutral">To: {n.to}</Badge>
-                    {n.action === null ? null : <Badge tone="info">In chat: {n.action}</Badge>}
-                  </span>
-                </div>
-                <FieldControl>
-                  <Switch
-                    checked={on.get(n.key) === true}
-                    disabled={busy === n.key}
-                    onCheckedChange={(next) => {
-                      void toggle(n.key, next);
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-            </li>
-          ))}
-        </ul>
+        <section aria-labelledby="chat-actions" className="flex flex-col gap-3">
+          <div>
+            <h3 id="chat-actions" className="text-sm font-semibold text-fg">
+              Things to do
+            </h3>
+            <p className="text-sm text-fg-muted">
+              Each arrives with buttons, so it is done in the chat without opening Kithena.
+            </p>
+          </div>
+          <ul className="flex flex-col divide-y divide-border">{actions.map(row)}</ul>
+        </section>
+        <section aria-labelledby="chat-updates" className="flex flex-col gap-3">
+          <div>
+            <h3 id="chat-updates" className="text-sm font-semibold text-fg">
+              Updates
+            </h3>
+            <p className="text-sm text-fg-muted">
+              To let somebody know how something turned out. Nothing to do.
+            </p>
+          </div>
+          <ul className="flex flex-col divide-y divide-border">{updates.map(row)}</ul>
+        </section>
       </Stack>
     </PageSection>
   );
