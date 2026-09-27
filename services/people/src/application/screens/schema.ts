@@ -15,6 +15,7 @@ import { SchemaDraft, type Attribute, type Section } from '../../domain/schema/d
 import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
+import { isCoreKey } from '../person/core.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
 import type { RecordSection, FormValues, PendingFieldView } from './model.js';
@@ -344,6 +345,18 @@ export async function saveField(
   input: FieldInput,
   editing: string | null,
 ): Promise<Result<void>> {
+  // A key People stores in a typed column of its own (`employment_type`,
+  // `work_model`) takes only that column's values: a company's own field
+  // under it would publish and then refuse every save.
+  if (editing === null && isCoreKey(input.key)) {
+    return err(
+      failure(
+        'KEY_RESERVED',
+        `People already keeps ${input.key} itself; give this field a different name`,
+        ['key'],
+      ),
+    );
+  }
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.loadDraft(tx, asking.tenantId);

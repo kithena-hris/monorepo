@@ -45,22 +45,15 @@ export interface SeedPerson {
   readonly details?: Readonly<Record<string, string | number>>;
 }
 
-/**
- * Who is not full time, by handle: everybody else is. Ryan started as the
- * temp, Karen and Holly came over on fixed terms in the branch mergers, and
- * the warehouse has a part-timer or two.
- */
-export const EMPLOYMENT_TYPES: Readonly<Record<string, string>> = {
-  'ryan.howard': 'Temporary',
-  'erin.hannon': 'Part time',
-  'madge.madsen': 'Part time',
-  'lonny.collins': 'Part time',
-  'karen.filippelli': 'Contract',
-  'clark.green': 'Temporary',
-  'pete.miller': 'Temporary',
-  'donald.knuth': 'Part time',
-  'barbara.liskov': 'Contract',
-};
+/** Who works part time, by handle: everybody else is full time. */
+export const PART_TIME: ReadonlySet<string> = new Set([
+  'ryan.howard',
+  'erin.hannon',
+  'madge.madsen',
+  'lonny.collins',
+  'creed.bratton',
+  'donald.knuth',
+]);
 
 export interface SeedCompany {
   readonly slug: string;
@@ -97,12 +90,12 @@ const WORK_FIELDS = (departments: readonly string[]): SeedField[] => [
     options: departments,
   },
   {
-    key: 'employment_type',
+    key: 'working_hours',
     sectionKey: 'employment',
-    label: 'Employment type',
+    label: 'Working hours',
     dataType: 'select',
-    description: 'Hours and contract: full time, part time, a fixed-term contract or a temp.',
-    options: ['Full time', 'Part time', 'Contract', 'Temporary'],
+    description: 'Full time or part time.',
+    options: ['Full time', 'Part time'],
   },
   {
     key: 'work_phone',

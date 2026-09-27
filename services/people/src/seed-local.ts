@@ -7,7 +7,7 @@ import { logger } from '@kithena/telemetry';
 
 import { wirePeople } from './http/server.js';
 import { samplePhoto } from './seed-photos.js';
-import { COMPANIES, EMPLOYMENT_TYPES, type SeedCompany } from './seed-companies.js';
+import { COMPANIES, PART_TIME, type SeedCompany } from './seed-companies.js';
 import { consumerFrom } from './infrastructure/consumers/wire.js';
 import { tenantTransaction } from './infrastructure/unit-of-work.js';
 
@@ -362,7 +362,7 @@ async function seedCompany(company: SeedCompany): Promise<void> {
     (
       await owner<{ id: string }[]>`
         SELECT id FROM people.person
-         WHERE tenant_id = ${tenantId} AND custom ? 'employment_type'`
+         WHERE tenant_id = ${tenantId} AND custom ? 'working_hours'`
     ).map((r) => r.id),
   );
   let backfilled = 0;
@@ -372,12 +372,12 @@ async function seedCompany(company: SeedCompany): Promise<void> {
     // eslint-disable-next-line no-await-in-loop -- a few dozen, in order
     const patched = await asAdmin('PATCH', `/v1/people/${row.id}`, {
       attributes: {
-        employment_type: optionKey(EMPLOYMENT_TYPES[person.handle] ?? 'Full time'),
+        working_hours: optionKey(PART_TIME.has(person.handle) ? 'Part time' : 'Full time'),
       },
     });
     if (patched.status < 300) backfilled += 1;
   }
-  logger.info({ slug, backfilled }, 'employment types set');
+  logger.info({ slug, backfilled }, 'working hours set');
 
   // A photo for each sample employee but the administrator, uploaded the way
   // the profile uploads one: a presigned PUT to the upload bucket, then People
