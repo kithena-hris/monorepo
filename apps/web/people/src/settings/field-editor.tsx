@@ -38,6 +38,7 @@ import {
   Spinner,
   Stack,
   Stepper,
+  Switch,
   TagsInput,
   Textarea,
   useBreakpoint,
@@ -180,6 +181,8 @@ interface Draft {
   confirmedSpecial: boolean;
   /** Whether a change waits for HR's approval (PEO-077); null until the admin says. */
   requiresApproval: boolean | null;
+  /** Stored sealed, by choice; financial details and identifiers are regardless. */
+  encrypted: boolean;
 }
 
 function draftFrom(section: RegistrySection, field: RegistryField | null): Draft {
@@ -199,6 +202,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
       classification: field.classification,
       confirmedSpecial: field.classification === 'special-category',
       requiresApproval: field.requiresApproval ?? null,
+      encrypted: field.encrypted === true,
     };
   }
   return {
@@ -220,6 +224,7 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     classification: null,
     confirmedSpecial: false,
     requiresApproval: null,
+    encrypted: false,
   };
 }
 
@@ -227,6 +232,21 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
  * What a field defaults to when nobody chose (PEO-077), as People computes
  * it: on for financial data and for anything stored encrypted.
  */
+/** The types a value can be sealed as (People's `encryptable`, for a new field). */
+const SEALABLE = new Set<string>([
+  'text',
+  'long_text',
+  'email',
+  'phone',
+  'url',
+  'number',
+  'decimal',
+  'date',
+  'national_id',
+  'bank_account',
+  'money',
+]);
+
 export function approvalByDefault(dataType: DataType, piiKind: string): boolean {
   return piiKind === 'financial' || dataType === 'bank_account' || dataType === 'national_id';
 }
@@ -470,6 +490,7 @@ export function FieldEditor({
       piiKind: judged?.piiKind ?? 'none',
       classificationSource: suggested === draft.classification ? 'suggested' : 'human',
       requiresApproval: draft.requiresApproval,
+      encrypted: sealed,
     });
     setSaving(false);
     if (outcome.ok) onOpenChange(false);
@@ -479,7 +500,22 @@ export function FieldEditor({
   const show = shown ? problems : {};
   const piiKind = typeof advice === 'object' && advice !== null ? advice.piiKind : 'none';
   // What People will store: encrypted for these, whatever the admin says.
-  const encrypted = approvalByDefault(draft.dataType, piiKind);
+  // Financial details and identifiers: encrypted, whatever the admin says.
+  const forced = approvalByDefault(draft.dataType, piiKind);
+  const sealed = forced || draft.encrypted;
+  const encrypted = sealed;
+  const wasSealed = field?.encrypted === true;
+  const canSeal = field === null ? SEALABLE.has(draft.dataType) : field.encryptable === true;
+  const sealLocked = forced || wasSealed || !canSeal;
+  const sealWhy = forced
+    ? 'Always on for financial details and ID numbers.'
+    : wasSealed
+      ? 'On. Encryption can’t be turned off.'
+      : !canSeal
+        ? 'Not available for this field type.'
+        : draft.encrypted && field !== null
+          ? 'Existing values are encrypted when you publish. This can’t be undone.'
+          : 'Only the last four characters are shown. Never searchable or shared.';
   const approval = draft.requiresApproval ?? encrypted;
 
   return (
@@ -937,45 +973,40 @@ export function FieldEditor({
                       set({ confirmedSpecial });
                     }}
                   />
-                  <Accordion type="single" collapsible>
-                    <AccordionItem value="more">
-                      <AccordionTrigger meta={approval ? 'Changes need approval' : 'No approval'}>
-                        Approval, encryption and dates
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <Stack gap={4}>
-                          <Field orientation="horizontal" className="items-start justify-start">
-                            <FieldControl>
-                              <Checkbox
-                                checked={approval}
-                                onCheckedChange={(on) => {
-                                  set({ requiresApproval: on === true });
-                                }}
-                              />
-                            </FieldControl>
-                            <div>
-                              <FieldLabel>Changes need a second person to approve them</FieldLabel>
-                              <FieldDescription>
-                                A new value is held until another HR member approves it, within
-                                seven days, and the field is marked Sensitive wherever it is shown.
-                                On by default for money, bank details and identity numbers.
-                              </FieldDescription>
-                            </div>
-                          </Field>
-                          {encrypted ? (
-                            <Alert tone="info" title="Stored encrypted">
-                              The value is kept apart from the rest of the record, and everyday
-                              screens show only its last characters.
-                            </Alert>
-                          ) : null}
-                          <p className="text-sm text-fg-muted">
-                            Custom fields are not effective-dated: a new value applies once it is
-                            saved (or approved), not from a date somebody chooses.
-                          </p>
-                        </Stack>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
+                  <fieldset className="flex flex-col gap-4">
+                    <legend className="mb-1 text-sm font-medium">Protection</legend>
+                    <Field orientation="horizontal" className="items-start justify-between gap-4">
+                      <div>
+                        <FieldLabel>Store it encrypted</FieldLabel>
+                        <FieldDescription>{sealWhy}</FieldDescription>
+                      </div>
+                      <FieldControl>
+                        <Switch
+                          checked={sealed}
+                          disabled={sealLocked}
+                          onCheckedChange={(on) => {
+                            set({ encrypted: on });
+                          }}
+                        />
+                      </FieldControl>
+                    </Field>
+                    <Field orientation="horizontal" className="items-start justify-between gap-4">
+                      <div>
+                        <FieldLabel>Changes need a second person to approve them</FieldLabel>
+                        <FieldDescription>
+                          Another HR member approves each change before it applies.
+                        </FieldDescription>
+                      </div>
+                      <FieldControl>
+                        <Switch
+                          checked={approval}
+                          onCheckedChange={(on) => {
+                            set({ requiresApproval: on });
+                          }}
+                        />
+                      </FieldControl>
+                    </Field>
+                  </fieldset>
                 </Stack>
               ) : null}
 

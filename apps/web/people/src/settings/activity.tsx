@@ -11,6 +11,7 @@ import {
   Stack,
   Timeline,
   TimelineItem,
+  icons,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -60,6 +61,39 @@ const AREAS: readonly { readonly value: ActivityArea | 'all'; readonly label: st
   { value: 'roles', label: 'Roles' },
   { value: 'integrations', label: 'Integrations' },
 ];
+
+/** "Seen by: HR → HR and their manager." as its parts; null for a plain sentence. */
+export function changesIn(
+  text: string,
+): readonly { readonly what: string; readonly from: string; readonly to: string }[] | null {
+  const found = [...text.matchAll(/([^:.→]+): (.*?) → (.*?)\.(?=\s|$)/g)].map((m) => ({
+    what: (m[1] ?? '').trim(),
+    from: m[2] ?? '',
+    to: m[3] ?? '',
+  }));
+  return found.length === 0 ? null : found;
+}
+
+/** What changed: each setting on its own line, what it was struck through beside what it is. */
+function Detail({ text }: { readonly text: string }): JSX.Element {
+  const changed = changesIn(text);
+  if (changed === null) return <span className="text-fg">{text}</span>;
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+      {changed.map((c) => (
+        <div key={c.what} className="contents">
+          <dt className="text-fg-muted">{c.what}</dt>
+          <dd className="flex flex-wrap items-center gap-1.5">
+            <span className="text-fg-muted line-through">{c.from}</span>
+            <icons.next aria-hidden className="size-3.5 text-fg-subtle" />
+            <span className="sr-only">changed to</span>
+            <span className="font-medium text-fg">{c.to}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 const AREA_NAME: Readonly<Record<string, string>> = Object.fromEntries(
   AREAS.filter((a) => a.value !== 'all').map((a) => [a.value, a.label]),
@@ -158,7 +192,7 @@ function Entries({
               >
                 <span className="flex flex-col gap-1">
                   {e.detail === undefined || e.detail === null ? null : (
-                    <span className="text-fg">{e.detail}</span>
+                    <Detail text={e.detail} />
                   )}
                   <span className="text-fg-muted">
                     {e.by === 'You' ? 'By you' : `By ${e.by}`} · {AREA_NAME[e.area] ?? 'Settings'}

@@ -315,7 +315,7 @@ export const OPERATIONS = {
       sections { key label visibility ownership origin fixed }
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
-        collectAt classification piiKind requiresApproval signup signupAskable aiEligible aiShareable encrypted origin pending
+        collectAt classification piiKind requiresApproval signup signupAskable aiEligible aiShareable encrypted encryptable origin pending
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
