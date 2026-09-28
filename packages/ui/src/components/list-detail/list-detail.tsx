@@ -3,15 +3,17 @@
 import { ChevronLeft } from 'lucide-react';
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
+  useState,
   type ComponentPropsWithoutRef,
   type CSSProperties,
   type JSX,
   type ReactNode,
+  type RefObject,
 } from 'react';
 
 import { cn } from '../../lib/cn';
-import { useMediaQuery } from '../../lib/use-media-query';
 import { Button } from '../button/button';
 
 /**
@@ -55,41 +57,78 @@ export interface ListDetailProps extends ComponentPropsWithoutRef<'div'> {
   backLabel?: string;
   /** Width of the list pane at wide sizes. */
   listWidth?: string;
-  /** The width at which both panes fit. */
+  /**
+   * The width *of this component* at which both panes fit: `md` 48rem, `lg`
+   * 64rem, `xl` 80rem. A container width, not the viewport's.
+   */
   splitFrom?: 'md' | 'lg' | 'xl';
   /** Accessible names for the two regions. */
   listLabel?: string;
   detailLabel?: string;
 }
 
+/*
+ * Container queries, not viewport breakpoints.
+ *
+ * Whether two panes fit is a question about the space this component was
+ * given, not about the window. A list-detail in a 390px phone preview on a wide
+ * monitor, or in one card of a two-column dashboard, has to push even though
+ * the viewport would happily split. The root is the container; the grid inside
+ * it asks how wide that is.
+ *
+ * `@3xl`, `@5xl` and `@7xl` are 48, 64 and 80rem, the widths the `md`, `lg`
+ * and `xl` names always meant, so a caller's `splitFrom` keeps its meaning.
+ */
 const splitClass = {
-  md: 'md:grid md:grid-cols-[var(--list-width)_minmax(0,1fr)]',
-  lg: 'lg:grid lg:grid-cols-[var(--list-width)_minmax(0,1fr)]',
-  xl: 'xl:grid xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
+  md: '@3xl:grid @3xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
+  lg: '@5xl:grid @5xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
+  xl: '@7xl:grid @7xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
 } as const;
 
 const borderClass = {
-  md: 'md:border-e md:border-border',
-  lg: 'lg:border-e lg:border-border',
-  xl: 'xl:border-e xl:border-border',
+  md: '@3xl:border-e @3xl:border-border',
+  lg: '@5xl:border-e @5xl:border-border',
+  xl: '@7xl:border-e @7xl:border-border',
 } as const;
 
 const hideBelowSplit = {
-  md: 'max-md:hidden',
-  lg: 'max-lg:hidden',
-  xl: 'max-xl:hidden',
+  md: '@max-3xl:hidden',
+  lg: '@max-5xl:hidden',
+  xl: '@max-7xl:hidden',
 } as const;
 
 /**
- * The same widths as the classes above, as media queries. Duplicating a number
- * is how a layout splits at 1024px in CSS and 1023px in JS, so both sides read
- * from one table.
+ * Whether the grid is currently split, read from the grid itself.
+ *
+ * The focus and `inert` logic needs the answer in JS. Measuring a width here
+ * and comparing it with a number would be a second copy of the threshold, which
+ * is how a layout splits at 1024px in CSS and 1023px in JS. Asking the grid
+ * whether it *is* a grid has one source of truth, the classes above. The
+ * observer watches the container, whose width is what changes the answer.
  */
-const splitQuery = {
-  md: '(min-width: 48rem)',
-  lg: '(min-width: 64rem)',
-  xl: '(min-width: 80rem)',
-} as const;
+function useSplit(
+  container: RefObject<HTMLDivElement | null>,
+  grid: RefObject<HTMLDivElement | null>,
+): boolean {
+  const [split, setSplit] = useState(false);
+  useLayoutEffect(() => {
+    const root = container.current;
+    const el = grid.current;
+    if (!root || !el) return;
+    const read = (): void => {
+      setSplit(getComputedStyle(el).display === 'grid');
+    };
+    read();
+    // jsdom has no observer. The first reading stands, which is all a test needs.
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(read);
+    observer.observe(root);
+    return () => {
+      observer.disconnect();
+    };
+  }, [container, grid]);
+  return split;
+}
 
 export function ListDetail({
   className,
@@ -107,9 +146,11 @@ export function ListDetail({
 }: ListDetailProps): JSX.Element {
   const detailRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const previous = useRef(selected);
 
-  const split = useMediaQuery(splitQuery[splitFrom]);
+  const split = useSplit(rootRef, gridRef);
   // Only one pane is on screen below the split, so only there is anything
   // hidden, and only there does the selection amount to a navigation.
   const pushed = selected && !split;
@@ -133,45 +174,49 @@ export function ListDetail({
   const style: CSSProperties & { '--list-width': string } = { '--list-width': listWidth };
 
   return (
-    <div className={cn('min-h-0', splitClass[splitFrom], className)} style={style} {...props}>
-      <div
-        ref={listRef}
-        tabIndex={-1}
-        role="region"
-        aria-label={listLabel}
-        // `inert` only while the pane is genuinely off screen. Setting it
-        // whenever something is selected would make a perfectly visible list
-        // unfocusable at desk sizes.
-        inert={pushed}
-        className={cn(
-          'min-w-0 focus-visible:outline-none',
-          borderClass[splitFrom],
-          selected && hideBelowSplit[splitFrom],
-        )}
-      >
-        {list}
-      </div>
+    // The outer element is the query container and takes the caller's props. An
+    // element cannot query its own width, so the grid is one level down.
+    <div ref={rootRef} className={cn('@container min-h-0', className)} style={style} {...props}>
+      <div ref={gridRef} className={cn('h-full min-h-0', splitClass[splitFrom])}>
+        <div
+          ref={listRef}
+          tabIndex={-1}
+          role="region"
+          aria-label={listLabel}
+          // `inert` only while the pane is genuinely off screen. Setting it
+          // whenever something is selected would make a perfectly visible list
+          // unfocusable at desk sizes.
+          inert={pushed}
+          className={cn(
+            'min-w-0 focus-visible:outline-none',
+            borderClass[splitFrom],
+            selected && hideBelowSplit[splitFrom],
+          )}
+        >
+          {list}
+        </div>
 
-      <div
-        ref={detailRef}
-        tabIndex={-1}
-        role="region"
-        aria-label={detailLabel}
-        inert={!selected && !split}
-        className={cn(
-          'min-w-0 focus-visible:outline-none',
-          !selected && hideBelowSplit[splitFrom],
-          pushed && 'animate-slide-up',
-        )}
-      >
-        {pushed && onBack ? (
-          <div className="border-b border-border p-2">
-            <Button variant="ghost" size="sm" startIcon={<ChevronLeft />} onClick={onBack}>
-              {backLabel}
-            </Button>
-          </div>
-        ) : null}
-        {detail ?? emptyDetail}
+        <div
+          ref={detailRef}
+          tabIndex={-1}
+          role="region"
+          aria-label={detailLabel}
+          inert={!selected && !split}
+          className={cn(
+            'min-w-0 focus-visible:outline-none',
+            !selected && hideBelowSplit[splitFrom],
+            pushed && 'animate-slide-up',
+          )}
+        >
+          {pushed && onBack ? (
+            <div className="border-b border-border p-2">
+              <Button variant="ghost" size="sm" startIcon={<ChevronLeft />} onClick={onBack}>
+                {backLabel}
+              </Button>
+            </div>
+          ) : null}
+          {detail ?? emptyDetail}
+        </div>
       </div>
     </div>
   );

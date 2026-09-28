@@ -68,7 +68,7 @@ const meta = {
           '| `focused` | Content only | Onboarding, a signature flow |',
           '| `canvas` | Content owns its own scrolling | A Kanban board, a calendar, a chart |',
           '',
-          'Below `md` the sidebar is hidden: pair it with `bottomBar` or a `Sheet`, as the shell story does.',
+          'The rails respond to the width the layout was given, not to the window: below 48rem of its own width the sidebar is hidden, below 80rem the aside. Pair the sidebar with a `bottomBar` or a `Sheet`, as the shell story does. Under a finger the same shell becomes the phone\'s: a glass top bar, the page title set large, and `bottomBarVariant="floating"` turning the bottom bar into a glass pill the page scrolls under.',
           '',
           '### Collapsing',
           '',
@@ -111,13 +111,13 @@ const meta = {
     },
     sidebar: {
       description:
-        'Primary navigation. Rendered as `<nav aria-label="Main">` with its own scroll container; hidden below `md`.',
+        'Primary navigation. Rendered as `<nav aria-label="Main">` with its own scroll container; hidden below 48rem of the layout\'s own width.',
       control: false,
       table: { type: { summary: 'ReactNode' }, category: 'Slots' },
     },
     aside: {
       description:
-        'Secondary rail. Rendered as `<aside>`; hidden below `xl`, and only in `sidebar-aside`.',
+        "Secondary rail. Rendered as `<aside>`; hidden below 80rem of the layout's own width, and only in `sidebar-aside`.",
       control: false,
       table: { type: { summary: 'ReactNode' }, category: 'Slots' },
     },
@@ -131,6 +131,17 @@ const meta = {
         'Fixed bottom bar: mobile tabs, a sticky form action row. Padded for the home indicator.',
       control: false,
       table: { type: { summary: 'ReactNode' }, category: 'Slots' },
+    },
+    bottomBarVariant: {
+      description:
+        "`bar` is a strip across the bottom edge, for a form's action row. `floating` is a glass pill the page scrolls under, the shape a phone's tab bar takes.",
+      control: 'inline-radio',
+      options: ['bar', 'floating'],
+      table: {
+        type: { summary: "'bar' | 'floating'" },
+        defaultValue: { summary: 'bar' },
+        category: 'Appearance',
+      },
     },
     contentClassName: {
       description:
@@ -215,7 +226,7 @@ const tone = { Active: 'success', 'On leave': 'warning' } as const;
  */
 function AppNav({ current = 'people' }: { current?: string }): JSX.Element {
   return (
-    <Nav label="Main" className="p-2 lg:w-56">
+    <Nav label="Main" className="w-56 p-2">
       <NavList>
         {nav.map((item) => (
           <NavItem
@@ -266,16 +277,23 @@ function AppNav({ current = 'people' }: { current?: string }): JSX.Element {
   );
 }
 
+/**
+ * The top bar. At a desk it carries the product and search; in a narrow layout
+ * it keeps only a way to the navigation and the account, because the page's
+ * own title, set large below it, already says where you are. Container queries
+ * against `PageLayout`'s own width, so the phone frame beside a wide canvas
+ * gets the phone's bar.
+ */
 function AppBar({ title = 'People' }: { title?: string }): JSX.Element {
   return (
-    <div className="flex h-14 items-center gap-3 px-3 sm:px-4">
+    <div className="flex h-14 items-center gap-3 px-4 touch:h-12 touch:px-3">
       <Sheet>
         <SheetTrigger asChild>
           <Button
             size="sm"
             variant="ghost"
             aria-label="Open navigation"
-            className="md:hidden"
+            className="@3xl/page:hidden"
             startIcon={<Menu />}
           />
         </SheetTrigger>
@@ -289,11 +307,13 @@ function AppBar({ title = 'People' }: { title?: string }): JSX.Element {
         </SheetContent>
       </Sheet>
 
-      <span className="text-md font-semibold text-fg max-md:hidden">Acme HR</span>
-      <span className="text-md font-semibold text-fg md:hidden">{title}</span>
+      <span className="font-display text-md font-bold tracking-tight text-fg @max-3xl/page:hidden">
+        Acme HR
+      </span>
+      <span className="sr-only @3xl/page:hidden">{title}</span>
 
       <div className="ms-auto flex items-center gap-2">
-        <div className="hidden sm:block sm:w-56">
+        <div className="hidden @2xl/page:block @2xl/page:w-56">
           <Input size="sm" startAdornment={<Search />} aria-label="Search" placeholder="Search" />
         </div>
         <Button size="sm" variant="ghost" aria-label="Notifications" startIcon={<Bell />} />
@@ -342,6 +362,11 @@ function DirectoryTable(): JSX.Element {
   );
 }
 
+/**
+ * The phone's tab bar: four destinations in the floating glass pill that
+ * `bottomBarVariant="floating"` draws. The current one sits on a soft accent
+ * pill of its own, the same fill the sidebar uses for the page you are on.
+ */
 function MobileTabs(): JSX.Element {
   return (
     <nav aria-label="Main, compact" className="flex">
@@ -350,11 +375,11 @@ function MobileTabs(): JSX.Element {
           key={item.id}
           href="#"
           aria-current={item.id === 'people' ? 'page' : undefined}
-          className={`flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs ${
-            item.id === 'people' ? 'text-accent-fg' : 'text-fg-muted'
+          className={`flex min-h-10 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-semibold touch:min-h-tap ${
+            item.id === 'people' ? 'bg-accent-subtle text-accent-fg' : 'text-fg-muted'
           }`}
         >
-          <item.icon className="size-5" aria-hidden />
+          <item.icon className="size-4" aria-hidden />
           {item.label}
         </a>
       ))}
@@ -381,10 +406,13 @@ const renderShell: NonNullable<Story['render']> = (args) => (
       </div>
     }
     bottomBar={<MobileTabs />}
+    bottomBarVariant="floating"
     // On the wrapper, not on the nav inside it: the wrapper is what carries the
-    // border, so hiding only the content leaves a bordered strip on desktop.
-    bottomBarClassName="md:hidden"
-    contentClassName="p-4 sm:p-6"
+    // glass, so hiding only the content leaves an empty pill on desktop. The
+    // same container width the sidebar appears at, so exactly one of the two
+    // is ever on screen.
+    bottomBarClassName="@3xl/page:hidden"
+    contentClassName="p-6 touch:p-4"
   >
     <Stack gap={5}>
       <PageHeader
@@ -429,7 +457,7 @@ export const Stacked: Story = {
     },
   },
   render: (args) => (
-    <PageLayout {...args} header={<AppBar title="Settings" />} contentClassName="p-4 sm:p-6">
+    <PageLayout {...args} header={<AppBar title="Settings" />} contentClassName="p-6 touch:p-4">
       <Container size="md">
         <Stack gap={5}>
           <PageHeader
@@ -464,7 +492,7 @@ export const SidebarAndAside: Story = {
     docs: {
       description: {
         story:
-          'Three panes at desk sizes. The aside disappears below `xl` rather than squeezing the content, a 200px detail rail is not a detail rail. Watch the two rails drop out as the canvas narrows: `xl` first, then `md`.',
+          'Three panes at desk sizes. The aside disappears below `xl` rather than squeezing the content, a 200px detail rail is not a detail rail. Watch the two rails drop out as the canvas narrows: the aside first, below 80rem, then the sidebar below 48rem.',
       },
     },
   },
@@ -497,7 +525,7 @@ export const WithBanner: Story = {
           Every action you take is recorded against your own account, not hers.
         </Alert>
       }
-      contentClassName="p-4 sm:p-6"
+      contentClassName="p-6 touch:p-4"
     >
       <Stack gap={5}>
         <PageHeader title="People" description="912 active employees." />
@@ -522,7 +550,7 @@ export const WithToolbar: Story = {
     },
   },
   render: (args) => (
-    <PageLayout {...args} header={<AppBar />} sidebar={<AppNav />} contentClassName="p-4 sm:p-6">
+    <PageLayout {...args} header={<AppBar />} sidebar={<AppNav />} contentClassName="p-6 touch:p-4">
       <Stack gap={4}>
         <PageHeader title="People" description="912 active employees." />
         <Toolbar
@@ -583,7 +611,7 @@ export const Focused: Story = {
           <Button variant="primary">Continue</Button>
         </div>
       }
-      contentClassName="p-4 sm:p-6"
+      contentClassName="p-6 touch:p-4"
     >
       <Container size="sm">
         <Stack gap={5}>
@@ -667,7 +695,7 @@ export const PageHeaderAnatomy: Story = {
     },
   },
   render: (args) => (
-    <PageLayout {...args} header={<AppBar title="Grace Hopper" />} contentClassName="p-4 sm:p-6">
+    <PageLayout {...args} header={<AppBar title="Grace Hopper" />} contentClassName="p-6 touch:p-4">
       <Container size="md">
         <Stack gap={6}>
           <PageHeader
@@ -756,7 +784,7 @@ export const Collapsing: Story = {
             ))}
           </div>
         }
-        contentClassName="p-4 sm:p-6"
+        contentClassName="p-6 touch:p-4"
       >
         <Stack gap={5}>
           <PageHeader
@@ -845,7 +873,7 @@ export const ThreeLevels: Story = {
             />
           </div>
         }
-        contentClassName="p-4 sm:p-6"
+        contentClassName="p-6 touch:p-4"
       >
         <Stack gap={5}>
           <PageHeader
@@ -861,7 +889,7 @@ export const ThreeLevels: Story = {
           {/* The same tertiary nav, horizontally, for the width where the aside
               does not exist. One component, two orientations, not two
               components that drift apart. */}
-          <div className="xl:hidden">
+          <div className="@7xl/page:hidden">
             <TertiaryNav
               label="Sections of this record"
               orientation="horizontal"

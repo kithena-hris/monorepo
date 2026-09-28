@@ -140,7 +140,7 @@ export const WhitespaceInstead: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-8 sm:grid-cols-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-8">
       <div className="divide-y divide-border rounded-lg border border-border bg-surface">
         {['Hired 4 Mar 2024', 'Promoted 1 Sep 2026', 'Review due 1 Jan 2027'].map((line) => (
           <p key={line} className="px-4 py-2.5 text-base text-fg">
