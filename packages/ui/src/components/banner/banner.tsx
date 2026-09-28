@@ -48,8 +48,12 @@ const banner = cva(
         soft: 'text-fg',
         // A solid fill exists for the tones with an AA pair; the others fall
         // back to the inverted surface rather than to a fill that fails.
-        solid: 'bg-invert text-fg-on-invert',
-        invert: 'bg-invert text-fg-on-invert',
+        // On a fill, the focus ring takes the ink the fill is drawn for; an
+        // accent ring would vanish against an accent or inverted banner.
+        solid:
+          'bg-invert text-fg-on-invert [--reach-color-border-focus:var(--reach-color-fg-on-invert)]',
+        invert:
+          'bg-invert text-fg-on-invert [--reach-color-border-focus:var(--reach-color-fg-on-invert)]',
       },
       rounded: { true: 'rounded-md touch:rounded-[1.125rem]', false: '' },
     },
@@ -60,9 +64,24 @@ const banner = cva(
       { emphasis: 'soft', tone: 'danger', class: 'bg-danger-subtle' },
       { emphasis: 'soft', tone: 'accent', class: 'bg-accent-subtle' },
       { emphasis: 'soft', tone: 'neutral', class: 'bg-surface-sunken' },
-      { emphasis: 'solid', tone: 'danger', class: 'bg-danger-solid text-fg-on-solid' },
-      { emphasis: 'solid', tone: 'success', class: 'bg-success-solid text-fg-on-solid' },
-      { emphasis: 'solid', tone: 'accent', class: 'bg-accent-solid text-fg-on-accent' },
+      {
+        emphasis: 'solid',
+        tone: 'danger',
+        class:
+          'bg-danger-solid text-fg-on-solid [--reach-color-border-focus:var(--reach-color-fg-on-solid)]',
+      },
+      {
+        emphasis: 'solid',
+        tone: 'success',
+        class:
+          'bg-success-solid text-fg-on-solid [--reach-color-border-focus:var(--reach-color-fg-on-solid)]',
+      },
+      {
+        emphasis: 'solid',
+        tone: 'accent',
+        class:
+          'bg-accent-solid text-fg-on-accent [--reach-color-border-focus:var(--reach-color-fg-on-solid)]',
+      },
     ],
     defaultVariants: { tone: 'info', emphasis: 'soft', rounded: false },
   },

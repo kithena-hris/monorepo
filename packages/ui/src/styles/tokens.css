@@ -80,10 +80,12 @@
     /* Text and icons. */
     --reach-color-fg: var(--reach-neutral-950);
     --reach-color-fg-muted: var(--reach-neutral-600);
-    /* Meta text. The design's third ink is 0.60, which measures 3.9:1 on white
-       and fails AA for text; 0.54 clears 4.5:1 on the canvas as well, and the
-       0.60 value lives on as `icon-muted`, where 3:1 is the bar. */
-    --reach-color-fg-subtle: oklch(0.54 0.012 274);
+    /* Meta text and placeholders. The design's third ink is 0.60, which
+       measures 3.9:1 on white and fails AA for text. It sits on every fill a
+       field or a hovered row uses, so it is held to 4.5:1 on the darkest of
+       them, `surface-hover`; the 0.60 value lives on as `icon-muted`, where
+       3:1 is the bar. */
+    --reach-color-fg-subtle: oklch(0.51 0.012 274);
     --reach-color-fg-disabled: var(--reach-neutral-400);
     --reach-color-fg-on-accent: var(--reach-neutral-0);
     --reach-color-fg-on-solid: var(--reach-neutral-0);
@@ -288,9 +290,9 @@
 
     --reach-color-fg: oklch(0.968 0.002 274);
     --reach-color-fg-muted: oklch(0.76 0.008 274);
-    /* 0.62 rather than the design's 0.60, so meta text still clears 4.5:1 on
-       the sunken fill. */
-    --reach-color-fg-subtle: oklch(0.62 0.008 274);
+    /* 0.66 rather than the design's 0.60, so meta text still clears 4.5:1 on
+       the hover fill, the lightest surface it sits on. */
+    --reach-color-fg-subtle: oklch(0.66 0.008 274);
     --reach-color-fg-disabled: oklch(0.42 0.006 274);
     --reach-color-fg-on-accent: var(--reach-neutral-0);
     --reach-color-fg-on-solid: var(--reach-neutral-0);

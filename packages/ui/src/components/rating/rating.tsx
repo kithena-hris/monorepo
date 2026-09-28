@@ -159,7 +159,7 @@ export function Rating({
             <span key={index} aria-hidden className="relative inline-block">
               {/* An empty star is a solid shape in the strong fill, not an
                   outline: the filled part then reads as the same star, lit. */}
-              <span className="text-surface-active [&_svg]:fill-current">
+              <span className="text-icon-muted [&_svg]:fill-current">
                 {symbol ?? <Star className={symbolSize[size]} />}
               </span>
               {fill > 0 ? (
@@ -234,7 +234,7 @@ export function Rating({
                 'relative touch:after:absolute touch:after:content-[""]',
                 'transition-[color,transform] duration-(--animate-duration-fast) ease-standard',
                 'hover:scale-110 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
-                active ? toneClass[tone] : 'text-surface-active',
+                active ? toneClass[tone] : 'text-icon-muted',
               )}
             >
               <span aria-hidden className="[&_svg]:fill-current">

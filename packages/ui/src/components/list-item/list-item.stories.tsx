@@ -138,7 +138,7 @@ export const LeadingOptions: Story = {
       </ListItem>
       <ListItem
         leading={
-          <span className="grid size-7.5 place-items-center rounded-xs bg-chart-3 text-fg-on-solid">
+          <span className="grid size-7.5 place-items-center rounded-xs bg-chart-3 text-fg-on-solid dark:text-fg-on-invert">
             <Calendar aria-hidden="true" className="size-4" />
           </span>
         }

@@ -297,7 +297,7 @@ export function GroupedNav({
             className={cn(
               'grid shrink-0 place-items-center [&_svg]:size-4',
               current ? 'text-accent-fg' : 'text-fg-muted',
-              'touch:size-7.5 touch:rounded-xs touch:text-fg-on-solid',
+              'touch:size-7.5 touch:rounded-xs touch:text-fg-on-solid dark:touch:text-fg-on-invert',
               color,
             )}
           >

@@ -28,7 +28,11 @@ if (!requested.length) {
 
 const index = await (await fetch(`${storybookUrl}/index.json`)).json();
 const entries = Object.values(index.entries ?? index.stories ?? {}).filter(
-  (entry) => entry.type === 'story' || entry.type === 'docs',
+  (entry) =>
+    (entry.type === 'story' || entry.type === 'docs') &&
+    // The Web and Mobile copies (apps/storybook/.storybook/story-views.ts)
+    // repeat stories the sweep already covers.
+    !entry.importPath?.includes('/generated/views/'),
 );
 
 if (entries.length === 0) {

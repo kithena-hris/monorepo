@@ -416,6 +416,10 @@ let stories = pageUrl
       .filter(
         (entry) =>
           (entry.type === 'story' || entry.type === 'docs') &&
+          // The Web and Mobile copies of each story (see
+          // apps/storybook/.storybook/story-views.ts) render the story already
+          // swept here, under the same two profiles this sweep runs anyway.
+          !entry.importPath?.includes('/generated/views/') &&
           (wanted.size === 0 || wanted.has(entry.id)) &&
           (!process.env.STORY_FILTER || entry.id.includes(process.env.STORY_FILTER)),
       )

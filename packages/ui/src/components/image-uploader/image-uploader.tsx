@@ -658,7 +658,10 @@ export function AvatarUploader({
           <span
             aria-hidden
             className={cn(
-              'absolute inset-0 grid place-items-center bg-overlay text-fg-on-accent opacity-0',
+              // Half black rather than the page scrim: the scrim is tuned for a
+              // page behind a dialog and is too thin over a light photo for
+              // white text to clear 3:1.
+              'absolute inset-0 grid place-items-center bg-[oklch(0_0_0/0.5)] text-fg-on-accent opacity-0',
               round,
               // The photo is the control: hovering or focusing it says so.
               'transition-opacity duration-(--animate-duration-fast) group-hover:opacity-100',
