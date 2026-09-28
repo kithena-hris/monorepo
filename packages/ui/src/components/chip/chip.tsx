@@ -3,7 +3,7 @@
 import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Check, X } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
+import { Children, useState, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -199,6 +199,62 @@ export function ChipGroup({ className, scroll = false, ...props }: ChipGroupProp
       )}
       {...props}
     />
+  );
+}
+
+export interface ChipRowProps extends ComponentPropsWithoutRef<'div'> {
+  /**
+   * At a desk, how many chips show before the rest fold into "+N more", which
+   * unfolds them in place. Under a finger every chip shows, in one row that
+   * scrolls from edge to edge, because a phone has width for a scroll and
+   * none for a wrap.
+   */
+  max?: number;
+}
+
+/**
+ * A row of chips that are not one shared value: the applied filters above a
+ * table, the skills on a profile. For chips that are one value, a set of
+ * filters or a choice, use `ChipGroup`, which has the same `scroll`.
+ *
+ * The folded chips are `display: none`, not merely clipped, so they leave the
+ * tab order and the accessibility tree along with the screen, and "+N more"
+ * says how many and is `aria-expanded`.
+ */
+export function ChipRow({ max, className, children, ...props }: ChipRowProps): JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const items = Children.toArray(children);
+  const folds = max !== undefined && items.length > max;
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-2',
+        'touch:flex-nowrap touch:overflow-x-auto touch:overscroll-x-contain touch:[scrollbar-width:none] touch:py-1',
+        className,
+      )}
+      {...props}
+    >
+      {items.map((item, index) =>
+        folds && !expanded && index >= max ? (
+          <span key={index} className="hidden touch:contents">
+            {item}
+          </span>
+        ) : (
+          item
+        ),
+      )}
+      {folds ? (
+        <Chip
+          className="touch:hidden"
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded(!expanded);
+          }}
+        >
+          {expanded ? 'Show fewer' : `+${String(items.length - max)} more`}
+        </Chip>
+      ) : null}
+    </div>
   );
 }
 
