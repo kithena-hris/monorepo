@@ -42,7 +42,9 @@ export function Tooltip({
           align={align}
           sideOffset={6}
           className={cn(
-            'z-50 max-w-xs rounded-sm bg-fg px-2 py-1 text-xs text-canvas shadow-md',
+            // The design's tooltip is the inverted surface: the one colour that
+            // reads as "not part of the page" in both themes.
+            'z-50 max-w-60 rounded-xs bg-invert px-2.5 py-1.5 text-sm font-medium text-fg-on-invert shadow-md',
             'data-[state=delayed-open]:animate-scale-in data-[state=instant-open]:animate-fade-in',
             'data-[state=closed]:animate-fade-out',
             'origin-(--radix-tooltip-content-transform-origin)',
@@ -56,7 +58,7 @@ export function Tooltip({
             // visible here is the bubble against the page, not the tail against
             // the bubble.
             data-decorative
-            className="fill-fg"
+            className="fill-invert"
             width={10}
             height={5}
           />

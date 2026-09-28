@@ -2,7 +2,7 @@
 
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { CircleCheck, CircleX, Info, TriangleAlert, X } from 'lucide-react';
+import { Bell, Check, Info, TriangleAlert, X } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -30,10 +30,16 @@ import { cn } from '../../lib/cn';
  * the toast region from anywhere.
  */
 
+/*
+ * A snackbar on the inverted surface, whatever the tone. The tone lives in the
+ * small disc at the start, so a success and a failure are the same object in
+ * the same place and only the glyph and its colour differ. A green wash for one
+ * and a red wash for the other made the stack a traffic light.
+ */
 const toast = cva(
   [
-    'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden',
-    'rounded-lg border p-3.5 pr-10 shadow-lg',
+    'group pointer-events-auto relative flex w-full items-center gap-3 overflow-hidden',
+    'rounded-md bg-invert py-3 ps-3.5 pe-2 text-fg-on-invert shadow-lg touch:rounded-lg',
     'data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-out',
     // Follows the finger while swiping, then animates out from where it was let go.
     'data-[swipe=move]:translate-x-(--radix-toast-swipe-move-x) data-[swipe=move]:transition-none',
@@ -43,11 +49,11 @@ const toast = cva(
   {
     variants: {
       tone: {
-        neutral: 'border-border bg-surface text-fg',
-        success: 'border-success-border bg-success-subtle text-success-fg',
-        warning: 'border-warning-border bg-warning-subtle text-warning-fg',
-        danger: 'border-danger-border bg-danger-subtle text-danger-fg',
-        info: 'border-info-border bg-info-subtle text-info-fg',
+        neutral: '[--toast-disc:var(--color-fg-subtle)]',
+        success: '[--toast-disc:var(--color-success-solid)]',
+        warning: '[--toast-disc:var(--color-warning)]',
+        danger: '[--toast-disc:var(--color-danger-solid)]',
+        info: '[--toast-disc:var(--color-info)]',
       },
     },
     defaultVariants: { tone: 'neutral' },
@@ -55,10 +61,10 @@ const toast = cva(
 );
 
 const toneIcon = {
-  neutral: Info,
-  success: CircleCheck,
+  neutral: Bell,
+  success: Check,
   warning: TriangleAlert,
-  danger: CircleX,
+  danger: X,
   info: Info,
 } as const;
 
@@ -153,41 +159,50 @@ function ToastItem({
       }}
       className={toast({ tone })}
     >
-      <Icon aria-hidden className="mt-px size-4 shrink-0" />
+      <span
+        aria-hidden
+        className="grid size-6 shrink-0 place-items-center rounded-full bg-(--toast-disc) text-fg-on-solid"
+      >
+        <Icon className="size-3.5" strokeWidth={2.5} />
+      </span>
       <div className="min-w-0 flex-1">
-        <ToastPrimitive.Title className="text-base font-medium">
+        <ToastPrimitive.Title className="text-sm font-semibold">
           {record.title}
         </ToastPrimitive.Title>
         {record.description ? (
-          <ToastPrimitive.Description className="mt-0.5 text-sm opacity-90">
+          <ToastPrimitive.Description className="mt-0.5 text-sm text-fg-on-invert/80">
             {record.description}
           </ToastPrimitive.Description>
         ) : null}
-        {record.action ? (
-          <ToastPrimitive.Action
-            asChild
-            altText={record.action.label}
-            // `altText` is not decoration: a screen reader user cannot swipe or
-            // hover, so Radix uses it to describe the action in the announcement.
-          >
-            <button
-              type="button"
-              onClick={record.action.onClick}
-              className="mt-2 rounded-sm text-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
-            >
-              {record.action.label}
-            </button>
-          </ToastPrimitive.Action>
-        ) : null}
       </div>
+      {record.action ? (
+        <ToastPrimitive.Action
+          asChild
+          altText={record.action.label}
+          // `altText` is not decoration: a screen reader user cannot swipe or
+          // hover, so Radix uses it to describe the action in the announcement.
+        >
+          <button
+            type="button"
+            onClick={record.action.onClick}
+            className={cn(
+              'relative h-8.5 shrink-0 rounded-control px-3 text-sm font-semibold whitespace-nowrap tap-target',
+              'bg-fg-on-invert/15 transition-colors hover:bg-fg-on-invert/25',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+            )}
+          >
+            {record.action.label}
+          </button>
+        </ToastPrimitive.Action>
+      ) : null}
       <ToastPrimitive.Close
         className={cn(
-          'absolute top-2.5 right-2.5 grid size-6 place-items-center rounded-sm opacity-60',
+          'relative grid size-8 shrink-0 place-items-center rounded-full opacity-60 tap-target',
           'transition-opacity hover:opacity-100',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
         )}
       >
-        <X aria-hidden className="size-3.5" />
+        <X aria-hidden className="size-4" />
         <span className="sr-only">Dismiss</span>
       </ToastPrimitive.Close>
     </ToastPrimitive.Root>

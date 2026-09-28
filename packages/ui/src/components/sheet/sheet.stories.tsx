@@ -68,12 +68,13 @@ const meta = {
   },
   argTypes: {
     side: {
-      description: 'Which edge the panel is anchored to, and therefore which way it travels.',
+      description:
+        'Which edge the panel is anchored to, and therefore which way it travels. `auto` is a floating side panel at a desk and a bottom sheet under a finger.',
       control: 'inline-radio',
-      options: ['right', 'left', 'top', 'bottom'],
+      options: ['auto', 'right', 'left', 'top', 'bottom'],
       table: {
-        type: { summary: "'right' | 'left' | 'top' | 'bottom'" },
-        defaultValue: { summary: 'right' },
+        type: { summary: "'auto' | 'right' | 'left' | 'top' | 'bottom'" },
+        defaultValue: { summary: 'auto' },
         category: 'Layout',
       },
     },
@@ -113,7 +114,7 @@ const meta = {
       table: { type: { summary: 'string' }, category: 'Escape hatches' },
     },
   },
-  args: { side: 'right', size: 'md', showCloseButton: true },
+  args: { side: 'auto', size: 'md', showCloseButton: true },
 } satisfies Meta<typeof SheetContent>;
 
 export default meta;

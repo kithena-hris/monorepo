@@ -59,7 +59,9 @@ export function PopoverContent({
         // scrolled to because it is in a portal.
         collisionPadding={collisionPadding}
         className={cn(
-          'z-50 rounded-lg border border-border bg-surface p-3 text-base text-fg shadow-lg',
+          // Raised and shadowed rather than outlined: elevation separates it
+          // from the page, and a phone gets the rounder corner of its sheets.
+          'z-50 rounded-md bg-surface-raised p-4 text-base text-fg shadow-lg touch:rounded-lg',
           // Never wider than the viewport, and never taller than the space
           // Radix measured for it. Both are custom properties the primitive
           // publishes, and both are the difference between a usable popover on
@@ -78,7 +80,7 @@ export function PopoverContent({
           <PopoverPrimitive.Arrow
             // Continues the popover surface. See the note in `tooltip.tsx`.
             data-decorative
-            className="fill-surface stroke-border"
+            className="fill-surface-raised"
             width={11}
             height={5}
           />
