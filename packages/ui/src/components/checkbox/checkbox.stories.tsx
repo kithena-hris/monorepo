@@ -192,7 +192,7 @@ export const CheckboxOrSwitch: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
       <div className="rounded-lg border border-border p-4">
         <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
           Staged: checkbox

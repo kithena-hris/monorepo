@@ -42,6 +42,9 @@ export function Slider({
 }: SliderProps): JSX.Element {
   const values = props.value ?? props.defaultValue ?? [min];
   const tickCount = Math.round((max - min) / step) + 1;
+  const low = values.length > 1 ? (values[0] ?? min) : min;
+  const high = values[values.length - 1] ?? min;
+  const inRange = (tick: number): boolean => tick >= low && tick <= high;
   const ticks = showTicks && tickCount <= 21 ? Array.from({ length: tickCount }, (_, i) => i) : [];
 
   return (
@@ -57,7 +60,8 @@ export function Slider({
         max={max}
         step={step}
         className={cn(
-          'relative flex w-full touch-none items-center select-none',
+          'relative flex h-5 w-full touch-none items-center select-none touch:h-7',
+          'data-disabled:opacity-45',
           'data-[orientation=vertical]:h-48 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
           className,
         )}
@@ -65,17 +69,24 @@ export function Slider({
       >
         <SliderPrimitive.Track
           className={cn(
-            'relative grow overflow-hidden rounded-full bg-surface-sunken',
+            'relative grow overflow-hidden rounded-full bg-surface-active',
             'h-1.5 data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5',
           )}
         >
-          <SliderPrimitive.Range className="absolute h-full rounded-full bg-accent data-[orientation=vertical]:w-full" />
+          <SliderPrimitive.Range className="absolute h-full rounded-full bg-accent data-[disabled]:bg-fg-subtle data-[orientation=vertical]:w-full" />
         </SliderPrimitive.Track>
 
         {ticks.length > 0 ? (
           <div aria-hidden className="pointer-events-none absolute inset-x-0 flex justify-between">
             {ticks.map((i) => (
-              <span key={i} className="size-1 rounded-full bg-border-strong" />
+              <span
+                key={i}
+                className={cn(
+                  'size-1 rounded-full',
+                  // A tick under the filled range is a light dot on the accent.
+                  inRange(min + i * step) ? 'bg-fg-on-accent/70' : 'bg-fg-subtle',
+                )}
+              />
             ))}
           </div>
         ) : null}
@@ -87,9 +98,12 @@ export function Slider({
               thumbLabels?.[index] ?? (values.length > 1 ? `${label} ${String(index + 1)}` : label)
             }
             className={cn(
-              'tap-target relative block size-5 rounded-full border-2 border-accent bg-surface shadow-sm',
+              // White, shadowed, no border: a physical knob. 20px at a desk,
+              // 28px under a thumb.
+              'tap-target relative block size-5 rounded-full bg-fg-on-accent touch:size-7',
+              'shadow-[0_1px_4px_oklch(0%_0_0/0.3),0_0_0_0.5px_oklch(0%_0_0/0.12)]',
               'transition-[box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
-              'hover:scale-110 active:scale-95',
+              'hover:scale-110 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
               'disabled:pointer-events-none disabled:opacity-55',
               // The visible thumb stays 20px; the pseudo-element gives the

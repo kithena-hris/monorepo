@@ -53,12 +53,12 @@ const meta = {
     },
     variant: {
       description:
-        '`ghost` for a toggle inside a toolbar that already has a surface; `outline` when it stands alone and needs an edge.',
+        '`fill` by default: a filled pill that takes the accent wash when on. `ghost` inside a toolbar that already has a surface; `outline` when it needs an edge.',
       control: 'inline-radio',
-      options: ['ghost', 'outline'],
+      options: ['fill', 'ghost', 'outline'],
       table: {
-        type: { summary: "'ghost' | 'outline'" },
-        defaultValue: { summary: 'ghost' },
+        type: { summary: "'fill' | 'ghost' | 'outline'" },
+        defaultValue: { summary: 'fill' },
         category: 'Appearance',
       },
     },
@@ -102,7 +102,7 @@ const meta = {
   },
   args: {
     children: 'Show archived',
-    variant: 'outline',
+    variant: 'fill',
     size: 'md',
     iconOnly: false,
     disabled: false,
@@ -120,12 +120,16 @@ export const Variants: Story = {
     docs: {
       description: {
         story:
-          "Both variants, unpressed and pressed. The pressed state changes background *and* text colour, a border colour alone is not a state change anyone notices at arm's length, let alone across a room.",
+          "Each variant, unpressed and pressed. The pressed state changes background *and* text colour, a border colour alone is not a state change anyone notices at arm's length, let alone across a room.",
       },
     },
   },
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
+      <Toggle variant="fill">Fill</Toggle>
+      <Toggle variant="fill" defaultPressed>
+        Fill, pressed
+      </Toggle>
       <Toggle variant="ghost">Ghost</Toggle>
       <Toggle variant="ghost" defaultPressed>
         Ghost, pressed

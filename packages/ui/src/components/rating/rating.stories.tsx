@@ -273,7 +273,7 @@ export const Symbols: Story = {
           {...args}
           label="Culture fit"
           tone="danger"
-          symbol={<Heart className="size-5" />}
+          symbol={<Heart className="size-7 touch:size-9" />}
           value={values.heart}
           onChange={(value) => {
             setValues((current) => ({ ...current, heart: value }));
@@ -283,7 +283,7 @@ export const Symbols: Story = {
           {...args}
           label="Urgency"
           tone="warning"
-          symbol={<Flame className="size-5" />}
+          symbol={<Flame className="size-7 touch:size-9" />}
           value={values.flame}
           onChange={(value) => {
             setValues((current) => ({ ...current, flame: value }));
