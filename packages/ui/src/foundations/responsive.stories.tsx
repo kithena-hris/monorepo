@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CalendarDays, House, Search, Users, Wallet } from 'lucide-react';
 import type { JSX } from 'react';
 
+import { TabBar, TabBarItem } from '../components/app-bar/app-bar';
 import { Avatar } from '../components/avatar/avatar';
 import { Badge } from '../components/badge/badge';
 import { Button } from '../components/button/button';
@@ -391,21 +392,22 @@ export const AppShell: Story = {
           </Nav>
         }
         bottomBar={
-          <nav aria-label="Main, compact" className="flex">
+          // The floating wrapper is the glass pill, so the bar drops its own.
+          <TabBar
+            label="Main, compact"
+            data-material={undefined}
+            className="border-0 bg-transparent p-0 shadow-none backdrop-blur-none"
+          >
             {shellNav.map((item) => (
-              <a
+              <TabBarItem
                 key={item.id}
                 href="#"
-                aria-current={item.id === 'people' ? 'page' : undefined}
-                className={`flex min-h-10 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-semibold touch:min-h-tap ${
-                  item.id === 'people' ? 'bg-accent-subtle text-accent-fg' : 'text-fg-muted'
-                }`}
-              >
-                <item.icon className="size-4" aria-hidden />
-                {item.label}
-              </a>
+                icon={<item.icon />}
+                label={item.label}
+                current={item.id === 'people'}
+              />
             ))}
-          </nav>
+          </TabBar>
         }
         bottomBarVariant="floating"
         bottomBarClassName="@3xl/page:hidden"

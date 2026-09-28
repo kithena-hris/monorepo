@@ -62,11 +62,11 @@ const meta = {
     },
     size: {
       description:
-        '`sm` for inside table rows, `md` for headers and standalone use, `lg` beside a large title.',
+        '`xs` for a count pinned to a control, `sm` for inside table rows, `md` for headers and standalone use, `lg` beside a large title.',
       control: 'inline-radio',
-      options: ['sm', 'md', 'lg'],
+      options: ['xs', 'sm', 'md', 'lg'],
       table: {
-        type: { summary: "'sm' | 'md' | 'lg'" },
+        type: { summary: "'xs' | 'sm' | 'md' | 'lg'" },
         defaultValue: { summary: 'md' },
         category: 'Appearance',
       },
@@ -157,12 +157,15 @@ export const Sizes: Story = {
     docs: {
       description: {
         story:
-          '`sm` sits inside a 40px table row without pushing it taller; `md` is the standalone default.',
+          '`xs` is a count on a control; `sm` sits inside a 40px table row without pushing it taller; `md` is the standalone default.',
       },
     },
   },
   render: (args) => (
     <div className="flex items-center gap-3">
+      <Badge {...args} size="xs">
+        12
+      </Badge>
       <Badge {...args} size="sm">
         Small
       </Badge>
@@ -193,9 +196,9 @@ export const Attention: Story = {
         <Badge
           variant="solid"
           tone="danger"
-          size="sm"
+          size="xs"
           aria-hidden
-          className="absolute -top-1 -right-1 min-w-5 justify-center px-1.5 ring-2 ring-canvas"
+          className="pointer-events-none absolute -top-0.5 -right-0.5 ring-2 ring-canvas"
         >
           3
         </Badge>
