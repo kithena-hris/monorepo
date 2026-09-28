@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { X } from 'lucide-react';
 import { useState } from 'react';
 import { fn } from 'storybook/test';
 
 import { Button } from '../button/button';
+import { Chip } from '../chip/chip';
 import { FilterBuilder } from './filter-builder';
 import { describeFilter, type FilterGroup } from './filter-model';
 import { peopleFields } from './fixtures';
@@ -137,7 +137,7 @@ export const AppliedAsChips: Story = {
     docs: {
       description: {
         story:
-          'Once applied, each condition is a chip above the results, and pressing it removes that condition. The chips are buttons named for what they remove, so "Remove Team is Engineering" is what a screen reader hears.',
+          'Once applied, each condition is a `Chip` above the results: the field muted, then the value, and a remove button named for what it removes, so "Remove Team is Engineering" is what a screen reader hears.',
       },
     },
   },
@@ -156,22 +156,27 @@ export const AppliedAsChips: Story = {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           {value.items.map((item) => {
-            const one: FilterGroup = { ...value, items: [item] };
-            const text = describeFilter(one, peopleFields);
+            if (item.kind !== 'condition') return null;
+            const field = peopleFields.find((entry) => entry.id === item.field);
+            const operator = field?.operators.find((entry) => entry.id === item.operator);
+            const shown =
+              field?.options?.find((option) => option.value === item.value)?.label ?? item.value;
             return (
-              <Button
+              <Chip
                 key={item.id}
-                size="sm"
-                variant="subtle"
-                className="rounded-full"
-                endIcon={<X />}
-                aria-label={`Remove ${text}`}
-                onClick={() => {
+                selected
+                field={field?.label ?? item.field}
+                // The field names the subject, so the value reads without its
+                // "is": "Team Engineering", "Start after 2024-01-01".
+                removeLabel={`Remove ${describeFilter({ ...value, items: [item] }, peopleFields)}`}
+                onRemove={() => {
                   setValue({ ...value, items: value.items.filter((entry) => entry !== item) });
                 }}
               >
-                {text}
-              </Button>
+                {item.operator === 'is'
+                  ? shown
+                  : `${(operator?.label ?? item.operator).replace(/^is /, '')} ${shown}`}
+              </Chip>
             );
           })}
           {value.items.length > 0 ? (
