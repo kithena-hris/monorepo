@@ -51,6 +51,14 @@ export interface VirtualListProps<T> {
   itemClassName?: string;
 }
 
+/**
+ * A list is a card: one raised surface, the rows inside separated by the
+ * hairlines `renderItem` draws. `className` still carries the height, and can
+ * strip the surface for a list already inside a panel.
+ */
+const SURFACE =
+  'overflow-y-auto overscroll-contain rounded-lg bg-surface shadow-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus';
+
 export function VirtualList<T>({
   items,
   itemKey,
@@ -101,7 +109,7 @@ export function VirtualList<T>({
     return (
       <div
         ref={scrollRef}
-        className={cn('overflow-y-auto overscroll-contain', className)}
+        className={cn(SURFACE, className)}
         tabIndex={0}
         role="region"
         aria-label={label}
@@ -119,7 +127,7 @@ export function VirtualList<T>({
       tabIndex={0}
       role="region"
       aria-label={label}
-      className={cn('overflow-y-auto overscroll-contain', className)}
+      className={cn(SURFACE, className)}
     >
       <ul role="list" className="relative w-full" style={{ height: totalHeight }}>
         {virtualItems.map((virtualItem) => {

@@ -22,7 +22,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, Lock } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
@@ -89,8 +89,22 @@ export interface SortableListProps<T extends SortableItem> {
    * moved as well as where.
    */
   itemLabel?: (item: T) => string;
+  /**
+   * `cards` (the default) draws every row as its own raised card. `plain`
+   * draws bare, compact rows, for a list inside a popover or a panel that is
+   * already a surface.
+   */
+  appearance?: SortableAppearance;
   className?: string;
 }
+
+export type SortableAppearance = 'cards' | 'plain';
+
+/** Row height and inset per appearance. The tap floor holds in both. */
+const ROW: Record<SortableAppearance, string> = {
+  cards: 'min-h-13 px-4 py-2 touch:min-h-15 touch:px-3.5',
+  plain: 'min-h-8 px-1 touch:min-h-11',
+};
 
 export function SortableList<T extends SortableItem>({
   items,
@@ -100,6 +114,7 @@ export function SortableList<T extends SortableItem>({
   children,
   hideMoveButtons = false,
   itemLabel,
+  appearance = 'cards',
   className,
 }: SortableListProps<T>): JSX.Element {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -169,7 +184,7 @@ export function SortableList<T extends SortableItem>({
         <ul
           aria-label={label}
           aria-describedby={instructionsId}
-          className={cn('space-y-2', className)}
+          className={cn('flex flex-col', appearance === 'cards' ? 'gap-2' : 'gap-0.5', className)}
         >
           {items.map((item, index) => (
             <SortableRow
@@ -181,6 +196,7 @@ export function SortableList<T extends SortableItem>({
               hideMoveButtons={hideMoveButtons}
               name={nameOf(index)}
               onMove={move}
+              appearance={appearance}
             >
               {children(item, { index, dragging: activeId === item.id })}
             </SortableRow>
@@ -190,8 +206,20 @@ export function SortableList<T extends SortableItem>({
 
       <DragOverlay>
         {activeItem ? (
-          <div className="rounded-md border border-accent bg-surface px-3 py-2 shadow-md">
-            {children(activeItem, { index: ids.indexOf(activeItem.id), dragging: true })}
+          // Held: raised above the list, shadowed, tipped a hair. The grip is
+          // drawn again so the lifted row looks like the row it came from.
+          <div
+            className={cn(
+              'flex items-center gap-3 rounded-md bg-surface-raised shadow-xl [rotate:-1deg] [scale:1.02]',
+              ROW[appearance],
+            )}
+          >
+            {activator === 'handle' ? (
+              <GripVertical aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              {children(activeItem, { index: ids.indexOf(activeItem.id), dragging: true })}
+            </div>
           </div>
         ) : null}
       </DragOverlay>
@@ -207,8 +235,10 @@ function SortableRow({
   hideMoveButtons,
   name,
   onMove,
+  appearance,
   children,
 }: {
+  appearance: SortableAppearance;
   item: SortableItem;
   index: number;
   total: number;
@@ -239,10 +269,15 @@ function SortableRow({
         transition,
       }}
       className={cn(
-        'flex items-center gap-2 rounded-md border border-border bg-surface px-2 py-2',
-        'transition-[box-shadow,opacity] duration-(--animate-duration-fast)',
-        isDragging && 'opacity-40',
-        locked && 'bg-surface-sunken',
+        'flex items-center gap-3 rounded-md',
+        ROW[appearance],
+        appearance === 'cards' && 'bg-surface shadow-sm',
+        'transition-[background-color,box-shadow,opacity] duration-(--animate-duration-fast)',
+        locked && appearance === 'cards' && 'opacity-70',
+        // The row's old place becomes the gap it will drop back into: a
+        // dashed accent slot, the same one a table row or a card leaves.
+        isDragging &&
+          'bg-accent-subtle shadow-none outline-[1.5px] outline-accent -outline-offset-[1.5px] outline-dashed [&>*]:invisible',
         activator === 'row' && !locked && 'cursor-grab touch-none active:cursor-grabbing',
       )}
       {...(activator === 'row' && !locked ? { ...attributes, ...listeners } : {})}
@@ -255,13 +290,19 @@ function SortableRow({
           // Named, because "grip icon" is not a thing anyone can act on.
           aria-label={`Reorder ${name}`}
           className={cn(
-            'relative shrink-0 rounded-sm p-1 text-fg-subtle tap-target',
+            'relative -ms-1 shrink-0 rounded-sm p-1 text-fg-subtle tap-target',
             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-            locked ? 'cursor-not-allowed opacity-40' : 'cursor-grab touch-none hover:text-fg',
+            locked ? 'cursor-not-allowed text-fg-disabled' : 'cursor-grab touch-none hover:text-fg',
           )}
           {...(locked ? {} : { ...attributes, ...listeners })}
         >
-          <GripVertical aria-hidden className="size-4" />
+          {/* A padlock rather than a dimmed grip: a faded handle reads as
+              "loading", a lock says why it will not move. */}
+          {locked ? (
+            <Lock aria-hidden className="size-4" />
+          ) : (
+            <GripVertical aria-hidden className="size-4" />
+          )}
         </button>
       ) : null}
 

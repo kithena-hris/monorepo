@@ -6,6 +6,7 @@ import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Checkbox } from '../checkbox/checkbox';
 import { EmptyState, Skeleton } from '../feedback/feedback';
+import { KeyValues } from '../key-values/key-values';
 import { Money } from '../money/money';
 import { Button } from '../button/button';
 import { DataTable, type DataColumn, type DataTableSort } from './data-table';
@@ -391,6 +392,10 @@ const dataColumns: DataColumn<Row>[] = [
   {
     id: 'hiredOn',
     header: 'Hired',
+    // The one column that reads as a bare value on a card without saying what
+    // it is: "2019-04-01" needs "Hired" in front of it; "Active" does not.
+    shortHeader: 'Hired',
+    numeric: true,
     sortBy: (row) => row.hiredOn,
     cell: (row) => row.hiredOn,
   },
@@ -404,26 +409,18 @@ const dataColumns: DataColumn<Row>[] = [
 ];
 
 const detailFor = (row: Row) => (
-  <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Employee number</dt>
-      <dd className="font-medium text-fg">{row.id}</dd>
-    </div>
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Hired</dt>
-      <dd className="font-medium text-fg">{row.hiredOn}</dd>
-    </div>
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Status</dt>
-      <dd className="font-medium text-fg">{statusLabel[row.status]}</dd>
-    </div>
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Base salary</dt>
-      <dd className="font-medium text-fg">
-        <Money minorUnits={row.salaryMinorUnits} currency="EUR" />
-      </dd>
-    </div>
-  </dl>
+  <KeyValues
+    className="max-w-md"
+    items={[
+      { label: 'Employee number', value: row.id },
+      { label: 'Hired', value: row.hiredOn },
+      { label: 'Status', value: statusLabel[row.status] },
+      {
+        label: 'Base salary',
+        value: <Money minorUnits={row.salaryMinorUnits} currency="EUR" />,
+      },
+    ]}
+  />
 );
 
 export const Expandable: Story = {
@@ -594,7 +591,7 @@ export const Everything: Story = {
         story: [
           'Selection, expansion, sorting and a sticky header on one table, and that is the reason for it of it being one component. Every capability is a prop, every one is off by default, and the leading columns arrange themselves in a fixed order (reorder, select, expand) so a row never rearranges under the pointer as capabilities are switched on.',
           '',
-          'Resize the preview: the identity column is `sticky`, so the names stay put while the rest scrolls sideways. That is the mobile answer for a table, not turning rows into cards, which throws away the header association, the column order and any chance of comparing two rows.',
+          'On a desk the identity column is `sticky`, so the names stay put while the rest scrolls sideways. Under a finger each row becomes a card: see the next story.',
         ].join('\n'),
       },
     },
@@ -630,16 +627,15 @@ export const Everything: Story = {
 
 export const NarrowScreen: Story = {
   name: 'DataTable, on a phone',
-  globals: { viewport: { value: 'iphone15', isRotated: false } },
   parameters: {
     docs: {
       description: {
         story: [
-          'The same table at 393px. It **stays a table**: it scrolls sideways with the identity column pinned, so a name is always attached to whatever figure you have scrolled to.',
+          'Under a coarse pointer each row becomes a card: the first column is the title and the others wrap beneath it, prefixed with their `shortHeader` where one is set. Sortable headers turn into a row of chips, and the select-all box gets a visible "Select all".',
           '',
-          'The tempting alternative, one card per row: reads well in a screenshot and badly in use: it drops the header association, it drops the column order, and it makes comparing two rows impossible, which is most of what anybody opens a table for.',
+          'It is the same `<table>` with different CSS, not a second tree, so a screen reader still hears "Hired, 2019-04-01" with the header attached, and selection, expansion and the handles all keep working.',
           '',
-          'What does change on a small screen is the touch targets. Every control here is at least `--reach-tap-min` (44px) because `@media (pointer: coarse)` re-points the density tokens, the checkbox, the chevron and the drag handle grow without a single breakpoint being written.',
+          'The switch is the pointer, never the width. A narrow window on a desk still has a mouse, and still gets columns.',
         ].join('\n'),
       },
     },
@@ -666,6 +662,27 @@ export const NarrowScreen: Story = {
       />
     );
   },
+};
+
+export const Dense: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`dense` for a ledger read line by line: 40px rows, 13px type and tighter gutters. It changes nothing under a finger, where the rows are cards and 44px is the floor anyway.',
+      },
+    },
+  },
+  render: () => (
+    <DataTable<Row>
+      label="Employees"
+      rows={rows}
+      columns={dataColumns}
+      rowId={(row) => row.id}
+      describeRow={(row) => row.name}
+      dense
+    />
+  ),
 };
 
 /**

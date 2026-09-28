@@ -63,6 +63,13 @@ export interface MoneyProps extends Omit<ComponentPropsWithoutRef<'span'>, 'chil
   hideCurrency?: boolean;
   /** Colour negatives in the danger tone. Off by default; a refund is not an error. */
   signColored?: boolean;
+  /**
+   * `code` (`EUR 4,200.50`) where several currencies sit in one column and a
+   * `$` could be any of five. Defaults to the symbol.
+   */
+  currencyDisplay?: 'symbol' | 'narrowSymbol' | 'code' | 'name';
+  /** Brackets instead of a minus, `(€1,240.50)`, for a ledger or a statement. */
+  accounting?: boolean;
 }
 
 function currencyExponent(currency: string, locale: string | undefined): number {
@@ -99,6 +106,8 @@ export function Money({
   locale,
   hideCurrency = false,
   signColored = false,
+  currencyDisplay = 'symbol',
+  accounting = false,
   className,
   ...props
 }: MoneyProps): JSX.Element {
@@ -107,13 +116,21 @@ export function Money({
   const formatted = new Intl.NumberFormat(locale, {
     style: hideCurrency ? 'decimal' : 'currency',
     currency,
+    currencyDisplay,
+    currencySign: accounting ? 'accounting' : 'standard',
     minimumFractionDigits: places,
     maximumFractionDigits: places,
     // Intl.NumberFormat V3 formats decimal strings exactly, which is what keeps
     // a 19-digit payroll figure exact where a float would not. The DOM lib is
     // behind the platform here; `src/types/intl-number-format-v3.d.ts` corrects
     // it once so this call site needs no cast.
-  }).format(decimal);
+  })
+    .format(decimal)
+    // A true minus sign rather than the hyphen `Intl` emits for most locales:
+    // it is the width of a figure and sits on the figures' midline, so a
+    // column of signed amounts still lines up and a debit does not read as a
+    // dash.
+    .replace('-', '\u2212');
 
   const negative = decimal.startsWith('-');
 

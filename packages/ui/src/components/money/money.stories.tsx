@@ -166,16 +166,35 @@ export const Negative: Story = {
     docs: {
       description: {
         story:
-          'Plain, sign-coloured, and without the symbol. `signColored` is opt-in because a negative amount is usually a deduction or a refund, not a failure: colouring every one of them red trains people to ignore red.',
+          'A refund, an overpayment coloured with `signColored`, and the same amount in `accounting` brackets. Every negative is written with a true minus sign, the width of a figure, not a hyphen. `signColored` is opt-in because a negative amount is usually a deduction or a refund, not a failure: colouring every one of them red trains people to ignore red.',
       },
     },
   },
   render: () => (
-    <div className="flex items-center gap-6">
-      <Money minorUnits="-125000" currency="EUR" locale="en-IE" />
-      <Money minorUnits="-125000" currency="EUR" locale="en-IE" signColored />
-      <Money minorUnits="425000" currency="EUR" locale="en-IE" hideCurrency />
-    </div>
+    <dl className="flex max-w-sm flex-col gap-3 text-base">
+      {(
+        [
+          ['Refund', <Money key="r" minorUnits="-8600" currency="EUR" locale="en-GB" />],
+          [
+            'Overpayment',
+            <Money key="o" minorUnits="-124050" currency="EUR" locale="en-GB" signColored />,
+          ],
+          [
+            'Accounting',
+            <Money key="a" minorUnits="-124050" currency="EUR" locale="en-GB" accounting />,
+          ],
+          [
+            'Without the symbol',
+            <Money key="s" minorUnits="425000" currency="EUR" locale="en-GB" hideCurrency />,
+          ],
+        ] as const
+      ).map(([term, amount]) => (
+        <div key={term} className="flex items-center justify-between gap-4">
+          <dt className="text-fg-muted">{term}</dt>
+          <dd className="font-semibold">{amount}</dd>
+        </div>
+      ))}
+    </dl>
   ),
 };
 

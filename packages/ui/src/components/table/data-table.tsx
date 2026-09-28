@@ -49,6 +49,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, GripVertical, X } from 'lucide-react';
 
+import { bulkBarClass } from '../../lib/bulk-bar';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
@@ -90,13 +91,44 @@ import {
  * The handles disable themselves while a sort is active, and say so, rather
  * than accepting a gesture whose result will not survive.
  *
- * ### On a phone it is still a table
+ * ### Under a finger it is a list of cards
  *
- * It scrolls sideways with the identity column pinned. Turning rows into cards
- * loses the header association, the column order and any chance of comparing
- * two rows, which is most of what a table is for. Where a card list is
- * genuinely better, render a list.
+ * The first column becomes the card's title and the rest wrap underneath it,
+ * each prefixed with its `shortHeader` when there is one. It is the same
+ * `<table>` restyled, not a second tree, so the row, cell and header
+ * associations a screen reader relies on survive, and so do selection,
+ * expansion and the drag handles. Sortable headers become a row of chips above
+ * the cards, and "Select all" gets a visible label.
+ *
+ * It keys on the pointer (`touch:`), never the viewport: a phone-sized window
+ * on a desk still has a mouse and still wants columns.
  */
+
+/*
+ * The card layout, one class list per part, so the `<table>` markup below stays
+ * one tree. `!` because the desk layout pads cells with `first:` and `last:`,
+ * which outrank a plain variant.
+ */
+const CARD = {
+  table: 'touch:block',
+  section: 'touch:block',
+  /*
+   * The header's cells stop being sticky one by one; the header as a whole
+   * sticks instead, as a strip of glass over the cards.
+   */
+  head: 'touch:block touch:[&_th]:static! touch:[&_th]:bg-transparent! touch:[&_th]:shadow-none! touch:[[data-sticky-header]_&]:sticky touch:[[data-sticky-header]_&]:top-0 touch:[[data-sticky-header]_&]:z-10 touch:[[data-sticky-header]_&]:bg-glass touch:[[data-sticky-header]_&]:backdrop-blur-lg',
+  headRow: 'touch:flex touch:flex-wrap touch:items-center touch:gap-2 touch:px-4 touch:py-2.5',
+  row: 'touch:relative touch:flex touch:flex-wrap touch:items-center touch:gap-x-3.5 touch:gap-y-1 touch:py-3.5 touch:pe-4',
+  /** Start padding clearing 0, 1 or 2 leading controls (grip, checkbox). */
+  rowStart: ['touch:ps-4', 'touch:ps-15', 'touch:ps-26'],
+  lead: ['touch:start-4', 'touch:start-15'],
+  leadCell: 'touch:absolute touch:top-1.5 touch:h-auto! touch:w-auto! touch:p-0!',
+  cell: 'touch:block touch:h-auto! touch:p-0!',
+  title: 'touch:basis-full touch:text-base touch:font-semibold',
+  meta: 'touch:static touch:text-left touch:text-sm touch:text-fg-muted',
+  /** The `shortHeader` in front of a value, only on a cell that has one. */
+  label: 'touch:before:me-1.5 touch:before:text-fg-subtle touch:before:content-[attr(data-label)]',
+} as const;
 
 /**
  * The feature set this table opts into, declared once.
@@ -139,6 +171,11 @@ export interface DataColumn<T> {
   width?: string;
   /** Pins the column during horizontal scroll. Use it for the identity column. */
   sticky?: boolean;
+  /**
+   * Left off the card a row becomes under a finger. For a column that only
+   * makes sense compared down the table, not read one record at a time.
+   */
+  hideOnCard?: boolean;
   /** Makes the column sortable. Return the value to compare on. */
   sortBy?: (row: T) => string | number;
   /** A short label for the column, used in the stacked readout on narrow screens. */
@@ -200,6 +237,8 @@ export interface DataTableProps<T extends TableRow> {
   /** Shown in place of the body when there are no rows. */
   empty?: ReactNode;
   stickyHeader?: boolean;
+  /** Shorter rows and smaller type. Has no effect on the cards under a finger. */
+  dense?: boolean;
   containerClassName?: string;
   className?: string;
 
@@ -247,6 +286,7 @@ export function DataTable<T extends TableRow>({
   onRowClick,
   empty = 'Nothing to show.',
   stickyHeader = false,
+  dense = false,
   containerClassName,
   className,
   virtualize = 'auto',
@@ -438,27 +478,28 @@ export function DataTable<T extends TableRow>({
   const body = (
     <Table
       stickyHeader={stickyHeader}
+      dense={dense}
       aria-label={label}
       containerRef={scrollRef}
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
       {...(virtualized ? { 'aria-rowcount': ordered.length + 1 } : {})}
-      className={className}
+      className={cn(CARD.table, className)}
       {...(containerClassName === undefined ? {} : { containerClassName })}
     >
       {caption === undefined ? null : (
         <caption className="mt-3 text-xs text-fg-muted">{caption}</caption>
       )}
-      <TableHeader>
-        <TableRow>
+      <TableHeader className={CARD.head}>
+        <TableRow className={CARD.headRow}>
           {canReorder ? (
-            <TableHead className="w-10">
+            <TableHead className="w-10 touch:hidden">
               <span className="sr-only">Reorder</span>
             </TableHead>
           ) : null}
 
           {selectable ? (
-            <TableHead className="w-10">
+            <TableHead className="w-10 touch:me-auto touch:flex touch:h-auto! touch:items-center touch:gap-3 touch:p-0!">
               <Checkbox
                 checked={allPicked ? true : somePicked ? 'indeterminate' : false}
                 // Named for what it does now, not for what it is. "Select all"
@@ -468,11 +509,16 @@ export function DataTable<T extends TableRow>({
                   setPicked(allPicked ? [] : ids);
                 }}
               />
+              {/* The cards have no header row to sit the box above, so it says
+                  what it is. Hidden from assistive tech: the box is named. */}
+              <span aria-hidden className="hidden text-sm font-semibold text-fg-muted touch:inline">
+                Select all
+              </span>
             </TableHead>
           ) : null}
 
           {renderDetail ? (
-            <TableHead className="w-10">
+            <TableHead className="w-10 touch:hidden">
               <span className="sr-only">Expand</span>
             </TableHead>
           ) : null}
@@ -489,7 +535,19 @@ export function DataTable<T extends TableRow>({
                 onSort={(direction) => {
                   setSort({ columnId: column.id, direction });
                 }}
-                className={column.className}
+                className={cn(
+                  // Sortable headers become chips; the rest have nothing to do
+                  // on a card and stay only for the cell association.
+                  column.sortBy === undefined
+                    ? 'touch:sr-only'
+                    : cn(
+                        'touch:h-auto! touch:w-auto! touch:p-0! touch:[&>button]:mx-0 touch:[&>button]:rounded-full touch:[&>button]:px-3.5',
+                        isSorted
+                          ? 'touch:[&>button]:bg-accent-subtle touch:[&>button]:text-accent-fg'
+                          : 'touch:[&>button]:bg-surface-sunken',
+                      ),
+                  column.className,
+                )}
                 {...(column.width === undefined ? {} : { style: { width: column.width } })}
               >
                 {column.header}
@@ -499,10 +557,13 @@ export function DataTable<T extends TableRow>({
         </TableRow>
       </TableHeader>
 
-      <TableBody>
+      <TableBody className={CARD.section}>
         {ordered.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={totalColumns} className="py-8 text-center text-fg-muted">
+          <TableRow className="touch:block">
+            <TableCell
+              colSpan={totalColumns}
+              className={cn('py-8 text-center text-fg-muted', CARD.cell, 'touch:px-4! touch:py-8!')}
+            >
               {empty}
             </TableCell>
           </TableRow>
@@ -526,6 +587,15 @@ export function DataTable<T extends TableRow>({
               <DataRow
                 id={id}
                 name={name}
+                className={cn(
+                  CARD.row,
+                  CARD.rowStart[(selectable ? 1 : 0) + (canReorder ? 1 : 0)],
+                  renderDetail ? 'touch:pe-14' : onRowClick && 'touch:pe-10',
+                )}
+                leadClassName={cn(CARD.leadCell, CARD.lead[0])}
+                {...(virtualized
+                  ? { measure: virtualizer.measureElement, 'data-index': rowIndex }
+                  : {})}
                 // 1-based, and past the header row, which is row 1.
                 {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
                 reorderable={canReorder}
@@ -539,7 +609,16 @@ export function DataTable<T extends TableRow>({
                   : {})}
               >
                 {selectable ? (
-                  <TableCell className="w-10">
+                  <TableCell
+                    // Lower than the grip: a checkbox is smaller than its tap
+                    // area, and it lines up with the title's first line.
+                    className={cn(
+                      'w-10',
+                      CARD.leadCell,
+                      CARD.lead[canReorder ? 1 : 0],
+                      'touch:top-4',
+                    )}
+                  >
                     <Checkbox
                       checked={picked.has(id)}
                       aria-label={`Select ${name}`}
@@ -559,7 +638,9 @@ export function DataTable<T extends TableRow>({
                 ) : null}
 
                 {renderDetail ? (
-                  <TableCell className="w-10">
+                  // The disclosure goes to the card's far edge, where a phone
+                  // list puts its chevron.
+                  <TableCell className={cn('w-10', CARD.leadCell, 'touch:end-2')}>
                     {detail === null ? (
                       // A chevron that opens onto nothing teaches people to
                       // stop pressing them.
@@ -594,22 +675,54 @@ export function DataTable<T extends TableRow>({
                   </TableCell>
                 ) : null}
 
-                {columns.map((column) => (
+                {columns.map((column, index) => (
                   <TableCell
                     key={column.id}
                     numeric={column.numeric ?? false}
                     sticky={column.sticky ?? false}
-                    className={column.className}
+                    {...(index > 0 && column.shortHeader !== undefined
+                      ? { 'data-label': column.shortHeader }
+                      : {})}
+                    className={cn(
+                      CARD.cell,
+                      index === 0 ? CARD.title : CARD.meta,
+                      index > 0 && column.shortHeader !== undefined && CARD.label,
+                      column.hideOnCard && 'touch:hidden',
+                      column.className,
+                    )}
                   >
                     {column.cell(row)}
                   </TableCell>
                 ))}
+
+                {onRowClick && !renderDetail ? (
+                  // A card that opens something says so with a chevron. It
+                  // exists only on the card: a desk row has its hover instead.
+                  <td
+                    aria-hidden
+                    className="hidden text-fg-subtle touch:absolute touch:end-3 touch:top-1/2 touch:block touch:-translate-y-1/2"
+                  >
+                    <ChevronRight className="size-4.5" />
+                  </td>
+                ) : null}
               </DataRow>
 
               {isOpen ? (
-                <TableRow id={`${base}-${id}`} className="bg-surface-sunken/50">
-                  {leadingColumns > 0 ? <TableCell colSpan={leadingColumns} /> : null}
-                  <TableCell colSpan={columns.length} className="py-3">
+                <TableRow
+                  id={`${base}-${id}`}
+                  className="bg-surface-sunken/50 touch:block touch:bg-surface touch:px-4 touch:pb-3.5"
+                >
+                  {leadingColumns > 0 ? (
+                    <TableCell colSpan={leadingColumns} className="touch:hidden" />
+                  ) : null}
+                  <TableCell
+                    colSpan={columns.length}
+                    className={cn(
+                      'h-auto py-3',
+                      CARD.cell,
+                      'touch:rounded-md touch:bg-surface-sunken touch:p-3.5!',
+                    )}
+                  >
                     <div className="motion-safe:animate-fade-in">{detail}</div>
                   </TableCell>
                 </TableRow>
@@ -623,39 +736,40 @@ export function DataTable<T extends TableRow>({
     </Table>
   );
 
-  return (
-    <div className="min-w-0 space-y-2">
-      {selectable && picked.size > 0 ? (
-        // Above the table, in flow rather than floating: a bar pinned over the
-        // last row is a bar that covers the row somebody is about to act on.
-        // It wraps on a narrow screen instead of pushing the count off-screen.
-        <div
-          role="group"
-          aria-label={`${String(picked.size)} selected`}
-          className={cn(
-            'flex flex-wrap items-center gap-2 rounded-md border border-accent bg-accent-subtle px-3 py-2',
-            'motion-safe:animate-pop-in',
-          )}
-        >
-          <span aria-live="polite" className="text-sm font-medium text-fg">
-            {picked.size} selected
-          </span>
-          <div className="flex flex-1 flex-wrap items-center gap-2">
-            {bulkActions?.(pickedRowObjects)}
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            startIcon={<X />}
-            onClick={() => {
-              setPicked([]);
-            }}
-          >
-            Clear
-          </Button>
-        </div>
-      ) : null}
+  const bulkBar =
+    selectable && picked.size > 0 ? (
+      /*
+       * Under the table and sticky to the bottom of the viewport, not floating
+       * over the table. In flow it never covers the last row: under a short
+       * table it simply sits beneath it, and on a long one it rides the bottom
+       * edge until the table's end scrolls up to meet it. Inverted, so it reads
+       * as a mode the page is in rather than one more row. It wraps on a narrow
+       * screen instead of pushing the count off it.
+       */
+      <div
+        role="group"
+        aria-label={`${String(picked.size)} selected`}
+        className={cn('sticky bottom-4 z-20', bulkBarClass, 'motion-safe:animate-pop-in')}
+      >
+        <span aria-live="polite" className="text-sm font-semibold tabular-nums">
+          {picked.size} selected
+        </span>
+        <span aria-hidden className="mx-2 h-5 w-px bg-fg-on-invert/25" />
+        <div className="flex flex-wrap items-center gap-1.5">{bulkActions?.(pickedRowObjects)}</div>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label="Clear selection"
+          startIcon={<X />}
+          onClick={() => {
+            setPicked([]);
+          }}
+        />
+      </div>
+    ) : null;
 
+  return (
+    <div className="min-w-0 space-y-3">
       {reorderable && activeSort !== null ? (
         <p role="status" className="text-xs text-fg-muted">
           Rows are sorted by a column, so they cannot be reordered by hand. Clear the sort to drag
@@ -683,6 +797,8 @@ export function DataTable<T extends TableRow>({
       ) : (
         body
       )}
+
+      {bulkBar}
     </div>
   );
 }
@@ -699,6 +815,9 @@ function DataRow({
   reorderable,
   selected,
   onClick,
+  className,
+  leadClassName,
+  measure,
   children,
   ...rest
 }: {
@@ -707,9 +826,18 @@ function DataRow({
   reorderable: boolean;
   selected: boolean;
   onClick?: () => void;
+  className?: string;
+  /** Classes for the grip cell, a leading control like the checkbox. */
+  leadClassName?: string;
+  /**
+   * The virtualizer's measuring ref. Rows are measured rather than trusted to
+   * the estimate, because a card under a finger is twice a desk row's height.
+   */
+  measure?: (node: HTMLTableRowElement | null) => void;
   children: ReactNode;
   /** `aria-rowindex` when the body is virtualized. */
   'aria-rowindex'?: number;
+  'data-index'?: number;
 }): JSX.Element {
   const {
     attributes,
@@ -723,7 +851,7 @@ function DataRow({
 
   return (
     <TableRow
-      ref={reorderable ? setNodeRef : undefined}
+      ref={reorderable ? setNodeRef : measure}
       selected={selected}
       interactive={onClick !== undefined}
       style={
@@ -731,12 +859,17 @@ function DataRow({
           ? { transform: CSS.Transform.toString(transform), transition, position: 'relative' }
           : undefined
       }
-      className={cn(isDragging && 'z-10 opacity-60 shadow-md')}
+      className={cn(
+        className,
+        // Held: raised, shadowed and tipped a hair, the same pick-up cue as a
+        // Kanban card, so a dragged row reads as lifted rather than selected.
+        isDragging && 'z-10 rounded-md bg-surface-raised shadow-lg [rotate:-0.5deg]',
+      )}
       {...(onClick ? { onClick } : {})}
       {...rest}
     >
       {reorderable ? (
-        <TableCell className="w-10">
+        <TableCell className={cn('w-10', leadClassName)}>
           <button
             type="button"
             ref={setActivatorNodeRef}
