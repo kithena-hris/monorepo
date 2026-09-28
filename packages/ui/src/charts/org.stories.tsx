@@ -6,6 +6,17 @@ import { Badge } from '../components/badge/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
 import { ContextMenuItem } from '../components/context-menu/context-menu';
 import { OrgChart, type OrgNode } from '../components/org-chart/org-chart';
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from '../components/segmented-control/segmented-control';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/select/select';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle/toggle';
 import { reportingLine } from './fixtures';
 
@@ -411,6 +422,71 @@ export const Search: Story = {
             focusId={focus}
             onFocusChange={(next) => {
               setFocus(next);
+              args.onFocusChange?.(next);
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  },
+};
+
+export const UpAndDown: Story = {
+  name: 'One person: everyone above, or everyone below',
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          'The two questions asked about one person most often, answered by one chart.',
+          '',
+          '**Everyone above** is `focusMode: "chain"`: the person, and the managers above them all the way to the top, each drawn with only the report that leads down to them. **Everyone below** is `focusMode: "branch"`: the person as the only root, with their whole team under them, every level.',
+          '',
+          'The same two views are on every card\u2019s right-click menu, as *Show only this chain* and *Show their whole chart*, so this is the version with the choice made explicit. Changing person or view glides: whoever is in both views moves to their new place, and everyone else fades in.',
+        ].join('\n'),
+      },
+    },
+  },
+  render: function UpAndDownStory(args) {
+    const [person, setPerson] = useState('em-core');
+    const [mode, setMode] = useState<'chain' | 'branch'>('chain');
+
+    return (
+      <Card>
+        <CardHeader className="flex-wrap gap-3">
+          <CardTitle>Reporting lines</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={person} onValueChange={setPerson}>
+              <SelectTrigger aria-label="Person" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {reportingLine.map((node) => (
+                  <SelectItem key={node.id} value={node.id}>
+                    {node.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <SegmentedControl
+              aria-label="Show"
+              size="sm"
+              value={mode}
+              onValueChange={(next) => {
+                if (next === 'chain' || next === 'branch') setMode(next);
+              }}
+            >
+              <SegmentedControlItem value="chain">Everyone above</SegmentedControlItem>
+              <SegmentedControlItem value="branch">Everyone below</SegmentedControlItem>
+            </SegmentedControl>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <OrgChart
+            {...args}
+            focusMode={mode}
+            focusId={person}
+            onFocusChange={(next) => {
+              if (next !== null) setPerson(next);
               args.onFocusChange?.(next);
             }}
           />

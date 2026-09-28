@@ -486,6 +486,12 @@ export function OrgChart({
   const [panning, setPanning] = useState(false);
   /** Which card the one shared context menu is currently about. */
   const [menuNodeId, setMenuNodeId] = useState<string | null>(null);
+  /**
+   * Who to focus once the context menu has closed. The menu hands focus back
+   * to the card it was opened on as it closes, which silently undid "Go to
+   * manager"; the move has to happen after that, not before it.
+   */
+  const focusAfterMenu = useRef<string | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
   /**
    * The card whose on-screen position must survive the next layout, and where
@@ -528,12 +534,21 @@ export function OrgChart({
   // child that leads down to them. Somebody four levels down is meaningless
   // without the line that got you there; `branch` is the mode for when the
   // person *is* the whole question.
+  /*
+   * The menu can ask for either view of one person: "Show only this chain"
+   * (everyone above them) or "Show their whole chart" (everyone below). That
+   * choice overrides the `focusMode` prop until the view goes back to the
+   * whole org; without it, "whole chart" drew the chain and the two menu
+   * items did the same thing.
+   */
+  const [modeOverride, setModeOverride] = useState<OrgFocusMode | null>(null);
+  const activeMode: OrgFocusMode = activeFocus === null ? focusMode : (modeOverride ?? focusMode);
   const focusedTree = activeFocus === null ? null : (byId.get(activeFocus) ?? null);
   const spine = new Set<string>(
-    focusedTree && focusMode === 'chain' ? (ancestors.get(focusedTree.node.id) ?? []) : [],
+    focusedTree && activeMode === 'chain' ? (ancestors.get(focusedTree.node.id) ?? []) : [],
   );
   const visibleRoots = focusedTree
-    ? focusMode === 'chain'
+    ? activeMode === 'chain'
       ? [buildSpine(focusedTree, ancestors.get(focusedTree.node.id) ?? [], byId)]
       : [focusedTree]
     : roots;
@@ -622,7 +637,11 @@ export function OrgChart({
     onCollapsedChange?.(next);
   };
 
-  const setFocus = (id: string | null): void => {
+  const setFocus = (id: string | null, mode?: OrgFocusMode): void => {
+    // A change of view glides like a branch opening: whoever is on screen in
+    // both views moves to their new place, and the rest fade in.
+    flipFirst.current = measureCards();
+    setModeOverride(id === null ? null : (mode ?? null));
     if (focusId === undefined) setUncontrolledFocus(id);
     onFocusChange?.(id);
   };
@@ -655,6 +674,20 @@ export function OrgChart({
     }
     return measured;
   };
+
+  /*
+   * The view can also change from outside: a caller's own person picker or
+   * mode switch, or new `nodes` after a "Report to". None of those pass
+   * through `toggle` or `setFocus`, so the snapshot is taken here, during the
+   * render that introduces the change, while the DOM still shows the old
+   * layout. Reading it is safe: nothing has been committed yet.
+   */
+  const viewKey = `${activeFocus ?? ''}|${activeMode}`;
+  const lastView = useRef({ key: viewKey, nodes });
+  if (lastView.current.key !== viewKey || lastView.current.nodes !== nodes) {
+    lastView.current = { key: viewKey, nodes };
+    if (flipFirst.current === null && cards.current.size > 0) flipFirst.current = measureCards();
+  }
 
   const toggle = (id: string): void => {
     if (closing.current) return;
@@ -1107,6 +1140,21 @@ export function OrgChart({
     directReports.set(node.parentId, (directReports.get(node.parentId) ?? 0) + 1);
   }
   const draggingNode = nodeById(draggingId);
+  /** The copy that follows the pointer, so a drop can glide from where it is. */
+  const dragOverlay = useRef<HTMLDivElement | null>(null);
+  /**
+   * Snapshot every card, with the dragged one where its copy is on screen.
+   * The layout that follows then plays from there: an accepted drop glides
+   * the card from under the pointer into its new place, a refused one glides
+   * it home, and in both the copy's disappearance and the card's arrival land
+   * on the same frame, so nothing blinks.
+   */
+  const captureDrop = (id: string): void => {
+    const snapshot = measureCards();
+    const copy = dragOverlay.current?.getBoundingClientRect();
+    if (copy) snapshot.set(id, copy);
+    flipFirst.current = snapshot;
+  };
 
   const menuRow = menuNodeId === null ? undefined : rowsById.get(menuNodeId);
   const menuTree = menuNodeId === null ? undefined : byId.get(menuNodeId);
@@ -1163,7 +1211,7 @@ export function OrgChart({
         // The padding is not decoration. Without it the last row of cards sits
         // under the horizontal scrollbar, and a card at the edge of the canvas
         // has no room for its focus ring.
-        className="w-max min-w-full px-8 pt-3 pb-14"
+        className="w-max min-w-full px-8 pt-3 pb-24"
         style={{ zoom: liveZoom }}
       >
         <ul
@@ -1199,7 +1247,15 @@ export function OrgChart({
   const canvasWithMenu = (
     <ContextMenu>
       <ContextMenuTrigger asChild>{tree}</ContextMenuTrigger>
-      <ContextMenuContent>
+      <ContextMenuContent
+        onCloseAutoFocus={(event) => {
+          const next = focusAfterMenu.current;
+          if (next === null) return;
+          focusAfterMenu.current = null;
+          event.preventDefault();
+          focusRow(next);
+        }}
+      >
         {menuNode && menuRow ? (
           <>
             <ContextMenuLabel>{menuNode.name}</ContextMenuLabel>
@@ -1209,18 +1265,21 @@ export function OrgChart({
                 and the line above them" is the question people ask most often
                 about somebody with no reports at all. */}
             <ContextMenuItem
-              disabled={activeFocus === menuNode.id}
+              disabled={activeFocus === menuNode.id && activeMode === 'chain'}
               onSelect={() => {
-                setFocus(menuNode.id);
+                setFocus(menuNode.id, 'chain');
+                focusAfterMenu.current = menuNode.id;
               }}
             >
               <Crosshair aria-hidden />
               Show only this chain
             </ContextMenuItem>
             <ContextMenuItem
+              disabled={activeFocus === menuNode.id && activeMode === 'branch'}
               onSelect={() => {
-                setFocus(menuNode.id);
+                setFocus(menuNode.id, 'branch');
                 expandSubtree(menuNode.id);
+                focusAfterMenu.current = menuNode.id;
               }}
             >
               <ListTree aria-hidden />
@@ -1251,7 +1310,7 @@ export function OrgChart({
             {menuRow.parentId === undefined ? null : (
               <ContextMenuItem
                 onSelect={() => {
-                  focusRow(menuRow.parentId);
+                  focusAfterMenu.current = menuRow.parentId ?? null;
                 }}
               >
                 <CornerUpLeft aria-hidden />
@@ -1311,6 +1370,7 @@ export function OrgChart({
             <ContextMenuItem
               disabled={collapsedIds.size === 0}
               onSelect={() => {
+                flipFirst.current = measureCards();
                 setCollapsed([]);
               }}
             >
@@ -1319,6 +1379,7 @@ export function OrgChart({
             </ContextMenuItem>
             <ContextMenuItem
               onSelect={() => {
+                flipFirst.current = measureCards();
                 setCollapsed(nodes.map((entry) => entry.id));
               }}
             >
@@ -1534,17 +1595,24 @@ export function OrgChart({
                 // of different sizes, and "the card I am over" is what a person
                 // dropping onto a manager means.
                 collisionDetection={pointerWithin}
+                // Scroll only from the outer edge of the canvas, and gently.
+                // The default reaches a fifth of the way in, so a drag across
+                // the chart kept sliding it sideways under the pointer and the
+                // manager being aimed at moved away.
+                autoScroll={{ threshold: { x: 0.06, y: 0.08 }, acceleration: 4 }}
                 accessibility={{ announcements }}
                 onDragStart={({ active }: DragStartEvent) => {
                   const id = String(active.id);
                   setDraggingId(id);
                   onDraggingChange?.(nodeById(id));
                 }}
-                onDragCancel={() => {
+                onDragCancel={({ active }) => {
+                  captureDrop(String(active.id));
                   setDraggingId(null);
                   onDraggingChange?.(null);
                 }}
                 onDragEnd={({ active, over }: DragEndEvent) => {
+                  captureDrop(String(active.id));
                   setDraggingId(null);
                   onDraggingChange?.(null);
                   if (over) reassign(String(active.id), String(over.id));
@@ -1553,7 +1621,10 @@ export function OrgChart({
                 {canvasWithMenu}
                 <DragOverlay dropAnimation={null}>
                   {draggingNode ? (
-                    <div className="pointer-events-none w-46 -rotate-2 rounded-[16px] bg-surface p-3 shadow-xl">
+                    <div
+                      ref={dragOverlay}
+                      className="pointer-events-none w-46 -rotate-2 rounded-[16px] bg-surface p-3 shadow-xl"
+                    >
                       <OrgCardBody node={draggingNode} />
                     </div>
                   ) : null}
@@ -1723,7 +1794,9 @@ const OrgBranch = memo(function OrgBranch({
         org.select && 'group-hover/node:bg-surface-hover',
         selected && 'shadow-md ring-2 ring-accent ring-offset-2 ring-offset-surface',
         org.reassignable && node.locked !== true && 'cursor-grab touch-none',
-        dragging && 'opacity-40',
+        // The card stays where it was while its copy travels, dimmed and
+        // outlined, so the place it came from is on screen until the drop.
+        dragging && 'opacity-50 shadow-none outline-2 outline-border-strong outline-dashed',
         // Only the valid targets light up. A drop zone that accepts a move it
         // will then refuse is worse than no highlight at all.
         targeted && valid && 'ring-2 ring-success bg-success-subtle',
