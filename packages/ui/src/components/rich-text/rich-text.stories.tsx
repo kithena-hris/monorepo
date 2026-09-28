@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
+import { fn } from 'storybook/test';
 
 import { Button } from '../button/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
@@ -195,6 +196,11 @@ const meta = {
     disabled: false,
     invalid: false,
     showCount: true,
+    // Explicit, not the global implicit actions: the editor reports its
+    // document once as it mounts, and an implicit action called during a
+    // render is an error in Storybook.
+    onChange: fn(),
+    onChangeJson: fn(),
   },
 } satisfies Meta<typeof RichTextEditor>;
 
