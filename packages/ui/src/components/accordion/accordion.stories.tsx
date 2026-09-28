@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Baby, CalendarDays, HeartPulse } from 'lucide-react';
 
 import { Badge } from '../badge/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './accordion';
@@ -159,6 +160,49 @@ const renderSections: NonNullable<Story['render']> = (args) => (
 
 export const Playground: Story = { render: renderSections };
 
+export const WithIcons: Story = {
+  name: 'With icons and descriptions',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`icon` leads the row and `description` adds a second line saying what the section holds, so a closed accordion is still a readable table of contents.',
+      },
+    },
+  },
+  render: () => (
+    <div className="mx-auto max-w-xl">
+      <Accordion type="single" collapsible defaultValue="leave">
+        <AccordionItem value="leave">
+          <AccordionTrigger icon={<CalendarDays />} description="25 days a year, accrued monthly">
+            Vacation
+          </AccordionTrigger>
+          <AccordionContent>
+            Up to 5 unused days carry over to next year and must be used by 31 March. Requests go to
+            your manager, who answers within two working days.
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="sick">
+          <AccordionTrigger icon={<HeartPulse />} description="Paid from the first day">
+            Sick leave
+          </AccordionTrigger>
+          <AccordionContent>
+            Tell your manager the same morning. A doctor&apos;s note is needed from the fourth day.
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="parental">
+          <AccordionTrigger icon={<Baby />} description="Up to 14 weeks in the first year">
+            Parental leave
+          </AccordionTrigger>
+          <AccordionContent>
+            Take it in one block or split it into two. Tell the People team eight weeks ahead.
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  ),
+};
+
 export const Multiple: Story = {
   name: 'Multiple open',
   args: { type: 'multiple', defaultValue: ['employment', 'compensation'] },
@@ -251,7 +295,9 @@ export const Disabled: Story = {
           <AccordionContent>{sections[0]?.body}</AccordionContent>
         </AccordionItem>
         <AccordionItem value="compensation" disabled>
-          <AccordionTrigger meta="Restricted">Compensation</AccordionTrigger>
+          <AccordionTrigger description="Only HR and your manager can open this">
+            Compensation
+          </AccordionTrigger>
           <AccordionContent>{sections[1]?.body}</AccordionContent>
         </AccordionItem>
       </Accordion>

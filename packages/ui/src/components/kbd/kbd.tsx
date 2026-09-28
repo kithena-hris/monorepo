@@ -74,8 +74,16 @@ export function Kbd({ className, keyName, children, ...props }: KbdProps): JSX.E
       // most screen readers, so the name is carried separately.
       aria-label={keyName ? accessibleName[keyName] : undefined}
       className={cn(
-        'inline-flex h-5 min-w-5 items-center justify-center rounded-xs border border-border',
-        'bg-surface-sunken px-1 font-sans text-2xs font-medium text-fg-muted shadow-xs',
+        // A keycap: a fill with a hairline along the bottom edge, which is the
+        // one detail that makes it read as a key rather than a badge.
+        'inline-flex h-6 min-w-6 items-center justify-center rounded-xs px-1.5',
+        // Both mixed from the text colour, so the cap holds on a light page,
+        // in a dark tooltip and on an accent button without a variant each.
+        'bg-[color-mix(in_oklch,currentColor_9%,transparent)]',
+        'shadow-[inset_0_-1px_0_color-mix(in_oklch,currentColor_24%,transparent)]',
+        // The colour is the surrounding text's, so a key inside a hint, a
+        // tooltip or a button reads at that context's weight.
+        'font-sans text-[0.75rem] leading-none font-semibold',
         className,
       )}
       {...props}

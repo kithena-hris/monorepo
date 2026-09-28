@@ -63,9 +63,11 @@ export {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogIcon,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './components/alert-dialog/alert-dialog';
+export type { AlertDialogIconProps } from './components/alert-dialog/alert-dialog';
 
 export {
   ActionSheet,
@@ -98,6 +100,14 @@ export {
   parseIsoDate,
 } from './components/calendar/calendar';
 export type { CalendarProps, DateRange, IsoDate } from './components/calendar/calendar';
+
+export { Chat, ChatComposer, ChatDivider, ChatMessage, ChatTyping } from './components/chat/chat';
+export type {
+  ChatComposerProps,
+  ChatMessageProps,
+  ChatProps,
+  ChatTypingProps,
+} from './components/chat/chat';
 
 export {
   BarChart,

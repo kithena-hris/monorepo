@@ -185,7 +185,7 @@ export const Destructive: Story = {
   render: (args) => (
     <Dialog {...args}>
       <DialogTrigger asChild>
-        <Button variant="destructive">Offboard employee</Button>
+        <Button variant="danger">Offboard employee</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -204,7 +204,7 @@ export const Destructive: Story = {
           <DialogClose asChild>
             <Button variant="ghost">Keep active</Button>
           </DialogClose>
-          <Button variant="destructive">Offboard</Button>
+          <Button variant="danger">Offboard</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

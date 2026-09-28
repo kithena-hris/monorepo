@@ -1,5 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { House, Slash } from 'lucide-react';
+import { ChevronsUpDown, House, Slash } from 'lucide-react';
+import { useState } from 'react';
+
+import { Button } from '../button/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/dropdown-menu';
 
 import {
   Breadcrumb,
@@ -29,9 +39,9 @@ const meta = {
           '',
           '### On narrow screens',
           '',
-          'A deep trail wraps to three lines on a phone, which pushes the page title below the fold. Mark the middle crumbs `collapsible` and they hide below `sm`, leaving the first and last, the two that actually carry the navigation: plus an ellipsis so the reader knows something folded.',
+          'A deep trail wraps to three lines on a phone, which pushes the page title below the fold. Mark the middle crumbs `collapsible` and they hide when the trail has less than 24rem, leaving the first and last, the two that actually carry the navigation: plus an ellipsis so the reader knows something folded.',
           '',
-          'Resize the canvas, or switch the toolbar to an iPhone viewport, to watch it happen.',
+          'The width is the trail’s own, not the window’s, so the phone copy beside each story shows it folded.',
         ].join('\n'),
       },
     },
@@ -89,7 +99,7 @@ export const Collapsing: Story = {
     docs: {
       description: {
         story:
-          'The middle three crumbs are `collapsible`, so below `sm` the trail becomes "People … Bank details". Narrow the canvas to see it. The ellipsis carries a screen-reader-only "Collapsed levels", so the fold is announced rather than silently dropping context.',
+          'The middle three crumbs are `collapsible`, so in a narrow trail it becomes "People … Bank details". The phone copy shows it. The ellipsis carries a screen-reader-only "Collapsed levels", so the fold is announced rather than silently dropping context.',
       },
     },
   },
@@ -105,16 +115,18 @@ export const Collapsing: Story = {
         <BreadcrumbItem>
           <BreadcrumbLink href="#">People</BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbEllipsis />
-        <BreadcrumbSeparator className="max-sm:hidden" />
+        <BreadcrumbItem className="hidden @max-sm:inline-flex">
+          <BreadcrumbEllipsis />
+        </BreadcrumbItem>
+        <BreadcrumbSeparator className="@max-sm:hidden" />
         <BreadcrumbItem collapsible>
           <BreadcrumbLink href="#">Engineering</BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator className="max-sm:hidden" />
+        <BreadcrumbSeparator className="@max-sm:hidden" />
         <BreadcrumbItem collapsible>
           <BreadcrumbLink href="#">Grace Hopper</BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator className="max-sm:hidden" />
+        <BreadcrumbSeparator className="@max-sm:hidden" />
         <BreadcrumbItem collapsible>
           <BreadcrumbLink href="#">Payroll</BreadcrumbLink>
         </BreadcrumbItem>
@@ -189,4 +201,51 @@ export const LongLabels: Story = {
       </Breadcrumb>
     </div>
   ),
+};
+
+export const WithSectionMenu: Story = {
+  name: 'With Section Menu',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A crumb can switch between siblings: the team here is a `DropdownMenu` behind a small secondary button, so moving from Engineering to Design does not mean going up a level and down again.',
+      },
+    },
+  },
+  render: function Render() {
+    const [team, setTeam] = useState('Engineering');
+    return (
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="#">People</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="xs" endIcon={<ChevronsUpDown />}>
+                  {team}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuRadioGroup value={team} onValueChange={setTeam}>
+                  {['Engineering', 'Design', 'Sales'].map((name) => (
+                    <DropdownMenuRadioItem key={name} value={name}>
+                      {name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Priya Shah</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  },
 };
