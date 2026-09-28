@@ -187,7 +187,7 @@ export const Precision: Story = {
     const [rate, setRate] = useState<number | null>(1.5);
 
     return (
-      <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+      <div className="grid max-w-2xl gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
         <NumberField
           {...args}
           label="Leave taken"
@@ -238,7 +238,7 @@ export const Affixes: Story = {
     };
 
     return (
-      <div className="grid max-w-3xl gap-4 sm:grid-cols-3">
+      <div className="grid max-w-3xl gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
         <NumberField
           {...args}
           size="sm"
@@ -324,7 +324,7 @@ export const States: Story = {
     },
   },
   render: (args) => (
-    <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+    <div className="grid max-w-2xl gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
       <NumberField
         {...args}
         label="Statutory minimum"

@@ -4,6 +4,15 @@ import { Minus, Plus } from 'lucide-react';
 import { useId, useState, type JSX, type KeyboardEvent, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import {
+  fieldHintClass,
+  fieldLabelClass,
+  fieldShell,
+  floatLabel,
+  floatRoot,
+  floatShell,
+  floatValue,
+} from '../field/field-styles';
 
 /**
  * A number, with steppers.
@@ -58,12 +67,6 @@ export interface NumberFieldProps {
   className?: string;
   name?: string;
 }
-
-const sizeClass = {
-  sm: 'h-control-sm text-xs',
-  md: 'h-control-md text-base',
-  lg: 'h-control-lg text-md',
-} as const;
 
 /** Accepts both decimal separators, because half of Europe types a comma. */
 function parse(input: string): number | null {
@@ -135,44 +138,38 @@ export function NumberField({
     if (event.key === 'Enter') commit(parse(display));
   };
 
+  const float = size !== 'sm' && !prefix;
   const atMin = min !== undefined && value !== null && value <= min;
   const atMax = max !== undefined && value !== null && value >= max;
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-sm leading-none font-medium text-fg">
+    <div className={cn('group/field flex flex-col gap-1.5', floatRoot, className)}>
+      <label htmlFor={id} className={cn(fieldLabelClass, floatLabel)}>
         {label}
       </label>
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
 
       <div
+        // The label floats inside only when nothing sits at the leading edge
+        // where it would start: a prefix keeps it above. The steppers sit
+        // together at the trailing edge, − then +, so they never do.
+        data-float={float ? '' : undefined}
+        data-invalid={invalid || undefined}
+        data-disabled={disabled || undefined}
         className={cn(
-          'flex items-stretch overflow-hidden rounded-md border bg-surface',
-          'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
-          'focus-within:border-border-focus focus-within:ring-2 focus-within:ring-border-focus/30',
-          invalid ? 'border-danger' : 'border-border',
-          sizeClass[size],
-          disabled && 'pointer-events-none opacity-55',
+          fieldShell({ size }),
+          'items-stretch gap-0',
+          !hideSteppers && 'pe-1 touch:pe-1.5',
+          float && floatShell,
+          readOnly && 'bg-transparent ring-1 ring-border ring-inset',
         )}
       >
-        {!hideSteppers ? (
-          <Stepper
-            label={`Decrease ${label}`}
-            disabled={disabled || readOnly || atMin}
-            onPress={() => {
-              stepBy(-1);
-            }}
-          >
-            <Minus className="size-3.5" aria-hidden />
-          </Stepper>
-        ) : null}
-
         {prefix ? (
-          <span className="grid place-items-center ps-2.5 text-fg-subtle">{prefix}</span>
+          <span className="grid place-items-center pe-1.5 text-fg-muted">{prefix}</span>
         ) : null}
 
         <input
@@ -213,26 +210,37 @@ export function NumberField({
             event.currentTarget.blur();
           }}
           className={cn(
-            'w-full min-w-0 bg-transparent px-2.5 text-fg tabular-nums outline-none',
+            'w-full min-w-0 bg-transparent text-fg tabular-nums outline-none',
             'placeholder:text-fg-subtle',
-            'read-only:text-fg-muted',
+            float && floatValue,
           )}
         />
 
         {suffix ? (
-          <span className="grid place-items-center pe-2.5 text-sm text-fg-subtle">{suffix}</span>
+          <span className="grid place-items-center ps-1.5 text-fg-muted">{suffix}</span>
         ) : null}
 
         {!hideSteppers ? (
-          <Stepper
-            label={`Increase ${label}`}
-            disabled={disabled || readOnly || atMax}
-            onPress={() => {
-              stepBy(1);
-            }}
-          >
-            <Plus className="size-3.5" aria-hidden />
-          </Stepper>
+          <span className="flex shrink-0 items-center gap-0.5 ps-1.5">
+            <Stepper
+              label={`Decrease ${label}`}
+              disabled={disabled || readOnly || atMin}
+              onPress={() => {
+                stepBy(-1);
+              }}
+            >
+              <Minus aria-hidden />
+            </Stepper>
+            <Stepper
+              label={`Increase ${label}`}
+              disabled={disabled || readOnly || atMax}
+              onPress={() => {
+                stepBy(1);
+              }}
+            >
+              <Plus aria-hidden />
+            </Stepper>
+          </span>
         ) : null}
       </div>
 
@@ -264,10 +272,14 @@ function Stepper({
       disabled={disabled}
       onClick={onPress}
       className={cn(
-        'grid w-8 shrink-0 place-items-center text-fg-subtle',
+        // A round, quiet button inside the fill, centred on the field's
+        // height. Out of the tab order (see above), so no target floor: the
+        // keyboard steps and the field itself is the tap target.
+        'grid size-8 shrink-0 place-items-center self-center rounded-full text-fg-muted touch:size-10',
         'transition-colors duration-(--animate-duration-fast)',
-        'hover:bg-surface-hover hover:text-fg active:bg-surface-active',
+        'hover:bg-surface-active hover:text-fg active:bg-surface-active',
         'disabled:pointer-events-none disabled:opacity-40',
+        '[&_svg]:size-4',
       )}
     >
       {children}

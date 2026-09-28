@@ -275,7 +275,7 @@ export const States: Story = {
     },
   },
   render: (args) => (
-    <div className="grid max-w-3xl gap-6 md:grid-cols-3">
+    <div className="grid max-w-3xl gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
       <div className="space-y-1.5">
         <PasswordField
           {...args}

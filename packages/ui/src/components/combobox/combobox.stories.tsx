@@ -4,6 +4,17 @@ import { useState } from 'react';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
+import { Button } from '../button/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../dialog/dialog';
 import { Field, FieldControl, FieldDescription, FieldError, FieldLabel } from '../field/field';
 import { Combobox, type ComboboxOption } from './combobox';
 
@@ -494,6 +505,58 @@ export const InAField: Story = {
           <FieldError>Choose one.</FieldError>
         </Field>
       </div>
+    );
+  },
+};
+
+export const InADialog: Story = {
+  name: 'In A Dialog',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Inside a dialog the list renders into the same layer as the dialog, so it is never clipped by it and Escape closes the list before it closes the dialog.',
+      },
+    },
+  },
+  render: function DialogStory(args) {
+    const [value, setValue] = useState<string | readonly string[] | null>(null);
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button>Change manager</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change manager</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <Field>
+              <FieldLabel>New manager</FieldLabel>
+              <FieldControl>
+                <Combobox
+                  {...args}
+                  options={people}
+                  label="New manager"
+                  placeholder="Choose a person"
+                  value={value}
+                  onChange={setValue}
+                />
+              </FieldControl>
+            </Field>
+          </DialogBody>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary">Cancel</Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button variant="primary" disabled={value === null}>
+                Change
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     );
   },
 };

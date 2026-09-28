@@ -291,7 +291,7 @@ export const Limits: Story = {
 export const States: Story = {
   name: 'Sizes and states',
   render: (args) => (
-    <div className="grid max-w-3xl gap-4 md:grid-cols-2">
+    <div className="grid max-w-3xl gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
       <TagsInput
         {...args}
         size="sm"
