@@ -590,7 +590,7 @@ export const Rescheduling: Story = {
     const [log, setLog] = useState<string[]>([]);
 
     return (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="flex flex-wrap items-start gap-4 *:min-w-0 [&>*:first-child]:flex-[2_1_24rem] [&>*:last-child]:flex-[1_1_16rem]">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Onboarding plan</CardTitle>

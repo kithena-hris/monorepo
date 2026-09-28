@@ -5,7 +5,7 @@ import type { JSX, ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
-import type { ChartTone } from './chart';
+import { ChartGrid, type ChartTone } from './chart';
 
 /**
  * How a number got from one value to another.
@@ -64,6 +64,12 @@ export interface WaterfallChartProps {
 }
 
 const barTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
   accent: 'bg-accent',
   success: 'bg-success',
   warning: 'bg-warning',
@@ -119,12 +125,13 @@ export function WaterfallChart({
       {...(menuItems ? { menuItems } : {})}
       className={cn('w-full', className)}
     >
-      <div className="relative flex items-stretch gap-2" style={{ height }}>
+      <div className="relative flex items-stretch gap-2.5 touch:gap-1" style={{ height }}>
+        <ChartGrid />
         {/* The zero line, drawn only when the chart actually crosses it. */}
         {floor < 0 ? (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 border-t border-border"
+            className="pointer-events-none absolute inset-x-0 z-[1] border-t-2 border-fg-subtle"
             style={{ top: `${String(y(0))}%` }}
           />
         ) : null}
@@ -135,7 +142,7 @@ export function WaterfallChart({
           const size = Math.abs(y(end) - y(from));
           const rising = end >= start;
           const tone: ChartTone =
-            step.tone ?? (step.total === true ? 'accent' : rising ? 'success' : 'danger');
+            step.tone ?? (step.total === true ? 'chart-1' : rising ? 'success' : 'danger');
           const selected = selectedLabel === step.label;
           const sign = step.total === true ? '' : rising ? '+' : '−';
           const readout = `${step.label}: ${sign}${format(Math.abs(step.value))}${
@@ -155,12 +162,12 @@ export function WaterfallChart({
                   : undefined
               }
               className={cn(
-                'tap-target absolute inset-x-0 rounded-xs transition-[opacity,filter] duration-(--animate-duration-fast)',
+                'tap-target absolute inset-x-[8%] rounded-[6px] transition-[opacity,filter] duration-(--animate-duration-fast)',
                 'motion-safe:animate-grow-y',
                 barTone[tone],
                 step.total === true ? 'origin-bottom' : rising ? 'origin-bottom' : 'origin-top',
                 onSelect && 'cursor-pointer hover:brightness-110',
-                selected && 'ring-2 ring-border-focus ring-offset-1 ring-offset-surface',
+                selected && 'ring-2 ring-fg ring-offset-2 ring-offset-surface',
                 selectedLabel !== undefined && !selected && 'opacity-50',
               )}
               style={{
@@ -197,14 +204,18 @@ export function WaterfallChart({
           readable and what makes every other chart a lie, so the one condition
           is saying you did it. */}
       {truncated ? (
-        <p className="mt-1 text-2xs text-fg-subtle">Axis starts at {format(Math.round(floor))}</p>
+        <p className="mt-1 text-[11px] font-medium text-fg-subtle">
+          Axis starts at {format(Math.round(floor))}
+        </p>
       ) : null}
 
-      <div aria-hidden className="mt-1 flex gap-2 border-t border-border pt-1">
+      <div aria-hidden className="mt-2 flex gap-2.5 touch:gap-1">
         {bars.map(({ step, end }) => (
           <div key={step.label} className="min-w-0 flex-1 text-center">
-            <span className="block truncate text-2xs text-fg-subtle">{step.label}</span>
-            <span className="block truncate text-2xs font-medium tabular-nums text-fg">
+            <span className="block truncate text-[11px] font-medium text-fg-subtle">
+              {step.label}
+            </span>
+            <span className="block truncate text-[11px] font-bold tabular-nums text-fg-muted">
               {step.total === true
                 ? format(end)
                 : `${step.value >= 0 ? '+' : '−'}${format(Math.abs(step.value))}`}
@@ -213,29 +224,31 @@ export function WaterfallChart({
         ))}
       </div>
 
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Step</th>
-            <th scope="col">Change</th>
-            <th scope="col">Running total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bars.map(({ step, end }) => (
-            <tr key={step.label}>
-              <th scope="row">{step.label}</th>
-              <td>
-                {step.total === true
-                  ? 'Balance'
-                  : `${step.value >= 0 ? 'up ' : 'down '}${format(Math.abs(step.value))}`}
-              </td>
-              <td>{format(end)}</td>
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Step</th>
+              <th scope="col">Change</th>
+              <th scope="col">Running total</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {bars.map(({ step, end }) => (
+              <tr key={step.label}>
+                <th scope="row">{step.label}</th>
+                <td>
+                  {step.total === true
+                    ? 'Balance'
+                    : `${step.value >= 0 ? 'up ' : 'down '}${format(Math.abs(step.value))}`}
+                </td>
+                <td>{format(end)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </ChartFrame>
   );
 }

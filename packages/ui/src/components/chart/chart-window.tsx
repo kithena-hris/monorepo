@@ -3,6 +3,7 @@
 import { Copy, Maximize2, MoveHorizontal, ZoomIn, ZoomOut } from 'lucide-react';
 import {
   useCallback,
+  useId,
   useRef,
   useState,
   type JSX,
@@ -329,6 +330,12 @@ export interface ChartFrameProps {
   window?: UseChartWindowResult;
   /** Extra commands, appended under a separator. */
   menuItems?: ReactNode;
+  /**
+   * One or two sentences saying what the chart shows: the trend, the outlier,
+   * the answer. Read after the name, before the data table, so a screen reader
+   * hears the point before the numbers.
+   */
+  summary?: string;
   children: ReactNode;
   className?: string;
 }
@@ -351,10 +358,12 @@ export function ChartFrame({
   rows,
   window: windowState,
   menuItems,
+  summary,
   children,
   className,
 }: ChartFrameProps): JSX.Element {
   const { copy } = useClipboard();
+  const summaryId = useId();
 
   const toCsv = (): string =>
     // Quotes doubled and every field quoted: a label containing a comma is a
@@ -366,7 +375,21 @@ export function ChartFrame({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div className={cn('min-w-0', className)}>{children}</div>
+        {/* A figure with a name, so the chart is one landmark-like thing in the
+            accessibility tree rather than an unlabelled pile of marks. */}
+        <div
+          role="figure"
+          aria-label={label}
+          aria-describedby={summary === undefined ? undefined : summaryId}
+          className={cn('min-w-0', className)}
+        >
+          {summary === undefined ? null : (
+            <p id={summaryId} className="sr-only">
+              {summary}
+            </p>
+          )}
+          {children}
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuLabel>{label}</ContextMenuLabel>

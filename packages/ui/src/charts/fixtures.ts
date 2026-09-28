@@ -90,6 +90,68 @@ export const absence = (() => {
   return { people, weeks, cells };
 })();
 
+/* -------------------------------------------------------------------------- */
+/* One year of a 300-person company, the data set the chart cards share.      */
+/* -------------------------------------------------------------------------- */
+
+export const yearMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+const series = (values: readonly number[]): ChartPoint[] =>
+  values.map((value, index) => ({ label: yearMonths[index] ?? String(index), value }));
+
+/** Hires per month, 2026. October onwards has not happened yet. */
+export const hires2026 = series([6, 9, 7, 12, 10, 8, 5, 11, 14, 0, 0, 0]);
+export const headcount2026 = series([263, 266, 271, 274, 279, 285, 289, 294, 297, 301, 306, 312]);
+export const plan2026 = series([263, 268, 273, 278, 283, 288, 293, 298, 303, 308, 313, 318]);
+export const leavers2026 = series([4, 3, 5, 2, 4, 6, 3, 2, 4]);
+
+export const teamHeadcount: ChartPoint[] = [
+  { label: 'Engineering', value: 124 },
+  { label: 'Sales', value: 64 },
+  { label: 'Support', value: 48 },
+  { label: 'Design', value: 28 },
+  { label: 'Finance', value: 26 },
+  { label: 'People', value: 22 },
+];
+
+export const hiringFunnel: ChartPoint[] = [
+  { label: 'Applied', value: 1240 },
+  { label: 'Screened', value: 420 },
+  { label: 'Interviewed', value: 96 },
+  { label: 'Offered', value: 24 },
+  { label: 'Hired', value: 19 },
+];
+
+/** Leave requests by week and weekday: busy midweek, quiet at weekends. */
+export const leaveByWeekday = (() => {
+  const rows = ['W1', 'W2', 'W3', 'W4', 'W5'];
+  const columns = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const grid = [
+    [2, 4, 6, 5, 3, 1, 0],
+    [3, 6, 9, 8, 5, 2, 1],
+    [4, 7, 10, 9, 6, 2, 0],
+    [3, 6, 8, 7, 5, 1, 0],
+    [2, 4, 5, 4, 2, 0, 0],
+  ];
+  const cells = rows.flatMap((row, r) =>
+    columns.map((column, c) => ({ row, column, value: grid[r]?.[c] ?? 0 })),
+  );
+  return { rows, columns, cells };
+})();
+
 /**
  * A fixed "today" for the timeline stories.
  *
