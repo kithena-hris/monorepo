@@ -13,6 +13,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
 import {
+  ChartBrush,
   ChartFrame,
   ChartMarquee,
   ChartZoomControls,
@@ -1096,6 +1097,13 @@ export interface TrendChartProps extends ChartInteractionProps {
   onHiddenSeriesChange?: (hidden: readonly string[]) => void;
   /** Fires with the period and every series' value at it. */
   onSelect?: (selection: { index: number; label: string; values: Record<string, number> }) => void;
+  /**
+   * An overview strip under the plot: the whole of the first visible series,
+   * with the window drawn over it. Drag its edges or its body, or draw a new
+   * range on it; each part is also a keyboard slider. It drives the same
+   * `window` as `zoomable`, and the two combine.
+   */
+  brush?: boolean;
   className?: string;
 }
 
@@ -1134,6 +1142,7 @@ export function TrendChart({
   window: controlledWindow,
   onWindowChange,
   zoomable = false,
+  brush = false,
   menuItems,
   className,
 }: TrendChartProps): JSX.Element {
@@ -1206,7 +1215,7 @@ export function TrendChart({
         label: point.label,
         value: visible.reduce((sum, entry) => sum + (entry.data[index]?.value ?? 0), 0),
       }))}
-      {...(zoomable ? { window: windowState } : {})}
+      {...(zoomable || brush ? { window: windowState } : {})}
       {...(menuItems ? { menuItems } : {})}
       className={cn('w-full', className)}
     >
@@ -1416,6 +1425,14 @@ export function TrendChart({
           ))}
         </div>
       </TouchScroll>
+
+      {brush ? (
+        <ChartBrush
+          state={windowState}
+          values={(visible[0] ?? series[0])?.data.map((point) => point.value) ?? []}
+          labels={periods}
+        />
+      ) : null}
 
       {series.length > 1 ? (
         <ChartLegend

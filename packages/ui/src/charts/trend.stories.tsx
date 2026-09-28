@@ -341,6 +341,7 @@ export const ZoomAndPan: Story = {
   args: {
     label: 'Daily active users, August and September 2026',
     zoomable: true,
+    brush: true,
     area: true,
     series: [
       {
@@ -360,12 +361,14 @@ export const ZoomAndPan: Story = {
           'Zoom in and note what changes: the axis re-labels, the y range re-fits to the visible slice, and the range is announced in a live region.',
           '',
           'Every control is a named button, so the whole interaction works from the keyboard. `window` can also be driven from outside, which is how a date filter elsewhere on the page moves the chart.',
+          '',
+          '`brush` adds the overview strip underneath: the whole series, with the window drawn over it. Drag an edge to resize, drag the window to pan, or drag on the bare strip to draw a new range. The edges and the window are sliders too: arrows step a day, Page Up and Page Down a tenth, Home and End run to the ends.',
         ].join('\n'),
       },
     },
   },
   render: function ZoomStory(args) {
-    const [window_, setWindow] = useState({ start: 0, end: 39 });
+    const [window_, setWindow] = useState({ start: 22, end: 37 });
     return (
       <ChartCard
         title="Daily active users, 2026"

@@ -7,11 +7,14 @@ import {
   useRef,
   useState,
   type JSX,
+  type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { closestFrom } from '../../lib/dom';
+import { brushSelect, indexAt, moveBrush, type BrushPart } from './geometry';
 import { Button } from '../button/button';
 import { useClipboard } from '../clipboard/clipboard';
 import {
@@ -447,6 +450,185 @@ export function ChartFrame({
 function csvField(value: string): string {
   const neutralised = /^[=+\-@]/.test(value) ? `'${value}` : value;
   return `"${neutralised.replace(/"/g, '""')}"`;
+}
+
+export interface ChartBrushProps {
+  state: UseChartWindowResult;
+  /** The whole series, drawn as the overview line under the window. */
+  values: readonly number[];
+  /** One per value: what the sliders announce. */
+  labels: readonly string[];
+  className?: string;
+}
+
+/**
+ * The overview strip under a windowed chart: the whole series, small, with the
+ * visible range drawn over it.
+ *
+ * Drag either edge to resize the window, drag the window to pan it, or drag on
+ * the bare strip to draw a new one. Each of the three is also a `slider`, so
+ * every gesture has keys behind it: the arrows step one point, Page Up and Page
+ * Down a tenth of the series, Home and End run to the ends. The edges and the
+ * window are real focus stops, rather than one composite control, because
+ * "make it start later" and "move it along" are different questions and a
+ * keyboard should be able to ask each directly.
+ *
+ * The drag is a pointer capture on the strip and never animates: the window
+ * follows the pointer, so there is no motion for reduced-motion to take away.
+ */
+export function ChartBrush({ state, values, labels, className }: ChartBrushProps): JSX.Element {
+  const total = values.length;
+  const strip = useRef<HTMLDivElement | null>(null);
+  const gesture = useRef<{
+    part: BrushPart | 'draw';
+    origin: ChartWindow;
+    anchor: number;
+    startX: number;
+  } | null>(null);
+  const { start, end } = state.window;
+  const last = Math.max(total - 1, 1);
+  const at = (index: number): string => `${String((index / last) * 100)}%`;
+
+  const fractionOf = (clientX: number): number => {
+    const box = strip.current?.getBoundingClientRect();
+    return box && box.width > 0 ? (clientX - box.left) / box.width : 0;
+  };
+
+  const apply = (next: ChartWindow): void => {
+    if (next.start !== state.window.start || next.end !== state.window.end) state.setWindow(next);
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0) return;
+    const part = closestFrom(event.target, '[data-brush-part]')?.getAttribute('data-brush-part');
+    const anchor = indexAt(fractionOf(event.clientX), total);
+    gesture.current = {
+      part: part === 'start' || part === 'end' || part === 'window' ? part : 'draw',
+      origin: state.window,
+      anchor,
+      startX: event.clientX,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    if (gesture.current.part === 'draw') apply(brushSelect(anchor, anchor, total));
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const active = gesture.current;
+    if (!active) return;
+    if (active.part === 'draw') {
+      apply(brushSelect(active.anchor, indexAt(fractionOf(event.clientX), total), total));
+      return;
+    }
+    const delta = Math.round((fractionOf(event.clientX) - fractionOf(active.startX)) * last);
+    apply(moveBrush(active.origin, active.part, delta, total));
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>, part: BrushPart): void => {
+    const page = Math.max(1, Math.round(total / 10));
+    const delta: Record<string, number> = {
+      ArrowLeft: -1,
+      ArrowDown: -1,
+      ArrowRight: 1,
+      ArrowUp: 1,
+      PageDown: -page,
+      PageUp: page,
+      Home: -total,
+      End: total,
+    };
+    const step = delta[event.key];
+    if (step === undefined) return;
+    event.preventDefault();
+    apply(moveBrush(state.window, part, step, total));
+  };
+
+  const top = values.length > 0 ? Math.max(...values) : 1;
+  const bottom = values.length > 0 ? Math.min(...values) : 0;
+  const span = top - bottom || 1;
+  const path = values
+    .map(
+      (value, index) =>
+        `${index === 0 ? 'M' : 'L'} ${String((index / last) * 100)},${String(36 - ((value - bottom) / span) * 30)}`,
+    )
+    .join(' ');
+
+  const range = `${labels[start] ?? ''} to ${labels[end] ?? ''}`;
+  const slider = (part: BrushPart) => ({
+    'data-brush-part': part,
+    role: 'slider',
+    tabIndex: 0,
+    'aria-valuemin': 0,
+    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+      onKeyDown(event, part);
+    },
+  });
+  const focusRing =
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus';
+
+  return (
+    <div
+      ref={strip}
+      className={cn(
+        'relative mt-3.5 h-10 cursor-crosshair touch-none rounded-sm bg-surface-sunken select-none touch:h-12',
+        className,
+      )}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={() => {
+        gesture.current = null;
+      }}
+      onPointerCancel={() => {
+        gesture.current = null;
+      }}
+    >
+      <svg
+        aria-hidden
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        className="absolute inset-0 size-full overflow-hidden rounded-sm"
+      >
+        <path
+          d={path}
+          fill="none"
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+          className="stroke-fg-subtle"
+        />
+      </svg>
+
+      <div
+        {...slider('window')}
+        aria-label="Visible range"
+        aria-valuemax={last - (end - start)}
+        aria-valuenow={start}
+        aria-valuetext={range}
+        className={cn(
+          'tap-target absolute inset-y-0 cursor-grab rounded-sm bg-accent/18 ring-2 ring-accent ring-inset active:cursor-grabbing',
+          focusRing,
+        )}
+        style={{ insetInlineStart: at(start), width: at(end - start) }}
+      />
+      {(['start', 'end'] as const).map((part) => {
+        const index = part === 'start' ? start : end;
+        return (
+          <span
+            key={part}
+            {...slider(part)}
+            aria-label={part === 'start' ? 'Range start' : 'Range end'}
+            aria-valuemax={last}
+            aria-valuenow={index}
+            aria-valuetext={labels[index] ?? String(index)}
+            className={cn(
+              'tap-target absolute inset-y-0 grid w-3 -translate-x-1/2 cursor-ew-resize place-items-center rounded-full',
+              focusRing,
+            )}
+            style={{ insetInlineStart: at(index) }}
+          >
+            <span aria-hidden className="h-4 w-1 rounded-full bg-accent" />
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 /** The selection rectangle drawn while a drag is in progress. */
