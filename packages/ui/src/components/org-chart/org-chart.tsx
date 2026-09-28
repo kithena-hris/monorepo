@@ -54,7 +54,8 @@ import {
 
 import { cn } from '../../lib/cn';
 import { closestFrom } from '../../lib/dom';
-import { useCoarsePointerAt } from '../../lib/use-media-query';
+import { springEasing, springSettleTime, springs } from '../../lib/spring';
+import { useCoarsePointerAt, usePrefersReducedMotion } from '../../lib/use-media-query';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import {
@@ -500,6 +501,15 @@ export function OrgChart({
   /** Under a finger the tree opens as a list; this is the "View as chart" switch. */
   const [asChart, setAsChart] = useState(false);
   const listMode = coarse && !asChart;
+  const reducedMotion = usePrefersReducedMotion();
+  /**
+   * Where every visible person was drawn just before a branch opened or
+   * closed, so the layout that follows plays as motion instead of a cut.
+   * See the layout effect after the scroll correction.
+   */
+  const flipFirst = useRef<Map<string, DOMRect> | null>(null);
+  /** A branch fading out before it is removed. Toggles wait for it. */
+  const closing = useRef(false);
 
   // Rebuilt only when the roster changes. It was running on every render.
   // Every hover, every zoom step, every frame of a drag.
@@ -630,13 +640,74 @@ export function OrgChart({
     if (rect) anchor.current = { id, left: rect.left, top: rect.top };
   };
 
+  /**
+   * Where each person's card is drawn. The card, not its `<li>`: an `<li>` is
+   * as wide as the subtree under it, so its box moves whenever a branch below
+   * opens even when the card in it has not. The list's rows are their own card.
+   */
+  const cardRect = (id: string): DOMRect | undefined =>
+    (cardBoxes.current.get(id) ?? cards.current.get(id))?.getBoundingClientRect();
+  const measureCards = (): Map<string, DOMRect> => {
+    const measured = new Map<string, DOMRect>();
+    for (const id of cards.current.keys()) {
+      const rect = cardRect(id);
+      if (rect) measured.set(id, rect);
+    }
+    return measured;
+  };
+
   const toggle = (id: string): void => {
-    anchorOn(id);
-    setCollapsed(
-      collapsedIds.has(id)
-        ? [...collapsedIds].filter((entry) => entry !== id)
-        : [...collapsedIds, id],
+    if (closing.current) return;
+    const opening = collapsedIds.has(id);
+    const next = opening
+      ? [...collapsedIds].filter((entry) => entry !== id)
+      : [...collapsedIds, id];
+    const commit = (): void => {
+      anchorOn(id);
+      flipFirst.current = measureCards();
+      setCollapsed(next);
+    };
+    if (opening || reducedMotion) {
+      commit();
+      return;
+    }
+
+    /*
+     * Closing: the reports fade out first, then go. Removing them on the same
+     * frame as the click left the cards around them to jump into the space
+     * in one step, which is the flicker. The fade is short on purpose, an exit
+     * is the system responding, and the glide that follows carries the rest.
+     */
+    const index = rowIndex.get(id) ?? -1;
+    const level = rows[index]?.level ?? 0;
+    const leaving: HTMLElement[] = [];
+    if (listMode) {
+      for (let at = index + 1; at < rows.length && (rows[at]?.level ?? 0) > level; at += 1) {
+        const element = cards.current.get(rows[at]?.id ?? '');
+        if (element) leaving.push(element);
+      }
+    } else {
+      const group = cards.current.get(id)?.querySelector<HTMLElement>(':scope > [role="group"]');
+      if (group) leaving.push(group);
+    }
+    if (leaving.length === 0) {
+      commit();
+      return;
+    }
+    closing.current = true;
+    const fades = leaving.map((element) =>
+      element.animate(
+        [
+          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: 'translateY(-0.375rem)' },
+        ],
+        { duration: 120, easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)', fill: 'forwards' },
+      ),
     );
+    void Promise.allSettled(fades.map((fade) => fade.finished)).then(() => {
+      closing.current = false;
+      commit();
+    });
   };
 
   /** Everything below this person, opened. "Show me their whole chart." */
@@ -649,6 +720,7 @@ export function OrgChart({
     };
     const start = byId.get(id);
     if (start) walk(start);
+    flipFirst.current = measureCards();
     setCollapsed([...collapsedIds].filter((entry) => !below.has(entry)));
   };
 
@@ -712,6 +784,59 @@ export function OrgChart({
     // on every render forces a synchronous layout on every render, which is
     // most of what "unresponsive" is made of.
   }, [rowKey, activeZoom]);
+
+  /*
+   * Play a branch opening or closing as motion (FLIP): every person who was on
+   * screen before glides from where they were to where the new layout puts
+   * them, on the move spring. After the scroll correction above, so the
+   * person clicked stays put and everything else moves around them.
+   *
+   * On the canvas the cards are nested `<li>`s, each carrying its subtree and
+   * its connectors. A child's transform stacks on its manager's, so each one
+   * animates by its own movement *less* its manager's; with one duration and
+   * one curve for all of them, every card is where it should be on every
+   * frame, and the lines between them travel with them. The list is flat, so
+   * there each row simply moves by its own amount.
+   */
+  useLayoutEffect(() => {
+    const first = flipFirst.current;
+    if (first === null) return;
+    flipFirst.current = null;
+    if (reducedMotion) return;
+
+    // Every "after" is read before any animation starts: an animation on a
+    // manager would otherwise move the children being measured.
+    const last = new Map<string, DOMRect>();
+    for (const row of rows) {
+      const element = cards.current.get(row.id);
+      if (!element) continue;
+      for (const running of element.getAnimations()) running.cancel();
+      const rect = cardRect(row.id);
+      if (rect) last.set(row.id, rect);
+    }
+
+    const scale = listMode ? 1 : zoomRef.current;
+    const easing = springEasing(springs.move);
+    const duration = springSettleTime(springs.move, 0.004) * 1000;
+    const moved = new Map<string, { x: number; y: number }>();
+    for (const row of rows) {
+      const before = first.get(row.id);
+      const after = last.get(row.id);
+      const element = cards.current.get(row.id);
+      if (!before || !after || !element) continue;
+      const x = before.left - after.left;
+      const y = before.top - after.top;
+      moved.set(row.id, { x, y });
+      const parent = !listMode && row.parentId !== undefined ? moved.get(row.parentId) : undefined;
+      const dx = (x - (parent?.x ?? 0)) / scale;
+      const dy = (y - (parent?.y ?? 0)) / scale;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      element.animate(
+        [{ transform: `translate(${String(dx)}px, ${String(dy)}px)` }, { transform: 'none' }],
+        { duration, easing },
+      );
+    }
+  });
 
   // React attaches `wheel` passively at the root, so `preventDefault` inside an
   // `onWheel` prop does nothing. Ctrl/⌘ + wheel is the gesture every canvas in
@@ -1604,11 +1729,13 @@ const OrgBranch = memo(function OrgBranch({
         targeted && valid && 'ring-2 ring-success bg-success-subtle',
         targeted && !valid && 'ring-2 ring-danger',
       )}
-      // A short stagger down the tree. Every card appearing on the same frame
-      // reads as a flash; 25ms apart reads as the branch unfolding.
+      // A short stagger across the new reports. Every card appearing on the
+      // same frame reads as a flash; 20ms apart reads as the branch unfolding.
+      // Capped low: a branch that takes a fifth of a second to finish arriving
+      // is a branch that feels slow to open.
       style={
         org.entering.has(node.id)
-          ? { animationDelay: `min(calc(${String(level + position)} * 25ms), 200ms)` }
+          ? { animationDelay: `min(calc(${String(position - 1)} * 20ms), 80ms)` }
           : undefined
       }
     >
@@ -1651,11 +1778,12 @@ const OrgBranch = memo(function OrgBranch({
             'touch:after:-inset-x-4 touch:after:-top-2 touch:after:-bottom-6',
           )}
         >
-          {row.expanded ? (
-            <ChevronDown className="size-3.5" />
-          ) : (
-            <ChevronRight className="size-3.5" />
-          )}
+          <ChevronRight
+            className={cn(
+              'size-3.5 transition-transform duration-(--animate-duration-normal) ease-standard',
+              row.expanded && 'rotate-90',
+            )}
+          />
           {tree.total}
         </span>
       ) : null}
@@ -1884,6 +2012,9 @@ function OrgTreeList({
               '[&:not(:last-child)]:shadow-[inset_0_-1px_0_var(--color-border)]',
               'outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
               'transition-colors duration-(--animate-duration-fast) active:bg-surface-hover',
+              // Opacity only: the glide that makes room for it is a transform,
+              // and the two would fight over the one property.
+              org.entering.has(node.id) && 'motion-safe:animate-fade-in',
               selected && 'bg-accent-subtle',
               onSpine && !selected && 'bg-surface-sunken',
             )}
@@ -1922,11 +2053,12 @@ function OrgTreeList({
                 }}
                 className="grid size-11 shrink-0 place-items-center text-icon-muted"
               >
-                {row.expanded ? (
-                  <ChevronDown className="size-4.5" />
-                ) : (
-                  <ChevronRight className="size-4.5" />
-                )}
+                <ChevronRight
+                  className={cn(
+                    'size-4.5 transition-transform duration-(--animate-duration-normal) ease-standard',
+                    row.expanded && 'rotate-90',
+                  )}
+                />
               </span>
             ) : null}
           </li>
