@@ -118,7 +118,11 @@ describe('ImportFlow', () => {
     const sheet = new File(['a,b'], 'people.csv', { type: 'text/csv' });
     await user.upload(input, sheet);
     expect(onUpload).toHaveBeenCalledWith(sheet, expect.any(Function));
-    expect(await screen.findByRole('progressbar')).toHaveAttribute('aria-valuenow', '40');
+    // By name: the wizard's stepper carries its own progress bar, which a
+    // phone shows in place of the step circles.
+    expect(
+      await screen.findByRole('progressbar', { name: 'Uploading people.csv' }),
+    ).toHaveAttribute('aria-valuenow', '40');
     expect(await axeViolations(container)).toEqual([]);
     finish({ ok: true });
   });

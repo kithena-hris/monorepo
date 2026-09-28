@@ -37,7 +37,7 @@ import { describeFilter, type FilterGroup } from './filter-model';
 import { peopleFields } from './fixtures';
 
 const meta = {
-  title: 'Patterns/Complex filters',
+  title: 'Components/Complex filters',
   component: FilterBuilder,
   parameters: {
     layout: 'padded',

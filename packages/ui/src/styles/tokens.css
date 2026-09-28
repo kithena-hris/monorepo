@@ -132,14 +132,16 @@
     --reach-color-info-border: oklch(0.88 0.06 240);
     --reach-color-info-fg: oklch(0.46 0.13 245);
 
-    /* Data. Shared lightness and chroma, varied hue, so no series shouts. The
-       first follows the accent. */
+    /* Data. Varied hue, so no series shouts; the first follows the accent.
+       A slice or a line owes 3:1 against the card it sits on (WCAG 1.4.11),
+       so the lighter hues are held darker than the design drew them: teal,
+       amber, blue and green all measured under 3:1 on the sunken fill. */
     --reach-color-chart-1: oklch(0.56 0.2 274);
-    --reach-color-chart-2: oklch(0.68 0.13 190);
-    --reach-color-chart-3: oklch(0.76 0.14 75);
+    --reach-color-chart-2: oklch(0.6 0.13 190);
+    --reach-color-chart-3: oklch(0.63 0.14 75);
     --reach-color-chart-4: oklch(0.64 0.18 355);
-    --reach-color-chart-5: oklch(0.66 0.13 240);
-    --reach-color-chart-6: oklch(0.72 0.15 135);
+    --reach-color-chart-5: oklch(0.625 0.13 240);
+    --reach-color-chart-6: oklch(0.615 0.15 135);
 
     /* Elevation, four steps: cards, popovers, menus, dialogs. Two shadows
        each, a tight contact shadow and a soft ambient one. */
