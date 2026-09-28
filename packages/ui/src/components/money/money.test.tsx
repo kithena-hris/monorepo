@@ -44,6 +44,21 @@ describe('<Money>', () => {
     expect(screen.getByText('¥1,250')).toBeInTheDocument();
   });
 
+  it('writes a negative with a true minus sign, not a hyphen', () => {
+    render(<Money minorUnits="-4250" currency="USD" locale="en-US" />);
+    expect(screen.getByText('−$42.50')).toBeInTheDocument();
+  });
+
+  it('brackets a negative in accounting format', () => {
+    render(<Money minorUnits="-124050" currency="EUR" locale="en-GB" accounting />);
+    expect(screen.getByText('(€1,240.50)')).toBeInTheDocument();
+  });
+
+  it('can show the currency code instead of the symbol', () => {
+    render(<Money minorUnits="4250" currency="USD" locale="en-US" currencyDisplay="code" />);
+    expect(screen.getByText(/USD\s42\.50/)).toBeInTheDocument();
+  });
+
   it('marks the value as numeric so tables align it', () => {
     render(<Money minorUnits="100" currency="USD" locale="en-US" />);
     expect(screen.getByText('$1.00')).toHaveAttribute('data-numeric');

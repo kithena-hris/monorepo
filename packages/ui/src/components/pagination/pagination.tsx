@@ -18,6 +18,11 @@ import { Button } from '../button/button';
  *
  * The window is elided rather than rendered in full: 900 page buttons is not a
  * navigation control, and every one of them is a tab stop.
+ *
+ * Under a finger the numbers go and "Page 3 of 46" takes their place between
+ * the two arrows, which move to the edges where a thumb finds them. That keys
+ * on the pointer, not the width: a numbered window is a fine control for a
+ * mouse in a narrow panel and a poor one for a thumb anywhere.
  */
 
 export interface PaginationProps {
@@ -35,6 +40,9 @@ export interface PaginationProps {
 }
 
 const ELLIPSIS = 'ellipsis' as const;
+
+/** Every control on the bar is a circle or a pill. */
+const ROUND = 'rounded-full';
 
 /** Exported for the unit test: the elision is the only logic in this file. */
 export function paginationRange(
@@ -89,7 +97,7 @@ export function Pagination({
       className={cn('flex flex-wrap items-center justify-between gap-3', className)}
     >
       {first && last && totalItems ? (
-        <p className="text-sm text-fg-muted">
+        <p className="text-sm text-fg-muted touch:hidden">
           Showing{' '}
           <span className="font-medium tabular-nums text-fg">
             {first}–{last}
@@ -100,11 +108,12 @@ export function Pagination({
         <span />
       )}
 
-      <ul className="flex items-center gap-1">
+      <ul className="flex items-center gap-1 touch:w-full touch:justify-between">
         <li>
           <Button
             size="sm"
-            variant="ghost"
+            variant="secondary"
+            className={ROUND}
             aria-label="Previous page"
             disabled={page <= 1}
             onClick={() => {
@@ -114,29 +123,37 @@ export function Pagination({
           />
         </li>
 
-        {/* The numbered window is the part that does not fit on a phone; the
-            live "Page 3 of 46" below replaces it rather than being a second,
-            redundant control at wide sizes. */}
+        {/* The numbered window is the part a thumb cannot use; the live
+            "Page 3 of 46" below replaces it rather than being a second,
+            redundant control under a mouse. */}
         {items.map((item, index) =>
           item === ELLIPSIS ? (
             <li
               key={`ellipsis-${String(index)}`}
               aria-hidden
-              className="hidden px-1 text-sm text-fg-subtle sm:block"
+              className="min-w-8 text-center text-sm text-fg-subtle touch:hidden"
             >
               …
             </li>
           ) : (
-            <li key={item} className="hidden sm:block">
+            <li key={item} className="touch:hidden">
               <Button
                 size="sm"
-                variant={item === page ? 'subtle' : 'ghost'}
+                variant="ghost"
                 aria-label={`Page ${String(item)}`}
                 aria-current={item === page ? 'page' : undefined}
                 onClick={() => {
                   onPageChange(item);
                 }}
-                className="min-w-8 tabular-nums"
+                className={cn(
+                  ROUND,
+                  'min-w-8.5 px-2 font-semibold tabular-nums text-fg',
+                  // The current page is the one solid mark on the bar: an
+                  // inverted pill, which reads as "you are here" in either
+                  // theme without borrowing the accent a primary action owns.
+                  item === page &&
+                    'bg-invert text-fg-on-invert hover:bg-invert hover:text-fg-on-invert',
+                )}
               >
                 {item}
               </Button>
@@ -144,14 +161,15 @@ export function Pagination({
           ),
         )}
 
-        <li aria-live="polite" className="px-2 text-sm tabular-nums text-fg-muted sm:hidden">
-          Page {page} of {pageCount}
+        <li aria-live="polite" className="hidden text-base text-fg-muted tabular-nums touch:block">
+          Page <span className="font-semibold text-fg">{page}</span> of {pageCount}
         </li>
 
         <li>
           <Button
             size="sm"
-            variant="ghost"
+            variant="secondary"
+            className={ROUND}
             aria-label="Next page"
             disabled={page >= pageCount}
             onClick={() => {
