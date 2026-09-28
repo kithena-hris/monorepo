@@ -2,7 +2,7 @@
 
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
 import { Slot } from '@radix-ui/react-slot';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Children,
   cloneElement,
@@ -384,18 +384,68 @@ export function NavGroup({
   );
 }
 
+export type TertiaryNavStatus = 'success' | 'warning' | 'danger' | 'info';
+
+export interface TertiaryNavItem {
+  id: string;
+  label: string;
+  badge?: ReactNode;
+  /** Defaults to `#id`, an anchor in this page. A section that is a page of its own passes its URL. */
+  href?: string;
+  /** A number: documents on file, open tasks. */
+  count?: number;
+  /** A dot, for a section that is complete, needs attention or is blocked. Spoken, not only coloured. */
+  status?: TertiaryNavStatus;
+  /** 1 indents a subsection, in a table of contents. */
+  depth?: 0 | 1;
+}
+
 export interface TertiaryNavProps
   // `onSelect` is omitted too: the DOM's is a `ReactEventHandler`, and this
   // one takes the section id. Shadowing it would be a silent type conflict.
-  extends Omit<ComponentPropsWithoutRef<'nav'>, 'children' | 'onSelect'> {
+  extends Omit<ComponentPropsWithoutRef<'nav'>, 'children' | 'onSelect' | 'title'> {
   label: string;
-  items: readonly { id: string; label: string; badge?: ReactNode }[];
+  items: readonly TertiaryNavItem[];
   /** The section currently in view. The caller owns the scroll observation. */
   activeId?: string;
   onSelect?: (id: string) => void;
   /** Renders horizontally, for a rail that does not exist on a narrow screen. */
   orientation?: 'vertical' | 'horizontal';
+  /** A visible heading over a vertical list: the record's name, or "On this page". */
+  title?: ReactNode;
+  /**
+   * `location` (the default) for anchors within one document. `page` for
+   * sections that are pages of a record, Personal, Employment, Pay, where
+   * choosing one changes what is on screen.
+   */
+  current?: 'location' | 'page';
+  /**
+   * How a vertical list marks the current item: `line`, the accent stretch of
+   * a rule down the side, for a table of contents; `fill`, a washed row, for
+   * a list of sections carrying counts and status.
+   */
+  variant?: 'line' | 'fill';
+  /**
+   * What a vertical list becomes under a finger: `pills`, a scrolling row
+   * under the title; `list`, rows that each push a screen. Left out, it stays
+   * a column at a finger's size.
+   */
+  touchLayout?: 'pills' | 'list';
 }
+
+const statusDot: Record<TertiaryNavStatus, string> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  info: 'bg-info',
+};
+
+const statusWord: Record<TertiaryNavStatus, string> = {
+  success: 'complete',
+  warning: 'needs attention',
+  danger: 'blocked',
+  info: 'information',
+};
 
 /**
  * In-page navigation: the sections of the page you are already on.
@@ -412,6 +462,10 @@ export interface TertiaryNavProps
  *    says "current location" rather than "current page", which is the
  *    difference the reader needs.
  *
+ * The exception is a record's sections that are pages of their own, which
+ * pass `href` and `current="page"`: the same list, telling the truth about
+ * what choosing an item does.
+ *
  * Which section is active is the caller's business, an `IntersectionObserver`
  * over the headings, usually. Putting a scroll listener in here would make
  * every consumer pay for one whether they wanted it or not.
@@ -423,30 +477,64 @@ export function TertiaryNav({
   activeId,
   onSelect,
   orientation = 'vertical',
+  title,
+  current = 'location',
+  variant = 'line',
+  touchLayout,
   ...props
 }: TertiaryNavProps): JSX.Element {
+  const titleId = useId();
+  const vertical = orientation === 'vertical';
+  const fill = vertical && variant === 'fill';
+  const touchPills = vertical && touchLayout === 'pills';
+  const touchList = vertical && touchLayout === 'list';
   return (
     <nav aria-label={label} className={cn('min-w-0', className)} {...props}>
+      {title && vertical ? (
+        <p
+          id={titleId}
+          className={cn(
+            'pb-2.5 text-xs font-semibold text-fg-subtle',
+            fill ? 'px-3' : 'ps-3.5',
+            (touchPills || touchList) && 'touch:sr-only',
+          )}
+        >
+          {title}
+        </p>
+      ) : null}
       <ul
+        aria-labelledby={title && vertical ? titleId : undefined}
         className={cn(
           'min-w-0',
           orientation === 'vertical'
-            ? 'space-y-px border-s border-border'
+            ? fill
+              ? 'space-y-0.5'
+              : 'space-y-px border-s border-border'
             : // A scrolling row of pills, as a phone shows it under the title.
               // The vertical padding is the room each pill's tap-target hit
               // area needs inside a strip that clips.
               'flex gap-1.5 overflow-x-auto overscroll-x-contain py-1',
+          touchPills &&
+            'touch:flex touch:gap-1.5 touch:space-y-0 touch:overflow-x-auto touch:overscroll-x-contain touch:border-0 touch:py-1',
+          touchList &&
+            'touch:space-y-0 touch:overflow-hidden touch:rounded-xl touch:border-0 touch:bg-surface touch:shadow-sm',
         )}
       >
         {items.map((item) => {
           const active = item.id === activeId;
           return (
-            <li key={item.id} className={orientation === 'vertical' ? 'min-w-0' : 'shrink-0'}>
+            <li
+              key={item.id}
+              className={cn(
+                orientation === 'vertical' ? 'min-w-0' : 'shrink-0',
+                touchPills && 'touch:shrink-0',
+              )}
+            >
               <a
-                href={`#${item.id}`}
+                href={item.href ?? `#${item.id}`}
                 // `location`, not `page`: the page has not changed, the
                 // reader's position within it has.
-                aria-current={active ? 'location' : undefined}
+                aria-current={active ? current : undefined}
                 onClick={() => {
                   onSelect?.(item.id);
                 }}
@@ -454,23 +542,64 @@ export function TertiaryNav({
                   'relative flex items-center gap-2 text-sm',
                   'transition-[color,border-color,background-color] duration-(--animate-duration-fast) ease-standard',
                   orientation === 'vertical'
-                    ? cn(
-                        'min-h-7 touch:min-h-tap -ms-px truncate border-s-2 ps-3.5',
-                        active
-                          ? 'border-accent font-semibold text-accent-fg'
-                          : 'border-transparent font-medium text-fg-muted hover:border-border-strong hover:text-fg',
-                      )
+                    ? fill
+                      ? cn(
+                          'min-h-8.5 touch:min-h-tap truncate rounded-sm px-3',
+                          active
+                            ? 'bg-surface-sunken font-semibold text-fg'
+                            : 'font-medium text-fg-muted hover:bg-surface-hover hover:text-fg',
+                        )
+                      : cn(
+                          'min-h-7 touch:min-h-tap -ms-px truncate border-s-2 ps-3.5',
+                          item.depth === 1 && 'ps-7',
+                          active
+                            ? 'border-accent font-semibold text-accent-fg'
+                            : 'border-transparent font-medium text-fg-muted hover:border-border-strong hover:text-fg',
+                        )
                     : cn(
                         'h-8 touch:h-9 tap-target shrink-0 rounded-control px-3.5 font-semibold',
                         active
                           ? 'bg-invert text-fg-on-invert'
                           : 'bg-surface-sunken text-fg-muted hover:bg-surface-hover hover:text-fg',
                       ),
+                  // The same pill, for a column that becomes a row under a finger.
+                  touchPills &&
+                    cn(
+                      'tap-target touch:h-9 touch:min-h-0 touch:shrink-0 touch:rounded-control touch:border-0 touch:px-3.5 touch:font-semibold',
+                      active
+                        ? 'touch:bg-invert touch:text-fg-on-invert'
+                        : 'touch:bg-surface-sunken touch:text-fg-muted',
+                    ),
+                  // A settings-style row that pushes its section's screen.
+                  touchList &&
+                    'touch:ms-0 touch:min-h-13 touch:rounded-none touch:border-0 touch:border-b touch:border-border touch:bg-transparent touch:px-4 touch:font-medium touch:text-fg',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 )}
               >
-                <span className="min-w-0 truncate">{item.label}</span>
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
+                {item.count != null ? (
+                  <span
+                    className={cn(
+                      'shrink-0 text-xs font-semibold text-fg-subtle tabular-nums',
+                      touchList && 'touch:text-base touch:font-normal touch:text-fg-muted',
+                      touchPills && active && 'touch:text-fg-on-invert',
+                    )}
+                  >
+                    {item.count}
+                  </span>
+                ) : null}
+                {item.status ? (
+                  <span className={cn('size-2 shrink-0 rounded-full', statusDot[item.status])}>
+                    <span className="sr-only">, {statusWord[item.status]}</span>
+                  </span>
+                ) : null}
+                {touchList ? (
+                  <ChevronRight
+                    aria-hidden
+                    className="hidden size-4 shrink-0 text-fg-subtle touch:block"
+                  />
+                ) : null}
               </a>
             </li>
           );
