@@ -18,29 +18,33 @@ import { cn } from '../../lib/cn';
 
 const toggle = cva(
   [
-    'inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap',
+    // A pill that stays pressed. Its hit area grows to the tap floor under a
+    // thumb without the pill growing with it.
+    'tap-target relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap',
     'transition-[background-color,color,box-shadow,transform] duration-(--animate-duration-normal) ease-standard',
     'active:scale-[0.97] motion-reduce:active:scale-100',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-    'disabled:pointer-events-none disabled:opacity-55',
+    'disabled:pointer-events-none disabled:opacity-45',
     '[&_svg]:pointer-events-none [&_svg]:shrink-0',
   ],
   {
     variants: {
       variant: {
+        /** Filled at rest, the accent wash when on. The design's default. */
+        fill: 'bg-surface-sunken text-fg-muted hover:bg-surface-hover hover:text-fg data-[state=on]:bg-accent-subtle data-[state=on]:text-accent-fg',
         ghost:
           'text-fg-muted hover:bg-surface-hover hover:text-fg data-[state=on]:bg-accent-subtle data-[state=on]:text-accent-fg',
         outline:
-          'border border-border bg-surface text-fg-muted hover:bg-surface-hover data-[state=on]:border-accent data-[state=on]:bg-accent-subtle data-[state=on]:text-accent-fg',
+          'text-fg-muted shadow-[inset_0_0_0_1.5px_var(--reach-color-border-strong)] hover:bg-surface-hover data-[state=on]:bg-surface-active data-[state=on]:text-fg',
       },
       size: {
-        sm: 'h-control-sm touch:min-w-tap px-2 text-xs [&_svg]:size-3.5',
-        md: 'h-control-md touch:min-w-tap px-3 text-base [&_svg]:size-4',
-        lg: 'h-control-lg px-4 text-md [&_svg]:size-[1.125rem]',
+        sm: 'h-7 px-3 text-xs touch:h-8 [&_svg]:size-[0.9375rem]',
+        md: 'h-8.5 px-3.5 text-sm touch:h-10 touch:px-4 [&_svg]:size-[1.0625rem]',
+        lg: 'h-10 px-4 text-sm touch:h-12 [&_svg]:size-[1.0625rem]',
       },
       iconOnly: { true: 'aspect-square px-0', false: '' },
     },
-    defaultVariants: { variant: 'ghost', size: 'md', iconOnly: false },
+    defaultVariants: { variant: 'fill', size: 'md', iconOnly: false },
   },
 );
 

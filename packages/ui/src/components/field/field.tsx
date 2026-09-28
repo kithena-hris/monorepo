@@ -7,6 +7,13 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
+import {
+  fieldErrorClass,
+  fieldHintClass,
+  fieldLabelClass,
+  floatLabel,
+  floatRoot,
+} from './field-styles';
 
 /**
  * Form field wiring.
@@ -83,7 +90,7 @@ export function Field({
         className={cn(
           'group/field flex gap-1.5',
           orientation === 'vertical'
-            ? 'flex-col'
+            ? cn('flex-col', floatRoot)
             : // A control beside its label is a row a thumb has to hit on its own;
               // at the tap floor, two rows' hit areas never overlap.
               'flex-row items-center justify-between gap-4 touch:min-h-tap',
@@ -103,11 +110,7 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
   return (
     <LabelPrimitive.Root
       htmlFor={controlId}
-      className={cn(
-        'flex items-center gap-1 text-sm leading-none font-medium text-fg',
-        disabled && 'text-fg-disabled',
-        className,
-      )}
+      className={cn(fieldLabelClass, floatLabel, disabled && 'text-fg-disabled', className)}
       {...props}
     >
       {children}
@@ -145,7 +148,8 @@ export function FieldDescription({
   return (
     <p
       id={descriptionId}
-      className={cn('text-xs', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
+      data-caution={tone === 'warning' || undefined}
+      className={cn(fieldHintClass, tone === 'warning' && 'text-warning-fg', className)}
       {...props}
     />
   );
@@ -169,7 +173,7 @@ export function FieldError({
       id={errorId}
       role="alert"
       aria-live="polite"
-      className={cn('text-xs font-medium text-danger-fg', className)}
+      className={cn(fieldErrorClass, className)}
       {...props}
     >
       {children}

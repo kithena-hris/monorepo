@@ -4,6 +4,15 @@ import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { useId, useMemo, useState, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import {
+  fieldHintClass,
+  fieldLabelClass,
+  fieldShell,
+  floatLabel,
+  floatRoot,
+  floatShell,
+  floatValue,
+} from '../field/field-styles';
 
 /**
  * A password field.
@@ -73,12 +82,6 @@ export interface PasswordFieldProps {
   name?: string;
   id?: string;
 }
-
-const sizeClass = {
-  sm: 'h-control-sm text-xs px-2.5',
-  md: 'h-control-md text-base px-3',
-  lg: 'h-control-lg text-md px-3.5',
-} as const;
 
 /** The default advice. Length first, because length is what actually matters. */
 export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
@@ -154,25 +157,21 @@ export function PasswordField({
       .join(' ') || undefined;
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-sm leading-none font-medium text-fg">
+    <div className={cn('group/field flex flex-col gap-1.5', floatRoot, className)}>
+      <label htmlFor={id} className={cn(fieldLabelClass, floatLabel)}>
         {label}
       </label>
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
 
       <div
-        className={cn(
-          'flex items-center rounded-md border bg-surface',
-          'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
-          'focus-within:border-border-focus focus-within:ring-2 focus-within:ring-border-focus/30',
-          invalid ? 'border-danger' : 'border-border',
-          sizeClass[size],
-          disabled && 'pointer-events-none opacity-55',
-        )}
+        data-float={size === 'sm' ? undefined : ''}
+        data-invalid={invalid || undefined}
+        data-disabled={disabled || undefined}
+        className={cn(fieldShell({ size }), size !== 'sm' && floatShell, 'pe-1.5 touch:pe-2')}
       >
         <input
           id={id}
@@ -195,7 +194,10 @@ export function PasswordField({
           onChange={(event) => {
             onChange(event.target.value);
           }}
-          className="w-full min-w-0 bg-transparent text-fg outline-none placeholder:text-fg-subtle"
+          className={cn(
+            'w-full min-w-0 self-stretch bg-transparent text-fg outline-none placeholder:text-fg-subtle',
+            size !== 'sm' && floatValue,
+          )}
         />
 
         <button
@@ -209,16 +211,16 @@ export function PasswordField({
             setRevealed((current) => !current);
           }}
           className={cn(
-            'tap-target relative -me-1 grid size-8 shrink-0 place-items-center rounded-sm text-fg-subtle',
+            'tap-target relative grid size-8 shrink-0 place-items-center rounded-full text-fg-muted',
             'transition-colors duration-(--animate-duration-fast)',
-            'hover:bg-surface-hover hover:text-fg',
+            'hover:bg-surface-active hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
           )}
         >
           {revealed ? (
-            <EyeOff className="size-4 animate-scale-in" aria-hidden />
+            <EyeOff className="size-[1.125rem] animate-scale-in" aria-hidden />
           ) : (
-            <Eye className="size-4 animate-scale-in" aria-hidden />
+            <Eye className="size-[1.125rem] animate-scale-in" aria-hidden />
           )}
         </button>
       </div>
@@ -234,7 +236,7 @@ export function PasswordField({
           aria-valuetext={value === '' ? 'Empty' : strengthLabel[strength]}
           className="flex items-center gap-2"
         >
-          <div aria-hidden className="flex h-1 flex-1 gap-1">
+          <div aria-hidden className="flex h-1.5 flex-1 gap-1">
             {[0, 1, 2, 3].map((segment) => (
               <span
                 key={segment}
@@ -245,7 +247,7 @@ export function PasswordField({
               />
             ))}
           </div>
-          <span className="w-20 text-end text-xs text-fg-muted">
+          <span className="w-20 text-end text-sm font-medium text-fg-muted">
             {value === '' ? '' : strengthLabel[strength]}
           </span>
         </div>
@@ -254,7 +256,7 @@ export function PasswordField({
       {checks.length > 0 ? (
         <ul id={requirementsId} className="mt-0.5 space-y-1">
           {checks.map((rule) => (
-            <li key={rule.id} className="flex items-center gap-1.5 text-xs">
+            <li key={rule.id} className="flex items-center gap-1.5 text-sm">
               {rule.met ? (
                 <Check className="size-3.5 shrink-0 animate-scale-in text-success-fg" aria-hidden />
               ) : (

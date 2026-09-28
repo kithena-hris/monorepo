@@ -5,6 +5,7 @@ import { useMemo, useState, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { fieldShell, floatShell, floatValue } from '../field/field-styles';
 import {
   Calendar,
   formatIsoDate,
@@ -49,6 +50,13 @@ interface DatePickerBaseProps extends Omit<
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /**
+   * Set by `FieldControl`, so a `Field`'s label, description and error reach
+   * the trigger as they reach an `Input`. Not for use on their own.
+   */
+  id?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean;
 }
 
 /**
@@ -76,12 +84,6 @@ export type DatePickerProps = DatePickerBaseProps &
         presets?: readonly DatePickerPreset[];
       }
   );
-
-const sizeClass = {
-  sm: 'h-control-sm text-xs px-2.5',
-  md: 'h-control-md text-base px-3',
-  lg: 'h-control-lg text-md px-3.5',
-} as const;
 
 /** Day 0 of the next month is the last day of this one. */
 const endOfMonth = (year: number, month: number): IsoDate =>
@@ -123,6 +125,9 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     size = 'md',
     className,
     locale = 'en-GB',
+    id,
+    'aria-describedby': describedBy,
+    'aria-invalid': invalid,
     // Discarded, not unused: this destructure keeps the three discriminated
     // props out of `calendarProps`, which is spread onto `Calendar`.
     mode: _mode,
@@ -160,31 +165,40 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        id={id}
         disabled={disabled}
         aria-label={label}
+        aria-describedby={describedBy}
+        // The icon trails, as on every field, so under a thumb the label can
+        // float inside the trigger where the value starts.
+        data-float={size === 'sm' ? undefined : ''}
+        data-invalid={invalid || undefined}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md border border-border bg-surface text-left text-fg',
-          'transition-colors duration-(--animate-duration-fast) hover:border-border-strong',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-          'disabled:pointer-events-none disabled:opacity-55',
-          sizeClass[size],
+          fieldShell({ size }),
+          size !== 'sm' && floatShell,
+          'cursor-pointer text-start focus-visible:outline-none',
+          'data-[state=open]:bg-surface data-[state=open]:ring-2 data-[state=open]:ring-accent data-[state=open]:ring-inset',
           className,
         )}
       >
-        <CalendarDays className="size-4 shrink-0 text-fg-subtle" aria-hidden />
-        <span className={cn('min-w-0 flex-1 truncate', empty && 'text-fg-subtle')}>{display}</span>
+        <span className={cn('flex min-w-0 flex-1 items-center self-stretch', floatValue)}>
+          <span className={cn('truncate tabular-nums', empty && 'text-fg-subtle')}>{display}</span>
+        </span>
+        <CalendarDays className="size-[1.125rem] shrink-0 text-fg-muted" aria-hidden />
       </PopoverTrigger>
 
-      <PopoverContent className="w-auto p-3">
-        <div className="flex flex-col gap-3 sm:flex-row">
+      <PopoverContent className="w-auto p-3 touch:p-4">
+        {/* Presets sit beside the grid at a desk and under it on a phone,
+            where the grid already takes the width. */}
+        <div className="flex gap-3 touch:flex-col">
           {presets && mode === 'range' ? (
-            <div className="flex gap-1.5 sm:w-32 sm:flex-col max-sm:flex-wrap max-sm:order-last">
+            <div className="flex w-32 flex-col gap-1 touch:order-last touch:w-auto touch:flex-row touch:flex-wrap">
               {presets.map((preset) => (
                 <Button
                   key={preset.label}
                   size="sm"
                   variant="ghost"
-                  className="sm:justify-start"
+                  className="justify-start"
                   onClick={() => {
                     // Presets only exist on the range branch, so this narrows
                     // rather than asserting `onChange` accepts a range.

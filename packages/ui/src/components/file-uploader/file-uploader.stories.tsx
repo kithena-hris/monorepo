@@ -397,7 +397,7 @@ export const States: Story = {
       { id: '1', file: fakeFile('contract.pdf', 842_000), status: 'done', url: '#' },
     ];
     return (
-      <div className="grid max-w-4xl gap-6 md:grid-cols-3">
+      <div className="grid max-w-4xl gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
         <div className="space-y-1.5">
           <FileUploader
             {...args}

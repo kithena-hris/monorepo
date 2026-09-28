@@ -304,7 +304,7 @@ export const Localised: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
       {(
         [
           ['en-GB', 1],

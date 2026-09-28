@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 
 /**
  * A one-time code, as separate boxes.
@@ -70,9 +71,11 @@ export interface PinInputProps {
   className?: string;
 }
 
+// Taller than wide, like a digit: 44 x 52 at a desk and 48 x 58 under a
+// thumb.
 const boxSize = {
-  md: 'size-10 touch:size-11 text-md',
-  lg: 'size-12 text-lg',
+  md: 'h-13 w-11 text-[1.375rem] touch:h-[3.625rem] touch:w-12 touch:text-2xl',
+  lg: 'h-15 w-13 text-2xl touch:h-16 touch:w-14',
 } as const;
 
 export function PinInput({
@@ -171,13 +174,15 @@ export function PinInput({
     focusBox(index + pasted.length);
   };
 
+  const complete = value.replace(/\s/g, '').length === length;
+
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <span id={`${id}-label`} className="text-sm leading-none font-medium text-fg">
+      <span id={`${id}-label`} className={fieldLabelClass}>
         {label}
       </span>
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
@@ -186,7 +191,7 @@ export function PinInput({
         role="group"
         aria-labelledby={`${id}-label`}
         aria-describedby={cn(hint && hintId, statusId) || undefined}
-        className={cn('flex items-center gap-2', disabled && 'pointer-events-none opacity-55')}
+        className={cn('flex items-center gap-2', disabled && 'pointer-events-none opacity-50')}
       >
         {Array.from({ length }, (_, index) => (
           <div key={index} className="contents">
@@ -223,20 +228,21 @@ export function PinInput({
                 event.target.select();
               }}
               className={cn(
-                'rounded-md border bg-surface text-center font-mono tabular-nums text-fg',
-                'transition-[border-color,box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
-                'focus:border-border-focus focus:ring-2 focus:ring-border-focus/30 focus:outline-none',
-                // A filled box lifts a little. On a six-box row it is the only
-                // progress indicator there is.
-                value[index] ? 'border-border-strong' : 'border-border',
-                invalid && 'border-danger',
+                // Shrinks rather than overflows: six boxes at 48px and their
+                // gaps are wider than a phone card's content box.
+                'min-w-0 shrink rounded-[0.875rem] bg-surface-sunken text-center font-display font-bold tabular-nums text-fg',
+                'transition-[background-color,box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
+                'hover:bg-surface-hover',
+                'focus:bg-surface focus:ring-2 focus:ring-accent focus:ring-inset focus:outline-none',
+                // A complete code rings every box in success: on a six-box
+                // row it is the only "done" there is before the form moves on.
+                complete && !invalid && 'ring-2 ring-success ring-inset',
+                invalid && 'ring-2 ring-danger ring-inset focus:ring-danger',
                 boxSize[size],
               )}
             />
             {groupAfter !== undefined && (index + 1) % groupAfter === 0 && index < length - 1 ? (
-              <span aria-hidden className="w-2 text-center text-fg-subtle">
-                –
-              </span>
+              <span aria-hidden className="h-0.5 w-2.5 shrink-0 rounded-full bg-fg-subtle" />
             ) : null}
           </div>
         ))}

@@ -12,6 +12,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { fieldErrorClass, fieldHintClass, fieldLabelClass } from '../field/field-styles';
 
 /**
  * Several short values in one field: email addresses, skills, cost centres.
@@ -192,11 +193,11 @@ export function TagsInput({
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-sm leading-none font-medium text-fg">
+      <label htmlFor={id} className={fieldLabelClass}>
         {label}
       </label>
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
@@ -210,13 +211,18 @@ export function TagsInput({
         onClick={() => {
           inputRef.current?.focus();
         }}
+        // Filled like every field, but it grows: the height is a minimum,
+        // and the tags wrap onto as many lines as they need.
         className={cn(
-          'flex flex-wrap items-center gap-1.5 rounded-md border bg-surface p-1.5',
-          'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
-          'focus-within:border-border-focus focus-within:ring-2 focus-within:ring-border-focus/30',
-          invalid || error ? 'border-danger' : 'border-border',
-          size === 'sm' ? 'min-h-control-sm text-xs' : 'min-h-control-md text-base',
-          disabled && 'pointer-events-none opacity-55',
+          'flex cursor-text flex-wrap items-center gap-1.5 bg-surface-sunken px-2 py-1.5 touch:rounded-[1rem]',
+          'transition-[background-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
+          'hover:not-focus-within:bg-surface-hover',
+          'focus-within:bg-surface focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset',
+          (invalid || error) && 'ring-2 ring-danger ring-inset focus-within:ring-danger',
+          size === 'sm'
+            ? 'min-h-control-sm rounded-[0.625rem] text-sm'
+            : 'min-h-11 rounded-[0.75rem] text-base touch:min-h-14',
+          disabled && 'pointer-events-none opacity-50',
         )}
       >
         <ul aria-label={`${label}, ${String(value.length)} entries`} className="contents">
@@ -224,12 +230,14 @@ export function TagsInput({
             <li
               key={tag}
               className={cn(
-                'inline-flex max-w-full items-center gap-1 rounded-sm border py-0.5 ps-2 pe-1',
-                'transition-[background-color,border-color] duration-(--animate-duration-fast)',
+                // A pill on the fill: raised surface at rest, accent while the
+                // keyboard has it selected for deletion.
+                'inline-flex h-7 max-w-full items-center gap-1 rounded-full ps-2.5 pe-1 text-sm font-medium touch:h-8',
+                'transition-[background-color,color,box-shadow] duration-(--animate-duration-fast)',
                 'motion-safe:animate-pop-in',
                 focusedTag === index
-                  ? 'border-accent bg-accent-subtle text-accent-fg'
-                  : 'border-border bg-surface-sunken text-fg',
+                  ? 'bg-accent-subtle text-accent-fg ring-2 ring-accent ring-inset'
+                  : 'bg-surface-raised text-fg shadow-xs',
               )}
             >
               {/* React escapes this. A tag containing markup is displayed as
@@ -244,7 +252,7 @@ export function TagsInput({
                   remove(index);
                 }}
                 className={cn(
-                  'relative grid size-4 shrink-0 place-items-center rounded-xs text-fg-subtle tap-target',
+                  'relative grid size-5 shrink-0 place-items-center rounded-full text-fg-muted tap-target',
                   'transition-colors hover:bg-surface-active hover:text-fg',
                 )}
               >
@@ -280,18 +288,18 @@ export function TagsInput({
             if (draft.trim() !== '' && add(draft)) setDraft('');
             setFocusedTag(null);
           }}
-          className="min-w-24 flex-1 bg-transparent px-1 text-fg outline-none placeholder:text-fg-subtle"
+          className="h-7 min-w-16 flex-1 bg-transparent px-1.5 text-fg outline-none placeholder:text-fg-subtle touch:h-11"
         />
       </div>
 
       {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-danger-fg">
+        <p id={errorId} role="alert" className={fieldErrorClass}>
           {error}
         </p>
       ) : null}
 
       {max !== undefined ? (
-        <p className="self-end text-xs tabular-nums text-fg-subtle">
+        <p className="self-end text-sm tabular-nums text-fg-muted">
           {value.length} / {max}
         </p>
       ) : null}

@@ -187,7 +187,7 @@ export const Sensitive: Story = {
     docs: {
       description: {
         story:
-          'A field whose change is not applied until somebody else approves it. The badge is an outline and a glyph, not a wash, so it never reads as a status; and it is words, so it is heard as well as seen. What happens to a change is the screen\'s to say — here, a value already waiting.',
+          "A field whose change is not applied until somebody else approves it. The badge is an outline and a glyph, not a wash, so it never reads as a status; and it is words, so it is heard as well as seen. What happens to a change is the screen's to say — here, a value already waiting.",
       },
     },
   },
@@ -204,6 +204,29 @@ export const Sensitive: Story = {
           </Badge>{' '}
           A new value ending 1332 waits for a second person.
         </FieldDescription>
+      </Field>
+    </div>
+  ),
+};
+
+export const Missing: Story = {
+  args: { required: true, invalid: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'An empty required field says what finishing needs, not that a field is empty. The placeholder stays visible, so the prompt and the problem sit together.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="max-w-sm">
+      <Field {...args}>
+        <FieldLabel>Emergency contact</FieldLabel>
+        <FieldControl>
+          <Input placeholder="Name and phone" />
+        </FieldControl>
+        <FieldError>Add an emergency contact to finish onboarding.</FieldError>
       </Field>
     </div>
   ),
