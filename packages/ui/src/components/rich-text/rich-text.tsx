@@ -25,6 +25,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -36,6 +37,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 import { Button } from '../button/button';
 import { Input } from '../input/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
@@ -376,7 +378,7 @@ export function RichTextEditor({
       {label ? (
         <label
           id={labelId}
-          className={cn('text-sm leading-none font-medium text-fg', disabled && 'text-fg-disabled')}
+          className={cn(fieldLabelClass, disabled && 'text-fg-disabled')}
           // Clicking the label focuses the editable region. `htmlFor` cannot be
           // used: the target is a contenteditable div, not a form control.
           onClick={() => editor?.chain().focus().run()}
@@ -386,20 +388,21 @@ export function RichTextEditor({
       ) : null}
 
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
 
       <div
         className={cn(
-          'overflow-hidden rounded-md border bg-surface',
-          'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
-          invalid ? 'border-danger' : 'border-border',
-          // The ring goes on the wrapper, not on the editable region, so the
-          // toolbar is visibly part of the focused control.
-          'focus-within:border-border-focus focus-within:ring-2 focus-within:ring-border-focus/30',
-          disabled && 'pointer-events-none opacity-55',
+          // Filled like every field. The ring goes on the wrapper, not on the
+          // editable region, so the toolbar is visibly part of the control.
+          'overflow-hidden rounded-md bg-surface-sunken touch:rounded-[1.125rem]',
+          'transition-[background-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
+          'focus-within:bg-surface focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset',
+          invalid && 'ring-2 ring-danger ring-inset focus-within:ring-danger',
+          readOnly && 'bg-transparent ring-1 ring-border ring-inset',
+          disabled && 'pointer-events-none opacity-50',
         )}
         // Marks the whole group inactive, which is what makes the dimmed label
         // exempt from the contrast minimum rather than merely low-contrast.
@@ -427,7 +430,7 @@ export function RichTextEditor({
           aria-live={nearLimit ? 'polite' : 'off'}
           className={cn(
             'self-end text-xs tabular-nums',
-            nearLimit ? 'font-medium text-warning-fg' : 'text-fg-subtle',
+            nearLimit ? 'font-medium text-warning-fg' : 'text-fg-muted',
             characterLimit !== undefined && used >= characterLimit && 'text-danger-fg',
           )}
         >
@@ -455,6 +458,12 @@ function RichTextToolbar({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const buttons = names.flatMap((name) => groups[name]);
+  // Where each group after the first begins, for the rule drawn between them.
+  const groupStarts = new Set<number>();
+  names.reduce((start, name) => {
+    if (start > 0 && groups[name].length > 0) groupStarts.add(start);
+    return start + groups[name].length;
+  }, 0);
   const hasLink = names.includes('link');
   const total = buttons.length + (hasLink ? 2 : 0);
 
@@ -494,42 +503,52 @@ function RichTextToolbar({
       aria-orientation="horizontal"
       onKeyDown={onKeyDown}
       className={cn(
-        'flex flex-wrap items-center gap-0.5 border-b border-border bg-surface-sunken p-1',
-        sticky && 'sticky top-0 z-10',
+        'flex flex-wrap items-center gap-0.5 p-1.5 shadow-[inset_0_-1px_0_var(--reach-color-border)]',
+        // Under a thumb the buttons are at the tap floor, and wrapped they
+        // would stack three rows above the text. One row that scrolls.
+        'touch:flex-nowrap touch:overflow-x-auto touch:[scrollbar-width:none] touch:[&>*]:shrink-0',
+        sticky && 'sticky top-0 z-10 bg-inherit',
       )}
     >
       {buttons.map((button, index) => {
         const active = button.active?.(editor) ?? false;
         return (
-          <button
-            key={button.id}
-            type="button"
-            data-toolbar-item
-            aria-label={button.label}
-            aria-pressed={button.active ? active : undefined}
-            disabled={button.enabled ? !button.enabled(editor) : false}
-            tabIndex={index === focusIndex ? 0 : -1}
-            onFocus={() => {
-              setFocusIndex(index);
-            }}
-            onClick={() => {
-              button.run(editor);
-            }}
-            className={cn(
-              'grid size-8 touch:size-11 place-items-center rounded-sm text-fg-muted',
-              'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
-              'hover:bg-surface-hover hover:text-fg',
-              'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
-              'disabled:pointer-events-none disabled:opacity-40',
-              active && 'bg-accent-subtle text-accent-fg',
-              '[&_svg]:size-4',
-            )}
-          >
-            {button.icon}
-          </button>
+          <Fragment key={button.id}>
+            {groupStarts.has(index) ? (
+              <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+            ) : null}
+            <button
+              type="button"
+              data-toolbar-item
+              aria-label={button.label}
+              aria-pressed={button.active ? active : undefined}
+              disabled={button.enabled ? !button.enabled(editor) : false}
+              tabIndex={index === focusIndex ? 0 : -1}
+              onFocus={() => {
+                setFocusIndex(index);
+              }}
+              onClick={() => {
+                button.run(editor);
+              }}
+              className={cn(
+                'grid size-7.5 touch:size-11 place-items-center rounded-[0.5rem] text-fg-muted',
+                'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
+                'hover:bg-surface-hover hover:text-fg',
+                'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
+                'disabled:pointer-events-none disabled:opacity-40',
+                active && 'bg-accent-subtle text-accent-fg',
+                '[&_svg]:size-4',
+              )}
+            >
+              {button.icon}
+            </button>
+          </Fragment>
         );
       })}
 
+      {hasLink && buttons.length > 0 ? (
+        <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+      ) : null}
       {hasLink ? (
         <LinkControls
           editor={editor}
@@ -594,7 +613,7 @@ function LinkControls({
               onFocusIndex(startIndex);
             }}
             className={cn(
-              'grid size-8 touch:size-11 place-items-center rounded-sm text-fg-muted',
+              'grid size-7.5 touch:size-11 place-items-center rounded-[0.5rem] text-fg-muted',
               'transition-[background-color,color] duration-(--animate-duration-fast)',
               'hover:bg-surface-hover hover:text-fg',
               'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
@@ -625,7 +644,7 @@ function LinkControls({
                 setHref(event.target.value);
               }}
             />
-            <p className="text-xs text-fg-muted">
+            <p className={fieldHintClass}>
               Opens in a new tab, with <code className="font-mono">rel=&quot;noopener&quot;</code>.
             </p>
             <Button type="submit" size="sm" variant="primary">
@@ -648,7 +667,7 @@ function LinkControls({
           editor.chain().focus().extendMarkRange('link').unsetLink().run();
         }}
         className={cn(
-          'grid size-8 touch:size-11 place-items-center rounded-sm text-fg-muted',
+          'grid size-7.5 touch:size-11 place-items-center rounded-[0.5rem] text-fg-muted',
           'transition-[background-color,color] duration-(--animate-duration-fast)',
           'hover:bg-surface-hover hover:text-fg',
           'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',

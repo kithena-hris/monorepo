@@ -1,6 +1,6 @@
 'use client';
 
-import { ImagePlus, RotateCcw, Trash, TriangleAlert, Upload } from 'lucide-react';
+import { Camera, ImagePlus, RotateCcw, Trash, TriangleAlert, Upload } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -15,6 +15,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 import { Button } from '../button/button';
 import { Progress } from '../progress/progress';
 
@@ -342,26 +343,26 @@ export function ImageUploader({
   const full = value.length >= maxFiles;
 
   return (
-    <div className={cn('flex flex-col gap-2', className)} onPaste={onPaste}>
+    <div className={cn('@container flex flex-col gap-2', className)} onPaste={onPaste}>
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={inputId} className="text-sm leading-none font-medium text-fg">
+        <label htmlFor={inputId} className={fieldLabelClass}>
           {label}
         </label>
         {maxFiles > 1 ? (
-          <span className="text-xs tabular-nums text-fg-subtle">
+          <span className="text-xs tabular-nums text-fg-muted">
             {value.length} / {maxFiles}
           </span>
         ) : null}
       </div>
 
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
 
       {busy ? (
-        <div className="rounded-md border border-border bg-surface p-4">
+        <div className="rounded-[1.125rem] bg-surface-sunken p-4 touch:rounded-[1.375rem]">
           <Progress
             value={progress ?? null}
             label={progress === null ? 'Uploading' : 'Uploading image'}
@@ -379,30 +380,34 @@ export function ImageUploader({
           }}
           onDrop={onDrop}
           className={cn(
-            'relative flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center',
-            'transition-[background-color,border-color,transform] duration-(--animate-duration-fast) ease-standard',
+            'relative flex flex-col items-center justify-center gap-2.5 px-5 py-7 text-center',
+            'rounded-[1.125rem] border-2 border-dashed touch:rounded-[1.375rem]',
+            'transition-[background-color,border-color] duration-(--animate-duration-fast) ease-standard',
             aspectClass[aspect],
             dragging
-              ? 'scale-[1.01] border-accent bg-accent-subtle'
-              : 'border-border bg-surface-sunken',
+              ? 'border-accent bg-accent-subtle'
+              : 'border-border-strong hover:bg-accent-subtle/40',
+            'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
             invalid && 'border-danger',
-            (disabled || full) && 'pointer-events-none opacity-55',
+            (disabled || full) && 'pointer-events-none opacity-50',
           )}
         >
-          <ImagePlus
+          <span
             aria-hidden
             className={cn(
-              'size-6 transition-transform duration-(--animate-duration-normal) ease-standard',
-              dragging ? 'scale-110 text-accent-fg' : 'text-fg-subtle',
+              'grid size-12 place-items-center rounded-full transition-colors duration-(--animate-duration-fast)',
+              dragging ? 'bg-accent-solid text-fg-on-accent' : 'bg-surface-sunken text-fg-muted',
             )}
-          />
-          <p className="text-base text-fg">
-            <span className="font-medium text-accent-fg">
+          >
+            <ImagePlus className="size-5.5" />
+          </span>
+          <p className="text-sm font-semibold text-fg">
+            <span className="text-accent-fg underline underline-offset-3">
               Choose {multiple ? 'images' : 'an image'}
             </span>{' '}
-            <span className="text-fg-muted">or drop {multiple ? 'them' : 'it'} here</span>
+            <span>or drop {multiple ? 'them' : 'it'} here</span>
           </p>
-          <p className="text-xs text-fg-subtle">
+          <p className="text-xs text-fg-muted">
             {accept.map((type) => type.replace('image/', '').toUpperCase()).join(', ')} · up to{' '}
             {formatBytes(maxSize)}
             {minDimensions
@@ -439,13 +444,14 @@ export function ImageUploader({
         <ul
           className={cn(
             'grid gap-2',
-            multiple ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' : 'grid-cols-1',
+            // The width the uploader was given, not the window's.
+            multiple ? 'grid-cols-2 @md:grid-cols-3 @2xl:grid-cols-4' : 'grid-cols-1',
           )}
         >
           {value.map((image) => (
             <li
               key={image.id}
-              className="group relative overflow-hidden rounded-md border border-border bg-surface animate-scale-in"
+              className="group relative overflow-hidden rounded-md bg-surface shadow-sm animate-scale-in"
             >
               <img
                 src={toSafeImageSrc(image.previewUrl) ?? undefined}
@@ -462,8 +468,8 @@ export function ImageUploader({
               />
               <div className="flex items-center gap-2 p-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs text-fg">{image.file.name}</p>
-                  <p className="text-2xs tabular-nums text-fg-subtle">
+                  <p className="truncate text-sm font-semibold text-fg">{image.file.name}</p>
+                  <p className="text-xs tabular-nums text-fg-muted">
                     {formatBytes(image.file.size)}
                     {image.width ? ` · ${String(image.width)}×${String(image.height ?? 0)}` : ''}
                   </p>
@@ -622,7 +628,7 @@ export function AvatarUploader({
         <label
           htmlFor={inputId}
           className={cn(
-            'group relative grid h-20 shrink-0 cursor-pointer place-items-center overflow-hidden border border-border bg-surface-sunken',
+            'group relative grid h-20 shrink-0 cursor-pointer place-items-center overflow-hidden bg-surface-sunken',
             // One height, two widths. Two of these in a row line up.
             //
             // `max-w-full` so the target can still shrink: 9rem is wider than a
@@ -630,11 +636,11 @@ export function AvatarUploader({
             // element sticking out of its own column.
             ratio === 'wide' ? 'w-36 max-w-full' : 'w-20 max-w-full',
             round,
-            'transition-[border-color,box-shadow] duration-(--animate-duration-fast)',
-            'hover:border-accent',
+            'transition-[background-color,box-shadow] duration-(--animate-duration-fast)',
+            'hover:bg-surface-hover hover:ring-2 hover:ring-accent hover:ring-inset',
             'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
-            invalid && 'border-danger',
-            disabled && 'pointer-events-none opacity-55',
+            invalid && 'ring-2 ring-danger ring-inset',
+            disabled && 'pointer-events-none opacity-50',
           )}
         >
           {preview === null ? (
@@ -654,10 +660,15 @@ export function AvatarUploader({
             className={cn(
               'absolute inset-0 grid place-items-center bg-overlay text-fg-on-accent opacity-0',
               round,
+              // The photo is the control: hovering or focusing it says so.
               'transition-opacity duration-(--animate-duration-fast) group-hover:opacity-100',
+              'group-has-[:focus-visible]:opacity-100',
             )}
           >
-            <Upload className="size-5" />
+            <span className="flex flex-col items-center gap-1">
+              <Camera className="size-5" />
+              <span className="text-xs font-semibold">Change</span>
+            </span>
           </span>
           <input
             id={inputId}
@@ -696,10 +707,10 @@ export function AvatarUploader({
       </div>
 
       <div className={cn('min-w-0', orientation === 'stacked' ? 'w-full' : 'flex-1 basis-40')}>
-        <label htmlFor={inputId} className="text-sm font-medium text-fg">
+        <label htmlFor={inputId} className="text-sm font-semibold text-fg">
           {label}
         </label>
-        {hint ? <p className="mt-0.5 text-xs text-fg-muted">{hint}</p> : null}
+        {hint ? <p className={cn('mt-0.5', fieldHintClass)}>{hint}</p> : null}
         {/* Keyed off the preview, not the picked file: an image that came from
             the server is just as replaceable as one picked a second ago, and
             reading `current` here left a stored image with no controls at all. */}

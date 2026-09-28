@@ -25,6 +25,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 import { safeLinkUrl } from '../../lib/safe-url';
 import { Button } from '../button/button';
 import { Progress } from '../progress/progress';
@@ -362,10 +363,10 @@ export function FileUploader({
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={inputId} className="text-sm leading-none font-medium text-fg">
+        <label htmlFor={inputId} className={fieldLabelClass}>
           {label}
         </label>
-        <span className="text-xs tabular-nums text-fg-subtle">
+        <span className="text-xs tabular-nums text-fg-muted">
           {maxFiles > 1 ? `${String(value.length)} / ${String(maxFiles)}` : null}
           {maxTotalSize !== undefined
             ? ` · ${formatBytes(usedBytes)} of ${formatBytes(maxTotalSize)}`
@@ -374,7 +375,7 @@ export function FileUploader({
       </div>
 
       {hint ? (
-        <p id={hintId} className="text-xs text-fg-muted">
+        <p id={hintId} className={fieldHintClass}>
           {hint}
         </p>
       ) : null}
@@ -390,29 +391,32 @@ export function FileUploader({
           }}
           onDrop={onDrop}
           className={cn(
-            'relative flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center',
-            'transition-[background-color,border-color,transform] duration-(--animate-duration-fast) ease-standard',
+            'relative flex flex-col items-center justify-center gap-2.5 px-5 py-7 text-center',
+            'rounded-[1.125rem] border-2 border-dashed touch:rounded-[1.375rem]',
+            'transition-[background-color,border-color] duration-(--animate-duration-fast) ease-standard',
             dragging
-              ? 'scale-[1.01] border-accent bg-accent-subtle'
-              : 'border-border bg-surface-sunken',
+              ? 'border-accent bg-accent-subtle'
+              : 'border-border-strong hover:bg-accent-subtle/40',
             invalid && 'border-danger',
-            (disabled || full) && 'pointer-events-none opacity-55',
+            (disabled || full) && 'pointer-events-none opacity-50',
           )}
         >
-          <Upload
+          <span
             aria-hidden
             className={cn(
-              'size-6 transition-transform duration-(--animate-duration-normal) ease-standard',
-              dragging ? 'scale-110 text-accent-fg' : 'text-fg-subtle',
+              'grid size-12 place-items-center rounded-full transition-colors duration-(--animate-duration-fast)',
+              dragging ? 'bg-accent-solid text-fg-on-accent' : 'bg-surface-sunken text-fg-muted',
             )}
-          />
-          <p className="text-base text-fg">
-            <span className="font-medium text-accent-fg">
+          >
+            <Upload className="size-5.5" />
+          </span>
+          <p className="text-sm font-semibold text-fg">
+            <span className="text-accent-fg underline underline-offset-3">
               Choose {multiple ? 'files' : 'a file'}
             </span>{' '}
-            <span className="text-fg-muted">or drop {multiple ? 'them' : 'it'} here</span>
+            <span>or drop {multiple ? 'them' : 'it'} here</span>
           </p>
-          <p className="text-xs text-fg-subtle">
+          <p className="text-xs text-fg-muted">
             {accept.length > 0
               ? accept.map((entry) => entry.replace(/^.*\//, '').toUpperCase()).join(', ')
               : 'Any file'}{' '}
@@ -430,7 +434,7 @@ export function FileUploader({
       )}
 
       {value.length > 0 ? (
-        <ul aria-label={`${label}, ${String(value.length)} files`} className="space-y-1.5">
+        <ul aria-label={`${label}, ${String(value.length)} files`} className="space-y-2">
           {value.map((item) => {
             const name = displayName(item.file.name);
             const Icon = extensionIcon[extensionOf(item.file.name)] ?? FileIcon;
@@ -439,18 +443,24 @@ export function FileUploader({
               <li
                 key={item.id}
                 className={cn(
-                  'flex items-start gap-3 rounded-md border bg-surface p-2.5',
+                  // A raised row, not a bordered one; a failed row drops the
+                  // shadow and takes the danger wash instead.
+                  'flex items-center gap-3 rounded-md px-3.5 py-3',
                   'motion-safe:animate-pop-in',
-                  item.status === 'error' ? 'border-danger-border' : 'border-border',
+                  item.status === 'error' ? 'bg-danger-subtle' : 'bg-surface shadow-sm',
                 )}
               >
-                <Icon
+                <span
                   aria-hidden
                   className={cn(
-                    'mt-0.5 size-4 shrink-0',
-                    item.status === 'error' ? 'text-danger-fg' : 'text-fg-subtle',
+                    'grid size-9 shrink-0 place-items-center rounded-[0.625rem]',
+                    item.status === 'error'
+                      ? 'bg-surface text-danger-fg'
+                      : 'bg-surface-sunken text-fg-muted',
                   )}
-                />
+                >
+                  <Icon className="size-4.5" />
+                </span>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
@@ -464,14 +474,14 @@ export function FileUploader({
                         // `download` keeps the browser from rendering it inline.
                         rel="noopener noreferrer"
                         target="_blank"
-                        className="min-w-0 truncate text-base text-accent-fg underline underline-offset-2 touch:inline-block touch:min-h-tap touch:min-w-tap touch:leading-11"
+                        className="min-w-0 truncate text-sm font-semibold text-accent-fg underline underline-offset-2 touch:inline-block touch:min-h-tap touch:min-w-tap touch:leading-11"
                       >
                         {name}
                       </a>
                     ) : (
-                      <span className="min-w-0 truncate text-base text-fg">{name}</span>
+                      <span className="min-w-0 truncate text-sm font-semibold text-fg">{name}</span>
                     )}
-                    <span className="shrink-0 text-2xs tabular-nums text-fg-subtle">
+                    <span className="shrink-0 text-xs tabular-nums text-fg-muted">
                       {formatBytes(item.file.size)}
                     </span>
                   </div>
@@ -487,13 +497,13 @@ export function FileUploader({
                   ) : null}
 
                   {item.status === 'error' ? (
-                    <p className="mt-1 text-xs font-medium text-danger-fg">
+                    <p className="mt-0.5 text-xs text-danger-fg">
                       {item.error ?? 'The upload failed.'}
                     </p>
                   ) : null}
 
                   {item.status === 'done' ? (
-                    <p className="mt-0.5 text-2xs text-success-fg">Uploaded</p>
+                    <p className="mt-0.5 text-xs text-success-fg">Uploaded</p>
                   ) : null}
                 </div>
 

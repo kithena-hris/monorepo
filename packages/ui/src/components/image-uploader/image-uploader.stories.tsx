@@ -297,7 +297,7 @@ export const States: Story = {
   render: function StatesStory(args) {
     const [images, setImages] = useState<readonly UploadedImage[]>([]);
     return (
-      <div className="grid max-w-4xl gap-6 md:grid-cols-2">
+      <div className="grid max-w-4xl gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
         <div className="space-y-1.5">
           <ImageUploader
             {...args}
@@ -394,7 +394,7 @@ export const AvatarShapes: Story = {
         <CardHeader>
           <CardTitle>Company images</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-2">
+        <CardContent className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
           <AvatarUploader
             label="Logo"
             hint="The mark, beside their name in lists."
@@ -457,6 +457,30 @@ export const AvatarStored: Story = {
           />
         </CardContent>
       </Card>
+    );
+  },
+};
+
+export const AvatarPhotoIsTheControl: Story = {
+  name: 'AvatarUploader — the photo is the control',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'On hover or focus the photo shows "Change". On touch, tapping it opens the options. There is no separate button to find: the thing you want to change is the thing you press.',
+      },
+    },
+  },
+  render: function PhotoControlStory() {
+    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    return (
+      <AvatarUploader
+        label="Profile photo"
+        hint="Square works best. At least 400 × 400."
+        src={STORED_IMAGE}
+        value={images}
+        onChange={setImages}
+      />
     );
   },
 };
