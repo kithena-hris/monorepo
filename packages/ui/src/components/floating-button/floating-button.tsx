@@ -1,9 +1,12 @@
 'use client';
 
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { useState, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * The one action a screen exists for, floating above its content.
@@ -105,5 +108,109 @@ export function FloatingButton({
         </span>
       ) : null}
     </button>
+  );
+}
+
+export interface SpeedDialAction {
+  label: string;
+  icon: ReactNode;
+  onSelect: () => void;
+}
+
+export interface SpeedDialProps extends Omit<
+  FloatingButtonProps,
+  'icon' | 'label' | 'collapsed' | 'onClick'
+> {
+  /** The glyph at rest. It turns into a close cross while the dial is open. */
+  icon: ReactNode;
+  /** Names the button: "Quick actions". */
+  'aria-label': string;
+  /** Three at most. More than that is a menu, not a dial. */
+  actions: readonly SpeedDialAction[];
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+/**
+ * A floating button that fans out a few related actions above itself.
+ *
+ * The scrim is the part people miss when they build one: it dims the page, so
+ * the three actions read as the only thing on screen, and a tap anywhere on it
+ * closes the dial, which is the gesture a thumb already tries. It is drawn
+ * under the button, so the cross that closes it stays lit.
+ *
+ * Behaviour is a Radix popover: focus moves to the first action on open,
+ * Escape and a tap outside close it, and focus returns to the button. Each
+ * action closes the dial as it runs. The button needs a positioning context
+ * of the page's choosing (`fixed` or `absolute`), like `FloatingButton`.
+ */
+export function SpeedDial({
+  icon,
+  actions,
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  className,
+  ...props
+}: SpeedDialProps): JSX.Element {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean): void => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
+
+  return (
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Trigger asChild>
+        <FloatingButton
+          {...props}
+          icon={open ? <X aria-hidden="true" /> : icon}
+          className={cn('data-[state=open]:z-50', className)}
+        />
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal container={usePortalContainer()}>
+        <div className="contents">
+          <div aria-hidden className="fixed inset-0 z-40 bg-overlay motion-safe:animate-fade-in" />
+          <PopoverPrimitive.Content
+            side="top"
+            align="end"
+            sideOffset={12}
+            collisionPadding={12}
+            className={cn(
+              'z-50 flex flex-col items-end gap-3 outline-none',
+              'origin-(--radix-popover-content-transform-origin)',
+              'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+            )}
+          >
+            {actions.map((action) => (
+              <PopoverPrimitive.Close key={action.label} asChild>
+                <button
+                  type="button"
+                  onClick={action.onSelect}
+                  className={cn(
+                    'group/dial relative flex items-center gap-3 rounded-full tap-target',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+                  )}
+                >
+                  <span className="rounded-[0.625rem] bg-surface-raised px-3 py-2 text-sm font-semibold text-fg shadow-md">
+                    {action.label}
+                  </span>
+                  <span
+                    className={cn(
+                      fab({ variant: 'surface', size: 'sm' }),
+                      'group-hover/dial:bg-surface-hover',
+                    )}
+                  >
+                    {action.icon}
+                  </span>
+                </button>
+              </PopoverPrimitive.Close>
+            ))}
+          </PopoverPrimitive.Content>
+        </div>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }

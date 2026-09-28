@@ -1,10 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ArrowRight, Calendar, Plus, Receipt, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
+import { ArrowRight, Calendar, Plus, Receipt, Sparkles, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 
 import { Card } from '../card/card';
-import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '../popover/popover';
-import { FloatingButton } from './floating-button';
+import { FloatingButton, SpeedDial as Dial } from './floating-button';
 
 const meta = {
   title: 'Components/Floating button',
@@ -179,39 +178,28 @@ export const SpeedDial: Story = {
     docs: {
       description: {
         story:
-          'Three actions at most, fanned out above the button in a popover. Escape or a tap outside closes it, and focus returns to the button.',
+          'Three actions at most, fanned out above the button. The scrim dims the page so the actions are the only thing on it, and tapping it closes the dial. Escape closes it too, and focus returns to the button.',
       },
     },
   },
   render: function SpeedDialStory() {
-    const [open, setOpen] = useState(false);
+    const [picked, setPicked] = useState<string | null>(null);
     return (
-      <div className="flex h-80 w-72 items-end justify-end p-5">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <FloatingButton
-              icon={open ? <X aria-hidden="true" /> : <Plus aria-hidden="true" />}
-              aria-label={open ? 'Close quick actions' : 'Quick actions'}
-            />
-          </PopoverTrigger>
-          <PopoverContent
-            side="top"
-            align="end"
-            sideOffset={12}
-            className="flex w-auto flex-col items-end gap-3 overflow-visible border-0 bg-transparent p-0 shadow-none"
-          >
-            {dial.map(({ icon: Icon, label }) => (
-              <PopoverClose key={label} asChild>
-                <FloatingButton
-                  size="sm"
-                  variant="surface"
-                  icon={<Icon aria-hidden="true" />}
-                  label={label}
-                />
-              </PopoverClose>
-            ))}
-          </PopoverContent>
-        </Popover>
+      <div className="flex h-80 w-72 flex-col items-end justify-between p-5">
+        <p aria-live="polite" className="self-start text-sm text-fg-muted">
+          {picked ?? 'Open the dial.'}
+        </p>
+        <Dial
+          icon={<Plus aria-hidden="true" />}
+          aria-label="Quick actions"
+          actions={dial.map(({ icon: Icon, label }) => ({
+            label,
+            icon: <Icon aria-hidden="true" />,
+            onSelect: () => {
+              setPicked(label);
+            },
+          }))}
+        />
       </div>
     );
   },
