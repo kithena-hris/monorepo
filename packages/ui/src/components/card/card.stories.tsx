@@ -6,6 +6,7 @@ import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Money } from '../money/money';
+import { Stat } from '../stat/stat';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
 
 const meta = {
@@ -139,7 +140,11 @@ export const Attention: Story = {
       <Alert
         tone="warning"
         title="Right to work expires in 14 days"
-        actions={<Button size="sm">Upload</Button>}
+        actions={
+          <Button variant="primary" size="sm">
+            Upload
+          </Button>
+        }
       >
         Upload a new visa for Lucas Moreau before 12 Oct.
       </Alert>
@@ -164,28 +169,22 @@ export const StatTile: Story = {
     },
   },
   render: () => (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,10.5rem),1fr))] gap-4">
-      <Card padded>
-        <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">Headcount</p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums">912</p>
-        <p className="mt-1 text-xs text-fg-muted">+18 this quarter</p>
-      </Card>
-      <Card padded>
-        <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-          Monthly payroll
-        </p>
-        <p className="mt-2 text-2xl font-semibold">
-          <Money minorUnits="983450000" currency="EUR" locale="en-IE" />
-        </p>
-        <p className="mt-1 text-xs text-fg-muted">Base salary only</p>
-      </Card>
-      <Card padded>
-        <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-          Pending approvals
-        </p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums">7</p>
-        <p className="mt-1 text-xs text-fg-muted">Oldest is 4 days</p>
-      </Card>
+    // The design's tile grid: 150px columns under a finger, 170 at a desk.
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.625rem),1fr))] gap-3 touch:grid-cols-[repeat(auto-fit,minmax(min(100%,9.375rem),1fr))]">
+      <Stat
+        label="Headcount"
+        value="912"
+        delta="+18"
+        deltaLabel="this quarter"
+        direction="up"
+        sentiment="positive"
+      />
+      <Stat
+        label="Monthly payroll"
+        value={<Money minorUnits="983450000" currency="EUR" locale="en-IE" />}
+        description="Base salary only"
+      />
+      <Stat label="Pending approvals" value="7" description="Oldest is 4 days" />
     </div>
   ),
 };

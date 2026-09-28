@@ -87,8 +87,13 @@ export function Stat({
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <p
           className={cn(
-            'font-display text-xl leading-[1.05] font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums text-fg',
-            '@[12rem]:text-2xl touch:@[12rem]:text-[1.875rem]',
+            'font-display leading-[1.05] font-bold tracking-[-0.03em] tabular-nums text-fg',
+            // Sized by the tile, not by a step. A figure like "€9,834,500" in a
+            // two-across phone grid is wider than a fixed 24px can hold, and a
+            // number that runs out of its card is worse than a smaller one. At
+            // 14% of the tile's width a ten-character figure still fits;
+            // `anywhere` is the last resort for a longer one, never overflow.
+            'text-[clamp(1.125rem,14cqi,2.125rem)] [overflow-wrap:anywhere]',
           )}
         >
           {value}

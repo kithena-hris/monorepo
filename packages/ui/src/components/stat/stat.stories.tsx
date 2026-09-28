@@ -270,28 +270,20 @@ export const InANarrowColumn: Story = {
     docs: {
       description: {
         story:
-          'The left column is 240px, the right is the rest. The value steps down a size in the narrow one, from the container query, not from the viewport, which is identical for both. A `description` adds one line of context under the delta.',
+          'A 220px sidebar column at a desk, the full width on a phone. The value is sized by the tile it sits in, from a container query rather than the viewport, so it steps down in the narrow column without the page having to say so.',
       },
     },
   },
   render: () => (
-    <div className="grid grid-cols-[minmax(0,15rem)_minmax(0,1fr)] gap-6">
+    <div className="flex w-55 max-w-full flex-col gap-2.5 touch:w-full">
+      <Stat label="Headcount" value="312" delta="+12" direction="up" sentiment="positive" />
       <Stat
-        label="Pending approvals"
-        value="7"
-        delta="+3"
-        deltaLabel="since Monday"
-        direction="up"
-        sentiment="negative"
-      />
-      <Stat
-        label="Pending approvals"
-        value="7"
-        delta="+3"
-        deltaLabel="since Monday"
-        direction="up"
-        sentiment="negative"
-        description="Three are past their five-day target."
+        label="Leavers"
+        value="4"
+        delta="−2"
+        direction="down"
+        sentiment="positive"
+        description="Fewer leavers is down, and that is good."
       />
     </div>
   ),
