@@ -108,7 +108,12 @@ export { Dropzone } from './components/dropzone/dropzone';
 export type { DropzoneProps } from './components/dropzone/dropzone';
 
 export { SortableList } from './components/sortable/sortable';
-export type { SortableItem, SortableListProps, SortableMove } from './components/sortable/sortable';
+export type {
+  SortableAppearance,
+  SortableItem,
+  SortableListProps,
+  SortableMove,
+} from './components/sortable/sortable';
 
 export { Stepper } from './components/stepper/stepper';
 export type { StepStatus, StepperProps, StepperStep } from './components/stepper/stepper';
@@ -432,6 +437,15 @@ export type {
   DataTableReorder,
   DataTableSort,
 } from './components/table/data-table';
+
+export { ColumnChooser } from './components/table/column-chooser';
+export type { ColumnChoice, ColumnChooserProps } from './components/table/column-chooser';
+
+export { KeyValues } from './components/key-values/key-values';
+export type { KeyValueItem, KeyValuesProps } from './components/key-values/key-values';
+
+export { TreeView } from './components/tree-view/tree-view';
+export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';
 
 export {
   CurrencyField,
