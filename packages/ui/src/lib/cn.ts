@@ -8,6 +8,13 @@ import { extendTailwindMerge } from 'tailwind-merge';
  */
 const twMerge = extendTailwindMerge({
   extend: {
+    // Named steps outside Tailwind's defaults. Without them `rounded-control`
+    // and `rounded-full` both survive a merge, and so do `h-control-md` and
+    // `h-8`, and whichever the stylesheet happens to list last wins.
+    theme: {
+      radius: ['control'],
+      spacing: ['control-sm', 'control-md', 'control-lg', 'field', 'tap'],
+    },
     classGroups: {
       'font-size': [{ text: ['2xs', 'xs', 'sm', 'base', 'md', 'lg', 'xl', '2xl', '3xl'] }],
     },
