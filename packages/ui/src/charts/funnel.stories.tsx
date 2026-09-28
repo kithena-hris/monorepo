@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
-import { useState } from 'react';
 
-import { Badge } from '../components/badge/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
-import { FunnelChart, HorizontalBarChart } from '../components/chart/chart';
-import { ToggleGroup, ToggleGroupItem } from '../components/toggle/toggle';
-import { pipeline } from './fixtures';
+import { FunnelChart } from '../components/chart/chart';
+import { ChartCard } from '../components/chart/chart-card';
+import { Alert } from '../components/feedback/feedback';
+import { AutoGrid } from '../components/layout/layout';
+import { hiringFunnel, pipeline } from './fixtures';
 
 const meta = {
   title: 'Charts/Funnel',
@@ -76,57 +75,36 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
+  args: {
+    label: 'Hiring, Q3',
+    data: hiringFunnel,
+  },
   render: (args) => (
-    <Card className="max-w-xl">
-      <CardHeader>
-        <CardTitle>Hiring pipeline</CardTitle>
-        <Badge size="sm">1.4% overall</Badge>
-      </CardHeader>
-      <CardContent>
-        <FunnelChart {...args} />
-      </CardContent>
-    </Card>
+    <ChartCard title="Hiring, Q3" value="24 offers">
+      <FunnelChart {...args} />
+    </ChartCard>
   ),
 };
 
 export const FindingTheBottleneck: Story = {
   name: 'Finding the bottleneck',
+  args: {
+    label: 'Hiring, Q3',
+    data: hiringFunnel,
+    highlightBiggestDrop: true,
+  },
   parameters: {
     docs: {
       description: {
         story:
-          'Read the step conversions rather than the shape. The largest drop by *count* is applied → screened, losing 872, but that is a funnel doing its job. The one worth acting on is screened → interviewed at 36%, where 264 people who passed a human screen went nowhere. A taper drawn by area would have made the first look like the problem.',
+          'Read the step conversions rather than the shape. The largest drop by *count* is applied → screened, but that is a funnel doing its job. `highlightBiggestDrop` finds the worst step by *share*, screened → interviewed at 23%, paints it in the danger tone and says so in words.',
       },
     },
   },
   render: (args) => (
-    <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Funnel</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FunnelChart {...args} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Step conversion, ranked</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <HorizontalBarChart
-            label="Step conversion by stage, percent"
-            tone="warning"
-            sorted={false}
-            format={(value) => `${String(value)}%`}
-            data={pipeline.slice(1).map((stage, index) => ({
-              label: stage.label,
-              value: Math.round((stage.value / (pipeline[index]?.value ?? 1)) * 100),
-            }))}
-          />
-        </CardContent>
-      </Card>
-    </div>
+    <ChartCard title="Hiring, Q3" description="Only 23% of screened candidates get an interview">
+      <FunnelChart {...args} />
+    </ChartCard>
   ),
 };
 
@@ -136,50 +114,35 @@ export const Comparing: Story = {
     docs: {
       description: {
         story:
-          "Two roles, same stages. Switch between them: the bar lengths are relative to each funnel's own largest stage, so the *shapes* are comparable even though the volumes are not. What is not comparable is the bar length between the two charts, which is why the counts are printed and why they sit at the same place in each row.",
+          "Two sources, same stages, each in its own palette colour. The bar lengths are relative to each funnel's own first stage, so the *shapes* are comparable even though the volumes are not; the counts are printed for the volumes.",
       },
     },
   },
-  render: function ComparingStory(args) {
-    const [role, setRole] = useState('engineering');
-    const data =
-      role === 'engineering'
-        ? pipeline
-        : [
-            { label: 'Applied', value: 214 },
-            { label: 'Screened', value: 96 },
-            { label: 'Interviewed', value: 54 },
-            { label: 'Onsite', value: 21 },
-            { label: 'Offer', value: 9 },
-            { label: 'Hired', value: 8 },
-          ];
-
-    return (
-      <Card className="max-w-xl">
-        <CardHeader>
-          <CardTitle>Pipeline</CardTitle>
-          <ToggleGroup
-            type="single"
-            value={role}
-            onValueChange={(next) => {
-              if (next) setRole(next);
-            }}
-            aria-label="Role family"
-          >
-            <ToggleGroupItem value="engineering" size="sm">
-              Engineering
-            </ToggleGroupItem>
-            <ToggleGroupItem value="finance" size="sm">
-              Finance
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </CardHeader>
-        <CardContent>
-          <FunnelChart {...args} label={`Hiring pipeline, ${role}`} data={data} />
-        </CardContent>
-      </Card>
-    );
-  },
+  render: () => (
+    <AutoGrid minItemWidth="16.25rem" gap={3}>
+      <ChartCard title="Referrals" value="32% hired">
+        <FunnelChart
+          label="Referral pipeline"
+          tone="chart-2"
+          data={[
+            { label: 'Applied', value: 80 },
+            { label: 'Interview', value: 46 },
+            { label: 'Hired', value: 26 },
+          ]}
+        />
+      </ChartCard>
+      <ChartCard title="Job boards" value="1% hired">
+        <FunnelChart
+          label="Job board pipeline"
+          data={[
+            { label: 'Applied', value: 1160 },
+            { label: 'Interview', value: 50 },
+            { label: 'Hired', value: 12 },
+          ]}
+        />
+      </ChartCard>
+    </AutoGrid>
+  ),
 };
 
 export const NotAlwaysFalling: Story = {
@@ -188,28 +151,24 @@ export const NotAlwaysFalling: Story = {
     docs: {
       description: {
         story:
-          'An onboarding sequence where a stage *gains* people: tasks reopened after a failed right-to-work check. A trapezoid cannot draw this at all; bars simply get longer, and the step conversion reads over 100%, which is the honest answer.',
+          'A stage that *gains* people. A trapezoid cannot draw this at all; bars simply get longer, and the step reads over 100% in the warning tone, which is the honest answer. Pair it with an alert saying what to check.',
       },
     },
   },
-  render: (args) => (
-    <Card className="max-w-xl">
-      <CardHeader>
-        <CardTitle>Onboarding tasks</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <FunnelChart
-          {...args}
-          label="Onboarding task completion"
-          data={[
-            { label: 'Started', value: 120 },
-            { label: 'Documents uploaded', value: 96 },
-            { label: 'Right to work checked', value: 74, tone: 'warning' },
-            { label: 'Returned for correction', value: 88, tone: 'danger' },
-            { label: 'Completed', value: 71, tone: 'success' },
-          ]}
-        />
-      </CardContent>
-    </Card>
+  render: () => (
+    <div className="flex flex-col gap-3">
+      <FunnelChart
+        label="Survey completion"
+        data={[
+          { label: 'Invited', value: 120 },
+          { label: 'Started', value: 96 },
+          { label: 'Completed', value: 104 },
+        ]}
+      />
+      <Alert tone="warning" title="More completed than started">
+        Some people finished without a &ldquo;started&rdquo; event. Check the tracking before you
+        trust these numbers.
+      </Alert>
+    </div>
   ),
 };

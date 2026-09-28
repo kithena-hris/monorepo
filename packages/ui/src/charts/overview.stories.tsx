@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState, type JSX } from 'react';
+import { useState } from 'react';
 
-import { Badge } from '../components/badge/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
 import {
   BarChart,
   DonutChart,
@@ -10,21 +8,18 @@ import {
   HeatmapChart,
   HorizontalBarChart,
   Sparkline,
-  StackedBarChart,
   TrendChart,
 } from '../components/chart/chart';
+import { ChartCard } from '../components/chart/chart-card';
+import { WaterfallChart } from '../components/chart/waterfall-chart';
 import { AutoGrid } from '../components/layout/layout';
-import { Money } from '../components/money/money';
-import { Stat } from '../components/stat/stat';
 import {
   absence,
   byDepartment,
-  byStatus,
-  headcount,
-  leaveTypeByTeam,
-  leavers,
+  headcount2026,
+  hires2026,
+  leaveByWeekday,
   pipeline,
-  teams,
 } from './fixtures';
 
 const meta = {
@@ -34,7 +29,7 @@ const meta = {
     docs: {
       description: {
         component: [
-          'Eight chart types, drawn by hand in SVG and CSS.',
+          'Every chart in Reach is drawn by hand in SVG and CSS, and sits in a `ChartCard`: the title first and quiet, the number large, the chart under it. Series take the `chart-1` to `chart-6` palette in order.',
           '',
           '### Why no charting library',
           '',
@@ -58,6 +53,16 @@ const meta = {
           '| `FunnelChart` | Where do people drop out of a sequence? |',
           '| `TimelineChart` | What happens when, and to whom? A Gantt. |',
           '| `OrgChart` | Who reports to whom? |',
+          '| `ComboChart` | How do two measures in different units move together? |',
+          '| `StackedAreaChart` | How does a total change over time, and what makes it up? |',
+          '| `Gauge` | How close are we to one target? |',
+          '| `BulletChart` | How close are we to several targets, in little space? |',
+          '| `RadarChart` | How does one thing compare across five to eight qualities? |',
+          '| `TreemapChart` | What is this whole made of, when there are too many parts for a donut? |',
+          '| `HistogramChart` | How are these values spread? |',
+          '| `CohortChart` | How does each group of joiners stay over time? |',
+          '| `CalendarHeatmap` | Which days were busy, across months? |',
+          '| `BubbleChart` | How do these compare on two measures, sized by a third? |',
           '',
           '### Interaction, on every chart',
           '',
@@ -91,16 +96,12 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function Panel({ title, children }: { title: string; children: JSX.Element }): JSX.Element {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
+const contract = [
+  ['Title and summary', 'Read first: "82 hires in 2026. The most was 14 in September."'],
+  ['Data table', 'A visually hidden table carries every value.'],
+  ['Keyboard', 'Tab into the chart; every mark takes focus and opens its readout.'],
+  ['Colour', 'Never the only signal. Labels, values and a table carry it too.'],
+] as const;
 
 export const Gallery: Story = {
   name: 'Every chart',
@@ -108,113 +109,74 @@ export const Gallery: Story = {
     docs: {
       description: {
         story:
-          'All eight, on the same data set, at the sizes they are actually used. Resize the canvas: none of them measures anything in JavaScript, so every one reflows with its container.',
+          'One card per chart type, at the size a dashboard tile gives them. The number comes first and the chart under it, and every series takes the palette in order. Resize the canvas: none of them measures anything in JavaScript, so every one reflows with its card.',
       },
     },
   },
   render: () => (
-    <div className="space-y-6">
-      <AutoGrid minItemWidth="15rem" gap={4}>
-        <Stat
-          label="Headcount"
-          value="912"
-          delta="+8.3%"
-          deltaLabel="vs February"
-          direction="up"
-          sentiment="positive"
-          chart={<Sparkline label="Headcount, last 7 months" data={headcount} />}
+    <AutoGrid minItemWidth="16.25rem" gap={3}>
+      <ChartCard title="Bar">
+        <BarChart
+          label="Hires by month, January to September"
+          data={hires2026.slice(0, 9)}
+          height={90}
+          highlightIndex={8}
         />
-        <Stat
-          label="Leavers"
-          value="6"
-          delta="−1"
-          deltaLabel="vs July"
-          direction="down"
-          sentiment="positive"
-          chart={<Sparkline label="Leavers by month" data={leavers} tone="success" />}
+      </ChartCard>
+      <ChartCard title="Trend">
+        <TrendChart
+          label="Headcount, 2026"
+          height={90}
+          area
+          series={[{ label: 'Headcount', data: headcount2026 }]}
         />
-        <Stat
-          label="Monthly payroll"
-          value={<Money minorUnits="98345000" currency="EUR" locale="en-IE" />}
-          delta="+2.1%"
-          deltaLabel="vs July"
-          direction="up"
-          sentiment="neutral"
+      </ChartCard>
+      <ChartCard title="Distribution">
+        <DonutChart
+          label="Headcount by team"
+          size={90}
+          showLegend={false}
+          data={[
+            { label: 'Eng', value: 124 },
+            { label: 'Sales', value: 64 },
+            { label: 'Support', value: 48 },
+            { label: 'Other', value: 76 },
+          ]}
         />
-        <Stat
-          label="Offer acceptance"
-          value="75%"
-          delta="−9pp"
-          deltaLabel="vs Q1"
-          direction="down"
-          sentiment="negative"
-        />
-      </AutoGrid>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Headcount and leavers">
-          <TrendChart
-            label="Headcount and leavers, February to August 2026"
-            height={200}
-            area
-            series={[
-              { label: 'Headcount', data: headcount, tone: 'accent' },
-              { label: 'Leavers', data: leavers, tone: 'danger' },
-            ]}
-          />
-        </Panel>
-
-        <Panel title="Headcount by month">
-          <BarChart label="Headcount by month" data={headcount} height={200} showValues />
-        </Panel>
-
-        <Panel title="By department">
-          <HorizontalBarChart label="Headcount by department" data={byDepartment} />
-        </Panel>
-
-        <Panel title="By status">
-          <DonutChart
-            label="Employees by status"
-            size={150}
-            data={byStatus}
-            center={
-              <div>
-                <p className="text-xl font-semibold tabular-nums text-fg">912</p>
-                <p className="text-2xs text-fg-subtle">people</p>
-              </div>
-            }
-          />
-        </Panel>
-
-        <Panel title="Leave taken by team">
-          <StackedBarChart
-            label="Leave days by team and type"
-            categories={[...teams]}
-            series={leaveTypeByTeam}
-            height={180}
-          />
-        </Panel>
-
-        <Panel title="Hiring pipeline">
-          <FunnelChart label="Hiring pipeline, 2026" data={pipeline} />
-        </Panel>
-      </div>
-
-      <Panel title="Absence by week">
+      </ChartCard>
+      <ChartCard title="Heatmap">
         <HeatmapChart
-          label="Absence days by person and week"
-          rows={absence.people}
-          columns={absence.weeks}
-          cells={absence.cells}
-          tone="warning"
-          describe={(value, row, column) =>
-            value === 0
-              ? `${row}, ${column}: no absence`
-              : `${row}, ${column}: ${String(value)} days`
-          }
+          label="Leave requests by week and weekday"
+          rows={leaveByWeekday.rows.slice(0, 3)}
+          columns={leaveByWeekday.columns.slice(0, 5)}
+          cells={leaveByWeekday.cells}
         />
-      </Panel>
-    </div>
+      </ChartCard>
+      <ChartCard title="Funnel">
+        <FunnelChart
+          label="Hiring funnel"
+          showConversion={false}
+          data={[
+            { label: 'Applied', value: 420 },
+            { label: 'Screen', value: 180 },
+            { label: 'Offer', value: 24 },
+          ]}
+        />
+      </ChartCard>
+      <ChartCard title="Movement">
+        <WaterfallChart
+          label="Headcount movement"
+          height={90}
+          baseline="zero"
+          data={[
+            { label: 'Start', value: 297, total: true },
+            { label: 'In', value: 18 },
+            { label: 'Out', value: -3 },
+            { label: 'End', value: 312, total: true },
+          ]}
+        />
+      </ChartCard>
+    </AutoGrid>
   ),
 };
 
@@ -224,58 +186,33 @@ export const Accessibility: Story = {
     docs: {
       description: {
         story: [
-          'Every chart on this page renders its numbers twice. The second copy is a real `<table>`, visually hidden and fully present in the accessibility tree: headers, row scope and all.',
+          'Every chart renders its numbers twice. The second copy is a real `<table>`, visually hidden and fully present in the accessibility tree: headers, row scope and all. Every chart is also a named `figure`, and takes a `summary` sentence that is read before the table, so a screen reader hears the point before the numbers.',
           '',
-          'The table below is the same one the bar chart beside it emits, made visible. It is not a fallback and not a "text alternative" in the box-ticking sense: it is the data, in the one form that works for everybody.',
-          '',
-          'What that rules out is worth stating. A chart cannot be described adequately by an `aria-label`, because a summary is not the data, "line chart showing headcount rising" is a conclusion someone else reached. It also cannot rely on a tooltip, because a tooltip needs a pointer.',
+          'What that rules out is worth stating. A chart cannot be described adequately by an `aria-label` alone, because a summary is not the data. It also cannot rely on a tooltip, because a tooltip needs a pointer.',
         ].join('\n'),
       },
     },
   },
   render: () => (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Panel title="What everyone else sees">
-        <HorizontalBarChart label="Headcount by department" data={byDepartment} />
-      </Panel>
-
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>What a screen reader reads</CardTitle>
+    <div className="flex flex-col gap-3.5">
+      <ChartCard title="Hires, 2026" value="82">
+        <BarChart
+          label="Hires by month, 2026"
+          summary="82 hires in 2026. The most was 14 in September."
+          data={hires2026}
+          highlightIndex={8}
+          futureFrom={9}
+          height={150}
+        />
+      </ChartCard>
+      <dl className="grid gap-x-6 gap-y-3 text-sm [grid-template-columns:minmax(0,10.5rem)_minmax(0,1fr)] touch:grid-cols-1 touch:gap-y-1">
+        {contract.map(([term, detail]) => (
+          <div key={term} className="contents">
+            <dt className="font-medium text-fg-muted touch:mt-2">{term}</dt>
+            <dd className="text-fg">{detail}</dd>
           </div>
-          <Badge size="sm">Normally `sr-only`</Badge>
-        </CardHeader>
-        <CardContent>
-          <table className="w-full text-sm">
-            <caption className="mb-2 text-start text-xs text-fg-muted">
-              Headcount by department
-            </caption>
-            <thead>
-              <tr className="border-b border-border">
-                <th scope="col" className="py-1 text-start font-medium text-fg-subtle">
-                  Period
-                </th>
-                <th scope="col" className="py-1 text-end font-medium text-fg-subtle">
-                  Value
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {byDepartment
-                .toSorted((a, b) => b.value - a.value)
-                .map((point) => (
-                  <tr key={point.label} className="border-b border-border last:border-0">
-                    <th scope="row" className="py-1 text-start font-normal text-fg">
-                      {point.label}
-                    </th>
-                    <td className="py-1 text-end tabular-nums text-fg-muted">{point.value}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+        ))}
+      </dl>
     </div>
   ),
 };
@@ -283,29 +220,34 @@ export const Accessibility: Story = {
 export const Responsive: Story = {
   name: 'At every width',
   parameters: {
-    layout: 'fullscreen',
     docs: {
       description: {
         story:
-          'The same four charts in a 20rem sidebar, a half-width column and full width. Nothing here is measured in JavaScript: bars are percentage widths, the sparkline is a stretched `viewBox`, the donut is a fixed square whose legend wraps underneath when the row gets tight, and the heatmap scrolls rather than shrinking its cells, a 6px cell is a colour, not a datum.',
+          'Wide, medium and narrow. As the card narrows the labels thin out, and at its narrowest the card keeps the number and a sparkline: past a certain width a chart stops being a chart, and the number is what is left worth reading.',
       },
     },
   },
   render: () => (
-    <div className="space-y-6 bg-canvas p-4">
-      {(['20rem', '36rem', '100%'] as const).map((width) => (
-        <div key={width} style={{ maxWidth: width }} className="space-y-3">
-          <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-            Container {width}
-          </p>
-          <Card padded className="space-y-5">
-            <Sparkline label={`Headcount at ${width}`} data={headcount} />
-            <BarChart label={`By month at ${width}`} data={headcount} height={110} />
-            <HorizontalBarChart label={`By department at ${width}`} data={byDepartment} limit={4} />
-            <FunnelChart label={`Pipeline at ${width}`} data={pipeline.slice(0, 4)} />
-          </Card>
-        </div>
-      ))}
+    <div className="flex flex-wrap items-stretch gap-3">
+      <div className="min-w-0 flex-[3_1_22.5rem]">
+        <ChartCard title="Wide" className="h-full">
+          <BarChart label="Hires by month" data={hires2026} height={120} highlightIndex={8} />
+        </ChartCard>
+      </div>
+      <div className="min-w-0 flex-[2_1_13.75rem]">
+        <ChartCard title="Medium · labels thin out" className="h-full">
+          <BarChart
+            label="Hires, every other month"
+            data={hires2026.filter((_, index) => index % 2 === 0)}
+            height={120}
+          />
+        </ChartCard>
+      </div>
+      <div className="min-w-0 flex-[1_1_8.75rem]">
+        <ChartCard title="Narrow · number only" value="82" className="h-full">
+          <Sparkline label="Hires, January to September" data={hires2026.slice(0, 9)} />
+        </ChartCard>
+      </div>
     </div>
   ),
 };
@@ -316,57 +258,51 @@ export const Interaction: Story = {
     docs: {
       description: {
         story: [
-          'Four charts with the same interaction surface. On each one:',
+          'The same interaction surface on every axis chart:',
           '',
-          '- **Drag across the plot** to zoom into the range you dragged. Vertical charts drag horizontally, the ranking and the funnel drag down their rows.',
+          '- **Drag across the plot** to zoom into the range you dragged. Vertical charts drag sideways, the ranking and the funnel drag down their rows.',
           '- **Use the buttons** for the same thing without a pointer, and read the window in the live region beside them.',
           '- **Right-click anywhere** on a chart for zoom, reset, and copy as CSV.',
           '',
-          'Try dragging a *tiny* distance first: nothing happens under 6px, so a click on a bar is still a click on a bar. Then drag properly and release over a bar, it zooms without also selecting the bar underneath, because the click that follows a drag is swallowed.',
+          'Nothing happens under 6px of movement, so a click on a bar is still a click on a bar, and the click that follows a real drag is swallowed.',
         ].join('\n'),
       },
     },
   },
   render: function InteractionStory() {
     const [log, setLog] = useState<string | null>(null);
-    const weekly = Array.from({ length: 24 }, (_, index) => ({
-      label: `W${String(index + 14)}`,
-      value: 840 + index * 3 + (index > 11 && index < 17 ? -24 : 0),
-    }));
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <p aria-live="polite" className="min-h-5 text-sm text-fg-muted">
           {log ?? 'Drag across a plot, or right-click one.'}
         </p>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title="Bar: drag sideways">
+        <AutoGrid minItemWidth="21rem" gap={3}>
+          <ChartCard title="Headcount" value="312">
+            <TrendChart
+              label="Headcount, 2026"
+              area
+              zoomable
+              series={[{ label: 'Headcount', data: headcount2026 }]}
+              onSelect={(selection) => {
+                setLog(`Trend: ${selection.label}`);
+              }}
+            />
+          </ChartCard>
+
+          <ChartCard title="Hires by month">
             <BarChart
-              label="Headcount by week"
-              data={weekly}
-              height={180}
+              label="Hires by month"
+              data={hires2026.slice(0, 9)}
               zoomable
               onSelect={(point) => {
                 setLog(`Bar: ${point.label}, ${String(point.value)}`);
               }}
             />
-          </Panel>
+          </ChartCard>
 
-          <Panel title="Trend: drag sideways">
-            <TrendChart
-              label="Headcount by week"
-              height={180}
-              area
-              zoomable
-              series={[{ label: 'Headcount', data: weekly, tone: 'accent' }]}
-              onSelect={(selection) => {
-                setLog(`Trend: ${selection.label}`);
-              }}
-            />
-          </Panel>
-
-          <Panel title="Ranking: drag down">
+          <ChartCard title="Headcount by department">
             <HorizontalBarChart
               label="Headcount by department"
               data={byDepartment}
@@ -375,9 +311,9 @@ export const Interaction: Story = {
                 setLog(`Ranking: ${point.label}, ${String(point.value)}`);
               }}
             />
-          </Panel>
+          </ChartCard>
 
-          <Panel title="Funnel: drag down">
+          <ChartCard title="Hiring pipeline">
             <FunnelChart
               label="Hiring pipeline"
               data={pipeline}
@@ -386,10 +322,10 @@ export const Interaction: Story = {
                 setLog(`Funnel: ${stage.label}, ${String(stage.value)}`);
               }}
             />
-          </Panel>
-        </div>
+          </ChartCard>
+        </AutoGrid>
 
-        <Panel title="Heatmap: drag across the weeks">
+        <ChartCard title="Absence by week">
           <HeatmapChart
             label="Absence days by person and week"
             rows={absence.people}
@@ -401,7 +337,7 @@ export const Interaction: Story = {
               setLog(`Heatmap: ${cell.row}, ${cell.column}, ${String(cell.value)}`);
             }}
           />
-        </Panel>
+        </ChartCard>
       </div>
     );
   },

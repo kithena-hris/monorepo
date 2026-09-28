@@ -225,6 +225,12 @@ interface Tick {
 
 /** The solid fill: the completed part of a bar, and a milestone. */
 const solidTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
   accent: 'bg-accent',
   success: 'bg-success',
   warning: 'bg-warning',
@@ -239,6 +245,12 @@ const solidTone: Record<ChartTone, string> = {
  * subtree, so the wash lives in the colour rather than in `opacity`.
  */
 const washTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1/20',
+  'chart-2': 'bg-chart-2/20',
+  'chart-3': 'bg-chart-3/20',
+  'chart-4': 'bg-chart-4/20',
+  'chart-5': 'bg-chart-5/20',
+  'chart-6': 'bg-chart-6/20',
   accent: 'bg-accent/20',
   success: 'bg-success/20',
   warning: 'bg-warning/20',
@@ -250,21 +262,18 @@ const washTone: Record<ChartTone, string> = {
 /** The completed part of a bar: stronger than the wash, weaker than the fill,
  *  so the bar's own label stays readable across the join. */
 const progressTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1/45',
+  'chart-2': 'bg-chart-2/45',
+  'chart-3': 'bg-chart-3/45',
+  'chart-4': 'bg-chart-4/45',
+  'chart-5': 'bg-chart-5/45',
+  'chart-6': 'bg-chart-6/45',
   accent: 'bg-accent/45',
   success: 'bg-success/45',
   warning: 'bg-warning/45',
   danger: 'bg-danger/45',
   info: 'bg-info/45',
   neutral: 'bg-fg-subtle/45',
-};
-
-const edgeTone: Record<ChartTone, string> = {
-  accent: 'border-s-accent',
-  success: 'border-s-success',
-  warning: 'border-s-warning',
-  danger: 'border-s-danger',
-  info: 'border-s-info',
-  neutral: 'border-s-fg-subtle',
 };
 
 const HEADER_HEIGHT = 28;
@@ -793,7 +802,7 @@ export function TimelineChart({
               className={cn('flex flex-col justify-center pe-3', laneEdge(laneIndex))}
               style={{ height: rowHeight * count }}
             >
-              <span className="truncate text-sm text-fg" title={row.label}>
+              <span className="truncate text-sm font-medium text-fg" title={row.label}>
                 {row.label}
               </span>
               {row.meta === undefined ? null : (
@@ -829,7 +838,7 @@ export function TimelineChart({
             {shownTicks.map((tick) => (
               <span
                 key={tick.key}
-                className="min-w-0 truncate ps-1 pb-1 text-2xs text-fg-subtle"
+                className="min-w-0 truncate ps-1 pb-1 text-[11px] font-semibold text-fg-muted"
                 style={{ width: width(tick) }}
               >
                 {tick.label}
@@ -868,7 +877,7 @@ export function TimelineChart({
                 // Off-window bars are not drawn at all. They stay in the table.
                 if (to <= domainStart || from >= domainEnd) return null;
 
-                const tone = item.tone ?? 'accent';
+                const tone = item.tone ?? 'chart-1';
                 const selected = selectedId === item.id;
                 const clippedStart = from < domainStart;
                 const clippedEnd = to > domainEnd;
@@ -911,13 +920,13 @@ export function TimelineChart({
                         onSelect?.(item, row);
                       }}
                       className={cn(
-                        'tap-target absolute size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-xs',
+                        'tap-target absolute size-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[3px]',
                         'motion-safe:animate-pop-in',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                         solidTone[tone],
                         onSelect && 'cursor-pointer',
                         draggable && 'cursor-grab touch-none active:cursor-grabbing',
-                        selected && 'ring-2 ring-border-focus ring-offset-2 ring-offset-surface',
+                        selected && 'ring-2 ring-accent ring-offset-2 ring-offset-surface',
                         selectedId !== undefined && !selected && 'opacity-50',
                       )}
                       style={{
@@ -956,20 +965,20 @@ export function TimelineChart({
                       onSelect?.(item, row);
                     }}
                     className={cn(
-                      'absolute flex items-center overflow-hidden rounded-sm border-s-2 px-1.5 text-2xs',
+                      'absolute flex items-center overflow-hidden rounded-[8px] px-2 text-xs font-semibold',
                       'origin-left transition-[opacity,box-shadow] duration-(--animate-duration-fast)',
                       'motion-safe:animate-grow-x',
                       'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                       washTone[tone],
-                      edgeTone[tone],
+
                       onSelect && 'cursor-pointer hover:brightness-105',
                       draggable && 'group/bar cursor-grab touch-none active:cursor-grabbing',
-                      selected && 'ring-2 ring-border-focus ring-offset-1 ring-offset-surface',
+                      selected && 'ring-2 ring-accent ring-offset-2 ring-offset-surface',
                       selectedId !== undefined && !selected && 'opacity-50',
                       // A bar cut off by the window keeps a square edge on that
                       // side: a rounded end reads as "it finishes here", which
                       // would be a lie.
-                      clippedStart && 'rounded-s-none border-s-0',
+                      clippedStart && 'rounded-s-none',
                       clippedEnd && 'rounded-e-none',
                     )}
                     style={{
@@ -1032,10 +1041,10 @@ export function TimelineChart({
           {todayVisible ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 z-10 w-px bg-danger"
+              className="pointer-events-none absolute inset-y-0 z-10 w-0.5 -translate-x-1/2 bg-accent"
               style={{ insetInlineStart: percent(fraction(todayDay)) }}
             >
-              <span className="absolute -top-0.5 -start-1 size-2 rounded-full bg-danger" />
+              <span className="absolute -top-0.5 -start-[3px] size-2 rounded-full bg-accent" />
             </div>
           ) : null}
         </div>
@@ -1056,45 +1065,47 @@ export function TimelineChart({
       ) : null}
 
       {/* Every bar in words. The whole schedule, never only the window. */}
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Lane</th>
-            <th scope="col">Item</th>
-            <th scope="col">Start</th>
-            <th scope="col">End</th>
-            <th scope="col">Progress</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* Built from the lanes rather than from the items, so an empty lane
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Lane</th>
+              <th scope="col">Item</th>
+              <th scope="col">Start</th>
+              <th scope="col">End</th>
+              <th scope="col">Progress</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Built from the lanes rather than from the items, so an empty lane
               is a row that says it is empty rather than a lane that silently
               vanishes from the only version of this a screen reader gets. */}
-          {effectiveRows.flatMap((row) =>
-            row.items.length === 0
-              ? [
-                  <tr key={row.label}>
-                    <th scope="row">{row.label}</th>
-                    <td colSpan={4}>{emptyRow}</td>
-                  </tr>,
-                ]
-              : row.items.map((item) => (
-                  <tr key={`${row.label}|${item.id}`}>
-                    <th scope="row">{row.label}</th>
-                    <td>{item.label}</td>
-                    <td>{formatDate(item.start)}</td>
-                    <td>{item.end === undefined ? 'Milestone' : formatDate(item.end)}</td>
-                    <td>
-                      {item.progress === undefined
-                        ? 'Not tracked'
-                        : `${String(Math.round(item.progress * 100))}%`}
-                    </td>
-                  </tr>
-                )),
-          )}
-        </tbody>
-      </table>
+            {effectiveRows.flatMap((row) =>
+              row.items.length === 0
+                ? [
+                    <tr key={row.label}>
+                      <th scope="row">{row.label}</th>
+                      <td colSpan={4}>{emptyRow}</td>
+                    </tr>,
+                  ]
+                : row.items.map((item) => (
+                    <tr key={`${row.label}|${item.id}`}>
+                      <th scope="row">{row.label}</th>
+                      <td>{item.label}</td>
+                      <td>{formatDate(item.start)}</td>
+                      <td>{item.end === undefined ? 'Milestone' : formatDate(item.end)}</td>
+                      <td>
+                        {item.progress === undefined
+                          ? 'Not tracked'
+                          : `${String(Math.round(item.progress * 100))}%`}
+                      </td>
+                    </tr>
+                  )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </ChartFrame>
   );
 }

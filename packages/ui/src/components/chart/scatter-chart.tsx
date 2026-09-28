@@ -5,7 +5,7 @@ import type { JSX, ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
-import type { ChartTone } from './chart';
+import { ChartGrid, type ChartTone } from './chart';
 
 /**
  * Two measures, one point per person.
@@ -67,6 +67,12 @@ export interface ScatterChartProps {
 }
 
 const dotTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
   accent: 'bg-accent',
   success: 'bg-success',
   warning: 'bg-warning',
@@ -120,11 +126,11 @@ export function ScatterChart({
             the scale is. An axis with a title and no figures is a direction
             without a distance. */}
         <div aria-hidden className="flex shrink-0 items-stretch gap-1">
-          <div className="flex items-center justify-center text-2xs whitespace-nowrap text-fg-subtle">
+          <div className="flex items-center justify-center text-[11px] font-medium whitespace-nowrap text-fg-subtle">
             <span className="[writing-mode:vertical-rl] rotate-180">{yLabel}</span>
           </div>
           <div
-            className="flex flex-col justify-between py-0.5 text-end text-2xs tabular-nums text-fg-subtle"
+            className="flex flex-col justify-between py-0.5 text-end text-[11px] font-medium tabular-nums text-fg-subtle"
             style={{ height }}
           >
             <span>{formatY(yMax)}</span>
@@ -133,17 +139,15 @@ export function ScatterChart({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div
-            className="relative rounded-sm border border-border bg-surface-sunken/30"
-            style={{ height }}
-          >
+          <div className="relative" style={{ height }}>
+            <ChartGrid />
             {referenceY === undefined ? null : (
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-x-0 border-t border-dashed border-fg-subtle/60"
+                className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-fg-subtle"
                 style={{ top: top(referenceY.value) }}
               >
-                <span className="absolute top-0.5 end-1 bg-surface/80 px-1 text-2xs text-fg-subtle">
+                <span className="absolute top-1 end-1 rounded-xs bg-surface px-1.5 py-0.5 text-xs font-semibold text-fg-muted">
                   {referenceY.label}
                 </span>
               </div>
@@ -151,10 +155,10 @@ export function ScatterChart({
             {referenceX === undefined ? null : (
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 border-s border-dashed border-fg-subtle/60"
+                className="pointer-events-none absolute inset-y-0 border-s-2 border-dashed border-fg-subtle"
                 style={{ insetInlineStart: left(referenceX.value) }}
               >
-                <span className="absolute top-1 start-1 text-2xs whitespace-nowrap text-fg-subtle">
+                <span className="absolute top-1 start-1 rounded-xs bg-surface px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-fg-muted">
                   {referenceX.label}
                 </span>
               </div>
@@ -184,15 +188,15 @@ export function ScatterChart({
                       // finger one, so the hit area grows to the tap floor on
                       // a coarse pointer while the dot itself stays the size
                       // the data needs.
-                      'tap-target absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full',
+                      'tap-target absolute size-2.5 touch:size-3 -translate-x-1/2 -translate-y-1/2 rounded-full',
                       'transition-[transform,opacity] duration-(--animate-duration-fast)',
                       'motion-safe:animate-pop-in',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                       // Semi-transparent so a cluster reads as a cluster.
-                      'opacity-70',
-                      dotTone[point.tone ?? 'accent'],
+                      'opacity-90 ring-[1.5px] ring-surface',
+                      dotTone[point.tone ?? 'chart-1'],
                       onSelect && 'cursor-pointer hover:scale-150 hover:opacity-100',
-                      selected && 'scale-150 opacity-100 ring-2 ring-border-focus',
+                      selected && 'scale-150 opacity-100 ring-2 ring-accent',
                     )}
                     style={{
                       insetInlineStart: left(point.x),
@@ -205,7 +209,10 @@ export function ScatterChart({
             })}
           </div>
 
-          <div aria-hidden className="mt-1 flex justify-between text-2xs text-fg-subtle">
+          <div
+            aria-hidden
+            className="mt-1 flex justify-between text-[11px] font-medium text-fg-subtle"
+          >
             <span>{formatX(xMin)}</span>
             <span className="font-medium">{xLabel}</span>
             <span>{formatX(xMax)}</span>
@@ -213,25 +220,27 @@ export function ScatterChart({
         </div>
       </div>
 
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">{xLabel}</th>
-            <th scope="col">{yLabel}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((point, index) => (
-            <tr key={`${point.label}-${String(index)}`}>
-              <th scope="row">{point.label}</th>
-              <td>{formatX(point.x)}</td>
-              <td>{formatY(point.y)}</td>
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">{xLabel}</th>
+              <th scope="col">{yLabel}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((point, index) => (
+              <tr key={`${point.label}-${String(index)}`}>
+                <th scope="row">{point.label}</th>
+                <td>{formatX(point.x)}</td>
+                <td>{formatY(point.y)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </ChartFrame>
   );
 }

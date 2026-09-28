@@ -161,6 +161,41 @@ export type {
   TimelineUnit,
 } from './components/chart/timeline-chart';
 
+export { ChartCard } from './components/chart/chart-card';
+export type { ChartCardProps } from './components/chart/chart-card';
+
+export { ComboChart } from './components/chart/combo-chart';
+export type { ComboChartProps, ComboPoint } from './components/chart/combo-chart';
+
+export { StackedAreaChart } from './components/chart/stacked-area-chart';
+export type { StackedAreaChartProps } from './components/chart/stacked-area-chart';
+
+export { Gauge } from './components/chart/gauge';
+export type { GaugeProps } from './components/chart/gauge';
+
+export { RadarChart } from './components/chart/radar-chart';
+export type { RadarChartProps, RadarSeries } from './components/chart/radar-chart';
+
+export { TreemapChart } from './components/chart/treemap-chart';
+export type { TreemapChartProps, TreemapItem } from './components/chart/treemap-chart';
+
+export { HistogramChart } from './components/chart/histogram-chart';
+export type { HistogramChartProps } from './components/chart/histogram-chart';
+export { binValues, squarify } from './components/chart/geometry';
+export type { BinOptions, HistogramBin } from './components/chart/geometry';
+
+export { CohortChart } from './components/chart/cohort-chart';
+export type { CohortChartProps, CohortRow } from './components/chart/cohort-chart';
+
+export { BulletChart } from './components/chart/bullet-chart';
+export type { BulletChartProps, BulletMeasure } from './components/chart/bullet-chart';
+
+export { CalendarHeatmap } from './components/chart/calendar-heatmap';
+export type { CalendarDay, CalendarHeatmapProps } from './components/chart/calendar-heatmap';
+
+export { BubbleChart } from './components/chart/bubble-chart';
+export type { BubbleChartProps, BubblePoint } from './components/chart/bubble-chart';
+
 export { Dropzone } from './components/dropzone/dropzone';
 export type { DropzoneProps } from './components/dropzone/dropzone';
 

@@ -3,11 +3,13 @@ import { fn } from 'storybook/test';
 import { useState } from 'react';
 
 import { Button } from '../components/button/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
-import { Sparkline, TrendChart } from '../components/chart/chart';
+import { seriesTone, Sparkline, TrendChart } from '../components/chart/chart';
+import { ChartCard } from '../components/chart/chart-card';
 import { AutoGrid } from '../components/layout/layout';
-import { Stat } from '../components/stat/stat';
-import { headcount, leavers } from './fixtures';
+import { headcount, headcount2026, plan2026, yearMonths } from './fixtures';
+
+const series = (values: readonly number[]): { label: string; value: number }[] =>
+  values.map((value, index) => ({ label: yearMonths[index] ?? String(index), value }));
 
 const meta = {
   title: 'Charts/Trend',
@@ -118,7 +120,7 @@ const meta = {
   },
   args: {
     label: 'Headcount, February to August 2026',
-    series: [{ label: 'Headcount', data: headcount, tone: 'accent' }],
+    series: [{ label: 'Headcount', data: headcount }],
     height: 220,
     area: false,
   },
@@ -128,15 +130,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
+  args: {
+    label: 'Headcount, last 12 months',
+    series: [{ label: 'Headcount', data: headcount2026 }],
+    area: true,
+    showLastPoint: true,
+  },
   render: (args) => (
-    <Card className="max-w-3xl">
-      <CardHeader>
-        <CardTitle>Headcount</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <TrendChart {...args} />
-      </CardContent>
-    </Card>
+    <ChartCard title="Headcount, last 12 months" value="312" description="+18.6% year on year">
+      <TrendChart {...args} />
+    </ChartCard>
   ),
 };
 
@@ -150,56 +153,57 @@ export const LineOrArea: Story = {
       },
     },
   },
-  render: (args) => (
-    <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Line</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TrendChart {...args} area={false} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Area</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TrendChart {...args} area />
-        </CardContent>
-      </Card>
-    </div>
+  render: () => (
+    <AutoGrid minItemWidth="16.25rem" gap={3}>
+      <ChartCard title="Line · for comparing">
+        <TrendChart
+          label="Headcount, line"
+          height={120}
+          series={[{ label: 'Headcount', data: headcount2026 }]}
+        />
+      </ChartCard>
+      <ChartCard title="Area · for totals">
+        <TrendChart
+          label="Headcount, area"
+          height={120}
+          area
+          series={[{ label: 'Headcount', data: headcount2026 }]}
+        />
+      </ChartCard>
+    </AutoGrid>
   ),
 };
 
 export const TwoSeries: Story = {
   name: 'Two series',
   args: {
-    label: 'Headcount and leavers, February to August 2026',
+    label: 'Headcount against plan, 2026',
     series: [
-      { label: 'Headcount', data: headcount, tone: 'accent' },
-      { label: 'Leavers', data: leavers, tone: 'danger' },
+      { label: 'Actual', data: headcount2026 },
+      { label: 'Plan', data: plan2026, tone: 'neutral', dashed: true },
     ],
   },
   parameters: {
     docs: {
       description: {
         story:
-          'Two series on one axis only works when they share a scale. These do not. 912 against 6, so the leavers line sits flat along the bottom and says nothing. This story is the argument for the next one.',
+          'The line is the data and the dashed line is the plan. Nothing else. A plan is drawn in the quiet neutral and dashed, never filled, so the eye reads it as a reference rather than a second measurement.',
       },
     },
   },
   render: (args) => (
-    <Card className="max-w-3xl">
-      <CardHeader>
-        <CardTitle>One axis, two very different scales</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <TrendChart {...args} />
-      </CardContent>
-    </Card>
+    <ChartCard title="Headcount vs plan" value="312">
+      <TrendChart {...args} />
+    </ChartCard>
   ),
 };
+
+const multiples = [
+  ['Engineering', [80, 86, 92, 98, 104, 112, 118, 124]],
+  ['Sales', [48, 50, 55, 58, 60, 61, 63, 64]],
+  ['Design', [20, 22, 22, 24, 25, 26, 27, 28]],
+  ['Support', [40, 42, 45, 44, 46, 47, 47, 48]],
+] as const;
 
 export const SmallMultiples: Story = {
   name: 'Small multiples',
@@ -207,35 +211,34 @@ export const SmallMultiples: Story = {
     docs: {
       description: {
         story:
-          'The fix for series that do not share a scale, and the fix for three or more of anything: one chart each, same width, same period, stacked so the eye can travel down them. A second y-axis would have been the other option, and a dual-axis chart can be made to show any correlation you like by choosing the scales, which is why this system does not offer one.',
+          'Same scale, same size, one per team. Easier to compare than four lines on one chart, and the fix for series that do not share a scale: a second y axis can be made to show any correlation you like by choosing the scales.',
       },
     },
   },
   render: () => (
-    <div className="max-w-3xl space-y-4">
-      {(
-        [
-          ['Headcount', headcount, 'accent'],
-          ['Leavers', leavers, 'danger'],
-        ] as const
-      ).map(([title, data, tone]) => (
-        <Card key={title}>
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TrendChart
-              label={`${title}, February to August 2026`}
-              height={120}
-              area
-              series={[{ label: title, data: [...data], tone }]}
-            />
-          </CardContent>
-        </Card>
+    <AutoGrid minItemWidth="10rem" gap={3}>
+      {multiples.map(([team, values], index) => (
+        <ChartCard key={team} title={team} value={String(values.at(-1))}>
+          <Sparkline
+            label={`${team} headcount, last 8 months`}
+            tone={seriesTone(index)}
+            showLastPoint={false}
+            data={values.map((value, month) => ({
+              label: yearMonths[month] ?? String(month),
+              value,
+            }))}
+          />
+        </ChartCard>
       ))}
-    </div>
+    </AutoGrid>
   ),
 };
+
+const sparkRows = [
+  ['Headcount', headcount2026.map((point) => point.value), '312', 'success'],
+  ['Attrition', [8.2, 7.9, 7.6, 7.4, 7.1, 6.8, 6.4, 6.1], '6.1%', 'success'],
+  ['Open roles', [11, 12, 12, 14, 13, 15, 16, 18], '18', 'warning'],
+] as const;
 
 export const Sparklines: Story = {
   name: 'Sparklines',
@@ -243,67 +246,51 @@ export const Sparklines: Story = {
     docs: {
       description: {
         story:
-          'No axes, no gridlines, sized for a stat tile. The sparkline exists for exactly this: a direction under a number, in a tile that might be 200px wide or 400px. A delta says where it moved; a sparkline says how it got there, which matters when a number is flat month-on-month after a spike and a recovery.',
+          'No axes and no gridlines: a direction beside a number. A delta says where it moved; a sparkline says how it got there, which matters when a number is flat month on month after a spike and a recovery. The colour carries the verdict, good or watch, and the number beside it carries the fact.',
       },
     },
   },
   render: () => (
-    <AutoGrid minItemWidth="15rem" gap={4}>
-      <Stat
-        label="Headcount"
-        value="912"
-        delta="+8.3%"
-        deltaLabel="vs February"
-        direction="up"
-        sentiment="positive"
-        chart={<Sparkline label="Headcount, last 7 months" data={headcount} />}
-      />
-      <Stat
-        label="Leavers"
-        value="6"
-        delta="−1"
-        deltaLabel="vs July"
-        direction="down"
-        sentiment="positive"
-        chart={<Sparkline label="Leavers by month" data={leavers} tone="success" />}
-      />
-      <Stat
-        label="Absence rate"
-        value="3.1%"
-        delta="flat"
-        deltaLabel="vs July"
-        direction="flat"
-        sentiment="neutral"
-        chart={
+    <ul className="max-w-md divide-y divide-border">
+      {sparkRows.map(([name, values, figure, tone]) => (
+        <li key={name} className="flex items-center gap-3 py-2.5">
+          <span className="flex-1 text-sm font-medium touch:text-base">{name}</span>
           <Sparkline
-            label="Absence rate, last 7 months"
-            tone="warning"
+            label={`${name}, last ${String(values.length)} months`}
+            tone={tone}
             area={false}
-            data={[
-              { label: 'Feb', value: 3.1 },
-              { label: 'Mar', value: 3.1 },
-              { label: 'Apr', value: 3.1 },
-              { label: 'May', value: 3.1 },
-              { label: 'Jun', value: 3.1 },
-              { label: 'Jul', value: 3.1 },
-              { label: 'Aug', value: 3.1 },
-            ]}
+            showLastPoint={false}
+            className="w-20"
+            data={values.map((value, month) => ({
+              label: yearMonths[month] ?? String(month),
+              value,
+            }))}
           />
-        }
-      />
-    </AutoGrid>
+          <span className="w-13 text-end font-bold tabular-nums">{figure}</span>
+        </li>
+      ))}
+    </ul>
   ),
 };
 
 export const Interactive: Story = {
   name: 'Hover, click and legend toggles',
   args: {
-    label: 'Headcount and leavers, February to August 2026',
+    label: 'Headcount by site, 2026',
     series: [
-      { label: 'Headcount', data: headcount, tone: 'accent' },
-      { label: 'Leavers', data: leavers, tone: 'danger' },
+      {
+        label: 'Berlin',
+        data: series([80, 84, 88, 92, 96, 99, 104, 108, 110, 114, 118, 121]),
+      },
+      {
+        label: 'London',
+        data: series([60, 62, 62, 65, 68, 70, 71, 74, 76, 78, 80, 82]),
+      },
+      {
+        label: 'Remote',
+        data: series([40, 41, 44, 46, 47, 49, 52, 54, 55, 57, 58, 60]),
+      },
     ],
-    area: true,
     // Spies, so the **Actions** panel shows what the callback is handed and
     // when, the fastest answer to the question people actually have about a
     // chart's API.
@@ -314,43 +301,37 @@ export const Interactive: Story = {
     docs: {
       description: {
         story: [
-          'Three things to try, all of them without a mouse.',
+          'Click a legend item to hide that series. The hidden one is struck through, and the axis rescales.',
           '',
-          '**Tab across the plot.** Each period is a full-height hit column with a crosshair, a marker per series and a tooltip listing the values. Radix opens the tooltip on focus as well as on hover, so the readout is not pointer-only.',
-          '',
-          "**Press Enter on a column.** `onSelect` fires with the period and every visible series' value at it, the readout below updates.",
-          '',
-          '**Toggle a legend row.** It is an `aria-pressed` button; the hidden series keeps its colour and its place, and the y axis re-fits to what is left. Hide *Headcount* and watch the leavers line become readable, which is the whole reason this control exists on a chart whose two series share an axis but not a scale.',
+          '**Tab across the plot.** Each period is a full-height hit column with a crosshair, a marker per series and a tooltip listing the values, opened by focus as well as hover. **Press Enter on a column** and `onSelect` fires with the period and every visible value at it.',
         ].join('\n'),
       },
     },
   },
   render: function InteractiveStory(args) {
+    const [hidden, setHidden] = useState<readonly string[]>(['Remote']);
     const [picked, setPicked] = useState<{ label: string; values: Record<string, number> } | null>(
       null,
     );
 
     return (
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>Headcount and leavers</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <TrendChart
-            {...args}
-            onSelect={(selection) => {
-              setPicked({ label: selection.label, values: selection.values });
-            }}
-          />
-          <p aria-live="polite" className="text-sm text-fg-muted">
-            {picked
-              ? `${picked.label}, ${Object.entries(picked.values)
-                  .map(([name, value]) => `${name} ${String(value)}`)
-                  .join(', ')}`
-              : 'Pick a period, or tab into the plot.'}
-          </p>
-        </CardContent>
-      </Card>
+      <ChartCard title="Headcount by site">
+        <TrendChart
+          {...args}
+          hiddenSeries={hidden}
+          onHiddenSeriesChange={setHidden}
+          onSelect={(selection) => {
+            setPicked({ label: selection.label, values: selection.values });
+          }}
+        />
+        <p aria-live="polite" className="mt-3 text-sm text-fg-muted">
+          {picked
+            ? `${picked.label}: ${Object.entries(picked.values)
+                .map(([name, value]) => `${name} ${String(value)}`)
+                .join(' · ')}`
+            : 'Pick a period, or tab into the plot.'}
+        </p>
+      </ChartCard>
     );
   },
 };
@@ -358,17 +339,16 @@ export const Interactive: Story = {
 export const ZoomAndPan: Story = {
   name: 'Zoom and pan',
   args: {
-    label: 'Headcount, weekly',
+    label: 'Daily active users, August and September 2026',
     zoomable: true,
     area: true,
     series: [
       {
-        label: 'Headcount',
-        tone: 'accent',
-        data: Array.from({ length: 26 }, (_, index) => ({
-          label: `W${String(index + 14)}`,
-          // Deterministic, with a visible dip, so zooming has something to find.
-          value: 840 + index * 3 + (index > 12 && index < 18 ? -22 : 0),
+        label: 'Daily active users',
+        data: Array.from({ length: 40 }, (_, index) => ({
+          label: `D${String(index + 1)}`,
+          // Deterministic, with a visible wave, so zooming has something to find.
+          value: 180 + Math.round(Math.sin(index / 3) * 18 + index * 2.2),
         })),
       },
     ],
@@ -377,49 +357,32 @@ export const ZoomAndPan: Story = {
     docs: {
       description: {
         story: [
-          'Twenty-six weeks. Zoom in on the dip and note what changes: the axis re-labels, the y range re-fits to the visible slice, and the range is announced in a live region. *"W26 – W31 · 6 of 26"*.',
+          'Zoom in and note what changes: the axis re-labels, the y range re-fits to the visible slice, and the range is announced in a live region.',
           '',
           'Every control is a named button, so the whole interaction works from the keyboard. `window` can also be driven from outside, which is how a date filter elsewhere on the page moves the chart.',
-          '',
-          'The re-fitting y range is the part worth arguing about: it makes a small variation legible, and it also makes a 3% dip look dramatic. That is why the axis labels are always present, always numeric, and never abbreviated away.',
         ].join('\n'),
       },
     },
   },
   render: function ZoomStory(args) {
-    const [window_, setWindow] = useState({ start: 0, end: 25 });
+    const [window_, setWindow] = useState({ start: 0, end: 39 });
     return (
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>Headcount, weekly</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <TrendChart {...args} window={window_} onWindowChange={setWindow} />
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ['Last 6 weeks', { start: 20, end: 25 }],
-                ['The dip', { start: 10, end: 19 }],
-                ['Everything', { start: 0, end: 25 }],
-              ] as const
-            ).map(([name, next]) => (
-              <Button
-                key={name}
-                size="sm"
-                onClick={() => {
-                  setWindow(next);
-                }}
-              >
-                {name}
-              </Button>
-            ))}
-          </div>
-          <p className="text-xs text-fg-muted">
-            The window is controlled here, so a date filter elsewhere on a page would move the chart
-            the same way.
-          </p>
-        </CardContent>
-      </Card>
+      <ChartCard
+        title="Daily active users, 2026"
+        action={
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setWindow({ start: 0, end: 39 });
+            }}
+          >
+            Reset
+          </Button>
+        }
+      >
+        <TrendChart {...args} window={window_} onWindowChange={setWindow} />
+      </ChartCard>
     );
   },
 };

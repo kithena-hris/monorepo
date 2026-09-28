@@ -617,11 +617,14 @@
       transform: scaleX(0);
     }
   }
-  /* Paired with `pathLength="1"`, so the dash length is the whole path
-     regardless of how long the path actually is. */
+  /* A wipe from the start edge, not a dash. The chart lines are drawn with
+     `vector-effect: non-scaling-stroke` in a stretched viewBox, and Chrome
+     measures a dash on such a path in screen pixels while `pathLength` stays
+     in user units: a one-unit dash came out as a line broken into pieces.
+     Clipping the element is independent of how its stroke is measured. */
   @keyframes draw-line {
     from {
-      stroke-dashoffset: 1;
+      clip-path: inset(0 100% 0 0);
     }
   }
   /* Paired with `pathLength="1"`, so the whole ring is one unit and an arc is

@@ -269,6 +269,12 @@ interface VisibleRow {
 }
 
 const edgeTone: Record<ChartTone, string> = {
+  'chart-1': 'border-s-chart-1',
+  'chart-2': 'border-s-chart-2',
+  'chart-3': 'border-s-chart-3',
+  'chart-4': 'border-s-chart-4',
+  'chart-5': 'border-s-chart-5',
+  'chart-6': 'border-s-chart-6',
   accent: 'border-s-accent',
   success: 'border-s-success',
   warning: 'border-s-warning',
@@ -972,7 +978,11 @@ export function OrgChart({
       aria-label={`${label}, pan and zoom canvas`}
       tabIndex={0}
       className={cn(
-        'relative overflow-auto overscroll-contain rounded-md border border-border bg-surface-sunken/30',
+        'relative overflow-auto overscroll-contain rounded-lg bg-canvas touch:rounded-[22px]',
+        // A dot grid, so the canvas reads as a surface that pans, and a hairline
+        // ring rather than a border so the grid runs to the very edge.
+        'bg-[radial-gradient(var(--color-border-strong)_1px,transparent_1px)] bg-size-[18px_18px]',
+        'shadow-[inset_0_0_0_1px_var(--color-border)]',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         'motion-safe:scroll-smooth',
         panning ? 'cursor-grabbing' : 'cursor-grab',
@@ -1179,6 +1189,47 @@ export function OrgChart({
     </ContextMenu>
   );
 
+  // The zoom controls float over the canvas corner, on glass: where the eye
+  // already is when it wants to zoom, rather than in a toolbar above a canvas
+  // that may have scrolled it out of view.
+  const zoomControls = (
+    <div className="absolute end-3 bottom-3 z-10 flex items-center gap-0.5 rounded-full bg-glass p-1 shadow-md backdrop-blur-[16px]">
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label="Zoom out"
+        disabled={liveZoom <= minZoom}
+        startIcon={<ZoomOut />}
+        onClick={() => {
+          zoomStep(-0.1);
+        }}
+      />
+      {/* The level in words as well as in the buttons' state. A canvas
+                that can be zoomed but never says how far is one people reset
+                out of superstition. */}
+      <output
+        ref={readout}
+        aria-live="polite"
+        className="w-11 text-center text-xs tabular-nums text-fg-muted"
+      >
+        {Math.round(activeZoom * 100)}%
+      </output>
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label="Zoom in"
+        disabled={liveZoom >= maxZoom}
+        startIcon={<ZoomIn />}
+        onClick={() => {
+          zoomStep(0.1);
+        }}
+      />
+      <Button size="sm" variant="ghost" startIcon={<Frame />} onClick={fitToFrame}>
+        Fit
+      </Button>
+    </div>
+  );
+
   return (
     <OrgContext.Provider value={context}>
       <ChartFrame
@@ -1236,42 +1287,6 @@ export function OrgChart({
           >
             Collapse all
           </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="Zoom out"
-              disabled={liveZoom <= minZoom}
-              startIcon={<ZoomOut />}
-              onClick={() => {
-                zoomStep(-0.1);
-              }}
-            />
-            {/* The level in words as well as in the buttons' state. A canvas
-                that can be zoomed but never says how far is one people reset
-                out of superstition. */}
-            <output
-              ref={readout}
-              aria-live="polite"
-              className="w-11 text-center text-xs tabular-nums text-fg-muted"
-            >
-              {Math.round(activeZoom * 100)}%
-            </output>
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="Zoom in"
-              disabled={liveZoom >= maxZoom}
-              startIcon={<ZoomIn />}
-              onClick={() => {
-                zoomStep(0.1);
-              }}
-            />
-            <Button size="sm" variant="ghost" startIcon={<Frame />} onClick={fitToFrame}>
-              Fit
-            </Button>
-          </div>
-
           <p aria-live="polite" className="ms-1 text-xs text-fg-muted">
             {rows.length} of {nodes.length} shown
           </p>
@@ -1344,65 +1359,70 @@ export function OrgChart({
           </p>
         ) : null}
 
-        {canEdit ? (
-          <DndContext
-            sensors={sensors}
-            // Pointer-within rather than closest-centre: the targets are cards
-            // of different sizes, and "the card I am over" is what a person
-            // dropping onto a manager means.
-            collisionDetection={pointerWithin}
-            accessibility={{ announcements }}
-            onDragStart={({ active }: DragStartEvent) => {
-              const id = String(active.id);
-              setDraggingId(id);
-              onDraggingChange?.(nodeById(id));
-            }}
-            onDragCancel={() => {
-              setDraggingId(null);
-              onDraggingChange?.(null);
-            }}
-            onDragEnd={({ active, over }: DragEndEvent) => {
-              setDraggingId(null);
-              onDraggingChange?.(null);
-              if (over) reassign(String(active.id), String(over.id));
-            }}
-          >
-            {canvasWithMenu}
-            <DragOverlay dropAnimation={null}>
-              {draggingNode ? (
-                <div className="pointer-events-none w-52 rounded-md border border-accent bg-surface px-3 py-2 shadow-md">
-                  <OrgCardBody node={draggingNode} />
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        ) : (
-          canvasWithMenu
-        )}
+        <div className="relative">
+          {canEdit ? (
+            <DndContext
+              sensors={sensors}
+              // Pointer-within rather than closest-centre: the targets are cards
+              // of different sizes, and "the card I am over" is what a person
+              // dropping onto a manager means.
+              collisionDetection={pointerWithin}
+              accessibility={{ announcements }}
+              onDragStart={({ active }: DragStartEvent) => {
+                const id = String(active.id);
+                setDraggingId(id);
+                onDraggingChange?.(nodeById(id));
+              }}
+              onDragCancel={() => {
+                setDraggingId(null);
+                onDraggingChange?.(null);
+              }}
+              onDragEnd={({ active, over }: DragEndEvent) => {
+                setDraggingId(null);
+                onDraggingChange?.(null);
+                if (over) reassign(String(active.id), String(over.id));
+              }}
+            >
+              {canvasWithMenu}
+              <DragOverlay dropAnimation={null}>
+                {draggingNode ? (
+                  <div className="pointer-events-none w-46 -rotate-2 rounded-[16px] bg-surface p-3 shadow-xl">
+                    <OrgCardBody node={draggingNode} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          ) : (
+            canvasWithMenu
+          )}
+          {zoomControls}
+        </div>
 
-        <table className="sr-only">
-          <caption>{label}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Title</th>
-              <th scope="col">Reports to</th>
-              <th scope="col">Direct reports</th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {nodes.map((node) => (
-              <tr key={node.id}>
-                <th scope="row">{node.name}</th>
-                <td>{node.title ?? '—'}</td>
-                <td>{nodeIndex.get(node.parentId ?? '')?.name ?? '—'}</td>
-                <td>{directReports.get(node.id) ?? 0}</td>
-                <td>{node.status ?? '—'}</td>
+        <div className="sr-only">
+          <table>
+            <caption>{label}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Title</th>
+                <th scope="col">Reports to</th>
+                <th scope="col">Direct reports</th>
+                <th scope="col">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {nodes.map((node) => (
+                <tr key={node.id}>
+                  <th scope="row">{node.name}</th>
+                  <td>{node.title ?? '—'}</td>
+                  <td>{nodeIndex.get(node.parentId ?? '')?.name ?? '—'}</td>
+                  <td>{directReports.get(node.id) ?? 0}</td>
+                  <td>{node.status ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </ChartFrame>
     </OrgContext.Provider>
   );
@@ -1417,19 +1437,19 @@ export function OrgChart({
  */
 function OrgCardBody({ node }: { node: OrgNode }): JSX.Element {
   return (
-    <div className="flex items-start gap-2.5">
+    <div className="flex items-center gap-2.5">
       <Avatar
-        size="sm"
+        size="md"
         name={node.name}
         {...(node.avatarUrl === undefined ? {} : { src: node.avatarUrl })}
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-fg">{node.name}</p>
+        <p className="truncate text-[13px] leading-tight font-semibold text-fg">{node.name}</p>
         {node.title === undefined ? null : (
-          <p className="truncate text-xs text-fg-muted">{node.title}</p>
+          <p className="truncate text-xs leading-tight text-fg-muted">{node.title}</p>
         )}
         {node.meta === undefined ? null : (
-          <p className="truncate text-2xs text-fg-subtle">{node.meta}</p>
+          <p className="truncate text-[11px] text-fg-subtle">{node.meta}</p>
         )}
         {node.status === undefined ? null : (
           <Badge size="sm" tone={node.statusTone ?? 'neutral'} className="mt-1">
@@ -1511,19 +1531,22 @@ const OrgBranch = memo(function OrgBranch({
       }}
       {...draggable.listeners}
       className={cn(
-        'relative w-52 rounded-md border border-border border-s-3 bg-surface px-3 py-2 text-start',
+        'relative w-46 rounded-[16px] bg-surface p-3 text-start shadow-sm',
         'transition-[box-shadow,background-color,opacity] duration-(--animate-duration-fast)',
         // Only on arrival. A card that was already on screen and merely moved
         // must not replay its entrance. That is what a re-parented branch
         // flashing looks like.
         org.entering.has(node.id) && 'motion-safe:animate-pop-in',
-        edgeTone[node.tone ?? 'accent'],
+        // A tone is opt-in: a stripe down the start edge, so a department
+        // colour survives without every card shouting one.
+        node.tone !== undefined && cn('border-s-3', edgeTone[node.tone]),
         // Context, not content: the chain above a focused person is there to
         // say how you got here, and it should not compete with the branch you
         // came to look at.
-        onSpine && 'bg-surface-sunken/60 border-dashed',
+        onSpine &&
+          'bg-surface-sunken/60 shadow-none outline-[1.5px] outline-border-strong outline-dashed',
         org.select && 'group-hover/node:bg-surface-hover',
-        selected && 'bg-accent-subtle ring-2 ring-border-focus',
+        selected && 'shadow-md ring-2 ring-accent ring-offset-2 ring-offset-surface',
         org.reassignable && node.locked !== true && 'cursor-grab touch-none',
         dragging && 'opacity-40',
         // Only the valid targets light up. A drop zone that accepts a move it
@@ -1563,7 +1586,7 @@ const OrgBranch = memo(function OrgBranch({
             // stacking it paints over the part of the hit area that reaches down
             // into the gap, which is most of the area just added.
             'absolute -bottom-3 start-1/2 z-20 flex -translate-x-1/2 cursor-pointer items-center gap-1',
-            'rounded-full border border-border bg-surface px-2 py-0.5 text-2xs font-medium text-fg-muted',
+            'rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-fg-muted shadow-sm ring-1 ring-border',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover hover:text-fg',
             // The chip is 38x19 at its natural size, which is a target people
             // miss, and missing it reads as "only the arrow is clickable"
@@ -1652,11 +1675,14 @@ const OrgBranch = memo(function OrgBranch({
         <span
           aria-hidden
           className={cn(
-            'absolute bg-border',
+            'absolute bg-border-strong',
             org.orientation === 'vertical'
-              ? cn('top-0 h-px', first ? 'start-1/2 end-0' : last ? 'start-0 end-1/2' : 'inset-x-0')
+              ? cn(
+                  'top-0 h-0.5',
+                  first ? 'start-1/2 end-0' : last ? 'start-0 end-1/2' : 'inset-x-0',
+                )
               : cn(
-                  'start-0 w-px',
+                  'start-0 w-0.5',
                   first ? 'top-1/2 bottom-0' : last ? 'top-0 bottom-1/2' : 'inset-y-0',
                 ),
           )}
@@ -1666,10 +1692,10 @@ const OrgBranch = memo(function OrgBranch({
         <span
           aria-hidden
           className={cn(
-            'absolute bg-border',
+            'absolute bg-border-strong',
             org.orientation === 'vertical'
-              ? 'top-0 h-4 w-px start-1/2'
-              : 'start-0 h-px w-4 top-1/2',
+              ? 'top-0 h-4 w-0.5 -translate-x-1/2 start-1/2'
+              : 'start-0 h-0.5 w-4 -translate-y-1/2 top-1/2',
           )}
         />
       ) : null}
@@ -1701,10 +1727,10 @@ const OrgBranch = memo(function OrgBranch({
           <span
             aria-hidden
             className={cn(
-              'absolute bg-border',
+              'absolute bg-border-strong',
               org.orientation === 'vertical'
-                ? 'top-0 h-4 w-px start-1/2'
-                : 'start-0 h-px w-4 top-1/2',
+                ? 'top-0 h-4 w-0.5 -translate-x-1/2 start-1/2'
+                : 'start-0 h-0.5 w-4 -translate-y-1/2 top-1/2',
             )}
           />
           {tree.children.map((child, index) => (

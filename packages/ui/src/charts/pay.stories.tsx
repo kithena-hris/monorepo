@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
 import { Badge } from '../components/badge/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
+import { ChartCard } from '../components/chart/chart-card';
 import { RangeChart } from '../components/chart/range-chart';
 import { ScatterChart } from '../components/chart/scatter-chart';
 
@@ -17,7 +17,7 @@ const bands = [
     min: 68_000,
     max: 94_000,
     value: 88_400,
-    tone: 'info' as const,
+    tone: 'chart-2' as const,
   },
   {
     label: 'Grade 5',
@@ -25,7 +25,7 @@ const bands = [
     min: 90_000,
     max: 128_000,
     value: 132_000,
-    tone: 'warning' as const,
+    tone: 'chart-3' as const,
   },
 ];
 
@@ -37,7 +37,7 @@ const equity = Array.from({ length: 42 }, (_, index) => {
     label: `Employee ${String(index + 1)}`,
     x: rating,
     y: Math.round(ratio * 100) / 100,
-    tone: index % 3 === 0 ? ('info' as const) : ('accent' as const),
+    tone: index % 3 === 0 ? ('chart-4' as const) : ('chart-1' as const),
     meta: index % 3 === 0 ? 'Joined in the last year' : 'Two years or more',
   };
 });
@@ -100,17 +100,16 @@ type Story = StoryObj<typeof meta>;
 export const Bands: Story = {
   name: 'Salary bands',
   render: (args) => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Bands by grade</CardTitle>
-        <Badge size="sm" tone="danger">
-          Grade 5 above maximum
+    <ChartCard
+      title="Bands by grade, €"
+      action={
+        <Badge size="sm" tone="sensitive">
+          HR only
         </Badge>
-      </CardHeader>
-      <CardContent>
-        <RangeChart {...args} />
-      </CardContent>
-    </Card>
+      }
+    >
+      <RangeChart {...args} />
+    </ChartCard>
   ),
 };
 
@@ -128,24 +127,19 @@ export const OutOfBand: Story = {
     const [selected, setSelected] = useState<string | null>('Grade 5');
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Bands by grade</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <RangeChart
-            {...args}
-            {...(selected === null ? {} : { selectedLabel: selected })}
-            onSelect={(band) => {
-              setSelected(band.label);
-              args.onSelect?.(band);
-            }}
-          />
-          <p aria-live="polite" className="min-h-5 text-sm text-fg-muted">
-            {selected === null ? 'Select a band.' : `Selected: ${selected}`}
-          </p>
-        </CardContent>
-      </Card>
+      <ChartCard
+        title="People by band, €"
+        description={selected === null ? '1 grade outside its band' : `Selected: ${selected}`}
+      >
+        <RangeChart
+          {...args}
+          {...(selected === null ? {} : { selectedLabel: selected })}
+          onSelect={(band) => {
+            setSelected(band.label);
+            args.onSelect?.(band);
+          }}
+        />
+      </ChartCard>
     );
   },
 };
@@ -173,14 +167,9 @@ export const Spread: Story = {
     })),
   },
   render: (args) => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Median and middle half by grade</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <RangeChart {...args} />
-      </CardContent>
-    </Card>
+    <ChartCard title="Median and interquartile range, €">
+      <RangeChart {...args} />
+    </ChartCard>
   ),
 };
 
@@ -198,31 +187,27 @@ export const Equity: Story = {
     const [selected, setSelected] = useState<string | null>(null);
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Compa-ratio by rating</CardTitle>
-          <Badge size="sm">{equity.length} people</Badge>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <ScatterChart
-            label="Compa-ratio by performance rating"
-            data={equity}
-            xLabel="Rating"
-            yLabel="Compa-ratio"
-            xRange={[0.5, 5.5]}
-            referenceY={{ value: 1, label: 'Band midpoint' }}
-            formatX={(value) => String(value)}
-            formatY={(value) => value.toFixed(2)}
-            {...(selected === null ? {} : { selectedLabel: selected })}
-            onSelect={(point) => {
-              setSelected(point.label);
-            }}
-          />
-          <p aria-live="polite" className="min-h-5 text-sm text-fg-muted">
-            {selected === null ? 'Select someone.' : `Selected: ${selected}`}
-          </p>
-        </CardContent>
-      </Card>
+      <ChartCard
+        title="Compa-ratio by rating"
+        description={
+          selected === null ? `${String(equity.length)} people · select someone` : selected
+        }
+      >
+        <ScatterChart
+          label="Compa-ratio by performance rating"
+          data={equity}
+          xLabel="Rating"
+          yLabel="Compa-ratio"
+          xRange={[0.5, 5.5]}
+          referenceY={{ value: 1, label: 'Band midpoint' }}
+          formatX={(value) => String(value)}
+          formatY={(value) => value.toFixed(2)}
+          {...(selected === null ? {} : { selectedLabel: selected })}
+          onSelect={(point) => {
+            setSelected(point.label);
+          }}
+        />
+      </ChartCard>
     );
   },
 };

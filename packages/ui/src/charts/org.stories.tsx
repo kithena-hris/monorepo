@@ -512,7 +512,7 @@ export const Reassigning: Story = {
       people.find((person) => person.id === id)?.name ?? 'nobody';
 
     return (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="flex flex-wrap items-start gap-4 *:min-w-0 [&>*:first-child]:flex-[2_1_24rem] [&>*:last-child]:flex-[1_1_16rem]">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Reorg</CardTitle>
@@ -582,7 +582,7 @@ export const PointerEvents: Story = {
     const shown = hovered ?? pinned;
 
     return (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="flex flex-wrap items-start gap-4 *:min-w-0 [&>*:first-child]:flex-[2_1_24rem] [&>*:last-child]:flex-[1_1_16rem]">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Reporting lines</CardTitle>
@@ -703,7 +703,7 @@ export const Selecting: Story = {
       : 0;
 
     return (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="flex flex-wrap items-start gap-4 *:min-w-0 [&>*:first-child]:flex-[2_1_24rem] [&>*:last-child]:flex-[1_1_16rem]">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>People</CardTitle>
