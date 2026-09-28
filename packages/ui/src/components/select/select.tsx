@@ -5,6 +5,7 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * Single-choice control.
@@ -69,7 +70,7 @@ export function SelectContent({
   ...props
 }: ComponentPropsWithoutRef<typeof SelectPrimitive.Content>): JSX.Element {
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={usePortalContainer()}>
       <SelectPrimitive.Content
         position={position}
         sideOffset={4}

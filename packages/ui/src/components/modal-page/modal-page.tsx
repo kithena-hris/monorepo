@@ -6,6 +6,7 @@ import { ArrowLeft, X } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * A whole page, presented over the one behind it.
@@ -77,7 +78,7 @@ export function ModalPageContent({
   ...props
 }: ModalPageContentProps): JSX.Element {
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(

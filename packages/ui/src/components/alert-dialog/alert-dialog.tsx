@@ -4,6 +4,7 @@ import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * Confirmation for something that cannot be undone.
@@ -28,7 +29,7 @@ export function AlertDialogContent({
   ...props
 }: ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>): JSX.Element {
   return (
-    <AlertDialogPrimitive.Portal>
+    <AlertDialogPrimitive.Portal container={usePortalContainer()}>
       <AlertDialogPrimitive.Overlay
         // A scrim, not chrome: the job is to dim the task behind and push it
         // back, so it keeps its dimming even where translucency is declined.

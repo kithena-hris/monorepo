@@ -14,6 +14,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * Action menu.
@@ -215,7 +216,7 @@ export function DropdownMenuContent({
   const hover = useContext(HoverContext);
 
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={usePortalContainer()}>
       <DropdownMenuPrimitive.Content
         sideOffset={sideOffset}
         className={cn(surface, className)}
@@ -368,7 +369,7 @@ export function DropdownMenuSubContent({
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>): JSX.Element {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={usePortalContainer()}>
       <DropdownMenuPrimitive.SubContent className={cn(surface, className)} {...props} />
     </DropdownMenuPrimitive.Portal>
   );

@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * Modal dialog.
@@ -29,7 +30,7 @@ export function DialogContent({
   showCloseButton?: boolean;
 }): JSX.Element {
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(

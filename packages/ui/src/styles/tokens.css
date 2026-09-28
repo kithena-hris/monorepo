@@ -22,115 +22,81 @@
     /* ---------------------------------------------------------------- */
 
     --reach-neutral-0: oklch(1 0 0);
-    --reach-neutral-50: oklch(0.985 0.002 264);
-    --reach-neutral-100: oklch(0.968 0.004 264);
-    --reach-neutral-200: oklch(0.925 0.007 264);
-    --reach-neutral-300: oklch(0.87 0.011 264);
-    --reach-neutral-400: oklch(0.708 0.015 264);
-    --reach-neutral-500: oklch(0.556 0.017 264);
-    --reach-neutral-600: oklch(0.446 0.018 264);
-    --reach-neutral-700: oklch(0.372 0.018 264);
-    --reach-neutral-800: oklch(0.279 0.018 264);
-    --reach-neutral-900: oklch(0.208 0.018 264);
-    --reach-neutral-950: oklch(0.145 0.016 264);
+    --reach-neutral-50: oklch(0.972 0.003 274);
+    --reach-neutral-100: oklch(0.952 0.004 274);
+    --reach-neutral-200: oklch(0.926 0.006 274);
+    --reach-neutral-300: oklch(0.885 0.008 274);
+    --reach-neutral-400: oklch(0.74 0.008 274);
+    --reach-neutral-500: oklch(0.6 0.012 274);
+    --reach-neutral-600: oklch(0.44 0.012 274);
+    --reach-neutral-700: oklch(0.34 0.008 274);
+    --reach-neutral-800: oklch(0.23 0.005 274);
+    --reach-neutral-900: oklch(0.17 0.004 274);
+    --reach-neutral-950: oklch(0.16 0.008 274);
 
-    --reach-brand-50: oklch(0.97 0.017 272);
-    --reach-brand-100: oklch(0.944 0.033 272);
-    --reach-brand-200: oklch(0.897 0.062 272);
-    --reach-brand-300: oklch(0.827 0.099 272);
-    --reach-brand-400: oklch(0.732 0.144 272);
-    --reach-brand-500: oklch(0.638 0.183 272);
-    --reach-brand-600: oklch(0.567 0.209 272);
-    --reach-brand-700: oklch(0.503 0.198 272);
-    --reach-brand-800: oklch(0.435 0.166 272);
-    --reach-brand-900: oklch(0.382 0.132 272);
-    --reach-brand-950: oklch(0.269 0.095 272);
+    /* The accent ramp. Reach 2 drives every accent value from one hue, and
+       `brandRamp` re-points these stops for a company's own colour, so the
+       stops are where that hue enters. Keep them in step with `BRAND_CURVE`. */
+    --reach-brand-50: oklch(0.95 0.03 274);
+    --reach-brand-100: oklch(0.915 0.05 274);
+    --reach-brand-200: oklch(0.782 0.13 274);
+    --reach-brand-300: oklch(0.7 0.17 274);
+    --reach-brand-400: oklch(0.64 0.2 274);
+    --reach-brand-500: oklch(0.58 0.21 274);
+    --reach-brand-600: oklch(0.54 0.23 274);
+    --reach-brand-700: oklch(0.48 0.215 274);
+    --reach-brand-800: oklch(0.45 0.2 274);
+    --reach-brand-900: oklch(0.38 0.15 274);
+    --reach-brand-950: oklch(0.27 0.1 274);
 
-    /*
-     * Two brand values that are not on the eleven-stop scale.
-     *
-     * The dark theme's accent wash sits between 900 and 950 and is fractionally
-     * less saturated than either — the stop above is too light to read `fg` on
-     * comfortably and the stop below is too dark to read as a wash at all. It
-     * was previously written into the dark block as a literal `oklch(...)`, and
-     * that is exactly what made it the one accent token that ignored the
-     * customer's hue: every other one there is a `var(--reach-brand-*)`, so
-     * re-pointing the ramp themed all of them and left this pair on Kithena
-     * indigo whatever a company had chosen.
-     *
-     * Named rather than snapped to 950. Snapping would have changed the default
-     * theme's appearance to fix a bug about the other six, and `brandRamp`
-     * emits these two alongside the stops — so they clamp to the sRGB gamut the
-     * same way and follow the hue like everything else.
-     */
-    --reach-brand-wash: oklch(0.31 0.09 272);
-    --reach-brand-wash-hover: oklch(0.36 0.11 272);
-
-    --reach-green-50: oklch(0.972 0.024 156);
-    --reach-green-100: oklch(0.94 0.048 156);
-    --reach-green-200: oklch(0.885 0.08 156);
-    --reach-green-400: oklch(0.762 0.13 156);
-    --reach-green-500: oklch(0.68 0.152 156);
-    --reach-green-600: oklch(0.58 0.138 156);
-    --reach-green-700: oklch(0.48 0.115 156);
-    --reach-green-900: oklch(0.33 0.075 156);
-
-    --reach-amber-50: oklch(0.978 0.03 85);
-    --reach-amber-100: oklch(0.95 0.062 85);
-    --reach-amber-200: oklch(0.9 0.104 85);
-    --reach-amber-500: oklch(0.79 0.155 75);
-    --reach-amber-600: oklch(0.7 0.15 65);
-    --reach-amber-700: oklch(0.58 0.13 58);
-    --reach-amber-900: oklch(0.39 0.088 58);
-
-    --reach-red-50: oklch(0.971 0.021 20);
-    --reach-red-100: oklch(0.938 0.043 20);
-    --reach-red-200: oklch(0.887 0.075 20);
-    --reach-red-400: oklch(0.704 0.191 22);
-    --reach-red-500: oklch(0.637 0.208 25);
-    --reach-red-600: oklch(0.577 0.213 27);
-    --reach-red-700: oklch(0.505 0.19 27);
-    --reach-red-900: oklch(0.356 0.126 27);
-
-    --reach-blue-50: oklch(0.97 0.017 240);
-    --reach-blue-100: oklch(0.94 0.036 240);
-    --reach-blue-200: oklch(0.885 0.065 240);
-    --reach-blue-500: oklch(0.64 0.163 245);
-    --reach-blue-600: oklch(0.567 0.17 250);
-    --reach-blue-700: oklch(0.49 0.15 250);
-    --reach-blue-900: oklch(0.35 0.1 250);
+    /* The dark theme's accent washes. Off the eleven-stop scale, and emitted by
+       `brandRamp` alongside it so they follow a company's hue as well. */
+    --reach-brand-wash: oklch(0.26 0.08 274);
+    --reach-brand-wash-hover: oklch(0.31 0.1 274);
 
     /* ---------------------------------------------------------------- */
     /* Semantic: light theme                                           */
     /* ---------------------------------------------------------------- */
 
-    /* Surfaces, back to front. */
+    /* Surfaces, back to front. `raised` is a surface that floats over
+       another surface, a popover or a menu. */
     --reach-color-canvas: var(--reach-neutral-50);
     --reach-color-surface: var(--reach-neutral-0);
+    --reach-color-surface-raised: var(--reach-neutral-0);
     --reach-color-surface-sunken: var(--reach-neutral-100);
-    --reach-color-surface-hover: var(--reach-neutral-100);
-    --reach-color-surface-active: var(--reach-neutral-200);
-    --reach-color-overlay: oklch(0.208 0.018 264 / 0.45);
+    --reach-color-surface-hover: var(--reach-neutral-200);
+    --reach-color-surface-active: var(--reach-neutral-300);
+    --reach-color-overlay: oklch(0.15 0.01 274 / 0.36);
+
+    /* Translucent chrome: bars and floating controls that content scrolls
+       under. `glass-line` is the hairline that separates it from the page. */
+    --reach-color-glass: oklch(0.99 0.002 274 / 0.72);
+    --reach-color-glass-line: oklch(0.2 0.01 274 / 0.08);
+
+    /* An inverted surface: a tooltip, a snackbar, the dark button. */
+    --reach-color-invert: var(--reach-neutral-950);
+    --reach-color-fg-on-invert: var(--reach-neutral-0);
 
     /* Text and icons. */
-    --reach-color-fg: var(--reach-neutral-900);
+    --reach-color-fg: var(--reach-neutral-950);
     --reach-color-fg-muted: var(--reach-neutral-600);
-    --reach-color-fg-subtle: var(--reach-neutral-600);
+    /* Meta text. The design's third ink is 0.60, which measures 3.9:1 on white
+       and fails AA for text; 0.54 clears 4.5:1 on the canvas as well, and the
+       0.60 value lives on as `icon-muted`, where 3:1 is the bar. */
+    --reach-color-fg-subtle: oklch(0.54 0.012 274);
     --reach-color-fg-disabled: var(--reach-neutral-400);
     --reach-color-fg-on-accent: var(--reach-neutral-0);
     --reach-color-fg-on-solid: var(--reach-neutral-0);
 
     /* A glyph that carries meaning while staying visually quiet: the unfilled
-       half of a rating, an inactive step tick. WCAG 1.4.11 asks 3:1 of these
-       the same as it asks 4.5:1 of text, so a border colour will not do.
-       Neutral 500 sits far enough from both surfaces to clear it in either
-       theme, which is why the dark block below does not restate it. */
+       half of a rating, an inactive step tick. WCAG 1.4.11 asks 3:1 of these. */
     --reach-color-icon-muted: var(--reach-neutral-500);
 
-    /* Lines. */
-    --reach-color-border: var(--reach-neutral-200);
-    --reach-color-border-strong: var(--reach-neutral-300);
-    --reach-color-border-focus: var(--reach-brand-500);
+    /* Lines. Opaque rather than the design's translucent ink, because the
+       email and the Storybook manager need a concrete colour for each. */
+    --reach-color-border: oklch(0.915 0.005 274);
+    --reach-color-border-strong: oklch(0.86 0.008 274);
+    --reach-color-border-focus: var(--reach-brand-600);
 
     /* Brand / primary action. */
     --reach-color-accent: var(--reach-brand-600);
@@ -141,48 +107,55 @@
     --reach-color-accent-subtle-hover: var(--reach-brand-100);
     --reach-color-accent-fg: var(--reach-brand-700);
 
-    /* Status. Each has a solid, a subtle wash, and an on-wash foreground,
-       because a badge and a button need different contrast contracts. */
-    /* Solid status chips: a filled circle or pill with text on top, such as a
-       stepper's step number. The `*-fg` tokens above are for text on the
-       `*-subtle` washes and are far too dark to sit on a saturated fill, which
-       is a mistake that measures at 1.5:1 and looks merely "a bit low".
-       These are the pair to reach for, and they are chosen so white clears
-       4.5:1 on every one of them. */
-    --reach-color-success-solid: var(--reach-green-700);
-    --reach-color-success: var(--reach-green-600);
-    --reach-color-success-subtle: var(--reach-green-50);
-    --reach-color-success-border: var(--reach-green-200);
-    --reach-color-success-fg: var(--reach-green-700);
+    /* Status. Each has a bright mark, a solid fill that white text clears
+       4.5:1 on, a subtle wash, a border for the wash, and an on-wash text. */
+    --reach-color-success: oklch(0.6 0.16 152);
+    --reach-color-success-solid: oklch(0.48 0.12 152);
+    --reach-color-success-subtle: oklch(0.955 0.04 152);
+    --reach-color-success-border: oklch(0.88 0.08 152);
+    --reach-color-success-fg: oklch(0.44 0.12 152);
 
-    --reach-color-warning: var(--reach-amber-600);
-    --reach-color-warning-subtle: var(--reach-amber-50);
-    --reach-color-warning-border: var(--reach-amber-200);
-    --reach-color-warning-fg: oklch(0.52 0.12 58);
+    --reach-color-warning: oklch(0.76 0.16 70);
+    --reach-color-warning-subtle: oklch(0.965 0.05 80);
+    --reach-color-warning-border: oklch(0.9 0.1 80);
+    --reach-color-warning-fg: oklch(0.49 0.12 60);
 
-    --reach-color-danger: var(--reach-red-600);
-    --reach-color-danger-solid: var(--reach-red-600);
-    --reach-color-danger-hover: var(--reach-red-700);
-    --reach-color-danger-subtle: var(--reach-red-50);
-    --reach-color-danger-border: var(--reach-red-200);
-    --reach-color-danger-fg: var(--reach-red-700);
+    --reach-color-danger: oklch(0.58 0.22 25);
+    --reach-color-danger-solid: oklch(0.54 0.22 25);
+    --reach-color-danger-hover: oklch(0.49 0.2 25);
+    --reach-color-danger-subtle: oklch(0.955 0.03 20);
+    --reach-color-danger-border: oklch(0.88 0.07 20);
+    --reach-color-danger-fg: oklch(0.49 0.2 25);
 
-    --reach-color-info: var(--reach-blue-600);
-    --reach-color-info-subtle: var(--reach-blue-50);
-    --reach-color-info-border: var(--reach-blue-200);
-    --reach-color-info-fg: var(--reach-blue-700);
+    --reach-color-info: oklch(0.6 0.15 240);
+    --reach-color-info-subtle: oklch(0.955 0.03 240);
+    --reach-color-info-border: oklch(0.88 0.06 240);
+    --reach-color-info-fg: oklch(0.46 0.13 245);
 
-    /* Elevation. Two shadows each: a tight contact shadow plus a soft
-       ambient one. A single blurred shadow reads as fog. */
-    --reach-shadow-xs: 0 1px 2px -1px oklch(0.208 0.018 264 / 0.08);
-    --reach-shadow-sm:
-      0 1px 2px -1px oklch(0.208 0.018 264 / 0.1), 0 1px 3px 0 oklch(0.208 0.018 264 / 0.06);
-    --reach-shadow-md:
-      0 2px 4px -2px oklch(0.208 0.018 264 / 0.1), 0 4px 8px -2px oklch(0.208 0.018 264 / 0.08);
-    --reach-shadow-lg:
-      0 4px 8px -4px oklch(0.208 0.018 264 / 0.12), 0 12px 24px -6px oklch(0.208 0.018 264 / 0.12);
-    --reach-shadow-xl:
-      0 8px 16px -8px oklch(0.208 0.018 264 / 0.14), 0 24px 48px -12px oklch(0.208 0.018 264 / 0.18);
+    /* Data. Shared lightness and chroma, varied hue, so no series shouts. The
+       first follows the accent. */
+    --reach-color-chart-1: oklch(0.56 0.2 274);
+    --reach-color-chart-2: oklch(0.68 0.13 190);
+    --reach-color-chart-3: oklch(0.76 0.14 75);
+    --reach-color-chart-4: oklch(0.64 0.18 355);
+    --reach-color-chart-5: oklch(0.66 0.13 240);
+    --reach-color-chart-6: oklch(0.72 0.15 135);
+
+    /* Elevation, four steps: cards, popovers, menus, dialogs. Two shadows
+       each, a tight contact shadow and a soft ambient one. */
+    --reach-shadow-xs: 0 1px 2px oklch(0.2 0.02 274 / 0.06), 0 1px 1px oklch(0.2 0.02 274 / 0.03);
+    --reach-shadow-sm: var(--reach-shadow-xs);
+    --reach-shadow-md: 0 2px 6px oklch(0.2 0.02 274 / 0.06), 0 8px 24px oklch(0.2 0.02 274 / 0.06);
+    --reach-shadow-lg: 0 4px 12px oklch(0.2 0.02 274 / 0.08), 0 16px 40px oklch(0.2 0.02 274 / 0.1);
+    --reach-shadow-xl: 0 8px 24px oklch(0.2 0.02 274 / 0.1), 0 32px 80px oklch(0.2 0.02 274 / 0.18);
+
+    /* Type, in rem so a television's root scale reaches it. Re-pointed for a
+       finger below: a phone reads body text at 17. */
+    --reach-text-xs: 0.75rem;
+    --reach-text-sm: 0.8125rem;
+    --reach-text-base: 0.9375rem;
+    --reach-text-base-leading: 1.4rem;
+    --reach-text-md: 1.0625rem;
 
     /* ---------------------------------------------------------------- */
     /* Density                                                          */
@@ -194,9 +167,14 @@
     /* so a button, an input and a select still line up on one row at    */
     /* every density.                                                   */
     /* ---------------------------------------------------------------- */
-    --reach-control-sm: 1.75rem;
-    --reach-control-md: 2.25rem;
-    --reach-control-lg: 2.75rem;
+    --reach-control-sm: 2rem;
+    --reach-control-md: 2.5rem;
+    --reach-control-lg: 3rem;
+    /* A text field. The same as a control at a desk, so a field and a button
+       share a row; taller under a finger, where fields stack and carry their
+       label inside. */
+    --reach-field-md: var(--reach-control-md);
+    --reach-radius-control: 9999px;
     /* 44px: the smallest target the iOS HIG accepts, and the floor
        WCAG 2.2 target size (2.5.8) is measured against. */
     --reach-tap-min: 2.75rem;
@@ -216,14 +194,35 @@
   /* A thumb is roughly 10mm across and has no hover state to preview with.
      Every coarse pointer gets the tap floor, whether it is a phone, a tablet
      or a touchscreen kiosk, the query asks about the pointer, not the OS. */
+  /*
+   * `[data-pointer='coarse']` is the same answer for a subtree whose pointer
+   * the page knows better than the media query: a phone frame in the docs,
+   * shown beside the desk version of the same story.
+   */
   @media (pointer: coarse) {
     :root {
       /* `sm` too. A small control is a density choice for a mouse; a finger
          is the same size whichever control it lands on. */
       --reach-control-sm: 2.75rem;
-      --reach-control-md: 2.75rem;
-      --reach-control-lg: 3rem;
+      --reach-control-md: 3.25rem;
+      --reach-control-lg: 3.5rem;
+      --reach-field-md: 3.5rem;
+      --reach-text-xs: 0.8125rem;
+      --reach-text-sm: 0.9375rem;
+      --reach-text-base: 1.0625rem;
+      --reach-text-base-leading: 1.375rem;
     }
+  }
+
+  [data-pointer='coarse'] {
+    --reach-control-sm: 2.75rem;
+    --reach-control-md: 3.25rem;
+    --reach-control-lg: 3.5rem;
+    --reach-field-md: 3.5rem;
+    --reach-text-xs: 0.8125rem;
+    --reach-text-sm: 0.9375rem;
+    --reach-text-base: 1.0625rem;
+    --reach-text-base-leading: 1.375rem;
   }
 
   /*
@@ -251,15 +250,15 @@
      read on a desk monitor, and for the reverse. Neither changes the tap
      floor: a compact table on a tablet still needs a 44px row target. */
   [data-density='compact'] {
-    --reach-control-sm: 1.5rem;
-    --reach-control-md: 2rem;
-    --reach-control-lg: 2.5rem;
+    --reach-control-sm: 1.75rem;
+    --reach-control-md: 2.25rem;
+    --reach-control-lg: 2.75rem;
   }
 
   [data-density='spacious'] {
-    --reach-control-sm: 2.25rem;
-    --reach-control-md: 2.75rem;
-    --reach-control-lg: 3.25rem;
+    --reach-control-sm: 2.5rem;
+    --reach-control-md: 3rem;
+    --reach-control-lg: 3.5rem;
   }
 
   /* ------------------------------------------------------------------ */
@@ -271,63 +270,79 @@
   /* carried by surface lightness instead.                               */
   /* ------------------------------------------------------------------ */
   .dark {
-    --reach-color-canvas: var(--reach-neutral-950);
+    --reach-color-canvas: oklch(0 0 0);
     --reach-color-surface: var(--reach-neutral-900);
-    --reach-color-surface-sunken: oklch(0.175 0.017 264);
-    --reach-color-surface-hover: var(--reach-neutral-800);
-    --reach-color-surface-active: var(--reach-neutral-700);
-    --reach-color-overlay: oklch(0.145 0.016 264 / 0.7);
+    --reach-color-surface-raised: oklch(0.21 0.005 274);
+    --reach-color-surface-sunken: var(--reach-neutral-800);
+    --reach-color-surface-hover: oklch(0.28 0.006 274);
+    --reach-color-surface-active: oklch(0.34 0.008 274);
+    --reach-color-overlay: oklch(0 0 0 / 0.6);
 
-    --reach-color-fg: var(--reach-neutral-50);
-    --reach-color-fg-muted: var(--reach-neutral-400);
-    --reach-color-fg-subtle: var(--reach-neutral-400);
-    --reach-color-fg-disabled: var(--reach-neutral-600);
+    --reach-color-glass: oklch(0.14 0.004 274 / 0.7);
+    --reach-color-glass-line: oklch(1 0 0 / 0.09);
+
+    --reach-color-invert: oklch(0.968 0.002 274);
+    --reach-color-fg-on-invert: oklch(0.12 0.004 274);
+
+    --reach-color-fg: oklch(0.968 0.002 274);
+    --reach-color-fg-muted: oklch(0.76 0.008 274);
+    /* 0.62 rather than the design's 0.60, so meta text still clears 4.5:1 on
+       the sunken fill. */
+    --reach-color-fg-subtle: oklch(0.62 0.008 274);
+    --reach-color-fg-disabled: oklch(0.42 0.006 274);
     --reach-color-fg-on-accent: var(--reach-neutral-0);
     --reach-color-fg-on-solid: var(--reach-neutral-0);
 
-    --reach-color-border: oklch(0.32 0.018 264);
-    --reach-color-border-strong: oklch(0.42 0.018 264);
-    --reach-color-border-focus: var(--reach-brand-400);
+    --reach-color-border: oklch(0.28 0.005 274);
+    --reach-color-border-strong: oklch(0.36 0.006 274);
+    --reach-color-border-focus: var(--reach-brand-300);
 
     --reach-color-accent: var(--reach-brand-500);
-    /* Not brand-500: white on it is 3.54:1. The ring and the chart fill can
+    /* Not brand-500: white on it is 4.3:1. The ring and the chart fill can
        stay bright, but anything with a label on it uses this. */
     --reach-color-accent-solid: var(--reach-brand-600);
     --reach-color-accent-hover: var(--reach-brand-400);
-    --reach-color-accent-active: var(--reach-brand-300);
+    --reach-color-accent-active: var(--reach-brand-600);
     --reach-color-accent-subtle: var(--reach-brand-wash);
     --reach-color-accent-subtle-hover: var(--reach-brand-wash-hover);
-    --reach-color-accent-fg: var(--reach-brand-300);
+    --reach-color-accent-fg: var(--reach-brand-200);
 
-    --reach-color-success-solid: var(--reach-green-700);
-    --reach-color-success: var(--reach-green-500);
-    --reach-color-success-subtle: oklch(0.29 0.06 156);
-    --reach-color-success-border: oklch(0.38 0.08 156);
-    --reach-color-success-fg: oklch(0.85 0.11 156);
+    --reach-color-success: oklch(0.7 0.17 152);
+    --reach-color-success-solid: oklch(0.48 0.12 152);
+    --reach-color-success-subtle: oklch(0.25 0.05 152);
+    --reach-color-success-border: oklch(0.36 0.07 152);
+    --reach-color-success-fg: oklch(0.82 0.13 152);
 
-    --reach-color-warning: var(--reach-amber-500);
-    --reach-color-warning-subtle: oklch(0.3 0.06 65);
-    --reach-color-warning-border: oklch(0.4 0.08 65);
-    --reach-color-warning-fg: oklch(0.88 0.11 80);
+    --reach-color-warning: oklch(0.8 0.15 75);
+    --reach-color-warning-subtle: oklch(0.27 0.05 70);
+    --reach-color-warning-border: oklch(0.38 0.07 70);
+    --reach-color-warning-fg: oklch(0.86 0.12 80);
 
-    --reach-color-danger: var(--reach-red-500);
-    /* Same reason as `accent-solid`: white on red-500 is 3.76:1, so a button
-       with a label on it takes the darker fill while the ring stays bright. */
-    --reach-color-danger-solid: var(--reach-red-600);
-    --reach-color-danger-hover: var(--reach-red-400);
-    --reach-color-danger-subtle: oklch(0.29 0.09 27);
-    --reach-color-danger-border: oklch(0.39 0.12 27);
-    --reach-color-danger-fg: oklch(0.85 0.1 25);
+    --reach-color-danger: oklch(0.66 0.21 25);
+    --reach-color-danger-solid: oklch(0.54 0.22 25);
+    --reach-color-danger-hover: oklch(0.6 0.21 25);
+    --reach-color-danger-subtle: oklch(0.26 0.07 25);
+    --reach-color-danger-border: oklch(0.38 0.1 25);
+    --reach-color-danger-fg: oklch(0.8 0.12 25);
 
-    --reach-color-info: var(--reach-blue-500);
-    --reach-color-info-subtle: oklch(0.29 0.07 250);
-    --reach-color-info-border: oklch(0.39 0.09 250);
-    --reach-color-info-fg: oklch(0.85 0.08 245);
+    --reach-color-info: oklch(0.7 0.14 240);
+    --reach-color-info-subtle: oklch(0.26 0.05 240);
+    --reach-color-info-border: oklch(0.37 0.07 240);
+    --reach-color-info-fg: oklch(0.82 0.1 240);
 
-    --reach-shadow-xs: 0 1px 2px -1px oklch(0 0 0 / 0.4);
-    --reach-shadow-sm: 0 1px 2px -1px oklch(0 0 0 / 0.5), 0 1px 3px 0 oklch(0 0 0 / 0.4);
-    --reach-shadow-md: 0 2px 4px -2px oklch(0 0 0 / 0.5), 0 4px 8px -2px oklch(0 0 0 / 0.4);
-    --reach-shadow-lg: 0 4px 8px -4px oklch(0 0 0 / 0.5), 0 12px 24px -6px oklch(0 0 0 / 0.45);
-    --reach-shadow-xl: 0 8px 16px -8px oklch(0 0 0 / 0.5), 0 24px 48px -12px oklch(0 0 0 / 0.5);
+    --reach-color-chart-1: oklch(0.66 0.19 274);
+    --reach-color-chart-2: oklch(0.74 0.12 190);
+    --reach-color-chart-3: oklch(0.8 0.13 75);
+    --reach-color-chart-4: oklch(0.7 0.17 355);
+    --reach-color-chart-5: oklch(0.72 0.12 240);
+    --reach-color-chart-6: oklch(0.78 0.14 135);
+
+    /* Shadows carry almost nothing on black, so each one leads with a hairline
+       ring and elevation is carried by surface lightness. */
+    --reach-shadow-xs: 0 0 0 1px oklch(1 0 0 / 0.06);
+    --reach-shadow-sm: var(--reach-shadow-xs);
+    --reach-shadow-md: 0 0 0 1px oklch(1 0 0 / 0.07), 0 8px 24px oklch(0 0 0 / 0.6);
+    --reach-shadow-lg: 0 0 0 1px oklch(1 0 0 / 0.08), 0 16px 40px oklch(0 0 0 / 0.7);
+    --reach-shadow-xl: 0 0 0 1px oklch(1 0 0 / 0.1), 0 32px 80px oklch(0 0 0 / 0.8);
   }
 }

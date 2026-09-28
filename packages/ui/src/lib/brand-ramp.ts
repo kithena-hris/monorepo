@@ -56,17 +56,17 @@ import type { CSSProperties } from 'react';
  */
 export const BRAND_CURVE: readonly (readonly [stop: number, lightness: number, chroma: number])[] =
   [
-    [50, 0.97, 0.017],
-    [100, 0.944, 0.033],
-    [200, 0.897, 0.062],
-    [300, 0.827, 0.099],
-    [400, 0.732, 0.144],
-    [500, 0.638, 0.183],
-    [600, 0.567, 0.209],
-    [700, 0.503, 0.198],
-    [800, 0.435, 0.166],
-    [900, 0.382, 0.132],
-    [950, 0.269, 0.095],
+    [50, 0.95, 0.03],
+    [100, 0.915, 0.05],
+    [200, 0.782, 0.13],
+    [300, 0.7, 0.17],
+    [400, 0.64, 0.2],
+    [500, 0.58, 0.21],
+    [600, 0.54, 0.23],
+    [700, 0.48, 0.215],
+    [800, 0.45, 0.2],
+    [900, 0.38, 0.15],
+    [950, 0.27, 0.1],
   ];
 
 /**
@@ -88,8 +88,8 @@ export const BRAND_CURVE: readonly (readonly [stop: number, lightness: number, c
  */
 export const BRAND_WASHES: readonly (readonly [name: string, lightness: number, chroma: number])[] =
   [
-    ['wash', 0.31, 0.09],
-    ['wash-hover', 0.36, 0.11],
+    ['wash', 0.26, 0.08],
+    ['wash-hover', 0.31, 0.1],
   ];
 
 /**

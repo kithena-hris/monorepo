@@ -4,6 +4,7 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * Supplementary hint.
@@ -35,7 +36,7 @@ export function Tooltip({
   return (
     <TooltipPrimitive.Root {...props}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-      <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Portal container={usePortalContainer()}>
         <TooltipPrimitive.Content
           side={side}
           align={align}

@@ -4,6 +4,7 @@ import * as PopoverPrimitive from '@radix-ui/react-popover';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * A non-modal surface anchored to a trigger.
@@ -49,7 +50,7 @@ export function PopoverContent({
   ...props
 }: PopoverContentProps): JSX.Element {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={usePortalContainer()}>
       <PopoverPrimitive.Content
         align={align}
         sideOffset={sideOffset}

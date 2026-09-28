@@ -87,10 +87,10 @@ describe('brandRamp', () => {
     if (!fromCurve) throw new Error(`no curve entry for ${String(stop)}`);
 
     const generated = parse(
-      (brandRamp(272) as Record<string, string>)[`--reach-brand-${String(stop)}`] ?? '',
+      (brandRamp(274) as Record<string, string>)[`--reach-brand-${String(stop)}`] ?? '',
     );
     expect(generated.lightness).toBe(fromCurve[1]);
-    expect(generated.hue).toBe(272);
+    expect(generated.hue).toBe(274);
     expect(generated.chroma).toBeLessThanOrEqual(fromCurve[2]);
     // Not so much less that the ramp stops reading as a colour. Every stop the
     // stylesheet asks for is within reach at this hue or close to it.
@@ -113,7 +113,7 @@ describe('brandRamp', () => {
     expect(Number(match[2])).toBe(c);
     // On the ramp's own hue, like every stop. A wash on a different angle would
     // be a second brand colour nobody chose.
-    expect(Number(match[3])).toBe(272);
+    expect(Number(match[3])).toBe(274);
   });
 
   /*

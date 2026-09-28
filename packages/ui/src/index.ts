@@ -466,6 +466,7 @@ export type { IconGroup, IconName, LucideIcon } from './icons/index';
 
 export { brandRamp } from './lib/brand-ramp';
 export { cn } from './lib/cn';
+export { PortalContainerProvider, usePortalContainer } from './lib/portal-container';
 
 export {
   breakpointQuery,

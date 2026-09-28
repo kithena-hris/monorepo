@@ -1,7 +1,7 @@
 import { DocsContainer } from '@storybook/addon-docs/blocks';
 import type { Decorator, Preview } from '@storybook/react-vite';
-import { TooltipProvider, ToastProvider } from '@reach/ui';
-import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { PortalContainerProvider, TooltipProvider, ToastProvider } from '@reach/ui';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import { darkDocsTheme, lightDocsTheme } from './manager-theme';
 import { GLOBALS_UPDATED, SET_GLOBALS } from 'storybook/internal/core-events';
@@ -207,9 +207,92 @@ const devices = {
   },
 };
 
+/**
+ * Every story twice: at a desk, and on a phone beside it.
+ *
+ * The phone is a 390-wide frame that declares `data-pointer="coarse"`, so
+ * Reach re-points control heights, type and the tap floor inside it exactly as
+ * it would under a real finger, while the desk copy next to it stays at mouse
+ * density. Its `transform` makes it the containing block for anything fixed,
+ * and it is the portal container, so a sheet or a menu opened in the phone
+ * opens inside the phone rather than across the window.
+ *
+ * The test runs render one copy. They already run twice, once at a desk and
+ * once in a real phone viewport where the media query itself matches, and a
+ * second copy of a story on the page would give every `getByRole` two answers
+ * and axe two of every landmark. A story whose `play` function drives the
+ * canvas opts out the same way, with `parameters.sideBySide: false`.
+ */
+function PhoneFrame({
+  fullscreen,
+  children,
+}: {
+  fullscreen: boolean;
+  children: ReactNode;
+}): React.JSX.Element {
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+  return (
+    <div
+      ref={setFrame}
+      data-pointer="coarse"
+      className="reach-phone"
+      style={fullscreen ? { height: 844 } : undefined}
+    >
+      <PortalContainerProvider container={frame}>{children}</PortalContainerProvider>
+    </div>
+  );
+}
+
+const withSideBySide: Decorator = (Story, context) => {
+  const view = typeof context.globals['view'] === 'string' ? context.globals['view'] : 'both';
+  const single =
+    import.meta.env.MODE === 'test' || context.parameters['sideBySide'] === false;
+  if (single || view === 'web') return <Story />;
+
+  const fullscreen = context.parameters['layout'] === 'fullscreen';
+  const phone = (
+    <PhoneFrame fullscreen={fullscreen}>
+      <Story />
+    </PhoneFrame>
+  );
+  if (view === 'mobile') return <div className="reach-views reach-views--single">{phone}</div>;
+
+  return (
+    <div
+      className="reach-views"
+      data-fullscreen={fullscreen || undefined}
+      data-centered={context.parameters['layout'] === 'centered' || undefined}
+    >
+      <section aria-label="Web" className="reach-view reach-view--web">
+        <p className="reach-view-label">Web</p>
+        <div className="reach-view-body">
+          <Story />
+        </div>
+      </section>
+      <section aria-label="Mobile" className="reach-view reach-view--mobile">
+        <p className="reach-view-label">Mobile</p>
+        {phone}
+      </section>
+    </div>
+  );
+};
+
 const preview: Preview = {
-  decorators: [withProviders, withPlatform],
+  decorators: [withSideBySide, withProviders, withPlatform],
   globalTypes: {
+    view: {
+      description: 'Show each story at a desk, on a phone, or both side by side.',
+      toolbar: {
+        title: 'View',
+        icon: 'mobile',
+        items: [
+          { value: 'both', title: 'Web and mobile' },
+          { value: 'web', title: 'Web only' },
+          { value: 'mobile', title: 'Mobile only' },
+        ],
+        dynamicTitle: true,
+      },
+    },
     /*
      * The theme is ours rather than `@storybook/addon-themes`'s.
      *
@@ -253,6 +336,7 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
+    view: 'both',
     theme: 'light',
     platform: 'web',
     density: 'default',

@@ -8,6 +8,7 @@ import { useCallback, useRef, type ComponentPropsWithoutRef, type JSX } from 're
 import { cn } from '../../lib/cn';
 import { useCoarsePointer, usePrefersReducedMotion } from '../../lib/use-media-query';
 import { useDragDismiss, type DragAxis } from '../../lib/use-drag-dismiss';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * An edge-anchored panel: detail without losing the list behind it.
@@ -159,7 +160,7 @@ export function SheetContent({
   );
 
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(

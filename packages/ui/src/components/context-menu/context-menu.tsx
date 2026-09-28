@@ -5,6 +5,7 @@ import { Check, ChevronRight, Circle } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * The right-click menu.
@@ -100,7 +101,7 @@ export function ContextMenuContent({
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>): JSX.Element {
   return (
-    <ContextMenuPrimitive.Portal>
+    <ContextMenuPrimitive.Portal container={usePortalContainer()}>
       <ContextMenuPrimitive.Content
         // Without padding a menu opened near the bottom of a phone renders
         // under the browser chrome, where nothing can scroll it into view.
@@ -234,7 +235,7 @@ export function ContextMenuSubContent({
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>): JSX.Element {
   return (
-    <ContextMenuPrimitive.Portal>
+    <ContextMenuPrimitive.Portal container={usePortalContainer()}>
       <ContextMenuPrimitive.SubContent className={cn(surface, className)} {...props} />
     </ContextMenuPrimitive.Portal>
   );
