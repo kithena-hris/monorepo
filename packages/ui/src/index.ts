@@ -493,7 +493,7 @@ export {
   PopoverContent,
   PopoverTrigger,
 } from './components/popover/popover';
-export type { PopoverContentProps } from './components/popover/popover';
+export type { PopoverContentProps, PopoverProps } from './components/popover/popover';
 
 export { HoverCard, HoverCardContent, HoverCardTrigger } from './components/hover-card/hover-card';
 export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-card/hover-card';

@@ -1,5 +1,7 @@
 import { createContext, use, type ReactNode } from 'react';
 
+import { useCoarsePointer } from './use-media-query';
+
 /**
  * Where overlays mount.
  *
@@ -27,4 +29,16 @@ export function PortalContainerProvider({
 /** The element overlays mount into, or `undefined` for `document.body`. */
 export function usePortalContainer(): HTMLElement | undefined {
   return use(PortalContainerContext) ?? undefined;
+}
+
+/**
+ * Whether overlays here open under a finger: the page's pointer is coarse, or
+ * the element they mount into sits in a subtree that declares itself coarse
+ * with `data-pointer`, as the docs' phone frame does. Asked of the pointer,
+ * never the width: a narrow desk window is still a mouse.
+ */
+export function useCoarseOverlay(): boolean {
+  const container = usePortalContainer();
+  const coarse = useCoarsePointer();
+  return coarse || container?.closest('[data-pointer="coarse"]') != null;
 }

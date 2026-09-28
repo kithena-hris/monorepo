@@ -269,6 +269,8 @@ export function Combobox({
 
   const popover = (
     <Popover
+      // The list belongs under its field, where the choice is read in place.
+      sheetOnTouch={false}
       open={open}
       onOpenChange={(next) => {
         setOpen(next);

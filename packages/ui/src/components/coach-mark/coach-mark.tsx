@@ -78,7 +78,8 @@ export function CoachMark({
   const last = step >= total;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // A tour step points at its control; as a sheet it would point at nothing.
+    <Popover open={open} onOpenChange={setOpen} sheetOnTouch={false}>
       <PopoverAnchor asChild>
         <Slot
           data-coach-mark={open ? 'open' : undefined}
