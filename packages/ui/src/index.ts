@@ -447,6 +447,34 @@ export type { KeyValueItem, KeyValuesProps } from './components/key-values/key-v
 export { TreeView } from './components/tree-view/tree-view';
 export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';
 
+export { FilterBuilder } from './components/filter-builder/filter-builder';
+export type { FilterBuilderProps } from './components/filter-builder/filter-builder';
+export {
+  addItem as addFilterItem,
+  conditionsOf as filterConditions,
+  describeFilter,
+  removeItem as removeFilterItem,
+  setMatch as setFilterMatch,
+  updateCondition as updateFilterCondition,
+} from './components/filter-builder/filter-model';
+export type {
+  FilterCondition,
+  FilterField,
+  FilterGroup,
+  FilterItem,
+  FilterOperator,
+} from './components/filter-builder/filter-model';
+
+export { Scheduler } from './components/scheduler/scheduler';
+export type {
+  SchedulerColumn,
+  SchedulerEvent,
+  SchedulerProps,
+  SchedulerTone,
+} from './components/scheduler/scheduler';
+export { dayColumns, formatMinutes } from './components/scheduler/scheduler-model';
+export type { DayColumn, Minutes } from './components/scheduler/scheduler-model';
+
 export {
   CurrencyField,
   PhoneField,
