@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@kithena/testing": "workspace:*",
-    "graphql": "^16.11.0",
+    "graphql": "^17.0.2",
     "vitest": "^4.1.11"
   }
 }

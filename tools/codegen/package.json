@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",
-    "graphql": "^16.11.0",
+    "graphql": "^17.0.2",
     "zod": "^4.6.5"
   }
 }
