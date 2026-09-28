@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { binValues, radarPoints, squarify, type Rect } from './geometry';
+import {
+  binValues,
+  brushSelect,
+  fitInto,
+  indexAt,
+  linearFit,
+  moveBrush,
+  radarPoints,
+  squarify,
+  type Rect,
+} from './geometry';
 
 const area = (rect: Rect): number => rect.width * rect.height;
 const aspect = (rect: Rect): number => Math.max(rect.width / rect.height, rect.height / rect.width);
@@ -114,5 +124,94 @@ describe('radarPoints', () => {
     // Over the scale sits on the outer ring, under it sits on the centre.
     expect(Math.hypot((over?.[0] ?? 0) - 100, (over?.[1] ?? 0) - 100)).toBeCloseTo(50);
     expect(under).toEqual([100, 100]);
+  });
+});
+
+describe('linearFit', () => {
+  it('recovers an exact line', () => {
+    const fit = linearFit([
+      { x: 1, y: 5 },
+      { x: 2, y: 7 },
+      { x: 3, y: 9 },
+    ]);
+    expect(fit?.slope).toBeCloseTo(2);
+    expect(fit?.intercept).toBeCloseTo(3);
+  });
+
+  it('is the least-squares line through scattered points', () => {
+    // Worked by hand: mean x 2.5, mean y 3.5, Sxy 5, Sxx 5.
+    const fit = linearFit([
+      { x: 1, y: 2 },
+      { x: 2, y: 4 },
+      { x: 3, y: 3 },
+      { x: 4, y: 5 },
+    ]);
+    expect(fit?.slope).toBeCloseTo(0.8);
+    expect(fit?.intercept).toBeCloseTo(1.5);
+  });
+
+  it('refuses to invent a line from one point or from no spread in x', () => {
+    expect(linearFit([{ x: 1, y: 1 }])).toBeNull();
+    expect(
+      linearFit([
+        { x: 2, y: 1 },
+        { x: 2, y: 9 },
+      ]),
+    ).toBeNull();
+  });
+
+  it('ignores points that are not finite', () => {
+    const fit = linearFit([
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+      { x: Number.NaN, y: 40 },
+    ]);
+    expect(fit?.slope).toBeCloseTo(1);
+  });
+});
+
+describe('brush maths', () => {
+  const total = 12;
+
+  it('maps a fraction of the strip to the nearest index, clamped', () => {
+    expect(indexAt(0, total)).toBe(0);
+    expect(indexAt(1, total)).toBe(11);
+    expect(indexAt(0.5, total)).toBe(6);
+    expect(indexAt(-0.2, total)).toBe(0);
+    expect(indexAt(1.4, total)).toBe(11);
+  });
+
+  it('moves one edge without crossing the other', () => {
+    expect(moveBrush({ start: 2, end: 6 }, 'start', 2, total)).toEqual({ start: 4, end: 6 });
+    expect(moveBrush({ start: 2, end: 6 }, 'start', 9, total)).toEqual({ start: 5, end: 6 });
+    expect(moveBrush({ start: 2, end: 6 }, 'start', -9, total)).toEqual({ start: 0, end: 6 });
+    expect(moveBrush({ start: 2, end: 6 }, 'end', -9, total)).toEqual({ start: 2, end: 3 });
+    expect(moveBrush({ start: 2, end: 6 }, 'end', 20, total)).toEqual({ start: 2, end: 11 });
+  });
+
+  it('pans the whole window and keeps its width at either end', () => {
+    expect(moveBrush({ start: 2, end: 6 }, 'window', 3, total)).toEqual({ start: 5, end: 9 });
+    expect(moveBrush({ start: 2, end: 6 }, 'window', 30, total)).toEqual({ start: 7, end: 11 });
+    expect(moveBrush({ start: 2, end: 6 }, 'window', -30, total)).toEqual({ start: 0, end: 4 });
+  });
+
+  it('draws a new window in either direction, never narrower than two points', () => {
+    expect(brushSelect(3, 8, total)).toEqual({ start: 3, end: 8 });
+    expect(brushSelect(8, 3, total)).toEqual({ start: 3, end: 8 });
+    expect(brushSelect(5, 5, total)).toEqual({ start: 5, end: 6 });
+    expect(brushSelect(11, 11, total)).toEqual({ start: 10, end: 11 });
+  });
+});
+
+describe('fitInto', () => {
+  it('scales content down to fit and centres it on the spare axis', () => {
+    const fit = fitInto({ width: 1200, height: 400 }, { width: 120, height: 76 });
+    expect(fit.scale).toBeCloseTo(0.1);
+    expect(fit.x).toBeCloseTo(0);
+    expect(fit.y).toBeCloseTo((76 - 40) / 2);
+  });
+
+  it('survives an empty content box', () => {
+    expect(fitInto({ width: 0, height: 0 }, { width: 120, height: 76 }).scale).toBe(0);
   });
 });
