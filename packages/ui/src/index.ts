@@ -226,6 +226,9 @@ export type {
   UploadStatus,
 } from './components/file-uploader/file-uploader';
 
+export { FormSaveBar, FormSection, FormSections } from './components/form-sections/form-sections';
+export type { FormSaveBarProps, FormSectionProps } from './components/form-sections/form-sections';
+
 export { AvatarUploader, ImageUploader } from './components/image-uploader/image-uploader';
 export type {
   AvatarUploaderProps,
@@ -451,6 +454,9 @@ export type { TagsInputProps } from './components/tags-input/tags-input';
 
 export { Timeline, TimelineItem } from './components/timeline/timeline';
 export type { TimelineItemProps } from './components/timeline/timeline';
+
+export { TimePicker, formatTime, parseTime, timeSlots } from './components/time-picker/time-picker';
+export type { TimePickerProps } from './components/time-picker/time-picker';
 
 export { ToastProvider, ToastViewport, useToast } from './components/toast/toast';
 export type { ToastOptions, ToastTone } from './components/toast/toast';
