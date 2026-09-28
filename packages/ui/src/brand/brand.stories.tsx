@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
-import { ReachLogo, ReachMark, ReachWordmark } from './reach-logo';
+import { ReachLogo, ReachMark } from './reach-logo';
 
 const meta = {
   title: 'Foundations/Brand',
@@ -48,6 +47,11 @@ const meta = {
       control: 'boolean',
       table: { type: { summary: 'boolean' }, category: 'Appearance' },
     },
+    tile: {
+      description: 'The app mark: the glyph reversed out of an accent tile.',
+      control: 'boolean',
+      table: { type: { summary: 'boolean' }, category: 'Appearance' },
+    },
     title: {
       description: 'Names the mark where it is the only thing identifying the product.',
       control: 'text',
@@ -62,20 +66,19 @@ type Story = StoryObj<typeof meta>;
 
 export const Logo: Story = {
   name: 'The lockup',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The app mark and the word, set bold in the display face. The word follows the text colour and the tile stays accent, so one lockup serves both themes.',
+      },
+    },
+  },
   render: () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reach UI</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-8">
-        <ReachLogo showSubtitle className="text-fg" />
-        <div className="flex flex-wrap items-center gap-10">
-          <ReachLogo />
-          <ReachLogo variant="mark" className="text-accent" />
-          <ReachWordmark title="Reach UI" className="h-6 text-fg" />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-start gap-8">
+      <ReachLogo size="lg" />
+      <ReachLogo showSubtitle />
+    </div>
   ),
 };
 
@@ -85,42 +88,40 @@ export const Sizes: Story = {
     docs: {
       description: {
         story:
-          'The mark holds from 64px down to 20px. Below that, `compact` pulls the target in and grows it: at 16px the gap closes optically and the two shapes merge into one blob, which loses the only thing the mark is saying.',
+          'Three sizes, one lockup: `size="lg"`, `md` and `sm` put a 56, 32 and 20px mark beside the word in proportion. Below 20px use the app mark alone; the word stops being legible before the mark does.',
       },
     },
   },
   render: () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Scale</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap items-end gap-8 text-fg">
-          {[
-            { size: 'size-16', label: '64px' },
-            { size: 'size-10', label: '40px' },
-            { size: 'size-8', label: '32px' },
-            { size: 'size-6', label: '24px' },
-          ].map((entry) => (
-            <div key={entry.label} className="flex flex-col items-center gap-2">
-              <ReachMark className={entry.size} />
-              <span className="text-2xs text-fg-subtle">{entry.label}</span>
-            </div>
-          ))}
-          {[
-            { size: 'size-5', label: '20px' },
-            { size: 'size-4', label: '16px' },
-          ].map((entry) => (
-            <div key={entry.label} className="flex flex-col items-center gap-2">
-              <ReachMark compact className={entry.size} />
-              <span className="text-2xs text-fg-subtle">{entry.label}, compact</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-start gap-5">
+      <ReachLogo size="lg" />
+      <ReachLogo size="md" />
+      <ReachLogo size="sm" />
+    </div>
   ),
 };
+
+/*
+ * The four grounds the lockup is placed on, each with the tile tone and word
+ * colour that belong on it. On the accent ground the tile turns light, since an
+ * accent tile on an accent field is a hole in the page.
+ */
+const grounds = [
+  {
+    name: 'Background',
+    ground: 'bg-canvas ring-1 ring-border ring-inset',
+    word: 'text-fg',
+    tone: 'accent',
+  },
+  {
+    name: 'Surface',
+    ground: 'bg-surface ring-1 ring-border ring-inset',
+    word: 'text-fg',
+    tone: 'accent',
+  },
+  { name: 'Accent', ground: 'bg-accent-solid', word: 'text-fg-on-accent', tone: 'light' },
+  { name: 'Invert', ground: 'bg-invert', word: 'text-fg-on-invert', tone: 'accent' },
+] as const;
 
 export const OnSurfaces: Story = {
   name: 'On any surface',
@@ -128,24 +129,21 @@ export const OnSurfaces: Story = {
     docs: {
       description: {
         story:
-          'One file. The mark takes its colour from whatever it sits in, so the light theme, the dark theme, the accent tile and a printed page are the same asset rather than four exports that drift apart.',
+          'The page, a card, the accent and the inverse. The word takes the text colour of whatever it sits on; the tile keeps the accent except on the accent itself, where it turns light and carries the accent in the glyph instead.',
       },
     },
   },
   render: () => (
-    <div className="flex flex-wrap gap-4">
-      <div className="flex size-28 items-center justify-center rounded-xl border border-border bg-surface text-fg">
-        <ReachMark className="size-12" />
-      </div>
-      <div className="flex size-28 items-center justify-center rounded-xl bg-fg text-surface">
-        <ReachMark className="size-12" />
-      </div>
-      <div className="flex size-28 items-center justify-center rounded-xl bg-accent text-fg-on-accent">
-        <ReachMark className="size-12" />
-      </div>
-      <div className="flex size-28 items-center justify-center rounded-xl border border-border bg-surface text-accent">
-        <ReachMark className="size-12" />
-      </div>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3">
+      {grounds.map((entry) => (
+        <div
+          key={entry.name}
+          className={`grid h-24 place-items-center rounded-md ${entry.ground}`}
+          title={entry.name}
+        >
+          <ReachLogo size="sm" tone={entry.tone} className={entry.word} />
+        </div>
+      ))}
     </div>
   ),
 };
@@ -155,41 +153,29 @@ export const Construction: Story = {
     docs: {
       description: {
         story:
-          'Drawn on the 24px icon grid the rest of the system uses. The stem stands on the baseline at the vertical sixth, and the target sits on the line the curve was travelling along when it ran out, so the eye reads one movement rather than a letter with something next to it.',
+          'An 8 × 8 grid, a 9/32 corner radius and a 2.8 stroke. The glyph sits on the 24px icon grid inside the tile, the stem on the baseline at the vertical sixth and the target on the line the curve was travelling along when it ran out. The dashed line is the clear space: nothing comes inside it.',
       },
     },
   },
   render: () => (
-    <Card className="max-w-sm">
-      <CardHeader>
-        <CardTitle>Grid</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="relative size-48 text-accent">
-          <svg viewBox="0 0 24 24" className="absolute inset-0 size-full" aria-hidden>
-            <defs>
-              <pattern id="reach-grid" width="2" height="2" patternUnits="userSpaceOnUse">
-                <path
-                  d="M2 0 V2 M0 2 H2"
-                  className="stroke-border"
-                  strokeWidth="0.08"
-                  fill="none"
-                />
-              </pattern>
-            </defs>
-            <rect width="24" height="24" fill="url(#reach-grid)" />
-            <circle
-              cx="6"
-              cy="12.5"
-              r="6.5"
-              className="stroke-border"
-              strokeWidth="0.15"
-              fill="none"
-            />
-          </svg>
-          <ReachMark className="absolute inset-0 size-full" />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center gap-3">
+      <div
+        className="relative grid size-60 place-items-center rounded-md ring-1 ring-border ring-inset"
+        style={{
+          backgroundImage:
+            'linear-gradient(var(--reach-color-border) 1px, transparent 1px), linear-gradient(90deg, var(--reach-color-border) 1px, transparent 1px)',
+          backgroundSize: '30px 30px',
+        }}
+      >
+        <ReachMark tile className="size-45" />
+        <span
+          aria-hidden
+          className="absolute inset-[30px] rounded-[50px] border-[1.5px] border-dashed border-danger"
+        />
+      </div>
+      <p className="text-sm text-fg-muted">
+        8 × 8 grid, 9/32 corner radius, 2.8 stroke. The red line is the clear space.
+      </p>
+    </div>
   ),
 };

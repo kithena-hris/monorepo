@@ -39,7 +39,7 @@ const meta = {
           '- **Wide.** Both panes are visible. Selecting a row changes the right pane; the list keeps its scroll position and its filters. Nothing navigates.',
           '- **Narrow.** There is only room for one, so the detail *replaces* the list and a back control returns to it. This is a push, and it has to behave like one.',
           '',
-          'Resize the canvas across 1024px, or switch the viewport toolbar between a desktop and an iPhone, to see the same component do both.',
+          "The split is decided by the component's own width, a container query, not by the window: the phone frame beside the desk canvas pushes while the desk copy splits, at the same viewport. Resize the canvas across 1024px to watch one copy change.",
           '',
           '### The two parts that are usually wrong',
           '',
@@ -105,7 +105,8 @@ const meta = {
       },
     },
     splitFrom: {
-      description: 'The width at which both panes fit. Below it, the layout pushes.',
+      description:
+        'The width of the component itself at which both panes fit: md 48rem, lg 64rem, xl 80rem. Below it, the layout pushes.',
       control: 'inline-radio',
       options: ['md', 'lg', 'xl'],
       table: {
@@ -265,7 +266,7 @@ function RequestList({
                     {request.kind} · {request.days}d
                   </p>
                 </div>
-                <ChevronRight className="size-4 shrink-0 text-fg-subtle lg:hidden" aria-hidden />
+                <ChevronRight className="size-4 shrink-0 text-fg-subtle @5xl:hidden" aria-hidden />
               </button>
             </li>
           ))}
@@ -277,7 +278,7 @@ function RequestList({
 
 function RequestDetail({ request }: { request: Request }): JSX.Element {
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-6 touch:p-4">
       <Stack gap={5}>
         <PageHeader
           size="md"

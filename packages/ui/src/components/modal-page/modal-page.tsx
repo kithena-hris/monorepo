@@ -42,9 +42,16 @@ import { usePortalContainer } from '../../lib/portal-container';
  * | `ModalPage` | A task with its own header, its own scroll and its own actions. Fills the screen. |
  */
 
+/*
+ * The sizes step up on the width of what the page is presented *in*, not on
+ * the window's. The content sits inside the overlay, and the overlay, which
+ * always covers exactly that space, is the query container: in an app that is
+ * the viewport, in a phone preview on a wide monitor it is the phone, and the
+ * phone gets the phone's edge-to-edge page. `@3xl` is 48rem, `@7xl` 80rem.
+ */
 const surface = cva(
   [
-    'fixed z-50 flex flex-col overflow-hidden bg-canvas focus-visible:outline-none',
+    '@container fixed z-50 flex flex-col overflow-hidden bg-canvas focus-visible:outline-none',
     'data-[state=open]:animate-slide-in-bottom data-[state=closed]:animate-slide-out-bottom',
   ],
   {
@@ -54,10 +61,10 @@ const surface = cva(
         full: 'inset-0',
         /** Full on a phone; an inset card with a visible page behind it from `md`. */
         inset:
-          'inset-0 md:inset-6 md:rounded-xl md:border md:border-border md:shadow-xl xl:inset-x-[max(1.5rem,calc((100vw-84rem)/2))]',
+          'inset-0 @3xl:inset-6 @3xl:rounded-xl @3xl:shadow-xl @7xl:inset-x-[max(1.5rem,calc((100cqw-84rem)/2))]',
         /** Full on a phone; a tall centred column from `md`. Forms and flows. */
         column:
-          'inset-0 md:inset-y-8 md:left-1/2 md:w-full md:max-w-3xl md:-translate-x-1/2 md:rounded-xl md:border md:border-border md:shadow-xl',
+          'inset-0 @3xl:inset-y-8 @3xl:left-1/2 @3xl:w-full @3xl:max-w-3xl @3xl:-translate-x-1/2 @3xl:rounded-xl @3xl:shadow-xl',
       },
     },
     defaultVariants: { size: 'full' },
@@ -79,20 +86,23 @@ export function ModalPageContent({
 }: ModalPageContentProps): JSX.Element {
   return (
     <DialogPrimitive.Portal container={usePortalContainer()}>
+      {/* The content inside the overlay, Radix's own "scrollable overlay"
+          arrangement, so the overlay can be the container the sizes query. */}
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
-          'fixed inset-0 z-50 bg-overlay',
+          '@container fixed inset-0 z-50 bg-overlay',
           'data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
         )}
-      />
-      <DialogPrimitive.Content
-        data-scroll-lock
-        className={cn(surface({ size }), className)}
-        {...props}
       >
-        {children}
-      </DialogPrimitive.Content>
+        <DialogPrimitive.Content
+          data-scroll-lock
+          className={cn(surface({ size }), className)}
+          {...props}
+        >
+          {children}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Overlay>
     </DialogPrimitive.Portal>
   );
 }
@@ -126,7 +136,7 @@ export function ModalPageHeader({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-3 border-b border-border bg-surface px-3 py-2.5 pt-safe-top sm:px-4',
+        'flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5 pt-safe-top touch:px-3',
         className,
       )}
       {...props}
@@ -134,15 +144,17 @@ export function ModalPageHeader({
       {dismiss !== 'none' ? (
         <DialogPrimitive.Close
           className={cn(
-            'inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-md px-2 text-sm text-fg-muted',
-            'transition-colors hover:bg-surface-hover hover:text-fg',
+            // A pill on a fill, the shape of every other control, rather than
+            // a bare glyph that has to be hovered to show it is pressable.
+            'inline-flex min-h-control-sm min-w-control-sm shrink-0 items-center justify-center gap-1.5 rounded-control bg-surface-sunken px-2 text-sm font-semibold text-fg',
+            'transition-colors hover:bg-surface-hover touch:min-h-tap touch:min-w-tap',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
           )}
         >
           {dismiss === 'back' ? (
             <>
               <ArrowLeft className="size-4" aria-hidden />
-              <span className="max-sm:sr-only">{dismissLabel ?? 'Back'}</span>
+              <span className="pe-1 @max-xl:sr-only">{dismissLabel ?? 'Back'}</span>
             </>
           ) : (
             <>
@@ -155,7 +167,7 @@ export function ModalPageHeader({
 
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
-          <DialogPrimitive.Title className="truncate text-base font-semibold text-fg">
+          <DialogPrimitive.Title className="truncate text-md font-semibold text-fg">
             {title}
           </DialogPrimitive.Title>
           {meta}
@@ -202,8 +214,8 @@ export function ModalPageFooter({
     <div
       className={cn(
         'flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-surface px-4 py-3 pb-safe-bottom',
-        'sm:flex-row sm:items-center sm:justify-end',
-        '[&>*]:w-full sm:[&>*]:w-auto',
+        '@2xl:flex-row @2xl:items-center @2xl:justify-end',
+        '[&>*]:w-full @2xl:[&>*]:w-auto',
         className,
       )}
       {...props}

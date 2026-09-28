@@ -11,10 +11,14 @@ export const semanticColorTokens = {
   surface: [
     '--reach-color-canvas',
     '--reach-color-surface',
+    '--reach-color-surface-raised',
     '--reach-color-surface-sunken',
     '--reach-color-surface-hover',
     '--reach-color-surface-active',
     '--reach-color-overlay',
+    '--reach-color-glass',
+    '--reach-color-glass-line',
+    '--reach-color-invert',
   ],
   foreground: [
     '--reach-color-fg',
@@ -22,10 +26,13 @@ export const semanticColorTokens = {
     '--reach-color-fg-subtle',
     '--reach-color-fg-disabled',
     '--reach-color-fg-on-accent',
+    '--reach-color-fg-on-solid',
+    '--reach-color-fg-on-invert',
   ],
   border: ['--reach-color-border', '--reach-color-border-strong', '--reach-color-border-focus'],
   accent: [
     '--reach-color-accent',
+    '--reach-color-accent-solid',
     '--reach-color-accent-hover',
     '--reach-color-accent-active',
     '--reach-color-accent-subtle',
@@ -34,6 +41,7 @@ export const semanticColorTokens = {
   ],
   success: [
     '--reach-color-success',
+    '--reach-color-success-solid',
     '--reach-color-success-subtle',
     '--reach-color-success-border',
     '--reach-color-success-fg',
@@ -46,6 +54,7 @@ export const semanticColorTokens = {
   ],
   danger: [
     '--reach-color-danger',
+    '--reach-color-danger-solid',
     '--reach-color-danger-hover',
     '--reach-color-danger-subtle',
     '--reach-color-danger-border',
@@ -56,6 +65,15 @@ export const semanticColorTokens = {
     '--reach-color-info-subtle',
     '--reach-color-info-border',
     '--reach-color-info-fg',
+  ],
+  /** Series colours, in the order a chart assigns them. Data only, never chrome. */
+  chart: [
+    '--reach-color-chart-1',
+    '--reach-color-chart-2',
+    '--reach-color-chart-3',
+    '--reach-color-chart-4',
+    '--reach-color-chart-5',
+    '--reach-color-chart-6',
   ],
 } as const satisfies Record<string, readonly string[]>;
 

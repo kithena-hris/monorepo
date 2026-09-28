@@ -127,12 +127,12 @@ export const StackAndInline: Story = {
     docs: {
       description: {
         story:
-          '`Inline` wraps by default, a row of filter chips that cannot wrap is a row that clips on a phone, and `collapseBelow` turns it into a stack at a chosen width. Narrow the canvas past 640px and the action group below becomes three full-width buttons.',
+          "`Inline` wraps by default, a row of filter chips that cannot wrap is a row that clips on a phone, and `collapseBelow` turns it into a stack at a chosen width. The width it asks about is its container's, not the window's: in the phone frame the action group below is already three full-width buttons, and narrowing the canvas past 640px does the same to the desk copy.",
       },
     },
   },
   render: () => (
-    <div className="space-y-8 bg-canvas p-6">
+    <div className="@container space-y-8 bg-canvas p-6">
       <Stack gap={2}>
         <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
           Stack, gap 2
@@ -362,9 +362,9 @@ export const FlexOptions: Story = {
 
       <Demo
         title="collapseBelow"
-        hint="Becomes a stack under the named breakpoint. Narrow the canvas to see it. Items also stretch, because a half-width button in a column reads as a mistake."
+        hint="Becomes a stack when the container is narrower than the named width. Narrow the canvas to see it, or look at the phone. Items also stretch, because a half-width button in a column reads as a mistake."
       >
-        <Stack gap={3}>
+        <Stack gap={3} className="@container">
           {(['xs', 'sm', 'md'] as const).map((at) => (
             <div key={at}>
               <Label>collapseBelow=&quot;{at}&quot;</Label>

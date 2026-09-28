@@ -48,12 +48,12 @@ type Story = StoryObj<typeof meta>;
 
 function IconTile({ name, Icon }: { name: string; Icon: lucide.LucideIcon }): JSX.Element {
   return (
-    <div className="group relative flex flex-col items-center gap-2 rounded-md border border-border bg-surface p-3 transition-[border-color,box-shadow] duration-(--animate-duration-fast) hover:border-border-strong hover:shadow-sm">
+    <div className="group relative flex flex-col items-center gap-2 rounded-md bg-surface p-3 shadow-xs transition-shadow duration-(--animate-duration-fast) hover:shadow-md">
       <Icon aria-hidden className="size-5 text-fg" />
       <span className="w-full truncate text-center font-mono text-2xs text-fg-muted" title={name}>
         {name}
       </span>
-      <div className="absolute top-1 end-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <div className="absolute top-1 end-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 touch:opacity-100">
         <CopyButton value={name} label={`Copy ${name}`} />
       </div>
     </div>
@@ -84,7 +84,9 @@ export const TheSet: Story = {
       {Object.entries(iconGroups).map(([group, entries]) => (
         <section key={group} className="space-y-3">
           <div className="flex items-baseline gap-2">
-            <h3 className="text-md font-semibold text-fg capitalize">{group}</h3>
+            <h3 className="font-display text-md font-bold tracking-tight text-fg capitalize">
+              {group}
+            </h3>
             <Badge size="sm">{Object.keys(entries).length}</Badge>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
@@ -141,7 +143,7 @@ export const TheLibrary: Story = {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="w-72">
+          <div className="w-72 max-w-full">
             <Input
               value={query}
               onChange={(event) => {
@@ -197,7 +199,7 @@ export const Sizes: Story = {
         ] as const
       ).map(([iconSize, textSize, note]) => (
         <div key={iconSize} className="flex items-center gap-4 border-b border-border pb-3">
-          <code className="w-20 shrink-0 font-mono text-2xs text-fg-subtle">{iconSize}</code>
+          <code className="w-20 shrink-0 font-mono text-2xs text-fg-muted">{iconSize}</code>
           <span className={`flex items-center gap-2 text-fg ${textSize}`}>
             <icons.person aria-hidden className={iconSize} />
             Grace Hopper

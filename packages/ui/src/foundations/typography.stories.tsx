@@ -28,23 +28,68 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The scale, largest first, with the token that produces each row. */
+/**
+ * The scale, largest first: the role each step plays, and the class that
+ * produces it. Titles take the display face; everything read at length takes
+ * the text face. Under a finger `xs`, `sm` and `base` step up by themselves, so
+ * body is 17 on a phone and the phone's roles fall out of the same classes.
+ */
 const SCALE = [
-  { name: '3xl', className: 'text-3xl', use: 'Page title on a marketing or landing surface.' },
-  { name: '2xl', className: 'text-2xl', use: 'Screen title. One per page.' },
-  { name: 'xl', className: 'text-xl', use: 'Section heading inside a screen.' },
-  { name: 'lg', className: 'text-lg', use: 'Card heading, dialog title.' },
-  { name: 'md', className: 'text-md', use: 'Emphasised body, lead paragraph.' },
+  {
+    name: '3xl',
+    className: 'text-3xl font-display font-bold tracking-tight',
+    use: 'Display. Hero numbers.',
+  },
+  {
+    name: '2xl',
+    className: 'text-2xl font-display font-bold tracking-tight',
+    use: 'Title 1. Page titles; the large title on a phone.',
+  },
+  {
+    name: 'xl',
+    className: 'text-xl font-display font-bold tracking-tight',
+    use: 'Title 2. Section titles.',
+  },
+  {
+    name: 'lg',
+    className: 'text-lg font-display font-semibold',
+    use: 'Title 3. Card and dialog titles.',
+  },
+  { name: 'md', className: 'text-md', use: 'Body large. Intros, row titles on a phone.' },
   { name: 'base', className: 'text-base', use: 'Body. The default for everything.' },
-  { name: 'sm', className: 'text-sm', use: 'Secondary text, table cells, help text.' },
-  { name: 'xs', className: 'text-xs', use: 'Labels, badges, metadata.' },
+  { name: 'sm', className: 'text-sm font-semibold', use: 'Label. Controls, column headers.' },
+  { name: 'xs', className: 'text-xs', use: 'Caption. Hints, metadata, badges.' },
   { name: '2xs', className: 'text-2xs', use: 'Legal lines and dense table chrome. Sparingly.' },
 ] as const;
 
 const WEIGHTS = [
   { name: 'normal', className: 'font-normal', use: 'Body copy.' },
   { name: 'medium', className: 'font-medium', use: 'Labels, the emphasised half of a pair.' },
-  { name: 'semibold', className: 'font-semibold', use: 'Headings and numbers that matter.' },
+  { name: 'semibold', className: 'font-semibold', use: 'Controls, labels that matter, numbers.' },
+  { name: 'bold', className: 'font-bold', use: 'Titles, in the display face.' },
+] as const;
+
+/**
+ * Two cuts of one family. The platform's own face, so a screen looks like it
+ * belongs on the device it is on, and so nothing is downloaded before the first
+ * word can be read.
+ */
+const FACES = [
+  {
+    name: 'font-sans',
+    className: 'font-sans text-lg',
+    use: 'Everything that is read: body, controls, tables.',
+  },
+  {
+    name: 'font-display',
+    className: 'font-display text-lg font-bold tracking-tight',
+    use: 'Titles from `lg` up. Tighter spacing, drawn for size.',
+  },
+  {
+    name: 'font-mono',
+    className: 'font-mono text-md',
+    use: 'Identifiers, tokens and code. Never for figures.',
+  },
 ] as const;
 
 const TONES = [
@@ -56,6 +101,9 @@ const TONES = [
     className: 'text-fg-disabled',
     use: 'Inactive only. Exempt from the 4.5:1 rule, so never for live text.',
   },
+  { name: 'text-accent-fg', className: 'text-accent-fg', use: 'Links.' },
+  { name: 'text-danger-fg', className: 'text-danger-fg', use: 'Errors.' },
+  { name: 'text-success-fg', className: 'text-success-fg', use: 'Positive change.' },
 ] as const;
 
 function Row({
@@ -68,10 +116,14 @@ function Row({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="grid items-baseline gap-1 border-b border-border py-3 last:border-0 sm:grid-cols-[7rem_1fr_18rem] sm:gap-4">
-      <code className="font-mono text-xs text-accent-fg">{label}</code>
-      <div className="min-w-0">{children}</div>
-      <p className="text-xs text-fg-subtle">{hint}</p>
+    // Three columns when the page is wide enough, one when it is not: a
+    // container query, so a phone frame on a wide monitor stacks as a phone does.
+    <div className="@container border-b border-border last:border-0">
+      <div className="grid items-baseline gap-1 py-3 @2xl:grid-cols-[7rem_1fr_18rem] @2xl:gap-4">
+        <code className="font-mono text-xs text-accent-fg">{label}</code>
+        <div className="min-w-0">{children}</div>
+        <p className="text-xs text-fg-muted">{hint}</p>
+      </div>
     </div>
   );
 }
@@ -95,7 +147,23 @@ export const Scale: Story = {
   ),
 };
 
-/** Three weights. A fourth would be a decision nobody could repeat reliably. */
+/** The faces. System fonts, in two optical cuts, and a monospace. */
+export const Faces: Story = {
+  render: () => (
+    <section aria-label="Font families">
+      {FACES.map((face) => (
+        <Row key={face.name} label={face.name} hint={face.use}>
+          <p className={`${face.className} text-fg`}>Priya Shah joined Engineering</p>
+        </Row>
+      ))}
+    </section>
+  ),
+};
+
+/**
+ * Four weights, each with one job. Bold belongs to the display face; in body
+ * text it shouts.
+ */
 export const Weights: Story = {
   render: () => (
     <section aria-label="Font weights">

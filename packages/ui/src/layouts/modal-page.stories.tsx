@@ -188,7 +188,7 @@ export const Playground: Story = {
               </>
             }
           />
-          <ModalPageBody className="p-4 sm:p-6">
+          <ModalPageBody className="p-6 touch:p-4">
             <Container size="md">
               <Stack gap={5}>
                 <PageSection surface title="Basics">
@@ -318,7 +318,7 @@ export const AsAFlow: Story = {
                 size="sm"
               />
             </div>
-            <ModalPageBody className="p-4 sm:p-6">
+            <ModalPageBody className="p-6 touch:p-4">
               <Stack gap={4}>
                 <h2 className="text-md font-semibold text-fg">{steps[step]}</h2>
                 {step === 3 ? (
@@ -420,7 +420,7 @@ export const GuardingUnsavedWork: Story = {
                 ) : null
               }
             />
-            <ModalPageBody className="p-4 sm:p-6">
+            <ModalPageBody className="p-6 touch:p-4">
               <Stack gap={3}>
                 {warned ? (
                   <Alert tone="warning" title="This policy has unsaved changes">
