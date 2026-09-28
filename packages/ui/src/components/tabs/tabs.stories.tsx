@@ -138,6 +138,90 @@ export const WithIconsAndCounts: Story = {
   ),
 };
 
+export const Pills: Story = {
+  name: 'Pill',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`variant="pill"` on the list. The active view is the inverted surface. On a phone this is the scrolling row of views under a title.',
+      },
+    },
+  },
+  args: { defaultValue: 'all' },
+  render: (args) => (
+    <Tabs {...args} className="max-w-2xl">
+      <TabsList variant="pill" aria-label="Team">
+        <TabsTrigger value="all">All</TabsTrigger>
+        <TabsTrigger value="engineering">Engineering</TabsTrigger>
+        <TabsTrigger value="design">Design</TabsTrigger>
+        <TabsTrigger value="sales">Sales</TabsTrigger>
+        <TabsTrigger value="people">People</TabsTrigger>
+      </TabsList>
+      <TabsContent value="all" className="text-sm text-fg-muted">
+        312 people across every team.
+      </TabsContent>
+      <TabsContent value="engineering" className="text-sm text-fg-muted">
+        84 people in Engineering.
+      </TabsContent>
+      <TabsContent value="design" className="text-sm text-fg-muted">
+        21 people in Design.
+      </TabsContent>
+      <TabsContent value="sales" className="text-sm text-fg-muted">
+        47 people in Sales.
+      </TabsContent>
+      <TabsContent value="people" className="text-sm text-fg-muted">
+        12 people in People.
+      </TabsContent>
+    </Tabs>
+  ),
+};
+
+export const PillsUnderLines: Story = {
+  name: 'Pills under line tabs',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Line tabs for the area, and pills for the view inside it. Never put two rows of line tabs on top of each other: they read as one row that broke.',
+      },
+    },
+  },
+  render: (args) => (
+    <Tabs {...args} className="max-w-2xl">
+      <TabsList>
+        <TabsTrigger value="profile">Profile</TabsTrigger>
+        <TabsTrigger value="compensation">Compensation</TabsTrigger>
+        <TabsTrigger value="timeoff">Time off</TabsTrigger>
+      </TabsList>
+      <TabsContent value="profile">
+        <Tabs defaultValue="personal">
+          <TabsList variant="pill" aria-label="Profile section">
+            <TabsTrigger value="personal">Personal</TabsTrigger>
+            <TabsTrigger value="employment">Employment</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+          </TabsList>
+          <TabsContent value="personal" className="text-sm text-fg-muted">
+            Name, pronouns, contact details and emergency contacts.
+          </TabsContent>
+          <TabsContent value="employment" className="text-sm text-fg-muted">
+            Contract, hours, manager and team.
+          </TabsContent>
+          <TabsContent value="documents" className="text-sm text-fg-muted">
+            Signed contract and right-to-work evidence.
+          </TabsContent>
+        </Tabs>
+      </TabsContent>
+      <TabsContent value="compensation" className="text-sm text-fg-muted">
+        Effective-dated salary and allowance records.
+      </TabsContent>
+      <TabsContent value="timeoff" className="text-sm text-fg-muted">
+        Balances, accruals and pending requests.
+      </TabsContent>
+    </Tabs>
+  ),
+};
+
 export const ManualActivation: Story = {
   name: 'Manual activation',
   args: { activationMode: 'manual' },

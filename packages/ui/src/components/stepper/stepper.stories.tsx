@@ -44,7 +44,7 @@ const meta = {
     current: { control: { type: 'range', min: 0, max: 4, step: 1 }, table: { category: 'Data' } },
     orientation: {
       control: 'inline-radio',
-      options: ['horizontal', 'vertical'],
+      options: ['horizontal', 'vertical', 'auto'],
       table: { defaultValue: { summary: "'horizontal'" }, category: 'Appearance' },
     },
     size: {
@@ -56,6 +56,8 @@ const meta = {
   },
   args: {
     steps,
+    // Across at a desk, down under a finger: the phone beside each story shows why.
+    orientation: 'auto',
     current: 2,
     label: 'Onboarding progress',
     onStepChange: fn().mockName('onStepChange(index, step)'),

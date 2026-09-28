@@ -34,12 +34,17 @@ export interface TimelineItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 
   last?: boolean;
 }
 
+/*
+ * Solid discs on a soft halo of their own tone, the way the stepper marks a
+ * step: a hairline ring at 10px was the one outlined shape left in a system
+ * that now separates things with fills.
+ */
 const dotTone = {
-  neutral: 'bg-surface border-border-strong',
-  accent: 'bg-accent border-accent',
-  success: 'bg-success border-success',
-  warning: 'bg-warning border-warning',
-  danger: 'bg-danger border-danger',
+  neutral: 'bg-fg-subtle ring-surface-active',
+  accent: 'bg-accent ring-accent-subtle',
+  success: 'bg-success ring-success-subtle',
+  warning: 'bg-warning ring-warning-subtle',
+  danger: 'bg-danger ring-danger-subtle',
 } as const;
 
 export function TimelineItem({
@@ -54,23 +59,29 @@ export function TimelineItem({
   ...props
 }: TimelineItemProps): JSX.Element {
   return (
-    <li className={cn('relative flex gap-3 pb-5 last:pb-0', className)} {...props}>
-      <div className="relative flex shrink-0 flex-col items-center">
+    <li className={cn('relative flex gap-3.5 pb-5 last:pb-0', className)} {...props}>
+      <div className="relative flex min-w-5 shrink-0 flex-col items-center">
         {marker ?? (
-          <span className={cn('mt-1 size-2.5 rounded-full border-2', dotTone[tone])} aria-hidden />
+          <span className={cn('mt-1.5 size-2.5 rounded-full ring-4', dotTone[tone])} aria-hidden />
         )}
-        {!last ? <span aria-hidden className="mt-1 w-px flex-1 bg-border" /> : null}
+        {!last ? (
+          <span aria-hidden className="mt-2 -mb-3 w-0.5 flex-1 rounded-full bg-border-strong" />
+        ) : null}
       </div>
 
       <div className="min-w-0 flex-1 pb-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-          <p className="min-w-0 text-base font-medium text-fg">{title}</p>
-          {timestamp ? <span className="text-xs text-fg-subtle">{timestamp}</span> : null}
+          <p className="min-w-0 text-base font-semibold text-fg">{title}</p>
+          {timestamp ? (
+            <span className="text-xs tabular-nums text-fg-subtle">{timestamp}</span>
+          ) : null}
         </div>
         {effectiveFrom ? (
           <p className="mt-0.5 text-xs text-fg-muted">Effective {effectiveFrom}</p>
         ) : null}
-        {children ? <div className="mt-1.5 text-sm text-fg-muted">{children}</div> : null}
+        {children ? (
+          <div className="mt-1.5 text-sm text-pretty text-fg-muted">{children}</div>
+        ) : null}
       </div>
     </li>
   );

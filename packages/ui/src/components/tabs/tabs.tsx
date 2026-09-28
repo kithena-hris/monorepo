@@ -27,11 +27,22 @@ interface IndicatorRect {
   width: number;
 }
 
+export interface TabsListProps extends ComponentPropsWithoutRef<typeof TabsPrimitive.List> {
+  /**
+   * `line` underlines the active tab and is the default: the views of one
+   * subject. `pill` fills it, for a second row of views inside a line-tabbed
+   * area, or a filter strip on a phone. Two rows of line tabs stacked on each
+   * other read as one broken row.
+   */
+  variant?: 'line' | 'pill';
+}
+
 export function TabsList({
   className,
   children,
+  variant = 'line',
   ...props
-}: ComponentPropsWithoutRef<typeof TabsPrimitive.List>): JSX.Element {
+}: TabsListProps): JSX.Element {
   const listRef = useRef<HTMLDivElement | null>(null);
   const [rect, setRect] = useState<IndicatorRect | null>(null);
 
@@ -115,8 +126,15 @@ export function TabsList({
       // `group/tabs` so a trigger can ask whether the measured marker is live
       // yet, and `data-indicator` is that answer.
       data-indicator={rect ? 'ready' : undefined}
+      // Read by the triggers, so a `TabsTrigger` needs no prop of its own.
+      data-variant={variant}
       className={cn(
-        'group/tabs relative flex items-center gap-1 border-b border-border',
+        'group/tabs relative flex items-center',
+        variant === 'line'
+          ? 'gap-1 border-b border-border touch:gap-0'
+          : // Room above and below for each pill's tap-target hit area, which
+            // the strip's own scrolling would otherwise clip.
+            'gap-1.5 touch:py-1',
         /*
          * The strip scrolls sideways rather than overflowing the page.
          *
@@ -155,7 +173,12 @@ export function TabsList({
           // a marker positioned outside it disappears the moment the strip
           // becomes scrollable. It sits on the border rather than over it,
           // which at one pixel is the same picture.
-          'pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-accent',
+          //
+          // The span is the tab's full width; the bar inside it is inset by
+          // the tab's padding, so it underlines the label, not the hit area.
+          'pointer-events-none absolute bottom-0 left-0 flex h-[3px] px-3',
+          // Only the line variant has a marker to travel.
+          variant === 'pill' && 'hidden',
           // Only `transform` and `width` animate. `left` would relayout the
           // strip on every frame; a translate stays on the compositor.
           'transition-[transform,width,opacity] duration-(--animate-duration-spring-move)',
@@ -167,7 +190,9 @@ export function TabsList({
             ? { transform: `translateX(${rect.left.toFixed(2)}px)`, width: rect.width }
             : undefined
         }
-      />
+      >
+        <span className="flex-1 rounded-t-[3px] bg-accent" />
+      </span>
     </TabsPrimitive.List>
   );
 }
@@ -179,15 +204,23 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'relative -mb-px inline-flex touch:min-h-tap touch:min-w-tap justify-center items-center gap-2 px-3 py-2 text-base font-medium',
+        'relative inline-flex items-center justify-center gap-2 text-sm font-semibold',
         // `shrink-0` so a strip that does not fit scrolls instead of squeezing
         // every label into the same cramped column.
-        'text-fg-muted shrink-0 whitespace-nowrap',
-        'border-b-2 border-transparent',
+        'shrink-0 whitespace-nowrap text-fg-muted',
         'transition-colors duration-(--animate-duration-fast) ease-standard',
-        'hover:text-fg',
+        'hover:text-fg data-[state=active]:text-fg',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-        'data-[state=active]:text-fg',
+        'disabled:pointer-events-none disabled:text-fg-disabled',
+        '[&_svg]:size-4',
+
+        /*
+         * Line. On a phone the tabs share the width equally, the way a
+         * segmented row of peers does; `shrink-0` still wins once they no
+         * longer fit, so a long set scrolls rather than squeezing.
+         */
+        'group-data-[variant=line]/tabs:-mb-px group-data-[variant=line]/tabs:h-11 group-data-[variant=line]/tabs:px-3',
+        'touch:group-data-[variant=line]/tabs:h-12 touch:group-data-[variant=line]/tabs:flex-1 touch:min-w-tap',
         /*
          * Each trigger still draws its own underline, and then gives it up the
          * moment the list reports a measured marker.
@@ -198,10 +231,16 @@ export function TabsTrigger({
          * JavaScript failed. This way the static border is the floor and the
          * travelling marker is the enhancement on top of it.
          */
-        'data-[state=active]:border-accent',
+        'group-data-[variant=line]/tabs:border-b-[3px] group-data-[variant=line]/tabs:border-transparent',
+        'group-data-[variant=line]/tabs:data-[state=active]:border-accent',
         'group-data-[indicator=ready]/tabs:data-[state=active]:border-transparent',
-        'disabled:pointer-events-none disabled:text-fg-disabled',
-        '[&_svg]:size-4',
+
+        // Pill. The active view is the inverted surface, the rest sit on a fill.
+        'group-data-[variant=pill]/tabs:h-8 group-data-[variant=pill]/tabs:rounded-control group-data-[variant=pill]/tabs:px-3.5',
+        // 36px drawn, the tap floor hit: a 44px pill reads as a button.
+        'touch:group-data-[variant=pill]/tabs:h-9 group-data-[variant=pill]/tabs:tap-target',
+        'group-data-[variant=pill]/tabs:bg-surface-sunken group-data-[variant=pill]/tabs:hover:bg-surface-hover',
+        'group-data-[variant=pill]/tabs:data-[state=active]:bg-invert group-data-[variant=pill]/tabs:data-[state=active]:text-fg-on-invert',
         className,
       )}
       {...props}

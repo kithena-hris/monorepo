@@ -203,7 +203,7 @@ export const SelectionBar: Story = {
     return (
       <div className="max-w-2xl">
         <Reveal {...args} open={selected.length > 0} from="top">
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent bg-accent-subtle px-3 py-2">
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-accent-subtle px-3 py-2">
             <p aria-live="polite" className="text-sm font-medium text-accent-fg">
               {selected.length} selected
             </p>
