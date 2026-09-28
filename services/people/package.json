@@ -47,6 +47,6 @@
     "fast-formula-parser": "1.0.19",
     "graphql": "^16.11.0",
     "jose": "^6.2.12",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   }
 }
