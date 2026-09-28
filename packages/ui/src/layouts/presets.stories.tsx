@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Bell, CalendarDays, House, Menu, Search, Settings, Users, Wallet } from 'lucide-react';
 import { useState, type JSX, type ReactNode } from 'react';
 
+import { TabBar, TabBarItem } from '../components/app-bar/app-bar';
 import { Avatar } from '../components/avatar/avatar';
 import { Badge } from '../components/badge/badge';
 import { Button } from '../components/button/button';
@@ -367,23 +368,23 @@ function DirectoryTable(): JSX.Element {
  * `bottomBarVariant="floating"` draws. The current one sits on a soft accent
  * pill of its own, the same fill the sidebar uses for the page you are on.
  */
+const bareTabBar = 'border-0 bg-transparent p-0 shadow-none backdrop-blur-none';
+
 function MobileTabs(): JSX.Element {
   return (
-    <nav aria-label="Main, compact" className="flex">
+    // The floating wrapper already is the glass pill, so the bar inside it
+    // drops its own rather than stacking a second one.
+    <TabBar label="Main, compact" data-material={undefined} className={bareTabBar}>
       {nav.slice(0, 4).map((item) => (
-        <a
+        <TabBarItem
           key={item.id}
           href="#"
-          aria-current={item.id === 'people' ? 'page' : undefined}
-          className={`flex min-h-10 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-semibold touch:min-h-tap ${
-            item.id === 'people' ? 'bg-accent-subtle text-accent-fg' : 'text-fg-muted'
-          }`}
-        >
-          <item.icon className="size-4" aria-hidden />
-          {item.label}
-        </a>
+          icon={<item.icon />}
+          label={item.label}
+          current={item.id === 'people'}
+        />
       ))}
-    </nav>
+    </TabBar>
   );
 }
 

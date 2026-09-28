@@ -4,8 +4,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { createContext, use, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
-import { usePortalContainer } from '../../lib/portal-container';
-import { useCoarsePointer } from '../../lib/use-media-query';
+import { useCoarseOverlay, usePortalContainer } from '../../lib/portal-container';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,13 +34,6 @@ import {
 
 const SheetModeContext = createContext(false);
 
-/** Whether overlays here mount under a finger. */
-function useSheetMode(): boolean {
-  const container = usePortalContainer();
-  const coarse = useCoarsePointer();
-  return coarse || container?.closest('[data-pointer="coarse"]') != null;
-}
-
 export interface ActionSheetProps {
   open?: boolean;
   defaultOpen?: boolean;
@@ -55,7 +47,7 @@ export function ActionSheet({
   onOpenChange,
   children,
 }: ActionSheetProps): JSX.Element {
-  const sheet = useSheetMode();
+  const sheet = useCoarseOverlay();
   // Only the props that were passed, so an uncontrolled sheet stays
   // uncontrolled rather than being handed `open: undefined`.
   const state = {

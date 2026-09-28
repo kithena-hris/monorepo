@@ -1,7 +1,7 @@
-import { ChevronRight, Ellipsis } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
-import { Slot } from '@radix-ui/react-slot';
+import { Slot, Slottable } from '@radix-ui/react-slot';
 
 import { cn } from '../../lib/cn';
 
@@ -19,6 +19,10 @@ import { cn } from '../../lib/cn';
  * "Narrow" is the space the trail has, not the window: the nav is a container,
  * so a trail in a 360px side panel on a wide monitor folds the same way it
  * does on a phone.
+ *
+ * Under a finger it goes further and keeps one crumb: the parent, as a back
+ * link ("‹ Platform"). A phone has no room for a trail and a thumb has no use
+ * for one; what it wants is the way up.
  */
 
 export function Breadcrumb({ className, ...props }: ComponentPropsWithoutRef<'nav'>): JSX.Element {
@@ -34,6 +38,9 @@ export function BreadcrumbList({
       className={cn(
         'flex min-w-0 flex-wrap items-center gap-1.5 text-[0.875rem] font-medium text-fg-muted',
         'touch:text-sm',
+        // On a phone only the parent remains, the crumb before the page and its
+        // separator, as the back link. Its chevron is drawn by `BreadcrumbLink`.
+        'touch:[&>li]:hidden touch:[&>li:nth-last-child(3)]:inline-flex touch:[&>li:nth-last-child(3)]:text-accent-fg',
         className,
       )}
       {...props}
@@ -74,6 +81,7 @@ export interface BreadcrumbLinkProps extends ComponentPropsWithoutRef<'a'> {
 export function BreadcrumbLink({
   className,
   asChild = false,
+  children,
   ...props
 }: BreadcrumbLinkProps): JSX.Element {
   // The prop was declared here and never implemented, so it reached the DOM as
@@ -96,7 +104,12 @@ export function BreadcrumbLink({
         className,
       )}
       {...props}
-    />
+    >
+      {/* The back chevron: shown only under a finger, where the parent crumb
+          is all that is left of the trail. */}
+      <ChevronLeft aria-hidden className="-ms-1 me-0.5 hidden size-4.5 rtl:rotate-180" />
+      <Slottable>{children}</Slottable>
+    </Component>
   );
 }
 

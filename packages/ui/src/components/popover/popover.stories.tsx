@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CalendarDays, ChevronDown, Filter, GripVertical, Settings2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, Filter } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '../button/button';
-import { Checkbox } from '../checkbox/checkbox';
 import { Badge } from '../badge/badge';
 import { Field, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
+import { ColumnChooser as ColumnChooserControl, type ColumnChoice } from '../table/column-chooser';
 import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './popover';
 
@@ -117,8 +117,16 @@ export const Playground: Story = {
   ),
 };
 
-const allColumns = ['Name', 'Team', 'Location', 'Status', 'Start date', 'Salary'];
-const defaultColumns = allColumns.slice(0, 5);
+const allColumns: ColumnChoice[] = [
+  // The row's identity: a table with no name column is a grid of anonymous numbers.
+  { id: 'name', label: 'Name', locked: true },
+  { id: 'team', label: 'Team' },
+  { id: 'location', label: 'Location' },
+  { id: 'status', label: 'Status' },
+  { id: 'start', label: 'Start date' },
+  { id: 'salary', label: 'Salary' },
+];
+const defaultColumns = allColumns.slice(0, 5).map((column) => column.id);
 
 export const ColumnChooser: Story = {
   name: 'A working column chooser',
@@ -126,63 +134,35 @@ export const ColumnChooser: Story = {
     docs: {
       description: {
         story:
-          'The canonical popover: several small controls that commit immediately, with no Save button. Note the count in the trigger, a popover hides its state, so something outside it has to say what the state is.',
+          'The canonical popover, and the reason `ColumnChooser` exists: several small controls that commit immediately, with no Save button. Note the count in the trigger, a popover hides its state, so something outside it has to say what the state is.',
       },
     },
   },
-  render: function ColumnsStory(args) {
-    const [visible, setVisible] = useState<string[]>(defaultColumns);
+  render: function ColumnsStory() {
+    const [columns, setColumns] = useState<readonly ColumnChoice[]>(allColumns);
+    const [visible, setVisible] = useState<readonly string[]>(defaultColumns);
 
     return (
       <div className="space-y-3 text-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button startIcon={<Settings2 />}>Columns ({visible.length})</Button>
-          </PopoverTrigger>
-          <PopoverContent {...args} className="w-65">
-            <p className="mb-1 text-base font-semibold text-fg">Columns</p>
-            <div className="space-y-0.5">
-              {allColumns.map((column) => (
-                <label
-                  key={column}
-                  className="flex min-h-8 cursor-pointer items-center gap-2.5 text-base text-fg touch:min-h-tap"
-                >
-                  <GripVertical aria-hidden className="size-4 shrink-0 text-fg-subtle" />
-                  <Checkbox
-                    checked={visible.includes(column)}
-                    // The first column is the row's identity; a table with no
-                    // identity column is a grid of anonymous numbers.
-                    disabled={column === 'Name'}
-                    onCheckedChange={(checked) => {
-                      setVisible((current) =>
-                        checked ? [...current, column] : current.filter((c) => c !== column),
-                      );
-                    }}
-                  />
-                  {column}
-                </label>
-              ))}
-            </div>
-            <div className="mt-1.5 flex justify-between">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setVisible(defaultColumns);
-                }}
-              >
-                Reset
-              </Button>
-              <PopoverClose asChild>
-                <Button size="sm" variant="primary">
-                  Done
-                </Button>
-              </PopoverClose>
-            </div>
-          </PopoverContent>
-        </Popover>
+        <ColumnChooserControl
+          columns={columns}
+          visible={visible}
+          onVisibleChange={setVisible}
+          onReorder={(order) => {
+            const byId = new Map(columns.map((column) => [column.id, column]));
+            setColumns(order.flatMap((id) => byId.get(id) ?? []));
+          }}
+          onReset={() => {
+            setColumns(allColumns);
+            setVisible(defaultColumns);
+          }}
+        />
         <p aria-live="polite" className="text-sm text-fg-muted">
-          Showing {visible.join(', ')}
+          Showing{' '}
+          {columns
+            .filter((column) => visible.includes(column.id))
+            .map((column) => column.label)
+            .join(', ')}
         </p>
       </div>
     );
@@ -195,7 +175,7 @@ export const Sides: Story = {
     docs: {
       description: {
         story:
-          'The `side` is a preference, not an instruction. Scroll this story until a trigger nears an edge and the panel flips, which is why a design that depends on the panel being below is a design that breaks on a laptop.',
+          'The `side` is a preference, not an instruction. Scroll this story until a trigger nears an edge and the panel flips, which is why a design that depends on the panel being below is a design that breaks on a laptop.\n\nOn a phone there is no side: every popover opens as a sheet from the bottom, where the thumb is, and a swipe down closes it. `sheetOnTouch={false}` on `Popover` keeps a panel anchored when its position is the point, as a combobox list or a tour step does.',
       },
     },
   },

@@ -5,6 +5,14 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from './hover-card';
 
 beforeEach(() => {
   vi.useFakeTimers();
+  // jsdom has no pointer to ask about; this is a desk.
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }) as unknown as MediaQueryList;
 });
 afterEach(() => {
   vi.useRealTimers();

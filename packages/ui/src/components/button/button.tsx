@@ -61,6 +61,12 @@ const button = cva(
         ],
         /** Most contrast, for the one action on a tinted or busy surface. */
         invert: 'bg-invert text-fg-on-invert hover:opacity-90',
+        /**
+         * A secondary action *on* an inverted fill: a save bar, a toast. A wash
+         * of the fill's own ink, so it reads in both themes without a colour
+         * of its own, where `secondary` would be a light pill on a dark bar.
+         */
+        'on-invert': 'bg-fg-on-invert/15 text-fg-on-invert hover:bg-fg-on-invert/25',
         link: 'bg-transparent text-accent-fg underline underline-offset-3 hover:decoration-2 active:scale-100 not-data-loading:disabled:bg-transparent',
       },
       // 28/32/40/48 at a desk, 32/36/52/56 under a finger. The two larger steps

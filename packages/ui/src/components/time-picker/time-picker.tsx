@@ -260,7 +260,9 @@ export function TimePicker({
   const shown = draft ?? (value === null ? '' : formatTime(value, locale));
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // The list hangs under the input being typed in; a sheet would trap focus
+    // away from it.
+    <Popover open={open} onOpenChange={setOpen} sheetOnTouch={false}>
       <PopoverAnchor asChild>
         <div
           ref={anchorRef}

@@ -32,6 +32,8 @@ const badge = cva(
           'bg-transparent text-fg-muted shadow-[inset_0_0_0_1px_var(--reach-color-border-strong)]',
       },
       size: {
+        /** A count pinned to a control: a 16px circle that widens with the digits. */
+        xs: 'h-4 min-w-4 justify-center gap-1 px-1 text-2xs leading-none font-bold tabular-nums',
         sm: 'h-5 px-2 text-[0.75rem] touch:h-[1.375rem]',
         md: 'h-6 px-2.5 text-[0.8125rem] touch:h-[1.625rem]',
         lg: 'h-7 px-3 text-[0.8125rem] touch:h-[1.875rem]',

@@ -129,6 +129,8 @@ export function HoverCard({
 
   return (
     <Popover
+      // A preview beside what it previews; a sheet would cover the link.
+      sheetOnTouch={false}
       open={open}
       onOpenChange={(next) => {
         hold();

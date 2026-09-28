@@ -5,6 +5,7 @@ import { useState, type JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
+import { Chip } from '../chip/chip';
 import { Checkbox } from '../checkbox/checkbox';
 import {
   Dialog,
@@ -61,29 +62,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** A removable chip: a button named for the filter it removes. */
-function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }): JSX.Element {
-  return (
-    <Button
-      size="sm"
-      variant="subtle"
-      className="rounded-full"
-      endIcon={<X />}
-      aria-label={`Remove ${label}`}
-      onClick={onRemove}
-    >
-      {label}
-    </Button>
-  );
-}
-
 export const SavedViews: Story = {
   name: 'Saved views',
   render: function SavedViewsStory() {
     const [chips, setChips] = useState([
-      'Team: Engineering',
-      'Location: Berlin or Remote',
-      'Status: Active',
+      ['Team', 'Engineering'],
+      ['Location', 'Berlin or Remote'],
+      ['Status', 'Active'],
     ]);
     return (
       <div className="space-y-3">
@@ -101,18 +86,21 @@ export const SavedViews: Story = {
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {chips.map((chip) => (
-            <FilterChip
-              key={chip}
-              label={chip}
+          {chips.map(([field, value]) => (
+            <Chip
+              key={field}
+              selected
+              field={field}
               onRemove={() => {
-                setChips(chips.filter((entry) => entry !== chip));
+                setChips(chips.filter(([entry]) => entry !== field));
               }}
-            />
+            >
+              {value}
+            </Chip>
           ))}
-          <Button size="sm" variant="secondary" startIcon={<SlidersHorizontal />}>
+          <Chip variant="dashed" startIcon={<SlidersHorizontal aria-hidden />}>
             More filters
-          </Button>
+          </Chip>
         </div>
         <p aria-live="polite" className="text-sm text-fg-muted">
           48 of 312 people
@@ -377,12 +365,8 @@ export const ZeroResults: Story = {
       description="The Tokyo filter removes everyone. Try one of these:"
       action={
         <div className="flex flex-wrap justify-center gap-2">
-          <Button size="sm" variant="secondary" className="rounded-full" startIcon={<X />}>
-            Remove Tokyo · 48
-          </Button>
-          <Button size="sm" variant="secondary" className="rounded-full" startIcon={<X />}>
-            Remove Active · 3
-          </Button>
+          <Chip startIcon={<X aria-hidden />}>Remove Tokyo · 48</Chip>
+          <Chip startIcon={<X aria-hidden />}>Remove Active · 3</Chip>
           <Button size="sm" variant="ghost">
             Clear all
           </Button>

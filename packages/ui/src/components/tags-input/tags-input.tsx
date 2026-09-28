@@ -1,6 +1,5 @@
 'use client';
 
-import { X } from 'lucide-react';
 import {
   useId,
   useRef,
@@ -12,6 +11,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { Chip } from '../chip/chip';
 import { fieldErrorClass, fieldHintClass, fieldLabelClass } from '../field/field-styles';
 
 /**
@@ -105,6 +105,8 @@ export function TagsInput({
   // Which tag has keyboard focus, when the focus is on a tag rather than in
   // the field. `null` means the field.
   const [focusedTag, setFocusedTag] = useState<number | null>(null);
+  // The existing tag a rejected duplicate matched, shown rather than only named.
+  const [duplicate, setDuplicate] = useState<string | null>(null);
 
   const full = max !== undefined && value.length >= max;
 
@@ -120,6 +122,7 @@ export function TagsInput({
     }
     if (value.includes(candidate)) {
       setError(`${candidate} is already in the list.`);
+      setDuplicate(candidate);
       return false;
     }
     const failure = validate?.(candidate);
@@ -226,40 +229,40 @@ export function TagsInput({
         )}
       >
         <ul aria-label={`${label}, ${String(value.length)} entries`} className="contents">
-          {value.map((tag, index) => (
-            <li
-              key={tag}
-              className={cn(
-                // A pill on the fill: raised surface at rest, accent while the
-                // keyboard has it selected for deletion.
-                'inline-flex h-7 max-w-full items-center gap-1 rounded-full ps-2.5 pe-1 text-sm font-medium touch:h-8',
-                'transition-[background-color,color,box-shadow] duration-(--animate-duration-fast)',
-                'motion-safe:animate-pop-in',
-                focusedTag === index
-                  ? 'bg-accent-subtle text-accent-fg ring-2 ring-accent ring-inset'
-                  : 'bg-surface-raised text-fg shadow-xs',
-              )}
-            >
-              {/* React escapes this. A tag containing markup is displayed as
-                  the characters the user typed, never interpreted. */}
-              <span className="truncate">{tag}</span>
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-label={`Remove ${tag}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  remove(index);
-                }}
-                className={cn(
-                  'relative grid size-5 shrink-0 place-items-center rounded-full text-fg-muted tap-target',
-                  'transition-colors hover:bg-surface-active hover:text-fg',
-                )}
-              >
-                <X className="size-3" aria-hidden />
-              </button>
-            </li>
-          ))}
+          {value.map((tag, index) => {
+            // A value handed in that `validate` would refuse stays, marked, so
+            // an imported list shows what needs fixing rather than hiding it.
+            const failure = validate?.(tag) ?? null;
+            return (
+              <li key={tag} className="flex max-w-full">
+                <Chip
+                  // The field walks its chips with the arrow keys; a tab stop
+                  // on every remove button would put ten stops before the input.
+                  tabIndex={-1}
+                  // Picked out while the keyboard has it lined up for deletion,
+                  // or when it is the one a duplicate just ran into.
+                  selected={focusedTag === index || duplicate === tag}
+                  invalid={failure !== null}
+                  removeLabel={`Remove ${tag}`}
+                  onRemove={() => {
+                    remove(index);
+                  }}
+                  className={cn(
+                    'max-w-full shrink motion-safe:animate-pop-in',
+                    // Raised off the field's own fill, which a filled chip
+                    // would otherwise disappear into.
+                    failure === null && 'bg-surface-raised shadow-xs',
+                    focusedTag === index && 'ring-2 ring-accent ring-inset',
+                  )}
+                >
+                  {/* React escapes this. A tag containing markup is displayed as
+                      the characters the user typed, never interpreted. */}
+                  <span className="truncate">{tag}</span>
+                  {failure === null ? null : <span className="sr-only">, {failure}</span>}
+                </Chip>
+              </li>
+            );
+          })}
         </ul>
 
         <input
@@ -278,6 +281,7 @@ export function TagsInput({
           onChange={(event) => {
             setDraft(event.target.value);
             setError(null);
+            setDuplicate(null);
             setFocusedTag(null);
           }}
           onKeyDown={onKeyDown}

@@ -18,6 +18,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { ReachMark } from '../../brand/reach-logo';
 import { Avatar } from '../avatar/avatar';
+import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import { Skeleton } from '../feedback/feedback';
@@ -118,12 +119,24 @@ export const GlobalHeader: Story = {
               startIcon={<Sparkles aria-hidden />}
               aria-label="Assistant"
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              startIcon={<Bell aria-hidden />}
-              aria-label="Notifications"
-            />
+            <span className="relative inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                startIcon={<Bell aria-hidden />}
+                aria-label="Notifications, 2 unread"
+              />
+              {/* The count is in the button's name; the badge only shows it. */}
+              <Badge
+                variant="solid"
+                tone="danger"
+                size="xs"
+                aria-hidden
+                className="pointer-events-none absolute -top-0.5 -right-0.5 ring-2 ring-surface"
+              >
+                2
+              </Badge>
+            </span>
             <Avatar name="Priya Shah" />
           </>
         }
