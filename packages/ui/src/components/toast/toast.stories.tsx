@@ -1,7 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { Alert } from '../feedback/feedback';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '../alert-dialog/alert-dialog';
 import { Button } from '../button/button';
 import { useToast, type ToastOptions, type ToastTone } from './toast';
 
@@ -78,8 +86,7 @@ const meta = {
     },
   },
   args: {
-    title: 'Leave approved',
-    description: '3 days from 14 September. Grace Hopper has been notified.',
+    title: 'Request sent to Jonas',
     tone: 'success',
     duration: 5000,
   },
@@ -113,38 +120,18 @@ export const Tones: Story = {
     docs: {
       description: {
         story:
-          'Each tone with the message it is actually for. Fire several: they stack, and the newest is closest to the edge the finger reaches first.',
+          'Each tone with the message it is actually for. Every one is the same dark bar in the same place; only the disc at its start changes. Fire several: they stack, and the newest is closest to the edge the finger reaches first.',
       },
     },
   },
   render: function TonesStory() {
     const { toast } = useToast();
-    const examples: { tone: ToastTone; title: string; description: string }[] = [
-      {
-        tone: 'success',
-        title: 'Leave approved',
-        description: '3 days from 14 September. Grace Hopper has been notified.',
-      },
-      {
-        tone: 'info',
-        title: 'Import queued',
-        description: 'You will get an email when the 4,182 rows have been processed.',
-      },
-      {
-        tone: 'warning',
-        title: 'Approved over balance',
-        description: "Ada Lovelace is now 2 days into next year's entitlement.",
-      },
-      {
-        tone: 'danger',
-        title: 'Could not save',
-        description: 'The record changed while you were editing it.',
-      },
-      {
-        tone: 'neutral',
-        title: 'Draft saved',
-        description: 'Nothing has been submitted yet.',
-      },
+    const examples: { tone: ToastTone; title: string }[] = [
+      { tone: 'success', title: 'Saved' },
+      { tone: 'info', title: 'Sync in progress' },
+      { tone: 'warning', title: 'You’re offline' },
+      { tone: 'danger', title: 'Couldn’t save' },
+      { tone: 'neutral', title: 'Link copied' },
     ];
 
     return (
@@ -176,42 +163,33 @@ export const WithAnUndo: Story = {
   },
   render: function UndoStory() {
     const { toast } = useToast();
-    const [rows, setRows] = useState(['Grace Hopper', 'Ada Lovelace', 'Katherine Johnson']);
+    const people = ['Amara Okafor', 'Lucas Moreau', 'Mei Tanaka'];
+    const [archived, setArchived] = useState(false);
 
     return (
-      <div className="w-80 space-y-2">
-        {rows.length === 0 ? (
-          <p className="text-sm text-fg-muted">All requests cleared.</p>
-        ) : (
-          rows.map((name) => (
-            <div
-              key={name}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-3 py-2"
-            >
-              <span className="text-base text-fg">{name}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  const remaining = rows.filter((row) => row !== name);
-                  setRows(remaining);
-                  toast({
-                    title: 'Request withdrawn',
-                    description: `${name}'s request has been withdrawn.`,
-                    action: {
-                      label: 'Undo',
-                      onClick: () => {
-                        setRows((current) => [...current, name].toSorted());
-                      },
-                    },
-                  });
-                }}
-              >
-                Withdraw
-              </Button>
-            </div>
-          ))
-        )}
+      <div className="w-80 space-y-3">
+        <p className="text-sm text-fg-muted">
+          {archived ? 'Archived: ' : 'Selected: '}
+          {people.join(', ')}
+        </p>
+        <Button
+          disabled={archived}
+          onClick={() => {
+            setArchived(true);
+            toast({
+              title: '3 people archived',
+              description: 'They’re hidden from the directory.',
+              action: {
+                label: 'Undo',
+                onClick: () => {
+                  setArchived(false);
+                },
+              },
+            });
+          }}
+        >
+          Archive 3 people
+        </Button>
       </div>
     );
   },
@@ -235,19 +213,19 @@ export const PinnedFailure: Story = {
         onClick={() => {
           toast({
             tone: 'danger',
-            title: 'Could not reach the payroll provider',
-            description: 'The August run has not been submitted.',
+            title: 'Couldn’t send payslips',
+            description: 'The connection dropped at 226 of 312.',
             duration: Infinity,
             action: {
               label: 'Retry',
               onClick: () => {
-                toast({ tone: 'info', title: 'Retrying…' });
+                toast({ tone: 'info', title: 'Sending the remaining 86 payslips' });
               },
             },
           });
         }}
       >
-        Trigger a failure
+        Send payslips
       </Button>
     );
   },
@@ -259,34 +237,36 @@ export const NotAToast: Story = {
     docs: {
       description: {
         story:
-          'The same failure, twice. The toast is gone in five seconds and cannot be re-read; the alert stays on the page, names the four employees, and can be linked to. Anything a person has to *act on* belongs in the second form.',
+          'The same message, twice. If people must act on it, or would miss it, it is not a toast: the toast is gone in five seconds and cannot be re-read, while the dialog waits for an answer. Use a dialog, or an inline alert on the page.',
       },
     },
   },
   render: function NotAToastStory() {
     const { toast } = useToast();
     return (
-      <div className="w-[28rem] space-y-4">
+      <div className="flex flex-wrap gap-3">
         <Button
           onClick={() => {
-            toast({
-              tone: 'danger',
-              title: 'Payroll failed for 4 employees',
-            });
+            toast({ tone: 'danger', title: 'Your session expires in 1 minute' });
           }}
         >
-          Show it as a toast (wrong)
+          As a toast (wrong)
         </Button>
 
-        <Alert tone="danger" title="Payroll failed for 4 employees">
-          <p>
-            Grace Hopper, Ada Lovelace, Joan Clarke and Katherine Johnson have no valid IBAN on
-            file. The rest of the run completed.
-          </p>
-          <Button size="sm" variant="secondary" className="mt-3">
-            Review the four records
-          </Button>
-        </Alert>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button>As a dialog (right)</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogTitle>Still there?</AlertDialogTitle>
+            <AlertDialogDescription>You’ll be signed out in 1 minute.</AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogAction asChild>
+                <Button variant="primary">Stay signed in</Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   },

@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { CalendarDays } from 'lucide-react';
 import { fn } from 'storybook/test';
 
 import { Button } from '../button/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
-import { Stepper } from './stepper';
+import { Card, CardContent } from '../card/card';
+import { Field, FieldLabel } from '../field/field';
+import { Input } from '../input/input';
+import { Stepper, type StepperStep } from './stepper';
 
-const steps = [
-  { id: 'offer', label: 'Offer', description: 'Accepted 16 Feb' },
-  { id: 'checks', label: 'Right to work', description: 'Documents verified' },
-  { id: 'contract', label: 'Contract', description: 'Awaiting signature' },
-  { id: 'payroll', label: 'Payroll', description: 'Bank details and tax code' },
-  { id: 'day-one', label: 'First day', description: 'Equipment and access' },
+const steps: StepperStep[] = [
+  { id: 'details', label: 'Details' },
+  { id: 'equipment', label: 'Equipment' },
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'review', label: 'Review' },
 ];
 
 const meta = {
@@ -41,10 +43,10 @@ const meta = {
   },
   argTypes: {
     steps: { control: 'object', table: { category: 'Data' } },
-    current: { control: { type: 'range', min: 0, max: 4, step: 1 }, table: { category: 'Data' } },
+    current: { control: { type: 'range', min: 0, max: 3, step: 1 }, table: { category: 'Data' } },
     orientation: {
       control: 'inline-radio',
-      options: ['horizontal', 'vertical'],
+      options: ['horizontal', 'vertical', 'auto'],
       table: { defaultValue: { summary: "'horizontal'" }, category: 'Appearance' },
     },
     size: {
@@ -56,7 +58,8 @@ const meta = {
   },
   args: {
     steps,
-    current: 2,
+    orientation: 'horizontal',
+    current: 1,
     label: 'Onboarding progress',
     onStepChange: fn().mockName('onStepChange(index, step)'),
   },
@@ -68,10 +71,7 @@ type Story = StoryObj<typeof meta>;
 export const Playground: Story = {
   render: (args) => (
     <Card>
-      <CardHeader>
-        <CardTitle>Onboarding</CardTitle>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-5">
         <Stepper {...args} />
       </CardContent>
     </Card>
@@ -79,21 +79,27 @@ export const Playground: Story = {
 };
 
 export const Vertical: Story = {
-  args: { orientation: 'vertical' },
+  args: {
+    orientation: 'vertical',
+    current: 2,
+    steps: [
+      { id: 'contract', label: 'Contract signed', description: '2 Sep' },
+      { id: 'laptop', label: 'Laptop shipped', description: '12 Sep' },
+      { id: 'accounts', label: 'Accounts created', description: 'In progress' },
+      { id: 'first-day', label: 'First day', description: '21 Sep' },
+    ],
+  },
   parameters: {
     docs: {
       description: {
         story:
-          'The orientation for a sidebar, and the one to use once descriptions matter: a horizontal stepper has to truncate them, a vertical one does not. It is also the only shape that survives a narrow screen without wrapping into something unreadable.',
+          'The orientation for a sidebar, and the one to use once descriptions matter: a horizontal stepper has to clamp them, a vertical one does not. It stays a list on a phone too.',
       },
     },
   },
   render: (args) => (
     <Card className="max-w-sm">
-      <CardHeader>
-        <CardTitle>Onboarding</CardTitle>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-5">
         <Stepper {...args} />
       </CardContent>
     </Card>
@@ -103,35 +109,40 @@ export const Vertical: Story = {
 export const WithError: Story = {
   name: 'A step that failed',
   args: {
-    current: 3,
-    steps: steps.map((step) =>
-      step.id === 'checks'
-        ? { ...step, status: 'error' as const, description: 'Passport expired, needs a new scan' }
-        : step,
-    ),
+    orientation: 'auto',
+    current: 1,
+    steps: [
+      { id: 'details', label: 'Details' },
+      { id: 'right-to-work', label: 'Right to work', status: 'error', description: 'Visa expired' },
+      { id: 'accounts', label: 'Accounts' },
+    ],
   },
   parameters: {
     docs: {
       description: {
         story:
-          'A `status` on the step overrides the one derived from `current`, so a sequence can carry on past something that went wrong. The cross and the danger tone are both there, and the reason sits in the description where it can be read rather than guessed at.',
+          'A `status` on the step overrides the one derived from `current`. The cross and the danger tone are both there, and the reason sits in the description where it can be read rather than guessed at. `orientation="auto"` keeps the reason readable on a phone by running the steps down the page.',
       },
     },
   },
   render: (args) => (
     <Card>
-      <CardHeader>
-        <CardTitle>Onboarding</CardTitle>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-5">
         <Stepper {...args} />
       </CardContent>
     </Card>
   ),
 };
 
+const leaveSteps = [
+  { id: 'type', label: 'Type' },
+  { id: 'dates', label: 'Dates' },
+  { id: 'review', label: 'Review' },
+];
+
 export const Wizard: Story = {
   name: 'Driving a wizard',
+  args: { steps: leaveSteps, label: 'Requesting time off' },
   parameters: {
     docs: {
       description: {
@@ -145,10 +156,7 @@ export const Wizard: Story = {
 
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>New starter</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-5">
           <Stepper
             {...args}
             current={current}
@@ -157,12 +165,19 @@ export const Wizard: Story = {
               args.onStepChange?.(index, step);
             }}
           />
-          <div className="rounded-md border border-border bg-surface-sunken/40 p-4 text-sm text-fg-muted">
-            {steps[current]?.label}: {steps[current]?.description}
+          <h3 className="font-display text-lg font-bold text-fg">When are you off?</h3>
+          <div className="flex flex-wrap gap-2.5">
+            <Field className="min-w-35 flex-1">
+              <FieldLabel>From</FieldLabel>
+              <Input defaultValue="14 Oct" endAdornment={<CalendarDays />} />
+            </Field>
+            <Field className="min-w-35 flex-1">
+              <FieldLabel>To</FieldLabel>
+              <Input defaultValue="18 Oct" endAdornment={<CalendarDays />} />
+            </Field>
           </div>
-          <div className="flex gap-2">
+          <div className="flex justify-between">
             <Button
-              variant="secondary"
               disabled={current === 0}
               onClick={() => {
                 setCurrent((value) => value - 1);
@@ -171,16 +186,36 @@ export const Wizard: Story = {
               Back
             </Button>
             <Button
-              disabled={current === steps.length - 1}
+              variant="primary"
+              disabled={current === leaveSteps.length - 1}
               onClick={() => {
                 setCurrent((value) => value + 1);
               }}
             >
-              Continue
+              Next
             </Button>
           </div>
         </CardContent>
       </Card>
     );
   },
+};
+
+export const OnAPhone: Story = {
+  name: 'On a phone',
+  args: { steps: leaveSteps, current: 1, label: 'Requesting time off' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same horizontal stepper, under a finger. It becomes a progress bar with "2 of 3", so there is no row of tiny circles with their labels truncated to nothing. The bar is named, and reads out the step it has reached. Compare the two copies beside each other.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="max-w-md space-y-2.5">
+      <Stepper {...args} />
+      <h3 className="font-display text-xl font-bold text-fg">When are you off?</h3>
+    </div>
+  ),
 };

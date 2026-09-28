@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Info } from 'lucide-react';
+import { Bell, CalendarClock, Download } from 'lucide-react';
 
 import { Button } from '../button/button';
+import { Kbd } from '../kbd/kbd';
 import { Tooltip } from './tooltip';
 
 const meta = {
@@ -63,10 +64,14 @@ const meta = {
     onOpenChange: { action: 'open changed', table: { category: 'Events' } },
   },
   args: {
-    content: 'Accrued to 31 August 2026',
+    content: 'Export as CSV',
     side: 'top',
     align: 'center',
-    children: <Button>Balance</Button>,
+    children: (
+      <Button variant="secondary" startIcon={<Download />} aria-label="Export as CSV">
+        {null}
+      </Button>
+    ),
   },
 } satisfies Meta<typeof Tooltip>;
 
@@ -87,7 +92,7 @@ export const Sides: Story = {
   render: () => (
     <div className="flex items-center gap-3">
       {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-        <Tooltip key={side} side={side} content={`Opens ${side}`}>
+        <Tooltip key={side} side={side} content={`${side.charAt(0).toUpperCase()}${side.slice(1)}`}>
           <Button variant="secondary">{side}</Button>
         </Tooltip>
       ))}
@@ -97,17 +102,26 @@ export const Sides: Story = {
 
 export const OnAnIconButton: Story = {
   name: 'On an icon-only control',
+  args: { content: 'Notifications', open: true },
   parameters: {
     docs: {
       description: {
         story:
-          'The `aria-label` and the tooltip say the same thing, deliberately. The tooltip is for sighted pointer users; the label is what a screen reader and a touch user actually get.',
+          'The tooltip text matches the `aria-label`, deliberately. The tooltip is for sighted pointer users; the label is what a screen reader and a touch user actually get. The shortcut sits on its own line.',
       },
     },
   },
-  render: () => (
-    <Tooltip content="How the balance is accrued">
-      <Button variant="ghost" startIcon={<Info />} aria-label="How the balance is accrued">
+  render: (args) => (
+    <Tooltip
+      {...args}
+      shortcut={
+        <>
+          <Kbd>G</Kbd>
+          <Kbd>N</Kbd>
+        </>
+      }
+    >
+      <Button variant="secondary" startIcon={<Bell />} aria-label="Notifications">
         {null}
       </Button>
     </Tooltip>
@@ -120,33 +134,25 @@ export const WhatNotToPutInOne: Story = {
     docs: {
       description: {
         story:
-          'A tooltip does not exist on touch and vanishes on pointer-out. Anything the user must be able to re-read, a validation message, an amount, a policy: belongs in the layout.',
+          'Tooltips name things. They do not explain them. If it needs a sentence, use a popover or put the text on the page: a tooltip does not exist on touch and vanishes on pointer-out.',
       },
     },
   },
   render: () => (
-    <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-      <div className="rounded-lg border border-danger-border bg-danger-subtle p-4">
-        <p className="text-2xs font-semibold tracking-wide uppercase text-danger-fg">Wrong</p>
-        <div className="mt-3">
-          <Tooltip content="Must be after the first day">
-            <Button variant="secondary">Last day</Button>
-          </Tooltip>
-        </div>
-        <p className="mt-3 text-xs text-fg-muted">
-          The validation message disappears the moment the pointer leaves, and never appears at all
-          on a phone.
-        </p>
+    <div className="flex flex-wrap gap-8">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-fg-muted">Don’t</p>
+        <Tooltip content="Carry-over days expire on 31 March unless your manager extends them, see the policy for details.">
+          <Button variant="secondary">Carry-over</Button>
+        </Tooltip>
       </div>
-      <div className="rounded-lg border border-success-border bg-success-subtle p-4">
-        <p className="text-2xs font-semibold tracking-wide uppercase text-success-fg">Right</p>
-        <div className="mt-3 space-y-1">
-          <Button variant="secondary">Last day</Button>
-          <p className="text-xs font-medium text-danger-fg">Must be after the first day.</p>
-        </div>
-        <p className="mt-3 text-xs text-fg-muted">
-          In the layout, via `FieldError`, where it stays readable.
-        </p>
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-fg-muted">Do</p>
+        <Tooltip content="Carry-over">
+          <Button variant="secondary" startIcon={<CalendarClock />} aria-label="Carry-over">
+            {null}
+          </Button>
+        </Tooltip>
       </div>
     </div>
   ),

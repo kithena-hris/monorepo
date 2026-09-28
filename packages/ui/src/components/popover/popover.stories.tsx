@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Info, Settings2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, Filter, GripVertical, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
-import { Separator } from '../separator/separator';
-import { Slider } from '../slider/slider';
+import { Badge } from '../badge/badge';
+import { Field, FieldLabel } from '../field/field';
+import { Input } from '../input/input';
+import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './popover';
 
 const meta = {
@@ -104,17 +106,19 @@ export const Playground: Story = {
   render: (args) => (
     <Popover>
       <PopoverTrigger asChild>
-        <Button startIcon={<Settings2 />}>Display options</Button>
+        <Button endIcon={<ChevronDown />}>Details</Button>
       </PopoverTrigger>
-      <PopoverContent {...args} className="w-72">
-        <p className="text-base font-medium text-fg">Display</p>
-        <p className="mt-1 text-sm text-fg-muted">
-          Changes apply immediately and are remembered for this table.
-        </p>
+      <PopoverContent {...args} className="w-65 space-y-1">
+        <p className="text-base font-semibold text-fg">Working hours</p>
+        <p className="text-sm text-fg-muted">Mon–Fri, 9:00–17:30 CET</p>
+        <p className="text-sm text-fg-muted">Core hours 10:00–16:00</p>
       </PopoverContent>
     </Popover>
   ),
 };
+
+const allColumns = ['Name', 'Team', 'Location', 'Status', 'Start date', 'Salary'];
+const defaultColumns = allColumns.slice(0, 5);
 
 export const ColumnChooser: Story = {
   name: 'A working column chooser',
@@ -127,8 +131,7 @@ export const ColumnChooser: Story = {
     },
   },
   render: function ColumnsStory(args) {
-    const allColumns = ['Employee', 'Team', 'Manager', 'Location', 'Start date', 'Base salary'];
-    const [visible, setVisible] = useState<string[]>(['Employee', 'Team', 'Base salary']);
+    const [visible, setVisible] = useState<string[]>(defaultColumns);
 
     return (
       <div className="space-y-3 text-center">
@@ -136,21 +139,20 @@ export const ColumnChooser: Story = {
           <PopoverTrigger asChild>
             <Button startIcon={<Settings2 />}>Columns ({visible.length})</Button>
           </PopoverTrigger>
-          <PopoverContent {...args} className="w-64">
-            <p className="mb-2 text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-              Visible columns
-            </p>
-            <div className="space-y-1">
+          <PopoverContent {...args} className="w-65">
+            <p className="mb-1 text-base font-semibold text-fg">Columns</p>
+            <div className="space-y-0.5">
               {allColumns.map((column) => (
                 <label
                   key={column}
-                  className="flex min-h-tap cursor-pointer items-center gap-2.5 rounded-sm px-1 text-base text-fg hover:bg-surface-hover"
+                  className="flex min-h-8 cursor-pointer items-center gap-2.5 text-base text-fg touch:min-h-tap"
                 >
+                  <GripVertical aria-hidden className="size-4 shrink-0 text-fg-subtle" />
                   <Checkbox
                     checked={visible.includes(column)}
                     // The first column is the row's identity; a table with no
                     // identity column is a grid of anonymous numbers.
-                    disabled={column === 'Employee'}
+                    disabled={column === 'Name'}
                     onCheckedChange={(checked) => {
                       setVisible((current) =>
                         checked ? [...current, column] : current.filter((c) => c !== column),
@@ -161,12 +163,22 @@ export const ColumnChooser: Story = {
                 </label>
               ))}
             </div>
-            <Separator className="my-2" />
-            <PopoverClose asChild>
-              <Button size="sm" variant="ghost" fullWidth>
-                Done
+            <div className="mt-1.5 flex justify-between">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setVisible(defaultColumns);
+                }}
+              >
+                Reset
               </Button>
-            </PopoverClose>
+              <PopoverClose asChild>
+                <Button size="sm" variant="primary">
+                  Done
+                </Button>
+              </PopoverClose>
+            </div>
           </PopoverContent>
         </Popover>
         <p aria-live="polite" className="text-sm text-fg-muted">
@@ -209,42 +221,64 @@ export const WithARange: Story = {
     docs: {
       description: {
         story:
-          'A slider inside a popover, which is the case that proves the panel is not a tooltip: it is focusable, it survives a drag that leaves its bounds, and the value it edits is applied live behind it.',
+          'A small form inside a popover, which is the case that proves the panel is not a tooltip: it takes focus, holds real controls, and applies only when asked. The count on the trigger says what is set while the panel is closed.',
       },
     },
   },
-  render: function RangeStory(args) {
-    const [range, setRange] = useState([45000, 95000]);
-    const currency = new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency: 'EUR',
-      maximumFractionDigits: 0,
-    });
+  render: function FilterStory(args) {
+    const [status, setStatus] = useState('active');
 
     return (
-      <div className="space-y-3 text-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button startIcon={<Info />}>Salary band</Button>
-          </PopoverTrigger>
-          <PopoverContent {...args} className="w-72">
-            <Slider
-              label="Base salary"
-              thumbLabels={['Minimum salary', 'Maximum salary']}
-              min={20000}
-              max={200000}
-              step={2500}
-              minStepsBetweenThumbs={1}
-              value={range}
-              onValueChange={setRange}
-              valueDisplay={`${currency.format(range[0] ?? 0)} – ${currency.format(range[1] ?? 0)}`}
-            />
-          </PopoverContent>
-        </Popover>
-        <p aria-live="polite" className="text-sm text-fg-muted">
-          Filtering {currency.format(range[0] ?? 0)} to {currency.format(range[1] ?? 0)}
-        </p>
-      </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button startIcon={<Filter />}>
+            Filter
+            <Badge size="sm" tone="accent">
+              2
+            </Badge>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent {...args} className="w-75 space-y-2.5">
+          <Field>
+            <FieldLabel>Start date</FieldLabel>
+            <Input defaultValue="After 1 Jan 2024" endAdornment={<CalendarDays />} />
+          </Field>
+          <div className="space-y-1.5">
+            <p id="filter-status" className="text-sm font-semibold text-fg">
+              Status
+            </p>
+            <ToggleGroup
+              type="single"
+              aria-labelledby="filter-status"
+              value={status}
+              onValueChange={(next) => {
+                if (next) setStatus(next);
+              }}
+              className="flex w-full [&>*]:flex-1"
+            >
+              <ToggleGroupItem value="any" size="sm">
+                Any
+              </ToggleGroupItem>
+              <ToggleGroupItem value="active" size="sm">
+                Active
+              </ToggleGroupItem>
+              <ToggleGroupItem value="leave" size="sm">
+                Leave
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <Button size="sm" variant="ghost">
+              Clear
+            </Button>
+            <PopoverClose asChild>
+              <Button size="sm" variant="primary">
+                Apply
+              </Button>
+            </PopoverClose>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   },
 };
