@@ -27,6 +27,10 @@ const meta = {
           '',
           'Two people made each other’s manager during a reorg is a data state every HRIS reaches eventually, and a renderer that recurses into it hangs the tab. The tree is built from the roots outward with a visited set, and anything left unreachable is **excluded and reported in a banner**. A silent drop would be a chart that quietly understates the company, the fix is a data fix, so the chart says so.',
           '',
+          '### On a phone it is a list',
+          '',
+          'Under a coarse pointer the chart opens as an indented tree you expand and collapse, the same `role="tree"`, the same keys, the same selection, because a pan-and-zoom canvas is a poor thing to steer with a thumb. **View as chart** opens the canvas for anyone who wants the picture. Every story here shows the list in its phone frame.',
+          '',
           '### The tree is the semantics; the boxes are the drawing',
           '',
           '`role="tree"` with one tab stop and roving `tabindex`, which is what a screen reader and a keyboard already know how to drive:',
@@ -325,7 +329,7 @@ export const Playground: Story = {
 
 export const Canvas: Story = {
   name: 'Pan and zoom',
-  args: { searchable: true, height: 620 },
+  args: { searchable: true, height: 620, minimap: true, defaultZoom: 0.6 },
   parameters: {
     docs: {
       description: {
@@ -336,6 +340,7 @@ export const Canvas: Story = {
           '- **Drag the background** to pan. Cards keep their own drag; the canvas only claims a gesture that did not start on one.',
           '- **`+` `-` `0`** zoom in, out and back to 100% from the keyboard.',
           '- **Fit** scales the tree to the frame: here about 56%, which is the honest answer for a tree three thousand pixels wide.',
+          '- **The minimap** in the corner (`minimap`) shows the whole tree and outlines the part on screen. Click or drag in it to jump there. It is a pointer shortcut only: the canvas itself is a focusable region that scrolls with the keys.',
           '',
           'Watch the **Actions** panel while you do it: `onZoomChange` fires with the new scale, `onCollapsedChange` with the ids that are hidden, `onFocusChange` with whoever is focused. Every callback on this component is a spy in these stories, which is the fastest way to see what you get back and when.',
         ].join('\n'),
@@ -650,7 +655,7 @@ export const Orientation: Story = {
     docs: {
       description: {
         story:
-          'Vertical is the org chart everyone pictures, and it runs out of horizontal room at around the third level. Horizontal turns the same tree into an indented outline with connectors, which is what deep, narrow structures want, a chain of managers each with one or two reports. The keyboard behaviour is identical in both, deliberately.',
+          'Vertical is the org chart everyone pictures, and it runs out of horizontal room at around the third level. Horizontal turns the same tree into an indented outline with connectors, which is what deep, narrow structures want, a chain of managers each with one or two reports. The keyboard behaviour is identical in both, deliberately.\n\nUnder a finger both become the indented list: tap a person to select them, tap the chevron to open their reports, and use **View as chart** for the canvas.',
       },
     },
   },

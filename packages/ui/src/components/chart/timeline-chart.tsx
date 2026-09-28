@@ -122,6 +122,18 @@ export interface TimelineEntry {
   progress?: number;
   /** Pins the item: no dragging, no resizing, no dropping it elsewhere. */
   locked?: boolean;
+  /**
+   * `pill` rounds the ends fully: a state that runs across dates, such as a
+   * hiring freeze, rather than a piece of work with edges.
+   */
+  shape?: 'bar' | 'pill';
+  /** Not confirmed yet: drawn as an outline with no fill, and said in words. */
+  tentative?: boolean;
+  /**
+   * A real conflict with something else in the lane: a red outline, and said
+   * in words. Overlap alone is not a clash; the lane already stacks overlaps.
+   */
+  clash?: boolean;
 }
 
 /** How a drag on a bar is being interpreted. */
@@ -223,6 +235,27 @@ interface Tick {
   from: number;
   /** Exclusive last day, so `to - from` is the length. */
   to: number;
+}
+
+/** The outline a tentative item is drawn with instead of a fill. */
+const ghostTone: Record<ChartTone, string> = {
+  'chart-1': 'inset-ring-chart-1',
+  'chart-2': 'inset-ring-chart-2',
+  'chart-3': 'inset-ring-chart-3',
+  'chart-4': 'inset-ring-chart-4',
+  'chart-5': 'inset-ring-chart-5',
+  'chart-6': 'inset-ring-chart-6',
+  accent: 'inset-ring-accent',
+  success: 'inset-ring-success',
+  warning: 'inset-ring-warning',
+  danger: 'inset-ring-danger',
+  info: 'inset-ring-info',
+  neutral: 'inset-ring-fg-subtle',
+};
+
+/** What an item's outline says, in words: colour and shape are never the only signal. */
+function notes(item: TimelineEntry): string {
+  return `${item.tentative === true ? ', tentative' : ''}${item.clash === true ? ', clashes with another item' : ''}`;
 }
 
 /** The solid fill: the completed part of a bar, and a milestone. */
@@ -622,7 +655,7 @@ export function TimelineChart({
       : `${formatDate(item.start)}, milestone`;
     const done =
       item.progress === undefined ? '' : `, ${String(Math.round(item.progress * 100))}% complete`;
-    return `${row.label}, ${item.label}: ${dates}${done}`;
+    return `${row.label}, ${item.label}: ${dates}${done}${notes(item)}`;
   };
 
   const csvRows = entries.map(({ row, item }) => ({
@@ -1052,7 +1085,10 @@ export function TimelineChart({
                         aria-hidden
                         className={cn(
                           'absolute inset-0 rotate-45 rounded-[3px]',
-                          solidTone[tone],
+                          item.tentative === true
+                            ? cn('bg-surface inset-ring-2', ghostTone[tone])
+                            : solidTone[tone],
+                          item.clash === true && 'ring-2 ring-danger',
                           selected && 'ring-2 ring-accent ring-offset-2 ring-offset-surface',
                         )}
                       />
@@ -1087,11 +1123,15 @@ export function TimelineChart({
                       onSelect?.(item, row);
                     }}
                     className={cn(
-                      'absolute flex items-center overflow-hidden rounded-[8px] px-2 text-xs font-semibold',
+                      'absolute flex items-center overflow-hidden px-2 text-xs font-semibold',
+                      item.shape === 'pill' ? 'rounded-full px-3' : 'rounded-[8px]',
                       'origin-left transition-[opacity,box-shadow] duration-(--animate-duration-fast)',
                       !seen.current.has(item.id) && 'motion-safe:animate-grow-x',
                       'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-                      washTone[tone],
+                      item.tentative === true
+                        ? cn('bg-transparent inset-ring-[1.5px]', ghostTone[tone])
+                        : washTone[tone],
+                      item.clash === true && 'inset-ring-2 inset-ring-danger',
 
                       onSelect && 'cursor-pointer hover:brightness-105',
                       draggable && 'group/bar cursor-grab touch-none active:cursor-grabbing',
@@ -1214,7 +1254,10 @@ export function TimelineChart({
                 : row.items.map((item) => (
                     <tr key={`${row.label}|${item.id}`}>
                       <th scope="row">{row.label}</th>
-                      <td>{item.label}</td>
+                      <td>
+                        {item.label}
+                        {notes(item)}
+                      </td>
                       <td>{formatDate(item.start)}</td>
                       <td>{item.end === undefined ? 'Milestone' : formatDate(item.end)}</td>
                       <td>

@@ -261,6 +261,28 @@ export const Shapes: Story = {
         items: [{ id: 's1', label: 'Orientation', start: '2026-03-03', end: '2026-03-12' }],
       },
       {
+        label: 'Pill',
+        meta: 'shape="pill"',
+        items: [
+          {
+            id: 's14',
+            label: 'Hiring freeze',
+            start: '2026-03-05',
+            end: '2026-03-17',
+            shape: 'pill',
+            tone: 'warning',
+          },
+        ],
+      },
+      {
+        label: 'Tentative',
+        meta: 'tentative',
+        items: [
+          { id: 's15', label: 'Q2 plan', start: '2026-03-12', end: '2026-03-24', tentative: true },
+          { id: 's16', label: 'Offsite', start: '2026-03-06', tone: 'info', tentative: true },
+        ],
+      },
+      {
         label: 'Milestone',
         meta: 'start only',
         items: [
@@ -322,6 +344,8 @@ export const Shapes: Story = {
           'The shapes, drawn rather than described. Each lane isolates one thing:',
           '',
           '- **Bar**. `start` and `end`, both inclusive, so a bar from the 3rd to the 12th covers ten days and ends *at the end of* the 12th.',
+          '- **Pill**. `shape="pill"` rounds the ends fully, for a state that spans dates, a hiring freeze, rather than a piece of work with edges.',
+          '- **Tentative**. `tentative` draws an outline with no fill, on a bar or a milestone, and the readout says *tentative*: not confirmed is a fact, not a colour.',
           '- **Milestone**. `start` with no `end`. A diamond centred on the day, at any zoom, because a milestone has no duration to shrink.',
           '- **Progress**. `0`, `0.35` and `1` of the same-length bar. Zero is a bar with no fill rather than no bar: "not started" and "not scheduled" must not look the same.',
           '- **Tones**, the five tones a schedule uses. Colour is never the only signal; every bar carries its label, and the table below carries every date.',
@@ -336,7 +360,7 @@ export const Shapes: Story = {
     <Card>
       <CardHeader>
         <CardTitle>Shapes</CardTitle>
-        <Badge size="sm">Bar · Diamond · Fill</Badge>
+        <Badge size="sm">Bar · Pill · Outline · Diamond · Fill</Badge>
       </CardHeader>
       <CardContent>
         <TimelineChart {...args} />
@@ -526,6 +550,22 @@ export const Overlaps: Story = {
         ],
       },
       {
+        label: 'Priya Shah',
+        meta: 'A real clash',
+        items: [
+          { id: 'p1', label: 'Vacation', start: '2026-03-02', end: '2026-03-06', tone: 'info' },
+          {
+            id: 'p2',
+            label: 'On call',
+            start: '2026-03-04',
+            end: '2026-03-05',
+            tone: 'warning',
+            clash: true,
+          },
+          { id: 'p3', label: 'Training', start: '2026-03-09', end: '2026-03-12', tone: 'accent' },
+        ],
+      },
+      {
         label: 'Platform rota',
         meta: 'Nothing overlaps',
         items: [
@@ -545,6 +585,8 @@ export const Overlaps: Story = {
           'Adjacency is not collision: *A. Borg: sick* ends on the 16th and *Handover* starts on the 16th, so they really do overlap and are split. Move either by one day and they pack onto the same line, because `end` is inclusive and a bar ending on the 13th sits happily beside one starting on the 14th.',
           '',
           'The milestone counts too. *Cover ends* on the 20th falls inside two bars and takes the first line free.',
+          '',
+          'Overlap is normal; a **clash** is not. Priya is on call during her own vacation, so that item carries `clash` and gets a red outline, and its readout says *clashes with another item*. The chart does not guess which overlaps are conflicts: cover overlapping the leave it covers is the point of cover.',
         ].join('\n'),
       },
     },
@@ -572,6 +614,8 @@ export const Rescheduling: Story = {
       description: {
         story: [
           'Pick up a bar and move it. Sideways reschedules it, keeping its length; onto another lane reassigns it; the ends resize it. Everything snaps to whole days, and the dates in the panel are the ones `onItemMove` handed back.',
+          '',
+          'The bar in hand lifts off the lane, a shadow and a few pixels up, and a dimmed outline stays where it was picked up, so the distance it has travelled can be read before it is dropped.',
           '',
           'Two rules are enforced on the way through, both visible here:',
           '',

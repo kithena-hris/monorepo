@@ -6,7 +6,7 @@ import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Card } from '../card/card';
-import { Chip, ChipGroup, ChipGroupItem } from './chip';
+import { Chip, ChipGroup, ChipGroupItem, ChipRow } from './chip';
 
 const meta = {
   title: 'Components/Chip',
@@ -214,19 +214,36 @@ export const Overflow: Story = {
     docs: {
       description: {
         story:
-          'On a phone, chips scroll sideways in a single row from edge to edge. At a desk the same row wraps; past a handful, show the first few and a "+4 more" chip that opens the full list.',
+          'At a desk, `ChipRow max={3}` shows three chips and folds the rest into "+4 more", which unfolds them in place. On a phone the same row shows every chip in one line that scrolls from edge to edge. `ChipGroup scroll` does the same for filter and choice chips.',
       },
     },
   },
-  render: () => (
-    <ChipGroup type="single" defaultValue="Engineering" scroll aria-label="Department">
-      {['All', 'Engineering', 'Design', 'Sales', 'Support', 'Finance', 'People'].map((team) => (
-        <ChipGroupItem key={team} value={team}>
-          {team}
-        </ChipGroupItem>
-      ))}
-    </ChipGroup>
-  ),
+  render: function OverflowStory() {
+    const [applied, setApplied] = useState([
+      'Engineering',
+      'Design',
+      'Sales',
+      'Support',
+      'Finance',
+      'People',
+      'Legal',
+    ]);
+    return (
+      <ChipRow max={3} aria-label="Applied filters">
+        {applied.map((team) => (
+          <Chip
+            key={team}
+            selected
+            onRemove={() => {
+              setApplied((current) => current.filter((entry) => entry !== team));
+            }}
+          >
+            {team}
+          </Chip>
+        ))}
+      </ChipRow>
+    );
+  },
 };
 
 export const Disabled: Story = {

@@ -5,7 +5,8 @@ import type { JSX, ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
-import { ChartGrid, type ChartTone } from './chart';
+import { ChartGrid, ChartLegend, strokeTone, type ChartTone } from './chart';
+import { linearFit } from './geometry';
 
 /**
  * Two measures, one point per person.
@@ -40,6 +41,11 @@ export interface ScatterPoint {
   x: number;
   y: number;
   tone?: ChartTone;
+  /**
+   * The group this point belongs to: "Women", "Joined this year". Names the
+   * legend and the fit line; points sharing a group should share a tone.
+   */
+  group?: string;
   /** A second line in the readout, a team, a grade. */
   meta?: string;
 }
@@ -60,6 +66,14 @@ export interface ScatterChartProps {
   referenceY?: { value: number; label: string };
   formatX?: (value: number) => string;
   formatY?: (value: number) => string;
+  /**
+   * A least-squares line per group, dashed in the group's tone, with a legend.
+   * Two roughly parallel lines a step apart is what "paid less at the same
+   * level" looks like, and the gap is the number worth reading off. A group
+   * of one, or one with no spread in x, gets no line rather than an invented
+   * one.
+   */
+  fitLines?: boolean;
   onSelect?: (point: ScatterPoint) => void;
   selectedLabel?: string;
   menuItems?: ReactNode;
@@ -101,6 +115,7 @@ export function ScatterChart({
   referenceY,
   formatX = (value) => String(value),
   formatY = (value) => String(value),
+  fitLines = false,
   onSelect,
   selectedLabel,
   menuItems,
@@ -113,6 +128,28 @@ export function ScatterChart({
 
   const left = (value: number): string => `${String(((value - xMin) / xSpan) * 100)}%`;
   const top = (value: number): string => `${String(((yMax - value) / ySpan) * 100)}%`;
+
+  // One entry per group, in order of first appearance, so the legend reads in
+  // the order the data does. Ungrouped points form a group of their tone.
+  const groups = new Map<string, { label?: string; tone: ChartTone; points: ScatterPoint[] }>();
+  for (const point of data) {
+    const tone = point.tone ?? 'chart-1';
+    const key = point.group ?? tone;
+    const group = groups.get(key) ?? {
+      ...(point.group === undefined ? {} : { label: point.group }),
+      tone,
+      points: [],
+    };
+    group.points.push(point);
+    groups.set(key, group);
+  }
+  const named = [...groups.values()].filter((group) => group.label !== undefined);
+  const fitted = fitLines
+    ? [...groups].flatMap(([key, group]) => {
+        const fit = linearFit(group.points);
+        return fit ? [{ key, label: group.label, tone: group.tone, fit }] : [];
+      })
+    : [];
 
   return (
     <ChartFrame
@@ -163,6 +200,30 @@ export function ScatterChart({
                 </span>
               </div>
             )}
+
+            {fitted.length > 0 ? (
+              <svg
+                aria-hidden
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute inset-0 size-full overflow-hidden"
+              >
+                {fitted.map(({ key, tone, fit }) => (
+                  <line
+                    key={key}
+                    x1={0}
+                    x2={100}
+                    y1={((yMax - (fit.slope * xMin + fit.intercept)) / ySpan) * 100}
+                    y2={((yMax - (fit.slope * xMax + fit.intercept)) / ySpan) * 100}
+                    strokeWidth={2}
+                    strokeDasharray="6 5"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                    className={cn(strokeTone[tone], 'motion-safe:animate-draw-line')}
+                  />
+                ))}
+              </svg>
+            ) : null}
 
             {data.map((point, index) => {
               const selected = selectedLabel === point.label;
@@ -219,6 +280,30 @@ export function ScatterChart({
           </div>
         </div>
       </div>
+
+      {named.length > 0 ? (
+        <ChartLegend
+          className="mt-3"
+          items={named.map((group) => ({ label: group.label ?? '', tone: group.tone }))}
+        />
+      ) : null}
+
+      {/* The fit in words: where each line starts and ends. A dashed line is
+          the conclusion of this chart, and a conclusion only visible as a
+          slope is one a screen reader never reaches. */}
+      {fitted.length > 0 ? (
+        <ul className="sr-only">
+          {fitted.map(({ key, label: name, fit }) => (
+            <li key={key}>
+              {`Fit line${name === undefined ? '' : ` for ${name}`}: ${yLabel} ${formatY(
+                fit.slope * xMin + fit.intercept,
+              )} at ${xLabel} ${formatX(xMin)}, ${formatY(
+                fit.slope * xMax + fit.intercept,
+              )} at ${formatX(xMax)}`}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <div className="sr-only">
         <table>

@@ -181,7 +181,7 @@ export type { TreemapChartProps, TreemapItem } from './components/chart/treemap-
 
 export { HistogramChart } from './components/chart/histogram-chart';
 export type { HistogramChartProps } from './components/chart/histogram-chart';
-export { binValues, squarify } from './components/chart/geometry';
+export { binValues, linearFit, squarify } from './components/chart/geometry';
 export type { BinOptions, HistogramBin } from './components/chart/geometry';
 
 export { CohortChart } from './components/chart/cohort-chart';
@@ -280,8 +280,12 @@ export type { BannerProps } from './components/banner/banner';
 export { Button } from './components/button/button';
 export type { ButtonProps, ButtonVariants } from './components/button/button';
 
-export { FloatingButton } from './components/floating-button/floating-button';
-export type { FloatingButtonProps } from './components/floating-button/floating-button';
+export { FloatingButton, SpeedDial } from './components/floating-button/floating-button';
+export type {
+  FloatingButtonProps,
+  SpeedDialAction,
+  SpeedDialProps,
+} from './components/floating-button/floating-button';
 
 export {
   Card,
@@ -296,8 +300,13 @@ export type { CardProps } from './components/card/card';
 export { Checkbox } from './components/checkbox/checkbox';
 export type { CheckboxProps } from './components/checkbox/checkbox';
 
-export { Chip, ChipGroup, ChipGroupItem } from './components/chip/chip';
-export type { ChipGroupItemProps, ChipGroupProps, ChipProps } from './components/chip/chip';
+export { Chip, ChipGroup, ChipGroupItem, ChipRow } from './components/chip/chip';
+export type {
+  ChipGroupItemProps,
+  ChipGroupProps,
+  ChipProps,
+  ChipRowProps,
+} from './components/chip/chip';
 
 export { CoachMark, CoachMarkDot } from './components/coach-mark/coach-mark';
 export type { CoachMarkProps } from './components/coach-mark/coach-mark';
@@ -452,7 +461,7 @@ export { ListDetail } from './components/list-detail/list-detail';
 export type { ListDetailProps } from './components/list-detail/list-detail';
 
 export { List, ListItem } from './components/list-item/list-item';
-export type { ListItemProps } from './components/list-item/list-item';
+export type { ListItemProps, SwipeAction } from './components/list-item/list-item';
 
 export {
   ModalPage,
@@ -673,6 +682,7 @@ export {
   breakpointQuery,
   useBreakpoint,
   useCoarsePointer,
+  useCoarsePointerAt,
   useMediaQuery,
   usePrefersReducedMotion,
 } from './lib/use-media-query';

@@ -262,6 +262,7 @@ export const Interaction: Story = {
           '',
           '- **Drag across the plot** to zoom into the range you dragged. Vertical charts drag sideways, the ranking and the funnel drag down their rows.',
           '- **Use the buttons** for the same thing without a pointer, and read the window in the live region beside them.',
+          '- **Drag the strip** under the trend: its edges resize the window, its body pans it, and a drag on the bare strip draws a new one. Each part is a slider, so the arrow keys do the same.',
           '- **Right-click anywhere** on a chart for zoom, reset, and copy as CSV.',
           '',
           'Nothing happens under 6px of movement, so a click on a bar is still a click on a bar, and the click that follows a real drag is swallowed.',
@@ -284,6 +285,7 @@ export const Interaction: Story = {
               label="Headcount, 2026"
               area
               zoomable
+              brush
               series={[{ label: 'Headcount', data: headcount2026 }]}
               onSelect={(selection) => {
                 setLog(`Trend: ${selection.label}`);

@@ -16,7 +16,9 @@ import {
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type CSSProperties,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import {
   DndContext,
@@ -39,9 +41,11 @@ import {
   Crosshair,
   Frame,
   ListTree,
+  List,
   Lock,
   Maximize2,
   Minimize2,
+  Network,
   Undo2,
   UserRoundCog,
   ZoomIn,
@@ -50,6 +54,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { closestFrom } from '../../lib/dom';
+import { useCoarsePointerAt } from '../../lib/use-media-query';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import {
@@ -75,6 +80,7 @@ import {
   ContextMenuTrigger,
 } from '../context-menu/context-menu';
 import type { ChartTone } from '../chart/chart';
+import { fitInto, type Rect } from '../chart/geometry';
 
 /**
  * Reporting lines, drawn.
@@ -117,6 +123,14 @@ import type { ChartTone } from '../chart/chart';
  * position is recorded, and a layout effect puts it back by adjusting the
  * scroll, so the tree grows around the person you are looking at instead of
  * sliding them out from under you.
+ *
+ * ### Under a finger it is a list first
+ *
+ * A canvas that pans and zooms is a poor thing to steer with a thumb, and a
+ * phone is too narrow for more than two levels of cards. So under a coarse
+ * pointer the same tree draws as an indented list you expand and collapse,
+ * with the same keys and the same selection, and "View as chart" opens the
+ * canvas for anyone who wants the picture.
  *
  * ### Permission is an affordance here, not a control
  *
@@ -221,6 +235,12 @@ export interface OrgChartProps extends OrgNodeEvents {
    * than pushing the rest of the page down the screen.
    */
   height?: number | string;
+  /**
+   * A small overview of the whole canvas in its corner, with the visible part
+   * outlined. Click or drag in it to jump there. At a desk only: under a
+   * finger the chart opens as a list.
+   */
+  minimap?: boolean;
 
   /**
    * Who is looking. Drag-to-reassign and the "Report to" menu appear only for
@@ -434,6 +454,7 @@ export function OrgChart({
   defaultZoom = 1,
   zoomRange = [0.3, 1.6],
   height = 520,
+  minimap = false,
   viewerRole = 'viewer',
   reassignable = false,
   onReassign,
@@ -474,6 +495,11 @@ export function OrgChart({
   /** The root the view has already been centred on, so it happens once. */
   const centredOn = useRef<string | null>(null);
   const instructionsId = useId();
+  const toolbar = useRef<HTMLDivElement | null>(null);
+  const coarse = useCoarsePointerAt(toolbar);
+  /** Under a finger the tree opens as a list; this is the "View as chart" switch. */
+  const [asChart, setAsChart] = useState(false);
+  const listMode = coarse && !asChart;
 
   // Rebuilt only when the roster changes. It was running on every render.
   // Every hover, every zoom step, every frame of a drag.
@@ -1243,7 +1269,7 @@ export function OrgChart({
         {...(menuItems ? { menuItems } : {})}
         className={cn('w-full', className)}
       >
-        <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div ref={toolbar} className="mb-2 flex flex-wrap items-center gap-2">
           {searchable ? (
             <Combobox
               size="sm"
@@ -1290,6 +1316,19 @@ export function OrgChart({
           <p aria-live="polite" className="ms-1 text-xs text-fg-muted">
             {rows.length} of {nodes.length} shown
           </p>
+          {coarse ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ms-auto"
+              startIcon={asChart ? <List /> : <Network />}
+              onClick={() => {
+                setAsChart(!asChart);
+              }}
+            >
+              {asChart ? 'View as list' : 'View as chart'}
+            </Button>
+          ) : null}
         </div>
 
         {activeFocus !== null && focusedTree ? (
@@ -1359,44 +1398,55 @@ export function OrgChart({
           </p>
         ) : null}
 
-        <div className="relative">
-          {canEdit ? (
-            <DndContext
-              sensors={sensors}
-              // Pointer-within rather than closest-centre: the targets are cards
-              // of different sizes, and "the card I am over" is what a person
-              // dropping onto a manager means.
-              collisionDetection={pointerWithin}
-              accessibility={{ announcements }}
-              onDragStart={({ active }: DragStartEvent) => {
-                const id = String(active.id);
-                setDraggingId(id);
-                onDraggingChange?.(nodeById(id));
-              }}
-              onDragCancel={() => {
-                setDraggingId(null);
-                onDraggingChange?.(null);
-              }}
-              onDragEnd={({ active, over }: DragEndEvent) => {
-                setDraggingId(null);
-                onDraggingChange?.(null);
-                if (over) reassign(String(active.id), String(over.id));
-              }}
-            >
-              {canvasWithMenu}
-              <DragOverlay dropAnimation={null}>
-                {draggingNode ? (
-                  <div className="pointer-events-none w-46 -rotate-2 rounded-[16px] bg-surface p-3 shadow-xl">
-                    <OrgCardBody node={draggingNode} />
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          ) : (
-            canvasWithMenu
-          )}
-          {zoomControls}
-        </div>
+        {listMode ? (
+          <OrgTreeList label={label} roots={visibleRoots} onKeyDown={onKeyDown} />
+        ) : (
+          <div className="relative">
+            {canEdit ? (
+              <DndContext
+                sensors={sensors}
+                // Pointer-within rather than closest-centre: the targets are cards
+                // of different sizes, and "the card I am over" is what a person
+                // dropping onto a manager means.
+                collisionDetection={pointerWithin}
+                accessibility={{ announcements }}
+                onDragStart={({ active }: DragStartEvent) => {
+                  const id = String(active.id);
+                  setDraggingId(id);
+                  onDraggingChange?.(nodeById(id));
+                }}
+                onDragCancel={() => {
+                  setDraggingId(null);
+                  onDraggingChange?.(null);
+                }}
+                onDragEnd={({ active, over }: DragEndEvent) => {
+                  setDraggingId(null);
+                  onDraggingChange?.(null);
+                  if (over) reassign(String(active.id), String(over.id));
+                }}
+              >
+                {canvasWithMenu}
+                <DragOverlay dropAnimation={null}>
+                  {draggingNode ? (
+                    <div className="pointer-events-none w-46 -rotate-2 rounded-[16px] bg-surface p-3 shadow-xl">
+                      <OrgCardBody node={draggingNode} />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : (
+              canvasWithMenu
+            )}
+            {zoomControls}
+            {minimap ? (
+              <OrgMinimap
+                scroller={scroller}
+                boxes={cardBoxes.current}
+                layoutKey={`${rowKey}|${String(activeZoom)}|${orientation}`}
+              />
+            ) : null}
+          </div>
+        )}
 
         <div className="sr-only">
           <table>
@@ -1750,3 +1800,284 @@ const OrgBranch = memo(function OrgBranch({
 
   return item;
 });
+
+/**
+ * The tree as an indented list, for a finger.
+ *
+ * Flat `treeitem`s carrying `aria-level`, `aria-posinset` and `aria-setsize`,
+ * which is a tree a screen reader reads exactly as it reads the nested one on
+ * the canvas. They share the canvas's key handler and its roving tab stop, so
+ * Up and Down walk the rows, Right and Left open, close and climb.
+ *
+ * The chevron is a pointer shortcut for Right and Left, not a nested button: a
+ * control inside a treeitem competes with it for focus and for Enter. A tap on
+ * the row selects the person when the chart has `onSelect`, and otherwise
+ * opens or closes their reports.
+ */
+function OrgTreeList({
+  label,
+  roots,
+  onKeyDown,
+}: {
+  label: string;
+  roots: readonly TreeNode[];
+  onKeyDown: (event: KeyboardEvent<HTMLLIElement>, row: VisibleRow) => void;
+}): JSX.Element {
+  const org = useOrg();
+  const items: { tree: TreeNode; row: VisibleRow; position: number; size: number }[] = [];
+  const walk = (list: readonly TreeNode[]): void => {
+    list.forEach((tree, index) => {
+      const row = org.rowsById.get(tree.node.id);
+      if (!row) return;
+      items.push({ tree, row, position: index + 1, size: list.length });
+      if (row.expanded) walk(tree.children);
+    });
+  };
+  walk(roots);
+
+  return (
+    <ul
+      role="tree"
+      aria-label={label}
+      className="overflow-hidden rounded-[1.375rem] bg-surface shadow-sm"
+    >
+      {items.map(({ tree, row, position, size }) => {
+        const { node } = tree;
+        const selected = org.selectedId === node.id;
+        const onSpine = org.spine.has(node.id);
+        const reports = tree.children.length;
+        const toggleable = row.hasChildren && !onSpine;
+        return (
+          <li
+            key={node.id}
+            ref={(element) => {
+              if (element) org.cards.set(node.id, element);
+              else org.cards.delete(node.id);
+            }}
+            role="treeitem"
+            aria-label={[
+              node.name,
+              node.title,
+              node.status,
+              reports === 0 ? 'no direct reports' : `${String(reports)} direct reports`,
+            ]
+              .filter(Boolean)
+              .join(', ')}
+            aria-level={row.level}
+            aria-posinset={position}
+            aria-setsize={size}
+            {...(row.hasChildren ? { 'aria-expanded': row.expanded } : {})}
+            {...(org.select ? { 'aria-selected': selected } : {})}
+            tabIndex={org.tabStop === node.id ? 0 : -1}
+            onKeyDown={(event) => {
+              onKeyDown(event, row);
+            }}
+            onFocus={() => {
+              org.setActiveId(node.id);
+            }}
+            onClick={() => {
+              if (org.select) org.select(node);
+              else if (toggleable) org.toggle(node.id);
+            }}
+            className={cn(
+              'relative flex min-h-15 cursor-pointer items-center gap-2.5 py-2 pe-1.5',
+              '[&:not(:last-child)]:shadow-[inset_0_-1px_0_var(--color-border)]',
+              'outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+              'transition-colors duration-(--animate-duration-fast) active:bg-surface-hover',
+              selected && 'bg-accent-subtle',
+              onSpine && !selected && 'bg-surface-sunken',
+            )}
+            style={{ paddingInlineStart: `${String(0.75 + (row.level - 1) * 1.25)}rem` }}
+          >
+            {row.level > 1 ? (
+              <span aria-hidden className="-ms-1 h-0.5 w-2.5 shrink-0 bg-border-strong" />
+            ) : null}
+            <Avatar
+              size="md"
+              name={node.name}
+              {...(node.avatarUrl === undefined ? {} : { src: node.avatarUrl })}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[0.9375rem]/[1.3] font-semibold text-fg">{node.name}</p>
+              <p className="truncate text-[0.8125rem]/[1.3] text-fg-muted">
+                {[
+                  node.title,
+                  reports > 0 ? `${String(reports)} report${reports > 1 ? 's' : ''}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            </div>
+            {node.status === undefined ? null : (
+              <Badge size="sm" tone={node.statusTone ?? 'neutral'}>
+                {node.status}
+              </Badge>
+            )}
+            {toggleable ? (
+              <span
+                aria-hidden
+                onClick={(event) => {
+                  event.stopPropagation();
+                  org.toggle(node.id);
+                }}
+                className="grid size-11 shrink-0 place-items-center text-icon-muted"
+              >
+                {row.expanded ? (
+                  <ChevronDown className="size-4.5" />
+                ) : (
+                  <ChevronRight className="size-4.5" />
+                )}
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The corner the minimap draws into, in CSS pixels. */
+const MINIMAP = { width: 120, height: 76 };
+
+/**
+ * The whole canvas, small, with the part on screen outlined.
+ *
+ * It reads the cards' boxes rather than re-deriving the layout, so it can
+ * never disagree with what is drawn. Cards are measured when the tree or the
+ * scale changes, and on a scroll only when the canvas itself changed size (a
+ * zoom gesture writes the scale straight to the DOM); the outline is re-read
+ * on every scroll, one frame at a time.
+ *
+ * Hidden from assistive tech: it is a pointer shortcut for panning, and the
+ * canvas it summarises is itself a focusable region that scrolls with the
+ * keys.
+ */
+function OrgMinimap({
+  scroller,
+  boxes,
+  layoutKey,
+}: {
+  scroller: RefObject<HTMLDivElement | null>;
+  boxes: ReadonlyMap<string, HTMLElement>;
+  layoutKey: string;
+}): JSX.Element | null {
+  const [state, setState] = useState<{
+    content: { width: number; height: number };
+    view: Rect;
+    cards: Rect[];
+  } | null>(null);
+  const cards = useRef<Rect[]>([]);
+  const content = useRef({ width: 0, height: 0 });
+  const dragging = useRef(false);
+
+  const measure = useCallback(
+    (force: boolean): void => {
+      const box = scroller.current;
+      if (!box) return;
+      const size = { width: box.scrollWidth, height: box.scrollHeight };
+      if (force || size.width !== content.current.width || size.height !== content.current.height) {
+        const origin = box.getBoundingClientRect();
+        cards.current = [...boxes.values()].map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            x: rect.left - origin.left + box.scrollLeft,
+            y: rect.top - origin.top + box.scrollTop,
+            width: rect.width,
+            height: rect.height,
+          };
+        });
+        content.current = size;
+      }
+      setState({
+        content: size,
+        view: {
+          x: box.scrollLeft,
+          y: box.scrollTop,
+          width: box.clientWidth,
+          height: box.clientHeight,
+        },
+        cards: cards.current,
+      });
+    },
+    [scroller, boxes],
+  );
+
+  useLayoutEffect(() => {
+    measure(true);
+  }, [measure, layoutKey]);
+
+  useEffect(() => {
+    const box = scroller.current;
+    if (!box) return;
+    let frame = 0;
+    const onScroll = (): void => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        measure(false);
+      });
+    };
+    box.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      box.removeEventListener('scroll', onScroll);
+    };
+  }, [scroller, measure]);
+
+  if (!state) return null;
+  const fit = fitInto(state.content, MINIMAP);
+  const place = (rect: Rect): CSSProperties => ({
+    left: fit.x + rect.x * fit.scale,
+    top: fit.y + rect.y * fit.scale,
+    width: Math.max(rect.width * fit.scale, 2),
+    height: Math.max(rect.height * fit.scale, 2),
+  });
+
+  /** Centre the canvas on the point under the pointer. */
+  const jump = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const box = scroller.current;
+    if (!box || fit.scale === 0) return;
+    const frame = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - frame.left - fit.x) / fit.scale;
+    const y = (event.clientY - frame.top - fit.y) / fit.scale;
+    box.scrollTo({
+      left: x - box.clientWidth / 2,
+      top: y - box.clientHeight / 2,
+      behavior: 'instant',
+    });
+  };
+
+  return (
+    <div
+      aria-hidden
+      className="absolute start-3 bottom-3 z-10 cursor-pointer touch-none overflow-hidden rounded-[10px] bg-surface shadow-md touch:hidden"
+      style={MINIMAP}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        dragging.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        jump(event);
+      }}
+      onPointerMove={(event) => {
+        if (dragging.current) jump(event);
+      }}
+      onPointerUp={() => {
+        dragging.current = false;
+      }}
+      onPointerCancel={() => {
+        dragging.current = false;
+      }}
+    >
+      {state.cards.map((rect, index) => (
+        <span
+          key={index}
+          className="absolute rounded-[2px] bg-surface-active"
+          style={place(rect)}
+        />
+      ))}
+      <span
+        className="absolute rounded-[4px] bg-accent/10 ring-2 ring-accent ring-inset"
+        style={place(state.view)}
+      />
+    </div>
+  );
+}

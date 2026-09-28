@@ -184,3 +184,104 @@ export function radarPoints(
     return [center.x + r * Math.sin(angle), center.y - r * Math.cos(angle)];
   });
 }
+
+/**
+ * The ordinary least-squares line through a set of points: `y = slope * x +
+ * intercept`.
+ *
+ * `null` when there is no line to find: fewer than two points, or every point
+ * at the same x, where the slope is a division by zero. A fit line drawn from
+ * one person is a trend invented from an anecdote. Non-finite points are
+ * dropped, the same rule `binValues` applies to a missing salary.
+ */
+export function linearFit(
+  points: readonly { x: number; y: number }[],
+): { slope: number; intercept: number } | null {
+  const finite = points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  if (finite.length < 2) return null;
+  const meanX = finite.reduce((sum, point) => sum + point.x, 0) / finite.length;
+  const meanY = finite.reduce((sum, point) => sum + point.y, 0) / finite.length;
+  let sxy = 0;
+  let sxx = 0;
+  for (const point of finite) {
+    sxy += (point.x - meanX) * (point.y - meanY);
+    sxx += (point.x - meanX) ** 2;
+  }
+  if (sxx === 0) return null;
+  const slope = sxy / sxx;
+  return { slope, intercept: meanY - slope * meanX };
+}
+
+/** An inclusive range of indices along an ordered axis. */
+export interface IndexRange {
+  start: number;
+  end: number;
+}
+
+/** Which part of a brush a gesture or a key is moving. */
+export type BrushPart = 'start' | 'end' | 'window';
+
+/** The index nearest a fraction of the axis, clamped to it. */
+export function indexAt(fraction: number, total: number): number {
+  const last = Math.max(total - 1, 0);
+  return Math.min(last, Math.max(0, Math.round(fraction * last)));
+}
+
+/**
+ * Moves one edge of a brush, or the whole window, by `delta` indices.
+ *
+ * An edge stops one index short of the other, so the window is always at least
+ * two points wide: a window of one point is a chart with no comparison in it.
+ * The whole window stops at either end of the axis *keeping its width*, so a
+ * pan that runs out of data does not quietly become a zoom.
+ */
+export function moveBrush(
+  range: IndexRange,
+  part: BrushPart,
+  delta: number,
+  total: number,
+): IndexRange {
+  const last = Math.max(total - 1, 1);
+  if (part === 'start') {
+    return { start: Math.min(Math.max(range.start + delta, 0), range.end - 1), end: range.end };
+  }
+  if (part === 'end') {
+    return {
+      start: range.start,
+      end: Math.max(Math.min(range.end + delta, last), range.start + 1),
+    };
+  }
+  const width = range.end - range.start;
+  const start = Math.min(Math.max(range.start + delta, 0), last - width);
+  return { start, end: start + width };
+}
+
+/**
+ * The window drawn by dragging from `anchor` to `current` on a bare strip, in
+ * either direction. A drag that has not left its first index still gets two
+ * points, reaching forwards unless it is already at the end.
+ */
+export function brushSelect(anchor: number, current: number, total: number): IndexRange {
+  const last = Math.max(total - 1, 1);
+  const start = Math.min(anchor, current);
+  const end = Math.max(anchor, current);
+  if (end > start) return { start, end };
+  return start >= last ? { start: last - 1, end: last } : { start, end: start + 1 };
+}
+
+/**
+ * Scale `content` to fit inside `frame`, centred on the axis it does not fill.
+ * What a minimap is: the whole canvas, as large as the corner allows.
+ */
+export function fitInto(
+  content: { width: number; height: number },
+  frame: { width: number; height: number },
+): { scale: number; x: number; y: number } {
+  if (content.width <= 0 || content.height <= 0) return { scale: 0, x: 0, y: 0 };
+  const scale = Math.min(frame.width / content.width, frame.height / content.height);
+  return {
+    scale,
+    x: (frame.width - content.width * scale) / 2,
+    y: (frame.height - content.height * scale) / 2,
+  };
+}
