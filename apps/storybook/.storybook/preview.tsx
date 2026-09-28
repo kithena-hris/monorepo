@@ -5,6 +5,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 
 import { darkDocsTheme, lightDocsTheme } from './manager-theme';
 import { GLOBALS_UPDATED, SET_GLOBALS } from 'storybook/internal/core-events';
+import { action } from 'storybook/actions';
 import { addons } from 'storybook/preview-api';
 
 import './preview.css';
@@ -105,6 +106,93 @@ channel.on(GLOBALS_UPDATED, applyThemeClass);
  * needs a toast provider. Putting both here means a story never has to
  * remember, and the shared delay stays consistent across the docs.
  */
+/**
+ * Every interaction in a story, in the Actions panel.
+ *
+ * A component's own callbacks reach the panel only when the story passes its
+ * args through, and half the stories render with their own state instead. This
+ * logs what the person did regardless: clicks, double-clicks, right-clicks,
+ * values changing, forms submitting and the keys that drive a widget, named by
+ * the control they landed on. It listens on the document in the capture phase,
+ * so a menu, a dialog or a sheet portalled outside the story is logged too.
+ *
+ * Canvas only: a docs page renders every story at once and the panel is not
+ * shown there. Off under test, where nothing reads it.
+ */
+const LOGGED_KEYS = new Set([
+  'Enter',
+  'Escape',
+  ' ',
+  'Tab',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+  'Backspace',
+  'Delete',
+]);
+
+/**
+ * Names the control an event landed on, or `null` when it landed on none: a
+ * click on empty page, or one retargeted to `<html>` while a menu that opens
+ * on pointer-down takes over. Those say nothing about the component, so they
+ * are left out rather than logged as the document's entire text.
+ */
+function describeTarget(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null;
+  const control = target.closest(
+    'button, a[href], input, select, textarea, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="slider"], [role="treeitem"], [role="gridcell"], [role="row"], [role="link"], [role="combobox"], [tabindex]',
+  );
+  if (control === null || control === document.documentElement || control === document.body) {
+    return null;
+  }
+  const role = control.getAttribute('role') ?? control.tagName.toLowerCase();
+  const label =
+    control.getAttribute('aria-label') ??
+    (control instanceof HTMLInputElement ? control.labels?.[0]?.textContent : undefined);
+  const name = (label ?? control.textContent).replaceAll(/\s+/g, ' ').trim().slice(0, 60);
+  return name ? `${role} "${name}"` : role;
+}
+
+const withInteractionLog: Decorator = (Story, context) => {
+  const inCanvas = context.viewMode === 'story' && import.meta.env.MODE !== 'test';
+  useEffect(() => {
+    if (!inCanvas) return undefined;
+    const log = (event: Event): void => {
+      const on = describeTarget(event.target);
+      if (on === null) return;
+      if (event instanceof KeyboardEvent) {
+        if (!LOGGED_KEYS.has(event.key)) return;
+        action(`keydown ${event.key === ' ' ? 'Space' : event.key}`)(on);
+        return;
+      }
+      if (event.type === 'change') {
+        const target = event.target;
+        const value =
+          target instanceof HTMLInputElement &&
+          (target.type === 'checkbox' || target.type === 'radio')
+            ? target.checked
+            : target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target instanceof HTMLSelectElement
+              ? target.value
+              : undefined;
+        action(event.type)(on, value);
+        return;
+      }
+      action(event.type)(on);
+    };
+    const types = ['click', 'dblclick', 'contextmenu', 'change', 'submit', 'keydown'];
+    for (const type of types) document.addEventListener(type, log, true);
+    return () => {
+      for (const type of types) document.removeEventListener(type, log, true);
+    };
+  }, [inCanvas, context.id]);
+  return <Story />;
+};
+
 const withProviders: Decorator = (Story) => (
   <TooltipProvider delayDuration={200}>
     <ToastProvider>
@@ -254,8 +342,7 @@ const withViews: Decorator = (Story, context) => {
   const fixed: unknown = context.parameters['view'];
   const chosen: unknown = typeof fixed === 'string' ? fixed : context.globals['view'];
   const view = typeof chosen === 'string' ? chosen : 'both';
-  const single =
-    import.meta.env.MODE === 'test' || context.parameters['sideBySide'] === false;
+  const single = import.meta.env.MODE === 'test' || context.parameters['sideBySide'] === false;
   if (single || view === 'web') return <Story />;
 
   const fullscreen = context.parameters['layout'] === 'fullscreen';
@@ -287,7 +374,7 @@ const withViews: Decorator = (Story, context) => {
 };
 
 const preview: Preview = {
-  decorators: [withViews, withProviders, withPlatform],
+  decorators: [withViews, withProviders, withPlatform, withInteractionLog],
   globalTypes: {
     view: {
       description: 'Show each story at a desk, on a phone, or both side by side.',
@@ -351,6 +438,9 @@ const preview: Preview = {
     density: 'default',
   },
   parameters: {
+    // Every `on…` prop a component declares becomes a logged action in any
+    // story that passes its args through, without each story adding `fn()`.
+    actions: { argTypesRegex: '^on[A-Z].*' },
     controls: {
       matchers: { color: /(background|color)$/i, date: /Date$/i },
       expanded: true,
