@@ -99,7 +99,7 @@ export const Collapsing: Story = {
     docs: {
       description: {
         story:
-          'The middle three crumbs are `collapsible`, so in a narrow trail it becomes "People … Bank details". The phone copy shows it. The ellipsis carries a screen-reader-only "Collapsed levels", so the fold is announced rather than silently dropping context.',
+          'The middle three crumbs are `collapsible`, so in a narrow trail it becomes "People … Bank details": narrow the canvas to see it. The ellipsis carries a screen-reader-only "Collapsed levels", so the fold is announced rather than silently dropping context.\n\nOn a phone only the back link remains, "‹ Payroll", the parent of the page. The phone copy shows it.',
       },
     },
   },
