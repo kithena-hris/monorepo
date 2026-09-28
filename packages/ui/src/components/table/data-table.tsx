@@ -3,11 +3,14 @@
 import {
   Fragment,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
   useState,
   type JSX,
+  type KeyboardEvent,
+  type PointerEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -30,8 +33,12 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  columnGroupingFeature,
+  columnResizingFeature,
+  columnSizingFeature,
   createCoreRowModel,
   createExpandedRowModel,
+  createGroupedRowModel,
   createSortedRowModel,
   rowExpandingFeature,
   rowSelectionFeature,
@@ -43,16 +50,18 @@ import {
   type ColumnDef,
   type ExpandedState,
   type RowSelectionState,
+  type Row,
   type RowData,
   type SortingState,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronRight, GripVertical, X } from 'lucide-react';
+import { ArrowUpDown, ChevronRight, GripVertical, X } from 'lucide-react';
 
 import { bulkBarClass } from '../../lib/bulk-bar';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
+import { Spinner } from '../spinner/spinner';
 import {
   Table,
   TableBody,
@@ -125,7 +134,19 @@ const CARD = {
   leadCell: 'touch:absolute touch:top-1.5 touch:h-auto! touch:w-auto! touch:p-0!',
   cell: 'touch:block touch:h-auto! touch:p-0!',
   title: 'touch:basis-full touch:text-base touch:font-semibold',
-  meta: 'touch:static touch:text-left touch:text-sm touch:text-fg-muted',
+  /** The title when a `cardTrailing` value shares its line. */
+  titleBeside: 'touch:min-w-0 touch:flex-1 touch:basis-0',
+  /*
+   * Ends the title line when a `cardTrailing` value shares it, so the details
+   * wrap below both. A pseudo-element of a flex row is a flex item, and unlike
+   * an extra cell it does not move the row's `last:` padding.
+   */
+  titleBreak:
+    "touch:after:order-2 touch:after:block touch:after:basis-full touch:after:content-['']",
+  /** A `cardTrailing` value: the end of the title line, in full ink. */
+  trailing:
+    'touch:order-1 touch:shrink-0 touch:text-right touch:text-sm touch:font-semibold touch:text-fg touch:tabular-nums',
+  meta: 'touch:static touch:order-3 touch:text-left touch:text-sm touch:text-fg-muted',
   /** The `shortHeader` in front of a value, only on a cell that has one. */
   label: 'touch:before:me-1.5 touch:before:text-fg-subtle touch:before:content-[attr(data-label)]',
 } as const;
@@ -134,10 +155,11 @@ const CARD = {
  * The feature set this table opts into, declared once.
  *
  * TanStack Table v9 is modular: a feature that is not named here is not in the
- * bundle and its options do not typecheck. Sorting, selection and expansion are
- * the three this component exposes, so they are the three listed. Filtering,
- * pagination, grouping and pinning are deliberately absent, and adding one is a
- * decision made here rather than a prop appearing by accident.
+ * bundle and its options do not typecheck. Sorting (one column or several),
+ * selection, expansion, grouping and column sizing are what this component
+ * exposes, so they are what is listed. Filtering, pagination and pinning are
+ * deliberately absent, and adding one is a decision made here rather than a
+ * prop appearing by accident.
  *
  * Only two sort functions are registered for the same reason: importing the
  * `sortFns` bundle would pull every built-in comparator into every application
@@ -157,8 +179,51 @@ const FEATURES = tableFeatures({
   rowSelectionFeature,
   rowExpandingFeature,
   expandedRowModel: createExpandedRowModel(),
+  columnGroupingFeature,
+  groupedRowModel: createGroupedRowModel(),
+  columnSizingFeature,
+  columnResizingFeature,
   coreRowModel: createCoreRowModel(),
 });
+
+/** A striped row: the sunken fill at 60%, mixed solid so a sticky cell can inherit it. */
+const STRIPE =
+  'bg-[color-mix(in_oklch,var(--reach-color-surface-sunken)_60%,var(--reach-color-surface))]';
+
+/** The column TanStack groups on. Never rendered: the group header row shows its value. */
+const GROUP_COLUMN = '__group';
+
+/** Width a column may be dragged down to, in px. */
+const MIN_COLUMN = 64;
+
+/** The column named in a sort label: its header if that is text, else its short header. */
+function columnName<T>(column: DataColumn<T>): string {
+  return typeof column.header === 'string' ? column.header : (column.shortHeader ?? column.id);
+}
+
+/**
+ * "Team, then start date". Exported for its test: the label is what a phone
+ * shows instead of the header row, so its wording is the sort's only readout.
+ */
+export function describeSorts<T>(
+  sorts: readonly DataTableSort[],
+  columns: readonly DataColumn<T>[],
+): string {
+  return sorts
+    .map((sort, index) => {
+      const column = columns.find((candidate) => candidate.id === sort.columnId);
+      const name = column ? columnName(column) : sort.columnId;
+      return index === 0 ? name : name.toLowerCase();
+    })
+    .join(', then ');
+}
+
+function toSortList(
+  sort: DataTableSort | readonly DataTableSort[] | null | undefined,
+): readonly DataTableSort[] {
+  if (sort === null || sort === undefined) return [];
+  return 'columnId' in sort ? [sort] : sort;
+}
 
 export interface DataColumn<T> {
   /** Stable id. Used for the sort state and as the React key. */
@@ -180,6 +245,18 @@ export interface DataColumn<T> {
   sortBy?: (row: T) => string | number;
   /** A short label for the column, used in the stacked readout on narrow screens. */
   shortHeader?: string;
+  /**
+   * Under a finger, the value sits at the end of the card's title line rather
+   * than among the details underneath. For the one figure a row is compared
+   * on: a salary, a balance, a count. At most one column.
+   */
+  cardTrailing?: boolean;
+  /**
+   * The value shown for this column on a group's header row when the table is
+   * grouped: a sum, a count, a range. Given the group's rows; formatting is
+   * the caller's, so money stays exact.
+   */
+  aggregate?: (rows: readonly T[]) => ReactNode;
   className?: string;
 }
 
@@ -222,10 +299,49 @@ export interface DataTableProps<T extends TableRow> {
   /** The actions offered for the current selection. Rendered in the bulk bar. */
   bulkActions?: (rows: T[]) => ReactNode;
 
-  /** Current sort. Uncontrolled, and sorted for you, when omitted. */
-  sort?: DataTableSort | null;
+  /**
+   * Current sort. Uncontrolled, and sorted for you, when omitted. A list is a
+   * multi-column sort, most significant first.
+   */
+  sort?: DataTableSort | readonly DataTableSort[] | null;
+  /** Fires with the primary sort. `onSortsChange` has the whole list. */
   onSortChange?: (sort: DataTableSort | null) => void;
-  defaultSort?: DataTableSort | null;
+  onSortsChange?: (sorts: readonly DataTableSort[]) => void;
+  defaultSort?: DataTableSort | readonly DataTableSort[] | null;
+  /**
+   * Shift-click adds a column to the sort instead of replacing it. Headers
+   * then carry their position in the order as a small number.
+   */
+  multiSort?: boolean;
+
+  /**
+   * Groups the rows by the value this returns, under a header row per group
+   * that collapses, counts its rows and shows each column's `aggregate`. The
+   * value need not be a column. Keep the function stable (module scope or
+   * `useCallback`); rows cannot be dragged while grouped.
+   */
+  groupBy?: (row: T) => string;
+  /** Groups, by value, that start collapsed. */
+  defaultCollapsedGroups?: readonly string[];
+
+  /** Tints every other row. For a wide table read across rather than down. */
+  striped?: boolean;
+  /**
+   * Drag the edge of a header, or focus it and use the arrow keys, to change a
+   * column's width. The last column takes whatever width is left.
+   */
+  resizable?: boolean;
+  /**
+   * Infinite loading. Pass it while there are more rows to fetch: a "Loading
+   * more" row sits under the last one, and this is called when that row
+   * scrolls into view. Drop it once everything has arrived.
+   */
+  onLoadMore?: () => void;
+  /**
+   * The next page is on its way. Shows the "Loading more" row even without
+   * `onLoadMore`, and holds off calling it again until this clears.
+   */
+  loadingMore?: boolean;
 
   /** Drag handles on every row. Disabled while a sort is active. */
   reorderable?: boolean;
@@ -279,7 +395,15 @@ export function DataTable<T extends TableRow>({
   bulkActions,
   sort,
   onSortChange,
+  onSortsChange,
   defaultSort = null,
+  multiSort = false,
+  groupBy,
+  defaultCollapsedGroups,
+  striped = false,
+  resizable = false,
+  loadingMore = false,
+  onLoadMore,
   reorderable = false,
   onReorder,
   describeRow,
@@ -296,11 +420,12 @@ export function DataTable<T extends TableRow>({
   const base = useId();
   const [openRows, setOpenRows] = useState<readonly string[]>(defaultExpanded ?? []);
   const [pickedRows, setPickedRows] = useState<readonly string[]>(defaultSelected ?? []);
-  const [ownSort, setOwnSort] = useState<DataTableSort | null>(defaultSort);
+  const [ownSorts, setOwnSorts] = useState<readonly DataTableSort[]>(() => toSortList(defaultSort));
+  const [collapsed, setCollapsed] = useState<readonly string[]>(defaultCollapsedGroups ?? []);
 
   const open = new Set(expanded ?? openRows);
   const picked = new Set(selected ?? pickedRows);
-  const activeSort = sort === undefined ? ownSort : sort;
+  const activeSorts = sort === undefined ? ownSorts : toSortList(sort);
 
   const setOpen = (next: readonly string[]): void => {
     if (expanded === undefined) setOpenRows(next);
@@ -310,9 +435,10 @@ export function DataTable<T extends TableRow>({
     if (selected === undefined) setPickedRows(next);
     onSelectedChange?.(next);
   };
-  const setSort = (next: DataTableSort | null): void => {
-    if (sort === undefined) setOwnSort(next);
-    onSortChange?.(next);
+  const setSorts = (next: readonly DataTableSort[]): void => {
+    if (sort === undefined) setOwnSorts(next);
+    onSortChange?.(next[0] ?? null);
+    onSortsChange?.(next);
   };
 
   /*
@@ -342,21 +468,38 @@ export function DataTable<T extends TableRow>({
    */
   const tableColumns = useMemo<ColumnDef<typeof FEATURES, T>[]>(
     () =>
-      columns.map((column) => ({
-        id: column.id,
-        // A column with no `sortBy` is not sortable, and an accessor returning
-        // the row itself would sort by object identity.
-        accessorFn: column.sortBy ? (row: T) => column.sortBy?.(row) ?? null : () => null,
-        enableSorting: column.sortBy !== undefined,
-        sortFn: 'alphanumeric',
-      })),
-    [columns],
+      columns
+        .map((column): ColumnDef<typeof FEATURES, T> => ({
+          id: column.id,
+          // A column with no `sortBy` is not sortable, and an accessor returning
+          // the row itself would sort by object identity.
+          accessorFn: column.sortBy ? (row: T) => column.sortBy?.(row) ?? null : () => null,
+          enableSorting: column.sortBy !== undefined,
+          enableMultiSort: multiSort,
+          enableGrouping: false,
+          enableResizing: resizable,
+          minSize: MIN_COLUMN,
+          sortFn: 'alphanumeric',
+        }))
+        .concat(
+          groupBy === undefined
+            ? []
+            : [
+                {
+                  id: GROUP_COLUMN,
+                  accessorFn: groupBy,
+                  enableSorting: false,
+                  enableGrouping: true,
+                },
+              ],
+        ),
+    [columns, groupBy, multiSort, resizable],
   );
 
   const sorting: SortingState = useMemo(
     () =>
-      activeSort ? [{ id: activeSort.columnId, desc: activeSort.direction === 'descending' }] : [],
-    [activeSort],
+      activeSorts.map((entry) => ({ id: entry.columnId, desc: entry.direction === 'descending' })),
+    [activeSorts],
   );
 
   const rowSelection: RowSelectionState = useMemo(
@@ -384,12 +527,27 @@ export function DataTable<T extends TableRow>({
     getRowId: (row) => rowId(row),
     manualSorting: sort !== undefined,
     enableRowSelection: selectable,
-    state: { sorting, rowSelection, expanded: expandedState },
+    enableMultiSort: multiSort,
+    // Group rows keep their columns where they were; the grouped value is the
+    // header row's label, not a column that jumps to the front.
+    groupedColumnMode: false,
+    columnResizeMode: 'onChange',
+    state: {
+      sorting,
+      rowSelection,
+      grouping: groupBy === undefined ? [] : [GROUP_COLUMN],
+      // Every group is expanded as far as TanStack is concerned; collapsing
+      // hides a group's rows below, so a collapsed group keeps its count and
+      // its sums. A leaf row has no sub-rows, so detail rows are unaffected.
+      expanded: groupBy === undefined ? expandedState : true,
+    },
     onSortingChange: (updater) => {
       const next = typeof updater === 'function' ? updater(sorting) : updater;
-      const first = next[0];
-      setSort(
-        first ? { columnId: first.id, direction: first.desc ? 'descending' : 'ascending' } : null,
+      setSorts(
+        next.map((entry) => ({
+          columnId: entry.id,
+          direction: entry.desc ? 'descending' : 'ascending',
+        })),
       );
     },
     onRowSelectionChange: (updater) => {
@@ -398,14 +556,29 @@ export function DataTable<T extends TableRow>({
     },
   });
 
-  const ordered = table.getRowModel().rows.map((row) => row.original);
+  /*
+   * What the body draws, in order: a header per group and the rows under it,
+   * or just the rows. A collapsed group keeps its header and drops its rows.
+   */
+  const shut = new Set(collapsed);
+  const items: ({ kind: 'group'; row: Row<typeof FEATURES, T> } | { kind: 'row'; row: T })[] = [];
+  for (const row of table.getRowModel().rows) {
+    if (row.getIsGrouped()) items.push({ kind: 'group', row });
+    else if (!(row.parentId && shut.has(String(table.getRow(row.parentId).groupingValue))))
+      items.push({ kind: 'row', row: row.original });
+  }
+  const ordered = table
+    .getRowModel()
+    .rows.filter((row) => !row.getIsGrouped())
+    .map((row) => row.original);
   const ids = ordered.map((row) => rowId(row));
   const allPicked = ids.length > 0 && ids.every((id) => picked.has(id));
   const somePicked = ids.some((id) => picked.has(id));
   const pickedRowObjects = ordered.filter((row) => picked.has(rowId(row)));
 
-  // A dragged row means nothing in a sorted table: the next sort discards it.
-  const canReorder = reorderable && activeSort === null;
+  // A dragged row means nothing in a sorted or grouped table: the next sort
+  // discards it, and a group has its own order.
+  const canReorder = reorderable && activeSorts.length === 0 && groupBy === undefined;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -431,7 +604,7 @@ export function DataTable<T extends TableRow>({
    * more than rendering the rows it would have saved.
    */
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const wantsVirtual = virtualize === 'auto' ? ordered.length >= virtualizeThreshold : virtualize;
+  const wantsVirtual = virtualize === 'auto' ? items.length >= virtualizeThreshold : virtualize;
   const virtualized = wantsVirtual && !canReorder && renderDetail === undefined;
 
   // Memoised for the reason spelled out in `virtual-list.tsx`: a fresh arrow
@@ -441,7 +614,7 @@ export function DataTable<T extends TableRow>({
   const estimateSize = useCallback(() => estimateRowHeight, [estimateRowHeight]);
 
   const virtualizer = useVirtualizer({
-    count: virtualized ? ordered.length : 0,
+    count: virtualized ? items.length : 0,
     getScrollElement,
     estimateSize,
     // Enough rows above and below that a fast flick does not show a gap, and
@@ -456,8 +629,8 @@ export function DataTable<T extends TableRow>({
       ? virtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end ?? 0)
       : 0;
 
-  /** The rows to render, paired with the 1-based index a reader should hear. */
-  const visible: { row: T; index: number }[] = virtualized
+  /** The items to render, paired with the 0-based index a reader should hear. */
+  const visible: { item: (typeof items)[number]; index: number }[] = virtualized
     ? /*
        * `flatMap` with a presence check, not an index lookup asserted to be
        * populated. The virtualizer reports indices from the measurement it last
@@ -466,14 +639,60 @@ export function DataTable<T extends TableRow>({
        * assertion turned that into an `undefined` row handed to a cell renderer;
        * this drops it instead.
        */
-      virtualRows.flatMap((item) => {
-        const row = ordered[item.index];
-        return row === undefined ? [] : [{ row, index: item.index }];
+      virtualRows.flatMap((virtual) => {
+        const item = items[virtual.index];
+        return item === undefined ? [] : [{ item, index: virtual.index }];
       })
-    : ordered.map((row, index) => ({ row, index }));
+    : items.map((item, index) => ({ item, index }));
 
   const leadingColumns = (renderDetail ? 1 : 0) + (selectable ? 1 : 0) + (canReorder ? 1 : 0);
   const totalColumns = columns.length + leadingColumns;
+  const hasTrailing = columns.some((column) => column.cardTrailing);
+
+  /*
+   * Column widths. Until somebody resizes, the browser lays the table out
+   * from its content. The first resize measures every header as rendered and
+   * hands those widths to TanStack, so the drag starts from what is on screen
+   * rather than from a default nobody saw, and from then on the table is
+   * fixed-layout with the last column taking the slack.
+   */
+  const sizing = table.state.columnSizing;
+  const sized = resizable && Object.keys(sizing).length > 0;
+  const seedSizes = (from: Element): void => {
+    if (Object.keys(sizing).length > 0) return;
+    const measured: Record<string, number> = {};
+    for (const th of from.closest('tr')?.querySelectorAll<HTMLElement>('th[data-column-id]') ??
+      []) {
+      const id = th.dataset['columnId'];
+      if (id) measured[id] = Math.round(th.getBoundingClientRect().width);
+    }
+    table.setColumnSizing(measured);
+  };
+  const sizedWidth = sized
+    ? columns
+        .slice(0, -1)
+        .reduce((sum, column) => sum + (table.getColumn(column.id)?.getSize() ?? 0), 0) +
+      leadingColumns * 40
+    : 0;
+
+  // Infinite loading: ask for more when the end of the table comes into view.
+  const endRef = useRef<HTMLTableRowElement | null>(null);
+  const loadMore = useRef(onLoadMore);
+  loadMore.current = onLoadMore;
+  const wantsMore = onLoadMore !== undefined && !loadingMore;
+  useEffect(() => {
+    const end = endRef.current;
+    if (!wantsMore || !end) return undefined;
+    // The root is the viewport, which also covers a table scrolling inside
+    // its own bounded container: an observer clips to every scrolling ancestor.
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMore.current?.();
+    });
+    observer.observe(end);
+    return () => {
+      observer.disconnect();
+    };
+  }, [wantsMore]);
 
   const body = (
     <Table
@@ -483,8 +702,10 @@ export function DataTable<T extends TableRow>({
       containerRef={scrollRef}
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
-      {...(virtualized ? { 'aria-rowcount': ordered.length + 1 } : {})}
-      className={cn(CARD.table, className)}
+      {...(virtualized ? { 'aria-rowcount': items.length + 1 } : {})}
+      className={cn(CARD.table, sized && 'table-fixed touch:table-auto', className)}
+      // The last column's 10rem is the slack it keeps once the others are sized.
+      {...(sized ? { style: { width: `max(100%, calc(${String(sizedWidth)}px + 10rem))` } } : {})}
       {...(containerClassName === undefined ? {} : { containerClassName })}
     >
       {caption === undefined ? null : (
@@ -523,17 +744,32 @@ export function DataTable<T extends TableRow>({
             </TableHead>
           ) : null}
 
-          {columns.map((column) => {
-            const isSorted = activeSort?.columnId === column.id;
+          {columns.map((column, index) => {
+            const position = activeSorts.findIndex((entry) => entry.columnId === column.id);
+            const current = activeSorts[position];
+            const isSorted = current !== undefined;
+            const last = index === columns.length - 1;
+            // Once sized, the last column has no width at all: it is the slack.
+            const width = sized
+              ? last
+                ? undefined
+                : `${String(table.getColumn(column.id)?.getSize() ?? 0)}px`
+              : column.width;
             return (
               <TableHead
                 key={column.id}
+                data-column-id={column.id}
                 numeric={column.numeric ?? false}
                 sticky={column.sticky ?? false}
                 sortable={column.sortBy !== undefined}
-                sortDirection={isSorted ? activeSort.direction : null}
-                onSort={(direction) => {
-                  setSort({ columnId: column.id, direction });
+                sortDirection={current?.direction ?? null}
+                {...(activeSorts.length > 1 && isSorted ? { sortPriority: position + 1 } : {})}
+                onSort={(direction, event) => {
+                  // TanStack's own toggle, so a shift-click adds to the sort
+                  // or flips a column already in it, and a plain click replaces it.
+                  table
+                    .getColumn(column.id)
+                    ?.toggleSorting(direction === 'descending', multiSort && event.shiftKey);
                 }}
                 className={cn(
                   // Sortable headers become chips; the rest have nothing to do
@@ -546,15 +782,53 @@ export function DataTable<T extends TableRow>({
                           ? 'touch:[&>button]:bg-accent-subtle touch:[&>button]:text-accent-fg'
                           : 'touch:[&>button]:bg-surface-sunken',
                       ),
+                  resizable && !last && 'relative',
                   column.className,
                 )}
-                {...(column.width === undefined ? {} : { style: { width: column.width } })}
+                {...(width === undefined ? {} : { style: { width } })}
               >
                 {column.header}
+                {resizable && !last ? (
+                  <ResizeHandle
+                    name={columnName(column)}
+                    size={table.getColumn(column.id)?.getSize() ?? 0}
+                    resizing={table.getColumn(column.id)?.getIsResizing() ?? false}
+                    onPointerDown={(event) => {
+                      seedSizes(event.currentTarget);
+                      const header = table
+                        .getFlatHeaders()
+                        .find((candidate) => candidate.column.id === column.id);
+                      header?.getResizeHandler()(event.nativeEvent);
+                    }}
+                    onStep={(delta, from) => {
+                      seedSizes(from);
+                      table.setColumnSizing((old) => ({
+                        ...old,
+                        [column.id]: Math.max(
+                          MIN_COLUMN,
+                          (old[column.id] ?? table.getColumn(column.id)?.getSize() ?? 0) + delta,
+                        ),
+                      }));
+                    }}
+                  />
+                ) : null}
               </TableHead>
             );
           })}
         </TableRow>
+        {activeSorts.length > 0 ? (
+          // The phone's readout of the sort: the header row is gone, so this
+          // strip is what says the cards are in an order and which.
+          <tr className="hidden touch:flex">
+            <td
+              colSpan={totalColumns}
+              className="touch:flex touch:w-full touch:items-center touch:gap-1.5 touch:px-4 touch:py-3 touch:text-sm touch:font-semibold touch:text-fg-muted"
+            >
+              <ArrowUpDown aria-hidden className="size-4" />
+              Sorted by {describeSorts(activeSorts, columns)}
+            </td>
+          </tr>
+        ) : null}
       </TableHeader>
 
       <TableBody className={CARD.section}>
@@ -576,7 +850,61 @@ export function DataTable<T extends TableRow>({
           <tr aria-hidden style={{ height: paddingTop }} />
         ) : null}
 
-        {visible.map(({ row, index: rowIndex }) => {
+        {visible.map(({ item, index: rowIndex }) => {
+          if (item.kind === 'group') {
+            const group = item.row;
+            const value = String(group.groupingValue);
+            const isShut = shut.has(value);
+            const leaves = group.getLeafRows().map((leaf) => leaf.original);
+            return (
+              <TableRow
+                key={group.id}
+                className="bg-surface-sunken touch:flex touch:items-center touch:px-4 touch:py-1"
+              >
+                <TableCell
+                  colSpan={leadingColumns + 1}
+                  className={cn('h-9.5 py-0 text-sm font-semibold', CARD.cell)}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={!isShut}
+                    aria-label={`${value}, ${String(leaves.length)} ${leaves.length === 1 ? 'row' : 'rows'}`}
+                    onClick={() => {
+                      setCollapsed(
+                        isShut
+                          ? collapsed.filter((entry) => entry !== value)
+                          : [...collapsed, value],
+                      );
+                    }}
+                    className={cn(
+                      'relative -mx-1 inline-flex items-center gap-2 rounded-xs px-1 tap-target touch:min-h-tap',
+                      'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
+                    )}
+                  >
+                    <ChevronRight
+                      aria-hidden
+                      className={cn(
+                        'size-4 text-fg-muted transition-transform duration-(--animate-duration-fast)',
+                        !isShut && 'rotate-90',
+                      )}
+                    />
+                    {value}
+                    <span className="font-medium text-fg-muted tabular-nums">{leaves.length}</span>
+                  </button>
+                </TableCell>
+                {columns.slice(1).map((column) => (
+                  <TableCell
+                    key={column.id}
+                    numeric={column.numeric ?? false}
+                    className="h-9.5 py-0 text-sm font-medium text-fg-muted touch:hidden"
+                  >
+                    {column.aggregate?.(leaves) ?? null}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          }
+          const row = item.row;
           const id = rowId(row);
           const detail = renderDetail?.(row) ?? null;
           const isOpen = open.has(id) && detail !== null;
@@ -591,6 +919,10 @@ export function DataTable<T extends TableRow>({
                   CARD.row,
                   CARD.rowStart[(selectable ? 1 : 0) + (canReorder ? 1 : 0)],
                   renderDetail ? 'touch:pe-14' : onRowClick && 'touch:pe-10',
+                  // By position, not `even:`: a detail row, a group header or
+                  // a virtualizer's spacer would each shift an nth-child count.
+                  striped && rowIndex % 2 === 1 && !picked.has(id) && STRIPE,
+                  hasTrailing && CARD.titleBreak,
                 )}
                 leadClassName={cn(CARD.leadCell, CARD.lead[0])}
                 {...(virtualized
@@ -680,13 +1012,17 @@ export function DataTable<T extends TableRow>({
                     key={column.id}
                     numeric={column.numeric ?? false}
                     sticky={column.sticky ?? false}
-                    {...(index > 0 && column.shortHeader !== undefined
+                    {...(index > 0 && column.shortHeader !== undefined && !column.cardTrailing
                       ? { 'data-label': column.shortHeader }
                       : {})}
                     className={cn(
                       CARD.cell,
-                      index === 0 ? CARD.title : CARD.meta,
-                      index > 0 && column.shortHeader !== undefined && CARD.label,
+                      index === 0 ? CARD.title : column.cardTrailing ? CARD.trailing : CARD.meta,
+                      index === 0 && hasTrailing && CARD.titleBeside,
+                      index > 0 &&
+                        column.shortHeader !== undefined &&
+                        !column.cardTrailing &&
+                        CARD.label,
                       column.hideOnCard && 'touch:hidden',
                       column.className,
                     )}
@@ -732,6 +1068,17 @@ export function DataTable<T extends TableRow>({
         })}
 
         {paddingBottom > 0 ? <tr aria-hidden style={{ height: paddingBottom }} /> : null}
+
+        {onLoadMore || loadingMore ? (
+          <tr ref={endRef} className="touch:block">
+            <td colSpan={totalColumns} className="h-12 p-0 touch:block touch:h-13">
+              <span className="flex h-full items-center justify-center gap-2.5 text-sm font-medium text-fg-muted">
+                <Spinner size="sm" label="Loading more" className="text-accent-fg" />
+                <span aria-hidden>Loading more</span>
+              </span>
+            </td>
+          </tr>
+        ) : null}
       </TableBody>
     </Table>
   );
@@ -770,7 +1117,7 @@ export function DataTable<T extends TableRow>({
 
   return (
     <div className="min-w-0 space-y-3">
-      {reorderable && activeSort !== null ? (
+      {reorderable && activeSorts.length > 0 ? (
         <p role="status" className="text-xs text-fg-muted">
           Rows are sorted by a column, so they cannot be reordered by hand. Clear the sort to drag
           them.
@@ -890,5 +1237,61 @@ function DataRow({
       ) : null}
       {children}
     </TableRow>
+  );
+}
+
+/**
+ * The edge of a header that changes its column's width.
+ *
+ * A `separator` with a value, which is what the APG calls a focusable splitter:
+ * Tab reaches it, the arrow keys move it 16px at a time, and a screen reader
+ * hears the width. Hidden under a finger, where the table is a list of cards
+ * and has no columns to size.
+ */
+function ResizeHandle({
+  name,
+  size,
+  resizing,
+  onPointerDown,
+  onStep,
+}: {
+  name: string;
+  size: number;
+  resizing: boolean;
+  onPointerDown: (event: PointerEvent<HTMLSpanElement>) => void;
+  onStep: (delta: number, from: Element) => void;
+}): JSX.Element {
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${name}`}
+      aria-valuenow={Math.round(size)}
+      aria-valuemin={MIN_COLUMN}
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onKeyDown={(event: KeyboardEvent<HTMLSpanElement>) => {
+        const delta = event.key === 'ArrowRight' ? 16 : event.key === 'ArrowLeft' ? -16 : 0;
+        if (delta === 0) return;
+        event.preventDefault();
+        onStep(delta, event.currentTarget);
+      }}
+      className={cn(
+        // Inside its own header, not straddling the edge: a sticky header's
+        // next cell paints over anything that overhangs into it.
+        'group/resize absolute inset-y-0 end-0 z-10 flex w-2.5 cursor-col-resize touch-none justify-end touch:hidden',
+        'focus-visible:outline-2 focus-visible:outline-border-focus',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'my-2 w-0.5 rounded-full transition-[background-color,width] duration-(--animate-duration-fast)',
+          resizing
+            ? 'w-[3px] bg-accent'
+            : 'bg-border-strong group-hover/resize:bg-accent group-focus-visible/resize:bg-accent',
+        )}
+      />
+    </span>
   );
 }
