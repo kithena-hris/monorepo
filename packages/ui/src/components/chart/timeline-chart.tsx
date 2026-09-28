@@ -3,6 +3,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,7 +15,8 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
-import { useCoarsePointer } from '../../lib/use-media-query';
+import { springEasing, springSettleTime, springs } from '../../lib/spring';
+import { useCoarsePointer, usePrefersReducedMotion } from '../../lib/use-media-query';
 import { addMonths, formatIsoDate, parseIsoDate, type IsoDate } from '../calendar/calendar';
 import { Tooltip } from '../tooltip/tooltip';
 import {
@@ -331,6 +333,16 @@ interface GestureState {
   element: HTMLElement;
   /** How wide it started, for a resize. */
   width: number;
+  /**
+   * Where the element was drawn when it was picked up, relative to where its
+   * layout puts it. Non-zero when it is grabbed mid-settle: the drag carries
+   * on from the picture under the finger rather than jumping to the slot.
+   */
+  baseX: number;
+  baseY: number;
+  /** How far up and down it may travel, so it cannot leave the plot. */
+  minY: number;
+  maxY: number;
   /** The result so far, committed on pointer-up. */
   dayShift: number;
   targetLane: string;
@@ -512,6 +524,71 @@ export function TimelineChart({
   const live = useRef<HTMLParagraphElement | null>(null);
   const gesture = useRef<GestureState | null>(null);
   const instructionsId = useId();
+  const reducedMotion = usePrefersReducedMotion();
+
+  /*
+   * Items that have already made their entrance. A drop into another lane
+   * remounts the element, and replaying its pop-in there is a flicker at the
+   * exact moment the eye is on it. The entrance is for arriving, once.
+   */
+  const seen = useRef(new Set<string>());
+  useEffect(() => {
+    for (const id of bars.current.keys()) seen.current.add(id);
+  });
+
+  /*
+   * Where every bar was drawn just before a change, so the layout that follows
+   * can be played as motion rather than as a cut (FLIP: measure First, apply
+   * the Last layout, Invert the difference, Play it back to zero).
+   *
+   * Every bar, not only the one that moved. A drop that collides splits a lane
+   * into sub-lanes and pushes its neighbours down; animating the dropped bar
+   * alone left those to jump, which read as a flicker around a smooth drop.
+   */
+  const before = useRef<Map<string, DOMRect> | null>(null);
+  const captureLayout = (): void => {
+    before.current = new Map(
+      [...bars.current].map(([id, element]) => [id, element.getBoundingClientRect()]),
+    );
+  };
+
+  /** Plays whatever changed since `captureLayout` as motion, then forgets it. */
+  const settle = (): void => {
+    const first = before.current;
+    if (first === null) return;
+    before.current = null;
+    if (reducedMotion) return;
+
+    const easing = springEasing(springs.move);
+    const duration = springSettleTime(springs.move, 0.004) * 1000;
+    for (const [id, element] of bars.current) {
+      const from = first.get(id);
+      if (!from) continue;
+      for (const running of element.getAnimations()) running.cancel();
+      const to = element.getBoundingClientRect();
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      const resized = Math.abs(from.width - to.width) > 0.5;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && !resized) continue;
+      // `transform` composes with the diamond's own `translate` and `rotate`,
+      // which are separate properties, so a milestone keeps its shape while it
+      // travels. Width is animated in pixels for a resize; the percentage in
+      // the style attribute takes over again when the animation finishes.
+      element.animate(
+        [
+          {
+            transform: `translate(${String(dx)}px, ${String(dy)}px)`,
+            ...(resized ? { width: `${String(from.width)}px` } : {}),
+          },
+          { transform: 'none', ...(resized ? { width: `${String(to.width)}px` } : {}) },
+        ],
+        { duration, easing },
+      );
+    }
+  };
+  // After a drop that changed the layout, once the new layout is in the DOM
+  // and before it is painted, so the old position is never shown for a frame.
+  useLayoutEffect(settle);
 
   const drag = useDragZoom({
     total: Math.max(2, shownTicks.length),
@@ -573,7 +650,7 @@ export function TimelineChart({
     toRowLabel: string,
     dayShift: number,
     mode: TimelineDragMode,
-  ): void => {
+  ): boolean => {
     const target = rowOf(toRowLabel) ?? fromRow;
     const startDay = toDay(item.start);
     const endDay = item.end === undefined ? undefined : toDay(item.end);
@@ -608,7 +685,7 @@ export function TimelineChart({
     const applied =
       allowed(item, fromRow, target) && (dayShift !== 0 || target.label !== fromRow.label);
     onDrop?.(move, applied);
-    if (!applied) return;
+    if (!applied) return false;
 
     // Applied here as well as announced. The caller's data is the authority;
     // this is the copy that keeps the gesture honest until it arrives.
@@ -628,6 +705,7 @@ export function TimelineChart({
         nextEnd === undefined ? '' : ` to ${formatDate(toIso(nextEnd))}`
       }`,
     );
+    return true;
   };
 
   const beginDrag = (
@@ -645,6 +723,17 @@ export function TimelineChart({
     event.preventDefault();
     event.stopPropagation();
 
+    // Grabbed while still settling from the last drop: measure where it is
+    // drawn, stop the settle, and carry on from there. Cancelling alone would
+    // snap it to its slot under a finger that is holding it somewhere else.
+    const drawn = element.getBoundingClientRect();
+    for (const running of element.getAnimations()) running.cancel();
+    const laidOut = element.getBoundingClientRect();
+    const laneRects = lanes.map(({ row: lane }) => {
+      const rect = rowBoxes.current.get(lane.label)?.getBoundingClientRect();
+      return { label: lane.label, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 };
+    });
+
     gesture.current = {
       id: item.id,
       mode,
@@ -653,13 +742,14 @@ export function TimelineChart({
       startY: event.clientY,
       from: toDay(item.start),
       to: toDay(item.end ?? item.start) + 1,
-      laneTops: lanes.map(({ row: lane }) => {
-        const rect = rowBoxes.current.get(lane.label)?.getBoundingClientRect();
-        return { label: lane.label, top: rect?.top ?? 0, bottom: rect?.bottom ?? 0 };
-      }),
+      laneTops: laneRects,
       originLane: row.label,
       element,
-      width: element.getBoundingClientRect().width,
+      width: laidOut.width,
+      baseX: drawn.left - laidOut.left,
+      baseY: drawn.top - laidOut.top,
+      minY: (laneRects[0]?.top ?? laidOut.top) - laidOut.top,
+      maxY: (laneRects.at(-1)?.bottom ?? laidOut.bottom) - laidOut.bottom,
       dayShift: 0,
       targetLane: row.label,
       moved: false,
@@ -674,8 +764,12 @@ export function TimelineChart({
     if (!state) return;
 
     const dx = event.clientX - state.startX;
-    // Snap to whole days. A schedule has no sub-day resolution, and a bar that
-    // lands on "the 3rd and a bit" is a bar whose dates cannot be written down.
+    const dy = event.clientY - state.startY;
+    // The bar follows the pointer exactly; the *result* snaps. A schedule has
+    // no sub-day resolution, so the drop lands on a whole day and a lane, but
+    // a bar that jumped a day at a time under the finger was a bar that did
+    // not feel held. The readout says which day it will land on, and the
+    // release glides it there.
     const dayShift = Math.round(dx / state.pxPerDay);
     const lane =
       state.mode === 'move'
@@ -684,28 +778,27 @@ export function TimelineChart({
           )?.label ?? state.targetLane)
         : state.originLane;
 
+    // Written straight to the element. Sixty of these a second through React
+    // would re-render every bar in the chart for each frame of one drag.
+    const style = state.element.style;
+    const x = state.baseX + dx;
+    if (state.mode === 'move') {
+      const y = Math.min(Math.max(state.baseY + dy, state.minY), state.maxY);
+      style.transform = `translate(${String(x)}px, ${String(y)}px)`;
+    } else if (state.mode === 'resize-end') {
+      style.width = `${String(Math.max(state.width + dx, state.pxPerDay))}px`;
+    } else {
+      const shift = Math.min(dx, state.width - state.pxPerDay);
+      style.transform = `translateX(${String(state.baseX + shift)}px)`;
+      style.width = `${String(state.width - shift)}px`;
+    }
+    style.zIndex = '30';
+    style.opacity = '0.85';
+
     if (dayShift === state.dayShift && lane === state.targetLane) return;
     state.dayShift = dayShift;
     state.targetLane = lane;
     state.moved = state.moved || dayShift !== 0 || lane !== state.originLane;
-
-    const originTop = state.laneTops.find((entry) => entry.label === state.originLane)?.top ?? 0;
-    const targetTop = state.laneTops.find((entry) => entry.label === lane)?.top ?? originTop;
-    const shiftPx = dayShift * state.pxPerDay;
-
-    // Written straight to the element. Twenty of these a second through React
-    // would re-render every bar in the chart for each frame of one drag.
-    const style = state.element.style;
-    if (state.mode === 'move') {
-      style.transform = `translate(${String(shiftPx)}px, ${String(targetTop - originTop)}px)`;
-    } else if (state.mode === 'resize-end') {
-      style.width = `${String(Math.max(state.width + shiftPx, state.pxPerDay))}px`;
-    } else {
-      style.transform = `translateX(${String(shiftPx)}px)`;
-      style.width = `${String(Math.max(state.width - shiftPx, state.pxPerDay))}px`;
-    }
-    style.zIndex = '30';
-    style.opacity = '0.85';
 
     const edge = state.mode === 'resize-end' ? state.to - 1 + dayShift : state.from + dayShift;
     announce(`${formatDate(toIso(edge))}${lane === state.originLane ? '' : `, ${lane}`}`);
@@ -717,6 +810,9 @@ export function TimelineChart({
     if (!state) return;
     onDraggingChange?.(null);
 
+    // Measured before the drag's transform is cleared, so the glide into the
+    // slot starts from under the finger. See the layout effect above.
+    captureLayout();
     const style = state.element.style;
     style.transform = '';
     style.width = '';
@@ -726,8 +822,10 @@ export function TimelineChart({
     const entry = entries.find(({ item }) => item.id === state.id);
     if (!entry) return;
     // `commit` decides whether anything changed and reports either way, so a
-    // release that went nowhere still produces one `onDrop`.
-    commit(entry.item, entry.row, state.targetLane, state.dayShift, state.mode);
+    // release that went nowhere still produces one `onDrop`. When nothing
+    // changed there is no render to settle in, so the bar glides back to its
+    // slot from here: a refused drop returns rather than teleporting.
+    if (!commit(entry.item, entry.row, state.targetLane, state.dayShift, state.mode)) settle();
   };
 
   /**
@@ -744,12 +842,16 @@ export function TimelineChart({
 
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
+      captureLayout();
       const step = event.key === 'ArrowLeft' ? -1 : 1;
-      commit(item, row, row.label, step, event.altKey ? 'resize-end' : 'move');
+      if (!commit(item, row, row.label, step, event.altKey ? 'resize-end' : 'move')) settle();
     } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault();
       const next = lanes[laneIndex + (event.key === 'ArrowUp' ? -1 : 1)];
-      if (next) commit(item, row, next.row.label, 0, 'move');
+      if (next) {
+        captureLayout();
+        if (!commit(item, row, next.row.label, 0, 'move')) settle();
+      }
     }
   };
 
@@ -761,6 +863,11 @@ export function TimelineChart({
         'border-b border-border/70',
       (separator === 'banded' || separator === 'both') && index % 2 === 1 && 'bg-fg/[0.035]',
     );
+
+  // A lane that splits into sub-lanes after a drop grows rather than jumps, on
+  // the same spring as the bars settling into it.
+  const laneTransition =
+    'motion-safe:transition-[height] motion-safe:duration-(--animate-duration-spring-move) motion-safe:ease-(--ease-spring-move)';
 
   const todayDay = today === undefined ? null : toDay(today);
   const todayVisible = todayDay !== null && todayDay >= domainStart && todayDay < domainEnd;
@@ -799,7 +906,11 @@ export function TimelineChart({
               key={row.label}
               // Centred across the whole row however many sub-lanes it split
               // into: the name belongs to the lane, not to any one bar in it.
-              className={cn('flex flex-col justify-center pe-3', laneEdge(laneIndex))}
+              className={cn(
+                'flex flex-col justify-center pe-3',
+                laneTransition,
+                laneEdge(laneIndex),
+              )}
               style={{ height: rowHeight * count }}
             >
               <span className="truncate text-sm font-medium text-fg" title={row.label}>
@@ -853,7 +964,7 @@ export function TimelineChart({
                 if (element) rowBoxes.current.set(row.label, element);
                 else rowBoxes.current.delete(row.label);
               }}
-              className={cn('relative', laneEdge(laneIndex))}
+              className={cn('relative', laneTransition, laneEdge(laneIndex))}
               style={{ height: rowHeight * count }}
             >
               {/* An empty lane says so. A blank strip is indistinguishable from
@@ -920,13 +1031,15 @@ export function TimelineChart({
                         onSelect?.(item, row);
                       }}
                       className={cn(
-                        'tap-target absolute size-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[3px]',
-                        'motion-safe:animate-pop-in',
+                        // Square and upright. The diamond is drawn inside it:
+                        // rotating this element would rotate every transform
+                        // written onto it too, and a drag would then move the
+                        // mark along the diagonals instead of under the pointer.
+                        'tap-target absolute size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-[3px]',
+                        !seen.current.has(item.id) && 'motion-safe:animate-pop-in',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-                        solidTone[tone],
                         onSelect && 'cursor-pointer',
                         draggable && 'cursor-grab touch-none active:cursor-grabbing',
-                        selected && 'ring-2 ring-accent ring-offset-2 ring-offset-surface',
                         selectedId !== undefined && !selected && 'opacity-50',
                       )}
                       style={{
@@ -934,7 +1047,16 @@ export function TimelineChart({
                         top: top + rowHeight / 2,
                         animationDelay: stagger,
                       }}
-                    />
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'absolute inset-0 rotate-45 rounded-[3px]',
+                          solidTone[tone],
+                          selected && 'ring-2 ring-accent ring-offset-2 ring-offset-surface',
+                        )}
+                      />
+                    </TimelineMark>
                   );
                 }
 
@@ -967,7 +1089,7 @@ export function TimelineChart({
                     className={cn(
                       'absolute flex items-center overflow-hidden rounded-[8px] px-2 text-xs font-semibold',
                       'origin-left transition-[opacity,box-shadow] duration-(--animate-duration-fast)',
-                      'motion-safe:animate-grow-x',
+                      !seen.current.has(item.id) && 'motion-safe:animate-grow-x',
                       'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                       washTone[tone],
 
