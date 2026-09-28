@@ -108,6 +108,11 @@ export interface ChipProps
   onRemove?: () => void;
   /** Names the remove button. Defaults to "Remove" and the chip's text. */
   removeLabel?: string;
+  /**
+   * With `onRemove`, lands on the remove button, the only focusable part. `-1`
+   * suits a field that walks its chips with the arrow keys instead.
+   */
+  tabIndex?: number;
 }
 
 export function Chip({
@@ -122,6 +127,7 @@ export function Chip({
   disabled,
   children,
   type,
+  tabIndex,
   ...props
 }: ChipProps): JSX.Element {
   if (onRemove) {
@@ -141,6 +147,7 @@ export function Chip({
           type="button"
           aria-label={name}
           disabled={disabled}
+          tabIndex={tabIndex}
           onClick={onRemove}
           className={cn(
             'relative grid size-4.5 place-items-center rounded-full tap-target touch:size-6',
@@ -161,6 +168,7 @@ export function Chip({
       aria-pressed={selected}
       data-selected={selected || undefined}
       disabled={disabled}
+      tabIndex={tabIndex}
       className={cn(chip({ variant, invalid }), className)}
       {...props}
     >
