@@ -336,7 +336,7 @@ export const Disabled: Story = {
     <ContextMenu>
       <ContextMenuTrigger
         hint
-        className="inline-block rounded-md border border-border bg-surface px-3 py-2 text-base text-fg"
+        className="inline-block rounded-md bg-surface px-3 py-2 text-base text-fg shadow-sm"
       >
         Katherine Johnson: offboarding
       </ContextMenuTrigger>
@@ -347,11 +347,17 @@ export const Disabled: Story = {
         </ContextMenuItem>
         <ContextMenuItem disabled>
           <Pencil aria-hidden />
-          Edit compensation
+          <span className="flex flex-col gap-0.5">
+            Edit compensation
+            <span className="text-xs text-fg-muted">Only HR can change pay</span>
+          </span>
         </ContextMenuItem>
         <ContextMenuItem disabled>
           <Ban aria-hidden />
-          Reactivate, the leaving date has passed
+          <span className="flex flex-col gap-0.5">
+            Reactivate
+            <span className="text-xs text-fg-muted">The leaving date has passed</span>
+          </span>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem destructive>

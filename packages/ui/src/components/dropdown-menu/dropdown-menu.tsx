@@ -14,6 +14,17 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import {
+  boundaryOf,
+  menuIndicator,
+  menuItem,
+  menuItemDestructive,
+  menuItemIndented,
+  menuLabel,
+  menuSeparator,
+  menuShortcut,
+  menuSurface,
+} from '../../lib/menu';
 import { usePortalContainer } from '../../lib/portal-container';
 
 /**
@@ -194,19 +205,8 @@ export const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 
-const surface = [
-  'z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-surface p-1',
-  'text-fg shadow-lg',
-  'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
-  'origin-(--radix-dropdown-menu-content-transform-origin)',
-];
-
-const item = [
-  'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-base',
-  'outline-none select-none [&_svg]:size-4 [&_svg]:text-fg-subtle',
-  'data-highlighted:bg-surface-hover data-highlighted:text-fg',
-  'data-disabled:pointer-events-none data-disabled:text-fg-disabled',
-];
+const surface = [...menuSurface, 'origin-(--radix-dropdown-menu-content-transform-origin)'];
+const item = menuItem;
 
 export function DropdownMenuContent({
   className,
@@ -214,12 +214,14 @@ export function DropdownMenuContent({
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>): JSX.Element {
   const hover = useContext(HoverContext);
+  const container = usePortalContainer();
 
   return (
-    <DropdownMenuPrimitive.Portal container={usePortalContainer()}>
+    <DropdownMenuPrimitive.Portal container={container}>
       <DropdownMenuPrimitive.Content
         sideOffset={sideOffset}
         className={cn(surface, className)}
+        {...boundaryOf(container)}
         {...(hover?.enabled === true
           ? {
               onPointerEnter: hover.hold,
@@ -264,12 +266,7 @@ export function DropdownMenuItem({
 }): JSX.Element {
   return (
     <DropdownMenuPrimitive.Item
-      className={cn(
-        item,
-        destructive &&
-          'text-danger-fg data-highlighted:bg-danger-subtle data-highlighted:text-danger-fg [&_svg]:text-current',
-        className,
-      )}
+      className={cn(item, destructive && menuItemDestructive, className)}
       {...props}
     />
   );
@@ -281,10 +278,13 @@ export function DropdownMenuCheckboxItem({
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>): JSX.Element {
   return (
-    <DropdownMenuPrimitive.CheckboxItem className={cn(item, 'pl-8', className)} {...props}>
-      <span className="absolute left-2 grid size-4 place-items-center">
+    <DropdownMenuPrimitive.CheckboxItem
+      className={cn(item, menuItemIndented, className)}
+      {...props}
+    >
+      <span className={menuIndicator}>
         <DropdownMenuPrimitive.ItemIndicator>
-          <Check className="size-4" aria-hidden="true" />
+          <Check className="text-accent-fg!" aria-hidden="true" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -298,8 +298,8 @@ export function DropdownMenuRadioItem({
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>): JSX.Element {
   return (
-    <DropdownMenuPrimitive.RadioItem className={cn(item, 'pl-8', className)} {...props}>
-      <span className="absolute left-2 grid size-4 place-items-center">
+    <DropdownMenuPrimitive.RadioItem className={cn(item, menuItemIndented, className)} {...props}>
+      <span className={menuIndicator}>
         <DropdownMenuPrimitive.ItemIndicator>
           <span className="size-2 rounded-full bg-accent" />
         </DropdownMenuPrimitive.ItemIndicator>
@@ -313,39 +313,21 @@ export function DropdownMenuLabel({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>): JSX.Element {
-  return (
-    <DropdownMenuPrimitive.Label
-      className={cn(
-        'px-2 py-1.5 text-2xs font-semibold tracking-wide text-fg-subtle uppercase',
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <DropdownMenuPrimitive.Label className={cn(menuLabel, className)} {...props} />;
 }
 
 export function DropdownMenuSeparator({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>): JSX.Element {
-  return (
-    <DropdownMenuPrimitive.Separator
-      className={cn('-mx-1 my-1 h-px bg-border', className)}
-      {...props}
-    />
-  );
+  return <DropdownMenuPrimitive.Separator className={cn(menuSeparator, className)} {...props} />;
 }
 
 export function DropdownMenuShortcut({
   className,
   ...props
 }: ComponentPropsWithoutRef<'span'>): JSX.Element {
-  return (
-    <span
-      className={cn('ml-auto font-mono text-2xs tracking-widest text-fg-subtle', className)}
-      {...props}
-    />
-  );
+  return <span className={cn(menuShortcut, className)} {...props} />;
 }
 
 export function DropdownMenuSubTrigger({
@@ -355,11 +337,11 @@ export function DropdownMenuSubTrigger({
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubTrigger>): JSX.Element {
   return (
     <DropdownMenuPrimitive.SubTrigger
-      className={cn(item, 'data-[state=open]:bg-surface-hover', className)}
+      className={cn(item, 'data-[state=open]:bg-surface-sunken', className)}
       {...props}
     >
       {children}
-      <ChevronRight className="ml-auto size-4" aria-hidden="true" />
+      <ChevronRight className="ms-auto text-fg-subtle!" aria-hidden="true" />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }
@@ -368,9 +350,14 @@ export function DropdownMenuSubContent({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>): JSX.Element {
+  const container = usePortalContainer();
   return (
-    <DropdownMenuPrimitive.Portal container={usePortalContainer()}>
-      <DropdownMenuPrimitive.SubContent className={cn(surface, className)} {...props} />
+    <DropdownMenuPrimitive.Portal container={container}>
+      <DropdownMenuPrimitive.SubContent
+        className={cn(surface, className)}
+        {...boundaryOf(container)}
+        {...props}
+      />
     </DropdownMenuPrimitive.Portal>
   );
 }

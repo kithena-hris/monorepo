@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { UserX } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '../button/button';
@@ -10,6 +11,7 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogIcon,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './alert-dialog';
@@ -71,7 +73,7 @@ export const Playground: Story = {
   render: (args) => (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">Delete draft</Button>
+        <Button variant="danger">Delete draft</Button>
       </AlertDialogTrigger>
       <AlertDialogContent {...args}>
         <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
@@ -84,7 +86,7 @@ export const Playground: Story = {
             <Button>Keep draft</Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button variant="destructive">Delete draft</Button>
+            <Button variant="danger">Delete draft</Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -98,7 +100,7 @@ export const ConsequencesSpelledOut: Story = {
     docs: {
       description: {
         story:
-          'Compare the two triggers. The first asks "are you sure?"; the second says what will happen, to whom, and when. Only the second is a decision a person can actually make, and the difference costs one sentence.',
+          'Compare the two triggers. The first asks "are you sure?"; the second says what will happen, to whom, and when. Only the second is a decision a person can actually make, and the difference costs one sentence. `AlertDialogIcon` puts a glyph in a tinted disc above the title; under a finger the whole alert centres, the way the phone draws its own, and the two actions share the row.',
       },
     },
   },
@@ -116,7 +118,7 @@ export const ConsequencesSpelledOut: Story = {
               <Button>Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button variant="destructive">Continue</Button>
+              <Button variant="danger">Continue</Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -124,9 +126,12 @@ export const ConsequencesSpelledOut: Story = {
 
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="destructive">End employment</Button>
+          <Button variant="danger">End employment</Button>
         </AlertDialogTrigger>
         <AlertDialogContent {...args}>
+          <AlertDialogIcon tone="danger">
+            <UserX />
+          </AlertDialogIcon>
           <AlertDialogTitle>End Grace Hopper&apos;s employment?</AlertDialogTitle>
           <AlertDialogDescription>
             Employment ends on 30 September 2026. Payroll stops from the October run, system access
@@ -139,7 +144,7 @@ export const ConsequencesSpelledOut: Story = {
               <Button>Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button variant="destructive">End employment</Button>
+              <Button variant="danger">End employment</Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -169,7 +174,7 @@ export const TypeToConfirm: Story = {
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="destructive">Submit pay run to the bank</Button>
+          <Button variant="danger">Submit pay run to the bank</Button>
         </AlertDialogTrigger>
         <AlertDialogContent {...args}>
           <AlertDialogTitle>Submit the August pay run?</AlertDialogTitle>
@@ -196,7 +201,7 @@ export const TypeToConfirm: Story = {
               <Button>Cancel</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button variant="destructive" disabled={typed !== phrase}>
+              <Button variant="danger" disabled={typed !== phrase}>
                 Submit to bank
               </Button>
             </AlertDialogAction>
