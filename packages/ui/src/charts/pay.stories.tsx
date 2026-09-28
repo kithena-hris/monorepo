@@ -29,6 +29,45 @@ const bands = [
   },
 ];
 
+/** The design's four levels, in €k, with the people in each. */
+const levels = [
+  { label: 'Engineer L2', min: 62, max: 82, mid: 72, q: [67, 77], people: [64, 70, 74, 79] },
+  { label: 'Engineer L3', min: 78, max: 102, mid: 90, q: [84, 96], people: [82, 88, 92, 101, 105] },
+  { label: 'Designer L3', min: 70, max: 92, mid: 81, q: [75, 87], people: [72, 84, 68] },
+  { label: 'Manager L4', min: 100, max: 130, mid: 115, q: [107, 123], people: [112, 118] },
+] as const;
+
+const thousands = (value: number): string => `€${String(Math.round(value))}k`;
+
+/** Salary against level, by gender, nudged apart so the two groups do not sit on one another. */
+const byGender = (
+  [
+    [1, 64, 0],
+    [1, 66, 1],
+    [1, 70, 0],
+    [1, 63, 1],
+    [2, 78, 0],
+    [2, 76, 1],
+    [2, 82, 0],
+    [2, 80, 1],
+    [3, 90, 0],
+    [3, 87, 1],
+    [3, 96, 0],
+    [3, 92, 1],
+    [4, 112, 0],
+    [4, 108, 1],
+    [4, 120, 0],
+    [5, 132, 0],
+    [5, 128, 1],
+  ] as const
+).map(([level, salary, woman], index) => ({
+  label: `${woman ? 'Woman' : 'Man'}, L${String(level)} (${String(index + 1)})`,
+  x: level + (woman ? 0.12 : -0.12),
+  y: salary,
+  group: woman ? 'Women' : 'Men',
+  tone: woman ? ('chart-4' as const) : ('chart-1' as const),
+}));
+
 /** Deterministic: a random scatter is a different chart on every load. */
 const equity = Array.from({ length: 42 }, (_, index) => {
   const rating = ((index * 7) % 5) + 1;
@@ -119,17 +158,23 @@ export const OutOfBand: Story = {
     docs: {
       description: {
         story:
-          'Grade 5’s average sits above the band maximum. The marker is pinned to the edge and turns red, and the readout says *"above the maximum"*, three signals for one fact, because this is the row somebody is looking for and it must not be the one that reads as normal.',
+          '`people` draws one dot per salary. Inside the band a dot is hollow and quiet; outside it is solid red with a halo, and the row’s readout counts them in words: *"5 people, 1 outside it"*. Two signals and a sentence for one fact, because this is the dot somebody opened the chart to find.',
       },
     },
   },
+  args: {
+    label: 'People by band',
+    valueLabel: 'Salary, €k',
+    format: thousands,
+    data: levels.map(({ label, min, max, people }) => ({ label, min, max, people })),
+  },
   render: function OutOfBandStory(args) {
-    const [selected, setSelected] = useState<string | null>('Grade 5');
+    const [selected, setSelected] = useState<string | null>(null);
 
     return (
       <ChartCard
-        title="People by band, €"
-        description={selected === null ? '1 grade outside its band' : `Selected: ${selected}`}
+        title="People by band, €k"
+        description={selected === null ? '2 people outside their band' : `Selected: ${selected}`}
       >
         <RangeChart
           {...args}
@@ -150,24 +195,27 @@ export const Spread: Story = {
     docs: {
       description: {
         story:
-          '`spread` draws the middle half of a distribution across the band, with `value` as its median. It shows where most people sit without drawing any one of them, which is what a chart must do when a minimum or a maximum would be somebody’s salary.',
+          '`spread` draws the middle half of a distribution across the band, and `mid` with `midLabel="Median"` its median. It shows where most people sit without drawing any one of them, which is what a chart must do when a minimum or a maximum would be somebody’s salary. With `people` as well, the dots say how the rest are spread, and a key under the chart names the marks.',
       },
     },
   },
   args: {
-    valueLabel: 'Median',
+    label: 'Median and interquartile range',
+    valueLabel: 'Salary, €k',
     spreadLabel: 'Middle half',
-    data: bands.slice(0, 4).map(({ value, ...band }) => ({
-      ...band,
-      value,
-      spread: {
-        low: value - (band.max - band.min) * 0.15,
-        high: value + (band.max - band.min) * 0.12,
-      },
+    midLabel: 'Median',
+    format: thousands,
+    data: levels.map(({ label, min, max, mid, q, people }) => ({
+      label,
+      min,
+      max,
+      mid,
+      people,
+      spread: { low: q[0], high: q[1] },
     })),
   },
   render: (args) => (
-    <ChartCard title="Median and interquartile range, €">
+    <ChartCard title="Median and interquartile range, €k">
       <RangeChart {...args} />
     </ChartCard>
   ),
@@ -175,6 +223,36 @@ export const Spread: Story = {
 
 export const Equity: Story = {
   name: 'Pay equity scatter',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Salary against level, one dot per person, coloured by gender. `fitLines` draws a least-squares line per group: two near-parallel lines a step apart is what "paid less at the same level" looks like, and the gap between them is the number worth reading. The lines are written out for a screen reader too, since a slope is a conclusion only the eye can otherwise reach.',
+      },
+    },
+  },
+  render: () => (
+    <ChartCard
+      title="Salary vs level, by gender"
+      description="Women earn 2.1% less at the same level (adjusted)"
+    >
+      <ScatterChart
+        label="Salary against level, by gender"
+        data={byGender}
+        xLabel="Level"
+        yLabel="Salary, €k"
+        xRange={[0.5, 5.5]}
+        yRange={[55, 140]}
+        formatX={(value) => `L${value.toFixed(1).replace('.0', '')}`}
+        formatY={thousands}
+        fitLines
+      />
+    </ChartCard>
+  ),
+};
+
+export const CompaRatio: Story = {
+  name: 'Compa-ratio by rating',
   parameters: {
     docs: {
       description: {
