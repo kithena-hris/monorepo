@@ -4,8 +4,17 @@ import * as SwitchPrimitive from '@radix-ui/react-switch';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { Spinner } from '../spinner/spinner';
 
-export type SwitchProps = ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>;
+export interface SwitchProps extends ComponentPropsWithoutRef<typeof SwitchPrimitive.Root> {
+  /**
+   * The change is being saved. The thumb carries a spinner, the switch is
+   * `aria-busy`, and it ignores further presses until the write settles, at
+   * full opacity, because it has not been refused, only not yet confirmed.
+   * If the write fails, put `checked` back and say so in a `FieldError`.
+   */
+  loading?: boolean;
+}
 
 /**
  * Immediate on/off.
@@ -13,9 +22,22 @@ export type SwitchProps = ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>;
  * A switch commits the moment it moves. If the setting needs a Save button,
  * it is a checkbox, not a switch.
  */
-export function Switch({ className, ...props }: SwitchProps): JSX.Element {
+export function Switch({
+  className,
+  loading = false,
+  onClick,
+  ...props
+}: SwitchProps): JSX.Element {
   return (
     <SwitchPrimitive.Root
+      aria-busy={loading || undefined}
+      data-loading={loading || undefined}
+      onClick={(event) => {
+        // Radix skips its toggle when the event is already prevented, which
+        // covers Space and Enter too: both arrive here as a click.
+        if (loading) event.preventDefault();
+        onClick?.(event);
+      }}
       className={cn(
         // 36 x 22 at a desk; the 51 x 31 a phone's own switches use under a
         // thumb, where "on" is the platform's green rather than the accent.
@@ -30,13 +52,14 @@ export function Switch({ className, ...props }: SwitchProps): JSX.Element {
         'data-[state=checked]:bg-accent touch:data-[state=checked]:bg-success-solid',
         'aria-invalid:data-[state=checked]:bg-danger-solid',
         'disabled:cursor-not-allowed disabled:opacity-50',
+        'data-loading:cursor-progress',
         className,
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          'pointer-events-none block size-[1.125rem] rounded-full bg-fg-on-accent ring-0 touch:size-[1.6875rem]',
+          'pointer-events-none grid size-[1.125rem] place-items-center rounded-full bg-fg-on-accent ring-0 touch:size-[1.6875rem]',
           'shadow-[0_1px_3px_oklch(0%_0_0/0.25)]',
           /*
            * The thumb is the one part of a switch that is a physical object: it
@@ -54,7 +77,15 @@ export function Switch({ className, ...props }: SwitchProps): JSX.Element {
           'translate-x-0.5 data-[state=checked]:translate-x-4 touch:data-[state=checked]:translate-x-[1.375rem]',
           'rtl:-translate-x-0.5 rtl:data-[state=checked]:-translate-x-4 touch:rtl:data-[state=checked]:-translate-x-[1.375rem]',
         )}
-      />
+      >
+        {loading ? (
+          <Spinner
+            size={null}
+            label="Saving"
+            className="text-accent-fg [&_svg]:size-2.5 touch:[&_svg]:size-[1.1875rem]"
+          />
+        ) : null}
+      </SwitchPrimitive.Thumb>
     </SwitchPrimitive.Root>
   );
 }
