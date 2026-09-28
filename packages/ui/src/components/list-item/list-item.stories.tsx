@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Calendar, Check, Ellipsis, FileText, X } from 'lucide-react';
+import { Archive, Calendar, Check, Ellipsis, FileText, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
@@ -274,6 +275,66 @@ export const HoverActions: Story = {
       ))}
     </List>
   ),
+};
+
+export const SwipeActions: Story = {
+  name: 'Swipe actions',
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          'Pull a row towards the start to reveal its actions, and pull past most of its width to run the first one. It works with a finger, a pen or a mouse.',
+          '',
+          'The swipe is never the only way in. The actions are real buttons after the row in the tab order: Tab to one and the row slides open to show it, Escape or tabbing away closes it, and a screen reader reads them like any other button. `name` gives each a full accessible name when the label alone would repeat down the list.',
+        ].join('\n'),
+      },
+    },
+  },
+  render: function SwipeStory() {
+    const [done, setDone] = useState<string | null>(null);
+    return (
+      <div className="flex flex-col gap-2.5">
+        <List>
+          {(
+            [
+              ['Amara Okafor', 'Vacation · 14–18 Oct'],
+              ['Mei Tanaka', 'Expense · €248.00'],
+            ] as const
+          ).map(([name, request]) => (
+            <ListItem
+              key={name}
+              leading={<Avatar name={name} size="lg" />}
+              description={request}
+              swipeActions={[
+                {
+                  label: 'Archive',
+                  name: `Archive ${name}’s request`,
+                  icon: <Archive aria-hidden="true" />,
+                  onSelect: () => {
+                    setDone(`Archived ${name}’s request`);
+                  },
+                },
+                {
+                  label: 'Delete',
+                  name: `Delete ${name}’s request`,
+                  tone: 'danger',
+                  icon: <Trash2 aria-hidden="true" />,
+                  onSelect: () => {
+                    setDone(`Deleted ${name}’s request`);
+                  },
+                },
+              ]}
+            >
+              {name}
+            </ListItem>
+          ))}
+        </List>
+        <p aria-live="polite" className="text-sm text-fg-muted">
+          {done ?? 'Swipe left on a row, or Tab to its actions.'}
+        </p>
+      </div>
+    );
+  },
 };
 
 export const WithSectionHeaders: Story = {
